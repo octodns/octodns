@@ -1,0 +1,106 @@
+{
+  "data": [
+    {
+      "id": 11189898,
+      "zone_id": "unit.tests",
+      "parent_id": null,
+      "name": "naptr",
+      "content": "",
+      "ttl": 600,
+      "priority": null,
+      "type": "NAPTR",
+      "regions": [
+        "global"
+      ],
+      "system_record": false,
+      "created_at": "2017-03-09T15:55:11Z",
+      "updated_at": "2017-03-09T15:55:11Z"
+    },
+    {
+      "id": 11189899,
+      "zone_id": "unit.tests",
+      "parent_id": null,
+      "name": "naptr",
+      "content": "100 \"U\" \"SIP+D2U\" \"!^.*$!sip:info@bar.example.com!\" .",
+      "ttl": 600,
+      "priority": null,
+      "type": "NAPTR",
+      "regions": [
+        "global"
+      ],
+      "system_record": false,
+      "created_at": "2017-03-09T15:55:11Z",
+      "updated_at": "2017-03-09T15:55:11Z"
+    },
+    {
+      "id": 11189878,
+      "zone_id": "unit.tests",
+      "parent_id": null,
+      "name": "_srv._tcp",
+      "content": "",
+      "ttl": 600,
+      "priority": 10,
+      "type": "SRV",
+      "regions": [
+        "global"
+      ],
+      "system_record": false,
+      "created_at": "2017-03-09T15:55:08Z",
+      "updated_at": "2017-03-09T15:55:08Z"
+    },
+    {
+      "id": 11189879,
+      "zone_id": "unit.tests",
+      "parent_id": null,
+      "name": "_srv._tcp",
+      "content": "20 foo-2.unit.tests",
+      "ttl": 600,
+      "priority": 12,
+      "type": "SRV",
+      "regions": [
+        "global"
+      ],
+      "system_record": false,
+      "created_at": "2017-03-09T15:55:08Z",
+      "updated_at": "2017-03-09T15:55:08Z"
+    },
+    {
+      "id": 11189882,
+      "zone_id": "unit.tests",
+      "parent_id": null,
+      "name": "",
+      "content": "",
+      "ttl": 3600,
+      "priority": null,
+      "type": "SSHFP",
+      "regions": [
+        "global"
+      ],
+      "system_record": false,
+      "created_at": "2017-03-09T15:55:08Z",
+      "updated_at": "2017-03-09T15:55:08Z"
+    },
+    {
+      "id": 11189883,
+      "zone_id": "unit.tests",
+      "parent_id": null,
+      "name": "",
+      "content": "1 1",
+      "ttl": 3600,
+      "priority": null,
+      "type": "SSHFP",
+      "regions": [
+        "global"
+      ],
+      "system_record": false,
+      "created_at": "2017-03-09T15:55:09Z",
+      "updated_at": "2017-03-09T15:55:09Z"
+    }
+  ],
+  "pagination": {
+    "current_page": 1,
+    "per_page": 20,
+    "total_entries": 6,
+    "total_pages": 1
+  }
+}

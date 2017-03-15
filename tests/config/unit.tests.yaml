@@ -1,0 +1,108 @@
+---
+? ''
+: - geo:
+      AF:
+      - 2.2.3.4
+      - 2.2.3.5
+      AS-JP:
+      - 3.2.3.4
+      - 3.2.3.5
+      NA-US:
+      - 4.2.3.4
+      - 4.2.3.5
+      NA-US-CA:
+      - 5.2.3.4
+      - 5.2.3.5
+    ttl: 300
+    type: A
+    values:
+    - 1.2.3.4
+    - 1.2.3.5
+  - ttl: 3600
+    type: SSHFP
+    values:
+    - algorithm: 1
+      fingerprint: bf6b6825d2977c511a475bbefb88aad54a92ac73
+      fingerprint_type: 1
+    - algorithm: 1
+      fingerprint: 7491973e5f8b39d5327cd4e08bc81b05f7710b49
+      fingerprint_type: 1
+  - type: NS
+    values:
+    - 6.2.3.4.
+    - 7.2.3.4.
+_srv._tcp:
+  ttl: 600
+  type: SRV
+  values:
+  - port: 30
+    priority: 12
+    target: foo-2.unit.tests.
+    weight: 20
+  - port: 30
+    priority: 10
+    target: foo-1.unit.tests.
+    weight: 20
+aaaa:
+  ttl: 600
+  type: AAAA
+  value: 2601:644:500:e210:62f8:1dff:feb8:947a
+cname:
+  ttl: 300
+  type: CNAME
+  value: unit.tests.
+mx:
+  ttl: 300
+  type: MX
+  values:
+  - priority: 40
+    value: smtp-1.unit.tests.
+  - priority: 20
+    value: smtp-2.unit.tests.
+  - priority: 30
+    value: smtp-3.unit.tests.
+  - priority: 10
+    value: smtp-4.unit.tests.
+naptr:
+  ttl: 600
+  type: NAPTR
+  values:
+  - flags: U
+    order: 100
+    preference: 100
+    regexp: '!^.*$!sip:info@bar.example.com!'
+    replacement: .
+    service: SIP+D2U
+  - flags: S
+    order: 10
+    preference: 100
+    regexp: '!^.*$!sip:info@bar.example.com!'
+    replacement: .
+    service: SIP+D2U
+ptr:
+  ttl: 300
+  type: PTR
+  value: foo.bar.com.
+spf:
+  ttl: 600
+  type: SPF
+  value: v=spf1 ip4:192.168.0.1/16-all
+sub:
+  type: 'NS'
+  values:
+  - 6.2.3.4.
+  - 7.2.3.4.
+txt:
+  ttl: 600
+  type: TXT
+  values:
+    - Bah bah black sheep
+    - have you any wool.
+www:
+  ttl: 300
+  type: A
+  value: 2.2.3.6
+www.sub:
+  ttl: 300
+  type: A
+  value: 2.2.3.6

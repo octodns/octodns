@@ -1,0 +1,6 @@
+providers:
+  yaml:
+    class: octodns.provider.yaml.YamlProvider
+    int: 42
+    directory: env/DOES_NOT_EXIST
+zones: {}

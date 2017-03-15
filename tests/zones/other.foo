@@ -1,0 +1,7 @@
+# Single value A without ttl
++www.example.com:10.2.3.6
+
+# CNAME with trailing comment
+Ccname.example.com:www.example.com # this is a comment
+
++www.other.foo:14.2.3.6

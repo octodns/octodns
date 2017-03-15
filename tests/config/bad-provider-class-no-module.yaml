@@ -1,0 +1,4 @@
+providers:
+  dne:
+    class: DoesntExistProvider
+zones: {}

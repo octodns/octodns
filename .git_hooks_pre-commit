@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -e
+
+HOOKS=`dirname $0`
+GIT=`dirname $HOOKS`
+ROOT=`dirname $GIT`
+
+source $ROOT/env/bin/activate
+$ROOT/script/lint
+$ROOT/script/test

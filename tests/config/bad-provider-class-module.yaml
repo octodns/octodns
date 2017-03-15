@@ -1,0 +1,4 @@
+providers:
+  dne:
+    class: octodns.provider.yaml.DoesntExistProvider
+zones: {}

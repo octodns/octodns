@@ -1,0 +1,4 @@
+providers:
+  dne:
+    class: foo.bar.DoesntExistProvider
+zones: {}

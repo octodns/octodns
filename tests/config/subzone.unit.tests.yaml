@@ -1,0 +1,10 @@
+---
+2:
+  type: A
+  value: 2.4.4.4
+12:
+  type: A
+  value: 12.4.4.4
+test:
+  type: A
+  value: 4.4.4.4

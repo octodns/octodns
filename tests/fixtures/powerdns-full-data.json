@@ -1,0 +1,235 @@
+{
+    "account": "",
+    "dnssec": false,
+    "id": "unit.tests.",
+    "kind": "Master",
+    "last_check": 0,
+    "masters": [],
+    "name": "unit.tests.",
+    "notified_serial": 2017012803,
+    "rrsets": [
+        {
+            "comments": [],
+            "name": "mx.unit.tests.",
+            "records": [
+                {
+                    "content": "40 smtp-1.unit.tests.",
+                    "disabled": false
+                },
+                {
+                    "content": "20 smtp-2.unit.tests.",
+                    "disabled": false
+                },
+                {
+                    "content": "30 smtp-3.unit.tests.",
+                    "disabled": false
+                },
+                {
+                    "content": "10 smtp-4.unit.tests.",
+                    "disabled": false
+                }
+            ],
+            "ttl": 300,
+            "type": "MX"
+        },
+        {
+            "comments": [],
+            "name": "sub.unit.tests.",
+            "records": [
+                {
+                    "content": "6.2.3.4.",
+                    "disabled": false
+                }, {
+                    "content": "7.2.3.4.",
+                    "disabled": false
+                }
+            ],
+            "ttl": 3600,
+            "type": "NS"
+        },
+        {
+            "comments": [],
+            "name": "www.unit.tests.",
+            "records": [
+                {
+                    "content": "2.2.3.6",
+                    "disabled": false
+                }
+            ],
+            "ttl": 300,
+            "type": "A"
+        },
+        {
+            "comments": [],
+            "name": "_srv._tcp.unit.tests.",
+            "records": [
+                {
+                    "content": "10 20 30 foo-1.unit.tests.",
+                    "disabled": false
+                },
+                {
+                    "content": "12 20 30 foo-2.unit.tests.",
+                    "disabled": false
+                }
+            ],
+            "ttl": 600,
+            "type": "SRV"
+        },
+        {
+            "comments": [],
+            "name": "txt.unit.tests.",
+            "records": [
+                {
+                    "content": "\"Bah bah black sheep\"",
+                    "disabled": false
+                },
+                {
+                    "content": "\"have you any wool.\"",
+                    "disabled": false
+                }
+            ],
+            "ttl": 600,
+            "type": "TXT"
+        },
+        {
+            "comments": [],
+            "name": "naptr.unit.tests.",
+            "records": [
+                {
+                    "content": "10 100 \"S\" \"SIP+D2U\" \"!^.*$!sip:info@bar.example.com!\" .",
+                    "disabled": false
+                },
+                {
+                    "content": "100 100 \"U\" \"SIP+D2U\" \"!^.*$!sip:info@bar.example.com!\" .",
+                    "disabled": false
+                }
+            ],
+            "ttl": 600,
+            "type": "NAPTR"
+        },
+        {
+            "comments": [],
+            "name": "ptr.unit.tests.",
+            "records": [
+                {
+                    "content": "foo.bar.com.",
+                    "disabled": false
+                }
+            ],
+            "ttl": 300,
+            "type": "PTR"
+        },
+        {
+            "comments": [],
+            "name": "spf.unit.tests.",
+            "records": [
+                {
+                    "content": "\"v=spf1 ip4:192.168.0.1/16-all\"",
+                    "disabled": false
+                }
+            ],
+            "ttl": 600,
+            "type": "SPF"
+        },
+        {
+            "comments": [],
+            "name": "cname.unit.tests.",
+            "records": [
+                {
+                    "content": "unit.tests.",
+                    "disabled": false
+                }
+            ],
+            "ttl": 300,
+            "type": "CNAME"
+        },
+        {
+            "comments": [],
+            "name": "www.sub.unit.tests.",
+            "records": [
+                {
+                    "content": "2.2.3.6",
+                    "disabled": false
+                }
+            ],
+            "ttl": 300,
+            "type": "A"
+        },
+        {
+            "comments": [],
+            "name": "aaaa.unit.tests.",
+            "records": [
+                {
+                    "content": "2601:644:500:e210:62f8:1dff:feb8:947a",
+                    "disabled": false
+                }
+            ],
+            "ttl": 600,
+            "type": "AAAA"
+        },
+        {
+            "comments": [],
+            "name": "unit.tests.",
+            "records": [
+                {
+                    "content": "1 1 7491973e5f8b39d5327cd4e08bc81b05f7710b49",
+                    "disabled": false
+                },
+                {
+                    "content": "1 1 bf6b6825d2977c511a475bbefb88aad54a92ac73",
+                    "disabled": false
+                }
+            ],
+            "ttl": 3600,
+            "type": "SSHFP"
+        },
+        {
+            "comments": [],
+            "name": "unit.tests.",
+            "records": [
+                {
+                    "content": "ns1.ext.unit.tests. hostmaster.unit.tests. 2017012803 3600 600 604800 60",
+                    "disabled": false
+                }
+            ],
+            "ttl": 3600,
+            "type": "SOA"
+        },
+        {
+            "comments": [],
+            "name": "unit.tests.",
+            "records": [
+                {
+                    "content": "1.1.1.1.",
+                    "disabled": false
+                },
+                {
+                    "content": "4.4.4.4.",
+                    "disabled": false
+                }
+            ],
+            "ttl": 600,
+            "type": "NS"
+        },
+        {
+            "comments": [],
+            "name": "unit.tests.",
+            "records": [
+                {
+                    "content": "1.2.3.5",
+                    "disabled": false
+                },
+                {
+                    "content": "1.2.3.4",
+                    "disabled": false
+                }
+            ],
+            "ttl": 300,
+            "type": "A"
+        }
+    ],
+    "serial": 2017012803,
+    "soa_edit": "",
+    "soa_edit_api": "INCEPTION-INCREMENT",
+    "url": "api/v1/servers/localhost/zones/unit.tests."
+}

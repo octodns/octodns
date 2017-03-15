@@ -1,0 +1,4 @@
+providers:
+  yaml:
+    class: octodns.provider.yaml.YamlProvider
+zones: {}

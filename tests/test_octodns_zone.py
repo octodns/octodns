@@ -1,0 +1,174 @@
+#
+#
+#
+
+from __future__ import absolute_import, division, print_function, \
+    unicode_literals
+
+from unittest import TestCase
+
+from octodns.record import ARecord, AaaaRecord, Create, Delete, Record, Update
+from octodns.zone import DuplicateRecordException, SubzoneRecordException, Zone
+
+from helpers import SimpleProvider
+
+
+class TestZone(TestCase):
+
+    def test_lowering(self):
+        zone = Zone('UniT.TEsTs.', [])
+        self.assertEquals('unit.tests.', zone.name)
+
+    def test_hostname_from_fqdn(self):
+        zone = Zone('unit.tests.', [])
+        for hostname, fqdn in (
+            ('', 'unit.tests.'),
+            ('', 'unit.tests'),
+            ('foo', 'foo.unit.tests.'),
+            ('foo', 'foo.unit.tests'),
+            ('foo.bar', 'foo.bar.unit.tests.'),
+            ('foo.bar', 'foo.bar.unit.tests'),
+            ('foo.unit.tests', 'foo.unit.tests.unit.tests.'),
+            ('foo.unit.tests', 'foo.unit.tests.unit.tests'),
+        ):
+            self.assertEquals(hostname, zone.hostname_from_fqdn(fqdn))
+
+    def test_add_record(self):
+        zone = Zone('unit.tests.', [])
+
+        a = ARecord(zone, 'a', {'ttl': 42, 'value': '1.1.1.1'})
+        b = ARecord(zone, 'b', {'ttl': 42, 'value': '1.1.1.1'})
+
+        zone.add_record(a)
+        self.assertEquals(zone.records, set([a]))
+        # Can't add record with same name & type
+        with self.assertRaises(DuplicateRecordException) as ctx:
+            zone.add_record(a)
+        self.assertEquals('Duplicate record a.unit.tests., type A',
+                          ctx.exception.message)
+        self.assertEquals(zone.records, set([a]))
+        # Can add dup name, with different type
+        zone.add_record(b)
+        self.assertEquals(zone.records, set([a, b]))
+
+    def test_changes(self):
+        before = Zone('unit.tests.', [])
+        a = ARecord(before, 'a', {'ttl': 42, 'value': '1.1.1.1'})
+        before.add_record(a)
+        b = AaaaRecord(before, 'b', {'ttl': 42, 'value': '1:1:1::1'})
+        before.add_record(b)
+
+        after = Zone('unit.tests.', [])
+        after.add_record(a)
+        after.add_record(b)
+
+        target = SimpleProvider()
+
+        # before == after -> no changes
+        self.assertFalse(before.changes(after, target))
+
+        # add a record, delete a record -> [Delete, Create]
+        c = ARecord(before, 'c', {'ttl': 42, 'value': '1.1.1.1'})
+        after.add_record(c)
+        after.records.remove(b)
+        self.assertEquals(after.records, set([a, c]))
+        changes = before.changes(after, target)
+        self.assertEquals(2, len(changes))
+        for change in changes:
+            if isinstance(change, Create):
+                create = change
+            elif isinstance(change, Delete):
+                delete = change
+        self.assertEquals(b, delete.existing)
+        self.assertFalse(delete.new)
+        self.assertEquals(c, create.new)
+        self.assertFalse(create.existing)
+        delete.__repr__()
+        create.__repr__()
+
+        after = Zone('unit.tests.', [])
+        changed = ARecord(before, 'a', {'ttl': 42, 'value': '2.2.2.2'})
+        after.add_record(changed)
+        after.add_record(b)
+        changes = before.changes(after, target)
+        self.assertEquals(1, len(changes))
+        update = changes[0]
+        self.assertIsInstance(update, Update)
+        # Using changes here to get a full equality
+        self.assertFalse(a.changes(update.existing, target))
+        self.assertFalse(changed.changes(update.new, target))
+        update.__repr__()
+
+    def test_unsupporting(self):
+
+        class NoAaaaProvider(object):
+            id = 'no-aaaa'
+            SUPPORTS_GEO = False
+
+            def supports(self, record):
+                return record._type != 'AAAA'
+
+        current = Zone('unit.tests.', [])
+
+        desired = Zone('unit.tests.', [])
+        a = ARecord(desired, 'a', {'ttl': 42, 'value': '1.1.1.1'})
+        desired.add_record(a)
+        aaaa = AaaaRecord(desired, 'b', {'ttl': 42, 'value': '1:1:1::1'})
+        desired.add_record(aaaa)
+
+        # Only create the supported A, not the AAAA
+        changes = current.changes(desired, NoAaaaProvider())
+        self.assertEquals(1, len(changes))
+        self.assertIsInstance(changes[0], Create)
+
+        # Only delete the supported A, not the AAAA
+        changes = desired.changes(current, NoAaaaProvider())
+        self.assertEquals(1, len(changes))
+        self.assertIsInstance(changes[0], Delete)
+
+    def test_missing_dot(self):
+        with self.assertRaises(Exception) as ctx:
+            Zone('not.allowed', [])
+        self.assertTrue('missing ending dot' in ctx.exception.message)
+
+    def test_sub_zones(self):
+        zone = Zone('unit.tests.', set(['sub', 'barred']))
+
+        # NS for exactly the sub is allowed
+        record = Record.new(zone, 'sub', {
+            'ttl': 3600,
+            'type': 'NS',
+            'values': ['1.2.3.4.', '2.3.4.5.'],
+        })
+        zone.add_record(record)
+        self.assertEquals(set([record]), zone.records)
+
+        # non-NS for exactly the sub is rejected
+        record = Record.new(zone, 'sub', {
+            'ttl': 3600,
+            'type': 'A',
+            'values': ['1.2.3.4', '2.3.4.5'],
+        })
+        with self.assertRaises(SubzoneRecordException) as ctx:
+            zone.add_record(record)
+        self.assertTrue('not of type NS', ctx.exception.message)
+
+        # NS for something below the sub is rejected
+        record = Record.new(zone, 'foo.sub', {
+            'ttl': 3600,
+            'type': 'NS',
+            'values': ['1.2.3.4.', '2.3.4.5.'],
+        })
+        with self.assertRaises(SubzoneRecordException) as ctx:
+            zone.add_record(record)
+        self.assertTrue('under a managed sub-zone', ctx.exception.message)
+
+        # A for something below the sub is rejected
+        record = Record.new(zone, 'foo.bar.sub', {
+            'ttl': 3600,
+            'type': 'A',
+            'values': ['1.2.3.4', '2.3.4.5'],
+        })
+        with self.assertRaises(SubzoneRecordException) as ctx:
+            zone.add_record(record)
+        self.assertTrue('under a managed sub-zone', ctx.exception.message)
