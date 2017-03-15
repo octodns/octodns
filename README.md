@@ -216,4 +216,4 @@ OctoDNS is licensed under the [MIT license](LICENSE).
 
 ## Authors
 
-OctoDNS was designed and authored by [Ross McFarland](https://github.com/ross) and is now maintained, reviewed, and tested by Ross and the rest of the Site Reliability Engineering team at GitHub.
+OctoDNS was designed and authored by [Ross McFarland](https://github.com/ross) and [Joe Williams](https://github.com/joewilliams). It is now maintained, reviewed, and tested by Ross, Joe, and the rest of the Site Reliability Engineering team at GitHub.
