@@ -1,4 +1,4 @@
-OctoDNS# OctoDNS
+# OctoDNS
 
 ## DNS as code - Tools for managing DNS across multiple providers
 
