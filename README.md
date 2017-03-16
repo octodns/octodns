@@ -208,7 +208,7 @@ Please see our [contributing document](/.github/CONTRIBUTING.md) if you would li
 
 ## Getting help
 
-If you have a problem or suggestion, please [open an issue](https://github.com/github/octodns/issues/new) in this repository, and we will do our best to help. Please note that this project adheres to the [Open Code of Conduct](http://todogroup.org/opencodeofconduct/#GitHub%20OctoDNS/opensource@github.com).
+If you have a problem or suggestion, please [open an issue](https://github.com/github/octodns/issues/new) in this repository, and we will do our best to help. Please note that this project adheres to the [Contributor Covenant Code of Conduct](/CODE_OF_CONDUCT.md).
 
 ## License
 

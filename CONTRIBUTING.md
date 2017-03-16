@@ -2,7 +2,7 @@
 
 Hi there! We're thrilled that you'd like to contribute to OctoDNS. Your help is essential for keeping it great.
 
-Please note that this project adheres to the [Open Code of Conduct](http://todogroup.org/opencodeofconduct/#GitHub%20OctoDNS/opensource@github.com). By participating in this project you agree to abide by its terms.
+Please note that this project adheres to the [Contributor Covenant Code of Conduct](/CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
 
 If you have questions, or you'd like to check with us before embarking on a major development effort, please [open an issue](https://github.com/github/octodns/issues/new).
 
