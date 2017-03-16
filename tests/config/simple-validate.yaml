@@ -1,0 +1,13 @@
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+  simple:
+    class: helpers.SimpleProvider
+zones:
+  unit.tests.:
+    sources:
+    - in
+    - simple
+    targets:
+    - dump

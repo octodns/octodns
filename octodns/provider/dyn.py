@@ -1,0 +1,651 @@
+#
+#
+#
+
+from __future__ import absolute_import, division, print_function, \
+    unicode_literals
+
+from collections import defaultdict
+from dyn.tm.errors import DynectGetError
+from dyn.tm.services.dsf import DSFARecord, DSFAAAARecord, DSFFailoverChain, \
+    DSFMonitor, DSFNode, DSFRecordSet, DSFResponsePool, DSFRuleset, \
+    TrafficDirector, get_all_dsf_monitors, get_all_dsf_services, \
+    get_response_pool
+from dyn.tm.session import DynectSession
+from dyn.tm.zones import Zone as DynZone
+from logging import getLogger
+from uuid import uuid4
+
+from ..record import Record
+from .base import BaseProvider
+
+
+class _CachingDynZone(DynZone):
+    log = getLogger('_CachingDynZone')
+
+    _cache = {}
+
+    @classmethod
+    def get(cls, zone_name, create=False):
+        cls.log.debug('get: zone_name=%s, create=%s', zone_name, create)
+        # This works in dyn zone names, without the trailing .
+        try:
+            dyn_zone = cls._cache[zone_name]
+            cls.log.debug('get:   cache hit')
+        except KeyError:
+            cls.log.debug('get:   cache miss')
+            try:
+                dyn_zone = _CachingDynZone(zone_name)
+                cls.log.debug('get:   fetched')
+            except DynectGetError:
+                if not create:
+                    cls.log.debug("get:   does't exist")
+                    return None
+                # this value shouldn't really matter, it's not tied to
+                # whois or anything
+                hostname = 'hostmaster@{}'.format(zone_name[:-1])
+                # Try again with the params necessary to create
+                dyn_zone = _CachingDynZone(zone_name, ttl=3600,
+                                           contact=hostname,
+                                           serial_style='increment')
+                cls.log.debug('get:   created')
+            cls._cache[zone_name] = dyn_zone
+
+        return dyn_zone
+
+    @classmethod
+    def flush_zone(cls, zone_name):
+        '''Flushes the zone cache, if there is one'''
+        cls.log.debug('flush_zone: zone_name=%s', zone_name)
+        try:
+            del cls._cache[zone_name]
+        except KeyError:
+            pass
+
+    def __init__(self, zone_name, *args, **kwargs):
+        super(_CachingDynZone, self).__init__(zone_name, *args, **kwargs)
+        self.flush_cache()
+
+    def flush_cache(self):
+        self._cached_records = None
+
+    def get_all_records(self):
+        if self._cached_records is None:
+            self._cached_records = \
+                super(_CachingDynZone, self).get_all_records()
+        return self._cached_records
+
+    def publish(self):
+        super(_CachingDynZone, self).publish()
+        self.flush_cache()
+
+
+class DynProvider(BaseProvider):
+    RECORDS_TO_TYPE = {
+        'a_records': 'A',
+        'aaaa_records': 'AAAA',
+        'cname_records': 'CNAME',
+        'mx_records': 'MX',
+        'naptr_records': 'NAPTR',
+        'ns_records': 'NS',
+        'ptr_records': 'PTR',
+        'sshfp_records': 'SSHFP',
+        'spf_records': 'SPF',
+        'srv_records': 'SRV',
+        'txt_records': 'TXT',
+    }
+    TYPE_TO_RECORDS = {
+        'A': 'a_records',
+        'AAAA': 'aaaa_records',
+        'CNAME': 'cname_records',
+        'MX': 'mx_records',
+        'NAPTR': 'naptr_records',
+        'NS': 'ns_records',
+        'PTR': 'ptr_records',
+        'SSHFP': 'sshfp_records',
+        'SPF': 'spf_records',
+        'SRV': 'srv_records',
+        'TXT': 'txt_records',
+    }
+
+    # https://help.dyn.com/predefined-geotm-regions-groups/
+    REGION_CODES = {
+        'NA': 11,  # Continental North America
+        'SA': 12,  # Continental South America
+        'EU': 13,  # Contentinal Europe
+        'AF': 14,  # Continental Africa
+        'AS': 15,  # Contentinal Asia
+        'OC': 16,  # Contentinal Austrailia/Oceania
+        'AN': 17,  # Continental Antartica
+    }
+
+    # Going to be lazy loaded b/c it makes a (slow) request, global
+    _dyn_sess = None
+
+    def __init__(self, id, customer, username, password,
+                 traffic_directors_enabled=False, *args, **kwargs):
+        self.log = getLogger('DynProvider[{}]'.format(id))
+        self.log.debug('__init__: id=%s, customer=%s, username=%s, '
+                       'password=***, traffic_directors_enabled=%s', id,
+                       customer, username, traffic_directors_enabled)
+        # we have to set this before calling super b/c SUPPORTS_GEO requires it
+        self.traffic_directors_enabled = traffic_directors_enabled
+        super(DynProvider, self).__init__(id, *args, **kwargs)
+        self.customer = customer
+        self.username = username
+        self.password = password
+
+        self._cache = {}
+        self._traffic_directors = None
+        self._traffic_director_monitors = None
+
+    @property
+    def SUPPORTS_GEO(self):
+        return self.traffic_directors_enabled
+
+    def _check_dyn_sess(self):
+        if self._dyn_sess:
+            self.log.debug('_check_dyn_sess: exists')
+            return
+
+        self.log.debug('_check_dyn_sess: creating')
+        # Dynect's client is ugly, you create a session object, but then don't
+        # use it for anything. It just makes the other objects work behind the
+        # scences. :-( That probably means we can only support a single set of
+        # dynect creds
+        self._dyn_sess = DynectSession(self.customer, self.username,
+                                       self.password)
+
+    def _data_for_A(self, _type, records):
+        return {
+            'type': _type,
+            'ttl': records[0].ttl,
+            'values': [r.address for r in records]
+        }
+
+    _data_for_AAAA = _data_for_A
+
+    def _data_for_CNAME(self, _type, records):
+        record = records[0]
+        return {
+            'type': _type,
+            'ttl': record.ttl,
+            'value': record.cname,
+        }
+
+    def _data_for_MX(self, _type, records):
+        return {
+            'type': _type,
+            'ttl': records[0].ttl,
+            'values': [{'priority': r.preference, 'value': r.exchange}
+                       for r in records],
+        }
+
+    def _data_for_NAPTR(self, _type, records):
+        return {
+            'type': _type,
+            'ttl': records[0].ttl,
+            'values': [{
+                'order': r.order,
+                'preference': r.preference,
+                'flags': r.flags,
+                'service': r.services,
+                'regexp': r.regexp,
+                'replacement': r.replacement,
+            } for r in records]
+        }
+
+    def _data_for_NS(self, _type, records):
+        return {
+            'type': _type,
+            'ttl': records[0].ttl,
+            'values': [r.nsdname for r in records]
+        }
+
+    def _data_for_PTR(self, _type, records):
+        record = records[0]
+        return {
+            'type': _type,
+            'ttl': record.ttl,
+            'value': record.ptrdname,
+        }
+
+    def _data_for_SPF(self, _type, records):
+        record = records[0]
+        return {
+            'type': _type,
+            'ttl': record.ttl,
+            'values': [r.txtdata for r in records]
+        }
+
+    _data_for_TXT = _data_for_SPF
+
+    def _data_for_SSHFP(self, _type, records):
+        return {
+            'type': _type,
+            'ttl': records[0].ttl,
+            'values': [{
+                'algorithm': r.algorithm,
+                'fingerprint_type': r.fptype,
+                'fingerprint': r.fingerprint,
+            } for r in records],
+        }
+
+    def _data_for_SRV(self, _type, records):
+        return {
+            'type': _type,
+            'ttl': records[0].ttl,
+            'values': [{
+                'priority': r.priority,
+                'weight': r.weight,
+                'port': r.port,
+                'target': r.target,
+            } for r in records],
+        }
+
+    @property
+    def traffic_directors(self):
+        if self._traffic_directors is None:
+            self._check_dyn_sess()
+
+            tds = defaultdict(dict)
+            for td in get_all_dsf_services():
+                try:
+                    fqdn, _type = td.label.split(':', 1)
+                except ValueError:
+                    continue
+                tds[fqdn][_type] = td
+            self._traffic_directors = dict(tds)
+
+        return self._traffic_directors
+
+    def _populate_traffic_directors(self, zone):
+        self.log.debug('_populate_traffic_directors: zone=%s', zone.name)
+        td_records = set()
+        for fqdn, types in self.traffic_directors.items():
+            # TODO: skip subzones
+            if not fqdn.endswith(zone.name):
+                continue
+
+            for _type, td in types.items():
+                # critical to call rulesets once, each call loads them :-(
+                rulesets = td.rulesets
+
+                # We start out with something that will always change show
+                # change in case this is a busted TD. This will prevent us from
+                # creating a duplicate td. We'll overwrite this with real data
+                # provide we have it
+                geo = {}
+                data = {
+                    'geo': geo,
+                    'type': _type,
+                    'ttl': td.ttl,
+                    'values': ['0.0.0.0']
+                }
+                for ruleset in rulesets:
+                    try:
+                        record_set = ruleset.response_pools[0].rs_chains[0] \
+                            .record_sets[0]
+                    except IndexError:
+                        # problems indicate a malformed ruleset, ignore it
+                        continue
+                    _type = record_set.rdata_class
+                    if ruleset.label.startswith('default:'):
+                        data_for = getattr(self, '_data_for_{}'.format(_type))
+                        data.update(data_for(_type, record_set.records))
+                    else:
+                        # We've stored the geo in label
+                        try:
+                            code, _ = ruleset.label.split(':', 1)
+                        except ValueError:
+                            continue
+                        values = [r.address for r in record_set.records]
+                        geo[code] = values
+
+                name = zone.hostname_from_fqdn(fqdn)
+                record = Record.new(zone, name, data, source=self)
+                zone.add_record(record)
+                td_records.add(record)
+
+        return td_records
+
+    def populate(self, zone, target=False):
+        self.log.info('populate: zone=%s', zone.name)
+        before = len(zone.records)
+
+        self._check_dyn_sess()
+
+        td_records = set()
+        if self.traffic_directors_enabled:
+            td_records = self._populate_traffic_directors(zone)
+
+        dyn_zone = _CachingDynZone.get(zone.name[:-1])
+
+        if dyn_zone:
+            values = defaultdict(lambda: defaultdict(list))
+            for _type, records in dyn_zone.get_all_records().items():
+                if _type == 'soa_records':
+                    continue
+                _type = self.RECORDS_TO_TYPE[_type]
+                for record in records:
+                    record_name = zone.hostname_from_fqdn(record.fqdn)
+                    values[record_name][_type].append(record)
+
+            for name, types in values.items():
+                for _type, records in types.items():
+                    data_for = getattr(self, '_data_for_{}'.format(_type))
+                    data = data_for(_type, records)
+                    record = Record.new(zone, name, data, source=self)
+                    if record not in td_records:
+                        zone.add_record(record)
+
+        self.log.info('populate:   found %s records',
+                      len(zone.records) - before)
+
+    def _kwargs_for_A(self, record):
+        return [{
+            'address': v,
+            'ttl': record.ttl,
+        } for v in record.values]
+
+    _kwargs_for_AAAA = _kwargs_for_A
+
+    def _kwargs_for_CNAME(self, record):
+        return [{
+            'cname': record.value,
+            'ttl': record.ttl,
+        }]
+
+    def _kwargs_for_MX(self, record):
+        return [{
+            'preference': v.priority,
+            'exchange': v.value,
+            'ttl': record.ttl,
+        } for v in record.values]
+
+    def _kwargs_for_NAPTR(self, record):
+        return [{
+            'flags': v.flags,
+            'order': v.order,
+            'preference': v.preference,
+            'regexp': v.regexp,
+            'replacement': v.replacement,
+            'services': v.service,
+            'ttl': record.ttl,
+        } for v in record.values]
+
+    def _kwargs_for_NS(self, record):
+        return [{
+            'nsdname': v,
+            'ttl': record.ttl,
+        } for v in record.values]
+
+    def _kwargs_for_PTR(self, record):
+        return [{
+            'ptrdname': record.value,
+            'ttl': record.ttl,
+        }]
+
+    def _kwargs_for_SSHFP(self, record):
+        return [{
+            'algorithm': v.algorithm,
+            'fptype': v.fingerprint_type,
+            'fingerprint': v.fingerprint,
+        } for v in record.values]
+
+    def _kwargs_for_SPF(self, record):
+        return [{
+            'txtdata': v,
+            'ttl': record.ttl,
+        } for v in record.values]
+
+    def _kwargs_for_SRV(self, record):
+        return [{
+            'port': v.port,
+            'priority': v.priority,
+            'target': v.target,
+            'weight': v.weight,
+            'ttl': record.ttl,
+        } for v in record.values]
+
+    _kwargs_for_TXT = _kwargs_for_SPF
+
+    def _traffic_director_monitor(self, fqdn):
+        if self._traffic_director_monitors is None:
+            self._traffic_director_monitors = \
+                {m.label: m for m in get_all_dsf_monitors()}
+
+        try:
+            return self._traffic_director_monitors[fqdn]
+        except KeyError:
+            monitor = DSFMonitor(fqdn, protocol='HTTPS', response_count=2,
+                                 probe_interval=60, retries=2, port=443,
+                                 active='Y', host=fqdn[:-1], timeout=10,
+                                 path='/_dns')
+            self._traffic_director_monitors[fqdn] = monitor
+            return monitor
+
+    def _find_or_create_pool(self, td, pools, label, _type, values,
+                             monitor_id=None):
+        for pool in pools:
+            if pool.label != label:
+                continue
+            records = pool.rs_chains[0].record_sets[0].records
+            record_values = sorted([r.address for r in records])
+            if record_values == values:
+                # it's a match
+                return pool
+        # we need to create the pool
+        _class = {
+            'A': DSFARecord,
+            'AAAA': DSFAAAARecord
+        }[_type]
+        records = [_class(v) for v in values]
+        record_set = DSFRecordSet(_type, label, serve_count=len(records),
+                                  records=records, dsf_monitor_id=monitor_id)
+        chain = DSFFailoverChain(label, record_sets=[record_set])
+        pool = DSFResponsePool(label, rs_chains=[chain])
+        pool.create(td)
+        return pool
+
+    def _mod_rulesets(self, td, change):
+        new = change.new
+
+        # Response Pools
+        pools = {}
+
+        # Get existing pools. This should be simple, but it's not b/c the dyn
+        # api is a POS. We need all response pools so we can GC and check to
+        # make sure that what we're after doesn't already exist.
+        # td.all_response_pools just returns thin objects that don't include
+        # their rs_chains (and children down to actual records.) We could just
+        # foreach over those turning them into full DSFResponsePool objects
+        # with get_response_pool, but that'd be N round-trips. We can avoid
+        # those round trips in cases where the pools are in use in rules where
+        # they're already full objects.
+
+        # First up populate all the full pools we have under rules, the _
+        # prevents a td.refresh we don't need :-( seriously?
+        existing_rulesets = td._rulesets
+        for ruleset in existing_rulesets:
+            for pool in ruleset.response_pools:
+                pools[pool.response_pool_id] = pool
+        # Now we need to find any pools that aren't referenced by rules
+        for pool in td.all_response_pools:
+            rpid = pool.response_pool_id
+            if rpid not in pools:
+                # we want this one, but it's thin, inflate it
+                pools[rpid] = get_response_pool(rpid, td)
+        # now that we have full objects for the complete set of existing pools,
+        # a list will be more useful
+        pools = pools.values()
+
+        # Rulesets
+
+        # add the default
+        label = 'default:{}'.format(uuid4().hex)
+        ruleset = DSFRuleset(label, 'always', [])
+        ruleset.create(td, index=0)
+        pool = self._find_or_create_pool(td, pools, 'default', new._type,
+                                         new.values)
+        # There's no way in the client lib to create a ruleset with an existing
+        # pool (ref'd by id) so we have to do this round-a-bout.
+        active_pools = {
+            'default': pool.response_pool_id
+        }
+        ruleset.add_response_pool(pool.response_pool_id)
+
+        monitor_id = self._traffic_director_monitor(new.fqdn).dsf_monitor_id
+        # Geos ordered least to most specific so that parents will always be
+        # created before their children (and thus can be referenced
+        geos = sorted(new.geo.items(), key=lambda d: d[0])
+        for _, geo in geos:
+            if geo.subdivision_code:
+                criteria = {
+                    'country': geo.country_code,
+                    'province': geo.subdivision_code
+                }
+            elif geo.country_code:
+                criteria = {
+                    'country': geo.country_code
+                }
+            else:
+                criteria = {
+                    'region': self.REGION_CODES[geo.continent_code]
+                }
+
+            label = '{}:{}'.format(geo.code, uuid4().hex)
+            ruleset = DSFRuleset(label, 'geoip', [], {
+                'geoip': criteria
+            })
+            # Something you have to call create others the constructor does it
+            ruleset.create(td, index=0)
+
+            first = geo.values[0]
+            pool = self._find_or_create_pool(td, pools, first, new._type,
+                                             geo.values, monitor_id)
+            active_pools[geo.code] = pool.response_pool_id
+            ruleset.add_response_pool(pool.response_pool_id)
+
+            # look for parent rulesets we can add in the chain
+            for code in geo.parents:
+                try:
+                    pool_id = active_pools[code]
+                    # looking at client lib code, index > exists appends
+                    ruleset.add_response_pool(pool_id, index=999)
+                except KeyError:
+                    pass
+            # and always add default as the last
+            pool_id = active_pools['default']
+            ruleset.add_response_pool(pool_id, index=999)
+
+        # we're done with active_pools as a lookup, convert it in to a set of
+        # the ids in use
+        active_pools = set(active_pools.values())
+        # Clean up unused response_pools
+        for pool in pools:
+            if pool.response_pool_id in active_pools:
+                continue
+            pool.delete()
+
+        # Clean out the old rulesets
+        for ruleset in existing_rulesets:
+            ruleset.delete()
+
+    def _mod_geo_Create(self, dyn_zone, change):
+        new = change.new
+        fqdn = new.fqdn
+        _type = new._type
+        label = '{}:{}'.format(fqdn, _type)
+        node = DSFNode(new.zone.name, fqdn)
+        td = TrafficDirector(label, ttl=new.ttl, nodes=[node], publish='Y')
+        self.log.debug('_mod_geo_Create: td=%s', td.service_id)
+        self._mod_rulesets(td, change)
+        self.traffic_directors[fqdn] = {
+            _type: td
+        }
+
+    def _mod_geo_Update(self, dyn_zone, change):
+        new = change.new
+        if not new.geo:
+            # New record doesn't have geo we're going from a TD to a regular
+            # record
+            self._mod_Create(dyn_zone, change)
+            self._mod_geo_Delete(dyn_zone, change)
+            return
+        try:
+            td = self.traffic_directors[new.fqdn][new._type]
+        except KeyError:
+            # There's no td, this is actually a create, we must be going from a
+            # non-geo to geo record so delete the regular record as well
+            self._mod_geo_Create(dyn_zone, change)
+            self._mod_Delete(dyn_zone, change)
+            return
+        self._mod_rulesets(td, change)
+
+    def _mod_geo_Delete(self, dyn_zone, change):
+        existing = change.existing
+        fqdn_tds = self.traffic_directors[existing.fqdn]
+        _type = existing._type
+        fqdn_tds[_type].delete()
+        del fqdn_tds[_type]
+
+    def _mod_Create(self, dyn_zone, change):
+        new = change.new
+        kwargs_for = getattr(self, '_kwargs_for_{}'.format(new._type))
+        for kwargs in kwargs_for(new):
+            dyn_zone.add_record(new.name, new._type, **kwargs)
+
+    def _mod_Delete(self, dyn_zone, change):
+        existing = change.existing
+        if existing.name:
+            target = '{}.{}'.format(existing.name, existing.zone.name[:-1])
+        else:
+            target = existing.zone.name[:-1]
+        _type = self.TYPE_TO_RECORDS[existing._type]
+        for rec in dyn_zone.get_all_records()[_type]:
+            if rec.fqdn == target:
+                rec.delete()
+
+    def _mod_Update(self, dyn_zone, change):
+        self._mod_Delete(dyn_zone, change)
+        self._mod_Create(dyn_zone, change)
+
+    def _apply_traffic_directors(self, desired, changes, dyn_zone):
+        self.log.debug('_apply_traffic_directors: zone=%s', desired.name)
+        unhandled_changes = []
+        for c in changes:
+            # we only mess with changes that have geo info somewhere
+            if getattr(c.new, 'geo', False) or getattr(c.existing, 'geo',
+                                                       False):
+                mod = getattr(self, '_mod_geo_{}'.format(c.__class__.__name__))
+                mod(dyn_zone, c)
+            else:
+                unhandled_changes.append(c)
+
+        return unhandled_changes
+
+    def _apply_regular(self, desired, changes, dyn_zone):
+        self.log.debug('_apply_regular: zone=%s', desired.name)
+        for c in changes:
+            mod = getattr(self, '_mod_{}'.format(c.__class__.__name__))
+            mod(dyn_zone, c)
+
+    # TODO: detect "extra" changes when monitors are out of date or failover
+    # chains are wrong etc.
+
+    def _apply(self, plan):
+        desired = plan.desired
+        changes = plan.changes
+        self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
+                       len(changes))
+
+        dyn_zone = _CachingDynZone.get(desired.name[:-1], create=True)
+
+        if self.traffic_directors_enabled:
+            # any changes left over don't involve geo
+            changes = self._apply_traffic_directors(desired, changes, dyn_zone)
+
+        self._apply_regular(desired, changes, dyn_zone)
+
+        dyn_zone.publish()

@@ -1,0 +1,4190 @@
+{
+  "status": "success",
+  "data": {
+    "notifiers": [],
+    "rulesets": [
+      {
+        "dsf_ruleset_id": "9e4lSkD33d8x1mCBChQcbOc6O2o",
+        "response_pools": [
+          {
+            "status": "ok",
+            "rs_chains": [
+              {
+                "dsf_response_pool_id": "vX54Ck2p2c6fSmIAkG_JD3nY5OI",
+                "core": "false",
+                "status": "ok",
+                "dsf_record_set_failover_chain_id": "VUFenKGhvlmDZDIcAXE-qxoxJb0",
+                "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                "pending_change": "",
+                "record_sets": [
+                  {
+                    "status": "unknown",
+                    "rdata_class": "A",
+                    "eligible": "true",
+                    "dsf_record_set_id": "-ZT5yekuV4em0ADl7533_ulTk7g",
+                    "dsf_monitor_id": "htWFldFj4R8dLWiG6dbMbDL0EOE",
+                    "automation": "auto",
+                    "trouble_count": "0",
+                    "records": [
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "-ZT5yekuV4em0ADl7533_ulTk7g",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "5.2.3.4",
+                        "dsf_record_id": "4WiI3ymCsLpsRfWwftix0lBZDoE",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "5.2.3.4"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "5.2.3.4"
+                        ],
+                        "response_time": 4294967295
+                      },
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "-ZT5yekuV4em0ADl7533_ulTk7g",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "5.2.3.5",
+                        "dsf_record_id": "OuF6eTQFcURtRht9H0cOjUa8uRM",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "5.2.3.5"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "5.2.3.5"
+                        ],
+                        "response_time": 4294967295
+                      }
+                    ],
+                    "fail_count": "1",
+                    "torpidity_max": "0",
+                    "ttl_derived": "300",
+                    "last_monitored": "1487879663",
+                    "ttl": "",
+                    "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                    "pending_change": "",
+                    "label": "5.2.3.4",
+                    "serve_count": "2"
+                  },
+                  {
+                    "status": "unknown",
+                    "rdata_class": "A",
+                    "eligible": "true",
+                    "dsf_record_set_id": "5Xt8xYzj5Yic3lydKyPeoihJow4",
+                    "dsf_monitor_id": "",
+                    "automation": "auto",
+                    "trouble_count": "0",
+                    "records": [
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "5Xt8xYzj5Yic3lydKyPeoihJow4",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "1.2.3.4",
+                        "dsf_record_id": "VQSQMyjakhz1X5c63NV-PqXl8Z4",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "1.2.3.4"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "1.2.3.4"
+                        ],
+                        "response_time": 4294967295
+                      },
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "5Xt8xYzj5Yic3lydKyPeoihJow4",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "1.2.3.5",
+                        "dsf_record_id": "pYP70Y9_EyAXdNtUOHC4dZa1NSo",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "1.2.3.5"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "1.2.3.5"
+                        ],
+                        "response_time": 4294967295
+                      }
+                    ],
+                    "fail_count": "1",
+                    "torpidity_max": "0",
+                    "ttl_derived": "300",
+                    "last_monitored": "1487879663",
+                    "ttl": "",
+                    "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                    "pending_change": "",
+                    "label": "default",
+                    "serve_count": "2"
+                  }
+                ],
+                "label": "5.2.3.4"
+              }
+            ],
+            "automation": "auto",
+            "last_monitored": "1487879663",
+            "pending_change": "",
+            "eligible": "true",
+            "rulesets": [
+              {
+                "dsf_ruleset_id": "9e4lSkD33d8x1mCBChQcbOc6O2o",
+                "response_pools": [],
+                "criteria": {
+                  "geoip": {
+                    "province": [],
+                    "country": [
+                      "US",
+                      "CA"
+                    ],
+                    "region": []
+                  }
+                },
+                "ordering": "1",
+                "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                "pending_change": "",
+                "eligible": "",
+                "label": "NA-US-CA",
+                "criteria_type": "geoip"
+              }
+            ],
+            "label": "5.2.3.4",
+            "dsf_response_pool_id": "vX54Ck2p2c6fSmIAkG_JD3nY5OI",
+            "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+            "core_set_count": "1",
+            "notifier": ""
+          }
+        ],
+        "criteria": {
+          "geoip": {
+            "province": [],
+            "country": [
+              "US",
+              "CA"
+            ],
+            "region": []
+          }
+        },
+        "ordering": "1",
+        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+        "pending_change": "",
+        "eligible": "",
+        "label": "NA-US-CA:b2c71ae53a5645cc813c51db2b6571c7",
+        "criteria_type": "geoip"
+      },
+      {
+        "dsf_ruleset_id": "Eg5aPCgcvdhrCCpqK1zCSd-oE2c",
+        "response_pools": [
+          {
+            "status": "ok",
+            "rs_chains": [
+              {
+                "dsf_response_pool_id": "zyoEkzz1znnhQk3J1gcMFpEngeI",
+                "core": "false",
+                "status": "ok",
+                "dsf_record_set_failover_chain_id": "G4ZdfXTa45jrlNVaHSBY5kHVX8k",
+                "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                "pending_change": "",
+                "record_sets": [
+                  {
+                    "status": "unknown",
+                    "rdata_class": "A",
+                    "eligible": "true",
+                    "dsf_record_set_id": "FJZxSLJnFSS4KJfdZ2yyjwM8_hY",
+                    "dsf_monitor_id": "htWFldFj4R8dLWiG6dbMbDL0EOE",
+                    "automation": "auto",
+                    "trouble_count": "0",
+                    "records": [
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "FJZxSLJnFSS4KJfdZ2yyjwM8_hY",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "4.2.3.4",
+                        "dsf_record_id": "Es9g_4E_aIoN-tFTStQDNSE8-aY",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "4.2.3.4"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "4.2.3.4"
+                        ],
+                        "response_time": 4294967295
+                      },
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "FJZxSLJnFSS4KJfdZ2yyjwM8_hY",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "4.2.3.5",
+                        "dsf_record_id": "Mnz7WakCZ91XRKpbcQ6dkZ6d-QI",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "4.2.3.5"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "4.2.3.5"
+                        ],
+                        "response_time": 4294967295
+                      }
+                    ],
+                    "fail_count": "1",
+                    "torpidity_max": "0",
+                    "ttl_derived": "300",
+                    "last_monitored": "1487879665",
+                    "ttl": "",
+                    "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                    "pending_change": "",
+                    "label": "4.2.3.4",
+                    "serve_count": "2"
+                  },
+                  {
+                    "status": "unknown",
+                    "rdata_class": "A",
+                    "eligible": "true",
+                    "dsf_record_set_id": "YGakLwcCC22_5rXg2t8XuWL8lqc",
+                    "dsf_monitor_id": "",
+                    "automation": "auto",
+                    "trouble_count": "0",
+                    "records": [
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "YGakLwcCC22_5rXg2t8XuWL8lqc",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "1.2.3.4",
+                        "dsf_record_id": "aduilHaDNN_8HD8BppL_wVmMerk",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "1.2.3.4"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "1.2.3.4"
+                        ],
+                        "response_time": 4294967295
+                      },
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "YGakLwcCC22_5rXg2t8XuWL8lqc",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "1.2.3.5",
+                        "dsf_record_id": "TOn5jK5oq1ZwmkbPpYwPcBUJuVo",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "1.2.3.5"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "1.2.3.5"
+                        ],
+                        "response_time": 4294967295
+                      }
+                    ],
+                    "fail_count": "1",
+                    "torpidity_max": "0",
+                    "ttl_derived": "300",
+                    "last_monitored": "1487879665",
+                    "ttl": "",
+                    "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                    "pending_change": "",
+                    "label": "default",
+                    "serve_count": "2"
+                  }
+                ],
+                "label": "4.2.3.4"
+              }
+            ],
+            "automation": "auto",
+            "last_monitored": "1487879665",
+            "pending_change": "",
+            "eligible": "true",
+            "rulesets": [
+              {
+                "dsf_ruleset_id": "Eg5aPCgcvdhrCCpqK1zCSd-oE2c",
+                "response_pools": [],
+                "criteria": {
+                  "geoip": {
+                    "province": [],
+                    "country": [
+                      "US"
+                    ],
+                    "region": []
+                  }
+                },
+                "ordering": "2",
+                "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                "pending_change": "",
+                "eligible": "",
+                "label": "NA-US",
+                "criteria_type": "geoip"
+              }
+            ],
+            "label": "4.2.3.4",
+            "dsf_response_pool_id": "zyoEkzz1znnhQk3J1gcMFpEngeI",
+            "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+            "core_set_count": "1",
+            "notifier": ""
+          }
+        ],
+        "criteria": {
+          "geoip": {
+            "province": [],
+            "country": [
+              "US"
+            ],
+            "region": []
+          }
+        },
+        "ordering": "2",
+        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+        "pending_change": "",
+        "eligible": "",
+        "label": "NA-US:b2c71ae53a5645cc813c51db2b6571c7",
+        "criteria_type": "geoip"
+      },
+      {
+        "dsf_ruleset_id": "gi96PlJik9qf36PyNXJPT-5CRM0",
+        "response_pools": [
+          {
+            "status": "ok",
+            "rs_chains": [
+              {
+                "dsf_response_pool_id": "0xUYeWq92OrQg6ImuFZAdFz8gOs",
+                "core": "false",
+                "status": "ok",
+                "dsf_record_set_failover_chain_id": "MSuION06EZhgHBjHkBqVhtFTJq8",
+                "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                "pending_change": "",
+                "record_sets": [
+                  {
+                    "status": "unknown",
+                    "rdata_class": "A",
+                    "eligible": "true",
+                    "dsf_record_set_id": "TeTYCMo1INWcHfs8tTjGScx2uv8",
+                    "dsf_monitor_id": "htWFldFj4R8dLWiG6dbMbDL0EOE",
+                    "automation": "auto",
+                    "trouble_count": "0",
+                    "records": [
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "TeTYCMo1INWcHfs8tTjGScx2uv8",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "3.2.3.4",
+                        "dsf_record_id": "AltgsqLdUKOXi3ESlr3KLcw-vUs",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "3.2.3.4"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "3.2.3.4"
+                        ],
+                        "response_time": 4294967295
+                      },
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "TeTYCMo1INWcHfs8tTjGScx2uv8",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "3.2.3.5",
+                        "dsf_record_id": "IH6_EamKifOs3p4WJWWWX04xQAQ",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "3.2.3.5"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "3.2.3.5"
+                        ],
+                        "response_time": 4294967295
+                      }
+                    ],
+                    "fail_count": "1",
+                    "torpidity_max": "0",
+                    "ttl_derived": "300",
+                    "last_monitored": "1487879668",
+                    "ttl": "",
+                    "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                    "pending_change": "",
+                    "label": "3.2.3.4",
+                    "serve_count": "2"
+                  },
+                  {
+                    "status": "unknown",
+                    "rdata_class": "A",
+                    "eligible": "true",
+                    "dsf_record_set_id": "YI41kUebHBMejXqBcF3BnkjT1bQ",
+                    "dsf_monitor_id": "",
+                    "automation": "auto",
+                    "trouble_count": "0",
+                    "records": [
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "YI41kUebHBMejXqBcF3BnkjT1bQ",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "1.2.3.4",
+                        "dsf_record_id": "ZgSaaoX-OzHI_FpmID_O6CfSFiQ",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "1.2.3.4"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "1.2.3.4"
+                        ],
+                        "response_time": 4294967295
+                      },
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "YI41kUebHBMejXqBcF3BnkjT1bQ",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "1.2.3.5",
+                        "dsf_record_id": "S0NUfNRx-MYClfOkHRR8NCPzLhw",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "1.2.3.5"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "1.2.3.5"
+                        ],
+                        "response_time": 4294967295
+                      }
+                    ],
+                    "fail_count": "1",
+                    "torpidity_max": "0",
+                    "ttl_derived": "300",
+                    "last_monitored": "1487879668",
+                    "ttl": "",
+                    "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                    "pending_change": "",
+                    "label": "default",
+                    "serve_count": "2"
+                  }
+                ],
+                "label": "3.2.3.4"
+              }
+            ],
+            "automation": "auto",
+            "last_monitored": "1487879668",
+            "pending_change": "",
+            "eligible": "true",
+            "rulesets": [
+              {
+                "dsf_ruleset_id": "gi96PlJik9qf36PyNXJPT-5CRM0",
+                "response_pools": [],
+                "criteria": {
+                  "geoip": {
+                    "province": [],
+                    "country": [
+                      "JP"
+                    ],
+                    "region": []
+                  }
+                },
+                "ordering": "3",
+                "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                "pending_change": "",
+                "eligible": "",
+                "label": "AS-JP",
+                "criteria_type": "geoip"
+              }
+            ],
+            "label": "3.2.3.4",
+            "dsf_response_pool_id": "0xUYeWq92OrQg6ImuFZAdFz8gOs",
+            "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+            "core_set_count": "1",
+            "notifier": ""
+          }
+        ],
+        "criteria": {
+          "geoip": {
+            "province": [],
+            "country": [
+              "JP"
+            ],
+            "region": []
+          }
+        },
+        "ordering": "3",
+        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+        "pending_change": "",
+        "eligible": "",
+        "label": "AS-JP:b2c71ae53a5645cc813c51db2b6571c7",
+        "criteria_type": "geoip"
+      },
+      {
+        "dsf_ruleset_id": "lVWDeD6bwuXZtqJu_cwuQJcYVmE",
+        "response_pools": [
+          {
+            "status": "ok",
+            "rs_chains": [
+              {
+                "dsf_response_pool_id": "GQ2VYQM9kBPQkLur6IlzZJeCICU",
+                "core": "false",
+                "status": "ok",
+                "dsf_record_set_failover_chain_id": "dYiwBxOAdUjEr638SJ8FycTkolA",
+                "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                "pending_change": "",
+                "record_sets": [
+                  {
+                    "status": "unknown",
+                    "rdata_class": "A",
+                    "eligible": "true",
+                    "dsf_record_set_id": "ek1O6mp2SnOPxGA4XQfmp9Xkr4o",
+                    "dsf_monitor_id": "htWFldFj4R8dLWiG6dbMbDL0EOE",
+                    "automation": "auto",
+                    "trouble_count": "0",
+                    "records": [
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "ek1O6mp2SnOPxGA4XQfmp9Xkr4o",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "2.2.3.4",
+                        "dsf_record_id": "s8FCJSXvOch_cHa0wqHPRNIki-U",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "2.2.3.4"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "2.2.3.4"
+                        ],
+                        "response_time": 4294967295
+                      },
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "ek1O6mp2SnOPxGA4XQfmp9Xkr4o",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "2.2.3.5",
+                        "dsf_record_id": "JXA71fL_4DGdE38A8tIDZ9FnoBU",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "2.2.3.5"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "2.2.3.5"
+                        ],
+                        "response_time": 4294967295
+                      }
+                    ],
+                    "fail_count": "1",
+                    "torpidity_max": "0",
+                    "ttl_derived": "300",
+                    "last_monitored": "1487879670",
+                    "ttl": "",
+                    "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                    "pending_change": "",
+                    "label": "2.2.3.4",
+                    "serve_count": "2"
+                  },
+                  {
+                    "status": "unknown",
+                    "rdata_class": "A",
+                    "eligible": "true",
+                    "dsf_record_set_id": "34UoNhEdeOqF61XEW1MsBZ5jyRQ",
+                    "dsf_monitor_id": "",
+                    "automation": "auto",
+                    "trouble_count": "0",
+                    "records": [
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "34UoNhEdeOqF61XEW1MsBZ5jyRQ",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "1.2.3.4",
+                        "dsf_record_id": "JjeVu2S5kBT6puXAeWyv9GqqV0o",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "1.2.3.4"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "1.2.3.4"
+                        ],
+                        "response_time": 4294967295
+                      },
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "34UoNhEdeOqF61XEW1MsBZ5jyRQ",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "1.2.3.5",
+                        "dsf_record_id": "GfOulen8R_E1TwSD0WrUHfiMepk",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "1.2.3.5"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "1.2.3.5"
+                        ],
+                        "response_time": 4294967295
+                      }
+                    ],
+                    "fail_count": "1",
+                    "torpidity_max": "0",
+                    "ttl_derived": "300",
+                    "last_monitored": "1487879670",
+                    "ttl": "",
+                    "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                    "pending_change": "",
+                    "label": "default",
+                    "serve_count": "2"
+                  }
+                ],
+                "label": "2.2.3.4"
+              }
+            ],
+            "automation": "auto",
+            "last_monitored": "1487879670",
+            "pending_change": "",
+            "eligible": "true",
+            "rulesets": [
+              {
+                "dsf_ruleset_id": "lVWDeD6bwuXZtqJu_cwuQJcYVmE",
+                "response_pools": [],
+                "criteria": {
+                  "geoip": {
+                    "province": [],
+                    "country": [],
+                    "region": [
+                      "14"
+                    ]
+                  }
+                },
+                "ordering": "4",
+                "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                "pending_change": "",
+                "eligible": "",
+                "label": "AF",
+                "criteria_type": "geoip"
+              }
+            ],
+            "label": "2.2.3.4",
+            "dsf_response_pool_id": "GQ2VYQM9kBPQkLur6IlzZJeCICU",
+            "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+            "core_set_count": "1",
+            "notifier": ""
+          }
+        ],
+        "criteria": {
+          "geoip": {
+            "province": [],
+            "country": [],
+            "region": [
+              "14"
+            ]
+          }
+        },
+        "ordering": "4",
+        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+        "pending_change": "",
+        "eligible": "",
+        "label": "AF:b2c71ae53a5645cc813c51db2b6571c7",
+        "criteria_type": "geoip"
+      },
+      {
+        "dsf_ruleset_id": "MZFKVbrOa112kb-JyCRHVSmh8NA",
+        "response_pools": [
+          {
+            "status": "ok",
+            "rs_chains": [
+              {
+                "dsf_response_pool_id": "KOKo8sVfakgJ1HpqqZ84A7QkGTk",
+                "core": "false",
+                "status": "ok",
+                "dsf_record_set_failover_chain_id": "Vfem7bn-aO_a3l1mhZxYrds-BUg",
+                "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                "pending_change": "",
+                "record_sets": [
+                  {
+                    "status": "unknown",
+                    "rdata_class": "A",
+                    "eligible": "true",
+                    "dsf_record_set_id": "EdrNCZ6gM8FCeiXGamxxT39AkkA",
+                    "dsf_monitor_id": "",
+                    "automation": "auto",
+                    "trouble_count": "0",
+                    "records": [
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "EdrNCZ6gM8FCeiXGamxxT39AkkA",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "1.2.3.4",
+                        "dsf_record_id": "14DpdlaAi81FWR2qB3DW2HYI9YM",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "1.2.3.4"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "1.2.3.4"
+                        ],
+                        "response_time": 4294967295
+                      },
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "EdrNCZ6gM8FCeiXGamxxT39AkkA",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "1.2.3.5",
+                        "dsf_record_id": "wlLEe3F4vqEmH-OCcPicDE0K1I0",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "1.2.3.5"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "1.2.3.5"
+                        ],
+                        "response_time": 4294967295
+                      }
+                    ],
+                    "fail_count": "1",
+                    "torpidity_max": "0",
+                    "ttl_derived": "300",
+                    "last_monitored": "1487879672",
+                    "ttl": "",
+                    "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                    "pending_change": "",
+                    "label": "default",
+                    "serve_count": "2"
+                  }
+                ],
+                "label": "default"
+              }
+            ],
+            "automation": "auto",
+            "last_monitored": "1487879672",
+            "pending_change": "",
+            "eligible": "true",
+            "rulesets": [
+              {
+                "dsf_ruleset_id": "MZFKVbrOa112kb-JyCRHVSmh8NA",
+                "response_pools": [],
+                "criteria": {
+                  "geoip": {
+                    "province": [],
+                    "country": [],
+                    "region": []
+                  }
+                },
+                "ordering": "5",
+                "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                "pending_change": "",
+                "eligible": "",
+                "label": "default",
+                "criteria_type": "always"
+              }
+            ],
+            "label": "default",
+            "dsf_response_pool_id": "KOKo8sVfakgJ1HpqqZ84A7QkGTk",
+            "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+            "core_set_count": "1",
+            "notifier": ""
+          }
+        ],
+        "criteria": {
+          "geoip": {
+            "province": [],
+            "country": [],
+            "region": []
+          }
+        },
+        "ordering": "5",
+        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+        "pending_change": "",
+        "eligible": "",
+        "label": "other format",
+        "criteria_type": "always"
+      },
+      {
+        "dsf_ruleset_id": "MZFKVbrOa112kb-JyCRHVSmh8NA",
+        "response_pools": [
+          {
+            "status": "ok",
+            "rs_chains": [],
+            "automation": "auto",
+            "last_monitored": "1487879672",
+            "pending_change": "",
+            "eligible": "true",
+            "rulesets": [],
+            "label": "NA-US-FL:norules",
+            "dsf_response_pool_id": "KOKo8sVfakgJ1HpqqZ84A7QkGTk",
+            "service_id": "xIRZ4lM-W64NUelJGuzuVziZ4MI",
+            "core_set_count": "1",
+            "notifier": ""
+          }
+        ],
+        "criteria": {
+          "geoip": {
+            "province": [],
+            "country": [],
+            "region": []
+          }
+        },
+        "ordering": "5",
+        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+        "pending_change": "",
+        "eligible": "",
+        "label": "other format",
+        "criteria_type": "always"
+      },
+      {
+        "dsf_ruleset_id": "MZFKVbrOa112kb-JyCRHVSmh8NA",
+        "response_pools": [
+          {
+            "status": "ok",
+            "rs_chains": [
+              {
+                "dsf_response_pool_id": "KOKo8sVfakgJ1HpqqZ84A7QkGTk",
+                "core": "false",
+                "status": "ok",
+                "dsf_record_set_failover_chain_id": "Vfem7bn-aO_a3l1mhZxYrds-BUg",
+                "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                "pending_change": "",
+                "record_sets": [
+                  {
+                    "status": "unknown",
+                    "rdata_class": "A",
+                    "eligible": "true",
+                    "dsf_record_set_id": "EdrNCZ6gM8FCeiXGamxxT39AkkA",
+                    "dsf_monitor_id": "",
+                    "automation": "auto",
+                    "trouble_count": "0",
+                    "records": [
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "EdrNCZ6gM8FCeiXGamxxT39AkkA",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "1.2.3.4",
+                        "dsf_record_id": "14DpdlaAi81FWR2qB3DW2HYI9YM",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "1.2.3.4"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "1.2.3.4"
+                        ],
+                        "response_time": 4294967295
+                      },
+                      {
+                        "status": "unknown",
+                        "torpidity": 4294967295,
+                        "rdata_class": "A",
+                        "weight": 1,
+                        "eligible": "true",
+                        "dsf_record_set_id": "EdrNCZ6gM8FCeiXGamxxT39AkkA",
+                        "ttl": "300",
+                        "endpoint_up_count": 1,
+                        "label": "",
+                        "automation": "auto",
+                        "master_line": "1.2.3.5",
+                        "dsf_record_id": "wlLEe3F4vqEmH-OCcPicDE0K1I0",
+                        "last_monitored": 0,
+                        "rdata": [
+                          {
+                            "type": "A",
+                            "data": {
+                              "rdata_kx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_srv": {
+                                "priority": 0,
+                                "port": 0,
+                                "weight": 0,
+                                "target": ""
+                              },
+                              "rdata_policy": {
+                                "gui_url": "",
+                                "policy": "",
+                                "rtype": "",
+                                "api_url": "",
+                                "name": ""
+                              },
+                              "rdata_soa": {
+                                "rname": "",
+                                "retry": 0,
+                                "mname": "",
+                                "minimum": 0,
+                                "refresh": 0,
+                                "expire": 0,
+                                "serial": 0
+                              },
+                              "rdata_key": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_ipseckey": {
+                                "public_key": "",
+                                "precedence": 0,
+                                "gatetype": 0,
+                                "algorithm": 0,
+                                "gateway": ""
+                              },
+                              "rdata_cname": {
+                                "cname": ""
+                              },
+                              "rdata_loc": {
+                                "horiz_pre": 0,
+                                "altitude": 0,
+                                "longitude": "",
+                                "version": 0,
+                                "vert_pre": 0,
+                                "latitude": "",
+                                "size": 0
+                              },
+                              "rdata_spf": {
+                                "txtdata": ""
+                              },
+                              "rdata_ptr": {
+                                "ptrdname": ""
+                              },
+                              "rdata_alias": {
+                                "alias": ""
+                              },
+                              "rdata_ds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_naptr": {
+                                "flags": "",
+                                "preference": 0,
+                                "services": "",
+                                "regexp": "",
+                                "order": 0,
+                                "replacement": ""
+                              },
+                              "rdata_sshfp": {
+                                "fptype": 0,
+                                "algorithm": 0,
+                                "fingerprint": ""
+                              },
+                              "rdata_aaaa": {
+                                "address": ""
+                              },
+                              "rdata_nsap": {
+                                "nsap": ""
+                              },
+                              "rdata_dhcid": {
+                                "digest": ""
+                              },
+                              "rdata_dnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              },
+                              "rdata_cds": {
+                                "keytag": 0,
+                                "digest": "",
+                                "algorithm": 0,
+                                "digtype": 0
+                              },
+                              "rdata_txt": {
+                                "txtdata": ""
+                              },
+                              "rdata_ns": {
+                                "nsdname": ""
+                              },
+                              "rdata_dname": {
+                                "dname": ""
+                              },
+                              "rdata_csync": {
+                                "soa_serial": 0,
+                                "flags": "",
+                                "types": ""
+                              },
+                              "rdata_px": {
+                                "mapx400": "",
+                                "map822": "",
+                                "preference": 0
+                              },
+                              "rdata_a": {
+                                "address": "1.2.3.5"
+                              },
+                              "rdata_cert": {
+                                "tag": 0,
+                                "certificate": "",
+                                "algorithm": 0,
+                                "format": 0
+                              },
+                              "rdata_rp": {
+                                "mbox": "",
+                                "txtdname": ""
+                              },
+                              "rdata_tlsa": {
+                                "cert_usage": 0,
+                                "match_type": 0,
+                                "certificate": "",
+                                "selector": 0
+                              },
+                              "rdata_mx": {
+                                "preference": 0,
+                                "exchange": ""
+                              },
+                              "rdata_cdnskey": {
+                                "protocol": 0,
+                                "flags": 0,
+                                "algorithm": 0,
+                                "public_key": ""
+                              }
+                            },
+                            "ttl": ""
+                          }
+                        ],
+                        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                        "pending_change": "",
+                        "endpoints": [
+                          "1.2.3.5"
+                        ],
+                        "response_time": 4294967295
+                      }
+                    ],
+                    "fail_count": "1",
+                    "torpidity_max": "0",
+                    "ttl_derived": "300",
+                    "last_monitored": "1487879672",
+                    "ttl": "",
+                    "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                    "pending_change": "",
+                    "label": "default",
+                    "serve_count": "2"
+                  }
+                ],
+                "label": "default"
+              }
+            ],
+            "automation": "auto",
+            "last_monitored": "1487879672",
+            "pending_change": "",
+            "eligible": "true",
+            "rulesets": [
+              {
+                "dsf_ruleset_id": "MZFKVbrOa112kb-JyCRHVSmh8NA",
+                "response_pools": [],
+                "criteria": {
+                  "geoip": {
+                    "province": [],
+                    "country": [],
+                    "region": []
+                  }
+                },
+                "ordering": "5",
+                "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+                "pending_change": "",
+                "eligible": "",
+                "label": "default",
+                "criteria_type": "always"
+              }
+            ],
+            "label": "default",
+            "dsf_response_pool_id": "KOKo8sVfakgJ1HpqqZ84A7QkGTk",
+            "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+            "core_set_count": "1",
+            "notifier": ""
+          }
+        ],
+        "criteria": {
+          "geoip": {
+            "province": [],
+            "country": [],
+            "region": []
+          }
+        },
+        "ordering": "5",
+        "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+        "pending_change": "",
+        "eligible": "",
+        "label": "default:b2c71ae53a5645cc813c51db2b6571c7",
+        "criteria_type": "always"
+      }
+    ],
+    "ttl": "300",
+    "active": "Y",
+    "service_id": "oIRZ4lM-W64NUelJGuzuVziZ4MI",
+    "nodes": [
+      {
+        "fqdn": "unit.tests",
+        "zone": "unit.tests"
+      }
+    ],
+    "pending_change": "",
+    "label": "unit.tests.:A"
+  },
+  "job_id": 3376642606,
+  "msgs": [
+    {
+      "INFO": "detail: Here is your service",
+      "LVL": "INFO",
+      "ERR_CD": null,
+      "SOURCE": "BLL"
+    }
+  ]
+}

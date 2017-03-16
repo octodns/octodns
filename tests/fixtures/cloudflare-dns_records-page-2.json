@@ -1,0 +1,116 @@
+{
+  "result": [
+    {
+      "id": "fc12ab34cd5611334422ab3322997661",
+      "type": "NS",
+      "name": "under.unit.tests",
+      "content": "ns1.unit.tests",
+      "proxiable": false,
+      "proxied": false,
+      "ttl": 3600,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "modified_on": "2017-03-11T18:01:42.599878Z",
+      "created_on": "2017-03-11T18:01:42.599878Z",
+      "meta": {
+        "auto_added": false
+      }
+    },
+    {
+      "id": "fc12ab34cd5611334422ab3322997662",
+      "type": "NS",
+      "name": "under.unit.tests",
+      "content": "ns2.unit.tests",
+      "proxiable": false,
+      "proxied": false,
+      "ttl": 3600,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "modified_on": "2017-03-11T18:01:42.727011Z",
+      "created_on": "2017-03-11T18:01:42.727011Z",
+      "meta": {
+        "auto_added": false
+      }
+    },
+    {
+      "id": "fc12ab34cd5611334422ab3322997663",
+      "type": "SPF",
+      "name": "spf.unit.tests",
+      "content": "v=spf1 ip4:192.168.0.1/16-all",
+      "proxiable": false,
+      "proxied": false,
+      "ttl": 600,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "modified_on": "2017-03-11T18:01:44.112568Z",
+      "created_on": "2017-03-11T18:01:44.112568Z",
+      "meta": {
+        "auto_added": false
+      }
+    },
+    {
+      "id": "fc12ab34cd5611334422ab3322997664",
+      "type": "TXT",
+      "name": "txt.unit.tests",
+      "content": "Bah bah black sheep",
+      "proxiable": false,
+      "proxied": false,
+      "ttl": 600,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "modified_on": "2017-03-11T18:01:42.837282Z",
+      "created_on": "2017-03-11T18:01:42.837282Z",
+      "meta": {
+        "auto_added": false
+      }
+    },
+    {
+      "id": "fc12ab34cd5611334422ab3322997665",
+      "type": "TXT",
+      "name": "txt.unit.tests",
+      "content": "have you any wool.",
+      "proxiable": false,
+      "proxied": false,
+      "ttl": 600,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "modified_on": "2017-03-11T18:01:42.961566Z",
+      "created_on": "2017-03-11T18:01:42.961566Z",
+      "meta": {
+        "auto_added": false
+      }
+    },
+    {
+      "id": "fc12ab34cd5611334422ab3322997666",
+      "type": "SOA",
+      "name": "unit.tests",
+      "content": "ignored",
+      "proxiable": false,
+      "proxied": false,
+      "ttl": 600,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "modified_on": "2017-03-11T18:01:42.961566Z",
+      "created_on": "2017-03-11T18:01:42.961566Z",
+      "meta": {
+        "auto_added": false
+      }
+    }
+  ],
+  "result_info": {
+    "page": 2,
+    "per_page": 10,
+    "total_pages": 2,
+    "count": 6,
+    "total_count": 16
+  },
+  "success": true,
+  "errors": [],
+  "messages": []
+}

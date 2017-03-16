@@ -1,0 +1,7 @@
+language: python
+python:
+  - 2.7
+script: ./script/cibuild
+notifications:
+  email:
+    - ross@github.com

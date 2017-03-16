@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -e
+
+if ! git diff-index --quiet HEAD --; then
+    echo "Changes in local directory, commit or clear"
+    exit 1
+fi
+
+SHA=$(git rev-parse HEAD)
+python setup.py sdist
+TARBALL=dist/octodns-$SHA.tar.gz
+mv dist/octodns-0.*.tar.gz $TARBALL
+
+echo "Created $TARBALL"

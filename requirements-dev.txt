@@ -1,0 +1,6 @@
+coverage
+mock
+nose
+pep8
+pyflakes
+requests_mock

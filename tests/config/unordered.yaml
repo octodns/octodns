@@ -1,0 +1,8 @@
+---
+abc:
+  type: A
+  value: 9.9.9.9
+xyz:
+  # t comes before v
+  value: 9.9.9.9
+  type: A

@@ -1,0 +1,13 @@
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+  out:
+    class: octodns.provider.yaml.YamlProvider
+    directory: /tmp/foo
+zones:
+  unit.tests.:
+    sources:
+    - in
+    targets:
+    - out
