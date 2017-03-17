@@ -80,6 +80,16 @@ class DnsimpleClient(object):
 
 
 class DnsimpleProvider(BaseProvider):
+    '''
+    Dnsimple provider using API v2
+
+    dnsimple:
+        class: octodns.provider.dnsimple.DnsimpleProvider
+        # API v2 account access token (required)
+        token: letmein
+        # Your account number (required)
+        account: 42
+    '''
     SUPPORTS_GEO = False
 
     def __init__(self, id, token, account, *args, **kwargs):
