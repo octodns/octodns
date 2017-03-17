@@ -16,6 +16,17 @@ from .base import BaseProvider
 
 
 class YamlProvider(BaseProvider):
+    '''
+    Core provider for records configured in yaml files on disk.
+
+    config:
+        class: octodns.provider.yaml.YamlProvider
+        # The location of yaml config files (required)
+        directory: ./config
+        # The ttl to use for records when not specified in the data
+        # (optional, default 3600)
+        default_ttl: 3600
+    '''
     SUPPORTS_GEO = True
 
     def __init__(self, id, directory, default_ttl=3600, *args, **kwargs):

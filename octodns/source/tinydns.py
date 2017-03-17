@@ -17,13 +17,13 @@ from ..zone import DuplicateRecordException, SubzoneRecordException
 from .base import BaseSource
 
 
-class TinyDnsSource(BaseSource):
+class TinyDnsBaseSource(BaseSource):
     SUPPORTS_GEO = False
 
     split_re = re.compile(r':+')
 
     def __init__(self, id, default_ttl=3600):
-        super(TinyDnsSource, self).__init__(id)
+        super(TinyDnsBaseSource, self).__init__(id)
         self.default_ttl = default_ttl
 
     def _data_for_A(self, _type, records):
@@ -177,9 +177,17 @@ class TinyDnsSource(BaseSource):
                                   'skipping'.format(addr))
 
 
-class TinyDnsFileSource(TinyDnsSource):
+class TinyDnsFileSource(TinyDnsBaseSource):
     '''
     A basic TinyDNS zonefile importer created to import legacy data.
+
+    tinydns:
+        class: octodns.source.tinydns.TinyDnsFileSource
+        # The location of the TinyDNS zone files
+        directory: ./zones
+        # The ttl to use for records when not specified in the data
+        # (optional, default 3600)
+        default_ttl: 3600
 
     NOTE: timestamps & lo fields are ignored if present.
     '''

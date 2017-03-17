@@ -140,6 +140,18 @@ def _octal_replace(s):
 
 
 class Route53Provider(BaseProvider):
+    '''
+    AWS Route53 Provider
+
+    route53:
+        class: octodns.provider.route53.Route53Provider
+        # The AWS access key id (required)
+        access_key_id:
+        # The AWS secret access key (required)
+        secret_access_key:
+
+    In general the account used will need full permissions on Route53.
+    '''
     SUPPORTS_GEO = True
 
     # This should be bumped when there are underlying changes made to the

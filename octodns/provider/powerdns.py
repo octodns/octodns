@@ -337,6 +337,25 @@ class PowerDnsBaseProvider(BaseProvider):
 
 
 class PowerDnsProvider(PowerDnsBaseProvider):
+    '''
+    PowerDNS API v4 Provider
+
+    powerdns:
+        class: octodns.provider.powerdns.PowerDnsProvider
+        # The host on which PowerDNS api is listening (required)
+        host: fqdn
+        # The api key that grans access (required)
+        api_key: api-key
+        # The port on which PowerDNS api is listening (optional, default 8081)
+        port: 8081
+        # The nameservers to use for this provider (optional,
+        #   default unmanaged)
+        nameserver_values:
+            - 1.2.3.4.
+            - 1.2.3.5.
+        # The nameserver record TTL when managed, (optional, default 600)
+        nameserver_ttl: 600
+    '''
 
     def __init__(self, id, host, api_key, port=8081, nameserver_values=None,
                  nameserver_ttl=600, *args, **kwargs):

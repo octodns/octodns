@@ -24,6 +24,16 @@ class CloudflareAuthenticationError(Exception):
 
 
 class CloudflareProvider(BaseProvider):
+    '''
+    Cloudflare DNS provider
+
+    cloudflare:
+        class: octodns.provider.cloudflare.CloudflareProvider
+        # Your Cloudflare account email address (required)
+        email: dns-manager@example.com
+        # The api key (required)
+        token: foo
+    '''
     SUPPORTS_GEO = False
     # TODO: support SRV
     UNSUPPORTED_TYPES = ('NAPTR', 'PTR', 'SOA', 'SRV', 'SSHFP')

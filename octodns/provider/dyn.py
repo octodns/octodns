@@ -81,6 +81,21 @@ class _CachingDynZone(DynZone):
 
 
 class DynProvider(BaseProvider):
+    '''
+    Dynect Managed DNS provider
+
+    dyn:
+        class: octodns.provider.dyn.DynProvider
+        # Your dynect customer name (required)
+        customer: cust
+        # Your dynect username (required)
+        username: user
+        # Your dynect password (required)
+        password: pass
+        # Whether or not to support TrafficDirectors and enable GeoDNS
+        # (optional, default is false)
+        traffic_directors_enabled: true
+    '''
     RECORDS_TO_TYPE = {
         'a_records': 'A',
         'aaaa_records': 'AAAA',
