@@ -53,6 +53,7 @@ class Manager(object):
             try:
                 _class = provider_config.pop('class')
             except KeyError:
+                self.log.exception('Invalid provider class')
                 raise Exception('Provider {} is missing class'
                                 .format(provider_name))
             _class = self._get_provider_class(_class)
@@ -65,6 +66,7 @@ class Manager(object):
                             env_var = v[4:]
                             v = environ[env_var]
                         except KeyError:
+                            self.log.exception('Invalid provider config')
                             raise Exception('Incorrect provider config, '
                                             'missing env var {}'
                                             .format(env_var))
@@ -74,6 +76,7 @@ class Manager(object):
             try:
                 self.providers[provider_name] = _class(provider_name, **kwargs)
             except TypeError:
+                self.log.exception('Invalid provider config')
                 raise Exception('Incorrect provider config for {}'
                                 .format(provider_name))
 
@@ -102,14 +105,14 @@ class Manager(object):
             module_name, class_name = _class.rsplit('.', 1)
             module = import_module(module_name)
         except (ImportError, ValueError):
-            self.log.error('_get_provider_class: Unable to import module %s',
-                           _class)
+            self.log.exception('_get_provider_class: Unable to import '
+                               'module %s', _class)
             raise Exception('Unknown provider class: {}'.format(_class))
         try:
             return getattr(module, class_name)
         except AttributeError:
-            self.log.error('_get_provider_class: Unable to get class %s from '
-                           'module %s', class_name, module)
+            self.log.exception('_get_provider_class: Unable to get class %s '
+                               'from module %s', class_name, module)
             raise Exception('Unknown provider class: {}'.format(_class))
 
     def configured_sub_zones(self, zone_name):
