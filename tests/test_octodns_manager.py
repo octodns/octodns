@@ -128,6 +128,9 @@ class TestManager(TestCase):
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             manager = Manager(get_config_filename('simple.yaml'))
 
+            # make sure this was pulled in from the config
+            self.assertEquals(2, manager._executor._max_workers)
+
             changes = manager.compare(['in'], ['in'], 'unit.tests.')
             self.assertEquals([], changes)
 
