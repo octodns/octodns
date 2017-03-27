@@ -14,6 +14,7 @@ from dyn.tm.services.dsf import DSFARecord, DSFAAAARecord, DSFFailoverChain, \
 from dyn.tm.session import DynectSession
 from dyn.tm.zones import Zone as DynZone
 from logging import getLogger
+from threading import local
 from uuid import uuid4
 
 from ..record import Record
@@ -134,8 +135,7 @@ class DynProvider(BaseProvider):
         'AN': 17,  # Continental Antartica
     }
 
-    # Going to be lazy loaded b/c it makes a (slow) request, global
-    _dyn_sess = None
+    _thread_local = local()
 
     def __init__(self, id, customer, username, password,
                  traffic_directors_enabled=False, *args, **kwargs):
@@ -159,17 +159,21 @@ class DynProvider(BaseProvider):
         return self.traffic_directors_enabled
 
     def _check_dyn_sess(self):
-        if self._dyn_sess:
-            self.log.debug('_check_dyn_sess: exists')
-            return
-
-        self.log.debug('_check_dyn_sess: creating')
-        # Dynect's client is ugly, you create a session object, but then don't
-        # use it for anything. It just makes the other objects work behind the
-        # scences. :-( That probably means we can only support a single set of
-        # dynect creds
-        self._dyn_sess = DynectSession(self.customer, self.username,
-                                       self.password)
+        try:
+            DynProvider._thread_local.dyn_sess
+        except AttributeError:
+            self.log.debug('_check_dyn_sess: creating')
+            # Dynect's client is odd, you create a session object, but don't
+            # use it for anything. It just makes the other objects work behind
+            # the scences. :-( That probably means we can only support a single
+            # set of dynect creds, so no split accounts. They're also per
+            # thread so we need to create one per thread. I originally tried
+            # calling DynectSession.get_session to see if there was one and
+            # creating if not, but that was always returning None, so now I'm
+            # manually creating them once per-thread. I'd imagine this could be
+            # figured out, but ...
+            DynectSession(self.customer, self.username, self.password)
+            DynProvider._thread_local.dyn_sess = True
 
     def _data_for_A(self, _type, records):
         return {
