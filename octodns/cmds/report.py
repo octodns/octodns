@@ -29,71 +29,72 @@ class AsyncResolver(Resolver):
                                     **kwargs)
 
 
-parser = ArgumentParser(description=__doc__.split('\n')[1])
+def main():
+    parser = ArgumentParser(description=__doc__.split('\n')[1])
 
-parser.add_argument('--config-file', required=True,
-                    help='The Manager configuration file to use')
-parser.add_argument('--zone', required=True, help='Zone to dump')
-parser.add_argument('--source', required=True, default=[], action='append',
-                    help='Source(s) to pull data from')
-parser.add_argument('--num-workers', default=4,
-                    help='Number of background workers')
-parser.add_argument('--timeout', default=1,
-                    help='Number seconds to wait for an answer')
-parser.add_argument('server', nargs='+', help='Servers to query')
+    parser.add_argument('--config-file', required=True,
+                        help='The Manager configuration file to use')
+    parser.add_argument('--zone', required=True, help='Zone to dump')
+    parser.add_argument('--source', required=True, default=[], action='append',
+                        help='Source(s) to pull data from')
+    parser.add_argument('--num-workers', default=4,
+                        help='Number of background workers')
+    parser.add_argument('--timeout', default=1,
+                        help='Number seconds to wait for an answer')
+    parser.add_argument('server', nargs='+', help='Servers to query')
 
-args = parser.parse_args()
+    args = parser.parse_args()
 
-manager = Manager(args.config_file)
+    manager = Manager(args.config_file)
 
-log = getLogger('report')
+    log = getLogger('report')
 
-try:
-    sources = [manager.providers[source] for source in args.source]
-except KeyError as e:
-    raise Exception('Unknown source: {}'.format(e.args[0]))
+    try:
+        sources = [manager.providers[source] for source in args.source]
+    except KeyError as e:
+        raise Exception('Unknown source: {}'.format(e.args[0]))
 
-zone = Zone(args.zone, manager.configured_sub_zones(args.zone))
-for source in sources:
-    source.populate(zone)
+    zone = Zone(args.zone, manager.configured_sub_zones(args.zone))
+    for source in sources:
+        source.populate(zone)
 
-print('name,type,ttl,{},consistent'.format(','.join(args.server)))
-resolvers = []
-ip_addr_re = re.compile(r'^[\d\.]+$')
-for server in args.server:
-    resolver = AsyncResolver(configure=False,
-                             num_workers=int(args.num_workers))
-    if not ip_addr_re.match(server):
-        server = str(query(server, 'A')[0])
-    log.info('server=%s', server)
-    resolver.nameservers = [server]
-    resolver.lifetime = int(args.timeout)
-    resolvers.append(resolver)
+    print('name,type,ttl,{},consistent'.format(','.join(args.server)))
+    resolvers = []
+    ip_addr_re = re.compile(r'^[\d\.]+$')
+    for server in args.server:
+        resolver = AsyncResolver(configure=False,
+                                 num_workers=int(args.num_workers))
+        if not ip_addr_re.match(server):
+            server = str(query(server, 'A')[0])
+        log.info('server=%s', server)
+        resolver.nameservers = [server]
+        resolver.lifetime = int(args.timeout)
+        resolvers.append(resolver)
 
-queries = {}
-for record in sorted(zone.records):
-    queries[record] = [r.query(record.fqdn, record._type)
-                       for r in resolvers]
+    queries = {}
+    for record in sorted(zone.records):
+        queries[record] = [r.query(record.fqdn, record._type)
+                           for r in resolvers]
 
-for record, futures in sorted(queries.items(), key=lambda d: d[0]):
-    stdout.write(record.fqdn)
-    stdout.write(',')
-    stdout.write(record._type)
-    stdout.write(',')
-    stdout.write(str(record.ttl))
-    compare = {}
-    for future in futures:
+    for record, futures in sorted(queries.items(), key=lambda d: d[0]):
+        stdout.write(record.fqdn)
         stdout.write(',')
-        try:
-            answers = [str(r) for r in future.result()]
-        except (NoAnswer, NoNameservers):
-            answers = ['*no answer*']
-        except NXDOMAIN:
-            answers = ['*does not exist*']
-        except Timeout:
-            answers = ['*timeout*']
-        stdout.write(' '.join(answers))
-        # sorting to ignore order
-        answers = '*:*'.join(sorted(answers)).lower()
-        compare[answers] = True
-    stdout.write(',True\n' if len(compare) == 1 else ',False\n')
+        stdout.write(record._type)
+        stdout.write(',')
+        stdout.write(str(record.ttl))
+        compare = {}
+        for future in futures:
+            stdout.write(',')
+            try:
+                answers = [str(r) for r in future.result()]
+            except (NoAnswer, NoNameservers):
+                answers = ['*no answer*']
+            except NXDOMAIN:
+                answers = ['*does not exist*']
+            except Timeout:
+                answers = ['*timeout*']
+            stdout.write(' '.join(answers))
+            # sorting to ignore order
+            answers = '*:*'.join(sorted(answers)).lower()
+            compare[answers] = True
+        stdout.write(',True\n' if len(compare) == 1 else ',False\n')

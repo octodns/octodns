@@ -9,29 +9,31 @@ from __future__ import absolute_import, division, print_function, \
 from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
 
-parser = ArgumentParser(description=__doc__.split('\n')[1])
 
-parser.add_argument('--config-file', required=True,
-                    help='The Manager configuration file to use')
-parser.add_argument('--doit', action='store_true', default=False,
-                    help='Whether to take action or just show what would '
-                    'change')
-parser.add_argument('--force', action='store_true', default=False,
-                    help='Acknowledge that significant changes are being made '
-                    'and do them')
+def main():
+    parser = ArgumentParser(description=__doc__.split('\n')[1])
 
-parser.add_argument('zone', nargs='*', default=[],
-                    help='Limit sync to the specified zone(s)')
+    parser.add_argument('--config-file', required=True,
+                        help='The Manager configuration file to use')
+    parser.add_argument('--doit', action='store_true', default=False,
+                        help='Whether to take action or just show what would '
+                        'change')
+    parser.add_argument('--force', action='store_true', default=False,
+                        help='Acknowledge that significant changes are being '
+                        'made and do them')
 
-# --sources isn't an option here b/c filtering sources out would be super
-# dangerous since you could eaily end up with an empty zone and delete
-# everything, or even just part of things when there are multiple sources
+    parser.add_argument('zone', nargs='*', default=[],
+                        help='Limit sync to the specified zone(s)')
 
-parser.add_argument('--target', default=[], action='append',
-                    help='Limit sync to the specified target(s)')
+    # --sources isn't an option here b/c filtering sources out would be super
+    # dangerous since you could eaily end up with an empty zone and delete
+    # everything, or even just part of things when there are multiple sources
 
-args = parser.parse_args()
+    parser.add_argument('--target', default=[], action='append',
+                        help='Limit sync to the specified target(s)')
 
-manager = Manager(args.config_file)
-manager.sync(eligible_zones=args.zone, eligible_targets=args.target,
-             dry_run=not args.doit, force=args.force)
+    args = parser.parse_args()
+
+    manager = Manager(args.config_file)
+    manager.sync(eligible_zones=args.zone, eligible_targets=args.target,
+                 dry_run=not args.doit, force=args.force)

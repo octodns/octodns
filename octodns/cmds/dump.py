@@ -9,17 +9,20 @@ from __future__ import absolute_import, division, print_function, \
 from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
 
-parser = ArgumentParser(description=__doc__.split('\n')[1])
 
-parser.add_argument('--config-file', required=True,
-                    help='The Manager configuration file to use')
-parser.add_argument('--output-dir', required=True,
-                    help='The directory into which the results will be '
-                    'written (Note: will overwrite existing files)')
-parser.add_argument('zone', help='Zone to dump')
-parser.add_argument('source', nargs='+', help='Source(s) to pull data from')
+def main():
+    parser = ArgumentParser(description=__doc__.split('\n')[1])
 
-args = parser.parse_args()
+    parser.add_argument('--config-file', required=True,
+                        help='The Manager configuration file to use')
+    parser.add_argument('--output-dir', required=True,
+                        help='The directory into which the results will be '
+                        'written (Note: will overwrite existing files)')
+    parser.add_argument('zone', help='Zone to dump')
+    parser.add_argument('source', nargs='+',
+                        help='Source(s) to pull data from')
 
-manager = Manager(args.config_file)
-manager.dump(args.zone, args.output_dir, *args.source)
+    args = parser.parse_args()
+
+    manager = Manager(args.config_file)
+    manager.dump(args.zone, args.output_dir, *args.source)

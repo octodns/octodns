@@ -17,8 +17,8 @@ cmds = (
 )
 cmds_dir = join(dirname(__file__), 'octodns', 'cmds')
 console_scripts = {
-    'octodns-{name} = octodns.cmds.{name}'.format(name=filename[:-3])
-    for filename in cmds
+    'octodns-{name} = octodns.cmds.{name}:main'.format(name=name)
+    for name in cmds
 }
 
 setup(

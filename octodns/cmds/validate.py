@@ -11,12 +11,14 @@ from logging import WARN
 from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
 
-parser = ArgumentParser(description=__doc__.split('\n')[1])
 
-parser.add_argument('--config-file', default='./config/production.yaml',
-                    help='The Manager configuration file to use')
+def main():
+    parser = ArgumentParser(description=__doc__.split('\n')[1])
 
-args = parser.parse_args(WARN)
+    parser.add_argument('--config-file', default='./config/production.yaml',
+                        help='The Manager configuration file to use')
 
-manager = Manager(args.config_file)
-manager.validate_configs()
+    args = parser.parse_args(WARN)
+
+    manager = Manager(args.config_file)
+    manager.validate_configs()
