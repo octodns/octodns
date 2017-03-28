@@ -115,6 +115,11 @@ class TestManager(TestCase):
                 .sync(dry_run=False, force=True)
             self.assertEquals(19, tc)
 
+            # Again with max_workers = 1
+            tc = Manager(get_config_filename('simple.yaml'), max_workers=1) \
+                .sync(dry_run=False, force=True)
+            self.assertEquals(19, tc)
+
     def test_eligible_targets(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
