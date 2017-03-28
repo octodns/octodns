@@ -38,6 +38,13 @@ class _AggregateTarget(object):
 
 
 class MainThreadExecutor(object):
+    '''
+    Dummy executor that runs things on the main call during the involcation of
+    submit, but still returns a future object with the result. This allows code
+    to be written to handle async, even in the case where we don't want to use
+    multiple threads/workers and would prefer that things flow as if
+    traditionally written.
+    '''
 
     def submit(self, func, *args, **kwargs):
         future = Future()
