@@ -10,7 +10,7 @@ from os.path import dirname, join
 from unittest import TestCase
 
 from octodns.record import Record
-from octodns.manager import _AggregateTarget, Manager
+from octodns.manager import _AggregateTarget, MainThreadExecutor, Manager
 from octodns.zone import Zone
 
 from helpers import GeoProvider, NoSshFpProvider, SimpleProvider, \
@@ -209,3 +209,35 @@ class TestManager(TestCase):
             Manager(get_config_filename('unknown-provider.yaml')) \
                 .validate_configs()
         self.assertTrue('unknown source' in ctx.exception.message)
+
+
+class TestMainThreadExecutor(TestCase):
+
+    def test_success(self):
+        mte = MainThreadExecutor()
+
+        future = mte.submit(self.success, 42)
+        self.assertEquals(42, future.result())
+
+        future = mte.submit(self.success, ret=43)
+        self.assertEquals(43, future.result())
+
+    def test_exception(self):
+        mte = MainThreadExecutor()
+
+        e = Exception('boom')
+        future = mte.submit(self.exception, e)
+        with self.assertRaises(Exception) as ctx:
+            future.result()
+        self.assertEquals(e, ctx.exception)
+
+        future = mte.submit(self.exception, e=e)
+        with self.assertRaises(Exception) as ctx:
+            future.result()
+        self.assertEquals(e, ctx.exception)
+
+    def success(self, ret):
+        return ret
+
+    def exception(self, e):
+        raise e
