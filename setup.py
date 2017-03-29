@@ -34,8 +34,7 @@ setup(
         'incf.countryutils>=1.0',
         'ipaddress>=1.0.18',
         'python-dateutil>=2.6.0',
-        'requests>=2.13.0',
-        'yamllint>=1.6.0'
+        'requests>=2.13.0'
     ],
     license='MIT',
     long_description=open('README.md').read(),
