@@ -43,9 +43,7 @@ class ArgumentParser(_Base):
         return args
 
     def _setup_logging(self, args, default_log_level):
-        # TODO: if/when things are multi-threaded add [%(thread)d] in to the
-        # format
-        fmt = '%(asctime)s %(levelname)-5s %(name)s %(message)s'
+        fmt = '%(asctime)s [%(thread)d] %(levelname)-5s %(name)s %(message)s'
         formatter = Formatter(fmt=fmt, datefmt='%Y-%m-%dT%H:%M:%S ')
         stream = stdout if args.log_stream_stdout else stderr
         handler = StreamHandler(stream=stream)

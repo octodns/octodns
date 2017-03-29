@@ -30,11 +30,7 @@ def _zero_padded_numbers(s):
 # here
 class SortEnforcingLoader(SafeLoader):
 
-    def __init__(self, *args, **kwargs):
-        super(SortEnforcingLoader, self).__init__(*args, **kwargs)
-        self.add_constructor(self.DEFAULT_MAPPING_TAG, self._construct)
-
-    def _construct(self, _, node):
+    def _construct(self, node):
         self.flatten_mapping(node)
         ret = self.construct_pairs(node)
         keys = [d[0] for d in ret]
@@ -42,6 +38,10 @@ class SortEnforcingLoader(SafeLoader):
             raise ConstructorError(None, None, "keys out of order: {}"
                                    .format(', '.join(keys)), node.start_mark)
         return dict(ret)
+
+
+SortEnforcingLoader.add_constructor(SortEnforcingLoader.DEFAULT_MAPPING_TAG,
+                                    SortEnforcingLoader._construct)
 
 
 def safe_load(stream, enforce_order=True):
@@ -57,14 +57,13 @@ class SortingDumper(SafeDumper):
     more info
     '''
 
-    def __init__(self, *args, **kwargs):
-        super(SortingDumper, self).__init__(*args, **kwargs)
-        self.add_representer(dict, self._representer)
-
-    def _representer(self, _, data):
+    def _representer(self, data):
         data = data.items()
         data.sort(key=lambda d: _zero_padded_numbers(d[0]))
         return self.represent_mapping(self.DEFAULT_MAPPING_TAG, data)
+
+
+SortingDumper.add_representer(dict, SortingDumper._representer)
 
 
 def safe_dump(data, fh, **options):

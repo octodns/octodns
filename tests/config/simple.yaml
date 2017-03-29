@@ -1,3 +1,5 @@
+manager:
+  max_workers: 2
 providers:
   in:
     class: octodns.provider.yaml.YamlProvider
