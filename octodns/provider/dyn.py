@@ -14,7 +14,7 @@ from dyn.tm.services.dsf import DSFARecord, DSFAAAARecord, DSFFailoverChain, \
 from dyn.tm.session import DynectSession
 from dyn.tm.zones import Zone as DynZone
 from logging import getLogger
-from threading import Lock, local
+from threading import Lock
 from uuid import uuid4
 
 from ..record import Record
@@ -96,6 +96,15 @@ class DynProvider(BaseProvider):
         # Whether or not to support TrafficDirectors and enable GeoDNS
         # (optional, default is false)
         traffic_directors_enabled: true
+
+    Note: due to the way dyn.tm.session.DynectSession is managing things we can
+    only really have a single DynProvider configured. When you create a
+    DynectSession it's stored in a thread-local singleton. You don't invoke
+    methods on this session or a client that holds on to it. The client
+    libraries grab their per-thread session by accessing the singleton through
+    DynectSession.get_session(). That fundamentally doesn't support having more
+    than one account active at a time. See DynProvider._check_dyn_sess for some
+    related bits.
     '''
     RECORDS_TO_TYPE = {
         'a_records': 'A',
@@ -135,7 +144,6 @@ class DynProvider(BaseProvider):
         'AN': 17,  # Continental Antartica
     }
 
-    _thread_local = local()
     _sess_create_lock = Lock()
 
     def __init__(self, id, customer, username, password,
@@ -160,28 +168,22 @@ class DynProvider(BaseProvider):
         return self.traffic_directors_enabled
 
     def _check_dyn_sess(self):
-        try:
-            DynProvider._thread_local.dyn_sess
-        except AttributeError:
-            self.log.debug('_check_dyn_sess: creating')
-            # Dynect's client is odd, you create a session object, but don't
-            # use it for anything. It just makes the other objects work behind
-            # the scences. :-( That probably means we can only support a single
-            # set of dynect creds, so no split accounts. They're also per
-            # thread so we need to create one per thread. I originally tried
-            # calling DynectSession.get_session to see if there was one and
-            # creating if not, but that was always returning None, so now I'm
-            # manually creating them once per-thread. I'd imagine this could be
-            # figured out, but ...
+        # We don't have to worry about locking for the check since the
+        # underlying pieces are pre-thread. We can check to see if this thread
+        # has a session and if so we're good to go.
+        if DynectSession.get_session() is None:
+            # We need to create a new session for this thread and DynectSession
+            # creation is not thread-safe so we have to do the locking. If we
+            # don't and multiple sessions start creattion before the the first
+            # has finished (long time b/c it makes http calls) the subsequent
+            # creates will blow away DynectSession._instances, potentially
+            # multiple times if there are multiple creates in flight. Only the
+            # last of these initial concurrent creates will exist in
+            # DynectSession._instances dict and the others will be lost. When
+            # this thread later tries to make api calls there won't be an
+            # accessible session available for it to use.
             with self._sess_create_lock:
-                # We need to lock around creation of DynectSession b/c it's not
-                # thread-safe. If multiple sessions are created in parallel,
-                # _Singleton._instances will be overwritten to an empty hash
-                # each time loosing it's per-thread mapping. Then when this
-                # thread goes to use the session in the future it will have
-                # been lost.
                 DynectSession(self.customer, self.username, self.password)
-            DynProvider._thread_local.dyn_sess = True
 
     def _data_for_A(self, _type, records):
         return {
@@ -666,6 +668,8 @@ class DynProvider(BaseProvider):
         changes = plan.changes
         self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
                        len(changes))
+
+        self._check_dyn_sess()
 
         dyn_zone = _CachingDynZone.get(desired.name[:-1], create=True)
 
