@@ -14,7 +14,7 @@ from dyn.tm.services.dsf import DSFARecord, DSFAAAARecord, DSFFailoverChain, \
 from dyn.tm.session import DynectSession
 from dyn.tm.zones import Zone as DynZone
 from logging import getLogger
-from threading import local
+from threading import Lock, local
 from uuid import uuid4
 
 from ..record import Record
@@ -136,6 +136,7 @@ class DynProvider(BaseProvider):
     }
 
     _thread_local = local()
+    _sess_create_lock = Lock()
 
     def __init__(self, id, customer, username, password,
                  traffic_directors_enabled=False, *args, **kwargs):
@@ -172,7 +173,14 @@ class DynProvider(BaseProvider):
             # creating if not, but that was always returning None, so now I'm
             # manually creating them once per-thread. I'd imagine this could be
             # figured out, but ...
-            DynectSession(self.customer, self.username, self.password)
+            with self._sess_create_lock:
+                # We need to lock around creation of DynectSession b/c it's not
+                # thread-safe. If multiple sessions are created in parallel,
+                # _Singleton._instances will be overwritten to an empty hash
+                # each time loosing it's per-thread mapping. Then when this
+                # thread goes to use the session in the future it will have
+                # been lost.
+                DynectSession(self.customer, self.username, self.password)
             DynProvider._thread_local.dyn_sess = True
 
     def _data_for_A(self, _type, records):
