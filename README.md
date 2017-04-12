@@ -1,4 +1,4 @@
-# OctoDNS
+<img src="/docs/logos/octodns-logo.png?" height=251 width=404>
 
 ## DNS as code - Tools for managing DNS across multiple providers
 
@@ -217,6 +217,10 @@ If you have a problem or suggestion, please [open an issue](https://github.com/g
 ## License
 
 OctoDNS is licensed under the [MIT license](LICENSE).
+
+The MIT license grant is not for GitHub's trademarks, which include the logo designs. GitHub reserves all trademark and copyright rights in and to all GitHub trademarks. GitHub's logos include, for instance, the stylized designs that include "logo" in the file title in the following folder: https://github.com/github/octodns/tree/master/docs/logos/
+
+GitHub® and its stylized versions and the Invertocat mark are GitHub's Trademarks or registered Trademarks. When using GitHub's logos, be sure to follow the GitHub logo guidelines.
 
 ## Authors
 
