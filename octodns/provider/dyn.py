@@ -531,8 +531,7 @@ class DynProvider(BaseProvider):
         for _, geo in geos:
             if geo.subdivision_code:
                 criteria = {
-                    'country': geo.country_code,
-                    'province': geo.subdivision_code
+                    'province': geo.subdivision_code.lower()
                 }
             elif geo.country_code:
                 criteria = {
