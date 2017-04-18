@@ -148,7 +148,7 @@ The above command pulled the existing data out of Route53 and placed the results
 ## Supported providers
 
 | Provider | Record Support | GeoDNS Support | Notes |
-|--|--|--|
+|--|--|--|--|
 | [CloudflareProvider](/octodns/provider/cloudfalre.py) | A, AAAA, CNAME, MX, NS, SPF, TXT | No | |
 | [DnsSimple](/octodns/provider/dnsimple.py) | All | No | |
 | [DynProvider](/octodns/provider/dnsimple.py) | All | Yes | |
