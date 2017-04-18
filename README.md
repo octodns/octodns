@@ -145,6 +145,18 @@ $ octodns-dump --config-file=config/production.yaml --output-dir=tmp/ example.co
 
 The above command pulled the existing data out of Route53 and placed the results into `tmp/example.com.yaml`. That file can be inspected and moved into `config/` to become the new source. If things are working as designed a subsequent noop sync should show zero changes.
 
+## Supported providers
+
+| Provider | Record Support | GeoDNS Support | Notes |
+|--|--|--|--|
+| [CloudflareProvider](/octodns/provider/cloudfalre.py) | A, AAAA, CNAME, MX, NS, SPF, TXT | No | |
+| [DnsSimple](/octodns/provider/dnsimple.py) | All | No | |
+| [DynProvider](/octodns/provider/dnsimple.py) | All | Yes | |
+| [PowerDnsProvider](/octodns/provider/powerdns.py) | All | No | |
+| [Route53](/octodns/provider/route53.py) | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Yes | |
+| [TinyDNSSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |
+| [YamlProvider](/octodns/provider/yaml.py) | All | Yes | config |
+
 ## Custom Sources and Providers
 
 You can check out the [source](/octodns/source/) and [provider](/octodns/provider/) directory to see what's currently supported. Sources act as a source of record information. TinyDnsProvider is currently the only OSS source, though we have several others internally that are specific to our environment. These include something to pull host data from  [gPanel](https://githubengineering.com/githubs-metal-cloud/) and a similar provider that sources information about our network gear to create both `A` & `PTR` records for their interfaces. Things that might make good OSS sources might include an `ElbSource` that pulls information about [AWS Elastic Load Balancers](https://aws.amazon.com/elasticloadbalancing/) and dynamically creates `CNAME`s for them, or `Ec2Source` that pulls instance information so that records can be created for hosts similar to how our `GPanelProvider` works. An `AxfrSource` could be really interesting as well. Another case where a source may make sense is if you'd like to export data from a legacy service that you have no plans to push changes back into.
