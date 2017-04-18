@@ -31,6 +31,7 @@ setup(
     install_requires=[
         'PyYaml>=3.12',
         'dnspython>=1.15.0',
+        'futures>=3.0.5',
         'incf.countryutils>=1.0',
         'ipaddress>=1.0.18',
         'python-dateutil>=2.6.0',
