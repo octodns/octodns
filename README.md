@@ -72,7 +72,7 @@ Now that we have something to tell OctoDNS about our providers & zones we need t
     - 1.2.3.5
 ```
 
-Further information can be found in [Records Documentation](/docs/records.md`).
+Further information can be found in [Records Documentation](/docs/records.md).
 
 ### Noop
 
