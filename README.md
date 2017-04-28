@@ -220,7 +220,7 @@ zones:
 
 ## Contributing
 
-Please see our [contributing document](/.github/CONTRIBUTING.md) if you would like to participate!
+Please see our [contributing document](/CONTRIBUTING.md) if you would like to participate!
 
 ## Getting help
 
