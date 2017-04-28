@@ -149,9 +149,9 @@ The above command pulled the existing data out of Route53 and placed the results
 
 | Provider | Record Support | GeoDNS Support | Notes |
 |--|--|--|--|
-| [CloudflareProvider](/octodns/provider/cloudfalre.py) | A, AAAA, CNAME, MX, NS, SPF, TXT | No | |
-| [DnsSimple](/octodns/provider/dnsimple.py) | All | No | |
-| [DynProvider](/octodns/provider/dnsimple.py) | All | Yes | |
+| [CloudflareProvider](/octodns/provider/cloudflare.py) | A, AAAA, CNAME, MX, NS, SPF, TXT | No | |
+| [DnsimpleProvider](/octodns/provider/dnsimple.py) | All | No | |
+| [DynProvider](/octodns/provider/dyn.py) | All | Yes | |
 | [PowerDnsProvider](/octodns/provider/powerdns.py) | All | No | |
 | [Route53](/octodns/provider/route53.py) | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Yes | |
 | [TinyDNSSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |
