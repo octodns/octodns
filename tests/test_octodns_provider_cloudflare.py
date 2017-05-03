@@ -140,7 +140,7 @@ class TestCloudflareProvider(TestCase):
                     'id': 42,
                 }
             },  # zone create
-        ] + [None] * 15  # individual record creates
+        ] + [None] * 16  # individual record creates
 
         # non-existant zone, create everything
         plan = provider.plan(self.expected)
@@ -160,9 +160,16 @@ class TestCloudflareProvider(TestCase):
                 'name': 'under.unit.tests',
                 'ttl': 3600
             }),
-        ])
+            # make sure semicolons are not escaped when sending data
+            call('POST', '/zones/42/dns_records', data={
+                'content': 'v=DKIM1;k=rsa;s=email;h=sha256;p=A/kinda+of/long/string+with+numb3rs',
+                'type': 'TXT',
+                'name': 'txt.unit.tests',
+                'ttl': 600
+            }),
+        ], True)
         # expected number of total calls
-        self.assertEquals(17, provider._request.call_count)
+        self.assertEquals(18, provider._request.call_count)
 
         provider._request.reset_mock()
 
