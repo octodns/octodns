@@ -162,7 +162,8 @@ class TestCloudflareProvider(TestCase):
             }),
             # make sure semicolons are not escaped when sending data
             call('POST', '/zones/42/dns_records', data={
-                'content': 'v=DKIM1;k=rsa;s=email;h=sha256;p=A/kinda+of/long/string+with+numb3rs',
+                'content': 'v=DKIM1;k=rsa;s=email;h=sha256;'
+                           'p=A/kinda+of/long/string+with+numb3rs',
                 'type': 'TXT',
                 'name': 'txt.unit.tests',
                 'ttl': 600
