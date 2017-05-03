@@ -86,6 +86,10 @@
                 {
                     "content": "\"have you any wool.\"",
                     "disabled": false
+                },
+                {
+                    "content": "\"v=DKIM1\\;k=rsa\\;s=email\\;h=sha256\\;p=A/kinda+of/long/string+with+numb3rs\"",
+                    "disabled": false
                 }
             ],
             "ttl": 600,

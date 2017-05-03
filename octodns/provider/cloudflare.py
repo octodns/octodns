@@ -99,7 +99,13 @@ class CloudflareProvider(BaseProvider):
     _data_for_A = _data_for_multiple
     _data_for_AAAA = _data_for_multiple
     _data_for_SPF = _data_for_multiple
-    _data_for_TXT = _data_for_multiple
+
+    def _data_for_TXT(self, _type, records):
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': [r['content'].replace(';', '\;') for r in records],
+        }
 
     def _data_for_CNAME(self, _type, records):
         only = records[0]
@@ -191,7 +197,10 @@ class CloudflareProvider(BaseProvider):
     _contents_for_AAAA = _contents_for_multiple
     _contents_for_NS = _contents_for_multiple
     _contents_for_SPF = _contents_for_multiple
-    _contents_for_TXT = _contents_for_multiple
+
+    def _contents_for_TXT(self, record):
+        for value in record.values:
+            yield {'content': value.replace('\;', ';')}
 
     def _contents_for_CNAME(self, record):
         yield {'content': record.value}

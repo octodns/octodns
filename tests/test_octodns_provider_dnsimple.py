@@ -147,7 +147,7 @@ class TestDnsimpleProvider(TestCase):
             }),
         ])
         # expected number of total calls
-        self.assertEquals(25, provider._client._request.call_count)
+        self.assertEquals(26, provider._client._request.call_count)
 
         provider._client._request.reset_mock()
 
