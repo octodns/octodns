@@ -90,8 +90,7 @@ class _Route53Record(object):
         elif self.geo:
             geo = self.geo
             rrset['SetIdentifier'] = geo.code
-            if self.health_check_id:
-                rrset['HealthCheckId'] = self.health_check_id
+            rrset['HealthCheckId'] = self.health_check_id
             if geo.subdivision_code:
                 rrset['GeoLocation'] = {
                     'CountryCode': geo.country_code,
