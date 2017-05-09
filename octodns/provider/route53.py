@@ -417,7 +417,7 @@ class Route53Provider(BaseProvider):
         # We've got a cached version use it
         return self._health_checks
 
-    def _get_health_check_id(self, record, ident, geo):
+    def _get_health_check_id(self, record, ident, geo, create):
         # fqdn & the first value are special, we use them to match up health
         # checks to their records. Route53 health checks check a single ip and
         # we're going to assume that ips are interchangeable to avoid
@@ -444,6 +444,10 @@ class Route53Provider(BaseProvider):
                first_value == config['IPAddress']:
                 # this is the health check we're looking for
                 return id
+
+        if not create:
+            # no existing matches and not allowed to create, return none
+            return
 
         # no existing matches, we need to create a new health check
         config = {
@@ -493,7 +497,7 @@ class Route53Provider(BaseProvider):
                 self.log.info('_gc_health_checks:   deleting id=%s', id)
                 self._conn.delete_health_check(HealthCheckId=id)
 
-    def _gen_records(self, record, new=False):
+    def _gen_records(self, record, creating=False):
         '''
         Turns an octodns.Record into one or more `_Route53Record`s
         '''
@@ -504,13 +508,8 @@ class Route53Provider(BaseProvider):
         if getattr(record, 'geo', False):
             base.is_geo_default = True
             for ident, geo in record.geo.items():
-                if new:
-                    # only find health checks for records that are going to be
-                    # around after the run
-                    health_check_id = self._get_health_check_id(record, ident,
-                                                                geo)
-                else:
-                    health_check_id = None
+                health_check_id = self._get_health_check_id(record, ident, geo,
+                                                            creating)
                 records.add(_Route53Record(record.fqdn, record._type,
                                            record.ttl, values=geo.values,
                                            geo=geo,
@@ -520,7 +519,7 @@ class Route53Provider(BaseProvider):
 
     def _mod_Create(self, change):
         # New is the stuff that needs to be created
-        new_records = self._gen_records(change.new, True)
+        new_records = self._gen_records(change.new, creating=True)
         # Now is a good time to clear out any unused health checks since we
         # know what we'll be using going forward
         self._gc_health_checks(change.new, new_records)
@@ -529,8 +528,8 @@ class Route53Provider(BaseProvider):
     def _mod_Update(self, change):
         # See comments in _Route53Record for how the set math is made to do our
         # bidding here.
-        existing_records = self._gen_records(change.existing)
-        new_records = self._gen_records(change.new, True)
+        existing_records = self._gen_records(change.existing, creating=False)
+        new_records = self._gen_records(change.new, creating=True)
         # Now is a good time to clear out any unused health checks since we
         # know what we'll be using going forward
         self._gc_health_checks(change.new, new_records)
@@ -540,14 +539,34 @@ class Route53Provider(BaseProvider):
         creates = new_records - existing_records
         # Things in both need updating, we could optimize this and filter out
         # things that haven't actually changed, but that's for another day.
-        upserts = existing_records & new_records
+        # We can't use set math here b/c we won't be able to control which of
+        # the two objects will be in the result and we need to ensure it's the
+        # new one and we have to include some special handling when converting
+        # to/from a GEO enabled record
+        upserts = set()
+        existing_records = {r: r for r in existing_records}
+        for new_record in new_records:
+            try:
+                existing_record = existing_records[new_record]
+                if new_record.is_geo_default != existing_record.is_geo_default:
+                    # going from normal to geo or geo to normal, need a delete
+                    # and create
+                    deletes.add(existing_record)
+                    creates.add(new_record)
+                else:
+                    # just an update
+                    upserts.add(new_record)
+            except KeyError:
+                # Completely new record, ignore
+                pass
+
         return self._gen_mods('DELETE', deletes) + \
             self._gen_mods('CREATE', creates) + \
             self._gen_mods('UPSERT', upserts)
 
     def _mod_Delete(self, change):
         # Existing is the thing that needs to be deleted
-        existing_records = self._gen_records(change.existing)
+        existing_records = self._gen_records(change.existing, creating=False)
         # Now is a good time to clear out all the health checks since we know
         # we're done with them
         self._gc_health_checks(change.existing, [])

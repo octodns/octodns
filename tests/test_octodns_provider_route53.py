@@ -430,6 +430,7 @@ class TestRoute53Provider(TestCase):
                     'ResourceRecordSet': {
                         'GeoLocation': {'CountryCode': 'US',
                                         'SubdivisionCode': 'KY'},
+                        'HealthCheckId': u'44',
                         'Name': 'unit.tests.',
                         'ResourceRecords': [{'Value': '7.2.3.4'}],
                         'SetIdentifier': 'NA-US-KY',
@@ -482,6 +483,70 @@ class TestRoute53Provider(TestCase):
                         'TTL': 61,
                         'Type': 'A'
                     }
+                }],
+                'Comment': ANY
+            },
+            'HostedZoneId': 'z42'
+        }
+        stubber.add_response('change_resource_record_sets',
+                             {'ChangeInfo': {
+                                 'Id': 'id',
+                                 'Status': 'PENDING',
+                                 'SubmittedAt': '2017-01-29T01:02:03Z',
+                             }}, change_resource_record_sets_params)
+        plan = provider.plan(self.expected)
+        self.assertEquals(1, len(plan.changes))
+        self.assertIsInstance(plan.changes[0], Update)
+        self.assertEquals(1, provider.apply(plan))
+        stubber.assert_no_pending_responses()
+
+        # Update converting to non-geo by monkey patching in a populate that
+        # modifies the A record with geos
+        def mod_add_geo_populate(existing, target):
+            for record in self.expected.records:
+                if record._type != 'A' or record.geo:
+                    existing.records.add(record)
+            record = Record.new(existing, 'simple', {
+                'ttl': 61,
+                'type': 'A',
+                'values': ['1.2.3.4', '2.2.3.4'],
+                'geo': {
+                    'OC': ['3.2.3.4', '4.2.3.4'],
+                }
+            })
+            existing.records.add(record)
+
+        provider.populate = mod_add_geo_populate
+        change_resource_record_sets_params = {
+            'ChangeBatch': {
+                'Changes': [{
+                    'Action': 'DELETE',
+                    'ResourceRecordSet': {
+                        'GeoLocation': {'ContinentCode': 'OC'},
+                        'Name': 'simple.unit.tests.',
+                        'ResourceRecords': [{'Value': '3.2.3.4'},
+                                            {'Value': '4.2.3.4'}],
+                        'SetIdentifier': 'OC',
+                        'TTL': 61,
+                        'Type': 'A'}
+                }, {
+                    'Action': 'DELETE',
+                    'ResourceRecordSet': {
+                        'GeoLocation': {'CountryCode': '*'},
+                        'Name': 'simple.unit.tests.',
+                        'ResourceRecords': [{'Value': '1.2.3.4'},
+                                            {'Value': '2.2.3.4'}],
+                        'SetIdentifier': 'default',
+                        'TTL': 61,
+                        'Type': 'A'}
+                }, {
+                    'Action': 'CREATE',
+                    'ResourceRecordSet': {
+                        'Name': 'simple.unit.tests.',
+                        'ResourceRecords': [{'Value': '1.2.3.4'},
+                                            {'Value': '2.2.3.4'}],
+                        'TTL': 60,
+                        'Type': 'A'}
                 }],
                 'Comment': ANY
             },
@@ -629,7 +694,8 @@ class TestRoute53Provider(TestCase):
                 'AF': ['4.2.3.4'],
             }
         })
-        id = provider._get_health_check_id(record, 'AF', record.geo['AF'])
+        id = provider._get_health_check_id(record, 'AF', record.geo['AF'],
+                                           True)
         self.assertEquals('42', id)
 
     def test_health_check_create(self):
@@ -697,7 +763,15 @@ class TestRoute53Provider(TestCase):
                 'AF': ['4.2.3.4'],
             }
         })
-        id = provider._get_health_check_id(record, 'AF', record.geo['AF'])
+
+        # if not allowed to create returns none
+        id = provider._get_health_check_id(record, 'AF', record.geo['AF'],
+                                           False)
+        self.assertFalse(id)
+
+        # when allowed to create we do
+        id = provider._get_health_check_id(record, 'AF', record.geo['AF'],
+                                           True)
         self.assertEquals('42', id)
         stubber.assert_no_pending_responses()
 
