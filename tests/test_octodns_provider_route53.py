@@ -699,6 +699,13 @@ class TestRoute53Provider(TestCase):
                 'AF': ['4.2.3.4'],
             }
         })
+
+        # if not allowed to create returns none
+        id = provider._get_health_check_id(record, 'AF', record.geo['AF'],
+                                           False)
+        self.assertFalse(id)
+
+        # when allowed to create we do
         id = provider._get_health_check_id(record, 'AF', record.geo['AF'],
                                            True)
         self.assertEquals('42', id)
