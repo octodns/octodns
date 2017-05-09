@@ -430,6 +430,7 @@ class TestRoute53Provider(TestCase):
                     'ResourceRecordSet': {
                         'GeoLocation': {'CountryCode': 'US',
                                         'SubdivisionCode': 'KY'},
+                        'HealthCheckId': u'44',
                         'Name': 'unit.tests.',
                         'ResourceRecords': [{'Value': '7.2.3.4'}],
                         'SetIdentifier': 'NA-US-KY',
@@ -629,7 +630,8 @@ class TestRoute53Provider(TestCase):
                 'AF': ['4.2.3.4'],
             }
         })
-        id = provider._get_health_check_id(record, 'AF', record.geo['AF'])
+        id = provider._get_health_check_id(record, 'AF', record.geo['AF'],
+                                           True)
         self.assertEquals('42', id)
 
     def test_health_check_create(self):
@@ -697,7 +699,8 @@ class TestRoute53Provider(TestCase):
                 'AF': ['4.2.3.4'],
             }
         })
-        id = provider._get_health_check_id(record, 'AF', record.geo['AF'])
+        id = provider._get_health_check_id(record, 'AF', record.geo['AF'],
+                                           True)
         self.assertEquals('42', id)
         stubber.assert_no_pending_responses()
 
