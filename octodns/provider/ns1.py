@@ -13,20 +13,20 @@ from ..record import Record
 from .base import BaseProvider
 
 
-class NsOneProvider(BaseProvider):
+class Ns1Provider(BaseProvider):
     '''
-    NsOne provider
+    Ns1 provider
 
     nsone:
-        class: octodns.provider.nsone.NsOneProvider
-        api_key: env/NS_ONE_API_KEY
+        class: octodns.provider.nsone.Ns1Provider
+        api_key: env/NS1_API_KEY
     '''
     SUPPORTS_GEO = False
 
     def __init__(self, id, api_key, *args, **kwargs):
-        self.log = getLogger('NsOneProvider[{}]'.format(id))
+        self.log = getLogger('Ns1Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, api_key=***', id)
-        super(NsOneProvider, self).__init__(id, *args, **kwargs)
+        super(Ns1Provider, self).__init__(id, *args, **kwargs)
         self._client = NSONE(apiKey=api_key)
 
     def _data_for_A(self, _type, record):
