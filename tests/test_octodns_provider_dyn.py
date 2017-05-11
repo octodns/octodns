@@ -533,7 +533,7 @@ class TestDynProviderGeo(TestCase):
             'notifier': '',
             'options': {
                 'expected': '',
-                'header': '',
+                'header': 'User-Agent: Dyn Monitor',
                 'host': 'unit.tests',
                 'path': '/_dns',
                 'port': '443',
@@ -649,7 +649,7 @@ class TestDynProviderGeo(TestCase):
                 u'notifier': u'',
                 u'options': {
                     u'expected': u'',
-                    u'header': u'',
+                    'header': 'User-Agent: Dyn Monitor',
                     u'host': u'geo.unit.tests.',
                     u'path': u'/_dns',
                     u'port': u'443',
@@ -684,6 +684,7 @@ class TestDynProviderGeo(TestCase):
                 'options': {
                     'path': u'/_dns',
                     'host': u'geo.unit.tests',
+                    'header': 'User-Agent: Dyn Monitor',
                     'port': 443,
                     'timeout': 10
                 }

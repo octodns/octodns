@@ -450,6 +450,7 @@ class DynProvider(BaseProvider):
             monitor = DSFMonitor(fqdn, protocol='HTTPS', response_count=2,
                                  probe_interval=60, retries=2, port=443,
                                  active='Y', host=fqdn[:-1], timeout=10,
+                                 header='User-Agent: Dyn Monitor',
                                  path='/_dns')
             self._traffic_director_monitors[fqdn] = monitor
             return monitor
