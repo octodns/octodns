@@ -304,7 +304,7 @@ class TestDynProvider(TestCase):
                     'fqdn': '_srv._tcp.unit.tests',
                     'rdata': {'port': 10,
                               'priority': 11,
-                              'target': u'foo-1.unit.tests.',
+                              'target': 'foo-1.unit.tests.',
                               'weight': 12},
                     'record_id': 10,
                     'record_type': 'SRV',
@@ -314,7 +314,7 @@ class TestDynProvider(TestCase):
                     'fqdn': '_srv._tcp.unit.tests',
                     'rdata': {'port': 20,
                               'priority': 21,
-                              'target': u'foo-2.unit.tests.',
+                              'target': 'foo-2.unit.tests.',
                               'weight': 22},
                     'record_id': 11,
                     'record_type': 'SRV',
@@ -385,7 +385,7 @@ class TestDynProvider(TestCase):
                     'fqdn': '_srv._tcp.unit.tests',
                     'rdata': {'port': 10,
                               'priority': 11,
-                              'target': u'foo-1.unit.tests.',
+                              'target': 'foo-1.unit.tests.',
                               'weight': 12},
                     'record_id': 5,
                     'record_type': 'SRV',
@@ -395,7 +395,7 @@ class TestDynProvider(TestCase):
                     'fqdn': '_srv._tcp.unit.tests',
                     'rdata': {'port': 20,
                               'priority': 21,
-                              'target': u'foo-2.unit.tests.',
+                              'target': 'foo-2.unit.tests.',
                               'weight': 22},
                     'record_id': 6,
                     'record_type': 'SRV',
@@ -642,30 +642,30 @@ class TestDynProviderGeo(TestCase):
         geo_monitor_id = '42x'
         mock.side_effect = [self.monitors_response, {
             'data': {
-                u'active': u'Y',
-                u'dsf_monitor_id': geo_monitor_id,
-                u'endpoints': [],
-                u'label': u'geo.unit.tests.',
-                u'notifier': u'',
-                u'options': {
-                    u'expected': u'',
+                'active': 'Y',
+                'dsf_monitor_id': geo_monitor_id,
+                'endpoints': [],
+                'label': 'geo.unit.tests.',
+                'notifier': '',
+                'options': {
+                    'expected': '',
                     'header': 'User-Agent: Dyn Monitor',
-                    u'host': u'geo.unit.tests.',
-                    u'path': u'/_dns',
-                    u'port': u'443',
-                    u'timeout': u'10'
+                    'host': 'geo.unit.tests.',
+                    'path': '/_dns',
+                    'port': '443',
+                    'timeout': '10'
                 },
-                u'probe_interval': u'60',
-                u'protocol': u'HTTPS',
-                u'response_count': u'2',
-                u'retries': u'2'
+                'probe_interval': '60',
+                'protocol': 'HTTPS',
+                'response_count': '2',
+                'retries': '2'
             },
-            u'job_id': 3376259461,
-            u'msgs': [{u'ERR_CD': None,
-                       u'INFO': u'add: Here is the new monitor',
-                       u'LVL': u'INFO',
-                       u'SOURCE': u'BLL'}],
-            u'status': u'success'
+            'job_id': 3376259461,
+            'msgs': [{'ERR_CD': None,
+                      'INFO': 'add: Here is the new monitor',
+                      'LVL': 'INFO',
+                      'SOURCE': 'BLL'}],
+            'status': 'success'
         }]
 
         # ask for a monitor that doesn't exist
@@ -676,14 +676,14 @@ class TestDynProviderGeo(TestCase):
             call('/DSFMonitor/', 'GET', {'detail': 'Y'}),
             call('/DSFMonitor/', 'POST', {
                 'retries': 2,
-                'protocol': u'HTTPS',
+                'protocol': 'HTTPS',
                 'response_count': 2,
-                'label': u'geo.unit.tests.',
+                'label': 'geo.unit.tests.',
                 'probe_interval': 60,
                 'active': 'Y',
                 'options': {
-                    'path': u'/_dns',
-                    'host': u'geo.unit.tests',
+                    'path': '/_dns',
+                    'host': 'geo.unit.tests',
                     'header': 'User-Agent: Dyn Monitor',
                     'port': 443,
                     'timeout': 10
