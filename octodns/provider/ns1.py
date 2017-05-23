@@ -22,6 +22,7 @@ class Ns1Provider(BaseProvider):
         api_key: env/NS1_API_KEY
     '''
     SUPPORTS_GEO = False
+    ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
     def __init__(self, id, api_key, *args, **kwargs):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
@@ -113,7 +114,7 @@ class Ns1Provider(BaseProvider):
             nsone_zone = self._client.loadZone(zone.name[:-1])
             records = nsone_zone.data['records']
         except ResourceException as e:
-            if e.message != 'server error: zone not found':
+            if e.message != self.ZONE_NOT_FOUND_MESSAGE:
                 raise
             records = []
 
@@ -174,6 +175,13 @@ class Ns1Provider(BaseProvider):
         params = getattr(self, '_params_for_{}'.format(_type))(new)
         record.update(**params)
 
+    def _apply_Delete(self, nsone_zone, change):
+        existing = change.existing
+        name = self._get_name(existing)
+        _type = existing._type
+        record = nsone_zone.loadRecord(name, _type)
+        record.delete()
+
     def _apply(self, plan):
         desired = plan.desired
         changes = plan.changes
@@ -183,7 +191,9 @@ class Ns1Provider(BaseProvider):
         domain_name = desired.name[:-1]
         try:
             nsone_zone = self._client.loadZone(domain_name)
-        except ResourceException:
+        except ResourceException as e:
+            if e.message != self.ZONE_NOT_FOUND_MESSAGE:
+                raise
             self.log.debug('_apply:   no matching zone, creating')
             nsone_zone = self._client.createZone(domain_name)
 
