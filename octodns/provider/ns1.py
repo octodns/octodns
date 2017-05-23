@@ -111,11 +111,14 @@ class Ns1Provider(BaseProvider):
 
         try:
             nsone_zone = self._client.loadZone(zone.name[:-1])
-        except ResourceException:
-            return
+            records = nsone_zone.data['records']
+        except ResourceException as e:
+            if e.message != 'server error: zone not found':
+                raise
+            records = []
 
         before = len(zone.records)
-        for record in nsone_zone.data['records']:
+        for record in records:
             _type = record['type']
             data_for = getattr(self, '_data_for_{}'.format(_type))
             name = zone.hostname_from_fqdn(record['domain'])
