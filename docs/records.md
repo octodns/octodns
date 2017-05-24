@@ -79,6 +79,6 @@ In the above example each name had a single record, but there are cases where a 
 
 ### Record data
 
-Each record type has a corresponding set of required data. The easiest way to determine what's required is probably to look at the record object in [`octodns/records.py`](/octodns/records.py). You may also utilize `octodns-validate` which will throw errors about what's missing when run.
+Each record type has a corresponding set of required data. The easiest way to determine what's required is probably to look at the record object in [`octodns/record.py`](/octodns/record.py). You may also utilize `octodns-validate` which will throw errors about what's missing when run.
 
 `type` is required for all records. `ttl` is optional. When TTL is not specified the `YamlProvider`'s default will be used. In any situation where an array of `values` can be used you can opt to go with `value` as a single item if there's only one.
