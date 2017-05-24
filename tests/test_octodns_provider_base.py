@@ -138,33 +138,140 @@ class TestBaseProvider(TestCase):
         # We filtered out the only change
         self.assertFalse(plan)
 
-    def test_safe(self):
-        ignored = Zone('unit.tests.', [])
-
+    def test_safe_none(self):
         # No changes is safe
         Plan(None, None, []).raise_if_unsafe()
 
-        # Creates are safe
-        record = Record.new(ignored, 'a', {
+    def test_safe_creates(self):
+        # Creates are safe when existing records is under MIN_EXISTING_RECORDS
+        zone = Zone('unit.tests.', [])
+
+        record = Record.new(zone, 'a', {
             'ttl': 30,
             'type': 'A',
             'value': '1.2.3.4',
         })
-        Plan(None, None, [Create(record) for i in range(10)]).raise_if_unsafe()
+        Plan(zone, zone, [Create(record) for i in range(10)]).raise_if_unsafe()
 
-        # max Updates is safe
+    def test_safe_min_existing_creates(self):
+        # Creates are safe when existing records is over MIN_EXISTING_RECORDS
+        zone = Zone('unit.tests.', [])
+
+        record = Record.new(zone, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+
+        for i in range(int(Plan.MIN_EXISTING_RECORDS)):
+            zone.add_record(Record.new(zone, str(i), {
+                            'ttl': 60,
+                            'type': 'A',
+                            'value': '2.3.4.5'
+                            }))
+
+        Plan(zone, zone, [Create(record) for i in range(10)]).raise_if_unsafe()
+
+    def test_safe_no_existing(self):
+        # existing records fewer than MIN_EXISTING_RECORDS is safe
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+
+        updates = [Update(record, record), Update(record, record)]
+        Plan(zone, zone, updates).raise_if_unsafe()
+
+    def test_safe_updates_min_existing(self):
+        # MAX_SAFE_UPDATE_PCENT+1 fails when more
+        # than MIN_EXISTING_RECORDS exist
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+
+        for i in range(int(Plan.MIN_EXISTING_RECORDS)):
+            zone.add_record(Record.new(zone, str(i), {
+                            'ttl': 60,
+                            'type': 'A',
+                            'value': '2.3.4.5'
+                            }))
+
         changes = [Update(record, record)
-                   for i in range(Plan.MAX_SAFE_UPDATES)]
-        Plan(None, None, changes).raise_if_unsafe()
-        # but max + 1 isn't
-        with self.assertRaises(UnsafePlan):
-            changes.append(Update(record, record))
-            Plan(None, None, changes).raise_if_unsafe()
+                   for i in range(int(Plan.MIN_EXISTING_RECORDS *
+                                      Plan.MAX_SAFE_UPDATE_PCENT) + 1)]
 
-        # max Deletes is safe
-        changes = [Delete(record) for i in range(Plan.MAX_SAFE_DELETES)]
-        Plan(None, None, changes).raise_if_unsafe()
-        # but max + 1 isn't
         with self.assertRaises(UnsafePlan):
-            changes.append(Delete(record))
-            Plan(None, None, changes).raise_if_unsafe()
+            Plan(zone, zone, changes).raise_if_unsafe()
+
+    def test_safe_updates_min_existing_pcent(self):
+        # MAX_SAFE_UPDATE_PCENT is safe when more
+        # than MIN_EXISTING_RECORDS exist
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+
+        for i in range(int(Plan.MIN_EXISTING_RECORDS)):
+            zone.add_record(Record.new(zone, str(i), {
+                            'ttl': 60,
+                            'type': 'A',
+                            'value': '2.3.4.5'
+                            }))
+        changes = [Update(record, record)
+                   for i in range(int(Plan.MIN_EXISTING_RECORDS *
+                                      Plan.MAX_SAFE_UPDATE_PCENT))]
+
+        Plan(zone, zone, changes).raise_if_unsafe()
+
+    def test_safe_deletes_min_existing(self):
+        # MAX_SAFE_DELETE_PCENT+1 fails when more
+        # than MIN_EXISTING_RECORDS exist
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+
+        for i in range(int(Plan.MIN_EXISTING_RECORDS)):
+            zone.add_record(Record.new(zone, str(i), {
+                            'ttl': 60,
+                            'type': 'A',
+                            'value': '2.3.4.5'
+                            }))
+
+        changes = [Delete(record)
+                   for i in range(int(Plan.MIN_EXISTING_RECORDS *
+                                      Plan.MAX_SAFE_DELETE_PCENT) + 1)]
+
+        with self.assertRaises(UnsafePlan):
+            Plan(zone, zone, changes).raise_if_unsafe()
+
+    def test_safe_deletes_min_existing_pcent(self):
+        # MAX_SAFE_DELETE_PCENT is safe when more
+        # than MIN_EXISTING_RECORDS exist
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+
+        for i in range(int(Plan.MIN_EXISTING_RECORDS)):
+            zone.add_record(Record.new(zone, str(i), {
+                            'ttl': 60,
+                            'type': 'A',
+                            'value': '2.3.4.5'
+                            }))
+        changes = [Delete(record)
+                   for i in range(int(Plan.MIN_EXISTING_RECORDS *
+                                      Plan.MAX_SAFE_DELETE_PCENT))]
+
+        Plan(zone, zone, changes).raise_if_unsafe()
