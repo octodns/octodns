@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from ..source.base import BaseSource
 from ..zone import Zone
+from logging import getLogger
 
 
 class UnsafePlan(Exception):
@@ -14,8 +15,11 @@ class UnsafePlan(Exception):
 
 
 class Plan(object):
-    MAX_SAFE_UPDATES = 4
-    MAX_SAFE_DELETES = 4
+    log = getLogger('Plan')
+
+    MAX_SAFE_UPDATE_PCENT = .3
+    MAX_SAFE_DELETE_PCENT = .3
+    MIN_EXISTING_RECORDS = 10
 
     def __init__(self, existing, desired, changes):
         self.existing = existing
@@ -31,12 +35,42 @@ class Plan(object):
             change_counts[change.__class__.__name__] += 1
         self.change_counts = change_counts
 
+        if self.existing:
+            self.log.debug('__init__: Creates=%s, Updates=%s, Deletes=%s'
+                           'Existing=%s',
+                           self.change_counts['Create'],
+                           self.change_counts['Update'],
+                           self.change_counts['Delete'],
+                           len(self.existing.records))
+        else:
+            self.log.debug('__init__: Creates=%s, Updates=%s, Deletes=%s',
+                           self.change_counts['Create'],
+                           self.change_counts['Update'],
+                           self.change_counts['Delete'])
+
     def raise_if_unsafe(self):
         # TODO: what is safe really?
-        if self.change_counts['Update'] > self.MAX_SAFE_UPDATES:
-            raise UnsafePlan('Too many updates')
-        if self.change_counts['Delete'] > self.MAX_SAFE_DELETES:
-            raise UnsafePlan('Too many deletes')
+        if self.existing and \
+           len(self.existing.records) >= self.MIN_EXISTING_RECORDS:
+
+            existing_record_count = len(self.existing.records)
+            update_pcent = self.change_counts['Update'] / existing_record_count
+            delete_pcent = self.change_counts['Delete'] / existing_record_count
+
+            if update_pcent > self.MAX_SAFE_UPDATE_PCENT:
+                raise UnsafePlan('Too many updates, %s is over %s percent'
+                                 '(%s/%s)',
+                                 update_pcent,
+                                 self.MAX_SAFE_UPDATE_PCENT * 100,
+                                 self.change_counts['Update'],
+                                 existing_record_count)
+            if delete_pcent > self.MAX_SAFE_DELETE_PCENT:
+                raise UnsafePlan('Too many deletes, %s is over %s percent'
+                                 '(%s/%s)',
+                                 delete_pcent,
+                                 self.MAX_SAFE_DELETE_PCENT * 100,
+                                 self.change_counts['Delete'],
+                                 existing_record_count)
 
     def __repr__(self):
         return 'Creates={}, Updates={}, Deletes={}, Existing Records={}' \
