@@ -35,18 +35,16 @@ class Plan(object):
             change_counts[change.__class__.__name__] += 1
         self.change_counts = change_counts
 
-        if self.existing:
-            self.log.debug('__init__: Creates=%s, Updates=%s, Deletes=%s'
-                           'Existing=%s',
-                           self.change_counts['Create'],
-                           self.change_counts['Update'],
-                           self.change_counts['Delete'],
-                           len(self.existing.records))
-        else:
-            self.log.debug('__init__: Creates=%s, Updates=%s, Deletes=%s',
-                           self.change_counts['Create'],
-                           self.change_counts['Update'],
-                           self.change_counts['Delete'])
+        try:
+            existing_n = len(self.existing.records)
+        except AttributeError:
+            existing_n = 0
+
+        self.log.debug('__init__: Creates=%d, Updates=%d, Deletes=%d'
+                       'Existing=%d',
+                       self.change_counts['Create'],
+                       self.change_counts['Update'],
+                       self.change_counts['Delete'], existing_n)
 
     def raise_if_unsafe(self):
         # TODO: what is safe really?
