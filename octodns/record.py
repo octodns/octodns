@@ -89,7 +89,7 @@ class Record(object):
                 'PTR': PtrRecord,
                 # px
                 # rp
-                # soa - would it even make sense?
+                'SOA': SoaRecord,
                 'SPF': SpfRecord,
                 'SRV': SrvRecord,
                 'SSHFP': SshfpRecord,
@@ -185,13 +185,14 @@ class _ValuesMixin(object):
     def __init__(self, zone, name, data, source=None):
         super(_ValuesMixin, self).__init__(zone, name, data, source=source)
         try:
-            self.values = sorted(self._process_values(data['values']))
+            values = data['values']
         except KeyError:
             try:
-                self.values = self._process_values([data['value']])
+                values = [data['value']]
             except KeyError:
                 raise Exception('Invalid record {}, missing value(s)'
                                 .format(self.fqdn))
+        self.values = sorted(self._process_values(values))
 
     def changes(self, other, target):
         if self.values != other.values:
@@ -290,10 +291,11 @@ class _ValueMixin(object):
     def __init__(self, zone, name, data, source=None):
         super(_ValueMixin, self).__init__(zone, name, data, source=source)
         try:
-            self.value = self._process_value(data['value'])
+            value = data['value']
         except KeyError:
             raise Exception('Invalid record {}, missing value'
                             .format(self.fqdn))
+        self.value = self._process_value(value)
 
     def changes(self, other, target):
         if self.value != other.value:
@@ -316,7 +318,7 @@ class CnameRecord(_ValueMixin, Record):
 
     def _process_value(self, value):
         if not value.endswith('.'):
-            raise Exception('Invalid record {}, value {} missing trailing .'
+            raise Exception('Invalid record {}, value "{}" missing trailing .'
                             .format(self.fqdn, value))
         return value.lower()
 
@@ -434,9 +436,66 @@ class PtrRecord(_ValueMixin, Record):
 
     def _process_value(self, value):
         if not value.endswith('.'):
-            raise Exception('Invalid record {}, value {} missing trailing .'
+            raise Exception('Invalid record {}, value "{}" missing trailing .'
                             .format(self.fqdn, value))
         return value.lower()
+
+
+class SoaValue(object):
+
+    def __init__(self, value):
+        self.mname = value['mname']
+        self.rname = value['rname']
+        self.serial = int(value['serial'])
+        self.refresh = int(value['refresh'])
+        self.retry = int(value['retry'])
+        self.expire = int(value['expire'])
+        self.minimum = int(value['minimum'])
+
+    @property
+    def data(self):
+        return {
+            'mname': self.mname,
+            'rname': self.rname,
+            'serial': self.serial,
+            'refresh': self.refresh,
+            'retry': self.retry,
+            'expire': self.expire,
+            'minimum': self.minimum
+        }
+
+    def __cmp__(self, other):
+        # mname is not a diff
+        if self.rname != other.rname:
+            return cmp(self.rname, other.rname)
+        # serial is not a diff
+        if self.refresh != other.refresh:
+            return cmp(self.refresh, other.refresh)
+        if self.retry != other.retry:
+            return cmp(self.retry, other.retry)
+        if self.expire != other.expire:
+            return cmp(self.expire, other.expire)
+        return cmp(self.minimum, other.minimum)
+
+    def __repr__(self):
+        return "'{} {} {} {} {} {} {}'".format(self.mname, self.rname,
+                                               self.serial, self.refresh,
+                                               self.retry, self.expire,
+                                               self.minimum)
+
+
+class SoaRecord(_ValueMixin, Record):
+    _type = 'SOA'
+
+    def _process_value(self, value):
+        value = SoaValue(value)
+        if not value.mname.endswith('.'):
+            raise Exception('Invalid value {}, mname "{}" missing trailing .'
+                            .format(self.fqdn, value.mname))
+        if not value.rname.endswith('.'):
+            raise Exception('Invalid value {}, rname "{}" missing trailing .'
+                            .format(self.fqdn, value.rname))
+        return value
 
 
 class SshfpValue(object):
