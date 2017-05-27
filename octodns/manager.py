@@ -51,6 +51,7 @@ class MainThreadExecutor(object):
         try:
             future.set_result(func(*args, **kwargs))
         except Exception as e:
+            # TODO: get right stacktrace here
             future.set_exception(e)
         return future
 
