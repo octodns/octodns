@@ -98,3 +98,7 @@ def main():
             answers = '*:*'.join(sorted(answers)).lower()
             compare[answers] = True
         stdout.write(',True\n' if len(compare) == 1 else ',False\n')
+
+
+if __name__ == '__main__':
+    main()

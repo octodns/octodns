@@ -37,3 +37,7 @@ def main():
     manager = Manager(args.config_file)
     manager.sync(eligible_zones=args.zone, eligible_targets=args.target,
                  dry_run=not args.doit, force=args.force)
+
+
+if __name__ == '__main__':
+    main()

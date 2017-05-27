@@ -22,3 +22,7 @@ def main():
 
     manager = Manager(args.config_file)
     manager.validate_configs()
+
+
+if __name__ == '__main__':
+    main()

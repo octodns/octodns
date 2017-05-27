@@ -29,3 +29,7 @@ def main():
     manager = Manager(args.config_file)
     changes = manager.compare(args.a, args.b, args.zone)
     pprint(changes)
+
+
+if __name__ == '__main__':
+    main()

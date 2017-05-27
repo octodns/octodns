@@ -26,3 +26,7 @@ def main():
 
     manager = Manager(args.config_file)
     manager.dump(args.zone, args.output_dir, *args.source)
+
+
+if __name__ == '__main__':
+    main()
