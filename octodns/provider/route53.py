@@ -70,6 +70,13 @@ class _Route53Record(object):
     _values_for_SPF = _values_for_quoted
     _values_for_TXT = _values_for_quoted
 
+    def _values_for_SOA(self, record):
+        value = record.value
+        return ['{} {} {} {} {} {} {}'.format(value.mname, value.rname,
+                                              value.serial, value.refresh,
+                                              value.retry, value.expire,
+                                              value.minimum)]
+
     def _values_for_SRV(self, record):
         return ['{} {} {} {}'.format(v.priority, v.weight, v.port,
                                      v.target)
@@ -306,6 +313,23 @@ class Route53Provider(BaseProvider):
             'ttl': int(rrset['TTL'])
         }
 
+    def _data_for_SOA(self, rrset):
+        mname, rname, serial, refresh, retry, expire, minimum = \
+            rrset['ResourceRecords'][0]['Value'].split(' ')
+        return {
+            'type': rrset['Type'],
+            'value': {
+                'mname': mname,
+                'rname': rname,
+                'serial': serial,
+                'refresh': refresh,
+                'retry': retry,
+                'expire': expire,
+                'minimum': minimum
+            },
+            'ttl': int(rrset['TTL'])
+        }
+
     def _data_for_SRV(self, rrset):
         values = []
         for rr in rrset['ResourceRecords']:
@@ -360,8 +384,6 @@ class Route53Provider(BaseProvider):
                 record_name = zone.hostname_from_fqdn(rrset['Name'])
                 record_name = _octal_replace(record_name)
                 record_type = rrset['Type']
-                if record_type == 'SOA':
-                    continue
                 data = getattr(self, '_data_for_{}'.format(record_type))(rrset)
                 records[record_name][record_type].append(data)
 
