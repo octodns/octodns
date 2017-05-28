@@ -311,6 +311,16 @@ class _ValueMixin(object):
                                            self.fqdn, self.value)
 
 
+class AliasRecord(_ValueMixin, Record):
+    _type = 'ALIAS'
+
+    def _process_value(self, value):
+        if not value.endswith(self.zone.name):
+            raise Exception('Invalid record {}, value ({}) must be in '
+                            'same zone.'.format(self.fqdn, value))
+        return value.lower()
+
+
 class CnameRecord(_ValueMixin, Record):
     _type = 'CNAME'
 
