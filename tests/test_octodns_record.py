@@ -7,9 +7,9 @@ from __future__ import absolute_import, division, print_function, \
 
 from unittest import TestCase
 
-from octodns.record import ARecord, AaaaRecord, CnameRecord, Create, Delete, \
-    GeoValue, MxRecord, NaptrRecord, NaptrValue, NsRecord, PtrRecord, Record, \
-    SshfpRecord, SpfRecord, SrvRecord, TxtRecord, Update
+from octodns.record import ARecord, AaaaRecord, AliasRecord, CnameRecord, \
+    Create, Delete, GeoValue, MxRecord, NaptrRecord, NaptrValue, NsRecord, \
+    PtrRecord, Record, SshfpRecord, SpfRecord, SrvRecord, TxtRecord, Update
 from octodns.zone import Zone
 
 from helpers import GeoProvider, SimpleProvider
@@ -241,6 +241,17 @@ class TestRecord(TestCase):
 
         # __repr__ doesn't blow up
         a.__repr__()
+
+    def test_alias(self):
+        self.assertSingleValue(AliasRecord, 'foo.unit.tests.',
+                               'other.unit.tests.')
+
+        with self.assertRaises(Exception) as ctx:
+            AliasRecord(self.zone, '', {
+                'ttl': 31,
+                'value': 'foo.bar.com.'
+            })
+        self.assertTrue('in same zone' in ctx.exception.message)
 
     def test_cname(self):
         self.assertSingleValue(CnameRecord, 'target.foo.com.',
