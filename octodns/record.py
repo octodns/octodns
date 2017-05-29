@@ -185,13 +185,14 @@ class _ValuesMixin(object):
     def __init__(self, zone, name, data, source=None):
         super(_ValuesMixin, self).__init__(zone, name, data, source=source)
         try:
-            self.values = sorted(self._process_values(data['values']))
+            values = data['values']
         except KeyError:
             try:
-                self.values = self._process_values([data['value']])
+                values = [data['value']]
             except KeyError:
                 raise Exception('Invalid record {}, missing value(s)'
                                 .format(self.fqdn))
+        self.values = sorted(self._process_values(values))
 
     def changes(self, other, target):
         if self.values != other.values:
@@ -290,10 +291,11 @@ class _ValueMixin(object):
     def __init__(self, zone, name, data, source=None):
         super(_ValueMixin, self).__init__(zone, name, data, source=source)
         try:
-            self.value = self._process_value(data['value'])
+            value = data['value']
         except KeyError:
             raise Exception('Invalid record {}, missing value'
                             .format(self.fqdn))
+        self.value = self._process_value(value)
 
     def changes(self, other, target):
         if self.value != other.value:
