@@ -71,7 +71,7 @@ class Record(object):
             _type = {
                 'A': ARecord,
                 'AAAA': AaaaRecord,
-                # alias
+                'ALIAS': AliasRecord,
                 # cert
                 'CNAME': CnameRecord,
                 # dhcid
@@ -185,13 +185,14 @@ class _ValuesMixin(object):
     def __init__(self, zone, name, data, source=None):
         super(_ValuesMixin, self).__init__(zone, name, data, source=source)
         try:
-            self.values = sorted(self._process_values(data['values']))
+            values = data['values']
         except KeyError:
             try:
-                self.values = self._process_values([data['value']])
+                values = [data['value']]
             except KeyError:
                 raise Exception('Invalid record {}, missing value(s)'
                                 .format(self.fqdn))
+        self.values = sorted(self._process_values(values))
 
     def changes(self, other, target):
         if self.values != other.values:
@@ -290,10 +291,11 @@ class _ValueMixin(object):
     def __init__(self, zone, name, data, source=None):
         super(_ValueMixin, self).__init__(zone, name, data, source=source)
         try:
-            self.value = self._process_value(data['value'])
+            value = data['value']
         except KeyError:
             raise Exception('Invalid record {}, missing value'
                             .format(self.fqdn))
+        self.value = self._process_value(value)
 
     def changes(self, other, target):
         if self.value != other.value:
@@ -311,14 +313,50 @@ class _ValueMixin(object):
                                            self.fqdn, self.value)
 
 
-class AliasRecord(_ValueMixin, Record):
+class AliasValue(object):
+
+    def __init__(self, value):
+        self.name = value['name'].lower()
+        self._type = value['type']
+
+    @property
+    def data(self):
+        return {
+            'name': self.name,
+            'type': self._type,
+        }
+
+    def __cmp__(self, other):
+        if self.name == other.name:
+            return cmp(self._type, other._type)
+        return cmp(self.name, other.name)
+
+    def __repr__(self):
+        return "'{} {}'".format(self.name, self._type)
+
+
+class AliasRecord(_ValuesMixin, Record):
     _type = 'ALIAS'
 
-    def _process_value(self, value):
-        if not value.endswith(self.zone.name):
-            raise Exception('Invalid record {}, value ({}) must be in '
-                            'same zone.'.format(self.fqdn, value))
-        return value.lower()
+    def __init__(self, zone, name, data, source=None):
+        data = dict(data)
+        # TODO: this is an ugly way to fake the lack of ttl :-(
+        data['ttl'] = 0
+        super(AliasRecord, self).__init__(zone, name, data, source)
+
+    def _process_values(self, values):
+        ret = []
+        for value in values:
+            try:
+                value = AliasValue(value)
+            except KeyError as e:
+                raise Exception('Invalid value in record {}, missing {}'
+                                .format(self.fqdn, e.args[0]))
+            if not value.name.endswith(self.zone.name):
+                raise Exception('Invalid value in record {}, name must be in '
+                                'same zone.'.format(self.fqdn))
+            ret.append(value)
+        return ret
 
 
 class CnameRecord(_ValueMixin, Record):
@@ -326,7 +364,7 @@ class CnameRecord(_ValueMixin, Record):
 
     def _process_value(self, value):
         if not value.endswith('.'):
-            raise Exception('Invalid record {}, value {} missing trailing .'
+            raise Exception('Invalid record {}, value ({}) missing trailing .'
                             .format(self.fqdn, value))
         return value.lower()
 
@@ -444,7 +482,7 @@ class PtrRecord(_ValueMixin, Record):
 
     def _process_value(self, value):
         if not value.endswith('.'):
-            raise Exception('Invalid record {}, value {} missing trailing .'
+            raise Exception('Invalid record {}, value ({}) missing trailing .'
                             .format(self.fqdn, value))
         return value.lower()
 

@@ -243,15 +243,68 @@ class TestRecord(TestCase):
         a.__repr__()
 
     def test_alias(self):
-        self.assertSingleValue(AliasRecord, 'foo.unit.tests.',
-                               'other.unit.tests.')
+        a_values = [{
+            'name': 'www.unit.tests.',
+            'type': 'A'
+        }, {
+            'name': 'www.unit.tests.',
+            'type': 'AAAA'
+        }]
+        a_data = {'ttl': 0, 'values': a_values}
+        a = AliasRecord(self.zone, '', a_data)
+        self.assertEquals('', a.name)
+        self.assertEquals('unit.tests.', a.fqdn)
+        self.assertEquals(0, a.ttl)
+        self.assertEquals(a_values[0]['name'], a.values[0].name)
+        self.assertEquals(a_values[0]['type'], a.values[0]._type)
+        self.assertEquals(a_values[1]['name'], a.values[1].name)
+        self.assertEquals(a_values[1]['type'], a.values[1]._type)
+        self.assertEquals(a_data, a.data)
 
+        b_value = {
+            'name': 'www.unit.tests.',
+            'type': 'A',
+        }
+        b_data = {'ttl': 0, 'value': b_value}
+        b = AliasRecord(self.zone, 'b', b_data)
+        self.assertEquals(b_value['name'], b.values[0].name)
+        self.assertEquals(b_value['type'], b.values[0]._type)
+        self.assertEquals(b_data, b.data)
+
+        # missing value
         with self.assertRaises(Exception) as ctx:
-            AliasRecord(self.zone, '', {
-                'ttl': 31,
-                'value': 'foo.bar.com.'
-            })
-        self.assertTrue('in same zone' in ctx.exception.message)
+            AliasRecord(self.zone, None, {'ttl': 0})
+        self.assertTrue('missing value(s)' in ctx.exception.message)
+        # invalid value
+        with self.assertRaises(Exception) as ctx:
+            AliasRecord(self.zone, None, {'ttl': 0, 'value': {}})
+        self.assertTrue('Invalid value' in ctx.exception.message)
+        # bad name
+        with self.assertRaises(Exception) as ctx:
+            AliasRecord(self.zone, None, {'ttl': 0, 'value': {
+                'name': 'foo.bar.com.',
+                'type': 'A'
+            }})
+        self.assertTrue('Invalid value' in ctx.exception.message)
+
+        target = SimpleProvider()
+        # No changes with self
+        self.assertFalse(a.changes(a, target))
+        # Diff in priority causes change
+        other = AliasRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other.values[0].name = 'foo.unit.tests.'
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+        # Diff in value causes change
+        other.values[0].name = a.values[0].name
+        other.values[0]._type = 'MX'
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+
+        # __repr__ doesn't blow up
+        a.__repr__()
 
     def test_cname(self):
         self.assertSingleValue(CnameRecord, 'target.foo.com.',
