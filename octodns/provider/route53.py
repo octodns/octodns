@@ -16,27 +16,71 @@ from ..record import Record, Update
 from .base import BaseProvider
 
 
+octal_re = re.compile(r'\\(\d\d\d)')
+
+
+def _octal_replace(s):
+    # See http://docs.aws.amazon.com/Route53/latest/DeveloperGuide/
+    #     DomainNameFormat.html
+    return octal_re.sub(lambda m: chr(int(m.group(1), 8)), s)
+
+
 class _Route53Record(object):
 
-    def __init__(self, fqdn, _type, ttl, record=None, values=None, geo=None,
-                 health_check_id=None):
-        self.fqdn = fqdn
-        self._type = _type
-        self.ttl = ttl
-        # From here on things are a little ugly, it works, but would be nice to
-        # clean up someday.
-        if record:
-            values_for = getattr(self, '_values_for_{}'.format(self._type))
-            self.values = values_for(record)
+    @classmethod
+    def new(self, provider, record, creating):
+        ret = set()
+        if getattr(record, 'geo', False):
+            ret.add(_Route53GeoDefault(provider, record, creating))
+            for ident, geo in record.geo.items():
+                ret.add(_Route53GeoRecord(provider, record, ident, geo,
+                                          creating))
         else:
-            self.values = values
-        self.geo = geo
-        self.health_check_id = health_check_id
-        self.is_geo_default = False
+            ret.add(_Route53Record(provider, record, creating))
+        return ret
 
-    @property
-    def _geo_code(self):
-        return getattr(self.geo, 'code', '')
+    def __init__(self, provider, record, creating):
+        self.fqdn = record.fqdn
+        self._type = record._type
+        self.ttl = record.ttl
+
+        values_for = getattr(self, '_values_for_{}'.format(self._type))
+        self.values = values_for(record)
+
+    def mod(self, action):
+        return {
+            'Action': action,
+            'ResourceRecordSet': {
+                'Name': self.fqdn,
+                'ResourceRecords': [{'Value': v} for v in self.values],
+                'TTL': self.ttl,
+                'Type': self._type,
+            }
+        }
+
+    # NOTE: we're using __hash__ and __cmp__ methods that consider
+    # _Route53Records equivalent if they have the same class, fqdn, and _type.
+    # Values are ignored. This is usful when computing diffs/changes.
+
+    def __hash__(self):
+        'sub-classes should never use this method'
+        return '{}:{}'.format(self.fqdn, self._type).__hash__()
+
+    def __cmp__(self, other):
+        '''sub-classes should call up to this and return its value if non-zero.
+        When it's zero they should compute their own __cmp__'''
+        if self.__class__ != other.__class__:
+            return cmp(self.__class__, other.__class__)
+        elif self.fqdn != other.fqdn:
+            return cmp(self.fqdn, other.fqdn)
+        elif self._type != other._type:
+            return cmp(self._type, other._type)
+        # We're ignoring ttl, it's not an actual differentiator
+        return 0
+
+    def __repr__(self):
+        return '_Route53Record<{} {} {} {}>'.format(self.fqdn, self._type,
+                                                    self.ttl, self.values)
 
     def _values_for_values(self, record):
         return record.values
@@ -75,68 +119,91 @@ class _Route53Record(object):
                                      v.target)
                 for v in record.values]
 
+
+class _Route53GeoDefault(_Route53Record):
+
     def mod(self, action):
+        return {
+            'Action': action,
+            'ResourceRecordSet': {
+                'Name': self.fqdn,
+                'GeoLocation': {
+                    'CountryCode': '*'
+                },
+                'ResourceRecords': [{'Value': v} for v in self.values],
+                'SetIdentifier': 'default',
+                'TTL': self.ttl,
+                'Type': self._type,
+            }
+        }
+
+    def __hash__(self):
+        return '{}:{}:default'.format(self.fqdn, self._type).__hash__()
+
+    def __repr__(self):
+        return '_Route53GeoDefault<{} {} {} {}>'.format(self.fqdn, self._type,
+                                                        self.ttl, self.values)
+
+
+class _Route53GeoRecord(_Route53Record):
+
+    def __init__(self, provider, record, ident, geo, creating):
+        super(_Route53GeoRecord, self).__init__(provider, record, creating)
+        self.geo = geo
+
+        self.health_check_id = provider.get_health_check_id(record, ident,
+                                                            geo, creating)
+
+    def mod(self, action):
+        geo = self.geo
         rrset = {
             'Name': self.fqdn,
-            'Type': self._type,
-            'TTL': self.ttl,
-            'ResourceRecords': [{'Value': v} for v in self.values],
-        }
-        if self.is_geo_default:
-            rrset['GeoLocation'] = {
+            'GeoLocation': {
                 'CountryCode': '*'
+            },
+            'ResourceRecords': [{'Value': v} for v in geo.values],
+            'SetIdentifier': geo.code,
+            'TTL': self.ttl,
+            'Type': self._type,
+        }
+
+        if self.health_check_id:
+            rrset['HealthCheckId'] = self.health_check_id
+
+        if geo.subdivision_code:
+            rrset['GeoLocation'] = {
+                'CountryCode': geo.country_code,
+                'SubdivisionCode': geo.subdivision_code
             }
-            rrset['SetIdentifier'] = 'default'
-        elif self.geo:
-            geo = self.geo
-            rrset['SetIdentifier'] = geo.code
-            if self.health_check_id:
-                rrset['HealthCheckId'] = self.health_check_id
-            if geo.subdivision_code:
-                rrset['GeoLocation'] = {
-                    'CountryCode': geo.country_code,
-                    'SubdivisionCode': geo.subdivision_code
-                }
-            elif geo.country_code:
-                rrset['GeoLocation'] = {
-                    'CountryCode': geo.country_code
-                }
-            else:
-                rrset['GeoLocation'] = {
-                    'ContinentCode': geo.continent_code
-                }
+        elif geo.country_code:
+            rrset['GeoLocation'] = {
+                'CountryCode': geo.country_code
+            }
+        else:
+            rrset['GeoLocation'] = {
+                'ContinentCode': geo.continent_code
+            }
 
         return {
             'Action': action,
             'ResourceRecordSet': rrset,
         }
 
-    # NOTE: we're using __hash__ and __cmp__ methods that consider
-    # _Route53Records equivalent if they have the same fqdn, _type, and
-    # geo.ident. Values are ignored. This is usful when computing
-    # diffs/changes.
-
     def __hash__(self):
         return '{}:{}:{}'.format(self.fqdn, self._type,
-                                 self._geo_code).__hash__()
+                                 self.geo.code).__hash__()
 
     def __cmp__(self, other):
-        return 0 if (self.fqdn == other.fqdn and
-                     self._type == other._type and
-                     self._geo_code == other._geo_code) else 1
+        ret = super(_Route53GeoRecord, self).__cmp__(other)
+        if ret != 0:
+            return ret
+        return cmp(self.geo.code, other.geo.code)
 
     def __repr__(self):
-        return '_Route53Record<{} {:>5} {:8} {}>' \
-            .format(self.fqdn, self._type, self._geo_code, self.values)
-
-
-octal_re = re.compile(r'\\(\d\d\d)')
-
-
-def _octal_replace(s):
-    # See http://docs.aws.amazon.com/Route53/latest/DeveloperGuide/
-    #     DomainNameFormat.html
-    return octal_re.sub(lambda m: chr(int(m.group(1), 8)), s)
+        return '_Route53GeoRecord<{} {} {} {} {}>'.format(self.fqdn,
+                                                          self._type, self.ttl,
+                                                          self.geo.code,
+                                                          self.values)
 
 
 class Route53Provider(BaseProvider):
@@ -388,7 +455,7 @@ class Route53Provider(BaseProvider):
 
     def _gen_mods(self, action, records):
         '''
-        Turns `_Route53Record`s in to `change_resource_record_sets` `Changes`
+        Turns `_Route53*`s in to `change_resource_record_sets` `Changes`
         '''
         return [r.mod(action) for r in records]
 
@@ -417,14 +484,14 @@ class Route53Provider(BaseProvider):
         # We've got a cached version use it
         return self._health_checks
 
-    def _get_health_check_id(self, record, ident, geo, create):
+    def get_health_check_id(self, record, ident, geo, create):
         # fqdn & the first value are special, we use them to match up health
         # checks to their records. Route53 health checks check a single ip and
         # we're going to assume that ips are interchangeable to avoid
         # health-checking each one independently
         fqdn = record.fqdn
         first_value = geo.values[0]
-        self.log.debug('_get_health_check_id: fqdn=%s, type=%s, geo=%s, '
+        self.log.debug('get_health_check_id: fqdn=%s, type=%s, geo=%s, '
                        'first_value=%s', fqdn, record._type, ident,
                        first_value)
 
@@ -470,7 +537,7 @@ class Route53Provider(BaseProvider):
         # store the new health check so that we'll be able to find it in the
         # future
         self._health_checks[id] = health_check
-        self.log.info('_get_health_check_id: created id=%s, host=%s, '
+        self.log.info('get_health_check_id: created id=%s, host=%s, '
                       'first_value=%s', id, host, first_value)
         return id
 
@@ -479,8 +546,9 @@ class Route53Provider(BaseProvider):
         # Find the health checks we're using for the new route53 records
         in_use = set()
         for r in new:
-            if r.health_check_id:
-                in_use.add(r.health_check_id)
+            hc_id = getattr(r, 'health_check_id', False)
+            if hc_id:
+                in_use.add(hc_id)
         self.log.debug('_gc_health_checks:   in_use=%s', in_use)
         # Now we need to run through ALL the health checks looking for those
         # that apply to this record, deleting any that do and are no longer in
@@ -499,23 +567,9 @@ class Route53Provider(BaseProvider):
 
     def _gen_records(self, record, creating=False):
         '''
-        Turns an octodns.Record into one or more `_Route53Record`s
+        Turns an octodns.Record into one or more `_Route53*`s
         '''
-        records = set()
-        base = _Route53Record(record.fqdn, record._type, record.ttl,
-                              record=record)
-        records.add(base)
-        if getattr(record, 'geo', False):
-            base.is_geo_default = True
-            for ident, geo in record.geo.items():
-                health_check_id = self._get_health_check_id(record, ident, geo,
-                                                            creating)
-                records.add(_Route53Record(record.fqdn, record._type,
-                                           record.ttl, values=geo.values,
-                                           geo=geo,
-                                           health_check_id=health_check_id))
-
-        return records
+        return _Route53Record.new(self, record, creating)
 
     def _mod_Create(self, change):
         # New is the stuff that needs to be created
@@ -541,24 +595,11 @@ class Route53Provider(BaseProvider):
         # things that haven't actually changed, but that's for another day.
         # We can't use set math here b/c we won't be able to control which of
         # the two objects will be in the result and we need to ensure it's the
-        # new one and we have to include some special handling when converting
-        # to/from a GEO enabled record
+        # new one.
         upserts = set()
-        existing_records = {r: r for r in existing_records}
         for new_record in new_records:
-            try:
-                existing_record = existing_records[new_record]
-                if new_record.is_geo_default != existing_record.is_geo_default:
-                    # going from normal to geo or geo to normal, need a delete
-                    # and create
-                    deletes.add(existing_record)
-                    creates.add(new_record)
-                else:
-                    # just an update
-                    upserts.add(new_record)
-            except KeyError:
-                # Completely new record, ignore
-                pass
+            if new_record in existing_records:
+                upserts.add(new_record)
 
         return self._gen_mods('DELETE', deletes) + \
             self._gen_mods('CREATE', creates) + \
