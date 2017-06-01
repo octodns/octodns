@@ -18,7 +18,7 @@ class Ns1Provider(BaseProvider):
     Ns1 provider
 
     nsone:
-        class: octodns.provider.nsone.Ns1Provider
+        class: octodns.provider.ns1.Ns1Provider
         api_key: env/NS1_API_KEY
     '''
     SUPPORTS_GEO = False
