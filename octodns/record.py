@@ -316,12 +316,6 @@ class _ValueMixin(object):
 class AliasRecord(_ValueMixin, Record):
     _type = 'ALIAS'
 
-    def __init__(self, zone, name, data, source=None):
-        data = dict(data)
-        # TODO: this is an ugly way to fake the lack of ttl :-(
-        data['ttl'] = 0
-        super(AliasRecord, self).__init__(zone, name, data, source)
-
     def _process_value(self, value):
         if not value.endswith('.'):
             raise Exception('Invalid record {}, value ({}) missing trailing .'

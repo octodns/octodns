@@ -109,6 +109,7 @@ class DynProvider(BaseProvider):
     RECORDS_TO_TYPE = {
         'a_records': 'A',
         'aaaa_records': 'AAAA',
+        'alias_records': 'ALIAS',
         'cname_records': 'CNAME',
         'mx_records': 'MX',
         'naptr_records': 'NAPTR',
@@ -119,19 +120,7 @@ class DynProvider(BaseProvider):
         'srv_records': 'SRV',
         'txt_records': 'TXT',
     }
-    TYPE_TO_RECORDS = {
-        'A': 'a_records',
-        'AAAA': 'aaaa_records',
-        'CNAME': 'cname_records',
-        'MX': 'mx_records',
-        'NAPTR': 'naptr_records',
-        'NS': 'ns_records',
-        'PTR': 'ptr_records',
-        'SSHFP': 'sshfp_records',
-        'SPF': 'spf_records',
-        'SRV': 'srv_records',
-        'TXT': 'txt_records',
-    }
+    TYPE_TO_RECORDS = {v: k for k, v in RECORDS_TO_TYPE.items()}
 
     # https://help.dyn.com/predefined-geotm-regions-groups/
     REGION_CODES = {
@@ -193,6 +182,15 @@ class DynProvider(BaseProvider):
         }
 
     _data_for_AAAA = _data_for_A
+
+    def _data_for_ALIAS(self, _type, records):
+        # See note on ttl in _kwargs_for_ALIAS
+        record = records[0]
+        return {
+            'type': _type,
+            'ttl': record.ttl,
+            'value': record.alias
+        }
 
     def _data_for_CNAME(self, _type, records):
         record = records[0]
@@ -382,6 +380,16 @@ class DynProvider(BaseProvider):
     def _kwargs_for_CNAME(self, record):
         return [{
             'cname': record.value,
+            'ttl': record.ttl,
+        }]
+
+    def _kwargs_for_ALIAS(self, record):
+        # NOTE: Dyn's UI doesn't allow editing of ALIAS ttl, but the API seems
+        # to accept and store the values we send it just fine. No clue if they
+        # do anything with them. I'd assume they just obey the TTL of the
+        # record that we're pointed at which makes sense.
+        return [{
+            'alias': record.value,
             'ttl': record.ttl,
         }]
 
