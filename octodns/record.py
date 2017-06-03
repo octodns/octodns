@@ -313,29 +313,7 @@ class _ValueMixin(object):
                                            self.fqdn, self.value)
 
 
-class AliasValue(object):
-
-    def __init__(self, value):
-        self.name = value['name'].lower()
-        self._type = value['type']
-
-    @property
-    def data(self):
-        return {
-            'name': self.name,
-            'type': self._type,
-        }
-
-    def __cmp__(self, other):
-        if self.name == other.name:
-            return cmp(self._type, other._type)
-        return cmp(self.name, other.name)
-
-    def __repr__(self):
-        return "'{} {}'".format(self.name, self._type)
-
-
-class AliasRecord(_ValuesMixin, Record):
+class AliasRecord(_ValueMixin, Record):
     _type = 'ALIAS'
 
     def __init__(self, zone, name, data, source=None):
@@ -344,19 +322,11 @@ class AliasRecord(_ValuesMixin, Record):
         data['ttl'] = 0
         super(AliasRecord, self).__init__(zone, name, data, source)
 
-    def _process_values(self, values):
-        ret = []
-        for value in values:
-            try:
-                value = AliasValue(value)
-            except KeyError as e:
-                raise Exception('Invalid value in record {}, missing {}'
-                                .format(self.fqdn, e.args[0]))
-            if not value.name.endswith(self.zone.name):
-                raise Exception('Invalid value in record {}, name must be in '
-                                'same zone.'.format(self.fqdn))
-            ret.append(value)
-        return ret
+    def _process_value(self, value):
+        if not value.endswith('.'):
+            raise Exception('Invalid record {}, value ({}) missing trailing .'
+                            .format(self.fqdn, value))
+        return value
 
 
 class CnameRecord(_ValueMixin, Record):
