@@ -199,4 +199,4 @@ class TestDnsimpleProvider(TestCase):
             call('DELETE', '/zones/unit.tests/records/11189899'),
             call('DELETE', '/zones/unit.tests/records/11189897'),
             call('DELETE', '/zones/unit.tests/records/11189898')
-        ])
+        ], any_order=True)
