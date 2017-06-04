@@ -30,6 +30,9 @@ class Ns1Provider(BaseProvider):
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
         self._client = NSONE(apiKey=api_key)
 
+    def supports(self, record):
+        return record._type != 'SSHFP'
+
     def _data_for_A(self, _type, record):
         return {
             'ttl': record['ttl'],
