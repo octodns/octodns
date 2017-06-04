@@ -147,16 +147,16 @@ The above command pulled the existing data out of Route53 and placed the results
 
 ## Supported providers
 
-| Provider | Record Support | GeoDNS Support | Notes |
+| Provider | Record Support | GeoDNS Support | Root NS support | Notes |
 |--|--|--|--|
-| [CloudflareProvider](/octodns/provider/cloudflare.py) | A, AAAA, CNAME, MX, NS, SPF, TXT | No | |
-| [DnsimpleProvider](/octodns/provider/dnsimple.py) | All | No | No root NS record support |
-| [DynProvider](/octodns/provider/dyn.py) | All | Yes | No root NS record support |
-| [Ns1Provider](/octodns/provider/ns1.py) | All | No | |
-| [PowerDnsProvider](/octodns/provider/powerdns.py) | All | No | |
-| [Route53](/octodns/provider/route53.py) | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Yes | |
-| [TinyDNSSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |
-| [YamlProvider](/octodns/provider/yaml.py) | All | Yes | config |
+| [CloudflareProvider](/octodns/provider/cloudflare.py) | A, AAAA, CNAME, MX, NS, SPF, TXT | No | No | |
+| [DnsimpleProvider](/octodns/provider/dnsimple.py) | All | No | No | |
+| [DynProvider](/octodns/provider/dyn.py) | All | Yes | No | |
+| [Ns1Provider](/octodns/provider/ns1.py) | All | No | Yes | |
+| [PowerDnsProvider](/octodns/provider/powerdns.py) | All | No | Yes | |
+| [Route53](/octodns/provider/route53.py) | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Yes | Yes | |
+| [TinyDNSSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | Yes | read-only |
+| [YamlProvider](/octodns/provider/yaml.py) | All | Yes | Yes | config |
 
 ## Custom Sources and Providers
 
