@@ -341,8 +341,8 @@ class DnsimpleProvider(BaseProvider):
             self._client.record_create(new.zone.name[:-1], params)
 
     def _apply_Update(self, change):
-        self._apply_Create(change)
         self._apply_Delete(change)
+        self._apply_Create(change)
 
     def _apply_Delete(self, change):
         existing = change.existing
