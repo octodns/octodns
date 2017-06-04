@@ -191,13 +191,13 @@ class TestDnsimpleProvider(TestCase):
         self.assertEquals(2, provider.apply(plan))
         # recreate for update, and deletes for the 2 parts of the other
         provider._client._request.assert_has_calls([
-            call('DELETE', '/zones/unit.tests/records/11189899'),
             call('POST', '/zones/unit.tests/records', data={
                 'content': '3.2.3.4',
                 'type': 'A',
                 'name': 'ttl',
                 'ttl': 300
             }),
+            call('DELETE', '/zones/unit.tests/records/11189899'),
             call('DELETE', '/zones/unit.tests/records/11189897'),
             call('DELETE', '/zones/unit.tests/records/11189898')
-        ])
+        ], any_order=True)
