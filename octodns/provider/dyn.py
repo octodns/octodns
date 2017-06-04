@@ -167,6 +167,15 @@ class DynProvider(BaseProvider):
     def SUPPORTS_GEO(self):
         return self.traffic_directors_enabled
 
+    def _include_change(self, change):
+        '''
+        Dyn doesn't allow full management of root NS records, can't delete
+        theirs, so for now they're unsupported.
+        '''
+        return not (change.record._type == 'NS' and
+                    change.record.name == '') and \
+            super(DynProvider, self)._include_change(change)
+
     def _check_dyn_sess(self):
         # We don't have to worry about locking for the check since the
         # underlying pieces are pre-thread. We can check to see if this thread

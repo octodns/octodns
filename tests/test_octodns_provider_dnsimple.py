@@ -80,7 +80,8 @@ class TestDnsimpleProvider(TestCase):
             provider.populate(zone)
             self.assertEquals(14, len(zone.records))
             changes = self.expected.changes(zone, provider)
-            self.assertEquals(0, len(changes))
+            # one change, the root NS record, plan would omit it though
+            self.assertEquals(1, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])
@@ -190,13 +191,13 @@ class TestDnsimpleProvider(TestCase):
         self.assertEquals(2, provider.apply(plan))
         # recreate for update, and deletes for the 2 parts of the other
         provider._client._request.assert_has_calls([
+            call('DELETE', '/zones/unit.tests/records/11189899'),
             call('POST', '/zones/unit.tests/records', data={
                 'content': '3.2.3.4',
                 'type': 'A',
                 'name': 'ttl',
                 'ttl': 300
             }),
-            call('DELETE', '/zones/unit.tests/records/11189899'),
             call('DELETE', '/zones/unit.tests/records/11189897'),
             call('DELETE', '/zones/unit.tests/records/11189898')
         ])

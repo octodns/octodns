@@ -93,12 +93,12 @@ class TestManager(TestCase):
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False)
-            self.assertEquals(19, tc)
+            self.assertEquals(20, tc)
 
             # try with just one of the zones
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, eligible_zones=['unit.tests.'])
-            self.assertEquals(13, tc)
+            self.assertEquals(14, tc)
 
             # the subzone, with 2 targets
             tc = Manager(get_config_filename('simple.yaml')) \
@@ -113,12 +113,12 @@ class TestManager(TestCase):
             # Again with force
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(19, tc)
+            self.assertEquals(20, tc)
 
             # Again with max_workers = 1
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(19, tc)
+            self.assertEquals(20, tc)
 
     def test_eligible_targets(self):
         with TemporaryDirectory() as tmpdir:
@@ -144,13 +144,13 @@ class TestManager(TestCase):
                 fh.write('---\n{}')
 
             changes = manager.compare(['in'], ['dump'], 'unit.tests.')
-            self.assertEquals(13, len(changes))
+            self.assertEquals(14, len(changes))
 
             # Compound sources with varying support
             changes = manager.compare(['in', 'nosshfp'],
                                       ['dump'],
                                       'unit.tests.')
-            self.assertEquals(12, len(changes))
+            self.assertEquals(13, len(changes))
 
             with self.assertRaises(Exception) as ctx:
                 manager.compare(['nope'], ['dump'], 'unit.tests.')

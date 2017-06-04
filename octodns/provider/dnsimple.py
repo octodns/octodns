@@ -32,6 +32,8 @@ class DnsimpleClientUnauthorized(DnsimpleClientException):
 class DnsimpleClient(object):
     BASE = 'https://api.dnsimple.com/v2/'
 
+    log = logging.getLogger('DnsimpleClient')
+
     def __init__(self, token, account):
         self.account = account
         sess = Session()
@@ -43,8 +45,11 @@ class DnsimpleClient(object):
         resp = self._sess.request(method, url, params=params, json=data)
         if resp.status_code == 401:
             raise DnsimpleClientUnauthorized()
-        if resp.status_code == 404:
+        elif resp.status_code == 404:
             raise DnsimpleClientNotFound()
+        elif resp.status_code > 299:
+            self.log.warn('_request: status=%d, msg=%s', resp.status_code,
+                          resp.content)
         resp.raise_for_status()
         return resp
 
@@ -99,6 +104,15 @@ class DnsimpleProvider(BaseProvider):
         self._client = DnsimpleClient(token, account)
 
         self._zone_records = {}
+
+    def _include_change(self, change):
+        '''
+        DNSimple doesn't allow editing of "system" records, so no root NS
+        support.
+        '''
+        return not (change.record._type == 'NS' and
+                    change.record.name == '') and \
+            super(DnsimpleProvider, self)._include_change(change)
 
     def _data_for_multiple(self, _type, records):
         return {

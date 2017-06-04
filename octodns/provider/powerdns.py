@@ -254,9 +254,6 @@ class PowerDnsBaseProvider(BaseProvider):
             'records': records_for(existing)
         }
 
-    def _get_nameserver_record(self, existing):
-        return None
-
     def _extra_changes(self, existing, _):
         self.log.debug('_extra_changes: zone=%s', existing.name)
 
@@ -348,13 +345,6 @@ class PowerDnsProvider(PowerDnsBaseProvider):
         api_key: api-key
         # The port on which PowerDNS api is listening (optional, default 8081)
         port: 8081
-        # The nameservers to use for this provider (optional,
-        #   default unmanaged)
-        nameserver_values:
-            - 1.2.3.4.
-            - 1.2.3.5.
-        # The nameserver record TTL when managed, (optional, default 600)
-        nameserver_ttl: 600
     '''
 
     def __init__(self, id, host, api_key, port=8081, nameserver_values=None,
@@ -370,11 +360,4 @@ class PowerDnsProvider(PowerDnsBaseProvider):
         self.nameserver_ttl = nameserver_ttl
 
     def _get_nameserver_record(self, existing):
-        if self.nameserver_values:
-            return Record.new(existing, '', {
-                'type': 'NS',
-                'ttl': self.nameserver_ttl,
-                'values': self.nameserver_values,
-            }, source=self)
-
-        return super(PowerDnsProvider, self)._get_nameserver_record(existing)
+        return None
