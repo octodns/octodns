@@ -78,7 +78,8 @@ class TestPowerDnsProvider(TestCase):
         expected = Zone('unit.tests.', [])
         source = YamlProvider('test', join(dirname(__file__), 'config'))
         source.populate(expected)
-        self.assertEquals(14, len(expected.records))
+        expected_n = len(expected.records) - 1
+        self.assertEquals(14, expected_n)
 
         # No diffs == no changes
         with requests_mock() as mock:
@@ -93,7 +94,7 @@ class TestPowerDnsProvider(TestCase):
         # Used in a minute
         def assert_rrsets_callback(request, context):
             data = loads(request.body)
-            self.assertEquals(len(expected.records), len(data['rrsets']))
+            self.assertEquals(expected_n, len(data['rrsets']))
             return ''
 
         # No existing records -> creates for every record in expected
@@ -103,8 +104,8 @@ class TestPowerDnsProvider(TestCase):
             mock.patch(ANY, status_code=201, text=assert_rrsets_callback)
 
             plan = provider.plan(expected)
-            self.assertEquals(len(expected.records), len(plan.changes))
-            self.assertEquals(len(expected.records), provider.apply(plan))
+            self.assertEquals(expected_n, len(plan.changes))
+            self.assertEquals(expected_n, provider.apply(plan))
 
         # Non-existent zone -> creates for every record in expected
         # OMG this is fucking ugly, probably better to ditch requests_mocks and
@@ -121,8 +122,8 @@ class TestPowerDnsProvider(TestCase):
             mock.post(ANY, status_code=201, text=assert_rrsets_callback)
 
             plan = provider.plan(expected)
-            self.assertEquals(len(expected.records), len(plan.changes))
-            self.assertEquals(len(expected.records), provider.apply(plan))
+            self.assertEquals(expected_n, len(plan.changes))
+            self.assertEquals(expected_n, provider.apply(plan))
 
         with requests_mock() as mock:
             # get 422's, unknown zone
@@ -166,7 +167,7 @@ class TestPowerDnsProvider(TestCase):
         expected = Zone('unit.tests.', [])
         source = YamlProvider('test', join(dirname(__file__), 'config'))
         source.populate(expected)
-        self.assertEquals(14, len(expected.records))
+        self.assertEquals(15, len(expected.records))
 
         # A small change to a single record
         with requests_mock() as mock:
