@@ -273,7 +273,7 @@ class Manager(object):
             for target, plan in plans:
                 plan.raise_if_unsafe()
 
-        if dry_run or config.get('always-dry-run', False):
+        if dry_run or self.config.get('always-dry-run', False):
             return 0
 
         total_changes = 0
