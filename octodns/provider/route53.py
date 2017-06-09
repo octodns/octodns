@@ -253,10 +253,13 @@ class Route53Provider(BaseProvider):
     _data_for_PTR = _data_for_single
     _data_for_CNAME = _data_for_single
 
+    _fix_semicolons = re.compile(r'(?<!\\);')
+
     def _data_for_quoted(self, rrset):
         return {
             'type': rrset['Type'],
-            'values': [rr['Value'][1:-1] for rr in rrset['ResourceRecords']],
+            'values': [self._fix_semicolons.sub('\;', rr['Value'][1:-1])
+                       for rr in rrset['ResourceRecords']],
             'ttl': int(rrset['TTL'])
         }
 
