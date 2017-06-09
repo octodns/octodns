@@ -273,12 +273,18 @@ class Manager(object):
             for target, plan in plans:
                 plan.raise_if_unsafe()
 
-        if dry_run or config.get('always-dry-run', False):
+        if dry_run:
             return 0
 
         total_changes = 0
         self.log.debug('sync:   applying')
+        zones = self.config['zones']
         for target, plan in plans:
+            zone_name = plan.existing.name
+            if zones[zone_name].get('always-dry-run', False):
+                self.log.info('sync: zone=%s skipping always-dry-run',
+                              zone_name)
+                continue
             total_changes += target.apply(plan)
 
         self.log.info('sync:   %d total changes', total_changes)

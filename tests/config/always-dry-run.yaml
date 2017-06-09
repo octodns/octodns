@@ -1,0 +1,20 @@
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+zones:
+  unit.tests.:
+    always-dry-run: true
+    sources:
+    - in
+    targets:
+    - dump
+  subzone.unit.tests.:
+    always-dry-run: false
+    sources:
+    - in
+    targets:
+    - dump
