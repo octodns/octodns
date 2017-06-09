@@ -9,7 +9,7 @@ from unittest import TestCase
 
 from octodns.record import ARecord, AaaaRecord, CnameRecord, Create, Delete, \
     GeoValue, MxRecord, NaptrRecord, NaptrValue, NsRecord, PtrRecord, Record, \
-    SshfpRecord, SpfRecord, SrvRecord, TxtRecord, Update
+    SoaRecord, SshfpRecord, SpfRecord, SrvRecord, TxtRecord, Update
 from octodns.zone import Zone
 
 from helpers import GeoProvider, SimpleProvider
@@ -533,6 +533,91 @@ class TestRecord(TestCase):
                 'value': 'foo',
             })
         self.assertTrue('Invalid record' in ctx.exception.message)
+
+    def test_soa(self):
+        a_value = {
+            'mname': 'ns1.unit.tests.',
+            'rname': 'hostnamster.ns.com.',
+            'serial': 42,
+            'refresh': 7200,
+            'retry': 900,
+            'expire': 1209600,
+            'minimum': 86400
+        }
+        a_data = {'ttl': 31, 'value': a_value}
+        a = SoaRecord(self.zone, '', a_data)
+        self.assertEquals('', a.name)
+        self.assertEquals('unit.tests.', a.fqdn)
+        self.assertEquals(31, a.ttl)
+        self.assertEquals(a_value['mname'], a.value.mname)
+        self.assertEquals(a_value['rname'], a.value.rname)
+        self.assertEquals(a_value['serial'], a.value.serial)
+        self.assertEquals(a_value['refresh'], a.value.refresh)
+        self.assertEquals(a_value['retry'], a.value.retry)
+        self.assertEquals(a_value['expire'], a.value.expire)
+        self.assertEquals(a_value['minimum'], a.value.minimum)
+        self.assertEquals(a_data, a.data)
+
+        # missing value
+        with self.assertRaises(Exception) as ctx:
+            SoaRecord(self.zone, None, {'ttl': 42})
+        self.assertTrue('missing value' in ctx.exception.message)
+        # missing trailing .
+        with self.assertRaises(Exception) as ctx:
+            bad_data = a.data
+            bad_data['value']['mname'] = 'foo.bar'
+            SoaRecord(self.zone, None, bad_data)
+        self.assertTrue('mname' in ctx.exception.message)
+        with self.assertRaises(Exception) as ctx:
+            bad_data = a.data
+            bad_data['value']['rname'] = 'foo.bar'
+            SoaRecord(self.zone, None, bad_data)
+        self.assertTrue('rname' in ctx.exception.message)
+
+        target = SimpleProvider()
+        # No changes with self
+        self.assertFalse(a.changes(a, target))
+        # Diff in mname doesn't cause a change
+        other = SoaRecord(self.zone, None, a.data)
+        other.value.mname = 'ns2.unit.tests.'
+        self.assertFalse(a.changes(other, target))
+        # Diff in rname does cause a change
+        other = SoaRecord(self.zone, None, a.data)
+        other.value.rname = 'hostmaster.otherns.com.'
+        change = a.changes(other, target)
+        self.assertEquals(change.existing, a)
+        self.assertEquals(change.new, other)
+        # Diff in serial doesn't cause a change
+        other = SoaRecord(self.zone, None, a.data)
+        other.value.serial += 144
+        self.assertFalse(a.changes(other, target))
+        # Diff in refresh does cause a change
+        other = SoaRecord(self.zone, None, a.data)
+        other.value.refresh = 43
+        change = a.changes(other, target)
+        self.assertEquals(change.existing, a)
+        self.assertEquals(change.new, other)
+        # Diff in retry does cause a change
+        other = SoaRecord(self.zone, None, a.data)
+        other.value.retry = 43
+        change = a.changes(other, target)
+        self.assertEquals(change.existing, a)
+        self.assertEquals(change.new, other)
+        # Diff in expire does cause a change
+        other = SoaRecord(self.zone, None, a.data)
+        other.value.expire = 43
+        change = a.changes(other, target)
+        self.assertEquals(change.existing, a)
+        self.assertEquals(change.new, other)
+        # Diff in minimum does cause a change
+        other = SoaRecord(self.zone, None, a.data)
+        other.value.minimum = 43
+        change = a.changes(other, target)
+        self.assertEquals(change.existing, a)
+        self.assertEquals(change.new, other)
+
+        # __repr__ doesn't blow up
+        a.__repr__()
 
     def test_sshfp(self):
         a_values = [{
