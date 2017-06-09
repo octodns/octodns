@@ -88,6 +88,14 @@ class TestManager(TestCase):
                 .sync(['not.targetable.'])
         self.assertTrue('does not support targeting' in ctx.exception.message)
 
+    def test_always_dry_run(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            tc = Manager(get_config_filename('always-dry-run.yaml')) \
+                .sync(dry_run=False)
+            # only the stuff from subzone, unit.tests. is always-dry-run
+            self.assertEquals(3, tc)
+
     def test_simple(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
