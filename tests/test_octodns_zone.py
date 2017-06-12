@@ -172,3 +172,36 @@ class TestZone(TestCase):
         with self.assertRaises(SubzoneRecordException) as ctx:
             zone.add_record(record)
         self.assertTrue('under a managed sub-zone', ctx.exception.message)
+
+    def test_ignored_records(self):
+        zone_normal = Zone('unit.tests.', [])
+        zone_ignored = Zone('unit.tests.', [])
+        zone_missing = Zone('unit.tests.', [])
+
+        normal = Record.new(zone_normal, 'www', {
+            'ttl': 60,
+            'type': 'A',
+            'value': '9.9.9.9',
+        })
+        zone_normal.add_record(normal)
+
+        ignored = Record.new(zone_ignored, 'www', {
+            'octodns': {
+                'ignored': True
+            },
+            'ttl': 60,
+            'type': 'A',
+            'value': '9.9.9.9',
+        })
+        zone_ignored.add_record(ignored)
+
+        provider = SimpleProvider()
+
+        self.assertFalse(zone_normal.changes(zone_ignored, provider))
+        self.assertTrue(zone_normal.changes(zone_missing, provider))
+
+        self.assertFalse(zone_ignored.changes(zone_normal, provider))
+        self.assertFalse(zone_ignored.changes(zone_missing, provider))
+
+        self.assertTrue(zone_missing.changes(zone_normal, provider))
+        self.assertFalse(zone_missing.changes(zone_ignored, provider))

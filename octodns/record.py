@@ -112,6 +112,9 @@ class Record(object):
             raise Exception('Invalid record {}, missing ttl'.format(self.fqdn))
         self.source = source
 
+        octodns = data.get('octodns', {})
+        self.ignored = octodns.get('ignored', False)
+
     def _data(self):
         return {'ttl': self.ttl}
 
