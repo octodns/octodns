@@ -162,7 +162,7 @@ The above command pulled the existing data out of Route53 and placed the results
 
 * ALIAS support varies a lot fromm provider to provider care should be taken to verify that your needs are met in detail.
    * Dyn's UI doesn't allow editing or view of TTL, but the API accepts and stores the value provided, this value does not appear to be used when served
-   * Dnsimple's API throws errors when TTL is modified, but it can be edited in the UI and seems to be used when served, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
+   * Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
 
 ## Custom Sources and Providers
 
