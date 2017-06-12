@@ -70,8 +70,12 @@ class Zone(object):
 
         # Find diffs & removes
         for record in self.records:
+            if record.ignored:
+                continue
             try:
                 desired_record = desired_records[record]
+                if desired_record.ignored:
+                    continue
             except KeyError:
                 if not target.supports(record):
                     self.log.debug('changes:  skipping record=%s %s - %s does '
@@ -97,6 +101,8 @@ class Zone(object):
         # This uses set math and our special __hash__ and __cmp__ functions as
         # well
         for record in desired.records - self.records:
+            if record.ignored:
+                continue
             if not target.supports(record):
                 self.log.debug('changes:  skipping record=%s %s - %s does not '
                                'support it', record.fqdn, record._type,
