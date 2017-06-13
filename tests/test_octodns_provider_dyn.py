@@ -1154,3 +1154,109 @@ class TestDynProviderGeo(TestCase):
         # old ruleset ruleset should be deleted, it's pool will have been
         # reused
         ruleset_mock.delete.assert_called_once()
+
+
+class TestDynProviderAlias(TestCase):
+    expected = Zone('unit.tests.', [])
+    for name, data in (
+            ('', {
+                'type': 'ALIAS',
+                'ttl': 300,
+                'value': 'www.unit.tests.'
+            }),
+            ('www', {
+                'type': 'A',
+                'ttl': 300,
+                'values': ['1.2.3.4']
+            })):
+        expected.add_record(Record.new(expected, name, data))
+
+    def setUp(self):
+        # Flush our zone to ensure we start fresh
+        _CachingDynZone.flush_zone(self.expected.name[:-1])
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_populate(self, execute_mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        # Test Zone create
+        execute_mock.side_effect = [
+            # get Zone
+            {'data': {}},
+            # get_all_records
+            {'data': {
+                'a_records': [{
+                    'fqdn': 'www.unit.tests',
+                    'rdata': {'address': '1.2.3.4'},
+                    'record_id': 1,
+                    'record_type': 'A',
+                    'ttl': 300,
+                    'zone': 'unit.tests',
+                }],
+                'alias_records': [{
+                    'fqdn': 'unit.tests',
+                    'rdata': {'alias': 'www.unit.tests.'},
+                    'record_id': 2,
+                    'record_type': 'ALIAS',
+                    'ttl': 300,
+                    'zone': 'unit.tests',
+                }],
+            }}
+        ]
+        got = Zone('unit.tests.', [])
+        provider.populate(got)
+        execute_mock.assert_has_calls([
+            call('/Zone/unit.tests/', 'GET', {}),
+            call('/AllRecord/unit.tests/unit.tests./', 'GET', {'detail': 'Y'})
+        ])
+        changes = self.expected.changes(got, SimpleProvider())
+        self.assertEquals([], changes)
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_sync(self, execute_mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        # Test Zone create
+        execute_mock.side_effect = [
+            # No such zone, during populate
+            DynectGetError('foo'),
+            # No such zone, during sync
+            DynectGetError('foo'),
+            # get empty Zone
+            {'data': {}},
+            # get zone we can modify & delete with
+            {'data': {
+                # A top-level to delete
+                'a_records': [{
+                    'fqdn': 'www.unit.tests',
+                    'rdata': {'address': '1.2.3.4'},
+                    'record_id': 1,
+                    'record_type': 'A',
+                    'ttl': 300,
+                    'zone': 'unit.tests',
+                }],
+                # A node to delete
+                'alias_records': [{
+                    'fqdn': 'unit.tests',
+                    'rdata': {'alias': 'www.unit.tests.'},
+                    'record_id': 2,
+                    'record_type': 'ALIAS',
+                    'ttl': 300,
+                    'zone': 'unit.tests',
+                }],
+            }}
+        ]
+
+        # No existing records, create all
+        with patch('dyn.tm.zones.Zone.add_record') as add_mock:
+            with patch('dyn.tm.zones.Zone._update') as update_mock:
+                plan = provider.plan(self.expected)
+                update_mock.assert_not_called()
+                provider.apply(plan)
+                update_mock.assert_called()
+            add_mock.assert_called()
+            # Once for each dyn record
+            self.assertEquals(2, len(add_mock.call_args_list))
+        execute_mock.assert_has_calls([call('/Zone/unit.tests/', 'GET', {}),
+                                       call('/Zone/unit.tests/', 'GET', {})])
+        self.assertEquals(2, len(plan.changes))

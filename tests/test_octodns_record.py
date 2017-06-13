@@ -7,9 +7,9 @@ from __future__ import absolute_import, division, print_function, \
 
 from unittest import TestCase
 
-from octodns.record import ARecord, AaaaRecord, CnameRecord, Create, Delete, \
-    GeoValue, MxRecord, NaptrRecord, NaptrValue, NsRecord, PtrRecord, Record, \
-    SshfpRecord, SpfRecord, SrvRecord, TxtRecord, Update
+from octodns.record import ARecord, AaaaRecord, AliasRecord, CnameRecord, \
+    Create, Delete, GeoValue, MxRecord, NaptrRecord, NaptrValue, NsRecord, \
+    PtrRecord, Record, SshfpRecord, SpfRecord, SrvRecord, TxtRecord, Update
 from octodns.zone import Zone
 
 from helpers import GeoProvider, SimpleProvider
@@ -235,6 +235,37 @@ class TestRecord(TestCase):
         self.assertFalse(a.changes(a, target))
         # Diff in value causes change
         other = _type(self.zone, 'a', {'ttl': 30, 'value': b_value})
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+
+        # __repr__ doesn't blow up
+        a.__repr__()
+
+    def test_alias(self):
+        a_data = {'ttl': 0, 'value': 'www.unit.tests.'}
+        a = AliasRecord(self.zone, '', a_data)
+        self.assertEquals('', a.name)
+        self.assertEquals('unit.tests.', a.fqdn)
+        self.assertEquals(0, a.ttl)
+        self.assertEquals(a_data['value'], a.value)
+        self.assertEquals(a_data, a.data)
+
+        # missing value
+        with self.assertRaises(Exception) as ctx:
+            AliasRecord(self.zone, None, {'ttl': 0})
+        self.assertTrue('missing value' in ctx.exception.message)
+        # bad name
+        with self.assertRaises(Exception) as ctx:
+            AliasRecord(self.zone, None, {'ttl': 0, 'value': 'www.unit.tests'})
+        self.assertTrue('missing trailing .' in ctx.exception.message)
+
+        target = SimpleProvider()
+        # No changes with self
+        self.assertFalse(a.changes(a, target))
+        # Diff in value causes change
+        other = AliasRecord(self.zone, 'a', a_data)
+        other.value = 'foo.unit.tests.'
         change = a.changes(other, target)
         self.assertEqual(change.existing, a)
         self.assertEqual(change.new, other)

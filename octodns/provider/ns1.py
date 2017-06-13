@@ -51,6 +51,7 @@ class Ns1Provider(BaseProvider):
             'value': record['short_answers'][0],
         }
 
+    _data_for_ALIAS = _data_for_CNAME
     _data_for_PTR = _data_for_CNAME
 
     def _data_for_MX(self, _type, record):
@@ -143,6 +144,7 @@ class Ns1Provider(BaseProvider):
     def _params_for_CNAME(self, record):
         return {'answers': [record.value], 'ttl': record.ttl}
 
+    _params_for_ALIAS = _params_for_CNAME
     _params_for_PTR = _params_for_CNAME
 
     def _params_for_MX(self, record):
