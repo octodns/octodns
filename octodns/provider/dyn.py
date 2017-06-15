@@ -447,19 +447,20 @@ class DynProvider(BaseProvider):
 
     _kwargs_for_TXT = _kwargs_for_SPF
 
-    def _traffic_director_monitor(self, fqdn):
+    def _traffic_director_monitor(self, record):
         if self._traffic_director_monitors is None:
             self._traffic_director_monitors = \
                 {m.label: m for m in get_all_dsf_monitors()}
 
+        fqdn = record.fqdn
         try:
             return self._traffic_director_monitors[fqdn]
         except KeyError:
             monitor = DSFMonitor(fqdn, protocol='HTTPS', response_count=2,
                                  probe_interval=60, retries=2, port=443,
-                                 active='Y', host=fqdn[:-1], timeout=10,
-                                 header='User-Agent: Dyn Monitor',
-                                 path='/_dns')
+                                 active='Y', host=record.healthcheck_host,
+                                 timeout=10, header='User-Agent: Dyn Monitor',
+                                 path=record.healthcheck_path)
             self._traffic_director_monitors[fqdn] = monitor
             return monitor
 
@@ -533,7 +534,7 @@ class DynProvider(BaseProvider):
         }
         ruleset.add_response_pool(pool.response_pool_id)
 
-        monitor_id = self._traffic_director_monitor(new.fqdn).dsf_monitor_id
+        monitor_id = self._traffic_director_monitor(new).dsf_monitor_id
         # Geos ordered least to most specific so that parents will always be
         # created before their children (and thus can be referenced
         geos = sorted(new.geo.items(), key=lambda d: d[0])

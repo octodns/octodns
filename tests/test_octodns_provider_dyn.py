@@ -637,6 +637,7 @@ class TestDynProviderGeo(TestCase):
         provider = DynProvider('test', 'cust', 'user', 'pass', True)
         # short-circuit session checking
         provider._dyn_sess = True
+        existing = Zone('unit.tests.', [])
 
         # no monitors, will try and create
         geo_monitor_id = '42x'
@@ -669,7 +670,18 @@ class TestDynProviderGeo(TestCase):
         }]
 
         # ask for a monitor that doesn't exist
-        monitor = provider._traffic_director_monitor('geo.unit.tests.')
+        record = Record.new(existing, 'geo', {
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                    'host': 'foo.bar',
+                    'path': '/_ready'
+                }
+            }
+        })
+        monitor = provider._traffic_director_monitor(record)
         self.assertEquals(geo_monitor_id, monitor.dsf_monitor_id)
         # should see a request for the list and a create
         mock.assert_has_calls([
@@ -682,8 +694,8 @@ class TestDynProviderGeo(TestCase):
                 'probe_interval': 60,
                 'active': 'Y',
                 'options': {
-                    'path': '/_dns',
-                    'host': 'geo.unit.tests',
+                    'path': '/_ready',
+                    'host': 'foo.bar',
                     'header': 'User-Agent: Dyn Monitor',
                     'port': 443,
                     'timeout': 10
@@ -698,8 +710,13 @@ class TestDynProviderGeo(TestCase):
                         provider._traffic_director_monitors)
 
         # now ask for a monitor that does exist
+        record = Record.new(existing, '', {
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4'
+        })
         mock.reset_mock()
-        monitor = provider._traffic_director_monitor('unit.tests.')
+        monitor = provider._traffic_director_monitor(record)
         self.assertEquals(self.monitor_id, monitor.dsf_monitor_id)
         # should have resulted in no calls b/c exists & we've cached the list
         mock.assert_not_called()
