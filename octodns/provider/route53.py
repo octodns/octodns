@@ -156,7 +156,7 @@ class Route53Provider(BaseProvider):
 
     # This should be bumped when there are underlying changes made to the
     # health check config.
-    HEALTH_CHECK_VERSION = '0000'
+    HEALTH_CHECK_VERSION = '0001'
 
     def __init__(self, id, access_key_id, secret_access_key, max_changes=1000,
                  *args, **kwargs):
@@ -420,6 +420,13 @@ class Route53Provider(BaseProvider):
         # We've got a cached version use it
         return self._health_checks
 
+    def _health_check_equivilent(self, host, path, health_check,
+                                 first_value=None):
+        config = health_check['HealthCheckConfig']
+        return host == config['FullyQualifiedDomainName'] and \
+            path == config['ResourcePath'] and \
+            (first_value is None or first_value == config['IPAddress'])
+
     def _get_health_check_id(self, record, ident, geo, create):
         # fqdn & the first value are special, we use them to match up health
         # checks to their records. Route53 health checks check a single ip and
@@ -431,20 +438,20 @@ class Route53Provider(BaseProvider):
                        'first_value=%s', fqdn, record._type, ident,
                        first_value)
 
-        # health check host can't end with a .
-        host = fqdn[:-1]
+        healthcheck_host = record.healthcheck_host
+        healthcheck_path = record.healthcheck_path
+
         # we're looking for a healthcheck with the current version & our record
         # type, we'll ignore anything else
-        expected_version_and_type = '{}:{}:'.format(self.HEALTH_CHECK_VERSION,
-                                                    record._type)
+        expected_ref = '{}:{}:{}:'.format(self.HEALTH_CHECK_VERSION,
+                                          record._type, record.name)
         for id, health_check in self.health_checks.items():
-            if not health_check['CallerReference'] \
-               .startswith(expected_version_and_type):
+            if not health_check['CallerReference'].startswith(expected_ref):
                 # not a version & type match, ignore
                 continue
-            config = health_check['HealthCheckConfig']
-            if host == config['FullyQualifiedDomainName'] and \
-               first_value == config['IPAddress']:
+            if self._health_check_equivilent(healthcheck_host,
+                                             healthcheck_path, health_check,
+                                             first_value=first_value):
                 # this is the health check we're looking for
                 return id
 
@@ -456,16 +463,16 @@ class Route53Provider(BaseProvider):
         config = {
             'EnableSNI': True,
             'FailureThreshold': 6,
-            'FullyQualifiedDomainName': host,
+            'FullyQualifiedDomainName': healthcheck_host,
             'IPAddress': first_value,
             'MeasureLatency': True,
             'Port': 443,
             'RequestInterval': 10,
-            'ResourcePath': '/_dns',
+            'ResourcePath': healthcheck_path,
             'Type': 'HTTPS',
         }
-        ref = '{}:{}:{}'.format(self.HEALTH_CHECK_VERSION, record._type,
-                                uuid4().hex[:16])
+        ref = '{}:{}:{}:{}'.format(self.HEALTH_CHECK_VERSION, record._type,
+                                   record.name, uuid4().hex[:16])
         resp = self._conn.create_health_check(CallerReference=ref,
                                               HealthCheckConfig=config)
         health_check = resp['HealthCheck']
@@ -473,11 +480,14 @@ class Route53Provider(BaseProvider):
         # store the new health check so that we'll be able to find it in the
         # future
         self._health_checks[id] = health_check
-        self.log.info('_get_health_check_id: created id=%s, host=%s, '
-                      'first_value=%s', id, host, first_value)
+        self.log.info('_get_health_check_id: created id=%s, host=%s, path=%s'
+                      'first_value=%s', id, healthcheck_host, healthcheck_path,
+                      first_value)
         return id
 
     def _gc_health_checks(self, record, new):
+        if record._type not in ('A', 'AAAA'):
+            return
         self.log.debug('_gc_health_checks: record=%s', record)
         # Find the health checks we're using for the new route53 records
         in_use = set()
@@ -488,14 +498,12 @@ class Route53Provider(BaseProvider):
         # Now we need to run through ALL the health checks looking for those
         # that apply to this record, deleting any that do and are no longer in
         # use
-        host = record.fqdn[:-1]
+        expected_re = re.compile(r'^\d\d\d\d:{}:{}:'
+                                 .format(record._type, record.name))
         for id, health_check in self.health_checks.items():
-            config = health_check['HealthCheckConfig']
-            _type = health_check['CallerReference'].split(':', 2)[1]
-            # if host and the pulled out type match it applies
-            if host == config['FullyQualifiedDomainName'] and \
-               _type == record._type and id not in in_use:
-                # this is a health check for our fqdn & type but not one we're
+            ref = health_check['CallerReference']
+            if expected_re.match(ref) and id not in in_use:
+                # this is a health check for this record, but not one we're
                 # planning to use going forward
                 self.log.info('_gc_health_checks:   deleting id=%s', id)
                 self._conn.delete_health_check(HealthCheckId=id)
@@ -598,7 +606,11 @@ class Route53Provider(BaseProvider):
             # b/c of a health check version bump
             self.log.debug('_extra_changes:   inspecting=%s, %s', record.fqdn,
                            record._type)
+
+            healthcheck_host = record.healthcheck_host
+            healthcheck_path = record.healthcheck_path
             fqdn = record.fqdn
+
             # loop through all the r53 rrsets
             for rrset in self._load_records(zone_id):
                 if fqdn != rrset['Name'] or record._type != rrset['Type']:
@@ -611,12 +623,15 @@ class Route53Provider(BaseProvider):
                 # we expect a healtcheck now
                 try:
                     health_check_id = rrset['HealthCheckId']
-                    caller_ref = \
-                        self.health_checks[health_check_id]['CallerReference']
+                    health_check = self.health_checks[health_check_id]
+                    caller_ref = health_check['CallerReference']
                     if caller_ref.startswith(self.HEALTH_CHECK_VERSION):
-                        # it has the right health check
-                        continue
-                except KeyError:
+                        if self._health_check_equivilent(healthcheck_host,
+                                                         healthcheck_path,
+                                                         health_check):
+                            # it has the right health check
+                            continue
+                except (IndexError, KeyError):
                     # no health check id or one that isn't the right version
                     pass
                 # no good, doesn't have the right health check, needs an update

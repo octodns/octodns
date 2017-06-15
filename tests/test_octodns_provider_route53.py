@@ -81,7 +81,7 @@ class TestRoute53Provider(TestCase):
         record = Record.new(expected, name, data)
         expected.add_record(record)
 
-    caller_ref = '{}:A:1324'.format(Route53Provider.HEALTH_CHECK_VERSION)
+    caller_ref = '{}:A::1324'.format(Route53Provider.HEALTH_CHECK_VERSION)
     health_checks = [{
         'Id': '42',
         'CallerReference': caller_ref,
@@ -89,6 +89,7 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '4.2.3.4',
+            'ResourcePath': '/_dns',
         },
         'HealthCheckVersion': 2,
     }, {
@@ -98,6 +99,7 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '5.2.3.4',
+            'ResourcePath': '/_dns',
         },
         'HealthCheckVersion': 42,
     }, {
@@ -107,6 +109,7 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '5.2.3.4',
+            'ResourcePath': '/_dns',
         },
         'HealthCheckVersion': 2,
     }, {
@@ -116,6 +119,7 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '7.2.3.4',
+            'ResourcePath': '/_dns',
         },
         'HealthCheckVersion': 2,
     }, {
@@ -126,6 +130,7 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '7.2.3.4',
+            'ResourcePath': '/_dns',
         },
         'HealthCheckVersion': 2,
     }]
@@ -639,6 +644,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
+                'ResourcePath': '/_dns',
             },
             'HealthCheckVersion': 2,
         }, {
@@ -648,6 +654,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '9.2.3.4',
+                'ResourcePath': '/_dns',
             },
             'HealthCheckVersion': 2,
         }]
@@ -667,6 +674,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '8.2.3.4',
+                'ResourcePath': '/_dns',
             },
             'HealthCheckVersion': 2,
         }]
@@ -712,6 +720,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
+                'ResourcePath': '/_dns',
             },
             'HealthCheckVersion': 2,
         }, {
@@ -721,6 +730,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
+                'ResourcePath': '/_dns',
             },
             'HealthCheckVersion': 2,
         }]
@@ -736,6 +746,7 @@ class TestRoute53Provider(TestCase):
             'FailureThreshold': 6,
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '4.2.3.4',
+            'ResourcePath': '/_dns',
             'MeasureLatency': True,
             'Port': 443,
             'RequestInterval': 10,
@@ -995,6 +1006,7 @@ class TestRoute53Provider(TestCase):
                     'Type': 'HTTPS',
                     'FullyQualifiedDomainName': 'unit.tests',
                     'IPAddress': '2.2.3.4',
+                    'ResourcePath': '/_dns',
                 },
                 'HealthCheckVersion': 2,
             }],
@@ -1093,8 +1105,9 @@ class TestRoute53Provider(TestCase):
                 'CallerReference': self.caller_ref,
                 'HealthCheckConfig': {
                     'Type': 'HTTPS',
-                    'FullyQualifiedDomainName': 'unit.tests',
+                    'FullyQualifiedDomainName': 'a.unit.tests',
                     'IPAddress': '2.2.3.4',
+                    'ResourcePath': '/_dns',
                 },
                 'HealthCheckVersion': 2,
             }],
@@ -1104,6 +1117,22 @@ class TestRoute53Provider(TestCase):
         })
         extra = provider._extra_changes(existing, [])
         self.assertEquals(0, len(extra))
+        stubber.assert_no_pending_responses()
+
+        # change b/c of healthcheck path
+        record._octodns['healthcheck'] = {
+            'path': '/_ready'
+        }
+        extra = provider._extra_changes(existing, [])
+        self.assertEquals(1, len(extra))
+        stubber.assert_no_pending_responses()
+
+        # change b/c of healthcheck host
+        record._octodns['healthcheck'] = {
+            'host': 'foo.bar.io'
+        }
+        extra = provider._extra_changes(existing, [])
+        self.assertEquals(1, len(extra))
         stubber.assert_no_pending_responses()
 
     def test_route_53_record(self):
