@@ -794,3 +794,51 @@ class TestRecord(TestCase):
         self.assertEquals('CA', geo.subdivision_code)
         self.assertEquals(values, geo.values)
         self.assertEquals(['NA-US', 'NA'], list(geo.parents))
+
+    def test_inored(self):
+        new = Record.new(self.zone, 'txt', {
+            'ttl': 44,
+            'type': 'TXT',
+            'value': 'some change',
+            'octodns': {
+                'ignored': True,
+            }
+        })
+        self.assertTrue(new.ignored)
+        new = Record.new(self.zone, 'txt', {
+            'ttl': 44,
+            'type': 'TXT',
+            'value': 'some change',
+            'octodns': {
+                'ignored': False,
+            }
+        })
+        self.assertFalse(new.ignored)
+        new = Record.new(self.zone, 'txt', {
+            'ttl': 44,
+            'type': 'TXT',
+            'value': 'some change',
+        })
+        self.assertFalse(new.ignored)
+
+    def test_healthcheck(self):
+        new = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                    'path': '/_ready',
+                    'host': 'bleep.bloop',
+                }
+            }
+        })
+        self.assertEquals('/_ready', new.healthcheck_path)
+        self.assertEquals('bleep.bloop', new.healthcheck_host)
+        new = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        self.assertEquals('/_dns', new.healthcheck_path)
+        self.assertEquals('a.unit.tests', new.healthcheck_host)

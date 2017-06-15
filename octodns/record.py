@@ -112,8 +112,7 @@ class Record(object):
             raise Exception('Invalid record {}, missing ttl'.format(self.fqdn))
         self.source = source
 
-        octodns = data.get('octodns', {})
-        self.ignored = octodns.get('ignored', False)
+        self._octodns = data.get('octodns', {})
 
     def _data(self):
         return {'ttl': self.ttl}
@@ -127,6 +126,24 @@ class Record(object):
         if self.name:
             return '{}.{}'.format(self.name, self.zone.name)
         return self.zone.name
+
+    @property
+    def ignored(self):
+        return self._octodns.get('ignored', False)
+
+    @property
+    def healthcheck_path(self):
+        try:
+            return self._octodns['healthcheck']['path']
+        except KeyError:
+            return '/_dns'
+
+    @property
+    def healthcheck_host(self):
+        try:
+            return self._octodns['healthcheck']['host']
+        except KeyError:
+            return self.fqdn[:-1]
 
     def changes(self, other, target):
         # We're assuming we have the same name and type if we're being compared
