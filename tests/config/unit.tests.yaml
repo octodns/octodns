@@ -51,6 +51,11 @@ cname:
   ttl: 300
   type: CNAME
   value: unit.tests.
+ignored:
+  octodns:
+    ignored: true
+  type: A
+  value: 9.9.9.9
 mx:
   ttl: 300
   type: MX

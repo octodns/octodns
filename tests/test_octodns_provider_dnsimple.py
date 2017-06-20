@@ -129,8 +129,8 @@ class TestDnsimpleProvider(TestCase):
         ]
         plan = provider.plan(self.expected)
 
-        # No root NS
-        n = len(self.expected.records) - 1
+        # No root NS, no ignored
+        n = len(self.expected.records) - 2
         self.assertEquals(n, len(plan.changes))
         self.assertEquals(n, provider.apply(plan))
 
@@ -199,4 +199,4 @@ class TestDnsimpleProvider(TestCase):
             call('DELETE', '/zones/unit.tests/records/11189899'),
             call('DELETE', '/zones/unit.tests/records/11189897'),
             call('DELETE', '/zones/unit.tests/records/11189898')
-        ])
+        ], any_order=True)

@@ -152,10 +152,17 @@ The above command pulled the existing data out of Route53 and placed the results
 | [CloudflareProvider](/octodns/provider/cloudflare.py) | A, AAAA, CNAME, MX, NS, SPF, TXT | No | |
 | [DnsimpleProvider](/octodns/provider/dnsimple.py) | All | No | |
 | [DynProvider](/octodns/provider/dyn.py) | All | Yes | |
+| [Ns1Provider](/octodns/provider/ns1.py) | All | No | |
 | [PowerDnsProvider](/octodns/provider/powerdns.py) | All | No | |
 | [Route53](/octodns/provider/route53.py) | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Yes | |
 | [TinyDNSSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |
 | [YamlProvider](/octodns/provider/yaml.py) | All | Yes | config |
+
+#### Notes
+
+* ALIAS support varies a lot from provider to provider care should be taken to verify that your needs are met in detail.
+   * Dyn's UI doesn't allow editing or view of TTL, but the API accepts and stores the value provided, this value does not appear to be used when served
+   * Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
 
 ## Custom Sources and Providers
 
@@ -163,7 +170,7 @@ You can check out the [source](/octodns/source/) and [provider](/octodns/provide
 
 Most of the things included in OctoDNS are providers, the obvious difference being that they can serve as both sources and targets of data. We'd really like to see this list grow over time so if you use an unsupported provider then PRs are welcome. The existing providers should serve as reasonable examples. Those that have no GeoDNS support are relatively straightforward. Unfortunately most of the APIs involved to do GeoDNS style traffic management are complex and somewhat inconsistent so adding support for that function would be nice, but is optional and best done in a separate pass.
 
-The `class` key in the providers config section can be used to point to arbitrary classes in the python path so internal or 3rd party providers can easily be included with no coordiation beyond getting them into PYTHONPATH, most likely installed into the virtualenv with OctoDNS.
+The `class` key in the providers config section can be used to point to arbitrary classes in the python path so internal or 3rd party providers can easily be included with no coordination beyond getting them into PYTHONPATH, most likely installed into the virtualenv with OctoDNS.
 
 ## Other Uses
 

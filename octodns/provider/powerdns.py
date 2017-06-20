@@ -64,6 +64,7 @@ class PowerDnsBaseProvider(BaseProvider):
             'ttl': rrset['ttl']
         }
 
+    _data_for_ALIAS = _data_for_single
     _data_for_CNAME = _data_for_single
     _data_for_PTR = _data_for_single
 
@@ -191,6 +192,7 @@ class PowerDnsBaseProvider(BaseProvider):
     def _records_for_single(self, record):
         return [{'content': record.value, 'disabled': False}]
 
+    _records_for_ALIAS = _records_for_single
     _records_for_CNAME = _records_for_single
     _records_for_PTR = _records_for_single
 

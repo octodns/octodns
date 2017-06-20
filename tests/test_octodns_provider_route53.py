@@ -1212,6 +1212,26 @@ class TestRoute53Provider(TestCase):
             provider.apply(plan)
         self.assertTrue('modifications' in ctx.exception.message)
 
+    def test_semicolon_fixup(self):
+        provider = Route53Provider('test', 'abc', '123')
+
+        self.assertEquals({
+            'type': 'TXT',
+            'ttl': 30,
+            'values': [
+                'abcd\\; ef\\;g',
+                'hij\\; klm\\;n',
+            ],
+        }, provider._data_for_quoted({
+            'ResourceRecords': [{
+                'Value': '"abcd; ef;g"',
+            }, {
+                'Value': '"hij\\; klm\\;n"',
+            }],
+            'TTL': 30,
+            'Type': 'TXT',
+        }))
+
 
 class TestRoute53Records(TestCase):
 

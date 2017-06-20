@@ -120,6 +120,8 @@ class DnsimpleProvider(BaseProvider):
             'value': '{}.'.format(record['content'])
         }
 
+    _data_for_ALIAS = _data_for_CNAME
+
     def _data_for_MX(self, _type, records):
         values = []
         for record in records:
@@ -238,6 +240,10 @@ class DnsimpleProvider(BaseProvider):
             _type = record['type']
             if _type == 'SOA':
                 continue
+            elif _type == 'TXT' and record['content'].startswith('ALIAS for'):
+                # ALIAS has a "ride along" TXT record with 'ALIAS for XXXX',
+                # we're ignoring it
+                continue
             values[record['name']][record['type']].append(record)
 
         before = len(zone.records)
@@ -273,6 +279,7 @@ class DnsimpleProvider(BaseProvider):
             'type': record._type
         }
 
+    _params_for_ALIAS = _params_for_single
     _params_for_CNAME = _params_for_single
     _params_for_PTR = _params_for_single
 
@@ -327,8 +334,8 @@ class DnsimpleProvider(BaseProvider):
             self._client.record_create(new.zone.name[:-1], params)
 
     def _apply_Update(self, change):
-        self._apply_Create(change)
         self._apply_Delete(change)
+        self._apply_Create(change)
 
     def _apply_Delete(self, change):
         existing = change.existing
