@@ -3,5 +3,6 @@
 
 sudo rm -r /home/t-hehwan/GitHub/octodns/build
 sudo rm -r /home/t-hehwan/GitHub/octodns/octodns.egg-info
-sudo python /home/t-hehwan/GitHub/octodns/setup.py build -q 
-sudo python /home/t-hehwan/GitHub/octodns/setup.py install -q 
+sudo python /home/t-hehwan/GitHub/octodns/setup.py -q build
+sudo python /home/t-hehwan/GitHub/octodns/setup.py -q install
+octodns-sync --config-file=./config/production.yaml
