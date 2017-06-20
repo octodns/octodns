@@ -133,6 +133,10 @@ class DynProvider(BaseProvider):
         'AN': 17,  # Continental Antartica
     }
 
+    MONITOR_HEADER = 'User-Agent: Dyn Monitor'
+    MONITOR_PORT = 443
+    MONITOR_TIMEOUT = 10
+
     _sess_create_lock = Lock()
 
     def __init__(self, id, customer, username, password,
@@ -454,12 +458,33 @@ class DynProvider(BaseProvider):
 
         fqdn = record.fqdn
         try:
-            return self._traffic_director_monitors[fqdn]
+            monitor = self._traffic_director_monitors[fqdn]
+            if monitor._host != record.healthcheck_host or \
+               monitor._path != record.healthcheck_path:
+                self.log.info('_traffic_director_monitor: updating monitor '
+                              'for %s:%s', record.fqdn, record._type)
+                # I can't see how to actually do this with the client lib so
+                # I'm having to hack around it. Have to provide all the
+                # options or else things complain
+                monitor._update({
+                    'options': {
+                        'host': record.healthcheck_host,
+                        'path': record.healthcheck_path,
+                        'port': self.MONITOR_PORT,
+                        'timeout': self.MONITOR_TIMEOUT,
+                        'header': self.MONITOR_HEADER,
+                    }
+                })
+            return monitor
         except KeyError:
+            self.log.info('_traffic_director_monitor: creating monitor '
+                          'for %s:%s', record.fqdn, record._type)
             monitor = DSFMonitor(fqdn, protocol='HTTPS', response_count=2,
-                                 probe_interval=60, retries=2, port=443,
-                                 active='Y', host=record.healthcheck_host,
-                                 timeout=10, header='User-Agent: Dyn Monitor',
+                                 probe_interval=60, retries=2,
+                                 port=self.MONITOR_PORT, active='Y',
+                                 host=record.healthcheck_host,
+                                 timeout=self.MONITOR_TIMEOUT,
+                                 header=self.MONITOR_HEADER,
                                  path=record.healthcheck_path)
             self._traffic_director_monitors[fqdn] = monitor
             return monitor

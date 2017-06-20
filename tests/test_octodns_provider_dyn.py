@@ -527,21 +527,22 @@ class TestDynProviderGeo(TestCase):
     monitors_response = {
         'data': [{
             'active': 'Y',
+            'agent_scheme': 'geo',
             'dsf_monitor_id': monitor_id,
             'endpoints': [],
             'label': 'unit.tests.',
-            'notifier': '',
-            'options': {
-                'expected': '',
-                'header': 'User-Agent: Dyn Monitor',
-                'host': 'unit.tests',
-                'path': '/_dns',
-                'port': '443',
-                'timeout': '10'},
+            'notifier': [],
+            'expected': '',
+            'header': 'User-Agent: Dyn Monitor',
+            'host': 'unit.tests',
+            'path': '/_dns',
+            'port': '443',
+            'timeout': '10',
             'probe_interval': '60',
             'protocol': 'HTTPS',
             'response_count': '2',
-            'retries': '2'
+            'retries': '2',
+            'services': ['12311']
         }],
         'job_id': 3376281406,
         'msgs': [{
@@ -648,14 +649,12 @@ class TestDynProviderGeo(TestCase):
                 'endpoints': [],
                 'label': 'geo.unit.tests.',
                 'notifier': '',
-                'options': {
-                    'expected': '',
-                    'header': 'User-Agent: Dyn Monitor',
-                    'host': 'geo.unit.tests.',
-                    'path': '/_dns',
-                    'port': '443',
-                    'timeout': '10'
-                },
+                'expected': '',
+                'header': 'User-Agent: Dyn Monitor',
+                'host': 'geo.unit.tests.',
+                'path': '/_dns',
+                'port': '443',
+                'timeout': '10',
                 'probe_interval': '60',
                 'protocol': 'HTTPS',
                 'response_count': '2',
@@ -720,6 +719,65 @@ class TestDynProviderGeo(TestCase):
         self.assertEquals(self.monitor_id, monitor.dsf_monitor_id)
         # should have resulted in no calls b/c exists & we've cached the list
         mock.assert_not_called()
+
+        # and finally for a monitor that exists, but with a differing config
+        record = Record.new(existing, '', {
+            'octodns': {
+                'healthcheck': {
+                    'host': 'bleep.bloop',
+                    'path': '/_nope'
+                }
+            },
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4'
+        })
+        mock.reset_mock()
+        mock.side_effect = [{
+            'data': {
+                'active': 'Y',
+                'dsf_monitor_id': self.monitor_id,
+                'endpoints': [],
+                'label': 'unit.tests.',
+                'notifier': '',
+                'expected': '',
+                'header': 'User-Agent: Dyn Monitor',
+                'host': 'bleep.bloop',
+                'path': '/_nope',
+                'port': '443',
+                'timeout': '10',
+                'probe_interval': '60',
+                'protocol': 'HTTPS',
+                'response_count': '2',
+                'retries': '2'
+            },
+            'job_id': 3376259461,
+            'msgs': [{'ERR_CD': None,
+                      'INFO': 'add: Here is the new monitor',
+                      'LVL': 'INFO',
+                      'SOURCE': 'BLL'}],
+            'status': 'success'
+        }]
+        monitor = provider._traffic_director_monitor(record)
+        self.assertEquals(self.monitor_id, monitor.dsf_monitor_id)
+        # should have resulted an update
+        mock.assert_has_calls([
+            call('/DSFMonitor/42a/', 'PUT', {
+                'options': {
+                    'path': '/_nope',
+                    'host': 'bleep.bloop',
+                    'header': 'User-Agent: Dyn Monitor',
+                    'port': 443,
+                    'timeout': 10
+                }
+            })
+        ])
+        # cached monitor should have been updated
+        self.assertTrue('unit.tests.' in
+                        provider._traffic_director_monitors)
+        monitor = provider._traffic_director_monitors['unit.tests.']
+        self.assertEquals('bleep.bloop', monitor._host)
+        self.assertEquals('/_nope', monitor._path)
 
     @patch('dyn.core.SessionEngine.execute')
     def test_populate_traffic_directors_empty(self, mock):
