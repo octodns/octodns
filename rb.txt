@@ -1,0 +1,7 @@
+#!/bin/bash
+#script to rebuild octodns quickly
+
+sudo rm -r /home/t-hehwan/GitHub/octodns/build
+sudo rm -r /home/t-hehwan/GitHub/octodns/octodns.egg-info
+sudo python /home/t-hehwan/GitHub/octodns/setup.py build -q 
+sudo python /home/t-hehwan/GitHub/octodns/setup.py install -q 

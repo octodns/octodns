@@ -17,6 +17,9 @@ import re
 from ..record import Record, Update
 from .base import BaseProvider
 
+
+#TODO: changes made to master include adding /build, Makefile to .gitignore and 
+# making Makefile.
 # Only made for A records. will have to adjust for more generic params types
 class _AzureRecord(object):
     def __init__(self, resource_group_name, record, values=None):
