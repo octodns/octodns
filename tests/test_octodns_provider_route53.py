@@ -18,6 +18,12 @@ from octodns.zone import Zone
 from helpers import GeoProvider
 
 
+class DummyR53Record(object):
+
+    def __init__(self, health_check_id):
+        self.health_check_id = health_check_id
+
+
 class TestOctalReplace(TestCase):
 
     def test_basic(self):
@@ -807,18 +813,13 @@ class TestRoute53Provider(TestCase):
             }
         })
 
-        class DummyRecord(object):
-
-            def __init__(self, health_check_id):
-                self.health_check_id = health_check_id
-
         # gc no longer in_use records (directly)
         stubber.add_response('delete_health_check', {}, {
             'HealthCheckId': '44',
         })
         provider._gc_health_checks(record, [
-            DummyRecord('42'),
-            DummyRecord('43'),
+            DummyR53Record('42'),
+            DummyR53Record('43'),
         ])
         stubber.assert_no_pending_responses()
 
@@ -865,6 +866,71 @@ class TestRoute53Provider(TestCase):
         })
         provider._gc_health_checks(record, [])
         stubber.assert_no_pending_responses()
+
+    def test_legacy_health_check_gc(self):
+        provider, stubber = self._get_stubbed_provider()
+
+        old_caller_ref = '0000:A:3333'
+        health_checks = [{
+            'Id': '42',
+            'CallerReference': self.caller_ref,
+            'HealthCheckConfig': {
+                'Type': 'HTTPS',
+                'FullyQualifiedDomainName': 'unit.tests',
+                'IPAddress': '4.2.3.4',
+                'ResourcePath': '/_dns',
+            },
+            'HealthCheckVersion': 2,
+        }, {
+            'Id': '43',
+            'CallerReference': old_caller_ref,
+            'HealthCheckConfig': {
+                'Type': 'HTTPS',
+                'FullyQualifiedDomainName': 'unit.tests',
+                'IPAddress': '4.2.3.4',
+                'ResourcePath': '/_dns',
+            },
+            'HealthCheckVersion': 2,
+        }, {
+            'Id': '44',
+            'CallerReference': old_caller_ref,
+            'HealthCheckConfig': {
+                'Type': 'HTTPS',
+                'FullyQualifiedDomainName': 'other.unit.tests',
+                'IPAddress': '4.2.3.4',
+                'ResourcePath': '/_dns',
+            },
+            'HealthCheckVersion': 2,
+        }]
+
+        stubber.add_response('list_health_checks', {
+            'HealthChecks': health_checks,
+            'IsTruncated': False,
+            'MaxItems': '100',
+            'Marker': '',
+        })
+
+        # No changes to the record itself
+        record = Record.new(self.expected, '', {
+            'ttl': 61,
+            'type': 'A',
+            'values': ['2.2.3.4', '3.2.3.4'],
+            'geo': {
+                'AF': ['4.2.3.4'],
+                'NA-US': ['5.2.3.4', '6.2.3.4'],
+                'NA-US-CA': ['7.2.3.4']
+            }
+        })
+
+        # Expect to delete the legacy hc for our record, but not touch the new
+        # one or the other legacy record
+        stubber.add_response('delete_health_check', {}, {
+            'HealthCheckId': '43',
+        })
+
+        provider._gc_health_checks(record, [
+            DummyR53Record('42'),
+        ])
 
     def test_no_extra_changes(self):
         provider, stubber = self._get_stubbed_provider()

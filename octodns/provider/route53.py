@@ -500,6 +500,10 @@ class Route53Provider(BaseProvider):
         # use
         expected_re = re.compile(r'^\d\d\d\d:{}:{}:'
                                  .format(record._type, record.name))
+        # Until the v1.0 release we'll clean out the previous version of
+        # Route53 health checks as best as we can.
+        expected_legacy_host = record.fqdn[:-1]
+        expected_legacy = '0000:{}:'.format(record._type)
         for id, health_check in self.health_checks.items():
             ref = health_check['CallerReference']
             if expected_re.match(ref) and id not in in_use:
@@ -507,6 +511,12 @@ class Route53Provider(BaseProvider):
                 # planning to use going forward
                 self.log.info('_gc_health_checks:   deleting id=%s', id)
                 self._conn.delete_health_check(HealthCheckId=id)
+            elif ref.startswith(expected_legacy):
+                config = health_check['HealthCheckConfig']
+                if expected_legacy_host == config['FullyQualifiedDomainName']:
+                    self.log.info('_gc_health_checks:   deleting legacy id=%s',
+                                  id)
+                    self._conn.delete_health_check(HealthCheckId=id)
 
     def _gen_records(self, record, creating=False):
         '''
