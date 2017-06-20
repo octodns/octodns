@@ -173,7 +173,7 @@ class Route53Provider(BaseProvider):
         self._health_checks = None
 
     def supports(self, record):
-        return record._type != 'SSHFP'
+        return record._type not in ('ALIAS', 'SSHFP')
 
     @property
     def r53_zones(self):
