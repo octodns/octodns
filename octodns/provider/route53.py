@@ -583,18 +583,18 @@ class Route53Provider(BaseProvider):
         self._gc_health_checks(change.existing, [])
         return self._gen_mods('DELETE', existing_records)
 
-    def _extra_changes(self, existing, changes):
-        self.log.debug('_extra_changes: existing=%s', existing.name)
-        zone_id = self._get_zone_id(existing.name)
+    def _extra_changes(self, existing, desired, changes):
+        self.log.debug('_extra_changes: desired=%s', desired.name)
+        zone_id = self._get_zone_id(desired.name)
         if not zone_id:
             # zone doesn't exist so no extras to worry about
             return []
         # we'll skip extra checking for anything we're already going to change
         changed = set([c.record for c in changes])
         # ok, now it's time for the reason we're here, we need to go over all
-        # the existing records
+        # the desired records
         extra = []
-        for record in existing.records:
+        for record in desired.records:
             if record in changed:
                 # already have a change for it, skipping
                 continue
@@ -635,8 +635,8 @@ class Route53Provider(BaseProvider):
                     # no health check id or one that isn't the right version
                     pass
                 # no good, doesn't have the right health check, needs an update
-                self.log.debug('_extra_changes:     health-check caused '
-                               'update')
+                self.log.info('_extra_changes:     health-check caused '
+                              'update')
                 extra.append(Update(record, record))
                 # We don't need to process this record any longer
                 break

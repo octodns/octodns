@@ -29,7 +29,7 @@ class HelperProvider(BaseProvider):
         return not self.include_change_callback or \
             self.include_change_callback(change)
 
-    def _extra_changes(self, existing, changes):
+    def _extra_changes(self, existing, desired, changes):
         return self.__extra_changes
 
     def _apply(self, plan):

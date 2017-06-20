@@ -259,7 +259,7 @@ class PowerDnsBaseProvider(BaseProvider):
     def _get_nameserver_record(self, existing):
         return None
 
-    def _extra_changes(self, existing, _):
+    def _extra_changes(self, existing, _, __):
         self.log.debug('_extra_changes: zone=%s', existing.name)
 
         ns = self._get_nameserver_record(existing)
