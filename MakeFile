@@ -1,0 +1,5 @@
+local-rebuild:
+    sudo rm -r build
+    sudo rm -r octodns.egg-info/
+    sudo python setup.py build -q
+    sudo python setup.py install -q
