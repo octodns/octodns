@@ -206,6 +206,13 @@ class Manager(object):
             if eligible_targets:
                 targets = filter(lambda d: d in eligible_targets, targets)
 
+            if not targets:
+                # Don't bother planning (and more importantly populating) zones
+                # when we don't have any eligible targets, waste of
+                # time/resources
+                self.log.info('sync:   no eligible targets, skipping')
+                continue
+
             self.log.info('sync:   sources=%s -> targets=%s', sources, targets)
 
             try:
