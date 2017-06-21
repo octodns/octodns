@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
+import sys
 
 from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.dns import DnsManagementClient
@@ -13,32 +14,41 @@ from collections import defaultdict
 # from incf.countryutils.transformations import cca_to_ctca2 TODO: add geo sup.
 import logging
 import re
-from ..record import Record, Up
-
+from ..record import Record, Update
 from .base import BaseProvider
 
-class A(BaseProvider):
-    def __init__(self):
-        pass
 
 #TODO: changes made to master include adding /build, Makefile to .gitignore and 
 # making Makefile.
 # Only made for A records. will have to adjust for more generic params types
 class _AzureRecord(object):
-    def __init__(self, resource_group_name, record, values=None):
-        self.resource_group_name = resource_group_name
-        self.zone_name = record.zone.name
-        self.relative_record_set_name = record.name
+    def __init__(self, resource_group, record, values=None):
+        self.resource_group = resource_group
+        self.zone_name = record.zone.name[0:len(record.zone.name)-1] # strips last period
+        self.relative_record_set_name = record.name or '@'
         self.record_type = record._type
         
-        type_name = '{}records'.format(self.record_type)
+        type_name = '{}records'.format(self.record_type).lower()
         class_name = '{}'.format(self.record_type).capitalize() + \
                      'Record'.format(self.record_type)
-        _values = [record._process_values]
-        self.params = {'ttl':record.ttl or 1800, \
-                       type_name:[eval(class_name)(value) for value in _values] or []}
+        data = values or record.data #This should fail if it gets to record.data? It only returns ttl. TODO
+        print('findme: ',file=sys.stderr)
+        print(data, file=sys.stderr)
+        print('\n',file=sys.stderr)
         
+        #depending on mult values or not
+        self.params = {}
+        try:
+            self.params = {'ttl':record.ttl or 1800, \
+               type_name:[eval(class_name)(ip) for ip in data['values']] or []}
+        except KeyError: # means that doesn't have multiple values but single value
+            self.params = {'ttl':record.ttl or 1800, \
+               type_name:[eval(class_name)(data['value'])] or []}
 
+        
+    # ar = _AzureRecord(self._resource_group, new, new.data)
+
+    
 
 class AzureProvider(BaseProvider):
     '''
@@ -96,8 +106,8 @@ class AzureProvider(BaseProvider):
         if self._azure_zones is None:
             self.log.debug('azure_zones: loading')
             zones = {}
-            for zone in self._dns_client.zones.list():
-                zones[zone['name']] = zone['id']                
+            for zone in self._dns_client.zones.list_by_resource_group(self._resource_group):
+                zones[zone.name] = zone.id
             self._azure_zones = zones
         return self._azure_zones
         
@@ -109,8 +119,9 @@ class AzureProvider(BaseProvider):
             self.log.debug('_get_zone_id: id=%s', id)
             return id
         if create:
+            self.log.debug('_get_zone_id: no matching zone; creating %s', name)
             raise Exception
-            #TODO
+            #TODO, write code
         return None
     
     # Create a dictionary of record objects by zone and octodns record names
@@ -128,7 +139,7 @@ class AzureProvider(BaseProvider):
                     data = getattr(self, '_data_for_{}'.format(type))(type, azrecord)
                     record = Record.new(zone, record_name, data, source=self)
                     zone.add_record(record)
-                    self._azure_records[record] = _AzureRecord(self._resource_group, record, record.data)
+                    self._azure_records[record] = _AzureRecord(self._resource_group, record, data)
                     
         self.log.info('populate: found %s records', len(zone.records)-before)
         
@@ -137,24 +148,48 @@ class AzureProvider(BaseProvider):
         azrecord['type'].split('/')[-1]
         
     def _data_for_A(self, type, azrecord):
+        print('xxxxx\n',file=sys.stderr)
+        for ar in azrecords.arecords:
+            print(ar,file=sys.stderr)
+            
+        
+        v = [ARecord(ar.ipv4_address) for ar in azrecord.arecords]
+        # print(v, file=sys.stderr)
+        # print('99999999999999999999999999999999999999999999999999\n',file=sys.stderr)
         return {
             'type': type,
             'ttl': azrecord['ttl'],
-            'values': [ar.ipv4_address for ar in azrecord.arecords]
+            'value': v
         }
     
-    def _get_azure_record(record):
-        try:
-            return self._azure_records[record]
-        except:
-            raise 
+    # def _get_azure_record(self, record):
+        # try:
+            # return self._azure_records[record]
+        # except:
+            # self._azure_records[record] = _AzureRecord(self._resource_group, record, record.data)
+            # return self._azure_records[record]
+        # except:
+            # raise
     
     def _apply_Create(self, change):
         new = change.new
-        ar = self._get_azure_record(new)
+        
+        #validate that the zone exists.
+        #self._get_zone_id(new.name, create=True)
+        
+        #ar = self._get_azure_record(new)
+        ar = _AzureRecord(self._resource_group, new, new.data)
         
         create = self._dns_client.record_sets.create_or_update
-        create(ar.resource_group_name, ar.zone_name, ar.relative_record_set_name, ar.record_type, ar.params)
+        print('find:{} {} {} {} {}\n'.format(ar.resource_group,ar.zone_name,ar.relative_record_set_name,ar.record_type,ar.params), file=sys.stderr)
+        for arec in ar.params['arecords']:
+            print(str(arec.ipv4_address) + ', ', file=sys.stderr)
+        print('\n',file=sys.stderr)
+        create(resource_group_name=ar.resource_group, 
+               zone_name=ar.zone_name, 
+               relative_record_set_name=ar.relative_record_set_name, 
+               record_type=ar.record_type, 
+               parameters=ar.params)
     
     # type plan: Plan class from .base
     def _apply(self, plan):
