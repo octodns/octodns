@@ -5,25 +5,12 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from natsort import natsort_keygen
 from yaml import SafeDumper, SafeLoader, load, dump
 from yaml.constructor import ConstructorError
-import re
 
 
-# zero-padded sort, simplified version of
-# https://www.xormedia.com/natural-sort-order-with-zero-padding/
-_pad_re = re.compile('\d+')
-
-
-def _zero_pad(match):
-    return '{:04d}'.format(int(match.group(0)))
-
-
-def _zero_padded_numbers(s):
-    try:
-        int(s)
-    except ValueError:
-        return _pad_re.sub(lambda d: _zero_pad(d), s)
+_natsort_key = natsort_keygen()
 
 
 # Found http://stackoverflow.com/a/21912744 which guided me on how to hook in
@@ -34,7 +21,7 @@ class SortEnforcingLoader(SafeLoader):
         self.flatten_mapping(node)
         ret = self.construct_pairs(node)
         keys = [d[0] for d in ret]
-        if keys != sorted(keys, key=_zero_padded_numbers):
+        if keys != sorted(keys, key=_natsort_key):
             raise ConstructorError(None, None, "keys out of order: {}"
                                    .format(', '.join(keys)), node.start_mark)
         return dict(ret)
@@ -59,7 +46,7 @@ class SortingDumper(SafeDumper):
 
     def _representer(self, data):
         data = data.items()
-        data.sort(key=lambda d: _zero_padded_numbers(d[0]))
+        data.sort(key=lambda d: _natsort_key(d[0]))
         return self.represent_mapping(self.DEFAULT_MAPPING_TAG, data)
 
 
