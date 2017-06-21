@@ -17,8 +17,59 @@ from logging import getLogger
 from threading import Lock
 from uuid import uuid4
 
-from ..record import Record
+from ..record import Record, Update
 from .base import BaseProvider
+
+
+###############################################################################
+#
+# The following monkey patching is to work around functionality that is lacking
+# from DSFMonitor. You cannot set host or path (which we need) and there's no
+# update method. What's more host & path aren't publically accessible on the
+# object so you can't see their current values and depending on how the object
+# came to be (constructor vs pulled from the api) the "private" location of
+# those fields varies :-(
+#
+###############################################################################
+def _monitor_host_get(self):
+    return self._host or self._options['host']
+DSFMonitor.host = property(_monitor_host_get)
+
+
+def _monitor_host_set(self, value):
+    if self._options is None:
+        self._options = {}
+    self._host = self._options['host'] = value
+DSFMonitor.host = DSFMonitor.host.setter(_monitor_host_set)
+
+
+def _monitor_path_get(self):
+    return self._path or self._options['path']
+DSFMonitor.path = property(_monitor_path_get)
+
+
+def _monitor_path_set(self, value):
+    if self._options is None:
+        self._options = {}
+    self._path = self._options['path'] = value
+DSFMonitor.path = DSFMonitor.path.setter(_monitor_path_set)
+
+
+def _monitor_update(self, host, path):
+    # I can't see how to actually do this with the client lib so
+    # I'm having to hack around it. Have to provide all the
+    # options or else things complain
+    return self._update({
+        'options': {
+            'host': host,
+            'path': path,
+            'port': DynProvider.MONITOR_PORT,
+            'timeout': DynProvider.MONITOR_TIMEOUT,
+            'header': DynProvider.MONITOR_HEADER,
+        }
+    })
+DSFMonitor.update = _monitor_update
+###############################################################################
 
 
 class _CachingDynZone(DynZone):
@@ -373,6 +424,33 @@ class DynProvider(BaseProvider):
         self.log.info('populate:   found %s records',
                       len(zone.records) - before)
 
+    def _extra_changes(self, _, desired, changes):
+        self.log.debug('_extra_changes: desired=%s', desired.name)
+
+        changed = set([c.record for c in changes])
+
+        extra = []
+        for record in desired.records:
+            if record in changed or not getattr(record, 'geo', False):
+                # Already changed, or no geo, no need to check it
+                continue
+            try:
+                monitor = self.traffic_director_monitors[record.fqdn]
+            except KeyError:
+                self.log.info('_extra_changes: health-check missing for %s:%s',
+                              record.fqdn, record._type)
+                extra.append(Update(record, record))
+                continue
+            # Heh, when pulled from the API host & path live under options, but
+            # when you create with the constructor they're top-level :-(
+            if monitor.host != record.healthcheck_host or \
+               monitor.path != record.healthcheck_path:
+                self.log.info('_extra_changes: health-check mis-match for '
+                              '%s:%s', record.fqdn, record._type)
+                extra.append(Update(record, record))
+
+        return extra
+
     def _kwargs_for_A(self, record):
         return [{
             'address': v,
@@ -451,30 +529,24 @@ class DynProvider(BaseProvider):
 
     _kwargs_for_TXT = _kwargs_for_SPF
 
-    def _traffic_director_monitor(self, record):
+    @property
+    def traffic_director_monitors(self):
         if self._traffic_director_monitors is None:
             self._traffic_director_monitors = \
                 {m.label: m for m in get_all_dsf_monitors()}
 
+        return self._traffic_director_monitors
+
+    def _traffic_director_monitor(self, record):
         fqdn = record.fqdn
         try:
-            monitor = self._traffic_director_monitors[fqdn]
-            if monitor._host != record.healthcheck_host or \
-               monitor._path != record.healthcheck_path:
+            monitor = self.traffic_director_monitors[fqdn]
+            if monitor.host != record.healthcheck_host or \
+               monitor.path != record.healthcheck_path:
                 self.log.info('_traffic_director_monitor: updating monitor '
                               'for %s:%s', record.fqdn, record._type)
-                # I can't see how to actually do this with the client lib so
-                # I'm having to hack around it. Have to provide all the
-                # options or else things complain
-                monitor._update({
-                    'options': {
-                        'host': record.healthcheck_host,
-                        'path': record.healthcheck_path,
-                        'port': self.MONITOR_PORT,
-                        'timeout': self.MONITOR_TIMEOUT,
-                        'header': self.MONITOR_HEADER,
-                    }
-                })
+                monitor.update(record.healthcheck_host,
+                               record.healthcheck_path)
             return monitor
         except KeyError:
             self.log.info('_traffic_director_monitor: creating monitor '

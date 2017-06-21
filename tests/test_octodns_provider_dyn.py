@@ -13,7 +13,7 @@ from unittest import TestCase
 
 from octodns.record import Create, Delete, Record, Update
 from octodns.provider.base import Plan
-from octodns.provider.dyn import DynProvider, _CachingDynZone
+from octodns.provider.dyn import DynProvider, _CachingDynZone, DSFMonitor
 from octodns.zone import Zone
 
 from helpers import SimpleProvider
@@ -776,8 +776,87 @@ class TestDynProviderGeo(TestCase):
         self.assertTrue('unit.tests.' in
                         provider._traffic_director_monitors)
         monitor = provider._traffic_director_monitors['unit.tests.']
-        self.assertEquals('bleep.bloop', monitor._host)
-        self.assertEquals('/_nope', monitor._path)
+        from pprint import pprint
+        pprint(monitor.__dict__)
+        self.assertEquals('bleep.bloop', monitor.host)
+        self.assertEquals('/_nope', monitor.path)
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_extra_changes(self, mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass', True)
+        # short-circuit session checking
+        provider._dyn_sess = True
+
+        mock.side_effect = [self.monitors_response]
+
+        # non-geo
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, '', {
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        desired.add_record(record)
+        extra = provider._extra_changes(None, desired, [Create(record)])
+        self.assertEquals(0, len(extra))
+
+        # in changes, noop
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, '', {
+            'geo': {
+                'NA': ['1.2.3.4'],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        desired.add_record(record)
+        extra = provider._extra_changes(None, desired, [Create(record)])
+        self.assertEquals(0, len(extra))
+
+        # no diff, no extra
+        extra = provider._extra_changes(None, desired, [])
+        self.assertEquals(0, len(extra))
+
+        # diff in healthcheck, gets extra
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, '', {
+            'geo': {
+                'NA': ['1.2.3.4'],
+            },
+            'octodns': {
+                'healthcheck': {
+                    'host': 'foo.bar',
+                    'path': '/_ready'
+                }
+            },
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        desired.add_record(record)
+        extra = provider._extra_changes(None, desired, [])
+        self.assertEquals(1, len(extra))
+        extra = extra[0]
+        self.assertIsInstance(extra, Update)
+        self.assertEquals(record, extra.record)
+
+        # missing health check
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, 'geo', {
+            'geo': {
+                'NA': ['1.2.3.4'],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        desired.add_record(record)
+        extra = provider._extra_changes(None, desired, [])
+        self.assertEquals(1, len(extra))
+        extra = extra[0]
+        self.assertIsInstance(extra, Update)
+        self.assertEquals(record, extra.record)
 
     @patch('dyn.core.SessionEngine.execute')
     def test_populate_traffic_directors_empty(self, mock):
@@ -1335,3 +1414,46 @@ class TestDynProviderAlias(TestCase):
         execute_mock.assert_has_calls([call('/Zone/unit.tests/', 'GET', {}),
                                        call('/Zone/unit.tests/', 'GET', {})])
         self.assertEquals(2, len(plan.changes))
+
+
+# Need a class that doesn't do all the "real" stuff, but gets our monkey
+# patching
+class DummyDSFMonitor(DSFMonitor):
+
+    def __init__(self, host=None, path=None, options_host=None,
+                 options_path=None):
+        # not calling super on purpose
+        self._host = host
+        self._path = path
+        if options_host:
+            self._options = {
+                'host': options_host,
+                'path': options_path,
+            }
+        else:
+            self._options = None
+
+
+class TestDSFMonitorMonkeyPatching(TestCase):
+
+    def test_host(self):
+        monitor = DummyDSFMonitor(host='host.com', path='/path')
+        self.assertEquals('host.com', monitor.host)
+        self.assertEquals('/path', monitor.path)
+
+        monitor = DummyDSFMonitor(options_host='host.com',
+                                  options_path='/path')
+        self.assertEquals('host.com', monitor.host)
+        self.assertEquals('/path', monitor.path)
+
+        monitor.host = 'other.com'
+        self.assertEquals('other.com', monitor.host)
+        monitor.path = '/other-path'
+        self.assertEquals('/other-path', monitor.path)
+
+        monitor = DummyDSFMonitor()
+        monitor.host = 'other.com'
+        self.assertEquals('other.com', monitor.host)
+        monitor = DummyDSFMonitor()
+        monitor.path = '/other-path'
+        self.assertEquals('/other-path', monitor.path)

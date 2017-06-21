@@ -646,7 +646,7 @@ class Route53Provider(BaseProvider):
                     pass
                 # no good, doesn't have the right health check, needs an update
                 self.log.info('_extra_changes:     health-check caused '
-                              'update')
+                              'update of %s:%s', record.fqdn, record._type)
                 extra.append(Update(record, record))
                 # We don't need to process this record any longer
                 break
