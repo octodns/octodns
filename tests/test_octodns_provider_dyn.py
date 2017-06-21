@@ -530,7 +530,7 @@ class TestDynProviderGeo(TestCase):
             'agent_scheme': 'geo',
             'dsf_monitor_id': monitor_id,
             'endpoints': [],
-            'label': 'unit.tests.',
+            'label': 'unit.tests.:A',
             'notifier': [],
             'expected': '',
             'header': 'User-Agent: Dyn Monitor',
@@ -543,6 +543,24 @@ class TestDynProviderGeo(TestCase):
             'response_count': '2',
             'retries': '2',
             'services': ['12311']
+        }, {
+            'active': 'Y',
+            'agent_scheme': 'geo',
+            'dsf_monitor_id': 'b52',
+            'endpoints': [],
+            'label': 'old-label.unit.tests.',
+            'notifier': [],
+            'expected': '',
+            'header': 'User-Agent: Dyn Monitor',
+            'host': 'old-label.unit.tests',
+            'path': '/_dns',
+            'port': '443',
+            'timeout': '10',
+            'probe_interval': '60',
+            'protocol': 'HTTPS',
+            'response_count': '2',
+            'retries': '2',
+            'services': ['12312']
         }],
         'job_id': 3376281406,
         'msgs': [{
@@ -647,7 +665,7 @@ class TestDynProviderGeo(TestCase):
                 'active': 'Y',
                 'dsf_monitor_id': geo_monitor_id,
                 'endpoints': [],
-                'label': 'geo.unit.tests.',
+                'label': 'geo.unit.tests.:A',
                 'notifier': '',
                 'expected': '',
                 'header': 'User-Agent: Dyn Monitor',
@@ -689,7 +707,7 @@ class TestDynProviderGeo(TestCase):
                 'retries': 2,
                 'protocol': 'HTTPS',
                 'response_count': 2,
-                'label': 'geo.unit.tests.',
+                'label': 'geo.unit.tests.:A',
                 'probe_interval': 60,
                 'active': 'Y',
                 'options': {
@@ -702,10 +720,10 @@ class TestDynProviderGeo(TestCase):
             })
         ])
         # created monitor is now cached
-        self.assertTrue('geo.unit.tests.' in
+        self.assertTrue('geo.unit.tests.:A' in
                         provider._traffic_director_monitors)
         # pre-existing one is there too
-        self.assertTrue('unit.tests.' in
+        self.assertTrue('unit.tests.:A' in
                         provider._traffic_director_monitors)
 
         # now ask for a monitor that does exist
@@ -738,7 +756,7 @@ class TestDynProviderGeo(TestCase):
                 'active': 'Y',
                 'dsf_monitor_id': self.monitor_id,
                 'endpoints': [],
-                'label': 'unit.tests.',
+                'label': 'unit.tests.:A',
                 'notifier': '',
                 'expected': '',
                 'header': 'User-Agent: Dyn Monitor',
@@ -773,13 +791,55 @@ class TestDynProviderGeo(TestCase):
             })
         ])
         # cached monitor should have been updated
-        self.assertTrue('unit.tests.' in
+        self.assertTrue('unit.tests.:A' in
                         provider._traffic_director_monitors)
-        monitor = provider._traffic_director_monitors['unit.tests.']
-        from pprint import pprint
-        pprint(monitor.__dict__)
+        monitor = provider._traffic_director_monitors['unit.tests.:A']
         self.assertEquals('bleep.bloop', monitor.host)
         self.assertEquals('/_nope', monitor.path)
+
+        # test upgrading an old label
+        record = Record.new(existing, 'old-label', {
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4'
+        })
+        mock.reset_mock()
+        mock.side_effect = [{
+            'data': {
+                'active': 'Y',
+                'dsf_monitor_id': self.monitor_id,
+                'endpoints': [],
+                'label': 'old-label.unit.tests.:A',
+                'notifier': '',
+                'expected': '',
+                'header': 'User-Agent: Dyn Monitor',
+                'host': 'old-label.unit.tests',
+                'path': '/_dns',
+                'port': '443',
+                'timeout': '10',
+                'probe_interval': '60',
+                'protocol': 'HTTPS',
+                'response_count': '2',
+                'retries': '2'
+            },
+            'job_id': 3376259461,
+            'msgs': [{'ERR_CD': None,
+                      'INFO': 'add: Here is the new monitor',
+                      'LVL': 'INFO',
+                      'SOURCE': 'BLL'}],
+            'status': 'success'
+        }]
+        monitor = provider._traffic_director_monitor(record)
+        self.assertEquals(self.monitor_id, monitor.dsf_monitor_id)
+        # should have resulted an update
+        mock.assert_has_calls([
+            call('/DSFMonitor/b52/', 'PUT', {
+                'label': 'old-label.unit.tests.:A'
+            })
+        ])
+        # cached monitor should have been updated
+        self.assertTrue('old-label.unit.tests.:A' in
+                        provider._traffic_director_monitors)
 
     @patch('dyn.core.SessionEngine.execute')
     def test_extra_changes(self, mock):
@@ -817,6 +877,9 @@ class TestDynProviderGeo(TestCase):
         # no diff, no extra
         extra = provider._extra_changes(None, desired, [])
         self.assertEquals(0, len(extra))
+
+        # monitors should have been fetched now
+        mock.assert_called_once()
 
         # diff in healthcheck, gets extra
         desired = Zone('unit.tests.', [])

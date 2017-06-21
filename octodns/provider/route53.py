@@ -500,8 +500,8 @@ class Route53Provider(BaseProvider):
         # use
         expected_re = re.compile(r'^\d\d\d\d:{}:{}:'
                                  .format(record._type, record.name))
-        # Until the v1.0 release we'll clean out the previous version of
-        # Route53 health checks as best as we can.
+        # UNITL 1.0: we'll clean out the previous version of Route53 health
+        # checks as best as we can.
         expected_legacy_host = record.fqdn[:-1]
         expected_legacy = '0000:{}:'.format(record._type)
         for id, health_check in self.health_checks.items():

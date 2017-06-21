@@ -434,19 +434,20 @@ class DynProvider(BaseProvider):
             if record in changed or not getattr(record, 'geo', False):
                 # Already changed, or no geo, no need to check it
                 continue
+            label = '{}:{}'.format(record.fqdn, record._type)
             try:
-                monitor = self.traffic_director_monitors[record.fqdn]
+                monitor = self.traffic_director_monitors[label]
             except KeyError:
-                self.log.info('_extra_changes: health-check missing for %s:%s',
-                              record.fqdn, record._type)
+                self.log.info('_extra_changes: health-check missing for %s',
+                              label)
                 extra.append(Update(record, record))
                 continue
             # Heh, when pulled from the API host & path live under options, but
             # when you create with the constructor they're top-level :-(
             if monitor.host != record.healthcheck_host or \
                monitor.path != record.healthcheck_path:
-                self.log.info('_extra_changes: health-check mis-match for '
-                              '%s:%s', record.fqdn, record._type)
+                self.log.info('_extra_changes: health-check mis-match for %s',
+                              label)
                 extra.append(Update(record, record))
 
         return extra
@@ -532,6 +533,7 @@ class DynProvider(BaseProvider):
     @property
     def traffic_director_monitors(self):
         if self._traffic_director_monitors is None:
+            self.log.debug('traffic_director_monitors: loading')
             self._traffic_director_monitors = \
                 {m.label: m for m in get_all_dsf_monitors()}
 
@@ -539,26 +541,38 @@ class DynProvider(BaseProvider):
 
     def _traffic_director_monitor(self, record):
         fqdn = record.fqdn
+        label = '{}:{}'.format(fqdn, record._type)
         try:
-            monitor = self.traffic_director_monitors[fqdn]
+            try:
+                monitor = self.traffic_director_monitors[label]
+            except KeyError:
+                # UNTIL 1.0 We don't have one for the new label format, see if
+                # we still have one for the old and update it
+                monitor = self.traffic_director_monitors[fqdn]
+                self.log.info('_traffic_director_monitor: upgrading label '
+                              'to %s', label)
+                monitor.label = label
+                self.traffic_director_monitors[label] = \
+                    self.traffic_director_monitors[fqdn]
+                del self.traffic_director_monitors[fqdn]
             if monitor.host != record.healthcheck_host or \
                monitor.path != record.healthcheck_path:
                 self.log.info('_traffic_director_monitor: updating monitor '
-                              'for %s:%s', record.fqdn, record._type)
+                              'for %s', label)
                 monitor.update(record.healthcheck_host,
                                record.healthcheck_path)
             return monitor
         except KeyError:
             self.log.info('_traffic_director_monitor: creating monitor '
-                          'for %s:%s', record.fqdn, record._type)
-            monitor = DSFMonitor(fqdn, protocol='HTTPS', response_count=2,
+                          'for %s', label)
+            monitor = DSFMonitor(label, protocol='HTTPS', response_count=2,
                                  probe_interval=60, retries=2,
                                  port=self.MONITOR_PORT, active='Y',
                                  host=record.healthcheck_host,
                                  timeout=self.MONITOR_TIMEOUT,
                                  header=self.MONITOR_HEADER,
                                  path=record.healthcheck_path)
-            self._traffic_director_monitors[fqdn] = monitor
+            self._traffic_director_monitors[label] = monitor
             return monitor
 
     def _find_or_create_pool(self, td, pools, label, _type, values,
