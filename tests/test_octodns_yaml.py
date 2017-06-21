@@ -59,3 +59,12 @@ class TestYaml(TestCase):
         }, buf)
         self.assertEquals("---\n'*.1.1': 42\n'*.2.1': 44\n'*.11.1': 43\n",
                           buf.getvalue())
+
+        # hex sorting isn't ideal, not treated as hex, this make sure we don't
+        # change the behavior
+        buf = StringIO()
+        safe_dump({
+            '45a03129': 42,
+            '45a0392a': 43,
+        }, buf)
+        self.assertEquals("---\n45a0392a: 43\n45a03129: 42\n", buf.getvalue())

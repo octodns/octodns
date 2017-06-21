@@ -34,6 +34,7 @@ setup(
         'futures>=3.0.5',
         'incf.countryutils>=1.0',
         'ipaddress>=1.0.18',
+        'natsort>=5.0.3',
         'python-dateutil>=2.6.0',
         'requests>=2.13.0'
     ],
