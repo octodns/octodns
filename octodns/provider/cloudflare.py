@@ -36,7 +36,7 @@ class CloudflareProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     # TODO: support SRV
-    UNSUPPORTED_TYPES = ('NAPTR', 'PTR', 'SOA', 'SRV', 'SSHFP')
+    UNSUPPORTED_TYPES = ('ALIAS', 'NAPTR', 'PTR', 'SOA', 'SRV', 'SSHFP')
 
     MIN_TTL = 120
     TIMEOUT = 15
