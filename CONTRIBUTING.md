@@ -26,7 +26,7 @@ Here are a few things you can do that will increase the likelihood of your pull 
 
 * Follow [pep8](https://www.python.org/dev/peps/pep-0008/)
 
-- Write thorough tests. No PRs will be merged without :100:% code coverage. More than that tests should be very thorough and cover as many (edge) cases as possible. We're working with DNS here and bugs can have a major impact so we need to do as much as reasonably possible to ensure quality. While :100:% doesn't even begin to mean there are no bugs, getting there often requires close inspection & a relatively complete understanding of the code. More times than no the endevor will uncover at least minor problems.
+- Write thorough tests. No PRs will be merged without :100:% code coverage. More than that tests should be very thorough and cover as many (edge) cases as possible. We're working with DNS here and bugs can have a major impact so we need to do as much as reasonably possible to ensure quality. While :100:% doesn't even begin to mean there are no bugs, getting there often requires close inspection & a relatively complete understanding of the code. More times than not the endeavor will uncover at least minor problems.
 
 - Bug fixes require specific tests covering the addressed behavior.
 
