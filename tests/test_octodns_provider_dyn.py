@@ -330,7 +330,12 @@ class TestDynProvider(TestCase):
             call('/AllRecord/unit.tests/unit.tests./', 'GET', {'detail': 'Y'})
         ])
         changes = self.expected.changes(got, SimpleProvider())
-        self.assertEquals([], changes)
+        # plan would filter out the root NS create we see here
+        self.assertEquals(1, len(changes))
+        change = changes[0]
+        self.assertIsInstance(change, Create)
+        self.assertEquals('NS', change.new._type)
+        self.assertEquals('', change.new.name)
 
     @patch('dyn.core.SessionEngine.execute')
     def test_sync(self, execute_mock):

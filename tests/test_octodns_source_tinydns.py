@@ -86,6 +86,11 @@ class TestTinyDnsFileSource(TestCase):
                     'value': 'smtp-2-host.example.com.',
                 }]
             }),
+            ('', {
+                'type': 'NS',
+                'ttl': 3600,
+                'values': ['ns1.ns.com.', 'ns2.ns.com.']
+            }),
         ):
             record = Record.new(expected, name, data)
             expected.add_record(record)

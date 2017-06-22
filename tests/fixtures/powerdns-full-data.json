@@ -204,15 +204,15 @@
             "name": "unit.tests.",
             "records": [
                 {
-                    "content": "1.1.1.1.",
+                    "content": "6.2.3.4.",
                     "disabled": false
                 },
                 {
-                    "content": "4.4.4.4.",
+                    "content": "7.2.3.4.",
                     "disabled": false
                 }
             ],
-            "ttl": 600,
+            "ttl": 3600,
             "type": "NS"
         },
         {

@@ -121,7 +121,8 @@ class TestCloudflareProvider(TestCase):
             self.assertEquals(9, len(zone.records))
 
             changes = self.expected.changes(zone, provider)
-            self.assertEquals(0, len(changes))
+            # root NS change wouldn't be included in plans
+            self.assertEquals(1, len(changes))
 
         # re-populating the same zone/records comes out of cache, no calls
         again = Zone('unit.tests.', [])
