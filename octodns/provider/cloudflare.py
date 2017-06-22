@@ -36,7 +36,7 @@ class CloudflareProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     # TODO: support SRV
-    UNSUPPORTED_TYPES = ('ALIAS', 'NAPTR', 'PTR', 'SOA', 'SRV', 'SSHFP')
+    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NS', 'SPF', 'TXT'))
 
     MIN_TTL = 120
     TIMEOUT = 15
@@ -55,9 +55,6 @@ class CloudflareProvider(BaseProvider):
 
         self._zones = None
         self._zone_records = {}
-
-    def supports(self, record):
-        return record._type not in self.UNSUPPORTED_TYPES
 
     def _request(self, method, path, params=None, data=None):
         self.log.debug('_request: method=%s, path=%s', method, path)
@@ -167,7 +164,7 @@ class CloudflareProvider(BaseProvider):
             for record in records:
                 name = zone.hostname_from_fqdn(record['name'])
                 _type = record['type']
-                if _type not in self.UNSUPPORTED_TYPES:
+                if _type in self.SUPPORTS:
                     values[name][record['type']].append(record)
 
             for name, types in values.items():
