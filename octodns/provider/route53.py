@@ -220,6 +220,8 @@ class Route53Provider(BaseProvider):
     In general the account used will need full permissions on Route53.
     '''
     SUPPORTS_GEO = True
+    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR', 'SPF',
+                    'SRV', 'TXT'))
 
     # This should be bumped when there are underlying changes made to the
     # health check config.
@@ -238,9 +240,6 @@ class Route53Provider(BaseProvider):
         self._r53_zones = None
         self._r53_rrsets = {}
         self._health_checks = None
-
-    def supports(self, record):
-        return record._type not in ('ALIAS', 'SSHFP')
 
     @property
     def r53_zones(self):

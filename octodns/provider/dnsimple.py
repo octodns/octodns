@@ -91,6 +91,8 @@ class DnsimpleProvider(BaseProvider):
         account: 42
     '''
     SUPPORTS_GEO = False
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
+                    'SPF', 'SRV', 'SSHFP', 'TXT'))
 
     def __init__(self, id, token, account, *args, **kwargs):
         self.log = logging.getLogger('DnsimpleProvider[{}]'.format(id))

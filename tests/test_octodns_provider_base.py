@@ -16,6 +16,8 @@ from octodns.zone import Zone
 class HelperProvider(BaseProvider):
     log = getLogger('HelperProvider')
 
+    SUPPORTS = set(('A',))
+
     def __init__(self, extra_changes, apply_disabled=False,
                  include_change_callback=None):
         self.__extra_changes = extra_changes
@@ -58,10 +60,17 @@ class TestBaseProvider(TestCase):
         zone = Zone('unit.tests.', [])
         with self.assertRaises(NotImplementedError) as ctx:
             HasSupportsGeo('hassupportesgeo').populate(zone)
+        self.assertEquals('Abstract base class, SUPPORTS property missing',
+                          ctx.exception.message)
+
+        class HasSupports(HasSupportsGeo):
+            SUPPORTS = set(('A',))
+        with self.assertRaises(NotImplementedError) as ctx:
+            HasSupports('hassupportes').populate(zone)
         self.assertEquals('Abstract base class, populate method missing',
                           ctx.exception.message)
 
-        class HasPopulate(HasSupportsGeo):
+        class HasPopulate(HasSupports):
 
             def populate(self, zone, target=False):
                 zone.add_record(Record.new(zone, '', {
@@ -81,7 +90,7 @@ class TestBaseProvider(TestCase):
             'value': '1.2.3.4'
         }))
 
-        self.assertTrue(HasSupportsGeo('hassupportesgeo')
+        self.assertTrue(HasSupports('hassupportesgeo')
                         .supports(list(zone.records)[0]))
 
         plan = HasPopulate('haspopulate').plan(zone)

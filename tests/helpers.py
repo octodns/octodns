@@ -17,6 +17,7 @@ class SimpleSource(object):
 
 class SimpleProvider(object):
     SUPPORTS_GEO = False
+    SUPPORTS = set(('A',))
 
     def __init__(self, id='test'):
         pass
