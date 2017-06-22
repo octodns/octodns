@@ -22,7 +22,8 @@ from .base import BaseProvider
 # making Makefile.
 # Only made for A records. will have to adjust for more generic params types
 class _AzureRecord(object):
-    def __init__(self, resource_group, record, values=None):
+    def __init__(self, resource_group, record, values=None, ttl=1800):
+        # print('Here4',file=sys.stderr)
         self.resource_group = resource_group
         self.zone_name = record.zone.name[0:len(record.zone.name)-1] # strips last period
         self.relative_record_set_name = record.name or '@'
@@ -31,22 +32,21 @@ class _AzureRecord(object):
         type_name = '{}records'.format(self.record_type).lower()
         class_name = '{}'.format(self.record_type).capitalize() + \
                      'Record'.format(self.record_type)
+        if values == None:
+            return
+        # TODO: clean up this bit.
         data = values or record.data #This should fail if it gets to record.data? It only returns ttl. TODO
-        print('findme: ',file=sys.stderr)
-        print(data, file=sys.stderr)
-        print('\n',file=sys.stderr)
         
         #depending on mult values or not
+        #TODO: import explicitly. eval() uses for example ARecord from azure.mgmt.dns.models
         self.params = {}
         try:
-            self.params = {'ttl':record.ttl or 1800, \
+            self.params = {'ttl':record.ttl or ttl, \
                type_name:[eval(class_name)(ip) for ip in data['values']] or []}
         except KeyError: # means that doesn't have multiple values but single value
-            self.params = {'ttl':record.ttl or 1800, \
+            self.params = {'ttl':record.ttl or ttl, \
                type_name:[eval(class_name)(data['value'])] or []}
 
-        
-    # ar = _AzureRecord(self._resource_group, new, new.data)
 
     
 
@@ -88,17 +88,17 @@ class AzureProvider(BaseProvider):
         self._resource_group = resource_group
 
         self._azure_zones = None # will be a dictionary. key: name. val: id.
-        self._azure_records = None # will be dict by octodns record, az record
+        self._azure_records = {} # will be dict by octodns record, az record
 
-        self._supported_types = ['A']
+        self._supported_types = ['CNAME', 'A', 'AAAA', 'MX', 'SRV', 'NS', 'PTR']
+        # TODO: add TXT
 
-    # TODO: health checks a la route53.
+        # TODO: health checks a la route53.
 
 
         
     # TODO: add support for all types. First skeleton: add A.
     def supports(self, record):
-        # TODO: possibly refactor
         return record._type in self._supported_types
         
     @property
@@ -114,82 +114,121 @@ class AzureProvider(BaseProvider):
     # Given a zone name, returns the zone id. If DNE, creates it.
     def _get_zone_id(self, name, create=False):
         self.log.debug('_get_zone_id: name=%s', name)
-        if name in self.azure_zones:
-            id = self.azure_zones[name]
+        try:
+            id = self._dns_client.zones.get(self._resource_group, name)
             self.log.debug('_get_zone_id: id=%s', id)
             return id
-        if create:
-            self.log.debug('_get_zone_id: no matching zone; creating %s', name)
-            raise Exception
-            #TODO, write code
-        return None
-    
+        except:
+            if create:
+                self.log.debug('_get_zone_id: no matching zone; creating %s', name)
+                #TODO: write
+                return None #placeholder
+            return None
+        
     # Create a dictionary of record objects by zone and octodns record names
     # TODO: add geo parsing
     def populate(self, zone, target):
-        self.log.debug('populate: name=%s', zone.name)
+        zone_name = zone.name[0:len(zone.name)-1]#Azure zone names do not include suffix .
+        self.log.debug('populate: name=%s', zone_name)
         before = len(zone.records)
-    
-        zone_id = self._get_zone_id(zone.name)
+        zone_id = self._get_zone_id(zone_name) 
         if zone_id:
-            records = defaultdict(list)
+            #records = defaultdict(list)
             for type in self._supported_types:
-                for azrecord in self.dns_client.record_sets.list_by_type(self._resource_group, zone.name, type):
-                    record_name = azrecord.name
-                    data = getattr(self, '_data_for_{}'.format(type))(type, azrecord)
+                # print('populate. type: {}'.format(type),file=sys.stderr)
+                for azrecord in self._dns_client.record_sets.list_by_type(self._resource_group, zone_name, type):
+                    # print(azrecord, file=sys.stderr)
+                    record_name = azrecord.name if azrecord.name != '@' else ''
+                    data = self._type_and_ttl(type, azrecord, 
+                           getattr(self, '_data_for_{}'.format(type))(azrecord)) # TODO: azure online interface allows None values. must validate.
                     record = Record.new(zone, record_name, data, source=self)
+                    # print('HERE0',file=sys.stderr)
                     zone.add_record(record)
                     self._azure_records[record] = _AzureRecord(self._resource_group, record, data)
-                    
+        # print('HERE1',file=sys.stderr)
         self.log.info('populate: found %s records', len(zone.records)-before)
         
-        # might not need
+    # might not need
     def _get_type(azrecord):
         azrecord['type'].split('/')[-1]
         
-    def _data_for_A(self, type, azrecord):
-        print('xxxxx\n',file=sys.stderr)
-        for ar in azrecords.arecords:
-            print(ar,file=sys.stderr)
-            
+    def _type_and_ttl(self, type, azrecord, data):
+        data['type'] = type
+        data['ttl'] = azrecord.ttl
+        return data
         
-        v = [ARecord(ar.ipv4_address) for ar in azrecord.arecords]
-        # print(v, file=sys.stderr)
-        # print('99999999999999999999999999999999999999999999999999\n',file=sys.stderr)
-        return {
-            'type': type,
-            'ttl': azrecord['ttl'],
-            'value': v
+    def _data_for_A(self, azrecord):
+        return {'values': [ar.ipv4_address for ar in azrecord.arecords]}
+        
+    def _data_for_AAAA(self, azrecord):
+        return {'values': [ar.ipv6_address for ar in azrecord.aaaa_records]}
+        
+    def _data_for_TXT(self, azrecord):
+        print('azure',file=sys.stderr)
+        print([ar.value for ar in azrecord.txt_records], file=sys.stderr)
+        print('',file=sys.stderr)
+        return {'values': [ar.value for ar in azrecord.txt_records]}
+
+    def _data_for_CNAME(self, azrecord):
+        try:
+            val = azrecord.cname_record.cname
+            if not val.endswith('.'):
+                val += '.'
+            return {'value': val}
+        except:
+            return {'value': '.'} #TODO: this is a bad fix. but octo checks that cnames have trailing '.' while azure allows creating cnames on the online interface with no value.
+           
+    def _data_for_PTR(self, azrecord):
+        try:
+            val = azrecord.ptr_records[0].ptdrname
+            if not val.endswith('.'):
+                val += '.'
+            return {'value': val}
+        except:
+            return {'value': '.' } #TODO: this is a bad fix. but octo checks that cnames have trailing '.' while azure allows creating cnames on the online interface with no value.
+        
+    def _data_for_MX(self, azrecord):
+        return {'values': [{'priority':ar.preference,
+                            'value':ar.exchange} for ar in azrecord.mx_records]}
+                            
+    def _data_for_SRV(self, azrecord):
+        return {'values': [{'priority': ar.priority,
+                        'weight': ar.weight,
+                        'port': ar.port,
+                        'target': ar.target} for ar in azrecord.srv_records]
         }
-    
-    # def _get_azure_record(self, record):
-        # try:
-            # return self._azure_records[record]
-        # except:
-            # self._azure_records[record] = _AzureRecord(self._resource_group, record, record.data)
-            # return self._azure_records[record]
-        # except:
-            # raise
-    
+        
+    def _data_for_NS(self, azrecord):
+        def period_validate(string):
+            return string if string.endswith('.') else string + '.'
+        vals = [ar.nsdname for ar in azrecord.ns_records]
+        return {'values': [period_validate(val) for val in vals]}
+
     def _apply_Create(self, change):
         new = change.new
-        
+
         #validate that the zone exists.
         #self._get_zone_id(new.name, create=True)
         
-        #ar = self._get_azure_record(new)
         ar = _AzureRecord(self._resource_group, new, new.data)
         
         create = self._dns_client.record_sets.create_or_update
-        print('find:{} {} {} {} {}\n'.format(ar.resource_group,ar.zone_name,ar.relative_record_set_name,ar.record_type,ar.params), file=sys.stderr)
-        for arec in ar.params['arecords']:
-            print(str(arec.ipv4_address) + ', ', file=sys.stderr)
-        print('\n',file=sys.stderr)
         create(resource_group_name=ar.resource_group, 
                zone_name=ar.zone_name, 
                relative_record_set_name=ar.relative_record_set_name, 
                record_type=ar.record_type, 
                parameters=ar.params)
+               
+    def _apply_Delete(self, change):
+        existing = change.existing
+        ar = _AzureRecord(self._resource_group, existing)
+        delete = self._dns_client.record_sets.delete
+        delete(self._resource_group, ar.zone_name, ar.relative_record_set_name, 
+               ar.record_type)
+    
+    def _apply_Update(self, change):
+        self._apply_Delete(change)
+        self._apply_Create(change)
     
     # type plan: Plan class from .base
     def _apply(self, plan):
@@ -198,11 +237,8 @@ class AzureProvider(BaseProvider):
         self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name, 
                        len(changes))
         
-        
         # validate that the zone exists. function creates zone if DNE.
         self._get_zone_id(desired.name)
-        
-        
         
         # Some parsing bits to call _mod_Create or _mod_Delete.
         # changes is a list of Delete and Create objects.
@@ -233,3 +269,7 @@ class AzureProvider(BaseProvider):
             # Zone(name, sub_zones) (str and set of strs)
         # changes.type = [Delete/Create]
     
+
+    # Starts with sync in main() of sync.
+    # {u'values': ['3.3.3.3', '4.4.4.4'], u'type': 'A', u'ttl': 3600}
+    # {u'type': u'A', u'value': [u'3.3.3.3', u'4.4.4.4'], u'ttl': 3600L}
