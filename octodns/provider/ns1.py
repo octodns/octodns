@@ -22,6 +22,9 @@ class Ns1Provider(BaseProvider):
         api_key: env/NS1_API_KEY
     '''
     SUPPORTS_GEO = False
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
+                    'SPF', 'SRV', 'TXT'))
+
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
     def __init__(self, id, api_key, *args, **kwargs):
@@ -29,9 +32,6 @@ class Ns1Provider(BaseProvider):
         self.log.debug('__init__: id=%s, api_key=***', id)
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
         self._client = NSONE(apiKey=api_key)
-
-    def supports(self, record):
-        return record._type != 'SSHFP'
 
     def _data_for_A(self, _type, record):
         return {

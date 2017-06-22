@@ -26,16 +26,24 @@ class YamlProvider(BaseProvider):
         # The ttl to use for records when not specified in the data
         # (optional, default 3600)
         default_ttl: 3600
+        # Whether or not to enforce sorting order on the yaml config
+        # (optional, default True)
+        enforce_order: True
     '''
     SUPPORTS_GEO = True
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
+                   'SSHFP', 'SPF', 'SRV', 'TXT'))
 
-    def __init__(self, id, directory, default_ttl=3600, *args, **kwargs):
+    def __init__(self, id, directory, default_ttl=3600, enforce_order=True,
+                 *args, **kwargs):
         self.log = logging.getLogger('YamlProvider[{}]'.format(id))
-        self.log.debug('__init__: id=%s, directory=%s, default_ttl=%d', id,
-                       directory, default_ttl)
+        self.log.debug('__init__: id=%s, directory=%s, default_ttl=%d, '
+                       'enforce_order=%d', id, directory, default_ttl,
+                       enforce_order)
         super(YamlProvider, self).__init__(id, *args, **kwargs)
         self.directory = directory
         self.default_ttl = default_ttl
+        self.enforce_order = enforce_order
 
     def populate(self, zone, target=False):
         self.log.debug('populate: zone=%s, target=%s', zone.name, target)
@@ -47,7 +55,7 @@ class YamlProvider(BaseProvider):
         before = len(zone.records)
         filename = join(self.directory, '{}yaml'.format(zone.name))
         with open(filename, 'r') as fh:
-            yaml_data = safe_load(fh)
+            yaml_data = safe_load(fh, enforce_order=self.enforce_order)
             if yaml_data:
                 for name, data in yaml_data.items():
                     if not isinstance(data, list):

@@ -14,6 +14,8 @@ from .base import BaseProvider
 
 class PowerDnsBaseProvider(BaseProvider):
     SUPPORTS_GEO = False
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
+                    'SPF', 'SSHFP', 'SRV', 'TXT'))
     TIMEOUT = 5
 
     def __init__(self, id, host, api_key, port=8081, *args, **kwargs):

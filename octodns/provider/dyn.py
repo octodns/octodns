@@ -106,6 +106,7 @@ class DynProvider(BaseProvider):
     than one account active at a time. See DynProvider._check_dyn_sess for some
     related bits.
     '''
+
     RECORDS_TO_TYPE = {
         'a_records': 'A',
         'aaaa_records': 'AAAA',
@@ -121,6 +122,7 @@ class DynProvider(BaseProvider):
         'txt_records': 'TXT',
     }
     TYPE_TO_RECORDS = {v: k for k, v in RECORDS_TO_TYPE.items()}
+    SUPPORTS = set(TYPE_TO_RECORDS.keys())
 
     # https://help.dyn.com/predefined-geotm-regions-groups/
     REGION_CODES = {

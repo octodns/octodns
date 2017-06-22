@@ -16,6 +16,9 @@ class BaseSource(object):
         if not hasattr(self, 'SUPPORTS_GEO'):
             raise NotImplementedError('Abstract base class, SUPPORTS_GEO '
                                       'property missing')
+        if not hasattr(self, 'SUPPORTS'):
+            raise NotImplementedError('Abstract base class, SUPPORTS '
+                                      'property missing')
 
     def populate(self, zone, target=False):
         '''
@@ -25,9 +28,7 @@ class BaseSource(object):
                                   'missing')
 
     def supports(self, record):
-        # Unless overriden and handled appropriaitely we'll assume that all
-        # record types are supported
-        return True
+        return record._type in self.SUPPORTS
 
     def __repr__(self):
         return self.__class__.__name__
