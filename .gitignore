@@ -9,3 +9,6 @@ nosetests.xml
 octodns.egg-info/
 output/
 tmp/
+build
+log
+config
