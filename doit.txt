@@ -1,0 +1,4 @@
+#!/bin/bash
+#script to rebuild octodns quickly
+
+octodns-sync --config-file=./config/production.yaml --doit

@@ -9,6 +9,7 @@ nosetests.xml
 octodns.egg-info/
 output/
 tmp/
-Makefile
 build/
 config/
+./rb.txt
+./doit.txt
