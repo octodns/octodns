@@ -482,7 +482,7 @@ class MxRecord(_ValuesMixin, Record):
 
 
 class NaptrValue(object):
-    LEGAL_FLAGS = ('S', 'A', 'U', 'P')
+    VALID_FLAGS = ('S', 'A', 'U', 'P')
 
     @classmethod
     def _validate_value(cls, data):
@@ -502,8 +502,8 @@ class NaptrValue(object):
                            .format(data['preference']))
         try:
             flags = data['flags']
-            if flags not in cls.LEGAL_FLAGS:
-                reasons.append('invalid flags "{}"'.format(flags))
+            if flags not in cls.VALID_FLAGS:
+                reasons.append('unrecognized flags "{}"'.format(flags))
         except KeyError:
             reasons.append('missing flags')
 
@@ -594,19 +594,25 @@ class PtrRecord(_ValueMixin, Record):
 
 
 class SshfpValue(object):
+    VALID_ALGORITHMS = (1, 2)
+    VALID_FINGERPRINT_TYPES = (1,)
 
     @classmethod
     def _validate_value(cls, value):
         reasons = []
-        # TODO: validate algorithm and fingerprint_type values
         try:
-            int(value['algorithm'])
+            algorithm = int(value['algorithm'])
+            if algorithm not in cls.VALID_ALGORITHMS:
+                reasons.append('unrecognized algorithm "{}"'.format(algorithm))
         except KeyError:
             reasons.append('missing algorithm')
         except ValueError:
             reasons.append('invalid algorithm "{}"'.format(value['algorithm']))
         try:
-            int(value['fingerprint_type'])
+            fingerprint_type = int(value['fingerprint_type'])
+            if fingerprint_type not in cls.VALID_FINGERPRINT_TYPES:
+                reasons.append('unrecognized fingerprint_type "{}"'
+                               .format(fingerprint_type))
         except KeyError:
             reasons.append('missing fingerprint_type')
         except ValueError:

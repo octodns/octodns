@@ -1011,7 +1011,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': v
             })
-        self.assertEquals(['invalid flags "X"'], ctx.exception.reasons)
+        self.assertEquals(['unrecognized flags "X"'], ctx.exception.reasons)
 
     def test_NS(self):
         # doesn't blow up
@@ -1104,6 +1104,20 @@ class TestRecordValidation(TestCase):
             })
         self.assertEquals(['invalid algorithm "nope"'], ctx.exception.reasons)
 
+        # unrecognized algorithm
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'SSHFP',
+                'ttl': 600,
+                'value': {
+                    'algorithm': 42,
+                    'fingerprint_type': 1,
+                    'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
+                }
+            })
+        self.assertEquals(['unrecognized algorithm "42"'],
+                          ctx.exception.reasons)
+
         # missing fingerprint_type
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
@@ -1128,6 +1142,20 @@ class TestRecordValidation(TestCase):
                 }
             })
         self.assertEquals(['invalid fingerprint_type "yeeah"'],
+                          ctx.exception.reasons)
+
+        # unrecognized fingerprint_type
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'SSHFP',
+                'ttl': 600,
+                'value': {
+                    'algorithm': 1,
+                    'fingerprint_type': 42,
+                    'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
+                }
+            })
+        self.assertEquals(['unrecognized fingerprint_type "42"'],
                           ctx.exception.reasons)
 
         # missing fingerprint
