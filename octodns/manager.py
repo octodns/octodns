@@ -69,6 +69,7 @@ class Manager(object):
         manager_config = self.config.get('manager', {})
         max_workers = manager_config.get('max_workers', 1) \
             if max_workers is None else max_workers
+        self.log.info('__init__:   max_workers=%d', max_workers)
         if max_workers > 1:
             self._executor = ThreadPoolExecutor(max_workers=max_workers)
         else:
