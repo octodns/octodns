@@ -859,15 +859,24 @@ class TestRecordValidation(TestCase):
 
     def test_CNAME(self):
         # doesn't blow up
-        Record.new(self.zone, '', {
+        Record.new(self.zone, 'www', {
             'type': 'CNAME',
             'ttl': 600,
             'value': 'foo.bar.com.',
         })
 
-        # missing trailing .
+        # root cname is a no-no
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
+                'type': 'CNAME',
+                'ttl': 600,
+                'value': 'foo.bar.com.',
+            })
+        self.assertEquals(['root CNAME not allowed'], ctx.exception.reasons)
+
+        # missing trailing .
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
                 'type': 'CNAME',
                 'ttl': 600,
                 'value': 'foo.bar.com',

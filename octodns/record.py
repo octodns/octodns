@@ -401,6 +401,14 @@ class CnameRecord(_ValueMixin, Record):
     _type = 'CNAME'
 
     @classmethod
+    def validate(cls, name, data):
+        reasons = []
+        if name == '':
+            reasons.append('root CNAME not allowed')
+        reasons.extend(super(CnameRecord, cls).validate(name, data))
+        return reasons
+
+    @classmethod
     def _validate_value(cls, value):
         reasons = []
         if not value.endswith('.'):

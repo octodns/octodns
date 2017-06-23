@@ -1260,8 +1260,10 @@ class TestRoute53Records(TestCase):
                            False)
         self.assertEquals(c, c)
         d = _Route53Record(None, Record.new(existing, '',
-                                            {'ttl': 42, 'type': 'CNAME',
-                                             'value': 'foo.bar.'}),
+                                            {'ttl': 42, 'type': 'MX',
+                                             'value': {
+                                                 'priority': 10,
+                                                 'value': 'foo.bar.'}}),
                            False)
         self.assertEquals(d, d)
 
