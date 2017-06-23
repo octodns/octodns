@@ -19,6 +19,10 @@ class DuplicateRecordException(Exception):
     pass
 
 
+class InvalidNodeException(Exception):
+    pass
+
+
 def _is_eligible(record):
     # Should this record be considered when computing changes
     # We ignore all top-level NS records
@@ -59,9 +63,17 @@ class Zone(object):
                 raise SubzoneRecordException('Record {} a managed sub-zone '
                                              'and not of type NS'
                                              .format(record.fqdn))
-        if record in self.records:
-            raise DuplicateRecordException('Duplicate record {}, type {}'
-                                           .format(record.fqdn, record._type))
+        for existing in self.records:
+            if record == existing:
+                raise DuplicateRecordException('Duplicate record {}, type {}'
+                                               .format(record.fqdn,
+                                                       record._type))
+            elif name == existing.name and (record._type == 'CNAME' or
+                                            existing._type == 'CNAME'):
+                raise InvalidNodeException('Invalid state, CNAME at {} '
+                                           'cannot coexist with other records'
+                                           .format(record.fqdn))
+
         self.records.add(record)
 
     def changes(self, desired, target):

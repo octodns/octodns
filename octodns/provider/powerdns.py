@@ -146,8 +146,9 @@ class PowerDnsBaseProvider(BaseProvider):
             'ttl': rrset['ttl']
         }
 
-    def populate(self, zone, target=False):
-        self.log.debug('populate: name=%s', zone.name)
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
 
         resp = None
         try:
@@ -177,7 +178,7 @@ class PowerDnsBaseProvider(BaseProvider):
                 data_for = getattr(self, '_data_for_{}'.format(_type))
                 record_name = zone.hostname_from_fqdn(rrset['name'])
                 record = Record.new(zone, record_name, data_for(rrset),
-                                    source=self)
+                                    source=self, lenient=lenient)
                 zone.add_record(record)
 
         self.log.info('populate:   found %s records',

@@ -45,8 +45,10 @@ class YamlProvider(BaseProvider):
         self.default_ttl = default_ttl
         self.enforce_order = enforce_order
 
-    def populate(self, zone, target=False):
-        self.log.debug('populate: zone=%s, target=%s', zone.name, target)
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
+
         if target:
             # When acting as a target we ignore any existing records so that we
             # create a completely new copy
@@ -63,7 +65,8 @@ class YamlProvider(BaseProvider):
                     for d in data:
                         if 'ttl' not in d:
                             d['ttl'] = self.default_ttl
-                        record = Record.new(zone, name, d, source=self)
+                        record = Record.new(zone, name, d, source=self,
+                                            lenient=lenient)
                         zone.add_record(record)
 
         self.log.info('populate:   found %s records',

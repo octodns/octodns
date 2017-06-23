@@ -8,7 +8,8 @@ from __future__ import absolute_import, division, print_function, \
 from unittest import TestCase
 
 from octodns.record import ARecord, AaaaRecord, Create, Delete, Record, Update
-from octodns.zone import DuplicateRecordException, SubzoneRecordException, Zone
+from octodns.zone import DuplicateRecordException, InvalidNodeException, \
+    SubzoneRecordException, Zone
 
 from helpers import SimpleProvider
 
@@ -205,3 +206,27 @@ class TestZone(TestCase):
 
         self.assertTrue(zone_missing.changes(zone_normal, provider))
         self.assertFalse(zone_missing.changes(zone_ignored, provider))
+
+    def test_cname_coexisting(self):
+        zone = Zone('unit.tests.', [])
+        a = Record.new(zone, 'www', {
+            'ttl': 60,
+            'type': 'A',
+            'value': '9.9.9.9',
+        })
+        cname = Record.new(zone, 'www', {
+            'ttl': 60,
+            'type': 'CNAME',
+            'value': 'foo.bar.com.',
+        })
+
+        # add cname to a
+        zone.add_record(a)
+        with self.assertRaises(InvalidNodeException):
+            zone.add_record(cname)
+
+        # add a to cname
+        zone = Zone('unit.tests.', [])
+        zone.add_record(cname)
+        with self.assertRaises(InvalidNodeException):
+            zone.add_record(a)
