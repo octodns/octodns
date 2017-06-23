@@ -898,7 +898,7 @@ class TestRecordValidation(TestCase):
             }
         })
 
-        # missing priority
+        # missing preference
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'MX',
@@ -909,7 +909,19 @@ class TestRecordValidation(TestCase):
             })
         self.assertEquals(['missing preference'], ctx.exception.reasons)
 
-        # missing value
+        # invalid preference
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'MX',
+                'ttl': 600,
+                'value': {
+                    'preference': 'nope',
+                    'exchange': 'foo.bar.com.'
+                }
+            })
+        self.assertEquals(['invalid preference "nope"'], ctx.exception.reasons)
+
+        # missing exchange
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'MX',

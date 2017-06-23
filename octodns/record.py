@@ -424,8 +424,14 @@ class MxValue(object):
     @classmethod
     def _validate_value(cls, value):
         reasons = []
-        if 'preference' not in value and 'priority' not in value:
+        try:
+            # seperate lines to have preference set in the ValueError case
+            preference = value.get('preference', None) or value['priority']
+            int(preference)
+        except KeyError:
             reasons.append('missing preference')
+        except ValueError:
+            reasons.append('invalid preference "{}"'.format(preference))
         exchange = None
         try:
             exchange = value.get('exchange', None) or value['value']
