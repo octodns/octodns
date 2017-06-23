@@ -83,10 +83,10 @@ class PowerDnsBaseProvider(BaseProvider):
     def _data_for_MX(self, rrset):
         values = []
         for record in rrset['records']:
-            priority, value = record['content'].split(' ', 1)
+            preference, exchange = record['content'].split(' ', 1)
             values.append({
-                'priority': priority,
-                'value': value,
+                'preference': preference,
+                'exchange': exchange,
             })
         return {
             'type': rrset['type'],
@@ -208,7 +208,7 @@ class PowerDnsBaseProvider(BaseProvider):
 
     def _records_for_MX(self, record):
         return [{
-            'content': '{} {}'.format(v.priority, v.value),
+            'content': '{} {}'.format(v.preference, v.exchange),
             'disabled': False
         } for v in record.values]
 

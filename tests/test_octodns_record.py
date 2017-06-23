@@ -212,45 +212,49 @@ class TestRecord(TestCase):
 
     def test_mx(self):
         a_values = [{
-            'priority': 10,
-            'value': 'smtp1'
+            'preference': 10,
+            'exchange': 'smtp1.'
         }, {
             'priority': 20,
-            'value': 'smtp2'
+            'value': 'smtp2.'
         }]
         a_data = {'ttl': 30, 'values': a_values}
         a = MxRecord(self.zone, 'a', a_data)
         self.assertEquals('a', a.name)
         self.assertEquals('a.unit.tests.', a.fqdn)
         self.assertEquals(30, a.ttl)
-        self.assertEquals(a_values[0]['priority'], a.values[0].priority)
-        self.assertEquals(a_values[0]['value'], a.values[0].value)
-        self.assertEquals(a_values[1]['priority'], a.values[1].priority)
-        self.assertEquals(a_values[1]['value'], a.values[1].value)
+        self.assertEquals(a_values[0]['preference'], a.values[0].preference)
+        self.assertEquals(a_values[0]['exchange'], a.values[0].exchange)
+        self.assertEquals(a_values[1]['priority'], a.values[1].preference)
+        self.assertEquals(a_values[1]['value'], a.values[1].exchange)
+        a_data['values'][1] = {
+            'preference': 20,
+            'exchange': 'smtp2.',
+        }
         self.assertEquals(a_data, a.data)
 
         b_value = {
-            'priority': 12,
-            'value': 'smtp3',
+            'preference': 12,
+            'exchange': 'smtp3.',
         }
         b_data = {'ttl': 30, 'value': b_value}
         b = MxRecord(self.zone, 'b', b_data)
-        self.assertEquals(b_value['priority'], b.values[0].priority)
-        self.assertEquals(b_value['value'], b.values[0].value)
+        self.assertEquals(b_value['preference'], b.values[0].preference)
+        self.assertEquals(b_value['exchange'], b.values[0].exchange)
         self.assertEquals(b_data, b.data)
 
         target = SimpleProvider()
         # No changes with self
         self.assertFalse(a.changes(a, target))
-        # Diff in priority causes change
+        # Diff in preference causes change
         other = MxRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
-        other.values[0].priority = 22
+        other.values[0].preference = 22
         change = a.changes(other, target)
         self.assertEqual(change.existing, a)
         self.assertEqual(change.new, other)
         # Diff in value causes change
-        other.values[0].priority = a.values[0].priority
-        other.values[0].value = 'smtpX'
+        other.values[0].preference = a.values[0].preference
+        other.values[0].exchange = 'smtpX'
         change = a.changes(other, target)
         self.assertEqual(change.existing, a)
         self.assertEqual(change.new, other)
@@ -889,8 +893,8 @@ class TestRecordValidation(TestCase):
             'type': 'MX',
             'ttl': 600,
             'value': {
-                'priority': 10,
-                'value': 'foo.bar.com.'
+                'preference': 10,
+                'exchange': 'foo.bar.com.'
             }
         })
 
@@ -900,10 +904,10 @@ class TestRecordValidation(TestCase):
                 'type': 'MX',
                 'ttl': 600,
                 'value': {
-                    'value': 'foo.bar.com.'
+                    'exchange': 'foo.bar.com.'
                 }
             })
-        self.assertEquals(['missing priority'], ctx.exception.reasons)
+        self.assertEquals(['missing preference'], ctx.exception.reasons)
 
         # missing value
         with self.assertRaises(ValidationError) as ctx:
@@ -911,10 +915,22 @@ class TestRecordValidation(TestCase):
                 'type': 'MX',
                 'ttl': 600,
                 'value': {
-                    'priority': 10,
+                    'preference': 10,
                 }
             })
-        self.assertEquals(['missing value'], ctx.exception.reasons)
+        self.assertEquals(['missing exchange'], ctx.exception.reasons)
+
+        # missing trailing .
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'MX',
+                'ttl': 600,
+                'value': {
+                    'preference': 10,
+                    'exchange': 'foo.bar.com'
+                }
+            })
+        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
 
     def test_NXPTR(self):
         # doesn't blow up

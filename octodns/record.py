@@ -424,32 +424,45 @@ class MxValue(object):
     @classmethod
     def _validate_value(cls, value):
         reasons = []
-        if 'priority' not in value:
-            reasons.append('missing priority')
-        if 'value' not in value:
-            reasons.append('missing value')
+        if 'preference' not in value and 'priority' not in value:
+            reasons.append('missing preference')
+        exchange = None
+        try:
+            exchange = value.get('exchange', None) or value['value']
+            if not exchange.endswith('.'):
+                reasons.append('missing trailing .')
+        except KeyError:
+            reasons.append('missing exchange')
         return reasons
 
     def __init__(self, value):
-        # TODO: rename preference
-        self.priority = int(value['priority'])
-        # TODO: rename to exchange?
-        self.value = value['value'].lower()
+        # RFC1035 says preference, half the providers use priority
+        try:
+            preference = value['preference']
+        except KeyError:
+            preference = value['priority']
+        self.preference = int(preference)
+        # UNTIL 1.0 remove value fallback
+        try:
+            exchange = value['exchange']
+        except KeyError:
+            exchange = value['value']
+        self.exchange = exchange
 
     @property
     def data(self):
         return {
-            'priority': self.priority,
-            'value': self.value,
+            'preference': self.preference,
+            'exchange': self.exchange,
         }
 
     def __cmp__(self, other):
-        if self.priority == other.priority:
-            return cmp(self.value, other.value)
-        return cmp(self.priority, other.priority)
+        if self.preference == other.preference:
+            return cmp(self.exchange, other.exchange)
+        return cmp(self.preference, other.preference)
 
     def __repr__(self):
-        return "'{} {}'".format(self.priority, self.value)
+        return "'{} {}'".format(self.preference, self.exchange)
 
 
 class MxRecord(_ValuesMixin, Record):
