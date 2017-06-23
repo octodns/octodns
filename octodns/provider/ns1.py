@@ -111,8 +111,9 @@ class Ns1Provider(BaseProvider):
             'values': values,
         }
 
-    def populate(self, zone, target=False):
-        self.log.debug('populate: name=%s', zone.name)
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
 
         try:
             nsone_zone = self._client.loadZone(zone.name[:-1])
@@ -127,7 +128,8 @@ class Ns1Provider(BaseProvider):
             _type = record['type']
             data_for = getattr(self, '_data_for_{}'.format(_type))
             name = zone.hostname_from_fqdn(record['domain'])
-            record = Record.new(zone, name, data_for(_type, record))
+            record = Record.new(zone, name, data_for(_type, record),
+                                source=self, lenient=lenient)
             zone.add_record(record)
 
         self.log.info('populate:   found %s records',

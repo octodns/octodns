@@ -154,8 +154,9 @@ class CloudflareProvider(BaseProvider):
 
         return self._zone_records[zone.name]
 
-    def populate(self, zone, target=False):
-        self.log.debug('populate: name=%s', zone.name)
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
 
         before = len(zone.records)
         records = self.zone_records(zone)
@@ -171,7 +172,8 @@ class CloudflareProvider(BaseProvider):
                 for _type, records in types.items():
                     data_for = getattr(self, '_data_for_{}'.format(_type))
                     data = data_for(_type, records)
-                    record = Record.new(zone, name, data, source=self)
+                    record = Record.new(zone, name, data, source=self,
+                                        lenient=lenient)
                     zone.add_record(record)
 
         self.log.info('populate:   found %s records',

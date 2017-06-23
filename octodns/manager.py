@@ -69,6 +69,7 @@ class Manager(object):
         manager_config = self.config.get('manager', {})
         max_workers = manager_config.get('max_workers', 1) \
             if max_workers is None else max_workers
+        self.log.info('__init__:   max_workers=%d', max_workers)
         if max_workers > 1:
             self._executor = ThreadPoolExecutor(max_workers=max_workers)
         else:
@@ -322,7 +323,7 @@ class Manager(object):
 
         return zb.changes(za, _AggregateTarget(a + b))
 
-    def dump(self, zone, output_dir, source, *sources):
+    def dump(self, zone, output_dir, lenient, source, *sources):
         '''
         Dump zone data from the specified source
         '''
@@ -341,7 +342,7 @@ class Manager(object):
 
         zone = Zone(zone, self.configured_sub_zones(zone))
         for source in sources:
-            source.populate(zone)
+            source.populate(zone, lenient=lenient)
 
         plan = target.plan(zone)
         target.apply(plan)

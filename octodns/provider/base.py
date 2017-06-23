@@ -104,7 +104,7 @@ class BaseProvider(BaseSource):
         self.log.info('plan: desired=%s', desired.name)
 
         existing = Zone(desired.name, desired.sub_zones)
-        self.populate(existing, target=True)
+        self.populate(existing, target=True, lenient=True)
 
         # compute the changes at the zone/record level
         changes = existing.changes(desired, self)
