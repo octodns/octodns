@@ -323,7 +323,7 @@ class Manager(object):
 
         return zb.changes(za, _AggregateTarget(a + b))
 
-    def dump(self, zone, output_dir, source, *sources):
+    def dump(self, zone, output_dir, lenient, source, *sources):
         '''
         Dump zone data from the specified source
         '''
@@ -342,7 +342,7 @@ class Manager(object):
 
         zone = Zone(zone, self.configured_sub_zones(zone))
         for source in sources:
-            source.populate(zone)
+            source.populate(zone, lenient=lenient)
 
         plan = target.plan(zone)
         target.apply(plan)
