@@ -56,10 +56,12 @@ class Delete(Change):
 
 class ValidationError(Exception):
 
+    @classmethod
+    def build_message(cls, fqdn, reasons):
+        return 'Invalid record {}\n  - {}'.format(fqdn, '\n  - '.join(reasons))
+
     def __init__(self, fqdn, reasons):
-        message = 'Invalid record {}\n  - {}' \
-            .format(fqdn, '\n  - '.join(reasons))
-        super(Exception, self).__init__(message)
+        super(Exception, self).__init__(self.build_message(fqdn, reasons))
         self.fqdn = fqdn
         self.reasons = reasons
 
@@ -68,7 +70,7 @@ class Record(object):
     log = getLogger('Record')
 
     @classmethod
-    def new(cls, zone, name, data, source=None):
+    def new(cls, zone, name, data, source=None, lenient=False):
         fqdn = '{}.{}'.format(name, zone.name) if name else zone.name
         try:
             _type = data['type']
@@ -107,7 +109,10 @@ class Record(object):
             raise Exception('Unknown record type: "{}"'.format(_type))
         reasons = _class.validate(name, data)
         if reasons:
-            raise ValidationError(fqdn, reasons)
+            if lenient:
+                cls.log.warn(ValidationError.build_message(fqdn, reasons))
+            else:
+                raise ValidationError(fqdn, reasons)
         return _class(zone, name, data, source=source)
 
     @classmethod

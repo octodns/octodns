@@ -370,7 +370,7 @@ class TestRoute53Provider(TestCase):
         stubber.assert_no_pending_responses()
 
         # Delete by monkey patching in a populate that includes an extra record
-        def add_extra_populate(existing, target):
+        def add_extra_populate(existing, target, lenient):
             for record in self.expected.records:
                 existing.records.add(record)
             record = Record.new(existing, 'extra',
@@ -406,7 +406,7 @@ class TestRoute53Provider(TestCase):
 
         # Update by monkey patching in a populate that modifies the A record
         # with geos
-        def mod_geo_populate(existing, target):
+        def mod_geo_populate(existing, target, lenient):
             for record in self.expected.records:
                 if record._type != 'A' or not record.geo:
                     existing.records.add(record)
@@ -502,7 +502,7 @@ class TestRoute53Provider(TestCase):
 
         # Update converting to non-geo by monkey patching in a populate that
         # modifies the A record with geos
-        def mod_add_geo_populate(existing, target):
+        def mod_add_geo_populate(existing, target, lenient):
             for record in self.expected.records:
                 if record._type != 'A' or record.geo:
                     existing.records.add(record)

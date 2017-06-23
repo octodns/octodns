@@ -24,7 +24,7 @@ class HelperProvider(BaseProvider):
         self.apply_disabled = apply_disabled
         self.include_change_callback = include_change_callback
 
-    def populate(self, zone, target=False):
+    def populate(self, zone, target=False, lenient=False):
         pass
 
     def _include_change(self, change):
@@ -72,7 +72,7 @@ class TestBaseProvider(TestCase):
 
         class HasPopulate(HasSupports):
 
-            def populate(self, zone, target=False):
+            def populate(self, zone, target=False, lenient=False):
                 zone.add_record(Record.new(zone, '', {
                     'ttl': 60,
                     'type': 'A',

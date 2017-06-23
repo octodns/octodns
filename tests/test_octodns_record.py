@@ -643,6 +643,7 @@ class TestRecordValidation(TestCase):
                 'value': '1.2.3.4',
             })
         self.assertEquals(['missing ttl'], ctx.exception.reasons)
+
         # invalid ttl
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'www', {
@@ -652,6 +653,21 @@ class TestRecordValidation(TestCase):
             })
         self.assertEquals('www.unit.tests.', ctx.exception.fqdn)
         self.assertEquals(['invalid ttl'], ctx.exception.reasons)
+
+        # no exception if we're in lenient mode
+        Record.new(self.zone, 'www', {
+            'type': 'A',
+            'ttl': -1,
+            'value': '1.2.3.4',
+        }, lenient=True)
+
+        # __init__ may still blow up, even if validation is lenient
+        with self.assertRaises(KeyError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'A',
+                'ttl': -1,
+            }, lenient=True)
+        self.assertEquals(('value',), ctx.exception.args)
 
     def test_A_and_values_mixin(self):
         # doesn't blow up
