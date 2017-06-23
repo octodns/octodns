@@ -42,6 +42,7 @@ providers:
     password: env/DYN_PASSWORD
   route53:
     class: octodns.provider.route53.Route53Provider
+    max_changes: 200  # if you don't pass in this value in config default value is 100. This is the solution to over come the aws DNS Limitations http://docs.aws.amazon.com/Route53/latest/DeveloperGuide/DNSLimitations.html
     access_key_id: env/AWS_ACCESS_KEY_ID
     secret_access_key: env/AWS_SECRET_ACCESS_KEY
 
