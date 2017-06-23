@@ -425,13 +425,12 @@ class MxValue(object):
     def _validate_value(cls, value):
         reasons = []
         try:
-            # seperate lines to have preference set in the ValueError case
-            preference = value.get('preference', None) or value['priority']
-            int(preference)
+            int(value.get('preference', None) or value['priority'])
         except KeyError:
             reasons.append('missing preference')
         except ValueError:
-            reasons.append('invalid preference "{}"'.format(preference))
+            reasons.append('invalid preference "{}"'
+                           .format(value['preference']))
         exchange = None
         try:
             exchange = value.get('exchange', None) or value['value']
@@ -483,6 +482,7 @@ class MxRecord(_ValuesMixin, Record):
 
 
 class NaptrValue(object):
+    LEGAL_FLAGS = ('S', 'A', 'U', 'P')
 
     @classmethod
     def _validate_value(cls, data):
@@ -500,8 +500,15 @@ class NaptrValue(object):
         except ValueError:
             reasons.append('invalid preference "{}"'
                            .format(data['preference']))
-        # TODO: validate field data
-        for k in ('flags', 'service', 'regexp', 'replacement'):
+        try:
+            flags = data['flags']
+            if flags not in cls.LEGAL_FLAGS:
+                reasons.append('invalid flags "{}"'.format(flags))
+        except KeyError:
+            reasons.append('missing flags')
+
+        # TODO: validate these... they're non-trivial
+        for k in ('service', 'regexp', 'replacement'):
             if k not in data:
                 reasons.append('missing {}'.format(k))
         return reasons

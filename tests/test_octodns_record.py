@@ -952,7 +952,7 @@ class TestRecordValidation(TestCase):
             'value': {
                 'order': 10,
                 'preference': 20,
-                'flags': 'f',
+                'flags': 'S',
                 'service': 'srv',
                 'regexp': '.*',
                 'replacement': '.'
@@ -963,7 +963,7 @@ class TestRecordValidation(TestCase):
         value = {
             'order': 10,
             'preference': 20,
-            'flags': 'f',
+            'flags': 'S',
             'service': 'srv',
             'regexp': '.*',
             'replacement': '.'
@@ -1001,6 +1001,17 @@ class TestRecordValidation(TestCase):
                 'value': v
             })
         self.assertEquals(['invalid preference "who"'], ctx.exception.reasons)
+
+        # unrecognized flags
+        v = dict(value)
+        v['flags'] = 'X'
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'NAPTR',
+                'ttl': 600,
+                'value': v
+            })
+        self.assertEquals(['invalid flags "X"'], ctx.exception.reasons)
 
     def test_NS(self):
         # doesn't blow up
