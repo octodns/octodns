@@ -227,7 +227,7 @@ class Route53Provider(BaseProvider):
     # health check config.
     HEALTH_CHECK_VERSION = '0000'
 
-    def __init__(self, id, access_key_id, secret_access_key, max_changes=1000,
+    def __init__(self, id, access_key_id, secret_access_key, max_changes=100,
                  *args, **kwargs):
         self.max_changes = max_changes
         self.log = logging.getLogger('Route53Provider[{}]'.format(id))
