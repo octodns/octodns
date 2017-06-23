@@ -9,7 +9,8 @@ from unittest import TestCase
 
 from octodns.record import ARecord, AaaaRecord, AliasRecord, CnameRecord, \
     Create, Delete, GeoValue, MxRecord, NaptrRecord, NaptrValue, NsRecord, \
-    PtrRecord, Record, SshfpRecord, SpfRecord, SrvRecord, TxtRecord, Update
+    Record, SshfpRecord, SpfRecord, SrvRecord, TxtRecord, Update, \
+    ValidationError
 from octodns.zone import Zone
 
 from helpers import GeoProvider, SimpleProvider
@@ -41,15 +42,6 @@ class TestRecord(TestCase):
         b = ARecord(self.zone, 'b', b_data)
         self.assertEquals([b_value], b.values)
         self.assertEquals(b_data, b.data)
-
-        # missing ttl
-        with self.assertRaises(Exception) as ctx:
-            ARecord(self.zone, None, {'value': '1.1.1.1'})
-        self.assertTrue('missing ttl' in ctx.exception.message)
-        # missing values & value
-        with self.assertRaises(Exception) as ctx:
-            ARecord(self.zone, None, {'ttl': 42})
-        self.assertTrue('missing value(s)' in ctx.exception.message)
 
         # top-level
         data = {'ttl': 30, 'value': '4.2.3.4'}
@@ -104,20 +96,6 @@ class TestRecord(TestCase):
 
             DummyRecord().__repr__()
 
-    def test_invalid_a(self):
-        with self.assertRaises(Exception) as ctx:
-            ARecord(self.zone, 'a', {
-                'ttl': 30,
-                'value': 'foo',
-            })
-        self.assertTrue('Invalid record' in ctx.exception.message)
-        with self.assertRaises(Exception) as ctx:
-            ARecord(self.zone, 'a', {
-                'ttl': 30,
-                'values': ['1.2.3.4', 'bar'],
-            })
-        self.assertTrue('Invalid record' in ctx.exception.message)
-
     def test_geo(self):
         geo_data = {'ttl': 42, 'values': ['5.2.3.4', '6.2.3.4'],
                     'geo': {'AF': ['1.1.1.1'],
@@ -157,19 +135,6 @@ class TestRecord(TestCase):
         # Geo provider does consider lack of geo diffs to be changes
         self.assertTrue(geo.changes(other, geo_target))
 
-        # invalid geo code
-        with self.assertRaises(Exception) as ctx:
-            ARecord(self.zone, 'geo', {'ttl': 42,
-                                       'values': ['5.2.3.4', '6.2.3.4'],
-                                       'geo': {'abc': ['1.1.1.1']}})
-        self.assertEquals('Invalid geo "abc"', ctx.exception.message)
-
-        with self.assertRaises(Exception) as ctx:
-            ARecord(self.zone, 'geo', {'ttl': 42,
-                                       'values': ['5.2.3.4', '6.2.3.4'],
-                                       'geo': {'NA-US': ['1.1.1']}})
-        self.assertTrue('not a valid ip' in ctx.exception.message)
-
         # __repr__ doesn't blow up
         geo.__repr__()
 
@@ -187,29 +152,11 @@ class TestRecord(TestCase):
         self.assertEquals([b_value], b.values)
         self.assertEquals(b_data, b.data)
 
-        # missing values & value
-        with self.assertRaises(Exception) as ctx:
-            _type(self.zone, None, {'ttl': 42})
-        self.assertTrue('missing value(s)' in ctx.exception.message)
-
     def test_aaaa(self):
         a_values = ['2001:0db8:3c4d:0015:0000:0000:1a2f:1a2b',
                     '2001:0db8:3c4d:0015:0000:0000:1a2f:1a3b']
         b_value = '2001:0db8:3c4d:0015:0000:0000:1a2f:1a4b'
         self.assertMultipleValues(AaaaRecord, a_values, b_value)
-
-        with self.assertRaises(Exception) as ctx:
-            AaaaRecord(self.zone, 'a', {
-                'ttl': 30,
-                'value': 'foo',
-            })
-        self.assertTrue('Invalid record' in ctx.exception.message)
-        with self.assertRaises(Exception) as ctx:
-            AaaaRecord(self.zone, 'a', {
-                'ttl': 30,
-                'values': [b_value, 'bar'],
-            })
-        self.assertTrue('Invalid record' in ctx.exception.message)
 
     def assertSingleValue(self, _type, a_value, b_value):
         a_data = {'ttl': 30, 'value': a_value}
@@ -224,11 +171,6 @@ class TestRecord(TestCase):
         b = _type(self.zone, 'b', b_data)
         self.assertEquals(b_value, b.value)
         self.assertEquals(b_data, b.data)
-
-        # missing value
-        with self.assertRaises(Exception) as ctx:
-            _type(self.zone, None, {'ttl': 42})
-        self.assertTrue('missing value' in ctx.exception.message)
 
         target = SimpleProvider()
         # No changes with self
@@ -251,15 +193,6 @@ class TestRecord(TestCase):
         self.assertEquals(a_data['value'], a.value)
         self.assertEquals(a_data, a.data)
 
-        # missing value
-        with self.assertRaises(Exception) as ctx:
-            AliasRecord(self.zone, None, {'ttl': 0})
-        self.assertTrue('missing value' in ctx.exception.message)
-        # bad name
-        with self.assertRaises(Exception) as ctx:
-            AliasRecord(self.zone, None, {'ttl': 0, 'value': 'www.unit.tests'})
-        self.assertTrue('missing trailing .' in ctx.exception.message)
-
         target = SimpleProvider()
         # No changes with self
         self.assertFalse(a.changes(a, target))
@@ -276,19 +209,6 @@ class TestRecord(TestCase):
     def test_cname(self):
         self.assertSingleValue(CnameRecord, 'target.foo.com.',
                                'other.foo.com.')
-
-        with self.assertRaises(Exception) as ctx:
-            CnameRecord(self.zone, 'a', {
-                'ttl': 30,
-                'value': 'foo',
-            })
-        self.assertTrue('Invalid record' in ctx.exception.message)
-        with self.assertRaises(Exception) as ctx:
-            CnameRecord(self.zone, 'a', {
-                'ttl': 30,
-                'values': ['foo.com.', 'bar.com'],
-            })
-        self.assertTrue('Invalid record' in ctx.exception.message)
 
     def test_mx(self):
         a_values = [{
@@ -318,15 +238,6 @@ class TestRecord(TestCase):
         self.assertEquals(b_value['priority'], b.values[0].priority)
         self.assertEquals(b_value['value'], b.values[0].value)
         self.assertEquals(b_data, b.data)
-
-        # missing value
-        with self.assertRaises(Exception) as ctx:
-            MxRecord(self.zone, None, {'ttl': 42})
-        self.assertTrue('missing value(s)' in ctx.exception.message)
-        # invalid value
-        with self.assertRaises(Exception) as ctx:
-            MxRecord(self.zone, None, {'ttl': 42, 'value': {}})
-        self.assertTrue('Invalid value' in ctx.exception.message)
 
         target = SimpleProvider()
         # No changes with self
@@ -386,15 +297,6 @@ class TestRecord(TestCase):
         for k in a_values[0].keys():
             self.assertEquals(b_value[k], getattr(b.values[0], k))
         self.assertEquals(b_data, b.data)
-
-        # missing value
-        with self.assertRaises(Exception) as ctx:
-            NaptrRecord(self.zone, None, {'ttl': 42})
-        self.assertTrue('missing value' in ctx.exception.message)
-        # invalid value
-        with self.assertRaises(Exception) as ctx:
-            NaptrRecord(self.zone, None, {'ttl': 42, 'value': {}})
-        self.assertTrue('Invalid value' in ctx.exception.message)
 
         target = SimpleProvider()
         # No changes with self
@@ -538,33 +440,6 @@ class TestRecord(TestCase):
         self.assertEquals([b_value], b.values)
         self.assertEquals(b_data, b.data)
 
-        # missing values & value
-        with self.assertRaises(Exception) as ctx:
-            NsRecord(self.zone, None, {'ttl': 42})
-        self.assertTrue('missing value(s)' in ctx.exception.message)
-
-        with self.assertRaises(Exception) as ctx:
-            NsRecord(self.zone, 'a', {
-                'ttl': 30,
-                'value': 'foo',
-            })
-        self.assertTrue('Invalid record' in ctx.exception.message)
-        with self.assertRaises(Exception) as ctx:
-            NsRecord(self.zone, 'a', {
-                'ttl': 30,
-                'values': ['foo.com.', 'bar.com'],
-            })
-        self.assertTrue('Invalid record' in ctx.exception.message)
-
-    def test_ptr(self):
-        self.assertSingleValue(PtrRecord, 'foo.bar.com.', 'other.bar.com.')
-        with self.assertRaises(Exception) as ctx:
-            PtrRecord(self.zone, 'a', {
-                'ttl': 30,
-                'value': 'foo',
-            })
-        self.assertTrue('Invalid record' in ctx.exception.message)
-
     def test_sshfp(self):
         a_values = [{
             'algorithm': 10,
@@ -598,15 +473,6 @@ class TestRecord(TestCase):
                           b.values[0].fingerprint_type)
         self.assertEquals(b_value['fingerprint'], b.values[0].fingerprint)
         self.assertEquals(b_data, b.data)
-
-        # missing value
-        with self.assertRaises(Exception) as ctx:
-            SshfpRecord(self.zone, None, {'ttl': 42})
-        self.assertTrue('missing value(s)' in ctx.exception.message)
-        # invalid value
-        with self.assertRaises(Exception) as ctx:
-            SshfpRecord(self.zone, None, {'ttl': 42, 'value': {}})
-        self.assertTrue('Invalid value' in ctx.exception.message)
 
         target = SimpleProvider()
         # No changes with self
@@ -677,21 +543,6 @@ class TestRecord(TestCase):
         self.assertEquals(b_value['target'], b.values[0].target)
         self.assertEquals(b_data, b.data)
 
-        # invalid name
-        with self.assertRaises(Exception) as ctx:
-            SrvRecord(self.zone, 'bad', {'ttl': 42})
-        self.assertEquals('Invalid name bad.unit.tests.',
-                          ctx.exception.message)
-
-        # missing value
-        with self.assertRaises(Exception) as ctx:
-            SrvRecord(self.zone, '_missing._tcp', {'ttl': 42})
-        self.assertTrue('missing value(s)' in ctx.exception.message)
-        # invalid value
-        with self.assertRaises(Exception) as ctx:
-            SrvRecord(self.zone, '_missing._udp', {'ttl': 42, 'value': {}})
-        self.assertTrue('Invalid value' in ctx.exception.message)
-
         target = SimpleProvider()
         # No changes with self
         self.assertFalse(a.changes(a, target))
@@ -728,21 +579,6 @@ class TestRecord(TestCase):
         a_values = ['a one', 'a two']
         b_value = 'b other'
         self.assertMultipleValues(TxtRecord, a_values, b_value)
-
-        Record.new(self.zone, 'txt', {
-            'ttl': 44,
-            'type': 'TXT',
-            'value': 'escaped\; foo',
-        })
-
-        with self.assertRaises(Exception) as ctx:
-            Record.new(self.zone, 'txt', {
-                'ttl': 44,
-                'type': 'TXT',
-                'value': 'un-escaped; foo',
-            })
-        self.assertEquals('Invalid record txt.unit.tests., unescaped ;',
-                          ctx.exception.message)
 
     def test_record_new(self):
         txt = Record.new(self.zone, 'txt', {
@@ -794,3 +630,642 @@ class TestRecord(TestCase):
         self.assertEquals('CA', geo.subdivision_code)
         self.assertEquals(values, geo.values)
         self.assertEquals(['NA-US', 'NA'], list(geo.parents))
+
+
+class TestRecordValidation(TestCase):
+    zone = Zone('unit.tests.', [])
+
+    def test_base(self):
+        # no ttl
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'A',
+                'value': '1.2.3.4',
+            })
+        self.assertEquals(['missing ttl'], ctx.exception.reasons)
+        # invalid ttl
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'A',
+                'ttl': -1,
+                'value': '1.2.3.4',
+            })
+        self.assertEquals('www.unit.tests.', ctx.exception.fqdn)
+        self.assertEquals(['invalid ttl'], ctx.exception.reasons)
+
+    def test_A_and_values_mixin(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'A',
+            'ttl': 600,
+            'value': '1.2.3.4',
+        })
+        Record.new(self.zone, '', {
+            'type': 'A',
+            'ttl': 600,
+            'values': [
+                '1.2.3.4',
+                '1.2.3.5',
+            ]
+        })
+
+        # missing value(s)
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'A',
+                'ttl': 600,
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+        # missing value(s) & ttl
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'A',
+            })
+        self.assertEquals(['missing ttl', 'missing value(s)'],
+                          ctx.exception.reasons)
+
+        # invalid ip address
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'A',
+                'ttl': 600,
+                'value': 'hello'
+            })
+        self.assertEquals(['invalid ip address "hello"'],
+                          ctx.exception.reasons)
+
+        # invalid ip addresses
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'A',
+                'ttl': 600,
+                'values': ['hello', 'goodbye']
+            })
+        self.assertEquals([
+            'invalid ip address "hello"',
+            'invalid ip address "goodbye"'
+        ], ctx.exception.reasons)
+
+        # invalid & valid ip addresses, no ttl
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'A',
+                'values': ['1.2.3.4', 'hello', '5.6.7.8']
+            })
+        self.assertEquals([
+            'missing ttl',
+            'invalid ip address "hello"',
+        ], ctx.exception.reasons)
+
+    def test_geo(self):
+        Record.new(self.zone, '', {
+            'geo': {
+                'NA': ['1.2.3.5'],
+                'NA-US': ['1.2.3.5', '1.2.3.6']
+            },
+            'type': 'A',
+            'ttl': 600,
+            'value': '1.2.3.4',
+        })
+
+        # invalid ip address
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'geo': {
+                    'NA': ['hello'],
+                    'NA-US': ['1.2.3.5', '1.2.3.6']
+                },
+                'type': 'A',
+                'ttl': 600,
+                'value': '1.2.3.4',
+            })
+        self.assertEquals(['invalid ip address "hello"'],
+                          ctx.exception.reasons)
+
+        # invalid geo code
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'geo': {
+                    'XYZ': ['1.2.3.4'],
+                },
+                'type': 'A',
+                'ttl': 600,
+                'value': '1.2.3.4',
+            })
+        self.assertEquals(['invalid geo "XYZ"'], ctx.exception.reasons)
+
+        # invalid ip address
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'geo': {
+                    'NA': ['hello'],
+                    'NA-US': ['1.2.3.5', 'goodbye']
+                },
+                'type': 'A',
+                'ttl': 600,
+                'value': '1.2.3.4',
+            })
+        self.assertEquals([
+            'invalid ip address "hello"',
+            'invalid ip address "goodbye"'
+        ], ctx.exception.reasons)
+
+    def test_AAAA(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'AAAA',
+            'ttl': 600,
+            'value': '2601:644:500:e210:62f8:1dff:feb8:947a',
+        })
+        Record.new(self.zone, '', {
+            'type': 'AAAA',
+            'ttl': 600,
+            'values': [
+                '2601:644:500:e210:62f8:1dff:feb8:947a',
+                '2601:644:500:e210:62f8:1dff:feb8:947b',
+            ]
+        })
+
+        # invalid ip address
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'value': 'hello'
+            })
+        self.assertEquals(['invalid ip address "hello"'],
+                          ctx.exception.reasons)
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'value': '1.2.3.4'
+            })
+        self.assertEquals(['invalid ip address "1.2.3.4"'],
+                          ctx.exception.reasons)
+
+        # invalid ip addresses
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'values': ['hello', 'goodbye']
+            })
+        self.assertEquals([
+            'invalid ip address "hello"',
+            'invalid ip address "goodbye"'
+        ], ctx.exception.reasons)
+
+    def test_ALIAS_and_value_mixin(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'ALIAS',
+            'ttl': 600,
+            'value': 'foo.bar.com.',
+        })
+
+        # missing value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'ALIAS',
+                'ttl': 600,
+            })
+        self.assertEquals(['missing value'], ctx.exception.reasons)
+
+        # missing trailing .
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'ALIAS',
+                'ttl': 600,
+                'value': 'foo.bar.com',
+            })
+        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+
+    def test_CNAME(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'CNAME',
+            'ttl': 600,
+            'value': 'foo.bar.com.',
+        })
+
+        # missing trailing .
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'CNAME',
+                'ttl': 600,
+                'value': 'foo.bar.com',
+            })
+        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+
+    def test_MX(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'MX',
+            'ttl': 600,
+            'value': {
+                'priority': 10,
+                'value': 'foo.bar.com.'
+            }
+        })
+
+        # missing priority
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'MX',
+                'ttl': 600,
+                'value': {
+                    'value': 'foo.bar.com.'
+                }
+            })
+        self.assertEquals(['missing priority'], ctx.exception.reasons)
+
+        # missing value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'MX',
+                'ttl': 600,
+                'value': {
+                    'priority': 10,
+                }
+            })
+        self.assertEquals(['missing value'], ctx.exception.reasons)
+
+    def test_NXPTR(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'NAPTR',
+            'ttl': 600,
+            'value': {
+                'order': 10,
+                'preference': 20,
+                'flags': 'f',
+                'service': 'srv',
+                'regexp': '.*',
+                'replacement': '.'
+            }
+        })
+
+        # missing X priority
+        value = {
+            'order': 10,
+            'preference': 20,
+            'flags': 'f',
+            'service': 'srv',
+            'regexp': '.*',
+            'replacement': '.'
+        }
+        for k in ('order', 'preference', 'flags', 'service', 'regexp',
+                  'replacement'):
+            v = dict(value)
+            del v[k]
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(self.zone, '', {
+                    'type': 'NAPTR',
+                    'ttl': 600,
+                    'value': v
+                })
+            self.assertEquals(['missing {}'.format(k)], ctx.exception.reasons)
+
+        # non-int order
+        v = dict(value)
+        v['order'] = 'boo'
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'NAPTR',
+                'ttl': 600,
+                'value': v
+            })
+        self.assertEquals(['invalid order "boo"'], ctx.exception.reasons)
+
+        # non-int preference
+        v = dict(value)
+        v['preference'] = 'who'
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'NAPTR',
+                'ttl': 600,
+                'value': v
+            })
+        self.assertEquals(['invalid preference "who"'], ctx.exception.reasons)
+
+    def test_NS(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'NS',
+            'ttl': 600,
+            'values': [
+                'foo.bar.com.',
+                '1.2.3.4.'
+            ]
+        })
+
+        # missing value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'NS',
+                'ttl': 600,
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # no trailing .
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'NS',
+                'ttl': 600,
+                'value': 'foo.bar',
+            })
+        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+
+    def test_PTR(self):
+        # doesn't blow up (name & zone here don't make any sense, but not
+        # important)
+        Record.new(self.zone, '', {
+            'type': 'PTR',
+            'ttl': 600,
+            'value': 'foo.bar.com.',
+        })
+
+        # missing value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'PTR',
+                'ttl': 600,
+            })
+        self.assertEquals(['missing value'], ctx.exception.reasons)
+
+        # no trailing .
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'PTR',
+                'ttl': 600,
+                'value': 'foo.bar',
+            })
+        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+
+    def test_SSHFP(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'SSHFP',
+            'ttl': 600,
+            'value': {
+                'algorithm': 1,
+                'fingerprint_type': 1,
+                'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
+            }
+        })
+
+        # missing algorithm
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'SSHFP',
+                'ttl': 600,
+                'value': {
+                    'fingerprint_type': 1,
+                    'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
+                }
+            })
+        self.assertEquals(['missing algorithm'], ctx.exception.reasons)
+
+        # invalid algorithm
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'SSHFP',
+                'ttl': 600,
+                'value': {
+                    'algorithm': 'nope',
+                    'fingerprint_type': 1,
+                    'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
+                }
+            })
+        self.assertEquals(['invalid algorithm "nope"'], ctx.exception.reasons)
+
+        # missing fingerprint_type
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'SSHFP',
+                'ttl': 600,
+                'value': {
+                    'algorithm': 1,
+                    'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
+                }
+            })
+        self.assertEquals(['missing fingerprint_type'], ctx.exception.reasons)
+
+        # invalid fingerprint_type
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'SSHFP',
+                'ttl': 600,
+                'value': {
+                    'algorithm': 1,
+                    'fingerprint_type': 'yeeah',
+                    'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
+                }
+            })
+        self.assertEquals(['invalid fingerprint_type "yeeah"'],
+                          ctx.exception.reasons)
+
+        # missing fingerprint
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'SSHFP',
+                'ttl': 600,
+                'value': {
+                    'algorithm': 1,
+                    'fingerprint_type': 1,
+                }
+            })
+        self.assertEquals(['missing fingerprint'], ctx.exception.reasons)
+
+    def test_SPF(self):
+        # doesn't blow up (name & zone here don't make any sense, but not
+        # important)
+        Record.new(self.zone, '', {
+            'type': 'SPF',
+            'ttl': 600,
+            'values': [
+                'v=spf1 ip4:192.168.0.1/16-all',
+                'v=spf1 ip4:10.1.2.1/24-all',
+                'this has some\; semi-colons\; in it',
+            ]
+        })
+
+        # missing value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'SPF',
+                'ttl': 600,
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # missing escapes
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'SPF',
+                'ttl': 600,
+                'value': 'this has some; semi-colons\; in it',
+            })
+        self.assertEquals(['unescaped ;'], ctx.exception.reasons)
+
+    def test_SRV(self):
+        # doesn't blow up
+        Record.new(self.zone, '_srv._tcp', {
+            'type': 'SRV',
+            'ttl': 600,
+            'value': {
+                'priority': 1,
+                'weight': 2,
+                'port': 3,
+                'target': 'foo.bar.baz.'
+            }
+        })
+
+        # invalid name
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'neup', {
+                'type': 'SRV',
+                'ttl': 600,
+                'value': {
+                    'priority': 1,
+                    'weight': 2,
+                    'port': 3,
+                    'target': 'foo.bar.baz.'
+                }
+            })
+        self.assertEquals(['invalid name'], ctx.exception.reasons)
+
+        # missing priority
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '_srv._tcp', {
+                'type': 'SRV',
+                'ttl': 600,
+                'value': {
+                    'weight': 2,
+                    'port': 3,
+                    'target': 'foo.bar.baz.'
+                }
+            })
+        self.assertEquals(['missing priority'], ctx.exception.reasons)
+
+        # invalid priority
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '_srv._tcp', {
+                'type': 'SRV',
+                'ttl': 600,
+                'value': {
+                    'priority': 'foo',
+                    'weight': 2,
+                    'port': 3,
+                    'target': 'foo.bar.baz.'
+                }
+            })
+        self.assertEquals(['invalid priority "foo"'], ctx.exception.reasons)
+
+        # missing weight
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '_srv._tcp', {
+                'type': 'SRV',
+                'ttl': 600,
+                'value': {
+                    'priority': 1,
+                    'port': 3,
+                    'target': 'foo.bar.baz.'
+                }
+            })
+        self.assertEquals(['missing weight'], ctx.exception.reasons)
+        # invalid weight
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '_srv._tcp', {
+                'type': 'SRV',
+                'ttl': 600,
+                'value': {
+                    'priority': 1,
+                    'weight': 'foo',
+                    'port': 3,
+                    'target': 'foo.bar.baz.'
+                }
+            })
+        self.assertEquals(['invalid weight "foo"'], ctx.exception.reasons)
+
+        # missing port
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '_srv._tcp', {
+                'type': 'SRV',
+                'ttl': 600,
+                'value': {
+                    'priority': 1,
+                    'weight': 2,
+                    'target': 'foo.bar.baz.'
+                }
+            })
+        self.assertEquals(['missing port'], ctx.exception.reasons)
+        # invalid port
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '_srv._tcp', {
+                'type': 'SRV',
+                'ttl': 600,
+                'value': {
+                    'priority': 1,
+                    'weight': 2,
+                    'port': 'foo',
+                    'target': 'foo.bar.baz.'
+                }
+            })
+        self.assertEquals(['invalid port "foo"'], ctx.exception.reasons)
+
+        # missing target
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '_srv._tcp', {
+                'type': 'SRV',
+                'ttl': 600,
+                'value': {
+                    'priority': 1,
+                    'weight': 2,
+                    'port': 3,
+                }
+            })
+        self.assertEquals(['missing target'], ctx.exception.reasons)
+        # invalid target
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '_srv._tcp', {
+                'type': 'SRV',
+                'ttl': 600,
+                'value': {
+                    'priority': 1,
+                    'weight': 2,
+                    'port': 3,
+                    'target': 'foo.bar.baz'
+                }
+            })
+        self.assertEquals(['missing trailing .'],
+                          ctx.exception.reasons)
+
+    def test_TXT(self):
+        # doesn't blow up (name & zone here don't make any sense, but not
+        # important)
+        Record.new(self.zone, '', {
+            'type': 'TXT',
+            'ttl': 600,
+            'values': [
+                'hello world',
+                'this has some\; semi-colons\; in it',
+            ]
+        })
+
+        # missing value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'TXT',
+                'ttl': 600,
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # missing escapes
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'TXT',
+                'ttl': 600,
+                'value': 'this has some; semi-colons\; in it',
+            })
+        self.assertEquals(['unescaped ;'], ctx.exception.reasons)
