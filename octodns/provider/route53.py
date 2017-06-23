@@ -418,8 +418,10 @@ class Route53Provider(BaseProvider):
 
         return self._r53_rrsets[zone_id]
 
-    def populate(self, zone, target=False):
-        self.log.debug('populate: name=%s', zone.name)
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
+
         before = len(zone.records)
 
         zone_id = self._get_zone_id(zone.name)
@@ -449,7 +451,8 @@ class Route53Provider(BaseProvider):
                         data['geo'] = geo
                     else:
                         data = data[0]
-                    record = Record.new(zone, name, data, source=self)
+                    record = Record.new(zone, name, data, source=self,
+                                        lenient=lenient)
                     zone.add_record(record)
 
         self.log.info('populate:   found %s records',

@@ -234,8 +234,9 @@ class DnsimpleProvider(BaseProvider):
 
         return self._zone_records[zone.name]
 
-    def populate(self, zone, target=False):
-        self.log.debug('populate: name=%s', zone.name)
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
 
         values = defaultdict(lambda: defaultdict(list))
         for record in self.zone_records(zone):
@@ -252,7 +253,8 @@ class DnsimpleProvider(BaseProvider):
         for name, types in values.items():
             for _type, records in types.items():
                 data_for = getattr(self, '_data_for_{}'.format(_type))
-                record = Record.new(zone, name, data_for(_type, records))
+                record = Record.new(zone, name, data_for(_type, records),
+                                    source=self, lenient=lenient)
                 zone.add_record(record)
 
         self.log.info('populate:   found %s records',

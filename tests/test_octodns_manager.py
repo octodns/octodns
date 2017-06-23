@@ -195,15 +195,15 @@ class TestManager(TestCase):
             manager = Manager(get_config_filename('simple.yaml'))
 
             with self.assertRaises(Exception) as ctx:
-                manager.dump('unit.tests.', tmpdir.dirname, 'nope')
+                manager.dump('unit.tests.', tmpdir.dirname, False, 'nope')
             self.assertEquals('Unknown source: nope', ctx.exception.message)
 
-            manager.dump('unit.tests.', tmpdir.dirname, 'in')
+            manager.dump('unit.tests.', tmpdir.dirname, False, 'in')
 
             # make sure this fails with an IOError and not a KeyError when
             # tyring to find sub zones
             with self.assertRaises(IOError):
-                manager.dump('unknown.zone.', tmpdir.dirname, 'in')
+                manager.dump('unknown.zone.', tmpdir.dirname, False, 'in')
 
     def test_validate_configs(self):
         Manager(get_config_filename('simple-validate.yaml')).validate_configs()

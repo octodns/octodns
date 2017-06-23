@@ -338,8 +338,10 @@ class DynProvider(BaseProvider):
 
         return td_records
 
-    def populate(self, zone, target=False):
-        self.log.info('populate: zone=%s', zone.name)
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
+
         before = len(zone.records)
 
         self._check_dyn_sess()
@@ -364,7 +366,8 @@ class DynProvider(BaseProvider):
                 for _type, records in types.items():
                     data_for = getattr(self, '_data_for_{}'.format(_type))
                     data = data_for(_type, records)
-                    record = Record.new(zone, name, data, source=self)
+                    record = Record.new(zone, name, data, source=self,
+                                        lenient=lenient)
                     if record not in td_records:
                         zone.add_record(record)
 
