@@ -49,9 +49,13 @@ class Zone(object):
     def hostname_from_fqdn(self, fqdn):
         return self._name_re.sub('', fqdn)
 
-    def add_record(self, record):
+    def add_record(self, record, replace=False):
         name = record.name
         last = name.split('.')[-1]
+
+        if replace and record in self.records:
+            self.records.remove(record)
+
         if last in self.sub_zones:
             if name != last:
                 # it's a record for something under a sub-zone
@@ -63,6 +67,7 @@ class Zone(object):
                 raise SubzoneRecordException('Record {} a managed sub-zone '
                                              'and not of type NS'
                                              .format(record.fqdn))
+        # TODO: this is pretty inefficent
         for existing in self.records:
             if record == existing:
                 raise DuplicateRecordException('Duplicate record {}, type {}'

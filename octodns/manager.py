@@ -13,6 +13,7 @@ import logging
 
 from .provider.base import BaseProvider
 from .provider.yaml import YamlProvider
+from .record import Record
 from .yaml import safe_load
 from .zone import Zone
 
@@ -59,7 +60,7 @@ class MainThreadExecutor(object):
 class Manager(object):
     log = logging.getLogger('Manager')
 
-    def __init__(self, config_file, max_workers=None):
+    def __init__(self, config_file, max_workers=None, include_meta=False):
         self.log.info('__init__: config_file=%s', config_file)
 
         # Read our config file
@@ -74,6 +75,10 @@ class Manager(object):
             self._executor = ThreadPoolExecutor(max_workers=max_workers)
         else:
             self._executor = MainThreadExecutor()
+
+        self.include_meta = include_meta or manager_config.get('include_meta',
+                                                               False)
+        self.log.info('__init__:   max_workers=%s', self.include_meta)
 
         self.log.debug('__init__:   configuring providers')
         self.providers = {}
@@ -176,6 +181,13 @@ class Manager(object):
         plans = []
 
         for target in targets:
+            if self.include_meta:
+                meta = Record.new(zone, 'octodns-meta', {
+                    'type': 'TXT',
+                    'ttl': 60,
+                    'value': 'provider={}'.format(target.id)
+                })
+                zone.add_record(meta, replace=True)
             plan = target.plan(zone)
             if plan:
                 plans.append((target, plan))
