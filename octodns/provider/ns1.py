@@ -57,10 +57,10 @@ class Ns1Provider(BaseProvider):
     def _data_for_MX(self, _type, record):
         values = []
         for answer in record['short_answers']:
-            priority, value = answer.split(' ', 1)
+            preference, exchange = answer.split(' ', 1)
             values.append({
-                'priority': priority,
-                'value': value,
+                'preference': preference,
+                'exchange': exchange,
             })
         return {
             'ttl': record['ttl'],
@@ -150,7 +150,7 @@ class Ns1Provider(BaseProvider):
     _params_for_PTR = _params_for_CNAME
 
     def _params_for_MX(self, record):
-        values = [(v.priority, v.value) for v in record.values]
+        values = [(v.preference, v.exchange) for v in record.values]
         return {'answers': values, 'ttl': record.ttl}
 
     def _params_for_NAPTR(self, record):

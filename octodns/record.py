@@ -424,32 +424,50 @@ class MxValue(object):
     @classmethod
     def _validate_value(cls, value):
         reasons = []
-        if 'priority' not in value:
-            reasons.append('missing priority')
-        if 'value' not in value:
-            reasons.append('missing value')
+        try:
+            int(value.get('preference', None) or value['priority'])
+        except KeyError:
+            reasons.append('missing preference')
+        except ValueError:
+            reasons.append('invalid preference "{}"'
+                           .format(value['preference']))
+        exchange = None
+        try:
+            exchange = value.get('exchange', None) or value['value']
+            if not exchange.endswith('.'):
+                reasons.append('missing trailing .')
+        except KeyError:
+            reasons.append('missing exchange')
         return reasons
 
     def __init__(self, value):
-        # TODO: rename preference
-        self.priority = int(value['priority'])
-        # TODO: rename to exchange?
-        self.value = value['value'].lower()
+        # RFC1035 says preference, half the providers use priority
+        try:
+            preference = value['preference']
+        except KeyError:
+            preference = value['priority']
+        self.preference = int(preference)
+        # UNTIL 1.0 remove value fallback
+        try:
+            exchange = value['exchange']
+        except KeyError:
+            exchange = value['value']
+        self.exchange = exchange
 
     @property
     def data(self):
         return {
-            'priority': self.priority,
-            'value': self.value,
+            'preference': self.preference,
+            'exchange': self.exchange,
         }
 
     def __cmp__(self, other):
-        if self.priority == other.priority:
-            return cmp(self.value, other.value)
-        return cmp(self.priority, other.priority)
+        if self.preference == other.preference:
+            return cmp(self.exchange, other.exchange)
+        return cmp(self.preference, other.preference)
 
     def __repr__(self):
-        return "'{} {}'".format(self.priority, self.value)
+        return "'{} {}'".format(self.preference, self.exchange)
 
 
 class MxRecord(_ValuesMixin, Record):
@@ -464,6 +482,7 @@ class MxRecord(_ValuesMixin, Record):
 
 
 class NaptrValue(object):
+    VALID_FLAGS = ('S', 'A', 'U', 'P')
 
     @classmethod
     def _validate_value(cls, data):
@@ -481,8 +500,15 @@ class NaptrValue(object):
         except ValueError:
             reasons.append('invalid preference "{}"'
                            .format(data['preference']))
-        # TODO: validate field data
-        for k in ('flags', 'service', 'regexp', 'replacement'):
+        try:
+            flags = data['flags']
+            if flags not in cls.VALID_FLAGS:
+                reasons.append('unrecognized flags "{}"'.format(flags))
+        except KeyError:
+            reasons.append('missing flags')
+
+        # TODO: validate these... they're non-trivial
+        for k in ('service', 'regexp', 'replacement'):
             if k not in data:
                 reasons.append('missing {}'.format(k))
         return reasons
@@ -568,19 +594,25 @@ class PtrRecord(_ValueMixin, Record):
 
 
 class SshfpValue(object):
+    VALID_ALGORITHMS = (1, 2)
+    VALID_FINGERPRINT_TYPES = (1,)
 
     @classmethod
     def _validate_value(cls, value):
         reasons = []
-        # TODO: validate algorithm and fingerprint_type values
         try:
-            int(value['algorithm'])
+            algorithm = int(value['algorithm'])
+            if algorithm not in cls.VALID_ALGORITHMS:
+                reasons.append('unrecognized algorithm "{}"'.format(algorithm))
         except KeyError:
             reasons.append('missing algorithm')
         except ValueError:
             reasons.append('invalid algorithm "{}"'.format(value['algorithm']))
         try:
-            int(value['fingerprint_type'])
+            fingerprint_type = int(value['fingerprint_type'])
+            if fingerprint_type not in cls.VALID_FINGERPRINT_TYPES:
+                reasons.append('unrecognized fingerprint_type "{}"'
+                               .format(fingerprint_type))
         except KeyError:
             reasons.append('missing fingerprint_type')
         except ValueError:

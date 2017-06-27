@@ -116,8 +116,8 @@ class CloudflareProvider(BaseProvider):
         values = []
         for r in records:
             values.append({
-                'priority': r['priority'],
-                'value': '{}.'.format(r['content']),
+                'preference': r['priority'],
+                'exchange': '{}.'.format(r['content']),
             })
         return {
             'ttl': records[0]['ttl'],
@@ -207,8 +207,8 @@ class CloudflareProvider(BaseProvider):
     def _contents_for_MX(self, record):
         for value in record.values:
             yield {
-                'priority': value.priority,
-                'content': value.value
+                'priority': value.preference,
+                'content': value.exchange
             }
 
     def _apply_Create(self, change):

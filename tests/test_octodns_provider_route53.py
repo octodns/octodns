@@ -52,11 +52,11 @@ class TestRoute53Provider(TestCase):
                                                       'Goodbye World?']}),
         ('', {'ttl': 64, 'type': 'MX',
               'values': [{
-                  'priority': 10,
-                  'value': 'smtp-1.unit.tests.',
+                  'preference': 10,
+                  'exchange': 'smtp-1.unit.tests.',
               }, {
-                  'priority': 20,
-                  'value': 'smtp-2.unit.tests.',
+                  'preference': 20,
+                  'exchange': 'smtp-2.unit.tests.',
               }]}),
         ('naptr', {'ttl': 65, 'type': 'NAPTR',
                    'value': {
@@ -1262,8 +1262,8 @@ class TestRoute53Records(TestCase):
         d = _Route53Record(None, Record.new(existing, '',
                                             {'ttl': 42, 'type': 'MX',
                                              'value': {
-                                                 'priority': 10,
-                                                 'value': 'foo.bar.'}}),
+                                                 'preference': 10,
+                                                 'exchange': 'foo.bar.'}}),
                            False)
         self.assertEquals(d, d)
 

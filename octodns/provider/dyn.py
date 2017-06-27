@@ -206,7 +206,7 @@ class DynProvider(BaseProvider):
         return {
             'type': _type,
             'ttl': records[0].ttl,
-            'values': [{'priority': r.preference, 'value': r.exchange}
+            'values': [{'preference': r.preference, 'exchange': r.exchange}
                        for r in records],
         }
 
@@ -400,8 +400,8 @@ class DynProvider(BaseProvider):
 
     def _kwargs_for_MX(self, record):
         return [{
-            'preference': v.priority,
-            'exchange': v.value,
+            'preference': v.preference,
+            'exchange': v.exchange,
             'ttl': record.ttl,
         } for v in record.values]
 

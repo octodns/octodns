@@ -44,11 +44,11 @@ class TestNs1Provider(TestCase):
         'ttl': 35,
         'type': 'MX',
         'values': [{
-            'priority': 10,
-            'value': 'mx1.unit.tests.',
+            'preference': 10,
+            'exchange': 'mx1.unit.tests.',
         }, {
-            'priority': 20,
-            'value': 'mx2.unit.tests.',
+            'preference': 20,
+            'exchange': 'mx2.unit.tests.',
         }]
     }))
     expected.add(Record.new(zone, 'naptr', {
