@@ -96,7 +96,8 @@ class _Route53Record(object):
     _values_for_PTR = _values_for_value
 
     def _values_for_MX(self, record):
-        return ['{} {}'.format(v.priority, v.value) for v in record.values]
+        return ['{} {}'.format(v.preference, v.exchange)
+                for v in record.values]
 
     def _values_for_NAPTR(self, record):
         return ['{} {} "{}" "{}" "{}" {}'
@@ -335,10 +336,10 @@ class Route53Provider(BaseProvider):
     def _data_for_MX(self, rrset):
         values = []
         for rr in rrset['ResourceRecords']:
-            priority, value = rr['Value'].split(' ')
+            preference, exchange = rr['Value'].split(' ')
             values.append({
-                'priority': priority,
-                'value': value,
+                'preference': preference,
+                'exchange': exchange,
             })
         return {
             'type': rrset['Type'],

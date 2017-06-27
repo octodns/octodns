@@ -65,8 +65,8 @@ class TinyDnsBaseSource(BaseSource):
             'ttl': ttl,
             'type': _type,
             'values': [{
-                'priority': r[1],
-                'value': '{}.'.format(r[0])
+                'preference': r[1],
+                'exchange': '{}.'.format(r[0])
             } for r in records]
         }
 

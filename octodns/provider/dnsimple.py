@@ -128,8 +128,8 @@ class DnsimpleProvider(BaseProvider):
         values = []
         for record in records:
             values.append({
-                'priority': record['priority'],
-                'value': '{}.'.format(record['content'])
+                'preference': record['priority'],
+                'exchange': '{}.'.format(record['content'])
             })
         return {
             'ttl': records[0]['ttl'],
@@ -290,9 +290,9 @@ class DnsimpleProvider(BaseProvider):
     def _params_for_MX(self, record):
         for value in record.values:
             yield {
-                'content': value.value,
+                'content': value.exchange,
                 'name': record.name,
-                'priority': value.priority,
+                'priority': value.preference,
                 'ttl': record.ttl,
                 'type': record._type
             }

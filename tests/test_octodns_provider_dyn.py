@@ -46,11 +46,11 @@ class TestDynProvider(TestCase):
             'type': 'MX',
             'ttl': 302,
             'values': [{
-                'priority': 10,
-                'value': 'smtp-1.unit.tests.'
+                'preference': 10,
+                'exchange': 'smtp-1.unit.tests.'
             }, {
-                'priority': 20,
-                'value': 'smtp-2.unit.tests.'
+                'preference': 20,
+                'exchange': 'smtp-2.unit.tests.'
             }]
         }),
         ('naptr', {
