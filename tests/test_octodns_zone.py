@@ -39,6 +39,7 @@ class TestZone(TestCase):
 
         a = ARecord(zone, 'a', {'ttl': 42, 'value': '1.1.1.1'})
         b = ARecord(zone, 'b', {'ttl': 42, 'value': '1.1.1.1'})
+        c = ARecord(zone, 'a', {'ttl': 43, 'value': '2.2.2.2'})
 
         zone.add_record(a)
         self.assertEquals(zone.records, set([a]))
@@ -48,6 +49,11 @@ class TestZone(TestCase):
         self.assertEquals('Duplicate record a.unit.tests., type A',
                           ctx.exception.message)
         self.assertEquals(zone.records, set([a]))
+
+        # can add duplicate with replace=True
+        zone.add_record(c, replace=True)
+        self.assertEquals('2.2.2.2', list(zone.records)[0].values[0])
+
         # Can add dup name, with different type
         zone.add_record(b)
         self.assertEquals(zone.records, set([a, b]))
