@@ -11,7 +11,7 @@ from azure.mgmt.dns.models import ARecord, AaaaRecord, CnameRecord, MxRecord, \
     SrvRecord, NsRecord, PtrRecord, TxtRecord, Zone
 
 from functools import reduce
-
+import sys
 import logging
 from ..record import Record
 from .base import BaseProvider
@@ -26,7 +26,7 @@ class _AzureRecord(object):
         Azure.
     '''
 
-    def __init__(self, resource_group, record, values=None):
+    def __init__(self, resource_group, record, delete=False):
         '''
             :param resource_group: The name of resource group in Azure
             :type  resource_group: str
@@ -43,14 +43,16 @@ class _AzureRecord(object):
         self.relative_record_set_name = record.name or '@'
         self.record_type = record._type
 
-        data = values or record.data
+        if delete:
+            return
+
         format_u_s = '' if record._type == 'A' else '_'
         key_name = '{}{}records'.format(self.record_type, format_u_s).lower()
         class_name = '{}'.format(self.record_type).capitalize() + \
                      'Record'.format(self.record_type)
 
         self.params = getattr(self, '_params_for_{}'.format(record._type))
-        self.params = self.params(data, key_name, eval(class_name))
+        self.params = self.params(record.data, key_name, eval(class_name))
         self.params['ttl'] = record.ttl
 
     def _params(self, data, key_name, azure_class):
@@ -71,7 +73,7 @@ class _AzureRecord(object):
                                           vals['weight'],
                                           vals['port'],
                                           vals['target']))
-        else:
+        else:  # single value at key 'value'
             params.append(azure_class(data['value']['priority'],
                                       data['value']['weight'],
                                       data['value']['port'],
@@ -82,17 +84,23 @@ class _AzureRecord(object):
         params = []
         if 'values' in data:
             for vals in data['values']:
-                params.append(azure_class(vals['priority'],
-                                          vals['value']))
-        else:
-            params.append(azure_class(data['value']['priority'],
-                                      data['value']['value']))
+                params.append(azure_class(vals['preference'],
+                                          vals['exchange']))
+        else:  # single value at key 'value'
+            params.append(azure_class(data['value']['preference'],
+                                      data['value']['exchange']))
         return {key_name: params}
 
     def _params_for_CNAME(self, data, key_name, azure_class):
         return {'cname_record': CnameRecord(data['value'])}
 
     def _equals(self, b):
+        '''Checks whether two records are equal by comparing all fields.
+            :param b: Another _AzureRecord object
+            :type  b: _AzureRecord
+
+            :type return: bool
+        '''
         def parse_dict(params):
             vals = []
             for char in params:
@@ -114,6 +122,9 @@ class _AzureRecord(object):
                (self.relative_record_set_name == b.relative_record_set_name)
 
     def __str__(self):
+        '''String representation of an _AzureRecord.
+            :type return: str
+        '''
         string = 'Zone: {}; '.format(self.zone_name)
         string += 'Name: {}; '.format(self.relative_record_set_name)
         string += 'Type: {}; '.format(self.record_type)
@@ -126,6 +137,10 @@ class _AzureRecord(object):
                 except:
                     string += 'Record: {}; '.format(self.params[char].__dict__)
         return string
+
+
+def period_validate(string):
+    return string if string.endswith('.') else string + '.'
 
 
 class AzureProvider(BaseProvider):
@@ -213,22 +228,24 @@ class AzureProvider(BaseProvider):
         '''
             Required function of manager.py.
 
-            Special notes for Azure. Azure zone names omit final '.'
-            Azure record names for '' are represented by '@'
+            Special notes for Azure.
+            Azure zone names omit final '.'
+            Azure root records names are represented by '@'. OctoDNS uses ''
             Azure records created through online interface may have null values
-            (eg, no IP address for A record). Specific quirks such as these are
-            responsible for any strange parsing.
+            (eg, no IP address for A record).
+            Azure online interface allows constructing records with null values
+            which are destroyed by _apply.
+
+            Specific quirks such as these are responsible for any non-obvious
+            parsing in this function and the functions '_params_for_*'.
 
             :param zone: A dns zone
             :type  zone: octodns.zone.Zone
             :param target: Checks if Azure is source or target of config.
                            Currently only supports as a target. Does not use.
             :type  target: bool
-
-
-            TODO: azure interface allows null values. If this attempts to
-            populate with them, will fail. add safety check (simply delete
-            records with null values?)
+            :param lenient: Unused. Check octodns.manager for usage.
+            :type  lenient: bool
 
             :type return: void
         '''
@@ -261,40 +278,38 @@ class AzureProvider(BaseProvider):
         return {'values': [reduce((lambda a, b: a + b), ar.value)
                            for ar in azrecord.txt_records]}
 
-    def _data_for_CNAME(self, azrecord):  # TODO: see TODO in pop comment.
-        try:
-            val = azrecord.cname_record.cname
-            if not val.endswith('.'):
-                val += '.'
-            return {'value': val}
-        except:
-            return {'value': '.'}  # TODO: this is a bad fix. but octo checks
-            # that cnames have trailing '.' while azure allows creating cnames
-            # on the online interface with no value.
+    def _data_for_CNAME(self, azrecord):
+        '''Parsing data from Azure DNS Client record call
+            :param azrecord: a return of a call to list azure records
+            :type  azrecord: azure.mgmt.dns.models.RecordSet
 
-    def _data_for_PTR(self, azrecord):  # TODO: see TODO in population comment.
+            :type  return: dict
+
+            CNAME and PTR both use the catch block to catch possible empty
+            records. Refer to population comment.
+        '''
         try:
-            val = azrecord.ptr_records[0].ptdrname
-            if not val.endswith('.'):
-                val += '.'
-            return {'value': val}
+            return {'value': period_validate(azrecord.cname_record.cname)}
+        except:
+            return {'value': '.'}
+
+    def _data_for_PTR(self, azrecord):
+        try:
+            return {'value': period_validate(azrecord.ptr_records[0].ptdrname)}
         except:
             return {'value': '.'}
 
     def _data_for_MX(self, azrecord):
-        return {'values': [{'priority': ar.preference, 'value': ar.exchange}
-                           for ar in azrecord.mx_records]
-                }
+        return {'values': [{'preference': ar.preference,
+                            'exchange': ar.exchange}
+                           for ar in azrecord.mx_records]}
 
     def _data_for_SRV(self, azrecord):
         return {'values': [{'priority': ar.priority, 'weight': ar.weight,
                             'port': ar.port, 'target': ar.target}
-                           for ar in azrecord.srv_records]
-                }
+                           for ar in azrecord.srv_records]}
 
-    def _data_for_NS(self, azrecord):  # TODO: see TODO in population comment.
-        def period_validate(string):
-            return string if string.endswith('.') else string + '.'
+    def _data_for_NS(self, azrecord):
         vals = [ar.nsdname for ar in azrecord.ns_records]
         return {'values': [period_validate(val) for val in vals]}
 
@@ -315,15 +330,18 @@ class AzureProvider(BaseProvider):
                record_type=ar.record_type,
                parameters=ar.params)
 
+        print('*  Success Create/Update: {}'.format(ar), file=sys.stderr)
+
+    _apply_Update = _apply_Create
+
     def _apply_Delete(self, change):
-        ar = _AzureRecord(self._resource_group, change.existing)
+        ar = _AzureRecord(self._resource_group, change.existing, delete=True)
         delete = self._dns_client.record_sets.delete
 
         delete(self._resource_group, ar.zone_name, ar.relative_record_set_name,
                ar.record_type)
 
-    def _apply_Update(self, change):
-        self._apply_Create(change)
+        print('*  Success Delete: {}'.format(ar), file=sys.stderr)
 
     def _apply(self, plan):
         '''
