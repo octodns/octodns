@@ -7,7 +7,8 @@ from __future__ import absolute_import, division, print_function, \
 
 from logging import getLogger
 from nsone import NSONE
-from nsone.rest.errors import ResourceException
+from nsone.rest.errors import RateLimitException, ResourceException
+from time import sleep
 
 from ..record import Record
 from .base import BaseProvider
@@ -25,6 +26,7 @@ class Ns1Provider(BaseProvider):
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
                     'SPF', 'SRV', 'TXT'))
 
+    RATE_LIMIT_DELAY = 1
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
     def __init__(self, id, api_key, *args, **kwargs):
@@ -171,7 +173,14 @@ class Ns1Provider(BaseProvider):
         name = self._get_name(new)
         _type = new._type
         params = getattr(self, '_params_for_{}'.format(_type))(new)
-        getattr(nsone_zone, 'add_{}'.format(_type))(name, **params)
+        meth = getattr(nsone_zone, 'add_{}'.format(_type))
+        try:
+            meth(name, **params)
+        except RateLimitException:
+            self.log.warn('_apply_Create: rate limit encountered, pausing '
+                          'and trying again')
+            sleep(self.RATE_LIMIT_DELAY)
+            meth(name, **params)
 
     def _apply_Update(self, nsone_zone, change):
         existing = change.existing
@@ -180,14 +189,26 @@ class Ns1Provider(BaseProvider):
         record = nsone_zone.loadRecord(name, _type)
         new = change.new
         params = getattr(self, '_params_for_{}'.format(_type))(new)
-        record.update(**params)
+        try:
+            record.update(**params)
+        except RateLimitException:
+            self.log.warn('_apply_Update: rate limit encountered, pausing '
+                          'and trying again')
+            sleep(self.RATE_LIMIT_DELAY)
+            record.update(**params)
 
     def _apply_Delete(self, nsone_zone, change):
         existing = change.existing
         name = self._get_name(existing)
         _type = existing._type
         record = nsone_zone.loadRecord(name, _type)
-        record.delete()
+        try:
+            record.delete()
+        except RateLimitException:
+            self.log.warn('_apply_Delete: rate limit encountered, pausing '
+                          'and trying again')
+            sleep(self.RATE_LIMIT_DELAY)
+            record.delete()
 
     def _apply(self, plan):
         desired = plan.desired
