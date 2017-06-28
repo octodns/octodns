@@ -6,7 +6,8 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from mock import Mock, call, patch
-from nsone.rest.errors import AuthException, ResourceException
+from nsone.rest.errors import AuthException, RateLimitException, \
+    ResourceException
 from unittest import TestCase
 
 from octodns.record import Delete, Record, Update
@@ -192,7 +193,7 @@ class TestNs1Provider(TestCase):
     @patch('nsone.NSONE.createZone')
     @patch('nsone.NSONE.loadZone')
     def test_sync(self, load_mock, create_mock):
-        provider = Ns1Provider('test', 'api-key')
+        provider = Ns1Provider('test', 'api-key', rate_limit_delay=0)
 
         desired = Zone('unit.tests.', [])
         desired.records.update(self.expected)
@@ -225,7 +226,15 @@ class TestNs1Provider(TestCase):
         create_mock.reset_mock()
         load_mock.side_effect = \
             ResourceException('server error: zone not found')
-        create_mock.side_effect = None
+        # ugh, need a mock zone with a mock prop since we're using getattr, we
+        # can actually control side effects on `meth` with that.
+        mock_zone = Mock()
+        mock_zone.add_SRV = Mock()
+        mock_zone.add_SRV.side_effect = [
+            RateLimitException('boo'),
+            None,
+        ]
+        create_mock.side_effect = [mock_zone]
         got_n = provider.apply(plan)
         self.assertEquals(expected_n, got_n)
 
@@ -245,12 +254,26 @@ class TestNs1Provider(TestCase):
         self.assertEquals(2, len(plan.changes))
         self.assertIsInstance(plan.changes[0], Update)
         self.assertIsInstance(plan.changes[1], Delete)
-
+        # ugh, we need a mock record that can be returned from loadRecord for
+        # the update and delete targets, we can add our side effects to that to
+        # trigger rate limit handling
+        mock_record = Mock()
+        mock_record.update.side_effect = [
+            RateLimitException('one'),
+            None,
+        ]
+        mock_record.delete.side_effect = [
+            RateLimitException('two'),
+            None,
+        ]
+        nsone_zone.loadRecord.side_effect = [mock_record, mock_record]
         got_n = provider.apply(plan)
         self.assertEquals(2, got_n)
         nsone_zone.loadRecord.assert_has_calls([
             call('unit.tests', u'A'),
-            call().update(answers=[u'1.2.3.4'], ttl=32),
             call('delete-me', u'A'),
-            call().delete()
+        ])
+        mock_record.assert_has_calls([
+            call.update(answers=[u'1.2.3.4'], ttl=32),
+            call.delete()
         ])

@@ -26,14 +26,15 @@ class Ns1Provider(BaseProvider):
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
                     'SPF', 'SRV', 'TXT'))
 
-    RATE_LIMIT_DELAY = 1
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
-    def __init__(self, id, api_key, *args, **kwargs):
+    def __init__(self, id, api_key, rate_limit_delay=1, *args, **kwargs):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
-        self.log.debug('__init__: id=%s, api_key=***', id)
+        self.log.debug('__init__: id=%s, api_key=***, rate_limit_delay=%d', id,
+                       rate_limit_delay)
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
         self._client = NSONE(apiKey=api_key)
+        self.rate_limit_delay = rate_limit_delay
 
     def _data_for_A(self, _type, record):
         return {
@@ -179,7 +180,7 @@ class Ns1Provider(BaseProvider):
         except RateLimitException:
             self.log.warn('_apply_Create: rate limit encountered, pausing '
                           'and trying again')
-            sleep(self.RATE_LIMIT_DELAY)
+            sleep(self.rate_limit_delay)
             meth(name, **params)
 
     def _apply_Update(self, nsone_zone, change):
@@ -194,7 +195,7 @@ class Ns1Provider(BaseProvider):
         except RateLimitException:
             self.log.warn('_apply_Update: rate limit encountered, pausing '
                           'and trying again')
-            sleep(self.RATE_LIMIT_DELAY)
+            sleep(self.rate_limit_delay)
             record.update(**params)
 
     def _apply_Delete(self, nsone_zone, change):
@@ -207,7 +208,7 @@ class Ns1Provider(BaseProvider):
         except RateLimitException:
             self.log.warn('_apply_Delete: rate limit encountered, pausing '
                           'and trying again')
-            sleep(self.RATE_LIMIT_DELAY)
+            sleep(self.rate_limit_delay)
             record.delete()
 
     def _apply(self, plan):
