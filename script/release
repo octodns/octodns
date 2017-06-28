@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -e
+
+cd "$(dirname $0)"/..
+ROOT=$(pwd)
+
+VERSION=$(grep __VERSION__ $ROOT/octodns/__init__.py | sed -e "s/.* = '//" -e "s/'$//")
+
+git tag -s v$VERSION -m "Release $VERSION"
+python setup.py sdist upload
+echo "Updloaded $VERSION"
