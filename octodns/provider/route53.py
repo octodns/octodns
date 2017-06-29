@@ -250,7 +250,7 @@ class Route53Provider(BaseProvider):
             more = True
             start = {}
             while more:
-                resp = self._conn.list_hosted_zones()
+                resp = self._conn.list_hosted_zones(**start)
                 for z in resp['HostedZones']:
                     zones[z['Name']] = z['Id']
                 more = resp['IsTruncated']
