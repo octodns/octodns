@@ -128,6 +128,8 @@ class _AzureRecord(object):
         string = 'Zone: {}; '.format(self.zone_name)
         string += 'Name: {}; '.format(self.relative_record_set_name)
         string += 'Type: {}; '.format(self.record_type)
+        if not hasattr(self, 'params'):
+            return string
         string += 'Ttl: {}; '.format(self.params['ttl'])
         for char in self.params:
             if char != 'ttl':
@@ -139,7 +141,7 @@ class _AzureRecord(object):
         return string
 
 
-def period_validate(string):
+def _validate_per(string):
     return string if string.endswith('.') else string + '.'
 
 
@@ -209,20 +211,18 @@ class AzureProvider(BaseProvider):
         try:
             if name in self._azure_zones:
                 return name
-            if self._dns_client.zones.get(self._resource_group, name):
-                self._azure_zones.add(name)
-                return name
-        except:  # TODO: figure out what location should be
+            self._dns_client.zones.get(self._resource_group, name)
+            self._azure_zones.add(name)
+            return name
+        except:
             if create:
-                try:
-                    self.log.debug('_check_zone:no matching zone; creating %s',
-                                   name)
-                    create_zone = self._dns_client.zones.create_or_update
-                    if create_zone(self._resource_group, name, Zone('global')):
-                        return name
-                except:
-                    raise
-        return None
+                self.log.debug('_check_zone:no matching zone; creating %s',
+                               name)
+                create_zone = self._dns_client.zones.create_or_update
+                create_zone(self._resource_group, name, Zone('global'))
+                return name
+            else:
+                raise
 
     def populate(self, zone, target=False, lenient=False):
         '''
@@ -254,17 +254,21 @@ class AzureProvider(BaseProvider):
         before = len(zone.records)
 
         self._populate_zones()
-        if self._check_zone(zone_name):
-            for typ in self.SUPPORTS:
-                records = self._dns_client.record_sets.list_by_type
-                for azrecord in records(self._resource_group, zone_name, typ):
-                    record_name = azrecord.name if azrecord.name != '@' else ''
-                    data = getattr(self, '_data_for_{}'.format(typ))(azrecord)
-                    data['type'] = typ
-                    data['ttl'] = azrecord.ttl
+        self._check_zone(zone_name)
 
-                    record = Record.new(zone, record_name, data, source=self)
-                    zone.add_record(record)
+        _records = set()
+        records = self._dns_client.record_sets.list_by_dns_zone
+        for azrecord in records(self._resource_group, zone_name):
+            if azrecord.type in self.SUPPORTS:
+                _records.add(azrecord)
+        for azrecord in _records:
+            record_name = azrecord.name if azrecord.name != '@' else ''
+            data = getattr(self, '_data_for_{}'.format(azrecord.type))
+            data = data(azrecord)
+            data['type'] = azrecord.type
+            data['ttl'] = azrecord.ttl
+            record = Record.new(zone, record_name, data, source=self)
+            zone.add_record(record)
 
         self.log.info('populate: found %s records', len(zone.records) - before)
 
@@ -289,13 +293,13 @@ class AzureProvider(BaseProvider):
             records. Refer to population comment.
         '''
         try:
-            return {'value': period_validate(azrecord.cname_record.cname)}
+            return {'value': _validate_per(azrecord.cname_record.cname)}
         except:
             return {'value': '.'}
 
     def _data_for_PTR(self, azrecord):
         try:
-            return {'value': period_validate(azrecord.ptr_records[0].ptdrname)}
+            return {'value': _validate_per(azrecord.ptr_records[0].ptdrname)}
         except:
             return {'value': '.'}
 
@@ -311,7 +315,7 @@ class AzureProvider(BaseProvider):
 
     def _data_for_NS(self, azrecord):
         vals = [ar.nsdname for ar in azrecord.ns_records]
-        return {'values': [period_validate(val) for val in vals]}
+        return {'values': [_validate_per(val) for val in vals]}
 
     def _apply_Create(self, change):
         '''A record from change must be created.
@@ -330,7 +334,7 @@ class AzureProvider(BaseProvider):
                record_type=ar.record_type,
                parameters=ar.params)
 
-        print('*  Success Create/Update: {}'.format(ar), file=sys.stderr)
+        self.log.debug('*  Success Create/Update: {}'.format(ar))
 
     _apply_Update = _apply_Create
 
@@ -341,7 +345,7 @@ class AzureProvider(BaseProvider):
         delete(self._resource_group, ar.zone_name, ar.relative_record_set_name,
                ar.record_type)
 
-        print('*  Success Delete: {}'.format(ar), file=sys.stderr)
+        self.log.debug('*  Success Delete: {}'.format(ar))
 
     def _apply(self, plan):
         '''
