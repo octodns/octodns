@@ -263,8 +263,7 @@ class TestAzureDnsProvider(TestCase):
         rs.append(RecordSet(name='ptr1', ttl=10, type='PTR',
                             ptr_records=[PtrRecord('ptr1.unit.test.')]))
         rs.append(RecordSet(name='ptr2', ttl=11, type='PTR',
-                            ptr_records=[PtrRecord('ptr1.unit.test.'),
-                                         PtrRecord('ptr2.unit.test.')]))
+                            ptr_records=[PtrRecord(None)]))
         rs.append(RecordSet(name='_srv1._tcp', ttl=12, type='SRV',
                             srv_records=[SrvRecord(1, 2, 3, '1unit.tests.')]))
         rs.append(RecordSet(name='_srv2._tcp', ttl=13, type='SRV',

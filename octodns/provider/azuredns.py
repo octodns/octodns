@@ -352,8 +352,8 @@ class AzureProvider(BaseProvider):
 
     def _data_for_PTR(self, azrecord):
         try:
-            ptdrname = azrecord.ptr_records[0].ptdrname
-            return {'value': _check_endswith_dot(ptdrname)}
+            ptrdname = azrecord.ptr_records[0].ptrdname
+            return {'value': _check_endswith_dot(ptrdname)}
         except:
             return {'value': '.'}
 
