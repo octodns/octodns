@@ -9,6 +9,7 @@ from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.dns import DnsManagementClient
 from azure.mgmt.dns.models import ARecord, AaaaRecord, CnameRecord, MxRecord, \
     SrvRecord, NsRecord, PtrRecord, TxtRecord, Zone
+from msrestazure.azure_exceptions import CloudError
 
 from functools import reduce
 import sys
@@ -18,7 +19,8 @@ from .base import BaseProvider
 
 
 class _AzureRecord(object):
-    ''' Wrapper for OctoDNS record.
+    '''Wrapper for OctoDNS record for AzureProvider to make dns_client calls.
+
         azuredns.py:
         class: octodns.provider.azuredns._AzureRecord
         An _AzureRecord is easily accessible to Azure DNS Management library
@@ -27,7 +29,19 @@ class _AzureRecord(object):
     '''
 
     def __init__(self, resource_group, record, delete=False):
-        '''
+        '''Contructor for _AzureRecord.
+
+            Notes on Azure records: An Azure record set has the form
+            RecordSet(name=<...>, type=<...>, arecords=[...], aaaa_records, ..)
+            When constructing an azure record as done in self._apply_Create,
+            the argument parameters for an A record would be
+            parameters={'ttl': <int>, 'arecords': [ARecord(<str ip>),]}.
+            As another example for CNAME record:
+            parameters={'ttl': <int>, 'cname_record': CnameRecord(<str>)}.
+
+            Below, key_name and class_name are the dictionary key and Azure
+            Record class respectively.
+
             :param resource_group: The name of resource group in Azure
             :type  resource_group: str
             :param record: An OctoDNS record
@@ -39,15 +53,18 @@ class _AzureRecord(object):
             :type return: _AzureRecord
         '''
         self.resource_group = resource_group
-        self.zone_name = record.zone.name[0:len(record.zone.name) - 1]
+        self.zone_name = record.zone.name[:len(record.zone.name) - 1]
         self.relative_record_set_name = record.name or '@'
         self.record_type = record._type
 
         if delete:
             return
 
+        # Refer to function docstring for key_name and class_name.
         format_u_s = '' if record._type == 'A' else '_'
         key_name = '{}{}records'.format(self.record_type, format_u_s).lower()
+        if record._type == 'CNAME':
+            key_name = key_name[:len(key_name) - 1]
         class_name = '{}'.format(self.record_type).capitalize() + \
                      'Record'.format(self.record_type)
 
@@ -56,8 +73,10 @@ class _AzureRecord(object):
         self.params['ttl'] = record.ttl
 
     def _params(self, data, key_name, azure_class):
-        return {key_name: [azure_class(v) for v in data['values']]} \
-            if 'values' in data else {key_name: [azure_class(data['value'])]}
+        if 'values' in data:
+            return {key_name: [azure_class(v) for v in data['values']]}
+        else:  # Else there is a singular data point keyed by 'value'.
+            return {key_name: [azure_class(data['value'])]}
 
     _params_for_A = _params
     _params_for_AAAA = _params
@@ -73,7 +92,7 @@ class _AzureRecord(object):
                                           vals['weight'],
                                           vals['port'],
                                           vals['target']))
-        else:  # single value at key 'value'
+        else:  # Else there is a singular data point keyed by 'value'.
             params.append(azure_class(data['value']['priority'],
                                       data['value']['weight'],
                                       data['value']['port'],
@@ -86,7 +105,7 @@ class _AzureRecord(object):
             for vals in data['values']:
                 params.append(azure_class(vals['preference'],
                                           vals['exchange']))
-        else:  # single value at key 'value'
+        else:  # Else there is a singular data point keyed by 'value'.
             params.append(azure_class(data['value']['preference'],
                                       data['value']['exchange']))
         return {key_name: params}
@@ -141,8 +160,12 @@ class _AzureRecord(object):
         return string
 
 
-def _validate_per(string):
+def _check_endswith_dot(string):
     return string if string.endswith('.') else string + '.'
+
+
+def _parse_azure_type(string):
+    return string.split('/')[len(string.split('/')) - 1]
 
 
 class AzureProvider(BaseProvider):
@@ -155,21 +178,44 @@ class AzureProvider(BaseProvider):
         # includes using a Service Principal:
         # https://docs.microsoft.com/en-us/azure/azure-resource-manager/
         #                        resource-group-create-service-principal-portal
-        # The Azure Active Directory Application ID (aka client ID) req:
+        # The Azure Active Directory Application ID (aka client ID):
         client_id:
-        # Authentication Key Value req:
+        # Authentication Key Value: (note this should be secret)
         key:
-        # Directory ID (referred to tenant ID) req:
+        # Directory ID (aka tenant ID):
         directory_id:
-        # Subscription ID req:
+        # Subscription ID:
         sub_id:
-        # Resource Group name req:
+        # Resource Group name:
         resource_group:
+        # All are required to authenticate.
 
-        TODO: change config file to use env vars instead of hard-coded keys
+        Example config file with variables:
+            "
+            ---
+            providers:
+              config:
+                class: octodns.provider.yaml.YamlProvider
+                directory: ./config (example path to directory of zone files)
+              azuredns:
+                class: octodns.provider.azuredns.AzureProvider
+                client_id: env/AZURE_APPLICATION_ID
+                key: env/AZURE_AUTHENICATION_KEY
+                directory_id: env/AZURE_DIRECTORY_ID
+                sub_id: env/AZURE_SUBSCRIPTION_ID
+                resource_group: 'TestResource1'
 
-        personal notes: testing: test authentication vars located in
-                /home/t-hehwan/vars.txt
+            zones:
+              example.com.:
+                sources:
+                  - config
+                targets:
+                  - azuredns
+            "
+        The first four variables above can be hidden in environment variables
+        and octoDNS will automatically search for them in the shell. It is
+        possible to also hard-code into the config file. resource_group can
+        also be an environment variable but might likely change.
     '''
     SUPPORTS_GEO = False
     SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NS', 'PTR', 'SRV', 'TXT'))
@@ -214,19 +260,24 @@ class AzureProvider(BaseProvider):
             self._dns_client.zones.get(self._resource_group, name)
             self._azure_zones.add(name)
             return name
-        except:
-            if create:
-                self.log.debug('_check_zone:no matching zone; creating %s',
-                               name)
-                create_zone = self._dns_client.zones.create_or_update
-                create_zone(self._resource_group, name, Zone('global'))
-                return name
-            else:
-                raise
+        except CloudError as err:
+            msg = 'The Resource \'Microsoft.Network/dnszones/{}\''.format(name)
+            msg += ' under resource group \'{}\''.format(self._resource_group)
+            msg += ' was not found.'
+            if msg == err.message:
+                # Then the only error is that the zone doesn't currently exist
+                if create:
+                    self.log.debug('_check_zone:no matching zone; creating %s',
+                                   name)
+                    create_zone = self._dns_client.zones.create_or_update
+                    create_zone(self._resource_group, name, Zone('global'))
+                    return name
+                else:
+                    return
+            raise
 
     def populate(self, zone, target=False, lenient=False):
-        '''
-            Required function of manager.py.
+        '''Required function of manager.py to collect records from zone.
 
             Special notes for Azure.
             Azure zone names omit final '.'
@@ -249,26 +300,28 @@ class AzureProvider(BaseProvider):
 
             :type return: void
         '''
-        zone_name = zone.name[0:len(zone.name) - 1]
-        self.log.debug('populate: name=%s', zone_name)
+        self.log.debug('populate: name=%s', zone.name)
         before = len(zone.records)
 
+        zone_name = zone.name[:len(zone.name) - 1]
         self._populate_zones()
         self._check_zone(zone_name)
 
         _records = set()
         records = self._dns_client.record_sets.list_by_dns_zone
-        for azrecord in records(self._resource_group, zone_name):
-            if azrecord.type in self.SUPPORTS:
-                _records.add(azrecord)
-        for azrecord in _records:
-            record_name = azrecord.name if azrecord.name != '@' else ''
-            data = getattr(self, '_data_for_{}'.format(azrecord.type))
-            data = data(azrecord)
-            data['type'] = azrecord.type
-            data['ttl'] = azrecord.ttl
-            record = Record.new(zone, record_name, data, source=self)
-            zone.add_record(record)
+        if self._check_zone(zone_name):
+            for azrecord in records(self._resource_group, zone_name):
+                if _parse_azure_type(azrecord.type) in self.SUPPORTS:
+                    _records.add(azrecord)
+            for azrecord in _records:
+                record_name = azrecord.name if azrecord.name != '@' else ''
+                typ = _parse_azure_type(azrecord.type)
+                data = getattr(self, '_data_for_{}'.format(typ))
+                data = data(azrecord)
+                data['type'] = typ
+                data['ttl'] = azrecord.ttl
+                record = Record.new(zone, record_name, data, source=self)
+                zone.add_record(record)
 
         self.log.info('populate: found %s records', len(zone.records) - before)
 
@@ -293,13 +346,14 @@ class AzureProvider(BaseProvider):
             records. Refer to population comment.
         '''
         try:
-            return {'value': _validate_per(azrecord.cname_record.cname)}
+            return {'value': _check_endswith_dot(azrecord.cname_record.cname)}
         except:
             return {'value': '.'}
 
     def _data_for_PTR(self, azrecord):
         try:
-            return {'value': _validate_per(azrecord.ptr_records[0].ptdrname)}
+            ptdrname = azrecord.ptr_records[0].ptdrname
+            return {'value': _check_endswith_dot(ptdrname)}
         except:
             return {'value': '.'}
 
@@ -315,7 +369,7 @@ class AzureProvider(BaseProvider):
 
     def _data_for_NS(self, azrecord):
         vals = [ar.nsdname for ar in azrecord.ns_records]
-        return {'values': [_validate_per(val) for val in vals]}
+        return {'values': [_check_endswith_dot(val) for val in vals]}
 
     def _apply_Create(self, change):
         '''A record from change must be created.
@@ -334,7 +388,7 @@ class AzureProvider(BaseProvider):
                record_type=ar.record_type,
                parameters=ar.params)
 
-        self.log.debug('*  Success Create/Update: {}'.format(ar))
+        print('*  Success Create/Update: {}'.format(ar), file=sys.stderr)
 
     _apply_Update = _apply_Create
 
@@ -345,7 +399,7 @@ class AzureProvider(BaseProvider):
         delete(self._resource_group, ar.zone_name, ar.relative_record_set_name,
                ar.record_type)
 
-        self.log.debug('*  Success Delete: {}'.format(ar))
+        print('*  Success Delete: {}'.format(ar), file=sys.stderr)
 
     def _apply(self, plan):
         '''
@@ -361,7 +415,7 @@ class AzureProvider(BaseProvider):
         self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
                        len(changes))
 
-        azure_zone_name = desired.name[0:len(desired.name) - 1]
+        azure_zone_name = desired.name[:len(desired.name) - 1]
         self._check_zone(azure_zone_name, create=True)
 
         for change in changes:

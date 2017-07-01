@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from octodns.record import Create, Delete, Record
 from octodns.provider.azuredns import _AzureRecord, AzureProvider, \
-    _validate_per
+    _check_endswith_dot, _parse_azure_type
 from octodns.zone import Zone
 from octodns.provider.base import Plan
 
@@ -195,13 +195,22 @@ class Test_AzureRecord(TestCase):
             assert(('Ttl: ' in string))
 
 
-class TestValidatePeriod(TestCase):
-    def test_validate_per(self):
+class Test_ParseAzureType(TestCase):
+    def test_parse_azure_type(self):
+        for expected, test in [['A', 'Microsoft.Network/dnszones/A'],
+                               ['AAAA', 'Microsoft.Network/dnszones/AAAA'],
+                               ['NS', 'Microsoft.Network/dnszones/NS'],
+                               ['MX', 'Microsoft.Network/dnszones/MX']]:
+                self.assertEquals(expected, _parse_azure_type(test))
+
+
+class Test_CheckEndswithDot(TestCase):
+    def test_check_endswith_dot(self):
         for expected, test in [['a.', 'a'],
                                ['a.', 'a.'],
                                ['foo.bar.', 'foo.bar.'],
                                ['foo.bar.', 'foo.bar']]:
-            self.assertEquals(expected, _validate_per(test))
+            self.assertEquals(expected, _check_endswith_dot(test))
 
 
 class TestAzureDnsProvider(TestCase):
@@ -319,7 +328,31 @@ class TestAzureDnsProvider(TestCase):
             changes.append(Create(i))
         desired = Zone('unit2.test.', [])
 
+        err_msg = 'The Resource \'Microsoft.Network/dnszones/unit2.test\' '
+        err_msg += 'under resource group \'mock_rg\' was not found.'
         _get = provider._dns_client.zones.get
-        _get.side_effect = CloudError(Mock(status=404), 'Azure Error')
+        _get.side_effect = CloudError(Mock(status=404), err_msg)
 
         self.assertEquals(11, provider.apply(Plan(None, desired, changes)))
+
+    def test_check_zone_no_create(self):
+        provider = self._get_provider()
+
+        rs = []
+        rs.append(RecordSet(name='a1', ttl=0, type='A',
+                            arecords=[ARecord('1.1.1.1')]))
+        rs.append(RecordSet(name='a2', ttl=1, type='A',
+                            arecords=[ARecord('1.1.1.1'),
+                                      ARecord('2.2.2.2')]))
+
+        record_list = provider._dns_client.record_sets.list_by_dns_zone
+        record_list.return_value = rs
+
+        err_msg = 'The Resource \'Microsoft.Network/dnszones/unit3.test\' '
+        err_msg += 'under resource group \'mock_rg\' was not found.'
+        _get = provider._dns_client.zones.get
+        _get.side_effect = CloudError(Mock(status=404), err_msg)
+
+        provider.populate(Zone('unit3.test.', []))
+
+        self.assertEquals(len(zone.records), 0)
