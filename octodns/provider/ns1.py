@@ -28,13 +28,11 @@ class Ns1Provider(BaseProvider):
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
-    def __init__(self, id, api_key, rate_limit_delay=1, *args, **kwargs):
+    def __init__(self, id, api_key, *args, **kwargs):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
-        self.log.debug('__init__: id=%s, api_key=***, rate_limit_delay=%d', id,
-                       rate_limit_delay)
+        self.log.debug('__init__: id=%s, api_key=***', id)
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
         self._client = NSONE(apiKey=api_key)
-        self.rate_limit_delay = rate_limit_delay
 
     def _data_for_A(self, _type, record):
         return {
@@ -177,10 +175,10 @@ class Ns1Provider(BaseProvider):
         meth = getattr(nsone_zone, 'add_{}'.format(_type))
         try:
             meth(name, **params)
-        except RateLimitException:
+        except RateLimitException as e:
             self.log.warn('_apply_Create: rate limit encountered, pausing '
                           'and trying again')
-            sleep(self.rate_limit_delay)
+            sleep(e.period)
             meth(name, **params)
 
     def _apply_Update(self, nsone_zone, change):
@@ -192,10 +190,10 @@ class Ns1Provider(BaseProvider):
         params = getattr(self, '_params_for_{}'.format(_type))(new)
         try:
             record.update(**params)
-        except RateLimitException:
+        except RateLimitException as e:
             self.log.warn('_apply_Update: rate limit encountered, pausing '
                           'and trying again')
-            sleep(self.rate_limit_delay)
+            sleep(e.period)
             record.update(**params)
 
     def _apply_Delete(self, nsone_zone, change):
@@ -205,10 +203,10 @@ class Ns1Provider(BaseProvider):
         record = nsone_zone.loadRecord(name, _type)
         try:
             record.delete()
-        except RateLimitException:
+        except RateLimitException as e:
             self.log.warn('_apply_Delete: rate limit encountered, pausing '
                           'and trying again')
-            sleep(self.rate_limit_delay)
+            sleep(e.period)
             record.delete()
 
     def _apply(self, plan):

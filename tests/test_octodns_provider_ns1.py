@@ -193,7 +193,7 @@ class TestNs1Provider(TestCase):
     @patch('nsone.NSONE.createZone')
     @patch('nsone.NSONE.loadZone')
     def test_sync(self, load_mock, create_mock):
-        provider = Ns1Provider('test', 'api-key', rate_limit_delay=0)
+        provider = Ns1Provider('test', 'api-key')
 
         desired = Zone('unit.tests.', [])
         desired.records.update(self.expected)
@@ -231,7 +231,7 @@ class TestNs1Provider(TestCase):
         mock_zone = Mock()
         mock_zone.add_SRV = Mock()
         mock_zone.add_SRV.side_effect = [
-            RateLimitException('boo'),
+            RateLimitException('boo', period=0),
             None,
         ]
         create_mock.side_effect = [mock_zone]
@@ -259,11 +259,11 @@ class TestNs1Provider(TestCase):
         # trigger rate limit handling
         mock_record = Mock()
         mock_record.update.side_effect = [
-            RateLimitException('one'),
+            RateLimitException('one', period=0),
             None,
         ]
         mock_record.delete.side_effect = [
-            RateLimitException('two'),
+            RateLimitException('two', period=0),
             None,
         ]
         nsone_zone.loadRecord.side_effect = [mock_record, mock_record]
