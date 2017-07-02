@@ -254,9 +254,10 @@ class _ValuesMixin(object):
         return ret
 
     def __repr__(self):
+        values = "['{}']".format("', '".join([str(v) for v in self.values]))
         return '<{} {} {}, {}, {}>'.format(self.__class__.__name__,
                                            self._type, self.ttl,
-                                           self.fqdn, self.values)
+                                           self.fqdn, values)
 
 
 class _GeoMixin(_ValuesMixin):
