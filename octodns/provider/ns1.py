@@ -177,7 +177,7 @@ class Ns1Provider(BaseProvider):
             meth(name, **params)
         except RateLimitException as e:
             self.log.warn('_apply_Create: rate limit encountered, pausing '
-                          'and trying again')
+                          'for %ds and trying again', e.period)
             sleep(e.period)
             meth(name, **params)
 
@@ -192,7 +192,7 @@ class Ns1Provider(BaseProvider):
             record.update(**params)
         except RateLimitException as e:
             self.log.warn('_apply_Update: rate limit encountered, pausing '
-                          'and trying again')
+                          'for %ds and trying again', e.period)
             sleep(e.period)
             record.update(**params)
 
@@ -205,7 +205,7 @@ class Ns1Provider(BaseProvider):
             record.delete()
         except RateLimitException as e:
             self.log.warn('_apply_Delete: rate limit encountered, pausing '
-                          'and trying again')
+                          'for %ds and trying again', e.period)
             sleep(e.period)
             record.delete()
 
