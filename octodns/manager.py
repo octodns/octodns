@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from StringIO import StringIO
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from os import environ
 import logging
@@ -38,6 +38,17 @@ class _AggregateTarget(object):
         return True
 
 
+class MakeThreadFuture(object):
+
+    def __init__(self, func, args, kwargs):
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+
+    def result(self):
+        return self.func(*self.args, **self.kwargs)
+
+
 class MainThreadExecutor(object):
     '''
     Dummy executor that runs things on the main thread during the involcation
@@ -48,13 +59,7 @@ class MainThreadExecutor(object):
     '''
 
     def submit(self, func, *args, **kwargs):
-        future = Future()
-        try:
-            future.set_result(func(*args, **kwargs))
-        except Exception as e:
-            # TODO: get right stacktrace here
-            future.set_exception(e)
-        return future
+        return MakeThreadFuture(func, args, kwargs)
 
 
 class Manager(object):
