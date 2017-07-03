@@ -9,26 +9,13 @@ from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.dns import DnsManagementClient
 from msrestazure.azure_exceptions import CloudError
 
-# Imports are used: 'self.params(record.data, key_name, eval(class_name))'
-# To pass pyflakes import statement tests.
 from azure.mgmt.dns.models import ARecord, AaaaRecord, CnameRecord, MxRecord, \
-    SrvRecord, NsRecord, PtrRecord, TxtRecord
-from azure.mgmt.dns.models import Zone
+    SrvRecord, NsRecord, PtrRecord, TxtRecord, Zone
 
 import logging
 from functools import reduce
 from ..record import Record
 from .base import BaseProvider
-
-
-ARecord
-AaaaRecord
-CnameRecord
-MxRecord
-SrvRecord
-NsRecord
-PtrRecord
-TxtRecord
 
 
 class _AzureRecord(object):
@@ -40,6 +27,16 @@ class _AzureRecord(object):
         functions and is used to wrap all relevant data to create a record in
         Azure.
     '''
+    TYPE_MAP = {
+        'A': ARecord,
+        'AAAA': AaaaRecord,
+        'CNAME': CnameRecord,
+        'MX': MxRecord,
+        'SRV': SrvRecord,
+        'NS': NsRecord,
+        'PTR': PtrRecord,
+        'TXT': TxtRecord
+    }
 
     def __init__(self, resource_group, record, delete=False):
         '''Contructor for _AzureRecord.
@@ -78,10 +75,10 @@ class _AzureRecord(object):
         key_name = '{}{}records'.format(self.record_type, format_u_s).lower()
         if record._type == 'CNAME':
             key_name = key_name[:len(key_name) - 1]
-        class_name = '{}'.format(self.record_type).capitalize() + 'Record'
+        azure_class = self.TYPE_MAP[self.record_type]
 
         self.params = getattr(self, '_params_for_{}'.format(record._type))
-        self.params = self.params(record.data, key_name, eval(class_name))
+        self.params = self.params(record.data, key_name, azure_class)
         self.params['ttl'] = record.ttl
 
     def _params(self, data, key_name, azure_class):
