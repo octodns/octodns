@@ -16,3 +16,6 @@ python-dateutil==2.6.0
 requests==2.13.0
 s3transfer==0.1.10
 six==1.10.0
+azure-mgmt-dns==1.0.1
+azure-common==1.1.6
+msrestazure==0.4.10

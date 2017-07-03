@@ -7,15 +7,28 @@ from __future__ import absolute_import, division, print_function, \
 
 from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.dns import DnsManagementClient
-from azure.mgmt.dns.models import ARecord, AaaaRecord, CnameRecord, MxRecord, \
-    SrvRecord, NsRecord, PtrRecord, TxtRecord, Zone
 from msrestazure.azure_exceptions import CloudError
 
-from functools import reduce
-import sys
+# Imports are used: 'self.params(record.data, key_name, eval(class_name))'
+# To pass pyflakes import statement tests.
+from azure.mgmt.dns.models import ARecord, AaaaRecord, CnameRecord, MxRecord, \
+    SrvRecord, NsRecord, PtrRecord, TxtRecord
+from azure.mgmt.dns.models import Zone
+
 import logging
+from functools import reduce
 from ..record import Record
 from .base import BaseProvider
+
+
+ARecord
+AaaaRecord
+CnameRecord
+MxRecord
+SrvRecord
+NsRecord
+PtrRecord
+TxtRecord
 
 
 class _AzureRecord(object):
@@ -65,8 +78,7 @@ class _AzureRecord(object):
         key_name = '{}{}records'.format(self.record_type, format_u_s).lower()
         if record._type == 'CNAME':
             key_name = key_name[:len(key_name) - 1]
-        class_name = '{}'.format(self.record_type).capitalize() + \
-                     'Record'.format(self.record_type)
+        class_name = '{}'.format(self.record_type).capitalize() + 'Record'
 
         self.params = getattr(self, '_params_for_{}'.format(record._type))
         self.params = self.params(record.data, key_name, eval(class_name))
@@ -111,7 +123,7 @@ class _AzureRecord(object):
         return {key_name: params}
 
     def _params_for_CNAME(self, data, key_name, azure_class):
-        return {'cname_record': CnameRecord(data['value'])}
+        return {'cname_record': azure_class(data['value'])}
 
     def _equals(self, b):
         '''Checks whether two records are equal by comparing all fields.
@@ -388,7 +400,7 @@ class AzureProvider(BaseProvider):
                record_type=ar.record_type,
                parameters=ar.params)
 
-        print('*  Success Create/Update: {}'.format(ar), file=sys.stderr)
+        self.log.debug('*  Success Create/Update: {}'.format(ar))
 
     _apply_Update = _apply_Create
 
@@ -399,7 +411,7 @@ class AzureProvider(BaseProvider):
         delete(self._resource_group, ar.zone_name, ar.relative_record_set_name,
                ar.record_type)
 
-        print('*  Success Delete: {}'.format(ar), file=sys.stderr)
+        self.log.debug('*  Success Delete: {}'.format(ar))
 
     def _apply(self, plan):
         '''
