@@ -154,7 +154,7 @@ class Ns1Provider(BaseProvider):
         # NS1 seems to be the only provider that doesn't want things escaped in
         # values so we have to strip them here and add them when going the
         # other way
-        values = [v.replace('\\', '') for v in record.values]
+        values = [v.replace('\;', ';') for v in record.values]
         return {'answers': values, 'ttl': record.ttl}
 
     _params_for_TXT = _params_for_SPF
