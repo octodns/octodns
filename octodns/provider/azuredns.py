@@ -56,9 +56,8 @@ class _AzureRecord(object):
             :type  resource_group: str
             :param record: An OctoDNS record
             :type  record: ..record.Record
-            :param values: Parameters for a record. eg IP address, port, domain
-                           name, etc. Values usually read from record.data
-            :type  values: {'values': [...]} or {'value': [...]}
+            :param delete: If true, omit data parsing; not needed to delete
+            :type  delete: bool
 
             :type return: _AzureRecord
         '''
@@ -93,6 +92,20 @@ class _AzureRecord(object):
     _params_for_PTR = _params
     _params_for_TXT = _params
 
+    def _params_for_CNAME(self, data, key_name, azure_class):
+        return {key_name: azure_class(data['value'])}
+
+    def _params_for_MX(self, data, key_name, azure_class):
+        params = []
+        if 'values' in data:
+            for vals in data['values']:
+                params.append(azure_class(vals['preference'],
+                                          vals['exchange']))
+        else:  # Else there is a singular data point keyed by 'value'.
+            params.append(azure_class(data['value']['preference'],
+                                      data['value']['exchange']))
+        return {key_name: params}
+
     def _params_for_SRV(self, data, key_name, azure_class):
         params = []
         if 'values' in data:
@@ -107,20 +120,6 @@ class _AzureRecord(object):
                                       data['value']['port'],
                                       data['value']['target']))
         return {key_name: params}
-
-    def _params_for_MX(self, data, key_name, azure_class):
-        params = []
-        if 'values' in data:
-            for vals in data['values']:
-                params.append(azure_class(vals['preference'],
-                                          vals['exchange']))
-        else:  # Else there is a singular data point keyed by 'value'.
-            params.append(azure_class(data['value']['preference'],
-                                      data['value']['exchange']))
-        return {key_name: params}
-
-    def _params_for_CNAME(self, data, key_name, azure_class):
-        return {'cname_record': azure_class(data['value'])}
 
     def _equals(self, b):
         '''Checks whether two records are equal by comparing all fields.
@@ -174,6 +173,13 @@ def _check_endswith_dot(string):
 
 
 def _parse_azure_type(string):
+    '''Converts string representing an Azure RecordSet type to usual type.
+
+        :param string: the Azure type. eg: <Microsoft.Network/dnszones/A>
+        :type  string: str
+
+        :type return: str
+    '''
     return string.split('/')[len(string.split('/')) - 1]
 
 
@@ -223,8 +229,7 @@ class AzureProvider(BaseProvider):
             "
         The first four variables above can be hidden in environment variables
         and octoDNS will automatically search for them in the shell. It is
-        possible to also hard-code into the config file. resource_group can
-        also be an environment variable but might likely change.
+        possible to also hard-code into the config file: eg, resource_group.
     '''
     SUPPORTS_GEO = False
     SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NS', 'PTR', 'SRV', 'TXT'))
@@ -250,8 +255,8 @@ class AzureProvider(BaseProvider):
             self._azure_zones.add(zone.name)
 
     def _check_zone(self, name, create=False):
-        '''
-            Checks whether a zone specified in a source exist in Azure server.
+        '''Checks whether a zone specified in a source exist in Azure server.
+
             Note that Azure zones omit end '.' eg: contoso.com vs contoso.com.
             Returns the name if it exists.
 
@@ -302,7 +307,7 @@ class AzureProvider(BaseProvider):
             :param zone: A dns zone
             :type  zone: octodns.zone.Zone
             :param target: Checks if Azure is source or target of config.
-                           Currently only supports as a target. Does not use.
+                           Currently only supports as a target. Unused.
             :type  target: bool
             :param lenient: Unused. Check octodns.manager for usage.
             :type  lenient: bool
@@ -340,10 +345,6 @@ class AzureProvider(BaseProvider):
     def _data_for_AAAA(self, azrecord):
         return {'values': [ar.ipv6_address for ar in azrecord.aaaa_records]}
 
-    def _data_for_TXT(self, azrecord):
-        return {'values': [reduce((lambda a, b: a + b), ar.value)
-                           for ar in azrecord.txt_records]}
-
     def _data_for_CNAME(self, azrecord):
         '''Parsing data from Azure DNS Client record call
             :param azrecord: a return of a call to list azure records
@@ -359,6 +360,15 @@ class AzureProvider(BaseProvider):
         except:
             return {'value': '.'}
 
+    def _data_for_MX(self, azrecord):
+        return {'values': [{'preference': ar.preference,
+                            'exchange': ar.exchange}
+                           for ar in azrecord.mx_records]}
+
+    def _data_for_NS(self, azrecord):
+        vals = [ar.nsdname for ar in azrecord.ns_records]
+        return {'values': [_check_endswith_dot(val) for val in vals]}
+
     def _data_for_PTR(self, azrecord):
         try:
             ptrdname = azrecord.ptr_records[0].ptrdname
@@ -366,19 +376,14 @@ class AzureProvider(BaseProvider):
         except:
             return {'value': '.'}
 
-    def _data_for_MX(self, azrecord):
-        return {'values': [{'preference': ar.preference,
-                            'exchange': ar.exchange}
-                           for ar in azrecord.mx_records]}
-
     def _data_for_SRV(self, azrecord):
         return {'values': [{'priority': ar.priority, 'weight': ar.weight,
                             'port': ar.port, 'target': ar.target}
                            for ar in azrecord.srv_records]}
 
-    def _data_for_NS(self, azrecord):
-        vals = [ar.nsdname for ar in azrecord.ns_records]
-        return {'values': [_check_endswith_dot(val) for val in vals]}
+    def _data_for_TXT(self, azrecord):
+        return {'values': [reduce((lambda a, b: a + b), ar.value)
+                           for ar in azrecord.txt_records]}
 
     def _apply_Create(self, change):
         '''A record from change must be created.
@@ -411,8 +416,7 @@ class AzureProvider(BaseProvider):
         self.log.debug('*  Success Delete: {}'.format(ar))
 
     def _apply(self, plan):
-        '''
-            Required function of manager.py
+        '''Required function of manager.py to actually apply a record change.
 
             :param plan: Contains the zones and changes to be made
             :type  plan: octodns.provider.base.Plan

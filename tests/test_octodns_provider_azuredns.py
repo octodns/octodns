@@ -16,7 +16,6 @@ from azure.mgmt.dns.models import ARecord, AaaaRecord, CnameRecord, MxRecord, \
     Zone as AzureZone
 from msrestazure.azure_exceptions import CloudError
 
-
 from unittest import TestCase
 from mock import Mock, patch
 
