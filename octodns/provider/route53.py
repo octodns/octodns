@@ -158,12 +158,16 @@ class _Route53GeoRecord(_Route53Record):
 
     def mod(self, action):
         geo = self.geo
+        try:
+            values = geo.values
+        except AttributeError:
+            values = [geo.value]
         rrset = {
             'Name': self.fqdn,
             'GeoLocation': {
                 'CountryCode': '*'
             },
-            'ResourceRecords': [{'Value': v} for v in geo.values],
+            'ResourceRecords': [{'Value': v} for v in values],
             'SetIdentifier': geo.code,
             'TTL': self.ttl,
             'Type': self._type,
@@ -319,15 +323,23 @@ class Route53Provider(BaseProvider):
     _data_for_A = _data_for_geo
     _data_for_AAAA = _data_for_geo
 
-    def _data_for_single(self, rrset):
+    def _data_for_CNAME(self, rrset):
+        ret = {
+            'type': rrset['Type'],
+            'value': rrset['ResourceRecords'][0]['Value'],
+            'ttl': int(rrset['TTL'])
+        }
+        geo = self._parse_geo(rrset)
+        if geo:
+            ret['geo'] = geo
+        return ret
+
+    def _data_for_PTR(self, rrset):
         return {
             'type': rrset['Type'],
             'value': rrset['ResourceRecords'][0]['Value'],
             'ttl': int(rrset['TTL'])
         }
-
-    _data_for_PTR = _data_for_single
-    _data_for_CNAME = _data_for_single
 
     _fix_semicolons = re.compile(r'(?<!\\);')
 
@@ -453,9 +465,10 @@ class Route53Provider(BaseProvider):
                         # them data into the format we need
                         geo = {}
                         for d in data:
-                            try:
-                                geo[d['geo']] = d['values']
-                            except KeyError:
+                            if 'geo' in d:
+                                geo[d['geo']] = \
+                                    d.get('values', None) or d['value']
+                            else:
                                 primary = d
                         data = primary
                         data['geo'] = geo
@@ -500,6 +513,9 @@ class Route53Provider(BaseProvider):
         return self._health_checks
 
     def get_health_check_id(self, record, ident, geo, create):
+        if record._type == 'CNAME':
+            # CNAME records don't support health checks
+            return
         # fqdn & the first value are special, we use them to match up health
         # checks to their records. Route53 health checks check a single ip and
         # we're going to assume that ips are interchangeable to avoid
@@ -643,8 +659,11 @@ class Route53Provider(BaseProvider):
             if record in changed:
                 # already have a change for it, skipping
                 continue
-            if not getattr(record, 'geo', False):
+            elif not getattr(record, 'geo', False):
                 # record doesn't support geo, we don't need to inspect it
+                continue
+            elif record._type == 'CNAME':
+                # CNAME geo's don't support health checks
                 continue
             # OK this is a record we don't have change for that does have geo
             # information. We need to look and see if it needs to be updated

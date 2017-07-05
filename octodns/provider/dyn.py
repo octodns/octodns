@@ -7,9 +7,9 @@ from __future__ import absolute_import, division, print_function, \
 
 from collections import defaultdict
 from dyn.tm.errors import DynectGetError
-from dyn.tm.services.dsf import DSFARecord, DSFAAAARecord, DSFFailoverChain, \
-    DSFMonitor, DSFNode, DSFRecordSet, DSFResponsePool, DSFRuleset, \
-    TrafficDirector, get_all_dsf_monitors, get_all_dsf_services, \
+from dyn.tm.services.dsf import DSFARecord, DSFAAAARecord, DSFCNAMERecord, \
+    DSFFailoverChain, DSFMonitor, DSFNode, DSFRecordSet, DSFResponsePool, \
+    DSFRuleset, TrafficDirector, get_all_dsf_monitors, get_all_dsf_services, \
     get_response_pool
 from dyn.tm.session import DynectSession
 from dyn.tm.zones import Zone as DynZone
@@ -288,7 +288,15 @@ class DynProvider(BaseProvider):
 
         return self._traffic_directors
 
-    def _populate_traffic_directors(self, zone):
+    def _convert_value_A(self, records):
+        return sorted([r.address for r in records])
+
+    _convert_value_AAAA = _convert_value_A
+
+    def _convert_value_CNAME(self, records):
+        return records[0].cname
+
+    def _populate_traffic_directors(self, zone, lenient):
         self.log.debug('_populate_traffic_directors: zone=%s', zone.name)
         td_records = set()
         for fqdn, types in self.traffic_directors.items():
@@ -297,20 +305,27 @@ class DynProvider(BaseProvider):
                 continue
 
             for _type, td in types.items():
+
                 # critical to call rulesets once, each call loads them :-(
                 rulesets = td.rulesets
 
-                # We start out with something that will always change show
-                # change in case this is a busted TD. This will prevent us from
-                # creating a duplicate td. We'll overwrite this with real data
-                # provide we have it
+                # We start out with something that will always show change in
+                # case this is a busted TD. This will prevent us from creating
+                # a duplicate td. We'll overwrite this with real data provide
+                # we have it
                 geo = {}
                 data = {
                     'geo': geo,
                     'type': _type,
                     'ttl': td.ttl,
-                    'values': ['0.0.0.0']
                 }
+
+                if _type == 'CNAME':
+                    data['value'] = '0.0.0.0'
+                else:
+                    data['values'] = ['0.0.0.0']
+                convert_value = \
+                        getattr(self, '_convert_value_{}'.format(_type))
                 for ruleset in rulesets:
                     try:
                         record_set = ruleset.response_pools[0].rs_chains[0] \
@@ -328,15 +343,17 @@ class DynProvider(BaseProvider):
                             code, _ = ruleset.label.split(':', 1)
                         except ValueError:
                             continue
-                        values = [r.address for r in record_set.records]
-                        geo[code] = values
+                        geo[code] = convert_value(record_set.records)
 
                 name = zone.hostname_from_fqdn(fqdn)
-                record = Record.new(zone, name, data, source=self)
+                record = Record.new(zone, name, data, source=self,
+                                    lenient=lenient)
                 zone.add_record(record)
                 td_records.add(record)
 
         return td_records
+
+
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
@@ -348,7 +365,7 @@ class DynProvider(BaseProvider):
 
         td_records = set()
         if self.traffic_directors_enabled:
-            td_records = self._populate_traffic_directors(zone)
+            td_records = self._populate_traffic_directors(zone, lenient=lenient)
 
         dyn_zone = _CachingDynZone.get(zone.name[:-1])
 
@@ -474,14 +491,16 @@ class DynProvider(BaseProvider):
             if pool.label != label:
                 continue
             records = pool.rs_chains[0].record_sets[0].records
-            record_values = sorted([r.address for r in records])
+            convert_value = getattr(self, '_convert_value_{}'.format(_type))
+            record_values = convert_value(records)
             if record_values == values:
                 # it's a match
                 return pool
         # we need to create the pool
         _class = {
             'A': DSFARecord,
-            'AAAA': DSFAAAARecord
+            'AAAA': DSFAAAARecord,
+            'CNAME': DSFCNAMERecord
         }[_type]
         records = [_class(v) for v in values]
         record_set = DSFRecordSet(_type, label, serve_count=len(records),
@@ -529,8 +548,12 @@ class DynProvider(BaseProvider):
         label = 'default:{}'.format(uuid4().hex)
         ruleset = DSFRuleset(label, 'always', [])
         ruleset.create(td, index=0)
+        try:
+            values = new.values
+        except AttributeError:
+            values = [new.value]
         pool = self._find_or_create_pool(td, pools, 'default', new._type,
-                                         new.values)
+                                         values)
         # There's no way in the client lib to create a ruleset with an existing
         # pool (ref'd by id) so we have to do this round-a-bout.
         active_pools = {
@@ -563,9 +586,13 @@ class DynProvider(BaseProvider):
             # Something you have to call create others the constructor does it
             ruleset.create(td, index=0)
 
-            first = geo.values[0]
+            try:
+                values = geo.values
+            except AttributeError:
+                values = [geo.value]
+            first = values[0]
             pool = self._find_or_create_pool(td, pools, first, new._type,
-                                             geo.values, monitor_id)
+                                             values, monitor_id)
             active_pools[geo.code] = pool.response_pool_id
             ruleset.add_response_pool(pool.response_pool_id)
 
