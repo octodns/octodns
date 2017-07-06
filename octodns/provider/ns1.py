@@ -42,8 +42,16 @@ class Ns1Provider(BaseProvider):
         }
 
     _data_for_AAAA = _data_for_A
-    _data_for_SPF = _data_for_A
-    _data_for_TXT = _data_for_A
+
+    def _data_for_SPF(self, _type, record):
+        values = [v.replace(';', '\;') for v in record['short_answers']]
+        return {
+            'ttl': record['ttl'],
+            'type': _type,
+            'values': values
+        }
+
+    _data_for_TXT = _data_for_SPF
 
     def _data_for_CNAME(self, _type, record):
         return {
@@ -141,8 +149,15 @@ class Ns1Provider(BaseProvider):
 
     _params_for_AAAA = _params_for_A
     _params_for_NS = _params_for_A
-    _params_for_SPF = _params_for_A
-    _params_for_TXT = _params_for_A
+
+    def _params_for_SPF(self, record):
+        # NS1 seems to be the only provider that doesn't want things escaped in
+        # values so we have to strip them here and add them when going the
+        # other way
+        values = [v.replace('\;', ';') for v in record.values]
+        return {'answers': values, 'ttl': record.ttl}
+
+    _params_for_TXT = _params_for_SPF
 
     def _params_for_CNAME(self, record):
         return {'answers': [record.value], 'ttl': record.ttl}
