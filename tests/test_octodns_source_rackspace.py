@@ -91,9 +91,9 @@ class TestRackspaceSource(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(14, len(zone.records))
+            self.assertEquals(5, len(zone.records))
             changes = expected.changes(zone, provider)
-            self.assertEquals(0, len(changes))
+            self.assertEquals(18, len(changes))
 
         # Used in a minute
         def assert_rrsets_callback(request, context):
@@ -103,7 +103,8 @@ class TestRackspaceSource(TestCase):
 
         # No existing records -> creates for every record in expected
         with requests_mock() as mock:
-            mock.get(ANY, status_code=200, text=EMPTY_TEXT)
+            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
+            mock.get(re.compile('records'), status_code=200, text=EMPTY_TEXT)
             # post 201, is reponse to the create with data
             mock.patch(ANY, status_code=201, text=assert_rrsets_callback)
 
