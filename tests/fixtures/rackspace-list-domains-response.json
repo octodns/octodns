@@ -58,7 +58,7 @@
     "accountId" : 1234,
     "created" : "2011-06-15T19:02:07.000+0000"
   }, {
-    "name" : "dnsaas.example",
+    "name" : "unit.tests",
     "id" : 2722347,
     "comment" : "Sample comment",
     "updated" : "2011-06-21T15:54:31.000+0000",

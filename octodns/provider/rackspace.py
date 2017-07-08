@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from requests import HTTPError, Session, post
 import json
+from collections import defaultdict
 import logging
 
 from ..record import Create, Record
@@ -46,10 +47,10 @@ class RackspaceProvider(BaseProvider):
         cloud_dns_endpoint = [x for x in ret.json()['access']['serviceCatalog'] if x['name'] == 'cloudDNS'][0]['endpoints'][0]['publicURL']
         return ret.json()['access']['token']['id'], cloud_dns_endpoint
 
-    def _get_zone_id_for(self, zone_name):
+    def _get_zone_id_for(self, zone):
         ret = self._request('GET', 'domains', pagination_key='domains')
-        if ret and 'name' in ret:
-            return [x for x in ret if x['name'] == zone_name][0]['id']
+        if ret:
+            return [x for x in ret if x['name'] == zone.name[:-1]][0]['id']
         else:
             return None
 
@@ -79,7 +80,8 @@ class RackspaceProvider(BaseProvider):
         next_page = [x for x in resp.json().get('links', []) if x['rel'] == 'next']
         if next_page:
             url = next_page[0]['href']
-            return acc.extend(self._paginated_request_for_url(method, url, data, pagination_key))
+            acc.extend(self._paginated_request_for_url(method, url, data, pagination_key))
+            return acc
         else:
             return acc
 
@@ -95,20 +97,27 @@ class RackspaceProvider(BaseProvider):
     def _data_for_multiple(self, rrset):
         # TODO: geo not supported
         return {
-            'type': rrset['type'],
-            'values': [r['content'] for r in rrset['records']],
-            'ttl': rrset['ttl']
+            'type': rrset[0]['type'],
+            'values': [r['data'] for r in rrset],
+            'ttl': rrset[0]['ttl']
         }
 
     _data_for_A = _data_for_multiple
     _data_for_AAAA = _data_for_multiple
-    _data_for_NS = _data_for_multiple
+
+    def _data_for_NS(self, rrset):
+        # TODO: geo not supported
+        return {
+            'type': rrset[0]['type'],
+            'values': ["{}.".format(r['data']) for r in rrset],
+            'ttl': rrset[0]['ttl']
+        }
 
     def _data_for_single(self, record):
         return {
-            'type': record['type'],
-            'value': record['data'],
-            'ttl': record['ttl']
+            'type': record[0]['type'],
+            'value': "{}.".format(record[0]['data']),
+            'ttl': record[0]['ttl']
         }
 
     _data_for_ALIAS = _data_for_single
@@ -127,16 +136,15 @@ class RackspaceProvider(BaseProvider):
 
     def _data_for_MX(self, rrset):
         values = []
-        for record in rrset['records']:
-            priority, value = record['content'].split(' ', 1)
+        for record in rrset:
             values.append({
-                'priority': priority,
-                'value': value,
+                'priority': record['priority'],
+                'value': record['data'],
             })
         return {
-            'type': rrset['type'],
+            'type': rrset[0]['type'],
             'values': values,
-            'ttl': rrset['ttl']
+            'ttl': rrset[0]['ttl']
         }
 
     def _data_for_NAPTR(self, rrset):
@@ -193,10 +201,10 @@ class RackspaceProvider(BaseProvider):
 
     def populate(self, zone, target=False):
         self.log.debug('populate: name=%s', zone.name)
-        resp = None
+        resp_data = None
         try:
-            domain_id = self._get_zone_id_for(zone.name)
-            resp = self._request('GET', '/domains/{}/records'.format(domain_id), pagination_key='records')
+            domain_id = self._get_zone_id_for(zone)
+            resp_data = self._request('GET', '/domains/{}/records'.format(domain_id), pagination_key='records')
             self.log.debug('populate:   loaded')
         except HTTPError as e:
             if e.response.status_code == 401:
@@ -213,19 +221,26 @@ class RackspaceProvider(BaseProvider):
 
         before = len(zone.records)
 
-        if resp:
-            for record in resp.json()['records']:
-                record_type = record['type']
-                if record_type == 'SOA':
-                    continue
-                data_for = getattr(self, '_data_for_{}'.format(record_type))
-                record_name = zone.hostname_from_fqdn(record['name'])
-                record = Record.new(zone, record_name, data_for(record),
-                                    source=self)
-                zone.add_record(record)
+        if resp_data:
+            records = self._group_records(resp_data)
+            for record_type, records_of_type in records.items():
+                for raw_record_name, record_set in records_of_type.items():
+                    if record_type == 'SOA':
+                        continue
+                    data_for = getattr(self, '_data_for_{}'.format(record_type))
+                    record_name = zone.hostname_from_fqdn(raw_record_name)
+                    record = Record.new(zone, record_name, data_for(record_set),
+                                        source=self)
+                    zone.add_record(record)
 
         self.log.info('populate:   found %s records',
                       len(zone.records) - before)
+
+    def _group_records(self, all_records):
+        records = defaultdict(lambda: defaultdict(list))
+        for record in all_records:
+            records[record['type']][record['name']].append(record)
+        return records
 
     def _records_for_multiple(self, record):
         return [{'content': v, 'disabled': False}
