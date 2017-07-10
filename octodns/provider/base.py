@@ -56,8 +56,8 @@ class Plan(object):
             delete_pcent = self.change_counts['Delete'] / existing_record_count
 
             if update_pcent > self.MAX_SAFE_UPDATE_PCENT:
-                raise UnsafePlan('Too many updates, %s is over %s percent'
-                                 '(%s/%s)',
+                raise UnsafePlan('Too many updates, {} is over {} percent'
+                                 '({}/{})'.format,
                                  update_pcent,
                                  self.MAX_SAFE_UPDATE_PCENT * 100,
                                  self.change_counts['Update'],
