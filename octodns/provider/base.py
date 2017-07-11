@@ -56,19 +56,19 @@ class Plan(object):
             delete_pcent = self.change_counts['Delete'] / existing_record_count
 
             if update_pcent > self.MAX_SAFE_UPDATE_PCENT:
-                raise UnsafePlan('Too many updates, %s is over %s percent'
-                                 '(%s/%s)',
-                                 update_pcent,
-                                 self.MAX_SAFE_UPDATE_PCENT * 100,
-                                 self.change_counts['Update'],
-                                 existing_record_count)
+                raise UnsafePlan('Too many updates, {} is over {} percent'
+                                 '({}/{})'.format(
+                                     update_pcent,
+                                     self.MAX_SAFE_UPDATE_PCENT * 100,
+                                     self.change_counts['Update'],
+                                     existing_record_count))
             if delete_pcent > self.MAX_SAFE_DELETE_PCENT:
-                raise UnsafePlan('Too many deletes, %s is over %s percent'
-                                 '(%s/%s)',
-                                 delete_pcent,
-                                 self.MAX_SAFE_DELETE_PCENT * 100,
-                                 self.change_counts['Delete'],
-                                 existing_record_count)
+                raise UnsafePlan('Too many deletes, {} is over {} percent'
+                                 '({}/{})'.format(
+                                     delete_pcent,
+                                     self.MAX_SAFE_DELETE_PCENT * 100,
+                                     self.change_counts['Delete'],
+                                     existing_record_count))
 
     def __repr__(self):
         return 'Creates={}, Updates={}, Deletes={}, Existing Records={}' \

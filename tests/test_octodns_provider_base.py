@@ -214,8 +214,10 @@ class TestBaseProvider(TestCase):
                    for i in range(int(Plan.MIN_EXISTING_RECORDS *
                                       Plan.MAX_SAFE_UPDATE_PCENT) + 1)]
 
-        with self.assertRaises(UnsafePlan):
+        with self.assertRaises(UnsafePlan) as ctx:
             Plan(zone, zone, changes).raise_if_unsafe()
+
+        self.assertTrue('Too many updates' in ctx.exception.message)
 
     def test_safe_updates_min_existing_pcent(self):
         # MAX_SAFE_UPDATE_PCENT is safe when more
@@ -260,8 +262,10 @@ class TestBaseProvider(TestCase):
                    for i in range(int(Plan.MIN_EXISTING_RECORDS *
                                       Plan.MAX_SAFE_DELETE_PCENT) + 1)]
 
-        with self.assertRaises(UnsafePlan):
+        with self.assertRaises(UnsafePlan) as ctx:
             Plan(zone, zone, changes).raise_if_unsafe()
+
+        self.assertTrue('Too many deletes' in ctx.exception.message)
 
     def test_safe_deletes_min_existing_pcent(self):
         # MAX_SAFE_DELETE_PCENT is safe when more
