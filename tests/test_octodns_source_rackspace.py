@@ -5,10 +5,11 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+import json
 import re
-from json import loads, dumps
 from os.path import dirname, join
 from unittest import TestCase
+from urlparse import urlparse
 
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
@@ -18,9 +19,11 @@ from octodns.provider.yaml import YamlProvider
 from octodns.record import Record
 from octodns.zone import Zone
 
+from pprint import pprint
+
 EMPTY_TEXT = '''
 {
-  "totalEntries" : 6,
+  "totalEntries" : 0,
   "records" : []
 }
 '''
@@ -37,51 +40,66 @@ with open('./tests/fixtures/rackspace-sample-recordset-page1.json') as fh:
 with open('./tests/fixtures/rackspace-sample-recordset-page2.json') as fh:
     RECORDS_PAGE_2 = fh.read()
 
-def load_provider():
-    with requests_mock() as mock:
-        mock.post(ANY, status_code=200, text=AUTH_RESPONSE)
-        return RackspaceProvider('test', 'api-key')
+with open('./tests/fixtures/rackspace-sample-recordset-existing-nameservers.json') as fh:
+    RECORDS_EXISTING_NAMESERVERS = fh.read()
 
+class TestRackspaceProvider(TestCase):
+    def setUp(self):
+        with requests_mock() as mock:
+            mock.post(ANY, status_code=200, text=AUTH_RESPONSE)
+            self.provider = RackspaceProvider('test', 'api-key')
+            self.assertTrue(mock.called_once)
 
-class TestRackspaceSource(TestCase):
-
-    def test_provider(self):
-        provider = load_provider()
-
-        # Bad auth
+    def test_bad_auth(self):
         with requests_mock() as mock:
             mock.get(ANY, status_code=401, text='Unauthorized')
 
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
-                provider.populate(zone)
+                self.provider.populate(zone)
             self.assertTrue('unauthorized' in ctx.exception.message)
+            self.assertTrue(mock.called_once)
 
-        # General error
+    def test_server_error(self):
         with requests_mock() as mock:
             mock.get(ANY, status_code=502, text='Things caught fire')
 
             with self.assertRaises(HTTPError) as ctx:
                 zone = Zone('unit.tests.', [])
-                provider.populate(zone)
+                self.provider.populate(zone)
             self.assertEquals(502, ctx.exception.response.status_code)
+            self.assertTrue(mock.called_once)
 
-        # Non-existant zone doesn't populate anything
+    def test_nonexistent_zone(self):
+        # Non-existent zone doesn't populate anything
         with requests_mock() as mock:
             mock.get(ANY, status_code=422,
                      json={'error': "Could not find domain 'unit.tests.'"})
 
             zone = Zone('unit.tests.', [])
-            provider.populate(zone)
+            self.provider.populate(zone)
             self.assertEquals(set(), zone.records)
+            self.assertTrue(mock.called_once)
 
-        # The rest of this is messy/complicated b/c it's dealing with mocking
+    def test_multipage_populate(self):
+        with requests_mock() as mock:
+            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
+            mock.get(re.compile('records'), status_code=200, text=RECORDS_PAGE_1)
+            mock.get(re.compile('records.*offset=3'), status_code=200, text=RECORDS_PAGE_2)
 
+            zone = Zone('unit.tests.', [])
+            self.provider.populate(zone)
+            self.assertEquals(5, len(zone.records))
+
+    def _load_full_config(self):
         expected = Zone('unit.tests.', [])
         source = YamlProvider('test', join(dirname(__file__), 'config'))
         source.populate(expected)
-        expected_n = len(expected.records) - 1
-        self.assertEquals(14, expected_n)
+        self.assertEquals(15, len(expected.records))
+        return expected
+
+    def test_changes_are_formatted_correctly(self):
+        expected = self._load_full_config()
 
         # No diffs == no changes
         with requests_mock() as mock:
@@ -90,10 +108,539 @@ class TestRackspaceSource(TestCase):
             mock.get(re.compile('records.*offset=3'), status_code=200, text=RECORDS_PAGE_2)
 
             zone = Zone('unit.tests.', [])
-            provider.populate(zone)
-            self.assertEquals(5, len(zone.records))
-            changes = expected.changes(zone, provider)
+            self.provider.populate(zone)
+            changes = expected.changes(zone, self.provider)
             self.assertEquals(18, len(changes))
+
+    def test_plan_disappearing_ns_records(self):
+        expected = Zone('unit.tests.', [])
+        expected.add_record(Record.new(expected, '', {
+            'type': 'NS',
+            'ttl': 600,
+            'values': ['8.8.8.8.', '9.9.9.9.']
+        }))
+        expected.add_record(Record.new(expected, 'sub', {
+            'type': 'NS',
+            'ttl': 600,
+            'values': ['8.8.8.8.', '9.9.9.9.']
+        }))
+        with requests_mock() as mock:
+            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
+            mock.get(re.compile('records'), status_code=200, text=EMPTY_TEXT)
+
+            plan = self.provider.plan(expected)
+            self.assertTrue(mock.called)
+
+            # OctoDNS does not propagate top-level NS records.
+            self.assertEquals(1, len(plan.changes))
+
+    def _test_apply_with_data(self, data):
+        expected = Zone('unit.tests.', [])
+        for record in data.OtherRecords:
+            expected.add_record(Record.new(expected, record['subdomain'], record['data']))
+
+        with requests_mock() as list_mock:
+            list_mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
+            list_mock.get(re.compile('records'), status_code=200, json=data.OwnRecords)
+            plan = self.provider.plan(expected)
+            self.assertTrue(list_mock.called)
+            if not data.ExpectChanges:
+                self.assertFalse(plan)
+                return
+
+        with requests_mock() as mock:
+            called = set()
+
+            def make_assert_sending_right_body(expected):
+                def _assert_sending_right_body(request, _context):
+                    called.add(request.method)
+                    if request.method != 'DELETE':
+                        self.assertEqual(request.headers['content-type'], 'application/json')
+                        self.assertDictEqual(expected, json.loads(request.body))
+                    else:
+                        parts = urlparse(request.url)
+                        self.assertEqual(expected, parts.query)
+                    return ''
+                return _assert_sending_right_body
+
+            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
+            mock.post(re.compile('domains/.*/records$'), status_code=202,
+                      text=make_assert_sending_right_body(data.ExpectedAdditions))
+            mock.delete(re.compile('domains/.*/records?.*'), status_code=202,
+                        text=make_assert_sending_right_body(data.ExpectedDeletions))
+            mock.put(re.compile('domains/.*/records$'), status_code=202,
+                     text=make_assert_sending_right_body(data.ExpectedUpdates))
+
+            self.provider.apply(plan)
+            self.assertTrue(data.ExpectedAdditions is None or "POST" in called)
+            self.assertTrue(data.ExpectedDeletions is None or "DELETE" in called)
+            self.assertTrue(data.ExpectedUpdates is None or "PUT" in called)
+
+    def test_apply_no_change_empty(self):
+        class TestData(object):
+            OtherRecords = []
+            OwnRecords = {
+                "totalEntries": 0,
+                "records": []
+            }
+            ExpectChanges = False
+            ExpectedAdditions = None
+            ExpectedDeletions = None
+            ExpectedUpdates = None
+        return self._test_apply_with_data(TestData)
+
+    def test_apply_no_change_a_records(self):
+        class TestData(object):
+            OtherRecords = [
+                {
+                    "subdomain": '',
+                    "data": {
+                        'type': 'A',
+                        'ttl': 60,
+                        'values': ['1.2.3.4', '1.2.3.5', '1.2.3.6']
+                    }
+                }
+            ]
+            OwnRecords = {
+                "totalEntries": 3,
+                "records": [{
+                    "name": "unit.tests.",
+                    "id": "A-111111",
+                    "type": "A",
+                    "data": "1.2.3.4",
+                    "ttl": 60
+                }, {
+                    "name": "unit.tests.",
+                    "id": "A-222222",
+                    "type": "A",
+                    "data": "1.2.3.5",
+                    "ttl": 60
+                }, {
+                    "name": "unit.tests.",
+                    "id": "A-333333",
+                    "type": "A",
+                    "data": "1.2.3.6",
+                    "ttl": 60
+                }]
+            }
+            ExpectChanges = False
+            ExpectedAdditions = None
+            ExpectedDeletions = None
+            ExpectedUpdates = None
+        return self._test_apply_with_data(TestData)
+
+    def test_apply_no_change_a_records_cross_zone(self):
+        class TestData(object):
+            OtherRecords = [
+                {
+                    "subdomain": 'foo',
+                    "data": {
+                        'type': 'A',
+                        'ttl': 60,
+                        'value': '1.2.3.4'
+                    }
+                },
+                {
+                    "subdomain": 'bar',
+                    "data": {
+                        'type': 'A',
+                        'ttl': 60,
+                        'value': '1.2.3.4'
+                    }
+                }
+            ]
+            OwnRecords = {
+                "totalEntries": 3,
+                "records": [{
+                    "name": "foo.unit.tests.",
+                    "id": "A-111111",
+                    "type": "A",
+                    "data": "1.2.3.4",
+                    "ttl": 60
+                }, {
+                    "name": "bar.unit.tests.",
+                    "id": "A-222222",
+                    "type": "A",
+                    "data": "1.2.3.4",
+                    "ttl": 60
+                }]
+            }
+            ExpectChanges = False
+            ExpectedAdditions = None
+            ExpectedDeletions = None
+            ExpectedUpdates = None
+        return self._test_apply_with_data(TestData)
+
+    def test_apply_one_addition(self):
+        class TestData(object):
+            OtherRecords = [
+                {
+                    "subdomain": '',
+                    "data": {
+                        'type': 'A',
+                        'ttl': 60,
+                        'value': '1.2.3.4'
+                    }
+                }
+            ]
+            OwnRecords = {
+                "totalEntries": 0,
+                "records": []
+            }
+            ExpectChanges = True
+            ExpectedAdditions = {
+                "records": [{
+                    "name": "unit.tests.",
+                    "type": "A",
+                    "data": "1.2.3.4",
+                    "ttl": 60
+                }]
+            }
+            ExpectedDeletions = None
+            ExpectedUpdates = None
+        return self._test_apply_with_data(TestData)
+
+    def test_apply_multiple_additions_exploding(self):
+        class TestData(object):
+            OtherRecords = [
+                {
+                    "subdomain": '',
+                    "data": {
+                        'type': 'A',
+                        'ttl': 60,
+                        'values': ['1.2.3.4', '1.2.3.5', '1.2.3.6']
+                    }
+                }
+            ]
+            OwnRecords = {
+                "totalEntries": 0,
+                "records": []
+            }
+            ExpectChanges = True
+            ExpectedAdditions = {
+                "records": [{
+                    "name": "unit.tests.",
+                    "type": "A",
+                    "data": "1.2.3.4",
+                    "ttl": 60
+                }, {
+                    "name": "unit.tests.",
+                    "type": "A",
+                    "data": "1.2.3.5",
+                    "ttl": 60
+                }, {
+                    "name": "unit.tests.",
+                    "type": "A",
+                    "data": "1.2.3.6",
+                    "ttl": 60
+                }]
+            }
+            ExpectedDeletions = None
+            ExpectedUpdates = None
+        return self._test_apply_with_data(TestData)
+
+    def test_apply_multiple_additions_namespaced(self):
+        class TestData(object):
+            OtherRecords = [{
+                    "subdomain": 'foo',
+                    "data": {
+                        'type': 'A',
+                        'ttl': 60,
+                        'value': '1.2.3.4'
+                    }
+                }, {
+                    "subdomain": 'bar',
+                    "data": {
+                        'type': 'A',
+                        'ttl': 60,
+                        'value': '1.2.3.4'
+                    }
+                }]
+            OwnRecords = {
+                "totalEntries": 0,
+                "records": []
+            }
+            ExpectChanges = True
+            ExpectedAdditions = {
+                "records": [{
+                    "name": "bar.unit.tests.",
+                    "type": "A",
+                    "data": "1.2.3.4",
+                    "ttl": 60
+                }, {
+                    "name": "foo.unit.tests.",
+                    "type": "A",
+                    "data": "1.2.3.4",
+                    "ttl": 60
+                }]
+            }
+            ExpectedDeletions = None
+            ExpectedUpdates = None
+        return self._test_apply_with_data(TestData)
+
+    def test_apply_single_deletion(self):
+        class TestData(object):
+            OtherRecords = []
+            OwnRecords = {
+                "totalEntries": 1,
+                "records": [{
+                    "name": "unit.tests.",
+                    "id": "A-111111",
+                    "type": "A",
+                    "data": "1.2.3.4",
+                    "ttl": 60
+                }]
+            }
+            ExpectChanges = True
+            ExpectedAdditions = None
+            ExpectedDeletions = "id=A-111111"
+            ExpectedUpdates = None
+        return self._test_apply_with_data(TestData)
+
+    def test_apply_multiple_deletions(self):
+        class TestData(object):
+            OtherRecords = [
+                {
+                    "subdomain": '',
+                    "data": {
+                        'type': 'A',
+                        'ttl': 60,
+                        'value': '1.2.3.5'
+                    }
+                }
+            ]
+            OwnRecords = {
+                "totalEntries": 3,
+                "records": [{
+                    "name": "unit.tests.",
+                    "id": "A-111111",
+                    "type": "A",
+                    "data": "1.2.3.4",
+                    "ttl": 60
+                }, {
+                    "name": "unit.tests.",
+                    "id": "A-222222",
+                    "type": "A",
+                    "data": "1.2.3.5",
+                    "ttl": 60
+                }, {
+                    "name": "unit.tests.",
+                    "id": "A-333333",
+                    "type": "A",
+                    "data": "1.2.3.6",
+                    "ttl": 60
+                }]
+            }
+            ExpectChanges = True
+            ExpectedAdditions = None
+            ExpectedDeletions = "id=A-111111&id=A-333333"
+            ExpectedUpdates = {
+                "records": [{
+                    "name": "unit.tests.",
+                    "id": "A-222222",
+                    "data": "1.2.3.5",
+                    "ttl": 60
+                }]
+            }
+        return self._test_apply_with_data(TestData)
+
+    def test_apply_multiple_deletions_cross_zone(self):
+        class TestData(object):
+            OtherRecords = [
+                {
+                    "subdomain": '',
+                    "data": {
+                        'type': 'A',
+                        'ttl': 60,
+                        'value': '1.2.3.4'
+                    }
+                }
+            ]
+            OwnRecords = {
+                "totalEntries": 3,
+                "records": [{
+                    "name": "unit.tests.",
+                    "id": "A-111111",
+                    "type": "A",
+                    "data": "1.2.3.4",
+                    "ttl": 60
+                }, {
+                    "name": "foo.unit.tests.",
+                    "id": "A-222222",
+                    "type": "A",
+                    "data": "1.2.3.5",
+                    "ttl": 60
+                }, {
+                    "name": "bar.unit.tests.",
+                    "id": "A-333333",
+                    "type": "A",
+                    "data": "1.2.3.6",
+                    "ttl": 60
+                }]
+            }
+            ExpectChanges = True
+            ExpectedAdditions = None
+            ExpectedDeletions = "id=A-222222&id=A-333333"
+            ExpectedUpdates = None
+        return self._test_apply_with_data(TestData)
+
+    def test_apply_single_update(self):
+        class TestData(object):
+            OtherRecords = [
+                {
+                    "subdomain": '',
+                    "data": {
+                        'type': 'A',
+                        'ttl': 3600,
+                        'value': '1.2.3.4'
+                    }
+                }
+            ]
+            OwnRecords = {
+                "totalEntries": 1,
+                "records": [{
+                    "name": "unit.tests.",
+                    "id": "A-111111",
+                    "type": "A",
+                    "data": "1.2.3.4",
+                    "ttl": 60
+                }]
+            }
+            ExpectChanges = True
+            ExpectedAdditions = None
+            ExpectedDeletions = None
+            ExpectedUpdates = {
+                "records": [{
+                    "name": "unit.tests.",
+                    "id": "A-111111",
+                    "data": "1.2.3.4",
+                    "ttl": 3600
+                }]
+            }
+        return self._test_apply_with_data(TestData)
+
+    def test_apply_multiple_updates(self):
+        class TestData(object):
+            OtherRecords = [
+                {
+                    "subdomain": '',
+                    "data": {
+                        'type': 'A',
+                        'ttl': 3600,
+                        'values': ['1.2.3.4', '1.2.3.5', '1.2.3.6']
+                    }
+                }
+            ]
+            OwnRecords = {
+                "totalEntries": 3,
+                "records": [{
+                    "name": "unit.tests.",
+                    "id": "A-111111",
+                    "type": "A",
+                    "data": "1.2.3.4",
+                    "ttl": 60
+                }, {
+                    "name": "unit.tests.",
+                    "id": "A-222222",
+                    "type": "A",
+                    "data": "1.2.3.5",
+                    "ttl": 60
+                }, {
+                    "name": "unit.tests.",
+                    "id": "A-333333",
+                    "type": "A",
+                    "data": "1.2.3.6",
+                    "ttl": 60
+                }]
+            }
+            ExpectChanges = True
+            ExpectedAdditions = None
+            ExpectedDeletions = None
+            ExpectedUpdates = {
+                "records": [{
+                    "name": "unit.tests.",
+                    "id": "A-111111",
+                    "data": "1.2.3.4",
+                    "ttl": 3600
+                }, {
+                    "name": "unit.tests.",
+                    "id": "A-222222",
+                    "data": "1.2.3.5",
+                    "ttl": 3600
+                }, {
+                    "name": "unit.tests.",
+                    "id": "A-333333",
+                    "data": "1.2.3.6",
+                    "ttl": 3600
+                }]
+            }
+        return self._test_apply_with_data(TestData)
+
+    def test_apply_multiple_updates_cross_zone(self):
+        class TestData(object):
+            OtherRecords = [
+                {
+                    "subdomain": 'foo',
+                    "data": {
+                        'type': 'A',
+                        'ttl': 3600,
+                        'value': '1.2.3.4'
+                    }
+                },
+                {
+                    "subdomain": 'bar',
+                    "data": {
+                        'type': 'A',
+                        'ttl': 3600,
+                        'value': '1.2.3.4'
+                    }
+                }
+            ]
+            OwnRecords = {
+                "totalEntries": 2,
+                "records": [{
+                    "name": "foo.unit.tests.",
+                    "id": "A-111111",
+                    "type": "A",
+                    "data": "1.2.3.4",
+                    "ttl": 60
+                }, {
+                    "name": "bar.unit.tests.",
+                    "id": "A-222222",
+                    "type": "A",
+                    "data": "1.2.3.4",
+                    "ttl": 60
+                }]
+            }
+            ExpectChanges = True
+            ExpectedAdditions = None
+            ExpectedDeletions = None
+            ExpectedUpdates = {
+                "records": [{
+                    "name": "bar.unit.tests.",
+                    "id": "A-222222",
+                    "data": "1.2.3.4",
+                    "ttl": 3600
+                }, {
+                    "name": "foo.unit.tests.",
+                    "id": "A-111111",
+                    "data": "1.2.3.4",
+                    "ttl": 3600
+                }]
+            }
+        return self._test_apply_with_data(TestData)
+
+    def test_provider(self):
+        expected = self._load_full_config()
+
+        # No existing records -> creates for every record in expected
+        with requests_mock() as mock:
+            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
+            mock.get(re.compile('records'), status_code=200, text=EMPTY_TEXT)
+
+            plan = self.provider.plan(expected)
+            self.assertTrue(mock.called)
+            self.assertEquals(len(expected.records), len(plan.changes))
 
         # Used in a minute
         def assert_rrsets_callback(request, context):
@@ -101,16 +648,11 @@ class TestRackspaceSource(TestCase):
             self.assertEquals(expected_n, len(data['rrsets']))
             return ''
 
-        # No existing records -> creates for every record in expected
         with requests_mock() as mock:
-            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
-            mock.get(re.compile('records'), status_code=200, text=EMPTY_TEXT)
-            # post 201, is reponse to the create with data
+            # post 201, is response to the create with data
             mock.patch(ANY, status_code=201, text=assert_rrsets_callback)
 
-            plan = provider.plan(expected)
-            self.assertEquals(expected_n, len(plan.changes))
-            self.assertEquals(expected_n, provider.apply(plan))
+            self.assertEquals(expected_n, self.provider.apply(plan))
 
         # Non-existent zone -> creates for every record in expected
         # OMG this is fucking ugly, probably better to ditch requests_mocks and
@@ -123,12 +665,12 @@ class TestRackspaceSource(TestCase):
             mock.get(ANY, status_code=422, text='')
             # patch 422's, unknown zone
             mock.patch(ANY, status_code=422, text=dumps(not_found))
-            # post 201, is reponse to the create with data
+            # post 201, is response to the create with data
             mock.post(ANY, status_code=201, text=assert_rrsets_callback)
 
-            plan = provider.plan(expected)
+            plan = self.provider.plan(expected)
             self.assertEquals(expected_n, len(plan.changes))
-            self.assertEquals(expected_n, provider.apply(plan))
+            self.assertEquals(expected_n, self.provider.apply(plan))
 
         with requests_mock() as mock:
             # get 422's, unknown zone
@@ -138,8 +680,8 @@ class TestRackspaceSource(TestCase):
             mock.patch(ANY, status_code=422, text=dumps(data))
 
             with self.assertRaises(HTTPError) as ctx:
-                plan = provider.plan(expected)
-                provider.apply(plan)
+                plan = self.provider.plan(expected)
+                self.provider.apply(plan)
             response = ctx.exception.response
             self.assertEquals(422, response.status_code)
             self.assertTrue('error' in response.json())
@@ -151,8 +693,8 @@ class TestRackspaceSource(TestCase):
             mock.patch(ANY, status_code=500, text='')
 
             with self.assertRaises(HTTPError):
-                plan = provider.plan(expected)
-                provider.apply(plan)
+                plan = self.provider.plan(expected)
+                self.provider.apply(plan)
 
         with requests_mock() as mock:
             # get 422's, unknown zone
@@ -163,133 +705,94 @@ class TestRackspaceSource(TestCase):
             mock.post(ANY, status_code=422, text='Hello Word!')
 
             with self.assertRaises(HTTPError):
-                plan = provider.plan(expected)
-                provider.apply(plan)
+                plan = self.provider.plan(expected)
+                self.provider.apply(plan)
 
-    def test_small_change(self):
-        provider = load_provider()
-
+    def test_plan_no_changes(self):
         expected = Zone('unit.tests.', [])
-        source = YamlProvider('test', join(dirname(__file__), 'config'))
-        source.populate(expected)
-        self.assertEquals(15, len(expected.records))
-
-        # A small change to a single record
-        with requests_mock() as mock:
-            mock.get(ANY, status_code=200, text=FULL_TEXT)
-
-            missing = Zone(expected.name, [])
-            # Find and delete the SPF record
-            for record in expected.records:
-                if record._type != 'SPF':
-                    missing.add_record(record)
-
-            def assert_delete_callback(request, context):
-                self.assertEquals({
-                    'rrsets': [{
-                        'records': [
-                            {'content': '"v=spf1 ip4:192.168.0.1/16-all"',
-                             'disabled': False}
-                        ],
-                        'changetype': 'DELETE',
-                        'type': 'SPF',
-                        'name': 'spf.unit.tests.',
-                        'ttl': 600
-                    }]
-                }, loads(request.body))
-                return ''
-
-            mock.patch(ANY, status_code=201, text=assert_delete_callback)
-
-            plan = provider.plan(missing)
-            self.assertEquals(1, len(plan.changes))
-            self.assertEquals(1, provider.apply(plan))
-
-    def test_existing_nameservers(self):
-        ns_values = ['8.8.8.8.', '9.9.9.9.']
-        provider = load_provider()
-
-        expected = Zone('unit.tests.', [])
-        ns_record = Record.new(expected, '', {
+        expected.add_record(Record.new(expected, '', {
             'type': 'NS',
             'ttl': 600,
-            'values': ns_values
-        })
-        expected.add_record(ns_record)
+            'values': ['8.8.8.8.', '9.9.9.9.']
+        }))
+        expected.add_record(Record.new(expected, '', {
+            'type': 'A',
+            'ttl': 60,
+            'value': '1.2.3.4'
+        }))
 
-        # no changes
         with requests_mock() as mock:
-            data = {
-                'rrsets': [{
-                    'comments': [],
-                    'name': 'unit.tests.',
-                    'records': [
-                        {
-                            'content': '8.8.8.8.',
-                            'disabled': False
-                        },
-                        {
-                            'content': '9.9.9.9.',
-                            'disabled': False
-                        }
-                    ],
-                    'ttl': 600,
-                    'type': 'NS'
-                }, {
-                    'comments': [],
-                    'name': 'unit.tests.',
-                    'records': [{
-                        'content': '1.2.3.4',
-                        'disabled': False,
-                    }],
-                    'ttl': 60,
-                    'type': 'A'
-                }]
-            }
-            mock.get(ANY, status_code=200, json=data)
+            mock.get(re.compile('domains/.*/records'), status_code=200, text=RECORDS_EXISTING_NAMESERVERS)
+            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
 
-            unrelated_record = Record.new(expected, '', {
-                'type': 'A',
-                'ttl': 60,
-                'value': '1.2.3.4'
-            })
-            expected.add_record(unrelated_record)
-            plan = provider.plan(expected)
+            plan = self.provider.plan(expected)
+
+            self.assertTrue(mock.called)
             self.assertFalse(plan)
-            # remove it now that we don't need the unrelated change any longer
-            expected.records.remove(unrelated_record)
 
-        # ttl diff
+    def test_plan_remove_a_record(self):
+        expected = Zone('unit.tests.', [])
+        expected.add_record(Record.new(expected, '', {
+            'type': 'NS',
+            'ttl': 600,
+            'values': ['8.8.8.8.', '9.9.9.9.']
+        }))
+
         with requests_mock() as mock:
-            data = {
-                'rrsets': [{
-                    'comments': [],
-                    'name': 'unit.tests.',
-                    'records': [
-                        {
-                            'content': '8.8.8.8.',
-                            'disabled': False
-                        },
-                        {
-                            'content': '9.9.9.9.',
-                            'disabled': False
-                        },
-                    ],
-                    'ttl': 3600,
-                    'type': 'NS'
-                }]
-            }
-            mock.get(ANY, status_code=200, json=data)
+            mock.get(re.compile('domains/.*/records'), status_code=200, text=RECORDS_EXISTING_NAMESERVERS)
+            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
 
-            plan = provider.plan(expected)
+            plan = self.provider.plan(expected)
+            self.assertTrue(mock.called)
             self.assertEquals(1, len(plan.changes))
+            self.assertEqual(plan.changes[0].existing.ttl, 60)
+            self.assertEqual(plan.changes[0].existing.values[0], '1.2.3.4')
 
-        # create
+    def test_plan_create_a_record(self):
+        expected = Zone('unit.tests.', [])
+        expected.add_record(Record.new(expected, '', {
+            'type': 'NS',
+            'ttl': 600,
+            'values': ['8.8.8.8.', '9.9.9.9.']
+        }))
+        expected.add_record(Record.new(expected, '', {
+            'type': 'A',
+            'ttl': 60,
+            'values': ['1.2.3.4', '1.2.3.5']
+        }))
+
         with requests_mock() as mock:
-            data = {
-                'rrsets': []
-            }
-            mock.get(ANY, status_code=200, json=data)
+            mock.get(re.compile('domains/.*/records'), status_code=200, text=RECORDS_EXISTING_NAMESERVERS)
+            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
 
-            plan = provider.plan(expected)
+            plan = self.provider.plan(expected)
+            self.assertTrue(mock.called)
             self.assertEquals(1, len(plan.changes))
+            self.assertEqual(plan.changes[0].new.ttl, 60)
+            self.assertEqual(plan.changes[0].new.values[0], '1.2.3.4')
+            self.assertEqual(plan.changes[0].new.values[1], '1.2.3.5')
+
+    def test_plan_change_ttl(self):
+        expected = Zone('unit.tests.', [])
+        expected.add_record(Record.new(expected, '', {
+            'type': 'NS',
+            'ttl': 600,
+            'values': ['8.8.8.8.', '9.9.9.9.']
+        }))
+        expected.add_record(Record.new(expected, '', {
+            'type': 'A',
+            'ttl': 86400,
+            'value': '1.2.3.4'
+        }))
+
+        with requests_mock() as mock:
+            mock.get(re.compile('domains/.*/records'), status_code=200, text=RECORDS_EXISTING_NAMESERVERS)
+            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
+
+            plan = self.provider.plan(expected)
+
+            self.assertTrue(mock.called)
+            self.assertEqual(1, len(plan.changes))
+            self.assertEqual(plan.changes[0].existing.ttl, 60)
+            self.assertEqual(plan.changes[0].new.ttl, 86400)
+            self.assertEqual(plan.changes[0].new.values[0], '1.2.3.4')

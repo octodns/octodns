@@ -1,13 +1,10 @@
 #
 #
 #
-
-
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from requests import HTTPError, Session, post
-import json
 from collections import defaultdict
 import logging
 
@@ -39,6 +36,10 @@ class RackspaceProvider(BaseProvider):
         sess = Session()
         sess.headers.update({'X-Auth-Token': auth_token})
         self._sess = sess
+
+        # Map record type, name, and data to an id when populating so that
+        # we can find the id for update and delete operations.
+        self._id_map = {}
 
     def _get_auth_token(self, username, api_key):
         ret = post('https://identity.api.rackspacecloud.com/v2.0/tokens',
@@ -91,8 +92,14 @@ class RackspaceProvider(BaseProvider):
     def _post(self, path, data=None):
         return self._request('POST', path, data=data)
 
+    def _put(self, path, data=None):
+        return self._request('PUT', path, data=data)
+
     def _patch(self, path, data=None):
         return self._request('PATCH', path, data=data)
+
+    def _delete(self, path, data=None):
+        return self._request('DELETE', path, data=data)
 
     def _data_for_multiple(self, rrset):
         # TODO: geo not supported
@@ -204,7 +211,7 @@ class RackspaceProvider(BaseProvider):
         resp_data = None
         try:
             domain_id = self._get_zone_id_for(zone)
-            resp_data = self._request('GET', '/domains/{}/records'.format(domain_id), pagination_key='records')
+            resp_data = self._request('GET', 'domains/{}/records'.format(domain_id), pagination_key='records')
             self.log.debug('populate:   loaded')
         except HTTPError as e:
             if e.response.status_code == 401:
@@ -224,9 +231,9 @@ class RackspaceProvider(BaseProvider):
         if resp_data:
             records = self._group_records(resp_data)
             for record_type, records_of_type in records.items():
+                if record_type == 'SOA':
+                    continue
                 for raw_record_name, record_set in records_of_type.items():
-                    if record_type == 'SOA':
-                        continue
                     data_for = getattr(self, '_data_for_{}'.format(record_type))
                     record_name = zone.hostname_from_fqdn(raw_record_name)
                     record = Record.new(zone, record_name, data_for(record_set),
@@ -239,6 +246,7 @@ class RackspaceProvider(BaseProvider):
     def _group_records(self, all_records):
         records = defaultdict(lambda: defaultdict(list))
         for record in all_records:
+            self._id_map[(record['type'], record['name'], record['data'])] = record['id']
             records[record['type']][record['name']].append(record)
         return records
 
@@ -294,61 +302,45 @@ class RackspaceProvider(BaseProvider):
         } for v in record.values]
 
     def _mod_Create(self, change):
-        new = change.new
-        records_for = getattr(self, '_records_for_{}'.format(new._type))
-        return {
-            'name': new.fqdn,
-            'type': new._type,
-            'ttl': new.ttl,
-            'changetype': 'REPLACE',
-            'records': records_for(new)
-        }
+        out = []
+        for value in change.new.values:
+            out.append({
+                'name': change.new.fqdn,
+                'type': change.new._type,
+                'data': value,
+                'ttl': change.new.ttl,
+            })
+        return out
 
-    _mod_Update = _mod_Create
+    def _mod_Update(self, change):
+        # A reduction in number of values in an update record needs
+        # to get upgraded into a Delete change for the removed values.
+        deleted_values = set(change.existing.values) - set(change.new.values)
+        delete_out = self._delete_given_change_values(change, deleted_values)
+
+        update_out = []
+        for value in change.new.values:
+            key = (change.existing._type, change.existing.fqdn, value)
+            rsid = self._id_map[key]
+            update_out.append({
+                'id': rsid,
+                'name': change.new.fqdn,
+                'data': value,
+                'ttl': change.new.ttl,
+            })
+        return update_out, delete_out
 
     def _mod_Delete(self, change):
-        existing = change.existing
-        records_for = getattr(self, '_records_for_{}'.format(existing._type))
-        return {
-            'name': existing.fqdn,
-            'type': existing._type,
-            'ttl': existing.ttl,
-            'changetype': 'DELETE',
-            'records': records_for(existing)
-        }
+        return self._delete_given_change_values(change, change.existing.values)
 
-    def _get_nameserver_record(self, existing):
-        return None
-
-    def _extra_changes(self, existing, _):
-        self.log.debug('_extra_changes: zone=%s', existing.name)
-
-        ns = self._get_nameserver_record(existing)
-        if not ns:
-            return []
-
-        # sorting mostly to make things deterministic for testing, but in
-        # theory it let us find what we're after quickier (though sorting would
-        # ve more exepensive.)
-        for record in sorted(existing.records):
-            if record == ns:
-                # We've found the top-level NS record, return any changes
-                change = record.changes(ns, self)
-                self.log.debug('_extra_changes:   change=%s', change)
-                if change:
-                    # We need to modify an existing record
-                    return [change]
-                # No change is necessary
-                return []
-        # No existing top-level NS
-        self.log.debug('_extra_changes:   create')
-        return [Create(ns)]
-
-    def _get_error(self, http_error):
-        try:
-            return http_error.response.json()['error']
-        except Exception:
-            return ''
+    def _delete_given_change_values(self, change, values):
+        out = []
+        for value in values:
+            key = (change.existing._type, change.existing.fqdn, value)
+            rsid = self._id_map[key]
+            out.append('id=' + rsid)
+            del self._id_map[key]
+        return out
 
     def _apply(self, plan):
         desired = plan.desired
@@ -356,46 +348,29 @@ class RackspaceProvider(BaseProvider):
         self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
                        len(changes))
 
-        mods = []
+        domain_id = self._get_zone_id_for(desired)
+        creates = []
+        updates = []
+        deletes = []
         for change in changes:
-            class_name = change.__class__.__name__
-            mods.append(getattr(self, '_mod_{}'.format(class_name))(change))
-        self.log.debug('_apply:   sending change request')
+            if change.__class__.__name__ == 'Create':
+                creates += self._mod_Create(change)
+            elif change.__class__.__name__ == 'Update':
+                add_updates, add_deletes = self._mod_Update(change)
+                updates += add_updates
+                deletes += add_deletes
+            elif change.__class__.__name__ == 'Delete':
+                deletes += self._mod_Delete(change)
 
-        try:
-            self._patch('zones/{}'.format(desired.name),
-                        data={'rrsets': mods})
-            self.log.debug('_apply:   patched')
-        except HTTPError as e:
-            error = self._get_error(e)
-            if e.response.status_code != 422 or \
-                    not error.startswith('Could not find domain '):
-                self.log.error('_apply:   status=%d, text=%s',
-                               e.response.status_code,
-                               e.response.text)
-                raise
-            self.log.info('_apply:   creating zone=%s', desired.name)
-            # 422 means powerdns doesn't know anything about the requsted
-            # domain. We'll try to create it with the correct records instead
-            # of update. Hopefully all the mods are creates :-)
-            data = {
-                'name': desired.name,
-                'kind': 'Master',
-                'masters': [],
-                'nameservers': [],
-                'rrsets': mods,
-                'soa_edit_api': 'INCEPTION-INCREMENT',
-                'serial': 0,
-            }
-            try:
-                self._post('zones', data)
-            except HTTPError as e:
-                self.log.error('_apply:   status=%d, text=%s',
-                               e.response.status_code,
-                               e.response.text)
-                raise
-            self.log.debug('_apply:   created')
+        if creates:
+            data = {"records": sorted(creates, key=lambda v: v['name'])}
+            self._post('domains/{}/records'.format(domain_id), data=data)
 
-        self.log.debug('_apply:   complete')
+        if updates:
+            data = {"records": sorted(updates, key=lambda v: v['name'])}
+            self._put('domains/{}/records'.format(domain_id), data=data)
 
+        if deletes:
+            params = "&".join(sorted(deletes))
+            self._delete('domains/{}/records?{}'.format(domain_id, params))
 
