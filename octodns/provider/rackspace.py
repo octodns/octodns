@@ -165,7 +165,7 @@ class RackspaceProvider(BaseProvider):
     def _data_for_quoted(self, rrset):
         return {
             'type': rrset[0]['type'],
-            'values': [strip_quotes(r['content']) for r in rrset[0]['records']],
+            'values': [strip_quotes(r['data']) for r in rrset],
             'ttl': rrset[0]['ttl']
         }
 
