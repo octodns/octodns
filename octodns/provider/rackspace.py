@@ -164,9 +164,9 @@ class RackspaceProvider(BaseProvider):
 
     def _data_for_quoted(self, rrset):
         return {
-            'type': rrset['type'],
-            'values': [strip_quotes(r['content']) for r in rrset['records']],
-            'ttl': rrset['ttl']
+            'type': rrset[0]['type'],
+            'values': [strip_quotes(r['content']) for r in rrset[0]['records']],
+            'ttl': rrset[0]['ttl']
         }
 
     _data_for_SPF = _data_for_quoted
