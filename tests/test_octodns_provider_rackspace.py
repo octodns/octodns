@@ -43,8 +43,10 @@ with open('./tests/fixtures/rackspace-sample-recordset-page2.json') as fh:
 with open('./tests/fixtures/rackspace-sample-recordset-existing-nameservers.json') as fh:
     RECORDS_EXISTING_NAMESERVERS = fh.read()
 
+
 class TestRackspaceProvider(TestCase):
     def setUp(self):
+        self.maxDiff = 1000
         with requests_mock() as mock:
             mock.post(ANY, status_code=200, text=AUTH_RESPONSE)
             self.provider = RackspaceProvider('test', 'api-key')
@@ -73,7 +75,7 @@ class TestRackspaceProvider(TestCase):
     def test_nonexistent_zone(self):
         # Non-existent zone doesn't populate anything
         with requests_mock() as mock:
-            mock.get(ANY, status_code=422,
+            mock.get(ANY, status_code=404,
                      json={'error': "Could not find domain 'unit.tests.'"})
 
             zone = Zone('unit.tests.', [])
@@ -196,7 +198,7 @@ class TestRackspaceProvider(TestCase):
                     "subdomain": '',
                     "data": {
                         'type': 'A',
-                        'ttl': 60,
+                        'ttl': 300,
                         'values': ['1.2.3.4', '1.2.3.5', '1.2.3.6']
                     }
                 }
@@ -208,19 +210,19 @@ class TestRackspaceProvider(TestCase):
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
-                    "ttl": 60
+                    "ttl": 300
                 }, {
                     "name": "unit.tests.",
                     "id": "A-222222",
                     "type": "A",
                     "data": "1.2.3.5",
-                    "ttl": 60
+                    "ttl": 300
                 }, {
                     "name": "unit.tests.",
                     "id": "A-333333",
                     "type": "A",
                     "data": "1.2.3.6",
-                    "ttl": 60
+                    "ttl": 300
                 }]
             }
             ExpectChanges = False
@@ -236,7 +238,7 @@ class TestRackspaceProvider(TestCase):
                     "subdomain": 'foo',
                     "data": {
                         'type': 'A',
-                        'ttl': 60,
+                        'ttl': 300,
                         'value': '1.2.3.4'
                     }
                 },
@@ -244,7 +246,7 @@ class TestRackspaceProvider(TestCase):
                     "subdomain": 'bar',
                     "data": {
                         'type': 'A',
-                        'ttl': 60,
+                        'ttl': 300,
                         'value': '1.2.3.4'
                     }
                 }
@@ -256,13 +258,13 @@ class TestRackspaceProvider(TestCase):
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
-                    "ttl": 60
+                    "ttl": 300
                 }, {
                     "name": "bar.unit.tests.",
                     "id": "A-222222",
                     "type": "A",
                     "data": "1.2.3.4",
-                    "ttl": 60
+                    "ttl": 300
                 }]
             }
             ExpectChanges = False
@@ -278,8 +280,16 @@ class TestRackspaceProvider(TestCase):
                     "subdomain": '',
                     "data": {
                         'type': 'A',
-                        'ttl': 60,
+                        'ttl': 300,
                         'value': '1.2.3.4'
+                    }
+                },
+                {
+                    "subdomain": 'foo',
+                    "data": {
+                        'type': 'NS',
+                        'ttl': 300,
+                        'value': 'ns.example.com.'
                     }
                 }
             ]
@@ -293,7 +303,12 @@ class TestRackspaceProvider(TestCase):
                     "name": "unit.tests.",
                     "type": "A",
                     "data": "1.2.3.4",
-                    "ttl": 60
+                    "ttl": 300
+                }, {
+                    "name": "foo.unit.tests.",
+                    "type": "NS",
+                    "data": "ns.example.com",
+                    "ttl": 300
                 }]
             }
             ExpectedDeletions = None
@@ -307,8 +322,16 @@ class TestRackspaceProvider(TestCase):
                     "subdomain": '',
                     "data": {
                         'type': 'A',
-                        'ttl': 60,
+                        'ttl': 300,
                         'values': ['1.2.3.4', '1.2.3.5', '1.2.3.6']
+                    }
+                },
+                {
+                    "subdomain": 'foo',
+                    "data": {
+                        'type': 'NS',
+                        'ttl': 300,
+                        'values': ['ns1.example.com.', 'ns2.example.com.']
                     }
                 }
             ]
@@ -322,17 +345,27 @@ class TestRackspaceProvider(TestCase):
                     "name": "unit.tests.",
                     "type": "A",
                     "data": "1.2.3.4",
-                    "ttl": 60
+                    "ttl": 300
                 }, {
                     "name": "unit.tests.",
                     "type": "A",
                     "data": "1.2.3.5",
-                    "ttl": 60
+                    "ttl": 300
                 }, {
                     "name": "unit.tests.",
                     "type": "A",
                     "data": "1.2.3.6",
-                    "ttl": 60
+                    "ttl": 300
+                }, {
+                    "name": "foo.unit.tests.",
+                    "type": "NS",
+                    "data": "ns1.example.com",
+                    "ttl": 300
+                }, {
+                    "name": "foo.unit.tests.",
+                    "type": "NS",
+                    "data": "ns2.example.com",
+                    "ttl": 300
                 }]
             }
             ExpectedDeletions = None
@@ -345,15 +378,23 @@ class TestRackspaceProvider(TestCase):
                     "subdomain": 'foo',
                     "data": {
                         'type': 'A',
-                        'ttl': 60,
+                        'ttl': 300,
                         'value': '1.2.3.4'
                     }
                 }, {
                     "subdomain": 'bar',
                     "data": {
                         'type': 'A',
-                        'ttl': 60,
+                        'ttl': 300,
                         'value': '1.2.3.4'
+                    }
+                },
+                {
+                    "subdomain": 'foo',
+                    "data": {
+                        'type': 'NS',
+                        'ttl': 300,
+                        'value': 'ns.example.com.'
                     }
                 }]
             OwnRecords = {
@@ -366,12 +407,17 @@ class TestRackspaceProvider(TestCase):
                     "name": "bar.unit.tests.",
                     "type": "A",
                     "data": "1.2.3.4",
-                    "ttl": 60
+                    "ttl": 300
                 }, {
                     "name": "foo.unit.tests.",
                     "type": "A",
                     "data": "1.2.3.4",
-                    "ttl": 60
+                    "ttl": 300
+                }, {
+                    "name": "foo.unit.tests.",
+                    "type": "NS",
+                    "data": "ns.example.com",
+                    "ttl": 300
                 }]
             }
             ExpectedDeletions = None
@@ -388,12 +434,18 @@ class TestRackspaceProvider(TestCase):
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
-                    "ttl": 60
+                    "ttl": 300
+                }, {
+                    "name": "foo.unit.tests.",
+                    "id": "NS-111111",
+                    "type": "NS",
+                    "data": "ns.example.com",
+                    "ttl": 300
                 }]
             }
             ExpectChanges = True
             ExpectedAdditions = None
-            ExpectedDeletions = "id=A-111111"
+            ExpectedDeletions = "id=A-111111&id=NS-111111"
             ExpectedUpdates = None
         return self._test_apply_with_data(TestData)
 
@@ -404,7 +456,7 @@ class TestRackspaceProvider(TestCase):
                     "subdomain": '',
                     "data": {
                         'type': 'A',
-                        'ttl': 60,
+                        'ttl': 300,
                         'value': '1.2.3.5'
                     }
                 }
@@ -416,30 +468,36 @@ class TestRackspaceProvider(TestCase):
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
-                    "ttl": 60
+                    "ttl": 300
                 }, {
                     "name": "unit.tests.",
                     "id": "A-222222",
                     "type": "A",
                     "data": "1.2.3.5",
-                    "ttl": 60
+                    "ttl": 300
                 }, {
                     "name": "unit.tests.",
                     "id": "A-333333",
                     "type": "A",
                     "data": "1.2.3.6",
-                    "ttl": 60
+                    "ttl": 300
+                }, {
+                    "name": "foo.unit.tests.",
+                    "id": "NS-111111",
+                    "type": "NS",
+                    "data": "ns.example.com",
+                    "ttl": 300
                 }]
             }
             ExpectChanges = True
             ExpectedAdditions = None
-            ExpectedDeletions = "id=A-111111&id=A-333333"
+            ExpectedDeletions = "id=A-111111&id=A-333333&id=NS-111111"
             ExpectedUpdates = {
                 "records": [{
                     "name": "unit.tests.",
                     "id": "A-222222",
                     "data": "1.2.3.5",
-                    "ttl": 60
+                    "ttl": 300
                 }]
             }
         return self._test_apply_with_data(TestData)
@@ -451,7 +509,7 @@ class TestRackspaceProvider(TestCase):
                     "subdomain": '',
                     "data": {
                         'type': 'A',
-                        'ttl': 60,
+                        'ttl': 300,
                         'value': '1.2.3.4'
                     }
                 }
@@ -463,19 +521,19 @@ class TestRackspaceProvider(TestCase):
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
-                    "ttl": 60
+                    "ttl": 300
                 }, {
                     "name": "foo.unit.tests.",
                     "id": "A-222222",
                     "type": "A",
                     "data": "1.2.3.5",
-                    "ttl": 60
+                    "ttl": 300
                 }, {
                     "name": "bar.unit.tests.",
                     "id": "A-333333",
                     "type": "A",
                     "data": "1.2.3.6",
-                    "ttl": 60
+                    "ttl": 300
                 }]
             }
             ExpectChanges = True
@@ -503,7 +561,7 @@ class TestRackspaceProvider(TestCase):
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
-                    "ttl": 60
+                    "ttl": 300
                 }]
             }
             ExpectChanges = True
@@ -538,19 +596,19 @@ class TestRackspaceProvider(TestCase):
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
-                    "ttl": 60
+                    "ttl": 300
                 }, {
                     "name": "unit.tests.",
                     "id": "A-222222",
                     "type": "A",
                     "data": "1.2.3.5",
-                    "ttl": 60
+                    "ttl": 300
                 }, {
                     "name": "unit.tests.",
                     "id": "A-333333",
                     "type": "A",
                     "data": "1.2.3.6",
-                    "ttl": 60
+                    "ttl": 300
                 }]
             }
             ExpectChanges = True
@@ -603,13 +661,13 @@ class TestRackspaceProvider(TestCase):
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
-                    "ttl": 60
+                    "ttl": 300
                 }, {
                     "name": "bar.unit.tests.",
                     "id": "A-222222",
                     "type": "A",
                     "data": "1.2.3.4",
-                    "ttl": 60
+                    "ttl": 300
                 }]
             }
             ExpectChanges = True
@@ -630,6 +688,7 @@ class TestRackspaceProvider(TestCase):
             }
         return self._test_apply_with_data(TestData)
 
+    """
     def test_provider(self):
         expected = self._load_full_config()
 
@@ -707,17 +766,18 @@ class TestRackspaceProvider(TestCase):
             with self.assertRaises(HTTPError):
                 plan = self.provider.plan(expected)
                 self.provider.apply(plan)
+    """
 
     def test_plan_no_changes(self):
         expected = Zone('unit.tests.', [])
         expected.add_record(Record.new(expected, '', {
             'type': 'NS',
             'ttl': 600,
-            'values': ['8.8.8.8.', '9.9.9.9.']
+            'values': ['ns1.example.com.', 'ns2.example.com.']
         }))
         expected.add_record(Record.new(expected, '', {
             'type': 'A',
-            'ttl': 60,
+            'ttl': 600,
             'value': '1.2.3.4'
         }))
 
@@ -735,7 +795,7 @@ class TestRackspaceProvider(TestCase):
         expected.add_record(Record.new(expected, '', {
             'type': 'NS',
             'ttl': 600,
-            'values': ['8.8.8.8.', '9.9.9.9.']
+            'values': ['ns1.example.com.', 'ns2.example.com.']
         }))
 
         with requests_mock() as mock:
@@ -745,7 +805,7 @@ class TestRackspaceProvider(TestCase):
             plan = self.provider.plan(expected)
             self.assertTrue(mock.called)
             self.assertEquals(1, len(plan.changes))
-            self.assertEqual(plan.changes[0].existing.ttl, 60)
+            self.assertEqual(plan.changes[0].existing.ttl, 600)
             self.assertEqual(plan.changes[0].existing.values[0], '1.2.3.4')
 
     def test_plan_create_a_record(self):
@@ -753,11 +813,11 @@ class TestRackspaceProvider(TestCase):
         expected.add_record(Record.new(expected, '', {
             'type': 'NS',
             'ttl': 600,
-            'values': ['8.8.8.8.', '9.9.9.9.']
+            'values': ['ns1.example.com.', 'ns2.example.com.']
         }))
         expected.add_record(Record.new(expected, '', {
             'type': 'A',
-            'ttl': 60,
+            'ttl': 600,
             'values': ['1.2.3.4', '1.2.3.5']
         }))
 
@@ -768,7 +828,7 @@ class TestRackspaceProvider(TestCase):
             plan = self.provider.plan(expected)
             self.assertTrue(mock.called)
             self.assertEquals(1, len(plan.changes))
-            self.assertEqual(plan.changes[0].new.ttl, 60)
+            self.assertEqual(plan.changes[0].new.ttl, 600)
             self.assertEqual(plan.changes[0].new.values[0], '1.2.3.4')
             self.assertEqual(plan.changes[0].new.values[1], '1.2.3.5')
 
@@ -777,7 +837,7 @@ class TestRackspaceProvider(TestCase):
         expected.add_record(Record.new(expected, '', {
             'type': 'NS',
             'ttl': 600,
-            'values': ['8.8.8.8.', '9.9.9.9.']
+            'values': ['ns1.example.com.', 'ns2.example.com.']
         }))
         expected.add_record(Record.new(expected, '', {
             'type': 'A',
@@ -793,6 +853,6 @@ class TestRackspaceProvider(TestCase):
 
             self.assertTrue(mock.called)
             self.assertEqual(1, len(plan.changes))
-            self.assertEqual(plan.changes[0].existing.ttl, 60)
+            self.assertEqual(plan.changes[0].existing.ttl, 600)
             self.assertEqual(plan.changes[0].new.ttl, 86400)
             self.assertEqual(plan.changes[0].new.values[0], '1.2.3.4')

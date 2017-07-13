@@ -12,6 +12,33 @@ from ..record import Create, Record
 from .base import BaseProvider
 
 
+def add_trailing_dot(s):
+    assert s
+    assert s[-1] != '.'
+    return s + '.'
+
+
+def remove_trailing_dot(s):
+    assert s
+    assert s[-1] == '.'
+    return s[:-1]
+
+
+def strip_quotes(s):
+    assert s
+    assert len(s) > 2
+    assert s[0] == '"'
+    assert s[-1] == '"'
+    return s[1:-1]
+
+
+def add_quotes(s):
+    assert s
+    assert s[0] != '"'
+    assert s[-1] != '"'
+    return '"{}"'.format(s)
+
+
 class RackspaceProvider(BaseProvider):
     SUPPORTS_GEO = False
     TIMEOUT = 5
@@ -101,6 +128,10 @@ class RackspaceProvider(BaseProvider):
     def _delete(self, path, data=None):
         return self._request('DELETE', path, data=data)
 
+    @staticmethod
+    def _key_for_record(rs_record):
+        return rs_record['type'], rs_record['name'], rs_record['data']
+
     def _data_for_multiple(self, rrset):
         # TODO: geo not supported
         return {
@@ -116,14 +147,14 @@ class RackspaceProvider(BaseProvider):
         # TODO: geo not supported
         return {
             'type': rrset[0]['type'],
-            'values': ["{}.".format(r['data']) for r in rrset],
+            'values': [add_trailing_dot(r['data']) for r in rrset],
             'ttl': rrset[0]['ttl']
         }
 
     def _data_for_single(self, record):
         return {
             'type': record[0]['type'],
-            'value': "{}.".format(record[0]['data']),
+            'value': add_trailing_dot(record[0]['data']),
             'ttl': record[0]['ttl']
         }
 
@@ -134,7 +165,7 @@ class RackspaceProvider(BaseProvider):
     def _data_for_quoted(self, rrset):
         return {
             'type': rrset['type'],
-            'values': [r['content'][1:-1] for r in rrset['records']],
+            'values': [strip_quotes(r['content']) for r in rrset['records']],
             'ttl': rrset['ttl']
         }
 
@@ -146,7 +177,7 @@ class RackspaceProvider(BaseProvider):
         for record in rrset:
             values.append({
                 'priority': record['priority'],
-                'value': record['data'],
+                'value': add_trailing_dot(record['data']),
             })
         return {
             'type': rrset[0]['type'],
@@ -155,56 +186,59 @@ class RackspaceProvider(BaseProvider):
         }
 
     def _data_for_NAPTR(self, rrset):
-        values = []
-        for record in rrset['records']:
-            order, preference, flags, service, regexp, replacement = \
-                record['content'].split(' ', 5)
-            values.append({
-                'order': order,
-                'preference': preference,
-                'flags': flags[1:-1],
-                'service': service[1:-1],
-                'regexp': regexp[1:-1],
-                'replacement': replacement,
-            })
-        return {
-            'type': rrset['type'],
-            'values': values,
-            'ttl': rrset['ttl']
-        }
+        raise NotImplementedError("Missing support for reading NAPTR records")
+        # values = []
+        # for record in rrset['records']:
+        #     order, preference, flags, service, regexp, replacement = \
+        #         record['content'].split(' ', 5)
+        #     values.append({
+        #         'order': order,
+        #         'preference': preference,
+        #         'flags': flags[1:-1],
+        #         'service': service[1:-1],
+        #         'regexp': regexp[1:-1],
+        #         'replacement': replacement,
+        #     })
+        # return {
+        #     'type': rrset['type'],
+        #     'values': values,
+        #     'ttl': rrset['ttl']
+        # }
 
     def _data_for_SSHFP(self, rrset):
-        values = []
-        for record in rrset['records']:
-            algorithm, fingerprint_type, fingerprint = \
-                record['content'].split(' ', 2)
-            values.append({
-                'algorithm': algorithm,
-                'fingerprint_type': fingerprint_type,
-                'fingerprint': fingerprint,
-            })
-        return {
-            'type': rrset['type'],
-            'values': values,
-            'ttl': rrset['ttl']
-        }
+        raise NotImplementedError("Missing support for reading SSHFP records")
+        # values = []
+        # for record in rrset['records']:
+        #     algorithm, fingerprint_type, fingerprint = \
+        #         record['content'].split(' ', 2)
+        #     values.append({
+        #         'algorithm': algorithm,
+        #         'fingerprint_type': fingerprint_type,
+        #         'fingerprint': fingerprint,
+        #     })
+        # return {
+        #     'type': rrset['type'],
+        #     'values': values,
+        #     'ttl': rrset['ttl']
+        # }
 
     def _data_for_SRV(self, rrset):
-        values = []
-        for record in rrset['records']:
-            priority, weight, port, target = \
-                record['content'].split(' ', 3)
-            values.append({
-                'priority': priority,
-                'weight': weight,
-                'port': port,
-                'target': target,
-            })
-        return {
-            'type': rrset['type'],
-            'values': values,
-            'ttl': rrset['ttl']
-        }
+        raise NotImplementedError("Missing support for reading SRV records")
+        # values = []
+        # for record in rrset['records']:
+        #     priority, weight, port, target = \
+        #         record['content'].split(' ', 3)
+        #     values.append({
+        #         'priority': priority,
+        #         'weight': weight,
+        #         'port': port,
+        #         'target': target,
+        #     })
+        # return {
+        #     'type': rrset['type'],
+        #     'values': values,
+        #     'ttl': rrset['ttl']
+        # }
 
     def populate(self, zone, target=False):
         self.log.debug('populate: name=%s', zone.name)
@@ -217,14 +251,10 @@ class RackspaceProvider(BaseProvider):
             if e.response.status_code == 401:
                 # Nicer error message for auth problems
                 raise Exception('Rackspace request unauthorized')
-            elif e.response.status_code == 422:
-                # 422 means powerdns doesn't know anything about the requsted
-                # domain. We'll just ignore it here and leave the zone
-                # untouched.
-                pass
-            else:
-                # just re-throw
-                raise
+            elif e.response.status_code == 404:
+                # Zone not found leaves the zone empty instead of failing.
+                return
+            raise
 
         before = len(zone.records)
 
@@ -246,70 +276,82 @@ class RackspaceProvider(BaseProvider):
     def _group_records(self, all_records):
         records = defaultdict(lambda: defaultdict(list))
         for record in all_records:
-            self._id_map[(record['type'], record['name'], record['data'])] = record['id']
+            self._id_map[self._key_for_record(record)] = record['id']
             records[record['type']][record['name']].append(record)
         return records
 
-    def _records_for_multiple(self, record):
-        return [{'content': v, 'disabled': False}
-                for v in record.values]
+    @staticmethod
+    def _record_for_ip(record, value):
+        return {
+            'name': record.fqdn,
+            'type': record._type,
+            'data': value,
+            'ttl': max(record.ttl, 300),
+        }
+    _record_for_A = _record_for_ip
+    _record_for_AAAA = _record_for_ip
 
-    _records_for_A = _records_for_multiple
-    _records_for_AAAA = _records_for_multiple
-    _records_for_NS = _records_for_multiple
+    @staticmethod
+    def _record_for_named(record, value):
+        return {
+            'name': record.fqdn,
+            'type': record._type,
+            'data': remove_trailing_dot(value),
+            'ttl': max(record.ttl, 300),
+        }
+    _record_for_NS = _record_for_named
+    _record_for_ALIAS = _record_for_named
+    _record_for_CNAME = _record_for_named
+    _record_for_PTR = _record_for_named
 
-    def _records_for_single(self, record):
-        return [{'content': record.value, 'disabled': False}]
+    @staticmethod
+    def _record_for_quoted(record, value):
+        return {
+            'name': record.fqdn,
+            'type': record._type,
+            'data': add_quotes(value),
+            'ttl': max(record.ttl, 300),
+        }
+    _record_for_SPF = _record_for_quoted
+    _record_for_TXT = _record_for_quoted
 
-    _records_for_ALIAS = _records_for_single
-    _records_for_CNAME = _records_for_single
-    _records_for_PTR = _records_for_single
+    @staticmethod
+    def _record_for_MX(record, value):
+        return {
+            'name': record.fqdn,
+            'type': record._type,
+            'data': remove_trailing_dot(value),
+            'ttl': max(record.ttl, 300),
+            'priority': record.priority
+        }
 
-    def _records_for_quoted(self, record):
-        return [{'content': '"{}"'.format(v), 'disabled': False}
-                for v in record.values]
+    @staticmethod
+    def _record_for_SRV(record, value):
+        raise NotImplementedError("Missing support for writing SRV records")
 
-    _records_for_SPF = _records_for_quoted
-    _records_for_TXT = _records_for_quoted
+    def _record_for_NAPTR(self, record):
+        raise NotImplementedError("Missing support for writing NAPTR records")
+        # return [{
+        #     'content': '{} {} "{}" "{}" "{}" {}'.format(v.order, v.preference,
+        #                                                 v.flags, v.service,
+        #                                                 v.regexp,
+        #                                                 v.replacement),
+        #     'disabled': False
+        # } for v in record.values]
 
-    def _records_for_MX(self, record):
-        return [{
-            'content': '{} {}'.format(v.priority, v.value),
-            'disabled': False
-        } for v in record.values]
-
-    def _records_for_NAPTR(self, record):
-        return [{
-            'content': '{} {} "{}" "{}" "{}" {}'.format(v.order, v.preference,
-                                                        v.flags, v.service,
-                                                        v.regexp,
-                                                        v.replacement),
-            'disabled': False
-        } for v in record.values]
-
-    def _records_for_SSHFP(self, record):
-        return [{
-            'content': '{} {} {}'.format(v.algorithm, v.fingerprint_type,
-                                         v.fingerprint),
-            'disabled': False
-        } for v in record.values]
-
-    def _records_for_SRV(self, record):
-        return [{
-            'content': '{} {} {} {}'.format(v.priority, v.weight, v.port,
-                                            v.target),
-            'disabled': False
-        } for v in record.values]
+    def _record_for_SSHFP(self, record):
+        raise NotImplementedError("Missing support for writing SSHFP records")
+        # return [{
+        #     'content': '{} {} {}'.format(v.algorithm, v.fingerprint_type,
+        #                                  v.fingerprint),
+        #     'disabled': False
+        # } for v in record.values]
 
     def _mod_Create(self, change):
         out = []
         for value in change.new.values:
-            out.append({
-                'name': change.new.fqdn,
-                'type': change.new._type,
-                'data': value,
-                'ttl': change.new.ttl,
-            })
+            transformer = getattr(self, "_record_for_{}".format(change.new._type))
+            out.append(transformer(change.new, value))
         return out
 
     def _mod_Update(self, change):
@@ -320,14 +362,16 @@ class RackspaceProvider(BaseProvider):
 
         update_out = []
         for value in change.new.values:
-            key = (change.existing._type, change.existing.fqdn, value)
-            rsid = self._id_map[key]
-            update_out.append({
-                'id': rsid,
-                'name': change.new.fqdn,
-                'data': value,
-                'ttl': change.new.ttl,
-            })
+            transformer = getattr(self, "_record_for_{}".format(change.new._type))
+            prior_rs_record = transformer(change.existing, value)
+            prior_key = self._key_for_record(prior_rs_record)
+            next_rs_record = transformer(change.new, value)
+            next_key = self._key_for_record(prior_rs_record)
+            next_rs_record["id"] = self._id_map[prior_key]
+            del next_rs_record["type"]
+            update_out.append(next_rs_record)
+            self._id_map[next_key] = self._id_map[prior_key]
+            del self._id_map[prior_key]
         return update_out, delete_out
 
     def _mod_Delete(self, change):
@@ -336,9 +380,10 @@ class RackspaceProvider(BaseProvider):
     def _delete_given_change_values(self, change, values):
         out = []
         for value in values:
-            key = (change.existing._type, change.existing.fqdn, value)
-            rsid = self._id_map[key]
-            out.append('id=' + rsid)
+            transformer = getattr(self, "_record_for_{}".format(change.existing._type))
+            rs_record = transformer(change.existing, value)
+            key = self._key_for_record(rs_record)
+            out.append('id=' + self._id_map[key])
             del self._id_map[key]
         return out
 
@@ -363,7 +408,7 @@ class RackspaceProvider(BaseProvider):
                 deletes += self._mod_Delete(change)
 
         if creates:
-            data = {"records": sorted(creates, key=lambda v: v['name'])}
+            data = {"records": sorted(creates, key=lambda v: v['type'] + v['name'] + v.get('data', ''))}
             self._post('domains/{}/records'.format(domain_id), data=data)
 
         if updates:
