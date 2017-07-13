@@ -49,7 +49,7 @@ class TestRackspaceProvider(TestCase):
         self.maxDiff = 1000
         with requests_mock() as mock:
             mock.post(ANY, status_code=200, text=AUTH_RESPONSE)
-            self.provider = RackspaceProvider('test', 'api-key')
+            self.provider = RackspaceProvider(id, 'test', 'api-key')
             self.assertTrue(mock.called_once)
 
     def test_bad_auth(self):

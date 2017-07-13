@@ -43,7 +43,7 @@ class RackspaceProvider(BaseProvider):
     SUPPORTS_GEO = False
     TIMEOUT = 5
 
-    def __init__(self, username, api_key, *args, **kwargs):
+    def __init__(self, id, username, api_key, *args, **kwargs):
         '''
         Rackspace API v1 Provider
 
