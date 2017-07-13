@@ -162,15 +162,15 @@ class RackspaceProvider(BaseProvider):
     _data_for_CNAME = _data_for_single
     _data_for_PTR = _data_for_single
 
-    def _data_for_quoted(self, rrset):
-        return {
-            'type': rrset[0]['type'],
-            'values': [strip_quotes(r['data']) for r in rrset],
-            'ttl': rrset[0]['ttl']
-        }
+    # def _data_for_quoted(self, rrset):
+    #     return {
+    #         'type': rrset[0]['type'],
+    #         'values': [strip_quotes(r['data']) for r in rrset],
+    #         'ttl': rrset[0]['ttl']
+    #     }
 
-    _data_for_SPF = _data_for_quoted
-    _data_for_TXT = _data_for_quoted
+    _data_for_SPF = _data_for_multiple
+    _data_for_TXT = _data_for_multiple
 
     def _data_for_MX(self, rrset):
         values = []
@@ -281,15 +281,15 @@ class RackspaceProvider(BaseProvider):
         return records
 
     @staticmethod
-    def _record_for_ip(record, value):
+    def _record_for_single(record, value):
         return {
             'name': record.fqdn,
             'type': record._type,
             'data': value,
             'ttl': max(record.ttl, 300),
         }
-    _record_for_A = _record_for_ip
-    _record_for_AAAA = _record_for_ip
+    _record_for_A = _record_for_single
+    _record_for_AAAA = _record_for_single
 
     @staticmethod
     def _record_for_named(record, value):
@@ -304,16 +304,17 @@ class RackspaceProvider(BaseProvider):
     _record_for_CNAME = _record_for_named
     _record_for_PTR = _record_for_named
 
-    @staticmethod
-    def _record_for_quoted(record, value):
-        return {
-            'name': record.fqdn,
-            'type': record._type,
-            'data': add_quotes(value),
-            'ttl': max(record.ttl, 300),
-        }
-    _record_for_SPF = _record_for_quoted
-    _record_for_TXT = _record_for_quoted
+    # @staticmethod
+    # def _record_for_quoted(record, value):
+    #     return {
+    #         'name': record.fqdn,
+    #         'type': record._type,
+    #         'data': add_quotes(value),
+    #         'ttl': max(record.ttl, 300),
+    #     }
+
+    _record_for_SPF = _record_for_single
+    _record_for_TXT = _record_for_single
 
     @staticmethod
     def _record_for_MX(record, value):
