@@ -377,7 +377,7 @@ class RackspaceProvider(BaseProvider):
             prior_rs_record = transformer(change.existing, value)
             prior_key = self._key_for_record(prior_rs_record)
             next_rs_record = transformer(change.new, value)
-            next_key = self._key_for_record(prior_rs_record)
+            next_key = self._key_for_record(next_rs_record)
             next_rs_record["id"] = self._id_map[prior_key]
             del next_rs_record["type"]
             update_out.append(next_rs_record)
