@@ -136,6 +136,33 @@ class TestRackspaceProvider(TestCase):
             # OctoDNS does not propagate top-level NS records.
             self.assertEquals(1, len(plan.changes))
 
+    def test_fqdn_a_record(self):
+        expected = Zone('example.com.', [])
+        # expected.add_record(Record.new(expected, 'foo', '1.2.3.4'))
+
+        with requests_mock() as list_mock:
+            list_mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
+            list_mock.get(re.compile('records'), status_code=200, json={'records': [
+                {'type': 'A',
+                 'name': 'foo.example.com',
+                 'id': 'A-111111',
+                 'data': '1.2.3.4',
+                 'ttl': 300}]})
+            plan = self.provider.plan(expected)
+            self.assertTrue(list_mock.called)
+            self.assertEqual(1, len(plan.changes))
+            self.assertTrue(plan.changes[0].existing.fqdn == 'foo.example.com.')
+
+        with requests_mock() as mock:
+            def _assert_deleting(request, context):
+                parts = urlparse(request.url)
+                self.assertEqual('id=A-111111', parts.query)
+            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
+            mock.delete(re.compile('domains/.*/records?.*'), status_code=202,
+                        text=_assert_deleting)
+            self.provider.apply(plan)
+            self.assertTrue(mock.called)
+
     def _test_apply_with_data(self, data):
         expected = Zone('unit.tests.', [])
         for record in data.OtherRecords:

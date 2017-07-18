@@ -294,7 +294,7 @@ class RackspaceProvider(BaseProvider):
     @staticmethod
     def _record_for_single(record, value):
         return {
-            'name': record.fqdn,
+            'name': remove_trailing_dot(record.fqdn),
             'type': record._type,
             'data': value,
             'ttl': max(record.ttl, 300),
