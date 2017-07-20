@@ -72,7 +72,7 @@ class RackspaceProvider(BaseProvider):
         auth_token, dns_endpoint = self._get_auth_token(username, api_key)
         self.dns_endpoint = dns_endpoint
 
-        self.ratelimit_delay = ratelimit_delay
+        self.ratelimit_delay = float(ratelimit_delay)
 
         sess = Session()
         sess.headers.update({'X-Auth-Token': auth_token})
