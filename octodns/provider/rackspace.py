@@ -8,6 +8,7 @@ from requests import HTTPError, Session, post
 from collections import defaultdict
 import logging
 import string
+import time
 
 from ..record import Create, Record
 from .base import BaseProvider
@@ -71,6 +72,8 @@ class RackspaceProvider(BaseProvider):
         auth_token, dns_endpoint = self._get_auth_token(username, api_key)
         self.dns_endpoint = dns_endpoint
 
+        self.ratelimit_delay = kwargs.get('ratelimit_delay', 0)
+
         sess = Session()
         sess.headers.update({'X-Auth-Token': auth_token})
         self._sess = sess
@@ -88,6 +91,7 @@ class RackspaceProvider(BaseProvider):
 
     def _get_zone_id_for(self, zone):
         ret = self._request('GET', 'domains', pagination_key='domains')
+        time.sleep(self.ratelimit_delay)
         if ret:
             return [x for x in ret if x['name'] == zone.name[:-1]][0]['id']
         else:
@@ -104,6 +108,7 @@ class RackspaceProvider(BaseProvider):
 
     def _request_for_url(self, method, url, data):
         resp = self._sess.request(method, url, json=data, timeout=self.TIMEOUT)
+        time.sleep(self.ratelimit_delay)
         self.log.debug('_request:   status=%d', resp.status_code)
         resp.raise_for_status()
         return resp
@@ -112,6 +117,7 @@ class RackspaceProvider(BaseProvider):
         acc = []
 
         resp = self._sess.request(method, url, json=data, timeout=self.TIMEOUT)
+        time.sleep(self.ratelimit_delay)
         self.log.debug('_request:   status=%d', resp.status_code)
         resp.raise_for_status()
         acc.extend(resp.json()[pagination_key])
