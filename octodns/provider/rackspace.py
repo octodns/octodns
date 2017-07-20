@@ -55,7 +55,7 @@ class RackspaceProvider(BaseProvider):
     SUPPORTS_GEO = False
     TIMEOUT = 5
 
-    def __init__(self, id, username, api_key, *args, **kwargs):
+    def __init__(self, id, username, api_key, ratelimit_delay, *args, **kwargs):
         '''
         Rackspace API v1 Provider
 
@@ -72,7 +72,7 @@ class RackspaceProvider(BaseProvider):
         auth_token, dns_endpoint = self._get_auth_token(username, api_key)
         self.dns_endpoint = dns_endpoint
 
-        self.ratelimit_delay = kwargs.get('ratelimit_delay', 0)
+        self.ratelimit_delay = ratelimit_delay
 
         sess = Session()
         sess.headers.update({'X-Auth-Token': auth_token})
