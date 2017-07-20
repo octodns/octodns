@@ -311,7 +311,7 @@ class RackspaceProvider(BaseProvider):
     @staticmethod
     def _record_for_named(record, value):
         return {
-            'name': record.fqdn,
+            'name': remove_trailing_dot(record.fqdn),
             'type': record._type,
             'data': remove_trailing_dot(value),
             'ttl': max(record.ttl, 300),
@@ -324,7 +324,7 @@ class RackspaceProvider(BaseProvider):
     @staticmethod
     def _record_for_textual(record, value):
         return {
-            'name': record.fqdn,
+            'name': remove_trailing_dot(record.fqdn),
             'type': record._type,
             'data': unescape_semicolon(value),
             'ttl': max(record.ttl, 300),
@@ -335,7 +335,7 @@ class RackspaceProvider(BaseProvider):
     @staticmethod
     def _record_for_MX(record, value):
         return {
-            'name': record.fqdn,
+            'name': remove_trailing_dot(record.fqdn),
             'type': record._type,
             'data': remove_trailing_dot(value),
             'ttl': max(record.ttl, 300),

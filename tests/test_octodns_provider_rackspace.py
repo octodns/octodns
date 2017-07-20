@@ -49,7 +49,7 @@ class TestRackspaceProvider(TestCase):
         self.maxDiff = 1000
         with requests_mock() as mock:
             mock.post(ANY, status_code=200, text=AUTH_RESPONSE)
-            self.provider = RackspaceProvider(id, 'test', 'api-key')
+            self.provider = RackspaceProvider(id, 'test', 'api-key', '0')
             self.assertTrue(mock.called_once)
 
     def test_bad_auth(self):
@@ -233,19 +233,19 @@ class TestRackspaceProvider(TestCase):
             OwnRecords = {
                 "totalEntries": 3,
                 "records": [{
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
                     "ttl": 300
                 }, {
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-222222",
                     "type": "A",
                     "data": "1.2.3.5",
                     "ttl": 300
                 }, {
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-333333",
                     "type": "A",
                     "data": "1.2.3.6",
@@ -281,13 +281,13 @@ class TestRackspaceProvider(TestCase):
             OwnRecords = {
                 "totalEntries": 3,
                 "records": [{
-                    "name": "foo.unit.tests.",
+                    "name": "foo.unit.tests",
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
                     "ttl": 300
                 }, {
-                    "name": "bar.unit.tests.",
+                    "name": "bar.unit.tests",
                     "id": "A-222222",
                     "type": "A",
                     "data": "1.2.3.4",
@@ -327,12 +327,12 @@ class TestRackspaceProvider(TestCase):
             ExpectChanges = True
             ExpectedAdditions = {
                 "records": [{
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "type": "A",
                     "data": "1.2.3.4",
                     "ttl": 300
                 }, {
-                    "name": "foo.unit.tests.",
+                    "name": "foo.unit.tests",
                     "type": "NS",
                     "data": "ns.example.com",
                     "ttl": 300
@@ -369,27 +369,27 @@ class TestRackspaceProvider(TestCase):
             ExpectChanges = True
             ExpectedAdditions = {
                 "records": [{
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "type": "A",
                     "data": "1.2.3.4",
                     "ttl": 300
                 }, {
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "type": "A",
                     "data": "1.2.3.5",
                     "ttl": 300
                 }, {
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "type": "A",
                     "data": "1.2.3.6",
                     "ttl": 300
                 }, {
-                    "name": "foo.unit.tests.",
+                    "name": "foo.unit.tests",
                     "type": "NS",
                     "data": "ns1.example.com",
                     "ttl": 300
                 }, {
-                    "name": "foo.unit.tests.",
+                    "name": "foo.unit.tests",
                     "type": "NS",
                     "data": "ns2.example.com",
                     "ttl": 300
@@ -431,17 +431,17 @@ class TestRackspaceProvider(TestCase):
             ExpectChanges = True
             ExpectedAdditions = {
                 "records": [{
-                    "name": "bar.unit.tests.",
+                    "name": "bar.unit.tests",
                     "type": "A",
                     "data": "1.2.3.4",
                     "ttl": 300
                 }, {
-                    "name": "foo.unit.tests.",
+                    "name": "foo.unit.tests",
                     "type": "A",
                     "data": "1.2.3.4",
                     "ttl": 300
                 }, {
-                    "name": "foo.unit.tests.",
+                    "name": "foo.unit.tests",
                     "type": "NS",
                     "data": "ns.example.com",
                     "ttl": 300
@@ -457,13 +457,13 @@ class TestRackspaceProvider(TestCase):
             OwnRecords = {
                 "totalEntries": 1,
                 "records": [{
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
                     "ttl": 300
                 }, {
-                    "name": "foo.unit.tests.",
+                    "name": "foo.unit.tests",
                     "id": "NS-111111",
                     "type": "NS",
                     "data": "ns.example.com",
@@ -491,25 +491,25 @@ class TestRackspaceProvider(TestCase):
             OwnRecords = {
                 "totalEntries": 3,
                 "records": [{
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
                     "ttl": 300
                 }, {
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-222222",
                     "type": "A",
                     "data": "1.2.3.5",
                     "ttl": 300
                 }, {
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-333333",
                     "type": "A",
                     "data": "1.2.3.6",
                     "ttl": 300
                 }, {
-                    "name": "foo.unit.tests.",
+                    "name": "foo.unit.tests",
                     "id": "NS-111111",
                     "type": "NS",
                     "data": "ns.example.com",
@@ -521,7 +521,7 @@ class TestRackspaceProvider(TestCase):
             ExpectedDeletions = "id=A-111111&id=A-333333&id=NS-111111"
             ExpectedUpdates = {
                 "records": [{
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-222222",
                     "data": "1.2.3.5",
                     "ttl": 300
@@ -544,19 +544,19 @@ class TestRackspaceProvider(TestCase):
             OwnRecords = {
                 "totalEntries": 3,
                 "records": [{
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
                     "ttl": 300
                 }, {
-                    "name": "foo.unit.tests.",
+                    "name": "foo.unit.tests",
                     "id": "A-222222",
                     "type": "A",
                     "data": "1.2.3.5",
                     "ttl": 300
                 }, {
-                    "name": "bar.unit.tests.",
+                    "name": "bar.unit.tests",
                     "id": "A-333333",
                     "type": "A",
                     "data": "1.2.3.6",
@@ -584,7 +584,7 @@ class TestRackspaceProvider(TestCase):
             OwnRecords = {
                 "totalEntries": 1,
                 "records": [{
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
@@ -596,7 +596,7 @@ class TestRackspaceProvider(TestCase):
             ExpectedDeletions = None
             ExpectedUpdates = {
                 "records": [{
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-111111",
                     "data": "1.2.3.4",
                     "ttl": 3600
@@ -619,19 +619,19 @@ class TestRackspaceProvider(TestCase):
             OwnRecords = {
                 "totalEntries": 3,
                 "records": [{
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
                     "ttl": 300
                 }, {
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-222222",
                     "type": "A",
                     "data": "1.2.3.5",
                     "ttl": 300
                 }, {
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-333333",
                     "type": "A",
                     "data": "1.2.3.6",
@@ -643,17 +643,17 @@ class TestRackspaceProvider(TestCase):
             ExpectedDeletions = None
             ExpectedUpdates = {
                 "records": [{
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-111111",
                     "data": "1.2.3.4",
                     "ttl": 3600
                 }, {
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-222222",
                     "data": "1.2.3.5",
                     "ttl": 3600
                 }, {
-                    "name": "unit.tests.",
+                    "name": "unit.tests",
                     "id": "A-333333",
                     "data": "1.2.3.6",
                     "ttl": 3600
@@ -684,13 +684,13 @@ class TestRackspaceProvider(TestCase):
             OwnRecords = {
                 "totalEntries": 2,
                 "records": [{
-                    "name": "foo.unit.tests.",
+                    "name": "foo.unit.tests",
                     "id": "A-111111",
                     "type": "A",
                     "data": "1.2.3.4",
                     "ttl": 300
                 }, {
-                    "name": "bar.unit.tests.",
+                    "name": "bar.unit.tests",
                     "id": "A-222222",
                     "type": "A",
                     "data": "1.2.3.4",
@@ -702,12 +702,12 @@ class TestRackspaceProvider(TestCase):
             ExpectedDeletions = None
             ExpectedUpdates = {
                 "records": [{
-                    "name": "bar.unit.tests.",
+                    "name": "bar.unit.tests",
                     "id": "A-222222",
                     "data": "1.2.3.4",
                     "ttl": 3600
                 }, {
-                    "name": "foo.unit.tests.",
+                    "name": "foo.unit.tests",
                     "id": "A-111111",
                     "data": "1.2.3.4",
                     "ttl": 3600
