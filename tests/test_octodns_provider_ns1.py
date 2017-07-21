@@ -196,7 +196,8 @@ class TestNs1Provider(TestCase):
         provider = Ns1Provider('test', 'api-key')
 
         desired = Zone('unit.tests.', [])
-        desired.records.update(self.expected)
+        for r in self.expected:
+            desired.add_record(r)
 
         plan = provider.plan(desired)
         # everything except the root NS

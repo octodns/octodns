@@ -253,7 +253,7 @@ class TestPowerDnsProvider(TestCase):
             plan = provider.plan(expected)
             self.assertFalse(plan)
             # remove it now that we don't need the unrelated change any longer
-            expected.records.remove(unrelated_record)
+            expected._remove_record(unrelated_record)
 
         # ttl diff
         with requests_mock() as mock:

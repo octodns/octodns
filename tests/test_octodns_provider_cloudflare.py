@@ -33,7 +33,7 @@ class TestCloudflareProvider(TestCase):
     }))
     for record in list(expected.records):
         if record.name == 'sub' and record._type == 'NS':
-            expected.records.remove(record)
+            expected._remove_record(record)
             break
 
     empty = {'result': [], 'result_info': {'count': 0, 'per_page': 0}}
