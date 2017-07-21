@@ -1,6 +1,8 @@
 # These are known good versions. You're free to use others and things will
 # likely work, but no promises are made, especilly if you go older.
 PyYaml==3.12
+azure-mgmt-dns==1.0.1
+azure-common==1.1.6
 boto3==1.4.4
 botocore==1.5.4
 dnspython==1.15.0
@@ -10,6 +12,7 @@ futures==3.0.5
 incf.countryutils==1.0
 ipaddress==1.0.18
 jmespath==0.9.0
+msrestazure==0.4.10
 natsort==5.0.3
 nsone==0.9.14
 python-dateutil==2.6.0

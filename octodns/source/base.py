@@ -20,7 +20,7 @@ class BaseSource(object):
             raise NotImplementedError('Abstract base class, SUPPORTS '
                                       'property missing')
 
-    def populate(self, zone, target=False):
+    def populate(self, zone, target=False, lenient=False):
         '''
         Loads all zones the provider knows about
 
