@@ -21,9 +21,13 @@ class SortEnforcingLoader(SafeLoader):
         self.flatten_mapping(node)
         ret = self.construct_pairs(node)
         keys = [d[0] for d in ret]
-        if keys != sorted(keys, key=_natsort_key):
-            raise ConstructorError(None, None, "keys out of order: {}"
-                                   .format(', '.join(keys)), node.start_mark)
+        keys_sorted = sorted(keys, key=_natsort_key)
+        for key in keys:
+            expected = keys_sorted.pop(0)
+            if key != expected:
+                raise ConstructorError(None, None, 'keys out of order: '
+                                       'expected {} got {} at {}'
+                                       .format(expected, key, node.start_mark))
         return dict(ret)
 
 
