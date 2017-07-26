@@ -569,6 +569,25 @@ class TestRackspaceProvider(TestCase):
             ExpectedUpdates = None
         return self._test_apply_with_data(TestData)
 
+    def test_apply_delete_cname(self):
+        class TestData(object):
+            OtherRecords = []
+            OwnRecords = {
+                "totalEntries": 3,
+                "records": [{
+                    "name": "foo.unit.tests",
+                    "id": "CNAME-111111",
+                    "type": "CNAME",
+                    "data": "a.example.com",
+                    "ttl": 300
+                }]
+            }
+            ExpectChanges = True
+            ExpectedAdditions = None
+            ExpectedDeletions = "id=CNAME-111111"
+            ExpectedUpdates = None
+        return self._test_apply_with_data(TestData)
+
     def test_apply_single_update(self):
         class TestData(object):
             OtherRecords = [

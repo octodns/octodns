@@ -364,21 +364,30 @@ class RackspaceProvider(BaseProvider):
         #     'disabled': False
         # } for v in record.values]
 
+    def _get_values(self, record):
+        try:
+            return record.values
+        except AttributeError:
+            return [record.value]
+
     def _mod_Create(self, change):
         out = []
-        for value in change.new.values:
+        for value in self._get_values(change.new):
             transformer = getattr(self, "_record_for_{}".format(change.new._type))
             out.append(transformer(change.new, value))
         return out
 
     def _mod_Update(self, change):
+        existing_values = self._get_values(change.existing)
+        new_values = self._get_values(change.new)
+
         # A reduction in number of values in an update record needs
         # to get upgraded into a Delete change for the removed values.
-        deleted_values = set(change.existing.values) - set(change.new.values)
+        deleted_values = set(existing_values) - set(new_values)
         delete_out = self._delete_given_change_values(change, deleted_values)
 
         update_out = []
-        for value in change.new.values:
+        for value in new_values:
             transformer = getattr(self, "_record_for_{}".format(change.new._type))
             prior_rs_record = transformer(change.existing, value)
             prior_key = self._key_for_record(prior_rs_record)
@@ -392,7 +401,7 @@ class RackspaceProvider(BaseProvider):
         return update_out, delete_out
 
     def _mod_Delete(self, change):
-        return self._delete_given_change_values(change, change.existing.values)
+        return self._delete_given_change_values(change, self._get_values(change.existing))
 
     def _delete_given_change_values(self, change, values):
         out = []
