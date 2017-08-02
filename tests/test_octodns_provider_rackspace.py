@@ -392,7 +392,6 @@ class TestRackspaceProvider(TestCase):
             ExpectedUpdates = None
         return self._test_apply_with_data(TestData)
 
-
     def test_apply_multiple_additions_exploding(self):
         class TestData(object):
             OtherRecords = [
@@ -674,6 +673,41 @@ class TestRackspaceProvider(TestCase):
             }
         return self._test_apply_with_data(TestData)
 
+    def test_apply_update_TXT(self):
+        class TestData(object):
+            OtherRecords = [
+                {
+                    "subdomain": '',
+                    "data": {
+                        'type': 'TXT',
+                        'ttl': 300,
+                        'value': 'othervalue'
+                    }
+                }
+            ]
+            OwnRecords = {
+                "totalEntries": 1,
+                "records": [{
+                    "name": "unit.tests",
+                    "id": "TXT-111111",
+                    "type": "TXT",
+                    "data": "somevalue",
+                    "ttl": 300
+                }]
+            }
+            ExpectChanges = True
+            ExpectedAdditions = {
+                "records": [{
+                    "name": "unit.tests",
+                    "type": "TXT",
+                    "data": "othervalue",
+                    "ttl": 300
+                }]
+            }
+            ExpectedDeletions = 'id=TXT-111111'
+            ExpectedUpdates = None
+        return self._test_apply_with_data(TestData)
+
     def test_apply_multiple_updates(self):
         class TestData(object):
             OtherRecords = [
@@ -712,15 +746,15 @@ class TestRackspaceProvider(TestCase):
             ExpectedAdditions = None
             ExpectedDeletions = None
             ExpectedUpdates = {
-                "records": [{
-                    "name": "unit.tests",
-                    "id": "A-111111",
-                    "data": "1.2.3.4",
-                    "ttl": 3600
-                }, {
+                "records": [ {
                     "name": "unit.tests",
                     "id": "A-222222",
                     "data": "1.2.3.5",
+                    "ttl": 3600
+                }, {
+                    "name": "unit.tests",
+                    "id": "A-111111",
+                    "data": "1.2.3.4",
                     "ttl": 3600
                 }, {
                     "name": "unit.tests",

@@ -371,8 +371,11 @@ class RackspaceProvider(BaseProvider):
             return [record.value]
 
     def _mod_Create(self, change):
+        return self._create_given_change_values(change, self._get_values(change.new))
+
+    def _create_given_change_values(self, change, values):
         out = []
-        for value in self._get_values(change.new):
+        for value in values:
             transformer = getattr(self, "_record_for_{}".format(change.new._type))
             out.append(transformer(change.new, value))
         return out
@@ -386,8 +389,14 @@ class RackspaceProvider(BaseProvider):
         deleted_values = set(existing_values) - set(new_values)
         delete_out = self._delete_given_change_values(change, deleted_values)
 
+        # An increase in number of values in an update record needs
+        # to get upgraded into a Create change for the added values.
+        create_values = set(new_values) - set(existing_values)
+        create_out = self._create_given_change_values(change, create_values)
+
         update_out = []
-        for value in new_values:
+        update_values = set(new_values).intersection(set(existing_values))
+        for value in update_values:
             transformer = getattr(self, "_record_for_{}".format(change.new._type))
             prior_rs_record = transformer(change.existing, value)
             prior_key = self._key_for_record(prior_rs_record)
@@ -398,7 +407,7 @@ class RackspaceProvider(BaseProvider):
             update_out.append(next_rs_record)
             self._id_map[next_key] = self._id_map[prior_key]
             del self._id_map[prior_key]
-        return update_out, delete_out
+        return create_out, update_out, delete_out
 
     def _mod_Delete(self, change):
         return self._delete_given_change_values(change, self._get_values(change.existing))
@@ -427,7 +436,8 @@ class RackspaceProvider(BaseProvider):
             if change.__class__.__name__ == 'Create':
                 creates += self._mod_Create(change)
             elif change.__class__.__name__ == 'Update':
-                add_updates, add_deletes = self._mod_Update(change)
+                add_creates, add_updates, add_deletes = self._mod_Update(change)
+                creates += add_creates
                 updates += add_updates
                 deletes += add_deletes
             elif change.__class__.__name__ == 'Delete':
