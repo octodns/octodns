@@ -342,6 +342,57 @@ class TestRackspaceProvider(TestCase):
             ExpectedUpdates = None
         return self._test_apply_with_data(TestData)
 
+    def test_apply_create_MX(self):
+        class TestData(object):
+            OtherRecords = [
+                {
+                    "subdomain": '',
+                    "data": {
+                        'type': 'MX',
+                        'ttl': 300,
+                        'value': {
+                            'value': 'mail1.example.com.',
+                            'priority': 1,
+                        }
+                    }
+                },
+                {
+                    "subdomain": 'foo',
+                    "data": {
+                        'type': 'MX',
+                        'ttl': 300,
+                        'value': {
+                            'value': 'mail2.example.com.',
+                            'priority': 2
+                        }
+                    }
+                }
+            ]
+            OwnRecords = {
+                "totalEntries": 0,
+                "records": []
+            }
+            ExpectChanges = True
+            ExpectedAdditions = {
+                "records": [{
+                    "name": "foo.unit.tests",
+                    "type": "MX",
+                    "data": "mail2.example.com",
+                    "priority": 2,
+                    "ttl": 300
+                }, {
+                    "name": "unit.tests",
+                    "type": "MX",
+                    "data": "mail1.example.com",
+                    "priority": 1,
+                    "ttl": 300
+                }]
+            }
+            ExpectedDeletions = None
+            ExpectedUpdates = None
+        return self._test_apply_with_data(TestData)
+
+
     def test_apply_multiple_additions_exploding(self):
         class TestData(object):
             OtherRecords = [

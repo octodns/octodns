@@ -337,9 +337,9 @@ class RackspaceProvider(BaseProvider):
         return {
             'name': remove_trailing_dot(record.fqdn),
             'type': record._type,
-            'data': remove_trailing_dot(value),
+            'data': remove_trailing_dot(value.value),
             'ttl': max(record.ttl, 300),
-            'priority': record.priority
+            'priority': value.priority
         }
 
     @staticmethod
