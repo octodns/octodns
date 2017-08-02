@@ -146,8 +146,16 @@ class RackspaceProvider(BaseProvider):
         return self._request('DELETE', path, data=data)
 
     @staticmethod
-    def _key_for_record(rs_record):
-        return rs_record['type'], rs_record['name'], rs_record['data']
+    def _as_unicode(s, codec):
+        if not isinstance(s, unicode):
+            return unicode(s, codec)
+        return s
+
+    @classmethod
+    def _key_for_record(cls, rs_record):
+        return cls._as_unicode(rs_record['type'], 'ascii'),\
+               cls._as_unicode(rs_record['name'], 'utf-8'),\
+               cls._as_unicode(rs_record['data'], 'utf-8'),\
 
     def _data_for_multiple(self, rrset):
         # TODO: geo not supported
