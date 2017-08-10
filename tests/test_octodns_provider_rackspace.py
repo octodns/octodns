@@ -708,6 +708,43 @@ class TestRackspaceProvider(TestCase):
             ExpectedUpdates = None
         return self._test_apply_with_data(TestData)
 
+    def test_apply_update_MX(self):
+        class TestData(object):
+            OtherRecords = [
+                {
+                    "subdomain": '',
+                    "data": {
+                        'type': 'MX',
+                        'ttl': 300,
+                        'value': {u'priority': 50, u'value': 'mx.test.com.'}
+                    }
+                }
+            ]
+            OwnRecords = {
+                "totalEntries": 1,
+                "records": [{
+                    "name": "unit.tests",
+                    "id": "MX-111111",
+                    "type": "MX",
+                    "priority": 20,
+                    "data": "mx.test.com",
+                    "ttl": 300
+                }]
+            }
+            ExpectChanges = True
+            ExpectedAdditions = {
+                "records": [{
+                    "name": "unit.tests",
+                    "type": "MX",
+                    "priority": 50,
+                    "data": "mx.test.com",
+                    "ttl": 300
+                }]
+            }
+            ExpectedDeletions = 'id=MX-111111'
+            ExpectedUpdates = None
+        return self._test_apply_with_data(TestData)
+
     def test_apply_multiple_updates(self):
         class TestData(object):
             OtherRecords = [

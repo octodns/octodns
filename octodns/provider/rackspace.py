@@ -155,7 +155,7 @@ class RackspaceProvider(BaseProvider):
     def _key_for_record(cls, rs_record):
         return cls._as_unicode(rs_record['type'], 'ascii'),\
                cls._as_unicode(rs_record['name'], 'utf-8'),\
-               cls._as_unicode(rs_record['data'], 'utf-8'),\
+               cls._as_unicode(rs_record['data'], 'utf-8')
 
     def _data_for_multiple(self, rrset):
         # TODO: geo not supported
@@ -451,15 +451,15 @@ class RackspaceProvider(BaseProvider):
             elif change.__class__.__name__ == 'Delete':
                 deletes += self._mod_Delete(change)
 
-        if creates:
-            data = {"records": sorted(creates, key=lambda v: v['type'] + v['name'] + v.get('data', ''))}
-            self._post('domains/{}/records'.format(domain_id), data=data)
+        if deletes:
+            params = "&".join(sorted(deletes))
+            self._delete('domains/{}/records?{}'.format(domain_id, params))
 
         if updates:
             data = {"records": sorted(updates, key=lambda v: v['name'])}
             self._put('domains/{}/records'.format(domain_id), data=data)
 
-        if deletes:
-            params = "&".join(sorted(deletes))
-            self._delete('domains/{}/records?{}'.format(domain_id, params))
+        if creates:
+            data = {"records": sorted(creates, key=lambda v: v['type'] + v['name'] + v.get('data', ''))}
+            self._post('domains/{}/records'.format(domain_id), data=data)
 
