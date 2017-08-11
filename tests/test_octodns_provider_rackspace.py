@@ -11,6 +11,8 @@ from os.path import dirname, join
 from unittest import TestCase
 from urlparse import urlparse
 
+from nose.tools import assert_raises
+
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
 
@@ -18,8 +20,6 @@ from octodns.provider.rackspace import RackspaceProvider
 from octodns.provider.yaml import YamlProvider
 from octodns.record import Record
 from octodns.zone import Zone
-
-from pprint import pprint
 
 EMPTY_TEXT = '''
 {
@@ -40,16 +40,14 @@ with open('./tests/fixtures/rackspace-sample-recordset-page1.json') as fh:
 with open('./tests/fixtures/rackspace-sample-recordset-page2.json') as fh:
     RECORDS_PAGE_2 = fh.read()
 
-with open('./tests/fixtures/rackspace-sample-recordset-existing-nameservers.json') as fh:
-    RECORDS_EXISTING_NAMESERVERS = fh.read()
-
 
 class TestRackspaceProvider(TestCase):
     def setUp(self):
         self.maxDiff = 1000
         with requests_mock() as mock:
             mock.post(ANY, status_code=200, text=AUTH_RESPONSE)
-            self.provider = RackspaceProvider(id, 'test', 'api-key', '0')
+            self.provider = RackspaceProvider('identity', 'test', 'api-key',
+                                              '0')
             self.assertTrue(mock.called_once)
 
     def test_bad_auth(self):
@@ -85,9 +83,12 @@ class TestRackspaceProvider(TestCase):
 
     def test_multipage_populate(self):
         with requests_mock() as mock:
-            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
-            mock.get(re.compile('records'), status_code=200, text=RECORDS_PAGE_1)
-            mock.get(re.compile('records.*offset=3'), status_code=200, text=RECORDS_PAGE_2)
+            mock.get(re.compile('domains$'), status_code=200,
+                     text=LIST_DOMAINS_RESPONSE)
+            mock.get(re.compile('records'), status_code=200,
+                     text=RECORDS_PAGE_1)
+            mock.get(re.compile('records.*offset=3'), status_code=200,
+                     text=RECORDS_PAGE_2)
 
             zone = Zone('unit.tests.', [])
             self.provider.populate(zone)
@@ -105,9 +106,12 @@ class TestRackspaceProvider(TestCase):
 
         # No diffs == no changes
         with requests_mock() as mock:
-            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
-            mock.get(re.compile('records'), status_code=200, text=RECORDS_PAGE_1)
-            mock.get(re.compile('records.*offset=3'), status_code=200, text=RECORDS_PAGE_2)
+            mock.get(re.compile('domains$'), status_code=200,
+                     text=LIST_DOMAINS_RESPONSE)
+            mock.get(re.compile('records'), status_code=200,
+                     text=RECORDS_PAGE_1)
+            mock.get(re.compile('records.*offset=3'), status_code=200,
+                     text=RECORDS_PAGE_2)
 
             zone = Zone('unit.tests.', [])
             self.provider.populate(zone)
@@ -127,7 +131,8 @@ class TestRackspaceProvider(TestCase):
             'values': ['8.8.8.8.', '9.9.9.9.']
         }))
         with requests_mock() as mock:
-            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
+            mock.get(re.compile('domains$'), status_code=200,
+                     text=LIST_DOMAINS_RESPONSE)
             mock.get(re.compile('records'), status_code=200, text=EMPTY_TEXT)
 
             plan = self.provider.plan(expected)
@@ -141,23 +146,28 @@ class TestRackspaceProvider(TestCase):
         # expected.add_record(Record.new(expected, 'foo', '1.2.3.4'))
 
         with requests_mock() as list_mock:
-            list_mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
-            list_mock.get(re.compile('records'), status_code=200, json={'records': [
-                {'type': 'A',
-                 'name': 'foo.example.com',
-                 'id': 'A-111111',
-                 'data': '1.2.3.4',
-                 'ttl': 300}]})
+            list_mock.get(re.compile('domains$'), status_code=200,
+                          text=LIST_DOMAINS_RESPONSE)
+            list_mock.get(re.compile('records'), status_code=200,
+                          json={'records': [
+                              {'type': 'A',
+                               'name': 'foo.example.com',
+                               'id': 'A-111111',
+                               'data': '1.2.3.4',
+                               'ttl': 300}]})
             plan = self.provider.plan(expected)
             self.assertTrue(list_mock.called)
             self.assertEqual(1, len(plan.changes))
-            self.assertTrue(plan.changes[0].existing.fqdn == 'foo.example.com.')
+            self.assertTrue(
+                plan.changes[0].existing.fqdn == 'foo.example.com.')
 
         with requests_mock() as mock:
             def _assert_deleting(request, context):
                 parts = urlparse(request.url)
                 self.assertEqual('id=A-111111', parts.query)
-            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
+
+            mock.get(re.compile('domains$'), status_code=200,
+                     text=LIST_DOMAINS_RESPONSE)
             mock.delete(re.compile('domains/.*/records?.*'), status_code=202,
                         text=_assert_deleting)
             self.provider.apply(plan)
@@ -166,11 +176,14 @@ class TestRackspaceProvider(TestCase):
     def _test_apply_with_data(self, data):
         expected = Zone('unit.tests.', [])
         for record in data.OtherRecords:
-            expected.add_record(Record.new(expected, record['subdomain'], record['data']))
+            expected.add_record(
+                Record.new(expected, record['subdomain'], record['data']))
 
         with requests_mock() as list_mock:
-            list_mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
-            list_mock.get(re.compile('records'), status_code=200, json=data.OwnRecords)
+            list_mock.get(re.compile('domains$'), status_code=200,
+                          text=LIST_DOMAINS_RESPONSE)
+            list_mock.get(re.compile('records'), status_code=200,
+                          json=data.OwnRecords)
             plan = self.provider.plan(expected)
             self.assertTrue(list_mock.called)
             if not data.ExpectChanges:
@@ -184,25 +197,32 @@ class TestRackspaceProvider(TestCase):
                 def _assert_sending_right_body(request, _context):
                     called.add(request.method)
                     if request.method != 'DELETE':
-                        self.assertEqual(request.headers['content-type'], 'application/json')
-                        self.assertDictEqual(expected, json.loads(request.body))
+                        self.assertEqual(request.headers['content-type'],
+                                         'application/json')
+                        self.assertDictEqual(expected,
+                                             json.loads(request.body))
                     else:
                         parts = urlparse(request.url)
                         self.assertEqual(expected, parts.query)
                     return ''
+
                 return _assert_sending_right_body
 
-            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
+            mock.get(re.compile('domains$'), status_code=200,
+                     text=LIST_DOMAINS_RESPONSE)
             mock.post(re.compile('domains/.*/records$'), status_code=202,
-                      text=make_assert_sending_right_body(data.ExpectedAdditions))
+                      text=make_assert_sending_right_body(
+                          data.ExpectedAdditions))
             mock.delete(re.compile('domains/.*/records?.*'), status_code=202,
-                        text=make_assert_sending_right_body(data.ExpectedDeletions))
+                        text=make_assert_sending_right_body(
+                            data.ExpectedDeletions))
             mock.put(re.compile('domains/.*/records$'), status_code=202,
                      text=make_assert_sending_right_body(data.ExpectedUpdates))
 
             self.provider.apply(plan)
             self.assertTrue(data.ExpectedAdditions is None or "POST" in called)
-            self.assertTrue(data.ExpectedDeletions is None or "DELETE" in called)
+            self.assertTrue(
+                data.ExpectedDeletions is None or "DELETE" in called)
             self.assertTrue(data.ExpectedUpdates is None or "PUT" in called)
 
     def test_apply_no_change_empty(self):
@@ -216,6 +236,7 @@ class TestRackspaceProvider(TestCase):
             ExpectedAdditions = None
             ExpectedDeletions = None
             ExpectedUpdates = None
+
         return self._test_apply_with_data(TestData)
 
     def test_apply_no_change_a_records(self):
@@ -256,6 +277,7 @@ class TestRackspaceProvider(TestCase):
             ExpectedAdditions = None
             ExpectedDeletions = None
             ExpectedUpdates = None
+
         return self._test_apply_with_data(TestData)
 
     def test_apply_no_change_a_records_cross_zone(self):
@@ -298,6 +320,7 @@ class TestRackspaceProvider(TestCase):
             ExpectedAdditions = None
             ExpectedDeletions = None
             ExpectedUpdates = None
+
         return self._test_apply_with_data(TestData)
 
     def test_apply_one_addition(self):
@@ -340,6 +363,7 @@ class TestRackspaceProvider(TestCase):
             }
             ExpectedDeletions = None
             ExpectedUpdates = None
+
         return self._test_apply_with_data(TestData)
 
     def test_apply_create_MX(self):
@@ -390,9 +414,39 @@ class TestRackspaceProvider(TestCase):
             }
             ExpectedDeletions = None
             ExpectedUpdates = None
+
         return self._test_apply_with_data(TestData)
 
-    def test_apply_multiple_additions_exploding(self):
+    def test_apply_create_SRV(self):
+        class TestData(object):
+            OtherRecords = [
+                {
+                    "subdomain": '_a.b',
+                    "data": {
+                        'type': 'SRV',
+                        'ttl': 300,
+                        'value': {
+                            'priority': 20,
+                            'weight': 999,
+                            'port': 999,
+                            'target': 'foo'
+                        }
+                    }
+                }
+            ]
+            OwnRecords = {
+                "totalEntries": 0,
+                "records": []
+            }
+            ExpectChanges = True
+            ExpectedAdditions = [{}]
+            ExpectedDeletions = None
+            ExpectedUpdates = None
+
+        assert_raises(NotImplementedError, self._test_apply_with_data,
+                      TestData)
+
+    def test_apply_multiple_additions_splatting(self):
         class TestData(object):
             OtherRecords = [
                 {
@@ -447,33 +501,33 @@ class TestRackspaceProvider(TestCase):
             }
             ExpectedDeletions = None
             ExpectedUpdates = None
+
         return self._test_apply_with_data(TestData)
 
     def test_apply_multiple_additions_namespaced(self):
         class TestData(object):
             OtherRecords = [{
-                    "subdomain": 'foo',
-                    "data": {
-                        'type': 'A',
-                        'ttl': 300,
-                        'value': '1.2.3.4'
-                    }
-                }, {
-                    "subdomain": 'bar',
-                    "data": {
-                        'type': 'A',
-                        'ttl': 300,
-                        'value': '1.2.3.4'
-                    }
-                },
-                {
-                    "subdomain": 'foo',
-                    "data": {
-                        'type': 'NS',
-                        'ttl': 300,
-                        'value': 'ns.example.com.'
-                    }
-                }]
+                "subdomain": 'foo',
+                "data": {
+                    'type': 'A',
+                    'ttl': 300,
+                    'value': '1.2.3.4'
+                }
+            }, {
+                "subdomain": 'bar',
+                "data": {
+                    'type': 'A',
+                    'ttl': 300,
+                    'value': '1.2.3.4'
+                }
+            }, {
+                "subdomain": 'foo',
+                "data": {
+                    'type': 'NS',
+                    'ttl': 300,
+                    'value': 'ns.example.com.'
+                }
+            }]
             OwnRecords = {
                 "totalEntries": 0,
                 "records": []
@@ -499,6 +553,7 @@ class TestRackspaceProvider(TestCase):
             }
             ExpectedDeletions = None
             ExpectedUpdates = None
+
         return self._test_apply_with_data(TestData)
 
     def test_apply_single_deletion(self):
@@ -524,6 +579,7 @@ class TestRackspaceProvider(TestCase):
             ExpectedAdditions = None
             ExpectedDeletions = "id=A-111111&id=NS-111111"
             ExpectedUpdates = None
+
         return self._test_apply_with_data(TestData)
 
     def test_apply_multiple_deletions(self):
@@ -577,6 +633,7 @@ class TestRackspaceProvider(TestCase):
                     "ttl": 300
                 }]
             }
+
         return self._test_apply_with_data(TestData)
 
     def test_apply_multiple_deletions_cross_zone(self):
@@ -617,6 +674,7 @@ class TestRackspaceProvider(TestCase):
             ExpectedAdditions = None
             ExpectedDeletions = "id=A-222222&id=A-333333"
             ExpectedUpdates = None
+
         return self._test_apply_with_data(TestData)
 
     def test_apply_delete_cname(self):
@@ -636,6 +694,7 @@ class TestRackspaceProvider(TestCase):
             ExpectedAdditions = None
             ExpectedDeletions = "id=CNAME-111111"
             ExpectedUpdates = None
+
         return self._test_apply_with_data(TestData)
 
     def test_apply_single_update(self):
@@ -671,6 +730,7 @@ class TestRackspaceProvider(TestCase):
                     "ttl": 3600
                 }]
             }
+
         return self._test_apply_with_data(TestData)
 
     def test_apply_update_TXT(self):
@@ -706,6 +766,7 @@ class TestRackspaceProvider(TestCase):
             }
             ExpectedDeletions = 'id=TXT-111111'
             ExpectedUpdates = None
+
         return self._test_apply_with_data(TestData)
 
     def test_apply_update_MX(self):
@@ -743,6 +804,7 @@ class TestRackspaceProvider(TestCase):
             }
             ExpectedDeletions = 'id=MX-111111'
             ExpectedUpdates = None
+
         return self._test_apply_with_data(TestData)
 
     def test_apply_multiple_updates(self):
@@ -783,7 +845,7 @@ class TestRackspaceProvider(TestCase):
             ExpectedAdditions = None
             ExpectedDeletions = None
             ExpectedUpdates = {
-                "records": [ {
+                "records": [{
                     "name": "unit.tests",
                     "id": "A-222222",
                     "data": "1.2.3.5",
@@ -800,6 +862,7 @@ class TestRackspaceProvider(TestCase):
                     "ttl": 3600
                 }]
             }
+
         return self._test_apply_with_data(TestData)
 
     def test_apply_multiple_updates_cross_zone(self):
@@ -854,173 +917,5 @@ class TestRackspaceProvider(TestCase):
                     "ttl": 3600
                 }]
             }
+
         return self._test_apply_with_data(TestData)
-
-    """
-    def test_provider(self):
-        expected = self._load_full_config()
-
-        # No existing records -> creates for every record in expected
-        with requests_mock() as mock:
-            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
-            mock.get(re.compile('records'), status_code=200, text=EMPTY_TEXT)
-
-            plan = self.provider.plan(expected)
-            self.assertTrue(mock.called)
-            self.assertEquals(len(expected.records), len(plan.changes))
-
-        # Used in a minute
-        def assert_rrsets_callback(request, context):
-            data = loads(request.body)
-            self.assertEquals(expected_n, len(data['rrsets']))
-            return ''
-
-        with requests_mock() as mock:
-            # post 201, is response to the create with data
-            mock.patch(ANY, status_code=201, text=assert_rrsets_callback)
-
-            self.assertEquals(expected_n, self.provider.apply(plan))
-
-        # Non-existent zone -> creates for every record in expected
-        # OMG this is fucking ugly, probably better to ditch requests_mocks and
-        # just mock things for real as it doesn't seem to provide a way to get
-        # at the request params or verify that things were called from what I
-        # can tell
-        not_found = {'error': "Could not find domain 'unit.tests.'"}
-        with requests_mock() as mock:
-            # get 422's, unknown zone
-            mock.get(ANY, status_code=422, text='')
-            # patch 422's, unknown zone
-            mock.patch(ANY, status_code=422, text=dumps(not_found))
-            # post 201, is response to the create with data
-            mock.post(ANY, status_code=201, text=assert_rrsets_callback)
-
-            plan = self.provider.plan(expected)
-            self.assertEquals(expected_n, len(plan.changes))
-            self.assertEquals(expected_n, self.provider.apply(plan))
-
-        with requests_mock() as mock:
-            # get 422's, unknown zone
-            mock.get(ANY, status_code=422, text='')
-            # patch 422's,
-            data = {'error': "Key 'name' not present or not a String"}
-            mock.patch(ANY, status_code=422, text=dumps(data))
-
-            with self.assertRaises(HTTPError) as ctx:
-                plan = self.provider.plan(expected)
-                self.provider.apply(plan)
-            response = ctx.exception.response
-            self.assertEquals(422, response.status_code)
-            self.assertTrue('error' in response.json())
-
-        with requests_mock() as mock:
-            # get 422's, unknown zone
-            mock.get(ANY, status_code=422, text='')
-            # patch 500's, things just blew up
-            mock.patch(ANY, status_code=500, text='')
-
-            with self.assertRaises(HTTPError):
-                plan = self.provider.plan(expected)
-                self.provider.apply(plan)
-
-        with requests_mock() as mock:
-            # get 422's, unknown zone
-            mock.get(ANY, status_code=422, text='')
-            # patch 500's, things just blew up
-            mock.patch(ANY, status_code=422, text=dumps(not_found))
-            # post 422's, something wrong with create
-            mock.post(ANY, status_code=422, text='Hello Word!')
-
-            with self.assertRaises(HTTPError):
-                plan = self.provider.plan(expected)
-                self.provider.apply(plan)
-    """
-
-    def test_plan_no_changes(self):
-        expected = Zone('unit.tests.', [])
-        expected.add_record(Record.new(expected, '', {
-            'type': 'NS',
-            'ttl': 600,
-            'values': ['ns1.example.com.', 'ns2.example.com.']
-        }))
-        expected.add_record(Record.new(expected, '', {
-            'type': 'A',
-            'ttl': 600,
-            'value': '1.2.3.4'
-        }))
-
-        with requests_mock() as mock:
-            mock.get(re.compile('domains/.*/records'), status_code=200, text=RECORDS_EXISTING_NAMESERVERS)
-            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
-
-            plan = self.provider.plan(expected)
-
-            self.assertTrue(mock.called)
-            self.assertFalse(plan)
-
-    def test_plan_remove_a_record(self):
-        expected = Zone('unit.tests.', [])
-        expected.add_record(Record.new(expected, '', {
-            'type': 'NS',
-            'ttl': 600,
-            'values': ['ns1.example.com.', 'ns2.example.com.']
-        }))
-
-        with requests_mock() as mock:
-            mock.get(re.compile('domains/.*/records'), status_code=200, text=RECORDS_EXISTING_NAMESERVERS)
-            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
-
-            plan = self.provider.plan(expected)
-            self.assertTrue(mock.called)
-            self.assertEquals(1, len(plan.changes))
-            self.assertEqual(plan.changes[0].existing.ttl, 600)
-            self.assertEqual(plan.changes[0].existing.values[0], '1.2.3.4')
-
-    def test_plan_create_a_record(self):
-        expected = Zone('unit.tests.', [])
-        expected.add_record(Record.new(expected, '', {
-            'type': 'NS',
-            'ttl': 600,
-            'values': ['ns1.example.com.', 'ns2.example.com.']
-        }))
-        expected.add_record(Record.new(expected, '', {
-            'type': 'A',
-            'ttl': 600,
-            'values': ['1.2.3.4', '1.2.3.5']
-        }))
-
-        with requests_mock() as mock:
-            mock.get(re.compile('domains/.*/records'), status_code=200, text=RECORDS_EXISTING_NAMESERVERS)
-            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
-
-            plan = self.provider.plan(expected)
-            self.assertTrue(mock.called)
-            self.assertEquals(1, len(plan.changes))
-            self.assertEqual(plan.changes[0].new.ttl, 600)
-            self.assertEqual(plan.changes[0].new.values[0], '1.2.3.4')
-            self.assertEqual(plan.changes[0].new.values[1], '1.2.3.5')
-
-    def test_plan_change_ttl(self):
-        expected = Zone('unit.tests.', [])
-        expected.add_record(Record.new(expected, '', {
-            'type': 'NS',
-            'ttl': 600,
-            'values': ['ns1.example.com.', 'ns2.example.com.']
-        }))
-        expected.add_record(Record.new(expected, '', {
-            'type': 'A',
-            'ttl': 86400,
-            'value': '1.2.3.4'
-        }))
-
-        with requests_mock() as mock:
-            mock.get(re.compile('domains/.*/records'), status_code=200, text=RECORDS_EXISTING_NAMESERVERS)
-            mock.get(re.compile('domains$'), status_code=200, text=LIST_DOMAINS_RESPONSE)
-
-            plan = self.provider.plan(expected)
-
-            self.assertTrue(mock.called)
-            self.assertEqual(1, len(plan.changes))
-            self.assertEqual(plan.changes[0].existing.ttl, 600)
-            self.assertEqual(plan.changes[0].new.ttl, 86400)
-            self.assertEqual(plan.changes[0].new.values[0], '1.2.3.4')
