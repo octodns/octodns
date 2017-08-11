@@ -52,7 +52,7 @@ class RackspaceProvider(BaseProvider):
             # The api key that grants access for that user (required)
             api_key: api-key
         '''
-        self.log = logging.getLogger('RackspaceProvider[{}]'.format(username))
+        self.log = logging.getLogger('RackspaceProvider[{}]'.format(id))
         super(RackspaceProvider, self).__init__(id, *args, **kwargs)
 
         auth_token, dns_endpoint = self._get_auth_token(username, api_key)
