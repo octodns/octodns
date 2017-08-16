@@ -398,7 +398,7 @@ class AliasRecord(_ValueMixin, Record):
         return value
 
 
-class CnameRecord(_ValueMixin, Record):
+class CnameRecord(_GeoMixin, Record):
     _type = 'CNAME'
 
     @classmethod
@@ -416,8 +416,8 @@ class CnameRecord(_ValueMixin, Record):
             reasons.append('missing trailing .')
         return reasons
 
-    def _process_value(self, value):
-        return value
+    def _process_values(self, values):
+        return values
 
 
 class MxValue(object):

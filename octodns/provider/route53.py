@@ -92,7 +92,7 @@ class _Route53Record(object):
     def _values_for_value(self, record):
         return [record.value]
 
-    _values_for_CNAME = _values_for_value
+    _values_for_CNAME = _values_for_values
     _values_for_PTR = _values_for_value
 
     def _values_for_MX(self, record):
@@ -317,8 +317,19 @@ class Route53Provider(BaseProvider):
             'ttl': int(rrset['TTL'])
         }
 
+    def _data_for_geo_cname(self, rrset):
+        ret = {
+            'type': rrset['Type'],
+            'values': [v['Value'] for v in rrset['ResourceRecords']],
+            'ttl': int(rrset['TTL'])
+        }
+        geo = self._parse_geo(rrset)
+        if geo:
+            ret['geo'] = geo
+        return ret
+
     _data_for_PTR = _data_for_single
-    _data_for_CNAME = _data_for_single
+    _data_for_CNAME = _data_for_geo_cname
 
     _fix_semicolons = re.compile(r'(?<!\\);')
 
@@ -513,9 +524,12 @@ class Route53Provider(BaseProvider):
                 # not a version & type match, ignore
                 continue
             config = health_check['HealthCheckConfig']
-            if host == config['FullyQualifiedDomainName'] and \
-               first_value == config['IPAddress']:
-                # this is the health check we're looking for
+            try:
+                if host == config['FullyQualifiedDomainName'] and \
+                   first_value == config['IPAddress']:
+                    # this is the health check we're looking for
+                    return id
+            except:
                 return id
 
         if not create:
@@ -524,16 +538,25 @@ class Route53Provider(BaseProvider):
 
         # no existing matches, we need to create a new health check
         config = {
-            'EnableSNI': True,
             'FailureThreshold': 6,
-            'FullyQualifiedDomainName': host,
-            'IPAddress': first_value,
             'MeasureLatency': True,
             'Port': 443,
             'RequestInterval': 10,
             'ResourcePath': '/_dns',
             'Type': 'HTTPS',
         }
+
+        if not record._type == "CNAME":
+            config.update({
+                'FullyQualifiedDomainName': host,
+                'EnableSNI': True,
+                'IPAddress':  first_value,
+            })
+        else:
+            config.update({
+                'FullyQualifiedDomainName': first_value
+            })
+
         ref = '{}:{}:{}'.format(self.HEALTH_CHECK_VERSION, record._type,
                                 uuid4().hex[:16])
         resp = self._conn.create_health_check(CallerReference=ref,
