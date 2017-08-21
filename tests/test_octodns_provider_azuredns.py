@@ -90,6 +90,14 @@ octo_records.append(Record.new(zone, '_srv2._tcp', {
         'port': 1,
         'target': 'srvfoo.unit.tests.',
     }]}))
+octo_records.append(Record.new(zone, 'txt1', {
+    'ttl': 8,
+    'type': 'TXT',
+    'value': 'txt singleton test'}))
+octo_records.append(Record.new(zone, 'txt2', {
+    'ttl': 9,
+    'type': 'TXT',
+    'values': ['txt multiple test', 'txt multiple test 2']}))
 
 azure_records = []
 _base0 = _AzureRecord('TestAzure', octo_records[0])
@@ -183,6 +191,23 @@ _base10.params['ttl'] = 7
 _base10.params['srv_records'] = [SrvRecord(12, 17, 1, 'srvfoo.unit.tests.')]
 azure_records.append(_base10)
 
+_base11 = _AzureRecord('TestAzure', octo_records[11])
+_base11.zone_name = 'unit.tests'
+_base11.relative_record_set_name = 'txt1'
+_base11.record_type = 'TXT'
+_base11.params['ttl'] = 8
+_base11.params['txt_records'] = [TxtRecord(['txt singleton test'])]
+azure_records.append(_base11)
+
+_base12 = _AzureRecord('TestAzure', octo_records[12])
+_base12.zone_name = 'unit.tests'
+_base12.relative_record_set_name = 'txt2'
+_base12.record_type = 'TXT'
+_base12.params['ttl'] = 9
+_base12.params['txt_records'] = [TxtRecord(['txt multiple test']),
+                                 TxtRecord(['txt multiple test 2'])]
+azure_records.append(_base12)
+
 
 class Test_AzureRecord(TestCase):
     def test_azure_record(self):
@@ -190,8 +215,6 @@ class Test_AzureRecord(TestCase):
         for i in range(len(azure_records)):
             octo = _AzureRecord('TestAzure', octo_records[i])
             assert(azure_records[i]._equals(octo))
-            string = str(azure_records[i])
-            assert(('Ttl: ' in string))
 
 
 class Test_ParseAzureType(TestCase):
@@ -315,8 +338,8 @@ class TestAzureDnsProvider(TestCase):
             changes.append(Create(i))
             deletes.append(Delete(i))
 
-        self.assertEquals(11, provider.apply(Plan(None, zone, changes)))
-        self.assertEquals(11, provider.apply(Plan(zone, zone, deletes)))
+        self.assertEquals(13, provider.apply(Plan(None, zone, changes)))
+        self.assertEquals(13, provider.apply(Plan(zone, zone, deletes)))
 
     def test_create_zone(self):
         provider = self._get_provider()
@@ -331,7 +354,7 @@ class TestAzureDnsProvider(TestCase):
         _get = provider._dns_client.zones.get
         _get.side_effect = CloudError(Mock(status=404), err_msg)
 
-        self.assertEquals(11, provider.apply(Plan(None, desired, changes)))
+        self.assertEquals(13, provider.apply(Plan(None, desired, changes)))
 
     def test_check_zone_no_create(self):
         provider = self._get_provider()
