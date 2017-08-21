@@ -48,8 +48,8 @@ class TestYaml(TestCase):
 '*.11.2': 'd'
 '*.10.1': 'c'
 ''')
-        self.assertEquals('keys out of order: *.2.2, *.1.2, *.11.2, *.10.1',
-                          ctx.exception.problem)
+        self.assertTrue('keys out of order: expected *.1.2 got *.2.2 at' in
+                        ctx.exception.problem)
 
         buf = StringIO()
         safe_dump({

@@ -196,7 +196,8 @@ class TestNs1Provider(TestCase):
         provider = Ns1Provider('test', 'api-key')
 
         desired = Zone('unit.tests.', [])
-        desired.records.update(self.expected)
+        for r in self.expected:
+            desired.add_record(r)
 
         plan = provider.plan(desired)
         # everything except the root NS
@@ -277,3 +278,37 @@ class TestNs1Provider(TestCase):
             call.update(answers=[u'1.2.3.4'], ttl=32),
             call.delete()
         ])
+
+    def test_escaping(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        record = {
+            'ttl': 31,
+            'short_answers': ['foo; bar baz; blip']
+        }
+        self.assertEquals(['foo\; bar baz\; blip'],
+                          provider._data_for_SPF('SPF', record)['values'])
+
+        record = {
+            'ttl': 31,
+            'short_answers': ['no', 'foo; bar baz; blip', 'yes']
+        }
+        self.assertEquals(['no', 'foo\; bar baz\; blip', 'yes'],
+                          provider._data_for_TXT('TXT', record)['values'])
+
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, 'spf', {
+            'ttl': 34,
+            'type': 'SPF',
+            'value': 'foo\; bar baz\; blip'
+        })
+        self.assertEquals(['foo; bar baz; blip'],
+                          provider._params_for_SPF(record)['answers'])
+
+        record = Record.new(zone, 'txt', {
+            'ttl': 35,
+            'type': 'TXT',
+            'value': 'foo\; bar baz\; blip'
+        })
+        self.assertEquals(['foo; bar baz; blip'],
+                          provider._params_for_TXT(record)['answers'])
