@@ -81,16 +81,16 @@ class _AzureRecord(object):
         self.params['ttl'] = record.ttl
 
     def _params(self, data, key_name, azure_class):
-        if 'values' in data:
-            return {key_name: [azure_class(v) for v in data['values']]}
-        else:  # Else there is a singular data point keyed by 'value'.
-            return {key_name: [azure_class(data['value'])]}
+        try:
+            values = data['values']
+        except KeyError:
+            values = [data['value']]
+        return {key_name: [azure_class(v) for v in values]}
 
     _params_for_A = _params
     _params_for_AAAA = _params
     _params_for_NS = _params
     _params_for_PTR = _params
-    _params_for_TXT = _params
 
     def _params_for_CNAME(self, data, key_name, azure_class):
         return {key_name: azure_class(data['value'])}
@@ -120,6 +120,13 @@ class _AzureRecord(object):
                                       data['value']['port'],
                                       data['value']['target']))
         return {key_name: params}
+
+    def _params_for_TXT(self, data, key_name, azure_class):
+        try:  # API for TxtRecord has list of str, even for singleton
+            values = data['values']
+        except KeyError:
+            values = [data['value']]
+        return {key_name: [azure_class([v]) for v in values]}
 
     def _equals(self, b):
         '''Checks whether two records are equal by comparing all fields.
