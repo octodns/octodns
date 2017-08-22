@@ -1232,6 +1232,14 @@ class TestRoute53Provider(TestCase):
             'Type': 'TXT',
         }))
 
+    def test_client_max_attempts(self):
+        provider = Route53Provider('test', 'abc', '123',
+                                   client_max_attempts=42)
+        # NOTE: this will break if boto ever changes the impl details...
+        self.assertEquals(43, provider._conn.meta.events
+                          ._unique_id_handlers['retry-config-route53']
+                          ['handler']._checker.__dict__['_max_attempts'])
+
 
 class TestRoute53Records(TestCase):
 
