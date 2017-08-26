@@ -150,12 +150,12 @@ The above command pulled the existing data out of Route53 and placed the results
 | Provider | Record Support | GeoDNS Support | Notes |
 |--|--|--|--|
 | [AzureProvider](/octodns/provider/azuredns.py) | A, AAAA, CNAME, MX, NS, PTR, SRV, TXT | No | |
-| [CloudflareProvider](/octodns/provider/cloudflare.py) | A, AAAA, CNAME, MX, NS, SPF, TXT | No | |
-| [DnsimpleProvider](/octodns/provider/dnsimple.py) | All | No | |
+| [CloudflareProvider](/octodns/provider/cloudflare.py) | A, AAAA, CAA, CNAME, MX, NS, SPF, TXT | No | CAA tags restricted |
+| [DnsimpleProvider](/octodns/provider/dnsimple.py) | All | No | CAA tags restricted |
 | [DynProvider](/octodns/provider/dyn.py) | All | Yes | |
 | [Ns1Provider](/octodns/provider/ns1.py) | All | No | |
 | [PowerDnsProvider](/octodns/provider/powerdns.py) | All | No | |
-| [Route53](/octodns/provider/route53.py) | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Yes | |
+| [Route53](/octodns/provider/route53.py) | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Yes | |
 | [TinyDNSSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |
 | [YamlProvider](/octodns/provider/yaml.py) | All | Yes | config |
 
