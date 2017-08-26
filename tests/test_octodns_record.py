@@ -212,7 +212,7 @@ class TestRecord(TestCase):
             'tag': 'issue',
             'value': 'ca.example.net',
         }, {
-            'flags': 1,
+            'flags': 128,
             'tag': 'iodef',
             'value': 'mailto:security@example.com',
         }]
@@ -246,7 +246,7 @@ class TestRecord(TestCase):
         self.assertFalse(a.changes(a, target))
         # Diff in flags causes change
         other = CaaRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
-        other.values[0].flags = 1
+        other.values[0].flags = 128
         change = a.changes(other, target)
         self.assertEqual(change.existing, a)
         self.assertEqual(change.new, other)
@@ -927,7 +927,7 @@ class TestRecordValidation(TestCase):
             'type': 'CAA',
             'ttl': 600,
             'value': {
-                'flags': 1,
+                'flags': 128,
                 'tag': 'iodef',
                 'value': 'http://foo.bar.com/'
             }
@@ -967,18 +967,6 @@ class TestRecordValidation(TestCase):
                 }
             })
         self.assertEquals(['missing tag'], ctx.exception.reasons)
-
-        # invalid tag
-        with self.assertRaises(ValidationError) as ctx:
-            Record.new(self.zone, '', {
-                'type': 'CAA',
-                'ttl': 600,
-                'value': {
-                    'tag': 'xyz',
-                    'value': 'http://foo.bar.com/',
-                }
-            })
-        self.assertEquals(['invalid tag "xyz"'], ctx.exception.reasons)
 
         # missing value
         with self.assertRaises(ValidationError) as ctx:

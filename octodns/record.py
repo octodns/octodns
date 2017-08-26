@@ -393,18 +393,13 @@ class CaaValue(object):
         reasons = []
         try:
             flags = int(value.get('flags', 0))
-            if flags not in (0, 1):
+            if flags not in (0, 128):
                 reasons.append('invalid flags "{}"'.format(flags))
         except ValueError:
             reasons.append('invalid flags "{}"'.format(value['flags']))
 
-        try:
-            tag = value['tag']
-            if tag not in ('issue', 'issuewild', 'iodef'):
-                reasons.append('invalid tag "{}"'.format(tag))
-        except KeyError:
+        if 'tag' not in value:
             reasons.append('missing tag')
-
         if 'value' not in value:
             reasons.append('missing value')
 
@@ -431,7 +426,7 @@ class CaaValue(object):
         return cmp(self.flags, other.flags)
 
     def __repr__(self):
-        return "'{} {} {}'".format(self.flags, self.tag, self.value)
+        return '{} {} "{}"'.format(self.flags, self.tag, self.value)
 
 
 class CaaRecord(_ValuesMixin, Record):

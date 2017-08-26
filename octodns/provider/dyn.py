@@ -111,6 +111,7 @@ class DynProvider(BaseProvider):
         'a_records': 'A',
         'aaaa_records': 'AAAA',
         'alias_records': 'ALIAS',
+        'caa_records': 'CAA',
         'cname_records': 'CNAME',
         'mx_records': 'MX',
         'naptr_records': 'NAPTR',
@@ -192,6 +193,14 @@ class DynProvider(BaseProvider):
             'type': _type,
             'ttl': record.ttl,
             'value': record.alias
+        }
+
+    def _data_for_CAA(self, _type, records):
+        return {
+            'type': _type,
+            'ttl': records[0].ttl,
+            'values': [{'flags': r.flags, 'tag': r.tag, 'value': r.value}
+                       for r in records],
         }
 
     def _data_for_CNAME(self, _type, records):
@@ -381,6 +390,13 @@ class DynProvider(BaseProvider):
         } for v in record.values]
 
     _kwargs_for_AAAA = _kwargs_for_A
+
+    def _kwargs_for_CAA(self, record):
+        return [{
+            'flags': v.flags,
+            'tag': v.tag,
+            'value': v.value,
+        } for v in record.values]
 
     def _kwargs_for_CNAME(self, record):
         return [{

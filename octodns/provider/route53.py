@@ -90,6 +90,10 @@ class _Route53Record(object):
     _values_for_AAAA = _values_for_values
     _values_for_NS = _values_for_values
 
+    def _values_for_CAA(self, record):
+        return ['{} {} "{}"'.format(v.flags, v.tag, v.value)
+                for v in record.values]
+
     def _values_for_value(self, record):
         return [record.value]
 
@@ -222,8 +226,8 @@ class Route53Provider(BaseProvider):
     In general the account used will need full permissions on Route53.
     '''
     SUPPORTS_GEO = True
-    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR', 'SPF',
-                    'SRV', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
+                    'SPF', 'SRV', 'TXT'))
 
     # This should be bumped when there are underlying changes made to the
     # health check config.
@@ -318,6 +322,21 @@ class Route53Provider(BaseProvider):
 
     _data_for_A = _data_for_geo
     _data_for_AAAA = _data_for_geo
+
+    def _data_for_CAA(self, rrset):
+        values = []
+        for rr in rrset['ResourceRecords']:
+            flags, tag, value = rr['Value'].split(' ')
+            values.append({
+                'flags': flags,
+                'tag': tag,
+                'value': value[1:-1],
+            })
+        return {
+            'type': rrset['Type'],
+            'values': values,
+            'ttl': int(rrset['TTL'])
+        }
 
     def _data_for_single(self, rrset):
         return {
