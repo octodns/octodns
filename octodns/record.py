@@ -81,29 +81,16 @@ class Record(object):
                 'A': ARecord,
                 'AAAA': AaaaRecord,
                 'ALIAS': AliasRecord,
-                # cert
+                'CAA': CaaRecord,
                 'CNAME': CnameRecord,
-                # dhcid
-                # dname
-                # dnskey
-                # ds
-                # ipseckey
-                # key
-                # kx
-                # loc
                 'MX': MxRecord,
                 'NAPTR': NaptrRecord,
                 'NS': NsRecord,
-                # nsap
                 'PTR': PtrRecord,
-                # px
-                # rp
-                # soa - would it even make sense?
                 'SPF': SpfRecord,
                 'SRV': SrvRecord,
                 'SSHFP': SshfpRecord,
                 'TXT': TxtRecord,
-                # url
             }[_type]
         except KeyError:
             raise Exception('Unknown record type: "{}"'.format(_type))
@@ -396,6 +383,66 @@ class AliasRecord(_ValueMixin, Record):
 
     def _process_value(self, value):
         return value
+
+
+class CaaValue(object):
+    # https://tools.ietf.org/html/rfc6844#page-5
+
+    @classmethod
+    def _validate_value(cls, value):
+        reasons = []
+        try:
+            flags = int(value.get('flags', 0))
+            if flags not in (0, 1):
+                reasons.append('invalid flags "{}"'.format(flags))
+        except ValueError:
+            reasons.append('invalid flags "{}"'.format(value['flags']))
+
+        try:
+            tag = value['tag']
+            if tag not in ('issue', 'issuewild', 'iodef'):
+                reasons.append('invalid tag "{}"'.format(tag))
+        except KeyError:
+            reasons.append('missing tag')
+
+        if 'value' not in value:
+            reasons.append('missing value')
+
+        return reasons
+
+    def __init__(self, value):
+        self.flags = int(value.get('flags', 0))
+        self.tag = value['tag']
+        self.value = value['value']
+
+    @property
+    def data(self):
+        return {
+            'flags': self.flags,
+            'tag': self.tag,
+            'value': self.value,
+        }
+
+    def __cmp__(self, other):
+        if self.flags == other.flags:
+            if self.tag == other.tag:
+                return cmp(self.value, other.value)
+            return cmp(self.tag, other.tag)
+        return cmp(self.flags, other.flags)
+
+    def __repr__(self):
+        return "'{} {} {}'".format(self.flags, self.tag, self.value)
+
+
+class CaaRecord(_ValuesMixin, Record):
+    _type = 'CAA'
+
+    @classmethod
+    def _validate_value(cls, value):
+        return CaaValue._validate_value(value)
+
+    def _process_values(self, values):
+        return [CaaValue(v) for v in values]
 
 
 class CnameRecord(_ValueMixin, Record):
