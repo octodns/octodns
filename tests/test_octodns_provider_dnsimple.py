@@ -78,14 +78,14 @@ class TestDnsimpleProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(14, len(zone.records))
+            self.assertEquals(15, len(zone.records))
             changes = self.expected.changes(zone, provider)
             self.assertEquals(0, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])
         provider.populate(again)
-        self.assertEquals(14, len(again.records))
+        self.assertEquals(15, len(again.records))
 
         # bust the cache
         del provider._zone_records[zone.name]
@@ -147,7 +147,7 @@ class TestDnsimpleProvider(TestCase):
             }),
         ])
         # expected number of total calls
-        self.assertEquals(26, provider._client._request.call_count)
+        self.assertEquals(27, provider._client._request.call_count)
 
         provider._client._request.reset_mock()
 
