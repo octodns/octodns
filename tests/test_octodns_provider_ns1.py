@@ -96,6 +96,15 @@ class TestNs1Provider(TestCase):
         'type': 'NS',
         'values': ['ns3.unit.tests.', 'ns4.unit.tests.'],
     }))
+    expected.add(Record.new(zone, '', {
+        'ttl': 40,
+        'type': 'CAA',
+        'value': {
+            'flags': 0,
+            'tag': 'issue',
+            'value': 'ca.unit.tests',
+        },
+    }))
 
     nsone_records = [{
         'type': 'A',
@@ -141,6 +150,11 @@ class TestNs1Provider(TestCase):
         'ttl': 39,
         'short_answers': ['ns3.unit.tests.', 'ns4.unit.tests.'],
         'domain': 'sub.unit.tests.',
+    }, {
+        'type': 'CAA',
+        'ttl': 40,
+        'short_answers': ['0 issue ca.unit.tests'],
+        'domain': 'unit.tests.',
     }]
 
     @patch('nsone.NSONE.loadZone')

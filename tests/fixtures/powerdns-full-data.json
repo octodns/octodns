@@ -230,6 +230,18 @@
             ],
             "ttl": 300,
             "type": "A"
+        },
+        {
+            "comments": [],
+            "name": "unit.tests.",
+            "records": [
+                {
+                    "content": "0 issue \"ca.unit.tests\"",
+                    "disabled": false
+                }
+            ],
+            "ttl": 3600,
+            "type": "CAA"
         }
     ],
     "serial": 2017012803,

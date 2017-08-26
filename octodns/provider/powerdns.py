@@ -68,7 +68,7 @@ class PowerDnsBaseProvider(BaseProvider):
             values.append({
                 'flags': flags,
                 'tag': tag,
-                'value': value,
+                'value': value[1:-1],
             })
         return {
             'type': rrset['type'],
