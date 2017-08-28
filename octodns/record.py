@@ -173,45 +173,6 @@ class Record(object):
         raise NotImplementedError('Abstract base class, __repr__ required')
 
 
-class GeoValue(object):
-    geo_re = re.compile(r'^(?P<continent_code>\w\w)(-(?P<country_code>\w\w)'
-                        r'(-(?P<subdivision_code>\w\w))?)?$')
-
-    @classmethod
-    def _validate_geo(cls, code):
-        reasons = []
-        match = cls.geo_re.match(code)
-        if not match:
-            reasons.append('invalid geo "{}"'.format(code))
-        return reasons
-
-    def __init__(self, geo, values):
-        self.code = geo
-        match = self.geo_re.match(geo)
-        self.continent_code = match.group('continent_code')
-        self.country_code = match.group('country_code')
-        self.subdivision_code = match.group('subdivision_code')
-        self.values = values
-
-    @property
-    def parents(self):
-        bits = self.code.split('-')[:-1]
-        while bits:
-            yield '-'.join(bits)
-            bits.pop()
-
-    def __cmp__(self, other):
-        return 0 if (self.continent_code == other.continent_code and
-                     self.country_code == other.country_code and
-                     self.subdivision_code == other.subdivision_code and
-                     self.values == other.values) else 1
-
-    def __repr__(self):
-        return "'Geo {} {} {} {}'".format(self.continent_code,
-                                          self.country_code,
-                                          self.subdivision_code, self.values)
-
-
 class _ValuesMixin(object):
 
     @classmethod
@@ -260,7 +221,57 @@ class _ValuesMixin(object):
                                            self.fqdn, values)
 
 
-class _GeoMixin(_ValuesMixin):
+class _GeoBase(object):
+    geo_re = re.compile(r'^(?P<continent_code>\w\w)(-(?P<country_code>\w\w)'
+                        r'(-(?P<subdivision_code>\w\w))?)?$')
+
+    @classmethod
+    def _validate_geo(cls, code):
+        reasons = []
+        # TODO: validate legal codes
+        match = cls.geo_re.match(code)
+        if not match:
+            reasons.append('invalid geo "{}"'.format(code))
+        return reasons
+
+    def __init__(self, geo):
+        self.code = geo
+        match = self.geo_re.match(geo)
+        self.continent_code = match.group('continent_code')
+        self.country_code = match.group('country_code')
+        self.subdivision_code = match.group('subdivision_code')
+
+    @property
+    def parents(self):
+        bits = self.code.split('-')[:-1]
+        while bits:
+            yield '-'.join(bits)
+            bits.pop()
+
+    def __cmp__(self, other):
+        return 0 if (self.continent_code == other.continent_code and
+                     self.country_code == other.country_code and
+                     self.subdivision_code == other.subdivision_code) else 1
+
+
+class GeoValues(_GeoBase):
+
+    def __init__(self, geo, values):
+        super(GeoValues, self).__init__(geo)
+        self.values = values
+
+    def __cmp__(self, other):
+        return super(GeoValues, self).__cmp__(other) + \
+            0 if self.values == other.values else 1
+
+    def __repr__(self):
+        return "'GeoValues {} {} {} {}'".format(self.continent_code,
+                                                self.country_code,
+                                                self.subdivision_code,
+                                                self.values)
+
+
+class _GeoValuesMixin(_ValuesMixin):
     '''
     Adds GeoDNS support to a record.
 
@@ -269,33 +280,29 @@ class _GeoMixin(_ValuesMixin):
 
     @classmethod
     def validate(cls, name, data):
-        reasons = super(_GeoMixin, cls).validate(name, data)
+        reasons = super(_GeoValuesMixin, cls).validate(name, data)
         try:
             geo = dict(data['geo'])
-            # TODO: validate legal codes
             for code, values in geo.items():
-                reasons.extend(GeoValue._validate_geo(code))
+                reasons.extend(GeoValues._validate_geo(code))
                 for value in values:
                     reasons.extend(cls._validate_value(value))
         except KeyError:
             pass
         return reasons
 
-    # TODO: support 'value' as well
-    # TODO: move away from "data" hash to strict params, it's kind of leaking
-    # the yaml implementation into here and then forcing it back out into
-    # non-yaml providers during input
     def __init__(self, zone, name, data, *args, **kwargs):
-        super(_GeoMixin, self).__init__(zone, name, data, *args, **kwargs)
+        super(_GeoValuesMixin, self).__init__(zone, name, data, *args,
+                                              **kwargs)
         try:
             self.geo = dict(data['geo'])
         except KeyError:
             self.geo = {}
         for code, values in self.geo.items():
-            self.geo[code] = GeoValue(code, values)
+            self.geo[code] = GeoValues(code, values)
 
     def _data(self):
-        ret = super(_GeoMixin, self)._data()
+        ret = super(_GeoValuesMixin, self)._data()
         if self.geo:
             geo = {}
             for code, value in self.geo.items():
@@ -307,7 +314,7 @@ class _GeoMixin(_ValuesMixin):
         if target.SUPPORTS_GEO:
             if self.geo != other.geo:
                 return Update(self, other)
-        return super(_GeoMixin, self).changes(other, target)
+        return super(_GeoValuesMixin, self).changes(other, target)
 
     def __repr__(self):
         if self.geo:
@@ -315,10 +322,10 @@ class _GeoMixin(_ValuesMixin):
                                                    self._type, self.ttl,
                                                    self.fqdn, self.values,
                                                    self.geo)
-        return super(_GeoMixin, self).__repr__()
+        return super(_GeoValuesMixin, self).__repr__()
 
 
-class ARecord(_GeoMixin, Record):
+class ARecord(_GeoValuesMixin, Record):
     _type = 'A'
 
     @classmethod
@@ -334,7 +341,7 @@ class ARecord(_GeoMixin, Record):
         return values
 
 
-class AaaaRecord(_GeoMixin, Record):
+class AaaaRecord(_GeoValuesMixin, Record):
     _type = 'AAAA'
 
     @classmethod
@@ -398,15 +405,84 @@ class AliasRecord(_ValueMixin, Record):
         return value
 
 
-class CnameRecord(_ValueMixin, Record):
+class GeoValue(_GeoBase):
+
+    def __init__(self, geo, value):
+        super(GeoValue, self).__init__(geo)
+        self.value = value
+
+    def __cmp__(self, other):
+        return super(GeoValue, self).__cmp__(other) + \
+            0 if self.value == other.value else 1
+
+    def __repr__(self):
+        return "'GeoValue {} {} {} {}'".format(self.continent_code,
+                                               self.country_code,
+                                               self.subdivision_code,
+                                               self.value)
+
+
+class _GeoValueMixin(_ValueMixin):
+    '''
+    Adds GeoDNS support to a record.
+
+    Must be included before `Record`.
+    '''
+
+    @classmethod
+    def validate(cls, name, data):
+        reasons = super(_GeoValueMixin, cls).validate(name, data)
+        try:
+            geo = dict(data['geo'])
+            for code, value in geo.items():
+                reasons.extend(GeoValue._validate_geo(code))
+                reasons.extend(cls._validate_value(value))
+        except KeyError:
+            pass
+        return reasons
+
+    # TODO: support 'value' as well
+    def __init__(self, zone, name, data, *args, **kwargs):
+        super(_GeoValueMixin, self).__init__(zone, name, data, *args, **kwargs)
+        try:
+            self.geo = dict(data['geo'])
+        except KeyError:
+            self.geo = {}
+        for code, value in self.geo.items():
+            self.geo[code] = GeoValue(code, value)
+
+    def _data(self):
+        ret = super(_GeoValueMixin, self)._data()
+        if self.geo:
+            geo = {}
+            for code, value in self.geo.items():
+                geo[code] = value.value
+            ret['geo'] = geo
+        return ret
+
+    def changes(self, other, target):
+        if target.SUPPORTS_GEO:
+            if self.geo != other.geo:
+                return Update(self, other)
+        return super(_GeoValueMixin, self).changes(other, target)
+
+    def __repr__(self):
+        if self.geo:
+            return '<{} {} {}, {}, {}, {}>'.format(self.__class__.__name__,
+                                                   self._type, self.ttl,
+                                                   self.fqdn, self.value,
+                                                   self.geo)
+        return super(_GeoValueMixin, self).__repr__()
+
+
+class CnameRecord(_GeoValueMixin, Record):
     _type = 'CNAME'
 
     @classmethod
     def validate(cls, name, data):
-        reasons = []
+        reasons = super(CnameRecord, cls).validate(name, data)
         if name == '':
             reasons.append('root CNAME not allowed')
-        reasons.extend(super(CnameRecord, cls).validate(name, data))
         return reasons
 
     @classmethod

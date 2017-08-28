@@ -8,8 +8,8 @@ from __future__ import absolute_import, division, print_function, \
 from unittest import TestCase
 
 from octodns.record import ARecord, AaaaRecord, AliasRecord, CnameRecord, \
-    Create, Delete, GeoValue, MxRecord, NaptrRecord, NaptrValue, NsRecord, \
-    Record, SshfpRecord, SpfRecord, SrvRecord, TxtRecord, Update, \
+    Create, Delete, GeoValue, GeoValues, MxRecord, NaptrRecord, NaptrValue, \
+    NsRecord, Record, SshfpRecord, SpfRecord, SrvRecord, TxtRecord, Update, \
     ValidationError
 from octodns.zone import Zone
 
@@ -96,7 +96,7 @@ class TestRecord(TestCase):
 
             DummyRecord().__repr__()
 
-    def test_geo(self):
+    def test_a_geo_values(self):
         geo_data = {'ttl': 42, 'values': ['5.2.3.4', '6.2.3.4'],
                     'geo': {'AF': ['1.1.1.1'],
                             'AS-JP': ['2.2.2.2', '3.3.3.3'],
@@ -626,8 +626,19 @@ class TestRecord(TestCase):
 
     def test_geo_value(self):
         code = 'NA-US-CA'
-        values = ['1.2.3.4']
-        geo = GeoValue(code, values)
+        value = '1.2.3.4'
+        geo = GeoValue(code, value)
+        self.assertEquals(code, geo.code)
+        self.assertEquals('NA', geo.continent_code)
+        self.assertEquals('US', geo.country_code)
+        self.assertEquals('CA', geo.subdivision_code)
+        self.assertEquals(value, geo.value)
+        self.assertEquals(['NA-US', 'NA'], list(geo.parents))
+
+    def test_geo_values(self):
+        code = 'NA-US-CA'
+        values = ['1.2.3.4', '1.2.3.5']
+        geo = GeoValues(code, values)
         self.assertEquals(code, geo.code)
         self.assertEquals('NA', geo.continent_code)
         self.assertEquals('US', geo.country_code)
@@ -737,7 +748,7 @@ class TestRecordValidation(TestCase):
             'invalid ip address "hello"',
         ], ctx.exception.reasons)
 
-    def test_geo(self):
+    def test_geo_values(self):
         Record.new(self.zone, '', {
             'geo': {
                 'NA': ['1.2.3.5'],
@@ -864,6 +875,11 @@ class TestRecordValidation(TestCase):
     def test_CNAME(self):
         # doesn't blow up
         Record.new(self.zone, 'www', {
+            'geo': {
+                'NA': 'na.foo.bar.com.',
+                'NA-US': 'na-us.foo.bar.com.',
+                'NA-US-CA': 'na-us-ca.foo.bar.com.'
+            },
             'type': 'CNAME',
             'ttl': 600,
             'value': 'foo.bar.com.',
@@ -886,6 +902,58 @@ class TestRecordValidation(TestCase):
                 'value': 'foo.bar.com',
             })
         self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+
+        # missing trailing . on geo
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'geo': {
+                    'NA': 'na.foo.bar.com',
+                },
+                'type': 'CNAME',
+                'ttl': 600,
+                'value': 'foo.bar.com.',
+            })
+        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+
+    def test_geo_value(self):
+        geo_data = {'ttl': 42, 'value': 'foo.bar.com',
+                    'geo': {'NA': 'na.foo.bar.com.',
+                            'NA-US': 'na-us.foo.bar.com.',
+                            'NA-US-CA': 'na-us-ca.foo.bar.com.'}}
+        geo = CnameRecord(self.zone, 'geo', geo_data)
+        self.assertEquals(geo_data, geo.data)
+
+        other_data = {'ttl': 42, 'value': 'foo.bar.com',
+                      'geo': {'NA': 'na.foo.bar.com.',
+                              'NA-US': 'na-us.foo.bar.com.',
+                              'NA-US-CA': 'na-us-ca.foo.bar.com.'}}
+        other = CnameRecord(self.zone, 'geo', other_data)
+        self.assertEquals(other_data, other.data)
+
+        simple_target = SimpleProvider()
+        geo_target = GeoProvider()
+
+        # Geo provider doesn't consider identical geo to be changes
+        self.assertFalse(geo.changes(geo, geo_target))
+
+        # geo values don't impact equality
+        other.geo['NA'].value = 'na2.foo.bar.com.'
+        self.assertTrue(geo == other)
+        # Non-geo supporting provider doesn't consider geo diffs to be changes
+        self.assertFalse(geo.changes(other, simple_target))
+        # Geo provider does consider geo diffs to be changes
+        self.assertTrue(geo.changes(other, geo_target))
+
+        # Object without geo doesn't impact equality
+        other.geo = {}
+        self.assertTrue(geo == other)
+        # Non-geo supporting provider doesn't consider lack of geo a diff
+        self.assertFalse(geo.changes(other, simple_target))
+        # Geo provider does consider lack of geo diffs to be changes
+        self.assertTrue(geo.changes(other, geo_target))
+
+        # __repr__ doesn't blow up
+        geo.__repr__()
 
     def test_MX(self):
         # doesn't blow up
