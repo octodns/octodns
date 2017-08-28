@@ -393,7 +393,7 @@ class CaaValue(object):
         reasons = []
         try:
             flags = int(value.get('flags', 0))
-            if flags not in (0, 128):
+            if flags < 0 or flags > 255:
                 reasons.append('invalid flags "{}"'.format(flags))
         except ValueError:
             reasons.append('invalid flags "{}"'.format(value['flags']))

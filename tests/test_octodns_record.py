@@ -939,12 +939,23 @@ class TestRecordValidation(TestCase):
                 'type': 'CAA',
                 'ttl': 600,
                 'value': {
-                    'flags': 42,
+                    'flags': -42,
                     'tag': 'iodef',
                     'value': 'http://foo.bar.com/',
                 }
             })
-        self.assertEquals(['invalid flags "42"'], ctx.exception.reasons)
+        self.assertEquals(['invalid flags "-42"'], ctx.exception.reasons)
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'CAA',
+                'ttl': 600,
+                'value': {
+                    'flags': 442,
+                    'tag': 'iodef',
+                    'value': 'http://foo.bar.com/',
+                }
+            })
+        self.assertEquals(['invalid flags "442"'], ctx.exception.reasons)
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'CAA',
