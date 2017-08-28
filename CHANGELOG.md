@@ -1,5 +1,16 @@
+## v0.8.5 - 2017-07-21 - Azure, NS1 escaping, & large zones
 
-## v0.8.4 - 2017-03-14 - It's been too long
+Relatively small delta this go around. No major themes or anything, just steady
+progress.
+
+* AzureProvider added thanks to work by
+  [Heesu Hwang](https://github.com/h-hwang).
+* Fixed some escaping issues with NS1 TXT and SPF records that were tracked down
+  with the help of [Blake Stoddard](https://github.com/blakestoddard).
+* Some tweaks were made to Zone.records to vastly improve handling of zones with
+  very large numbers of records, no more O(N^2).
+
+## v0.8.4 - 2017-06-28 - It's been too long
 
 Lots of updates based on our internal use, needs, and feedback & suggestions
 from our OSS users. There's too much to list out since the previous release was
@@ -28,7 +39,7 @@ better in the future :fingers_crossed:
   implementation. Sorting can be disabled in the YamlProvider with
   `enforce_order: False`.
 * Semi-colon/escaping fixes and improvements.
-* Meta record support, `TXT octodns-meta.<zone>`. For now just 
+* Meta record support, `TXT octodns-meta.<zone>`. For now just
   `provider=<provider-id>`. Optionally turned on with `include_meta` manager
   config val.
 * Validations check for CNAMEs co-existing with other records and error out if

@@ -372,11 +372,11 @@ class TestRoute53Provider(TestCase):
         # Delete by monkey patching in a populate that includes an extra record
         def add_extra_populate(existing, target, lenient):
             for record in self.expected.records:
-                existing.records.add(record)
+                existing.add_record(record)
             record = Record.new(existing, 'extra',
                                 {'ttl': 99, 'type': 'A',
                                  'values': ['9.9.9.9']})
-            existing.records.add(record)
+            existing.add_record(record)
 
         provider.populate = add_extra_populate
         change_resource_record_sets_params = {
@@ -409,7 +409,7 @@ class TestRoute53Provider(TestCase):
         def mod_geo_populate(existing, target, lenient):
             for record in self.expected.records:
                 if record._type != 'A' or not record.geo:
-                    existing.records.add(record)
+                    existing.add_record(record)
             record = Record.new(existing, '', {
                 'ttl': 61,
                 'type': 'A',
@@ -420,7 +420,7 @@ class TestRoute53Provider(TestCase):
                     'NA-US-KY': ['7.2.3.4']
                 }
             })
-            existing.records.add(record)
+            existing.add_record(record)
 
         provider.populate = mod_geo_populate
         change_resource_record_sets_params = {
@@ -505,7 +505,7 @@ class TestRoute53Provider(TestCase):
         def mod_add_geo_populate(existing, target, lenient):
             for record in self.expected.records:
                 if record._type != 'A' or record.geo:
-                    existing.records.add(record)
+                    existing.add_record(record)
             record = Record.new(existing, 'simple', {
                 'ttl': 61,
                 'type': 'A',
@@ -514,7 +514,7 @@ class TestRoute53Provider(TestCase):
                     'OC': ['3.2.3.4', '4.2.3.4'],
                 }
             })
-            existing.records.add(record)
+            existing.add_record(record)
 
         provider.populate = mod_add_geo_populate
         change_resource_record_sets_params = {
@@ -1231,6 +1231,14 @@ class TestRoute53Provider(TestCase):
             'TTL': 30,
             'Type': 'TXT',
         }))
+
+    def test_client_max_attempts(self):
+        provider = Route53Provider('test', 'abc', '123',
+                                   client_max_attempts=42)
+        # NOTE: this will break if boto ever changes the impl details...
+        self.assertEquals(43, provider._conn.meta.events
+                          ._unique_id_handlers['retry-config-route53']
+                          ['handler']._checker.__dict__['_max_attempts'])
 
 
 class TestRoute53Records(TestCase):

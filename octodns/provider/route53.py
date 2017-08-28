@@ -6,6 +6,7 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from boto3 import client
+from botocore.config import Config
 from collections import defaultdict
 from incf.countryutils.transformations import cca_to_ctca2
 from uuid import uuid4
@@ -229,14 +230,22 @@ class Route53Provider(BaseProvider):
     HEALTH_CHECK_VERSION = '0000'
 
     def __init__(self, id, access_key_id, secret_access_key, max_changes=1000,
-                 *args, **kwargs):
+                 client_max_attempts=None, *args, **kwargs):
         self.max_changes = max_changes
         self.log = logging.getLogger('Route53Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, access_key_id=%s, '
                        'secret_access_key=***', id, access_key_id)
         super(Route53Provider, self).__init__(id, *args, **kwargs)
+
+        config = None
+        if client_max_attempts is not None:
+            self.log.info('__init__: setting max_attempts to %d',
+                          client_max_attempts)
+            config = Config(retries={'max_attempts': client_max_attempts})
+
         self._conn = client('route53', aws_access_key_id=access_key_id,
-                            aws_secret_access_key=secret_access_key)
+                            aws_secret_access_key=secret_access_key,
+                            config=config)
 
         self._r53_zones = None
         self._r53_rrsets = {}

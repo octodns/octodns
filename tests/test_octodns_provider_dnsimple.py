@@ -33,7 +33,7 @@ class TestDnsimpleProvider(TestCase):
     }))
     for record in list(expected.records):
         if record.name == 'sub' and record._type == 'NS':
-            expected.records.remove(record)
+            expected._remove_record(record)
             break
 
     def test_populate(self):
