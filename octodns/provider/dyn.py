@@ -325,7 +325,7 @@ class DynProvider(BaseProvider):
                 else:
                     data['values'] = ['0.0.0.0']
                 convert_value = \
-                        getattr(self, '_convert_value_{}'.format(_type))
+                    getattr(self, '_convert_value_{}'.format(_type))
                 for ruleset in rulesets:
                     try:
                         record_set = ruleset.response_pools[0].rs_chains[0] \
@@ -353,8 +353,6 @@ class DynProvider(BaseProvider):
 
         return td_records
 
-
-
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
@@ -365,7 +363,8 @@ class DynProvider(BaseProvider):
 
         td_records = set()
         if self.traffic_directors_enabled:
-            td_records = self._populate_traffic_directors(zone, lenient=lenient)
+            td_records = self._populate_traffic_directors(zone,
+                                                          lenient=lenient)
 
         dyn_zone = _CachingDynZone.get(zone.name[:-1])
 
