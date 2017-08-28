@@ -109,6 +109,14 @@ class TestDynProvider(TestCase):
                 'weight': 22,
                 'port': 20,
                 'target': 'foo-2.unit.tests.'
+            }]}),
+        ('', {
+            'type': 'CAA',
+            'ttl': 308,
+            'values': [{
+                'flags': 0,
+                'tag': 'issue',
+                'value': 'ca.unit.tests'
             }]})):
         expected.add_record(Record.new(expected, name, data))
 
@@ -321,6 +329,16 @@ class TestDynProvider(TestCase):
                     'ttl': 307,
                     'zone': 'unit.tests',
                 }],
+                'caa_records': [{
+                    'fqdn': 'unit.tests',
+                    'rdata': {'flags': 0,
+                              'tag': 'issue',
+                              'value': 'ca.unit.tests'},
+                    'record_id': 12,
+                    'record_type': 'cAA',
+                    'ttl': 308,
+                    'zone': 'unit.tests',
+                }],
             }}
         ]
         got = Zone('unit.tests.', [])
@@ -414,10 +432,10 @@ class TestDynProvider(TestCase):
                 update_mock.assert_called()
             add_mock.assert_called()
             # Once for each dyn record (8 Records, 2 of which have dual values)
-            self.assertEquals(14, len(add_mock.call_args_list))
+            self.assertEquals(15, len(add_mock.call_args_list))
         execute_mock.assert_has_calls([call('/Zone/unit.tests/', 'GET', {}),
                                        call('/Zone/unit.tests/', 'GET', {})])
-        self.assertEquals(9, len(plan.changes))
+        self.assertEquals(10, len(plan.changes))
 
         execute_mock.reset_mock()
 

@@ -14,8 +14,8 @@ from .base import BaseProvider
 
 class PowerDnsBaseProvider(BaseProvider):
     SUPPORTS_GEO = False
-    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
-                    'SPF', 'SSHFP', 'SRV', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
+                    'PTR', 'SPF', 'SSHFP', 'SRV', 'TXT'))
     TIMEOUT = 5
 
     def __init__(self, id, host, api_key, port=8081, scheme="http", *args,
@@ -60,6 +60,21 @@ class PowerDnsBaseProvider(BaseProvider):
     _data_for_A = _data_for_multiple
     _data_for_AAAA = _data_for_multiple
     _data_for_NS = _data_for_multiple
+
+    def _data_for_CAA(self, rrset):
+        values = []
+        for record in rrset['records']:
+            flags, tag, value = record['content'].split(' ', 2)
+            values.append({
+                'flags': flags,
+                'tag': tag,
+                'value': value[1:-1],
+            })
+        return {
+            'type': rrset['type'],
+            'values': values,
+            'ttl': rrset['ttl']
+        }
 
     def _data_for_single(self, rrset):
         return {
@@ -193,6 +208,12 @@ class PowerDnsBaseProvider(BaseProvider):
     _records_for_A = _records_for_multiple
     _records_for_AAAA = _records_for_multiple
     _records_for_NS = _records_for_multiple
+
+    def _records_for_CAA(self, record):
+        return [{
+            'content': '{} {} "{}"'.format(v.flags, v.tag, v.value),
+            'disabled': False
+        } for v in record.values]
 
     def _records_for_single(self, record):
         return [{'content': record.value, 'disabled': False}]

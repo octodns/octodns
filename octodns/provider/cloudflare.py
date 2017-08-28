@@ -36,7 +36,7 @@ class CloudflareProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     # TODO: support SRV
-    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NS', 'SPF', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SPF', 'TXT'))
 
     MIN_TTL = 120
     TIMEOUT = 15
@@ -102,6 +102,20 @@ class CloudflareProvider(BaseProvider):
             'ttl': records[0]['ttl'],
             'type': _type,
             'values': [r['content'].replace(';', '\;') for r in records],
+        }
+
+    def _data_for_CAA(self, _type, records):
+        values = []
+        for r in records:
+            values.append({
+                'flags': r['flags'],
+                'tag': r['tag'],
+                'value': r['content'],
+            })
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values,
         }
 
     def _data_for_CNAME(self, _type, records):
@@ -196,6 +210,14 @@ class CloudflareProvider(BaseProvider):
     _contents_for_AAAA = _contents_for_multiple
     _contents_for_NS = _contents_for_multiple
     _contents_for_SPF = _contents_for_multiple
+
+    def _contents_for_CAA(self, record):
+        for value in record.values:
+            yield {
+                'flags': value.flags,
+                'tag': value.tag,
+                'value': value.value,
+            }
 
     def _contents_for_TXT(self, record):
         for value in record.values:

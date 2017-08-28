@@ -91,8 +91,8 @@ class DnsimpleProvider(BaseProvider):
         account: 42
     '''
     SUPPORTS_GEO = False
-    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
-                    'SPF', 'SRV', 'SSHFP', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
+                    'PTR', 'SPF', 'SRV', 'SSHFP', 'TXT'))
 
     def __init__(self, id, token, account, *args, **kwargs):
         self.log = logging.getLogger('DnsimpleProvider[{}]'.format(id))
@@ -113,6 +113,21 @@ class DnsimpleProvider(BaseProvider):
     _data_for_AAAA = _data_for_multiple
     _data_for_SPF = _data_for_multiple
     _data_for_TXT = _data_for_multiple
+
+    def _data_for_CAA(self, _type, records):
+        values = []
+        for record in records:
+            flags, tag, value = record['content'].split(' ')
+            values.append({
+                'flags': flags,
+                'tag': tag,
+                'value': value[1:-1],
+            })
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values
+        }
 
     def _data_for_CNAME(self, _type, records):
         record = records[0]
@@ -274,6 +289,16 @@ class DnsimpleProvider(BaseProvider):
     _params_for_NS = _params_for_multiple
     _params_for_SPF = _params_for_multiple
     _params_for_TXT = _params_for_multiple
+
+    def _params_for_CAA(self, record):
+        for value in record.values:
+            yield {
+                'content': '{} {} "{}"'.format(value.flags, value.tag,
+                                               value.value),
+                'name': record.name,
+                'ttl': record.ttl,
+                'type': record._type
+            }
 
     def _params_for_single(self, record):
         yield {

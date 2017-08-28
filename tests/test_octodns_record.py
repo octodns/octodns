@@ -7,10 +7,10 @@ from __future__ import absolute_import, division, print_function, \
 
 from unittest import TestCase
 
-from octodns.record import ARecord, AaaaRecord, AliasRecord, CnameRecord, \
-    Create, Delete, GeoValue, MxRecord, NaptrRecord, NaptrValue, NsRecord, \
-    Record, SshfpRecord, SpfRecord, SrvRecord, TxtRecord, Update, \
-    ValidationError
+from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
+    CnameRecord, Create, Delete, GeoValue, MxRecord, NaptrRecord, \
+    NaptrValue, NsRecord, Record, SshfpRecord, SpfRecord, SrvRecord, \
+    TxtRecord, Update, ValidationError
 from octodns.zone import Zone
 
 from helpers import GeoProvider, SimpleProvider
@@ -199,6 +199,66 @@ class TestRecord(TestCase):
         # Diff in value causes change
         other = AliasRecord(self.zone, 'a', a_data)
         other.value = 'foo.unit.tests.'
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+
+        # __repr__ doesn't blow up
+        a.__repr__()
+
+    def test_caa(self):
+        a_values = [{
+            'flags': 0,
+            'tag': 'issue',
+            'value': 'ca.example.net',
+        }, {
+            'flags': 128,
+            'tag': 'iodef',
+            'value': 'mailto:security@example.com',
+        }]
+        a_data = {'ttl': 30, 'values': a_values}
+        a = CaaRecord(self.zone, 'a', a_data)
+        self.assertEquals('a', a.name)
+        self.assertEquals('a.unit.tests.', a.fqdn)
+        self.assertEquals(30, a.ttl)
+        self.assertEquals(a_values[0]['flags'], a.values[0].flags)
+        self.assertEquals(a_values[0]['tag'], a.values[0].tag)
+        self.assertEquals(a_values[0]['value'], a.values[0].value)
+        self.assertEquals(a_values[1]['flags'], a.values[1].flags)
+        self.assertEquals(a_values[1]['tag'], a.values[1].tag)
+        self.assertEquals(a_values[1]['value'], a.values[1].value)
+        self.assertEquals(a_data, a.data)
+
+        b_value = {
+            'tag': 'iodef',
+            'value': 'http://iodef.example.com/',
+        }
+        b_data = {'ttl': 30, 'value': b_value}
+        b = CaaRecord(self.zone, 'b', b_data)
+        self.assertEquals(0, b.values[0].flags)
+        self.assertEquals(b_value['tag'], b.values[0].tag)
+        self.assertEquals(b_value['value'], b.values[0].value)
+        b_data['value']['flags'] = 0
+        self.assertEquals(b_data, b.data)
+
+        target = SimpleProvider()
+        # No changes with self
+        self.assertFalse(a.changes(a, target))
+        # Diff in flags causes change
+        other = CaaRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other.values[0].flags = 128
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+        # Diff in tag causes change
+        other.values[0].flags = a.values[0].flags
+        other.values[0].tag = 'foo'
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+        # Diff in value causes change
+        other.values[0].tag = a.values[0].tag
+        other.values[0].value = 'bar'
         change = a.changes(other, target)
         self.assertEqual(change.existing, a)
         self.assertEqual(change.new, other)
@@ -860,6 +920,75 @@ class TestRecordValidation(TestCase):
                 'value': 'foo.bar.com',
             })
         self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+
+    def test_CAA(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'CAA',
+            'ttl': 600,
+            'value': {
+                'flags': 128,
+                'tag': 'iodef',
+                'value': 'http://foo.bar.com/'
+            }
+        })
+
+        # invalid flags
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'CAA',
+                'ttl': 600,
+                'value': {
+                    'flags': -42,
+                    'tag': 'iodef',
+                    'value': 'http://foo.bar.com/',
+                }
+            })
+        self.assertEquals(['invalid flags "-42"'], ctx.exception.reasons)
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'CAA',
+                'ttl': 600,
+                'value': {
+                    'flags': 442,
+                    'tag': 'iodef',
+                    'value': 'http://foo.bar.com/',
+                }
+            })
+        self.assertEquals(['invalid flags "442"'], ctx.exception.reasons)
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'CAA',
+                'ttl': 600,
+                'value': {
+                    'flags': 'nope',
+                    'tag': 'iodef',
+                    'value': 'http://foo.bar.com/',
+                }
+            })
+        self.assertEquals(['invalid flags "nope"'], ctx.exception.reasons)
+
+        # missing tag
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'CAA',
+                'ttl': 600,
+                'value': {
+                    'value': 'http://foo.bar.com/',
+                }
+            })
+        self.assertEquals(['missing tag'], ctx.exception.reasons)
+
+        # missing value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'CAA',
+                'ttl': 600,
+                'value': {
+                    'tag': 'iodef',
+                }
+            })
+        self.assertEquals(['missing value'], ctx.exception.reasons)
 
     def test_CNAME(self):
         # doesn't blow up

@@ -31,6 +31,11 @@
     values:
     - 6.2.3.4.
     - 7.2.3.4.
+  - type: CAA
+    values:
+    - flags: 0
+      tag: issue
+      value: ca.unit.tests
 _srv._tcp:
   ttl: 600
   type: SRV

@@ -23,8 +23,8 @@ class Ns1Provider(BaseProvider):
         api_key: env/NS1_API_KEY
     '''
     SUPPORTS_GEO = False
-    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
-                    'SPF', 'SRV', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
+                    'PTR', 'SPF', 'SRV', 'TXT'))
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
@@ -52,6 +52,21 @@ class Ns1Provider(BaseProvider):
         }
 
     _data_for_TXT = _data_for_SPF
+
+    def _data_for_CAA(self, _type, record):
+        values = []
+        for answer in record['short_answers']:
+            flags, tag, value = answer.split(' ', 2)
+            values.append({
+                'flags': flags,
+                'tag': tag,
+                'value': value,
+            })
+        return {
+            'ttl': record['ttl'],
+            'type': _type,
+            'values': values,
+        }
 
     def _data_for_CNAME(self, _type, record):
         return {
@@ -158,6 +173,10 @@ class Ns1Provider(BaseProvider):
         return {'answers': values, 'ttl': record.ttl}
 
     _params_for_TXT = _params_for_SPF
+
+    def _params_for_CAA(self, record):
+        values = [(v.flags, v.tag, v.value) for v in record.values]
+        return {'answers': values, 'ttl': record.ttl}
 
     def _params_for_CNAME(self, record):
         return {'answers': [record.value], 'ttl': record.ttl}
