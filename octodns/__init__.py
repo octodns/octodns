@@ -3,4 +3,4 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-__VERSION__ = '0.8.5'
+__VERSION__ = '0.8.6'
