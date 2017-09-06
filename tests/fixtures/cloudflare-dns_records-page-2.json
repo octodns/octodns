@@ -123,9 +123,11 @@
       "id": "fc223b34cd5611334422ab3322997667",
       "type": "CAA",
       "name": "unit.tests",
-      "content": "ca.unit.tests",
-      "flags": 0,
-      "tag": "issue",
+      "data": {
+          "flags": 0,
+          "tag": "issue",
+          "value": "ca.unit.tests"
+      },
       "proxiable": false,
       "proxied": false,
       "ttl": 3600,
