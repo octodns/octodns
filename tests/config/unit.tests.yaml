@@ -31,6 +31,11 @@
     values:
     - 6.2.3.4.
     - 7.2.3.4.
+  - type: CAA
+    values:
+    - flags: 0
+      tag: issue
+      value: ca.unit.tests
 _srv._tcp:
   ttl: 600
   type: SRV
@@ -60,12 +65,12 @@ mx:
   ttl: 300
   type: MX
   values:
-  - priority: 40
-    value: smtp-1.unit.tests.
-  - priority: 20
-    value: smtp-2.unit.tests.
-  - priority: 30
-    value: smtp-3.unit.tests.
+  - exchange: smtp-1.unit.tests.
+    preference: 40
+  - exchange: smtp-2.unit.tests.
+    preference: 20
+  - exchange: smtp-3.unit.tests.
+    preference: 30
   - priority: 10
     value: smtp-4.unit.tests.
 naptr:

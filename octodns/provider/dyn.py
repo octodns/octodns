@@ -106,10 +106,12 @@ class DynProvider(BaseProvider):
     than one account active at a time. See DynProvider._check_dyn_sess for some
     related bits.
     '''
+
     RECORDS_TO_TYPE = {
         'a_records': 'A',
         'aaaa_records': 'AAAA',
         'alias_records': 'ALIAS',
+        'caa_records': 'CAA',
         'cname_records': 'CNAME',
         'mx_records': 'MX',
         'naptr_records': 'NAPTR',
@@ -121,6 +123,7 @@ class DynProvider(BaseProvider):
         'txt_records': 'TXT',
     }
     TYPE_TO_RECORDS = {v: k for k, v in RECORDS_TO_TYPE.items()}
+    SUPPORTS = set(TYPE_TO_RECORDS.keys())
 
     # https://help.dyn.com/predefined-geotm-regions-groups/
     REGION_CODES = {
@@ -192,6 +195,14 @@ class DynProvider(BaseProvider):
             'value': record.alias
         }
 
+    def _data_for_CAA(self, _type, records):
+        return {
+            'type': _type,
+            'ttl': records[0].ttl,
+            'values': [{'flags': r.flags, 'tag': r.tag, 'value': r.value}
+                       for r in records],
+        }
+
     def _data_for_CNAME(self, _type, records):
         record = records[0]
         return {
@@ -204,7 +215,7 @@ class DynProvider(BaseProvider):
         return {
             'type': _type,
             'ttl': records[0].ttl,
-            'values': [{'priority': r.preference, 'value': r.exchange}
+            'values': [{'preference': r.preference, 'exchange': r.exchange}
                        for r in records],
         }
 
@@ -336,8 +347,10 @@ class DynProvider(BaseProvider):
 
         return td_records
 
-    def populate(self, zone, target=False):
-        self.log.info('populate: zone=%s', zone.name)
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
+
         before = len(zone.records)
 
         self._check_dyn_sess()
@@ -362,7 +375,8 @@ class DynProvider(BaseProvider):
                 for _type, records in types.items():
                     data_for = getattr(self, '_data_for_{}'.format(_type))
                     data = data_for(_type, records)
-                    record = Record.new(zone, name, data, source=self)
+                    record = Record.new(zone, name, data, source=self,
+                                        lenient=lenient)
                     if record not in td_records:
                         zone.add_record(record)
 
@@ -376,6 +390,13 @@ class DynProvider(BaseProvider):
         } for v in record.values]
 
     _kwargs_for_AAAA = _kwargs_for_A
+
+    def _kwargs_for_CAA(self, record):
+        return [{
+            'flags': v.flags,
+            'tag': v.tag,
+            'value': v.value,
+        } for v in record.values]
 
     def _kwargs_for_CNAME(self, record):
         return [{
@@ -395,8 +416,8 @@ class DynProvider(BaseProvider):
 
     def _kwargs_for_MX(self, record):
         return [{
-            'preference': v.priority,
-            'exchange': v.value,
+            'preference': v.preference,
+            'exchange': v.exchange,
             'ttl': record.ttl,
         } for v in record.values]
 

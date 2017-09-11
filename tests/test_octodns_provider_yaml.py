@@ -30,7 +30,7 @@ class TestYamlProvider(TestCase):
 
         # without it we see everything
         source.populate(zone)
-        self.assertEquals(15, len(zone.records))
+        self.assertEquals(16, len(zone.records))
 
         # Assumption here is that a clean round-trip means that everything
         # worked as expected, data that went in came back out and could be
@@ -99,6 +99,12 @@ class TestYamlProvider(TestCase):
 
         with self.assertRaises(ConstructorError):
             source.populate(zone)
+
+        source = YamlProvider('test', join(dirname(__file__), 'config'),
+                              enforce_order=False)
+        # no exception
+        source.populate(zone)
+        self.assertEqual(2, len(zone.records))
 
     def test_subzone_handling(self):
         source = YamlProvider('test', join(dirname(__file__), 'config'))

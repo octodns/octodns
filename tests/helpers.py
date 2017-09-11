@@ -17,11 +17,12 @@ class SimpleSource(object):
 
 class SimpleProvider(object):
     SUPPORTS_GEO = False
+    SUPPORTS = set(('A',))
 
     def __init__(self, id='test'):
         pass
 
-    def populate(self, zone, source=True):
+    def populate(self, zone, source=False, lenient=False):
         pass
 
     def supports(self, record):
@@ -37,7 +38,7 @@ class GeoProvider(object):
     def __init__(self, id='test'):
         pass
 
-    def populate(self, zone, source=True):
+    def populate(self, zone, source=False, lenient=False):
         pass
 
     def supports(self, record):

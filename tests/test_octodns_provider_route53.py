@@ -11,8 +11,8 @@ from unittest import TestCase
 from mock import patch
 
 from octodns.record import Create, Delete, Record, Update
-from octodns.provider.route53 import _Route53Record, Route53Provider, \
-    _octal_replace
+from octodns.provider.route53 import Route53Provider, _Route53GeoDefault, \
+    _Route53GeoRecord, _Route53Record, _octal_replace
 from octodns.zone import Zone
 
 from helpers import GeoProvider
@@ -52,11 +52,11 @@ class TestRoute53Provider(TestCase):
                                                       'Goodbye World?']}),
         ('', {'ttl': 64, 'type': 'MX',
               'values': [{
-                  'priority': 10,
-                  'value': 'smtp-1.unit.tests.',
+                  'preference': 10,
+                  'exchange': 'smtp-1.unit.tests.',
               }, {
-                  'priority': 20,
-                  'value': 'smtp-2.unit.tests.',
+                  'preference': 20,
+                  'exchange': 'smtp-2.unit.tests.',
               }]}),
         ('naptr', {'ttl': 65, 'type': 'NAPTR',
                    'value': {
@@ -77,6 +77,12 @@ class TestRoute53Provider(TestCase):
          {'ttl': 67, 'type': 'NS', 'values': ['8.2.3.4.', '9.2.3.4.']}),
         ('sub',
          {'ttl': 68, 'type': 'NS', 'values': ['5.2.3.4.', '6.2.3.4.']}),
+        ('',
+         {'ttl': 69, 'type': 'CAA', 'value': {
+             'flags': 0,
+             'tag': 'issue',
+             'value': 'ca.unit.tests'
+         }}),
     ):
         record = Record.new(expected, name, data)
         expected.add_record(record)
@@ -300,6 +306,13 @@ class TestRoute53Provider(TestCase):
                     'Value': 'ns1.unit.tests.',
                 }],
                 'TTL': 69,
+            }, {
+                'Name': 'unit.tests.',
+                'Type': 'CAA',
+                'ResourceRecords': [{
+                    'Value': '0 issue "ca.unit.tests"',
+                }],
+                'TTL': 69,
             }],
             'IsTruncated': False,
             'MaxItems': '100',
@@ -347,7 +360,7 @@ class TestRoute53Provider(TestCase):
                              {'HostedZoneId': 'z42'})
 
         plan = provider.plan(self.expected)
-        self.assertEquals(8, len(plan.changes))
+        self.assertEquals(9, len(plan.changes))
         for change in plan.changes:
             self.assertIsInstance(change, Create)
         stubber.assert_no_pending_responses()
@@ -366,17 +379,17 @@ class TestRoute53Provider(TestCase):
                                  'SubmittedAt': '2017-01-29T01:02:03Z',
                              }}, {'HostedZoneId': 'z42', 'ChangeBatch': ANY})
 
-        self.assertEquals(8, provider.apply(plan))
+        self.assertEquals(9, provider.apply(plan))
         stubber.assert_no_pending_responses()
 
         # Delete by monkey patching in a populate that includes an extra record
-        def add_extra_populate(existing, target):
+        def add_extra_populate(existing, target, lenient):
             for record in self.expected.records:
-                existing.records.add(record)
+                existing.add_record(record)
             record = Record.new(existing, 'extra',
                                 {'ttl': 99, 'type': 'A',
                                  'values': ['9.9.9.9']})
-            existing.records.add(record)
+            existing.add_record(record)
 
         provider.populate = add_extra_populate
         change_resource_record_sets_params = {
@@ -406,10 +419,10 @@ class TestRoute53Provider(TestCase):
 
         # Update by monkey patching in a populate that modifies the A record
         # with geos
-        def mod_geo_populate(existing, target):
+        def mod_geo_populate(existing, target, lenient):
             for record in self.expected.records:
                 if record._type != 'A' or not record.geo:
-                    existing.records.add(record)
+                    existing.add_record(record)
             record = Record.new(existing, '', {
                 'ttl': 61,
                 'type': 'A',
@@ -420,7 +433,7 @@ class TestRoute53Provider(TestCase):
                     'NA-US-KY': ['7.2.3.4']
                 }
             })
-            existing.records.add(record)
+            existing.add_record(record)
 
         provider.populate = mod_geo_populate
         change_resource_record_sets_params = {
@@ -502,10 +515,10 @@ class TestRoute53Provider(TestCase):
 
         # Update converting to non-geo by monkey patching in a populate that
         # modifies the A record with geos
-        def mod_add_geo_populate(existing, target):
+        def mod_add_geo_populate(existing, target, lenient):
             for record in self.expected.records:
                 if record._type != 'A' or record.geo:
-                    existing.records.add(record)
+                    existing.add_record(record)
             record = Record.new(existing, 'simple', {
                 'ttl': 61,
                 'type': 'A',
@@ -514,7 +527,7 @@ class TestRoute53Provider(TestCase):
                     'OC': ['3.2.3.4', '4.2.3.4'],
                 }
             })
-            existing.records.add(record)
+            existing.add_record(record)
 
         provider.populate = mod_add_geo_populate
         change_resource_record_sets_params = {
@@ -522,21 +535,21 @@ class TestRoute53Provider(TestCase):
                 'Changes': [{
                     'Action': 'DELETE',
                     'ResourceRecordSet': {
-                        'GeoLocation': {'ContinentCode': 'OC'},
-                        'Name': 'simple.unit.tests.',
-                        'ResourceRecords': [{'Value': '3.2.3.4'},
-                                            {'Value': '4.2.3.4'}],
-                        'SetIdentifier': 'OC',
-                        'TTL': 61,
-                        'Type': 'A'}
-                }, {
-                    'Action': 'DELETE',
-                    'ResourceRecordSet': {
                         'GeoLocation': {'CountryCode': '*'},
                         'Name': 'simple.unit.tests.',
                         'ResourceRecords': [{'Value': '1.2.3.4'},
                                             {'Value': '2.2.3.4'}],
                         'SetIdentifier': 'default',
+                        'TTL': 61,
+                        'Type': 'A'}
+                }, {
+                    'Action': 'DELETE',
+                    'ResourceRecordSet': {
+                        'GeoLocation': {'ContinentCode': 'OC'},
+                        'Name': 'simple.unit.tests.',
+                        'ResourceRecords': [{'Value': '3.2.3.4'},
+                                            {'Value': '4.2.3.4'}],
+                        'SetIdentifier': 'OC',
                         'TTL': 61,
                         'Type': 'A'}
                 }, {
@@ -579,7 +592,7 @@ class TestRoute53Provider(TestCase):
                              {})
 
         plan = provider.plan(self.expected)
-        self.assertEquals(8, len(plan.changes))
+        self.assertEquals(9, len(plan.changes))
         for change in plan.changes:
             self.assertIsInstance(change, Create)
         stubber.assert_no_pending_responses()
@@ -626,7 +639,7 @@ class TestRoute53Provider(TestCase):
                                  'SubmittedAt': '2017-01-29T01:02:03Z',
                              }}, {'HostedZoneId': 'z42', 'ChangeBatch': ANY})
 
-        self.assertEquals(8, provider.apply(plan))
+        self.assertEquals(9, provider.apply(plan))
         stubber.assert_no_pending_responses()
 
     def test_health_checks_pagination(self):
@@ -694,8 +707,7 @@ class TestRoute53Provider(TestCase):
                 'AF': ['4.2.3.4'],
             }
         })
-        id = provider._get_health_check_id(record, 'AF', record.geo['AF'],
-                                           True)
+        id = provider.get_health_check_id(record, 'AF', record.geo['AF'], True)
         self.assertEquals('42', id)
 
     def test_health_check_create(self):
@@ -765,13 +777,12 @@ class TestRoute53Provider(TestCase):
         })
 
         # if not allowed to create returns none
-        id = provider._get_health_check_id(record, 'AF', record.geo['AF'],
-                                           False)
+        id = provider.get_health_check_id(record, 'AF', record.geo['AF'],
+                                          False)
         self.assertFalse(id)
 
         # when allowed to create we do
-        id = provider._get_health_check_id(record, 'AF', record.geo['AF'],
-                                           True)
+        id = provider.get_health_check_id(record, 'AF', record.geo['AF'], True)
         self.assertEquals('42', id)
         stubber.assert_no_pending_responses()
 
@@ -1106,10 +1117,6 @@ class TestRoute53Provider(TestCase):
         self.assertEquals(0, len(extra))
         stubber.assert_no_pending_responses()
 
-    def test_route_53_record(self):
-        # Just make sure it doesn't blow up
-        _Route53Record('foo.unit.tests.', 'A', 30).__repr__()
-
     def _get_test_plan(self, max_changes):
 
         provider = Route53Provider('test', 'abc', '123', max_changes)
@@ -1180,16 +1187,16 @@ class TestRoute53Provider(TestCase):
     @patch('octodns.provider.route53.Route53Provider._really_apply')
     def test_apply_1(self, really_apply_mock):
 
-        # 17 RRs with max of 18 should only get applied in one call
-        provider, plan = self._get_test_plan(18)
+        # 18 RRs with max of 19 should only get applied in one call
+        provider, plan = self._get_test_plan(19)
         provider.apply(plan)
         really_apply_mock.assert_called_once()
 
     @patch('octodns.provider.route53.Route53Provider._really_apply')
     def test_apply_2(self, really_apply_mock):
 
-        # 17 RRs with max of 17 should only get applied in two calls
-        provider, plan = self._get_test_plan(17)
+        # 18 RRs with max of 17 should only get applied in two calls
+        provider, plan = self._get_test_plan(18)
         provider.apply(plan)
         self.assertEquals(2, really_apply_mock.call_count)
 
@@ -1237,3 +1244,81 @@ class TestRoute53Provider(TestCase):
             'TTL': 30,
             'Type': 'TXT',
         }))
+
+    def test_client_max_attempts(self):
+        provider = Route53Provider('test', 'abc', '123',
+                                   client_max_attempts=42)
+        # NOTE: this will break if boto ever changes the impl details...
+        self.assertEquals(43, provider._conn.meta.events
+                          ._unique_id_handlers['retry-config-route53']
+                          ['handler']._checker.__dict__['_max_attempts'])
+
+
+class TestRoute53Records(TestCase):
+
+    def test_route53_record(self):
+        existing = Zone('unit.tests.', [])
+        record_a = Record.new(existing, '', {
+            'geo': {
+                'NA-US': ['2.2.2.2', '3.3.3.3'],
+                'OC': ['4.4.4.4', '5.5.5.5']
+            },
+            'ttl': 99,
+            'type': 'A',
+            'values': ['9.9.9.9']
+        })
+        a = _Route53Record(None, record_a, False)
+        self.assertEquals(a, a)
+        b = _Route53Record(None, Record.new(existing, '',
+                                            {'ttl': 32, 'type': 'A',
+                                             'values': ['8.8.8.8',
+                                                        '1.1.1.1']}),
+                           False)
+        self.assertEquals(b, b)
+        c = _Route53Record(None, Record.new(existing, 'other',
+                                            {'ttl': 99, 'type': 'A',
+                                             'values': ['9.9.9.9']}),
+                           False)
+        self.assertEquals(c, c)
+        d = _Route53Record(None, Record.new(existing, '',
+                                            {'ttl': 42, 'type': 'MX',
+                                             'value': {
+                                                 'preference': 10,
+                                                 'exchange': 'foo.bar.'}}),
+                           False)
+        self.assertEquals(d, d)
+
+        # Same fqdn & type is same record
+        self.assertEquals(a, b)
+        # Same name & different type is not the same
+        self.assertNotEquals(a, d)
+        # Different name & same type is not the same
+        self.assertNotEquals(a, c)
+
+        # Same everything, different class is not the same
+        e = _Route53GeoDefault(None, record_a, False)
+        self.assertNotEquals(a, e)
+
+        class DummyProvider(object):
+
+            def get_health_check_id(self, *args, **kwargs):
+                return None
+
+        provider = DummyProvider()
+        f = _Route53GeoRecord(provider, record_a, 'NA-US',
+                              record_a.geo['NA-US'], False)
+        self.assertEquals(f, f)
+        g = _Route53GeoRecord(provider, record_a, 'OC',
+                              record_a.geo['OC'], False)
+        self.assertEquals(g, g)
+
+        # Geo and non-geo are not the same, using Geo as primary to get it's
+        # __cmp__
+        self.assertNotEquals(f, a)
+        # Same everything, different geo's is not the same
+        self.assertNotEquals(f, g)
+
+        # Make sure it doesn't blow up
+        a.__repr__()
+        e.__repr__()
+        f.__repr__()

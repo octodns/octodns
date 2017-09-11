@@ -79,7 +79,7 @@ class TestPowerDnsProvider(TestCase):
         source = YamlProvider('test', join(dirname(__file__), 'config'))
         source.populate(expected)
         expected_n = len(expected.records) - 1
-        self.assertEquals(14, expected_n)
+        self.assertEquals(15, expected_n)
 
         # No diffs == no changes
         with requests_mock() as mock:
@@ -87,7 +87,7 @@ class TestPowerDnsProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(14, len(zone.records))
+            self.assertEquals(15, len(zone.records))
             changes = expected.changes(zone, provider)
             self.assertEquals(0, len(changes))
 
@@ -167,7 +167,7 @@ class TestPowerDnsProvider(TestCase):
         expected = Zone('unit.tests.', [])
         source = YamlProvider('test', join(dirname(__file__), 'config'))
         source.populate(expected)
-        self.assertEquals(15, len(expected.records))
+        self.assertEquals(16, len(expected.records))
 
         # A small change to a single record
         with requests_mock() as mock:
@@ -253,7 +253,7 @@ class TestPowerDnsProvider(TestCase):
             plan = provider.plan(expected)
             self.assertFalse(plan)
             # remove it now that we don't need the unrelated change any longer
-            expected.records.remove(unrelated_record)
+            expected._remove_record(unrelated_record)
 
         # ttl diff
         with requests_mock() as mock:

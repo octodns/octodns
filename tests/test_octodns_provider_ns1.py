@@ -6,7 +6,8 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from mock import Mock, call, patch
-from nsone.rest.errors import AuthException, ResourceException
+from nsone.rest.errors import AuthException, RateLimitException, \
+    ResourceException
 from unittest import TestCase
 
 from octodns.record import Delete, Record, Update
@@ -44,11 +45,11 @@ class TestNs1Provider(TestCase):
         'ttl': 35,
         'type': 'MX',
         'values': [{
-            'priority': 10,
-            'value': 'mx1.unit.tests.',
+            'preference': 10,
+            'exchange': 'mx1.unit.tests.',
         }, {
-            'priority': 20,
-            'value': 'mx2.unit.tests.',
+            'preference': 20,
+            'exchange': 'mx2.unit.tests.',
         }]
     }))
     expected.add(Record.new(zone, 'naptr', {
@@ -95,6 +96,15 @@ class TestNs1Provider(TestCase):
         'type': 'NS',
         'values': ['ns3.unit.tests.', 'ns4.unit.tests.'],
     }))
+    expected.add(Record.new(zone, '', {
+        'ttl': 40,
+        'type': 'CAA',
+        'value': {
+            'flags': 0,
+            'tag': 'issue',
+            'value': 'ca.unit.tests',
+        },
+    }))
 
     nsone_records = [{
         'type': 'A',
@@ -140,6 +150,11 @@ class TestNs1Provider(TestCase):
         'ttl': 39,
         'short_answers': ['ns3.unit.tests.', 'ns4.unit.tests.'],
         'domain': 'sub.unit.tests.',
+    }, {
+        'type': 'CAA',
+        'ttl': 40,
+        'short_answers': ['0 issue ca.unit.tests'],
+        'domain': 'unit.tests.',
     }]
 
     @patch('nsone.NSONE.loadZone')
@@ -195,7 +210,8 @@ class TestNs1Provider(TestCase):
         provider = Ns1Provider('test', 'api-key')
 
         desired = Zone('unit.tests.', [])
-        desired.records.update(self.expected)
+        for r in self.expected:
+            desired.add_record(r)
 
         plan = provider.plan(desired)
         # everything except the root NS
@@ -225,7 +241,15 @@ class TestNs1Provider(TestCase):
         create_mock.reset_mock()
         load_mock.side_effect = \
             ResourceException('server error: zone not found')
-        create_mock.side_effect = None
+        # ugh, need a mock zone with a mock prop since we're using getattr, we
+        # can actually control side effects on `meth` with that.
+        mock_zone = Mock()
+        mock_zone.add_SRV = Mock()
+        mock_zone.add_SRV.side_effect = [
+            RateLimitException('boo', period=0),
+            None,
+        ]
+        create_mock.side_effect = [mock_zone]
         got_n = provider.apply(plan)
         self.assertEquals(expected_n, got_n)
 
@@ -245,12 +269,60 @@ class TestNs1Provider(TestCase):
         self.assertEquals(2, len(plan.changes))
         self.assertIsInstance(plan.changes[0], Update)
         self.assertIsInstance(plan.changes[1], Delete)
-
+        # ugh, we need a mock record that can be returned from loadRecord for
+        # the update and delete targets, we can add our side effects to that to
+        # trigger rate limit handling
+        mock_record = Mock()
+        mock_record.update.side_effect = [
+            RateLimitException('one', period=0),
+            None,
+        ]
+        mock_record.delete.side_effect = [
+            RateLimitException('two', period=0),
+            None,
+        ]
+        nsone_zone.loadRecord.side_effect = [mock_record, mock_record]
         got_n = provider.apply(plan)
         self.assertEquals(2, got_n)
         nsone_zone.loadRecord.assert_has_calls([
             call('unit.tests', u'A'),
-            call().update(answers=[u'1.2.3.4'], ttl=32),
             call('delete-me', u'A'),
-            call().delete()
         ])
+        mock_record.assert_has_calls([
+            call.update(answers=[u'1.2.3.4'], ttl=32),
+            call.delete()
+        ])
+
+    def test_escaping(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        record = {
+            'ttl': 31,
+            'short_answers': ['foo; bar baz; blip']
+        }
+        self.assertEquals(['foo\; bar baz\; blip'],
+                          provider._data_for_SPF('SPF', record)['values'])
+
+        record = {
+            'ttl': 31,
+            'short_answers': ['no', 'foo; bar baz; blip', 'yes']
+        }
+        self.assertEquals(['no', 'foo\; bar baz\; blip', 'yes'],
+                          provider._data_for_TXT('TXT', record)['values'])
+
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, 'spf', {
+            'ttl': 34,
+            'type': 'SPF',
+            'value': 'foo\; bar baz\; blip'
+        })
+        self.assertEquals(['foo; bar baz; blip'],
+                          provider._params_for_SPF(record)['answers'])
+
+        record = Record.new(zone, 'txt', {
+            'ttl': 35,
+            'type': 'TXT',
+            'value': 'foo\; bar baz\; blip'
+        })
+        self.assertEquals(['foo; bar baz; blip'],
+                          provider._params_for_TXT(record)['answers'])

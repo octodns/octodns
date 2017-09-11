@@ -19,6 +19,7 @@ from .base import BaseSource
 
 class TinyDnsBaseSource(BaseSource):
     SUPPORTS_GEO = False
+    SUPPORTS = set(('A', 'CNAME', 'MX', 'NS'))
 
     split_re = re.compile(r':+')
 
@@ -64,8 +65,8 @@ class TinyDnsBaseSource(BaseSource):
             'ttl': ttl,
             'type': _type,
             'values': [{
-                'priority': r[1],
-                'value': '{}.'.format(r[0])
+                'preference': r[1],
+                'exchange': '{}.'.format(r[0])
             } for r in records]
         }
 
@@ -80,19 +81,21 @@ class TinyDnsBaseSource(BaseSource):
             'values': ['{}.'.format(r[0]) for r in records]
         }
 
-    def populate(self, zone, target=False):
-        self.log.debug('populate: zone=%s', zone.name)
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
+
         before = len(zone.records)
 
         if zone.name.endswith('in-addr.arpa.'):
-            self._populate_in_addr_arpa(zone)
+            self._populate_in_addr_arpa(zone, lenient)
         else:
-            self._populate_normal(zone)
+            self._populate_normal(zone, lenient)
 
         self.log.info('populate:   found %s records',
                       len(zone.records) - before)
 
-    def _populate_normal(self, zone):
+    def _populate_normal(self, zone, lenient):
         type_map = {
             '=': 'A',
             '^': None,
@@ -128,14 +131,15 @@ class TinyDnsBaseSource(BaseSource):
                 data_for = getattr(self, '_data_for_{}'.format(_type))
                 data = data_for(_type, d)
                 if data:
-                    record = Record.new(zone, name, data, source=self)
+                    record = Record.new(zone, name, data, source=self,
+                                        lenient=lenient)
                     try:
                         zone.add_record(record)
                     except SubzoneRecordException:
                         self.log.debug('_populate_normal: skipping subzone '
                                        'record=%s', record)
 
-    def _populate_in_addr_arpa(self, zone):
+    def _populate_in_addr_arpa(self, zone, lenient):
         name_re = re.compile('(?P<name>.+)\.{}$'.format(zone.name[:-1]))
 
         for line in self._lines():
@@ -169,7 +173,7 @@ class TinyDnsBaseSource(BaseSource):
                     'ttl': ttl,
                     'type': 'PTR',
                     'value': value
-                }, source=self)
+                }, source=self, lenient=lenient)
                 try:
                     zone.add_record(record)
                 except DuplicateRecordException:

@@ -14,13 +14,17 @@ from .base import BaseProvider
 
 class PowerDnsBaseProvider(BaseProvider):
     SUPPORTS_GEO = False
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
+                    'PTR', 'SPF', 'SSHFP', 'SRV', 'TXT'))
     TIMEOUT = 5
 
-    def __init__(self, id, host, api_key, port=8081, *args, **kwargs):
+    def __init__(self, id, host, api_key, port=8081, scheme="http", *args,
+                 **kwargs):
         super(PowerDnsBaseProvider, self).__init__(id, *args, **kwargs)
 
         self.host = host
         self.port = port
+        self.scheme = scheme
 
         sess = Session()
         sess.headers.update({'X-API-Key': api_key})
@@ -29,8 +33,8 @@ class PowerDnsBaseProvider(BaseProvider):
     def _request(self, method, path, data=None):
         self.log.debug('_request: method=%s, path=%s', method, path)
 
-        url = 'http://{}:{}/api/v1/servers/localhost/{}' \
-            .format(self.host, self.port, path)
+        url = '{}://{}:{}/api/v1/servers/localhost/{}' \
+            .format(self.scheme, self.host, self.port, path)
         resp = self._sess.request(method, url, json=data, timeout=self.TIMEOUT)
         self.log.debug('_request:   status=%d', resp.status_code)
         resp.raise_for_status()
@@ -57,6 +61,21 @@ class PowerDnsBaseProvider(BaseProvider):
     _data_for_AAAA = _data_for_multiple
     _data_for_NS = _data_for_multiple
 
+    def _data_for_CAA(self, rrset):
+        values = []
+        for record in rrset['records']:
+            flags, tag, value = record['content'].split(' ', 2)
+            values.append({
+                'flags': flags,
+                'tag': tag,
+                'value': value[1:-1],
+            })
+        return {
+            'type': rrset['type'],
+            'values': values,
+            'ttl': rrset['ttl']
+        }
+
     def _data_for_single(self, rrset):
         return {
             'type': rrset['type'],
@@ -81,10 +100,10 @@ class PowerDnsBaseProvider(BaseProvider):
     def _data_for_MX(self, rrset):
         values = []
         for record in rrset['records']:
-            priority, value = record['content'].split(' ', 1)
+            preference, exchange = record['content'].split(' ', 1)
             values.append({
-                'priority': priority,
-                'value': value,
+                'preference': preference,
+                'exchange': exchange,
             })
         return {
             'type': rrset['type'],
@@ -144,8 +163,9 @@ class PowerDnsBaseProvider(BaseProvider):
             'ttl': rrset['ttl']
         }
 
-    def populate(self, zone, target=False):
-        self.log.debug('populate: name=%s', zone.name)
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
 
         resp = None
         try:
@@ -175,7 +195,7 @@ class PowerDnsBaseProvider(BaseProvider):
                 data_for = getattr(self, '_data_for_{}'.format(_type))
                 record_name = zone.hostname_from_fqdn(rrset['name'])
                 record = Record.new(zone, record_name, data_for(rrset),
-                                    source=self)
+                                    source=self, lenient=lenient)
                 zone.add_record(record)
 
         self.log.info('populate:   found %s records',
@@ -188,6 +208,12 @@ class PowerDnsBaseProvider(BaseProvider):
     _records_for_A = _records_for_multiple
     _records_for_AAAA = _records_for_multiple
     _records_for_NS = _records_for_multiple
+
+    def _records_for_CAA(self, record):
+        return [{
+            'content': '{} {} "{}"'.format(v.flags, v.tag, v.value),
+            'disabled': False
+        } for v in record.values]
 
     def _records_for_single(self, record):
         return [{'content': record.value, 'disabled': False}]
@@ -205,7 +231,7 @@ class PowerDnsBaseProvider(BaseProvider):
 
     def _records_for_MX(self, record):
         return [{
-            'content': '{} {}'.format(v.priority, v.value),
+            'content': '{} {}'.format(v.preference, v.exchange),
             'disabled': False
         } for v in record.values]
 

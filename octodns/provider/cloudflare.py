@@ -36,7 +36,7 @@ class CloudflareProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     # TODO: support SRV
-    UNSUPPORTED_TYPES = ('ALIAS', 'NAPTR', 'PTR', 'SOA', 'SRV', 'SSHFP')
+    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SPF', 'TXT'))
 
     MIN_TTL = 120
     TIMEOUT = 15
@@ -55,9 +55,6 @@ class CloudflareProvider(BaseProvider):
 
         self._zones = None
         self._zone_records = {}
-
-    def supports(self, record):
-        return record._type not in self.UNSUPPORTED_TYPES
 
     def _request(self, method, path, params=None, data=None):
         self.log.debug('_request: method=%s, path=%s', method, path)
@@ -107,6 +104,17 @@ class CloudflareProvider(BaseProvider):
             'values': [r['content'].replace(';', '\;') for r in records],
         }
 
+    def _data_for_CAA(self, _type, records):
+        values = []
+        for r in records:
+            data = r['data']
+            values.append(data)
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values,
+        }
+
     def _data_for_CNAME(self, _type, records):
         only = records[0]
         return {
@@ -119,8 +127,8 @@ class CloudflareProvider(BaseProvider):
         values = []
         for r in records:
             values.append({
-                'priority': r['priority'],
-                'value': '{}.'.format(r['content']),
+                'preference': r['priority'],
+                'exchange': '{}.'.format(r['content']),
             })
         return {
             'ttl': records[0]['ttl'],
@@ -157,8 +165,9 @@ class CloudflareProvider(BaseProvider):
 
         return self._zone_records[zone.name]
 
-    def populate(self, zone, target=False):
-        self.log.debug('populate: name=%s', zone.name)
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
 
         before = len(zone.records)
         records = self.zone_records(zone)
@@ -167,14 +176,15 @@ class CloudflareProvider(BaseProvider):
             for record in records:
                 name = zone.hostname_from_fqdn(record['name'])
                 _type = record['type']
-                if _type not in self.UNSUPPORTED_TYPES:
+                if _type in self.SUPPORTS:
                     values[name][record['type']].append(record)
 
             for name, types in values.items():
                 for _type, records in types.items():
                     data_for = getattr(self, '_data_for_{}'.format(_type))
                     data = data_for(_type, records)
-                    record = Record.new(zone, name, data, source=self)
+                    record = Record.new(zone, name, data, source=self,
+                                        lenient=lenient)
                     zone.add_record(record)
 
         self.log.info('populate:   found %s records',
@@ -198,6 +208,16 @@ class CloudflareProvider(BaseProvider):
     _contents_for_NS = _contents_for_multiple
     _contents_for_SPF = _contents_for_multiple
 
+    def _contents_for_CAA(self, record):
+        for value in record.values:
+            yield {
+                'data': {
+                    'flags': value.flags,
+                    'tag': value.tag,
+                    'value': value.value,
+                }
+            }
+
     def _contents_for_TXT(self, record):
         for value in record.values:
             yield {'content': value.replace('\;', ';')}
@@ -208,8 +228,8 @@ class CloudflareProvider(BaseProvider):
     def _contents_for_MX(self, record):
         for value in record.values:
             yield {
-                'priority': value.priority,
-                'content': value.value
+                'priority': value.preference,
+                'content': value.exchange
             }
 
     def _apply_Create(self, change):

@@ -16,13 +16,15 @@ from octodns.zone import Zone
 class HelperProvider(BaseProvider):
     log = getLogger('HelperProvider')
 
+    SUPPORTS = set(('A',))
+
     def __init__(self, extra_changes, apply_disabled=False,
                  include_change_callback=None):
         self.__extra_changes = extra_changes
         self.apply_disabled = apply_disabled
         self.include_change_callback = include_change_callback
 
-    def populate(self, zone, target=False):
+    def populate(self, zone, target=False, lenient=False):
         pass
 
     def _include_change(self, change):
@@ -58,12 +60,19 @@ class TestBaseProvider(TestCase):
         zone = Zone('unit.tests.', [])
         with self.assertRaises(NotImplementedError) as ctx:
             HasSupportsGeo('hassupportesgeo').populate(zone)
+        self.assertEquals('Abstract base class, SUPPORTS property missing',
+                          ctx.exception.message)
+
+        class HasSupports(HasSupportsGeo):
+            SUPPORTS = set(('A',))
+        with self.assertRaises(NotImplementedError) as ctx:
+            HasSupports('hassupportes').populate(zone)
         self.assertEquals('Abstract base class, populate method missing',
                           ctx.exception.message)
 
-        class HasPopulate(HasSupportsGeo):
+        class HasPopulate(HasSupports):
 
-            def populate(self, zone, target=False):
+            def populate(self, zone, target=False, lenient=False):
                 zone.add_record(Record.new(zone, '', {
                     'ttl': 60,
                     'type': 'A',
@@ -81,7 +90,7 @@ class TestBaseProvider(TestCase):
             'value': '1.2.3.4'
         }))
 
-        self.assertTrue(HasSupportsGeo('hassupportesgeo')
+        self.assertTrue(HasSupports('hassupportesgeo')
                         .supports(list(zone.records)[0]))
 
         plan = HasPopulate('haspopulate').plan(zone)
@@ -205,8 +214,10 @@ class TestBaseProvider(TestCase):
                    for i in range(int(Plan.MIN_EXISTING_RECORDS *
                                       Plan.MAX_SAFE_UPDATE_PCENT) + 1)]
 
-        with self.assertRaises(UnsafePlan):
+        with self.assertRaises(UnsafePlan) as ctx:
             Plan(zone, zone, changes).raise_if_unsafe()
+
+        self.assertTrue('Too many updates' in ctx.exception.message)
 
     def test_safe_updates_min_existing_pcent(self):
         # MAX_SAFE_UPDATE_PCENT is safe when more
@@ -251,8 +262,10 @@ class TestBaseProvider(TestCase):
                    for i in range(int(Plan.MIN_EXISTING_RECORDS *
                                       Plan.MAX_SAFE_DELETE_PCENT) + 1)]
 
-        with self.assertRaises(UnsafePlan):
+        with self.assertRaises(UnsafePlan) as ctx:
             Plan(zone, zone, changes).raise_if_unsafe()
+
+        self.assertTrue('Too many deletes' in ctx.exception.message)
 
     def test_safe_deletes_min_existing_pcent(self):
         # MAX_SAFE_DELETE_PCENT is safe when more

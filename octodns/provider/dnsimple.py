@@ -91,6 +91,8 @@ class DnsimpleProvider(BaseProvider):
         account: 42
     '''
     SUPPORTS_GEO = False
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
+                    'PTR', 'SPF', 'SRV', 'SSHFP', 'TXT'))
 
     def __init__(self, id, token, account, *args, **kwargs):
         self.log = logging.getLogger('DnsimpleProvider[{}]'.format(id))
@@ -112,6 +114,21 @@ class DnsimpleProvider(BaseProvider):
     _data_for_SPF = _data_for_multiple
     _data_for_TXT = _data_for_multiple
 
+    def _data_for_CAA(self, _type, records):
+        values = []
+        for record in records:
+            flags, tag, value = record['content'].split(' ')
+            values.append({
+                'flags': flags,
+                'tag': tag,
+                'value': value[1:-1],
+            })
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values
+        }
+
     def _data_for_CNAME(self, _type, records):
         record = records[0]
         return {
@@ -126,8 +143,8 @@ class DnsimpleProvider(BaseProvider):
         values = []
         for record in records:
             values.append({
-                'priority': record['priority'],
-                'value': '{}.'.format(record['content'])
+                'preference': record['priority'],
+                'exchange': '{}.'.format(record['content'])
             })
         return {
             'ttl': records[0]['ttl'],
@@ -232,8 +249,9 @@ class DnsimpleProvider(BaseProvider):
 
         return self._zone_records[zone.name]
 
-    def populate(self, zone, target=False):
-        self.log.debug('populate: name=%s', zone.name)
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
 
         values = defaultdict(lambda: defaultdict(list))
         for record in self.zone_records(zone):
@@ -250,7 +268,8 @@ class DnsimpleProvider(BaseProvider):
         for name, types in values.items():
             for _type, records in types.items():
                 data_for = getattr(self, '_data_for_{}'.format(_type))
-                record = Record.new(zone, name, data_for(_type, records))
+                record = Record.new(zone, name, data_for(_type, records),
+                                    source=self, lenient=lenient)
                 zone.add_record(record)
 
         self.log.info('populate:   found %s records',
@@ -271,6 +290,16 @@ class DnsimpleProvider(BaseProvider):
     _params_for_SPF = _params_for_multiple
     _params_for_TXT = _params_for_multiple
 
+    def _params_for_CAA(self, record):
+        for value in record.values:
+            yield {
+                'content': '{} {} "{}"'.format(value.flags, value.tag,
+                                               value.value),
+                'name': record.name,
+                'ttl': record.ttl,
+                'type': record._type
+            }
+
     def _params_for_single(self, record):
         yield {
             'content': record.value,
@@ -286,9 +315,9 @@ class DnsimpleProvider(BaseProvider):
     def _params_for_MX(self, record):
         for value in record.values:
             yield {
-                'content': value.value,
+                'content': value.exchange,
                 'name': record.name,
-                'priority': value.priority,
+                'priority': value.preference,
                 'ttl': record.ttl,
                 'type': record._type
             }

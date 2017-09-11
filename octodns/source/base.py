@@ -16,18 +16,27 @@ class BaseSource(object):
         if not hasattr(self, 'SUPPORTS_GEO'):
             raise NotImplementedError('Abstract base class, SUPPORTS_GEO '
                                       'property missing')
+        if not hasattr(self, 'SUPPORTS'):
+            raise NotImplementedError('Abstract base class, SUPPORTS '
+                                      'property missing')
 
-    def populate(self, zone, target=False):
+    def populate(self, zone, target=False, lenient=False):
         '''
         Loads all zones the provider knows about
+
+        When `target` is True the populate call is being made to load the
+        current state of the provider.
+
+        When `lenient` is True the populate call may skip record validation and
+        do a "best effort" load of data. That will allow through some common,
+        but not best practices stuff that we otherwise would reject. E.g. no
+        trailing . or mising escapes for ;.
         '''
         raise NotImplementedError('Abstract base class, populate method '
                                   'missing')
 
     def supports(self, record):
-        # Unless overriden and handled appropriaitely we'll assume that all
-        # record types are supported
-        return True
+        return record._type in self.SUPPORTS
 
     def __repr__(self):
         return self.__class__.__name__
