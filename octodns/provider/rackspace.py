@@ -144,7 +144,6 @@ class RackspaceProvider(BaseProvider):
             cls._as_unicode(rs_record['data'], 'utf-8')
 
     def _data_for_multiple(self, rrset):
-        # TODO: geo not supported
         return {
             'type': rrset[0]['type'],
             'values': [r['data'] for r in rrset],
