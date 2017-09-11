@@ -94,30 +94,6 @@ class TestRackspaceProvider(TestCase):
             self.provider.populate(zone)
             self.assertEquals(5, len(zone.records))
 
-    def _load_full_config(self):
-        expected = Zone('unit.tests.', [])
-        source = YamlProvider('test', join(dirname(__file__), 'config'))
-        source.populate(expected)
-        self.assertEquals(15, len(expected.records))
-        return expected
-
-    def test_changes_are_formatted_correctly(self):
-        expected = self._load_full_config()
-
-        # No diffs == no changes
-        with requests_mock() as mock:
-            mock.get(re.compile('domains$'), status_code=200,
-                     text=LIST_DOMAINS_RESPONSE)
-            mock.get(re.compile('records'), status_code=200,
-                     text=RECORDS_PAGE_1)
-            mock.get(re.compile('records.*offset=3'), status_code=200,
-                     text=RECORDS_PAGE_2)
-
-            zone = Zone('unit.tests.', [])
-            self.provider.populate(zone)
-            changes = expected.changes(zone, self.provider)
-            self.assertEquals(18, len(changes))
-
     def test_plan_disappearing_ns_records(self):
         expected = Zone('unit.tests.', [])
         expected.add_record(Record.new(expected, '', {
@@ -416,35 +392,6 @@ class TestRackspaceProvider(TestCase):
             ExpectedUpdates = None
 
         return self._test_apply_with_data(TestData)
-
-    def test_apply_create_SRV(self):
-        class TestData(object):
-            OtherRecords = [
-                {
-                    "subdomain": '_a.b',
-                    "data": {
-                        'type': 'SRV',
-                        'ttl': 300,
-                        'value': {
-                            'priority': 20,
-                            'weight': 999,
-                            'port': 999,
-                            'target': 'foo'
-                        }
-                    }
-                }
-            ]
-            OwnRecords = {
-                "totalEntries": 0,
-                "records": []
-            }
-            ExpectChanges = True
-            ExpectedAdditions = [{}]
-            ExpectedDeletions = None
-            ExpectedUpdates = None
-
-        assert_raises(NotImplementedError, self._test_apply_with_data,
-                      TestData)
 
     def test_apply_multiple_additions_splatting(self):
         class TestData(object):

@@ -38,6 +38,8 @@ def unescape_semicolon(s):
 
 class RackspaceProvider(BaseProvider):
     SUPPORTS_GEO = False
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NS', 'PTR', 'SPF',
+                    'TXT'))
     TIMEOUT = 5
 
     def __init__(self, id, username, api_key, ratelimit_delay, *args,
@@ -153,7 +155,6 @@ class RackspaceProvider(BaseProvider):
     _data_for_AAAA = _data_for_multiple
 
     def _data_for_NS(self, rrset):
-        # TODO: geo not supported
         return {
             'type': rrset[0]['type'],
             'values': [add_trailing_dot(r['data']) for r in rrset],
@@ -194,7 +195,7 @@ class RackspaceProvider(BaseProvider):
             'ttl': rrset[0]['ttl']
         }
 
-    def populate(self, zone, target=False):
+    def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s', zone.name)
         resp_data = None
         try:
@@ -279,20 +280,10 @@ class RackspaceProvider(BaseProvider):
         return {
             'name': remove_trailing_dot(record.fqdn),
             'type': record._type,
-            'data': remove_trailing_dot(value.value),
+            'data': remove_trailing_dot(value.exchange),
             'ttl': max(record.ttl, 300),
-            'priority': value.priority
+            'priority': value.preference
         }
-
-    def _record_for_unsupported(self, record, value):
-        raise NotImplementedError(
-            "Missing support for writing {} records".format(
-                record.__class__.__name__))
-
-    _record_for_SOA = _record_for_unsupported
-    _record_for_SRV = _record_for_unsupported
-    _record_for_NAPTR = _record_for_unsupported
-    _record_for_SSHFP = _record_for_unsupported
 
     def _get_values(self, record):
         try:
