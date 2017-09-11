@@ -1,0 +1,29 @@
+{
+  "totalEntries" : 3,
+  "records" : [{
+    "name" : "unit.tests.",
+    "id" : "A-6822995",
+    "type" : "A",
+    "data" : "1.2.3.4",
+    "updated" : "2011-06-24T01:12:53.000+0000",
+    "ttl" : 600,
+    "created" : "2011-06-24T01:12:53.000+0000"
+  }, {
+    "name" : "unit.tests.",
+    "id" : "NS-454454",
+    "type" : "NS",
+    "data" : "ns1.example.com",
+    "updated" : "2011-06-24T01:12:51.000+0000",
+    "ttl" : 600,
+    "created" : "2011-06-24T01:12:51.000+0000"
+  }, {
+    "name" : "unit.tests.",
+    "id" : "NS-454455",
+    "type" : "NS",
+    "data" : "ns2.example.com",
+    "updated" : "2011-06-24T01:12:52.000+0000",
+    "ttl" : 600,
+    "created" : "2011-06-24T01:12:52.000+0000"
+  }],
+  "links" : []
+}
