@@ -154,6 +154,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [DnsimpleProvider](/octodns/provider/dnsimple.py) | All | No | CAA tags restricted |
 | [DynProvider](/octodns/provider/dyn.py) | All | Yes | |
 | [Ns1Provider](/octodns/provider/ns1.py) | All | No | |
+| [OVH](/octodns/provider/ovh.py) | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
 | [PowerDnsProvider](/octodns/provider/powerdns.py) | All | No | |
 | [Route53](/octodns/provider/route53.py) | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Yes | |
 | [TinyDNSSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |

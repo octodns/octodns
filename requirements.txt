@@ -15,6 +15,7 @@ jmespath==0.9.3
 msrestazure==0.4.10
 natsort==5.0.3
 nsone==0.9.14
+ovh==0.4.7
 python-dateutil==2.6.1
 requests==2.13.0
 s3transfer==0.1.10
