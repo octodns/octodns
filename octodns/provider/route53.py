@@ -233,8 +233,8 @@ class Route53Provider(BaseProvider):
     # health check config.
     HEALTH_CHECK_VERSION = '0000'
 
-    def __init__(self, id, access_key_id, secret_access_key, max_changes=1000,
-                 client_max_attempts=None, *args, **kwargs):
+    def __init__(self, id, access_key_id, secret_access_key, region=None,
+                 max_changes=1000, client_max_attempts=None, *args, **kwargs):
         self.max_changes = max_changes
         self.log = logging.getLogger('Route53Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, access_key_id=%s, '
@@ -247,9 +247,14 @@ class Route53Provider(BaseProvider):
                           client_max_attempts)
             config = Config(retries={'max_attempts': client_max_attempts})
 
+        if region is not None:
+            self.log.info('__init__: setting region_name to %s',
+                          region)
+            config = Config(region_name = region)
+
         self._conn = client('route53', aws_access_key_id=access_key_id,
                             aws_secret_access_key=secret_access_key,
-                            config=config)
+                            region_name=region, config=config)
 
         self._r53_zones = None
         self._r53_rrsets = {}

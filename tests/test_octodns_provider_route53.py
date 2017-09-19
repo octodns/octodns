@@ -1119,7 +1119,8 @@ class TestRoute53Provider(TestCase):
 
     def _get_test_plan(self, max_changes):
 
-        provider = Route53Provider('test', 'abc', '123', max_changes)
+        provider = Route53Provider('test', 'abc', '123', 'us-east-1',
+                                   max_changes)
 
         # Use the stubber
         stubber = Stubber(provider._conn)
