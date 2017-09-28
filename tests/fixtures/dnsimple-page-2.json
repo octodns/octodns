@@ -175,6 +175,38 @@
       "system_record": false,
       "created_at": "2017-03-09T15:55:09Z",
       "updated_at": "2017-03-09T15:55:09Z"
+    },
+    {
+      "id": 12188804,
+      "zone_id": "unit.tests",
+      "parent_id": null,
+      "name": "excluded",
+      "content": "excluded.unit.tests",
+      "ttl": 3600,
+      "priority": null,
+      "type": "CNAME",
+      "regions": [
+        "global"
+      ],
+      "system_record": false,
+      "created_at": "2017-03-09T15:55:09Z",
+      "updated_at": "2017-03-09T15:55:09Z"
+    },
+    {
+      "id": 12188805,
+      "zone_id": "unit.tests",
+      "parent_id": null,
+      "name": "included",
+      "content": "included.unit.tests",
+      "ttl": 3600,
+      "priority": null,
+      "type": "CNAME",
+      "regions": [
+        "global"
+      ],
+      "system_record": false,
+      "created_at": "2017-03-09T15:55:09Z",
+      "updated_at": "2017-03-09T15:55:09Z"
     }
   ],
   "pagination": {
