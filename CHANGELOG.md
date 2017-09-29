@@ -1,3 +1,16 @@
+## v0.8.7 - 2017-09-29 - OVH support
+
+Adds an OVH provider.
+
+## v0.8.6 - 2017-09-06 - CAA record type,
+
+Misc fixes and improvments.
+
+* Azure TXT record fix
+* PowerDNS api support for https
+* Configurable Route53 max retries and max-attempts
+* Improved key ordering error message
+
 ## v0.8.5 - 2017-07-21 - Azure, NS1 escaping, & large zones
 
 Relatively small delta this go around. No major themes or anything, just steady
