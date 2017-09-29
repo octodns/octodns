@@ -59,9 +59,9 @@ cname:
 excluded:
   octodns:
     excluded:
-    - CloudflareProvider
+    - test
   type: CNAME
-  value: excluded.unit.tests.
+  value: unit.tests.
 ignored:
   octodns:
     ignored: true
@@ -70,9 +70,9 @@ ignored:
 included:
   octodns:
     included:
-    - DnsimpleProvider
+    - test
   type: CNAME
-  value: included.unit.tests.
+  value: unit.tests.
 mx:
   ttl: 300
   type: MX

@@ -111,12 +111,12 @@ class Zone(object):
             if record.ignored:
                 continue
             elif len(record.included) > 0 and \
-                    target.__class__.__name__ not in record.included:
+                    target.id not in record.included:
                 self.log.debug('changes:  skipping record=%s %s - %s not'
                                ' included ', record.fqdn, record._type,
                                target.id)
                 continue
-            elif target.__class__.__name__ in record.excluded:
+            elif target.id in record.excluded:
                 self.log.debug('changes:  skipping record=%s %s - %s '
                                'excluded ', record.fqdn, record._type,
                                target.id)
@@ -126,12 +126,12 @@ class Zone(object):
                 if desired_record.ignored:
                     continue
                 elif len(record.included) > 0 and \
-                        target.__class__.__name__ not in record.included:
+                        target.id not in record.included:
                     self.log.debug('changes:  skipping record=%s %s - %s'
                                    'not included ', record.fqdn, record._type,
                                    target.id)
                     continue
-                elif target.__class__.__name__ in record.excluded:
+                elif target.id in record.excluded:
                     continue
             except KeyError:
                 if not target.supports(record):
@@ -161,12 +161,12 @@ class Zone(object):
             if record.ignored:
                 continue
             elif len(record.included) > 0 and \
-                    target.__class__.__name__ not in record.included:
+                    target.id not in record.included:
                 self.log.debug('changes:  skipping record=%s %s - %s not'
                                ' included ', record.fqdn, record._type,
                                target.id)
                 continue
-            elif target.__class__.__name__ in record.excluded:
+            elif target.id in record.excluded:
                 self.log.debug('changes:  skipping record=%s %s - %s '
                                'excluded ', record.fqdn, record._type,
                                target.id)

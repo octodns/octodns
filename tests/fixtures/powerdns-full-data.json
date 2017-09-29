@@ -245,10 +245,10 @@
         },
 	{
             "comments": [],
-            "name": "excluded.unit.tests.",
+            "name": "included.unit.tests.",
             "records": [
                 {
-                    "content": "excluded.unit.tests.",
+                    "content": "unit.tests.",
                     "disabled": false
                 }
             ],
