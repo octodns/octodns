@@ -6,8 +6,7 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from octodns.record import Create, Delete, Update, Record
-from octodns.provider.googlecloud import GoogleCloudProvider, \
-    _GoogleCloudRecordSetMaker
+from octodns.provider.googlecloud import GoogleCloudProvider
 
 from octodns.zone import Zone
 from octodns.provider.base import Plan, BaseProvider
@@ -194,19 +193,6 @@ class DummyIterator:
         return self.iterable.next()
 
 
-class TestGoogleCloudRecordSetMaker(TestCase):
-    def test_get_record_set(self):
-        mz = DummyGoogleCloudZone('unit.tests.')
-        record_sets = []
-        for record in octo_records:
-            mm = _GoogleCloudRecordSetMaker(mz, record)
-            record_sets.append(mm.get_record_set())
-
-        self.assertEqual(
-            len(octo_records),
-            len(record_sets))
-
-
 class TestGoogleCloudProvider(TestCase):
     @patch('octodns.provider.googlecloud.dns')
     def _get_provider(*args):
@@ -304,6 +290,10 @@ class TestGoogleCloudProvider(TestCase):
 
         unsupported_change = Mock()
         unsupported_change.__len__ = Mock(return_value=1)
+        type_mock = Mock()
+        type_mock._type = "A"
+        unsupported_change.record = type_mock
+
         mock_plan = Mock()
         type(mock_plan).desired = PropertyMock(return_value=DummyDesired(
             "dummy name", []))
@@ -311,13 +301,6 @@ class TestGoogleCloudProvider(TestCase):
 
         with self.assertRaises(RuntimeError):
             provider.apply(mock_plan)
-
-    def test__record_to_record_set(self):
-        provider = self._get_provider()
-        gcloud_zone = DummyGoogleCloudZone('unit.tests.')
-        for record in octo_records:
-            self.assertIsNotNone(provider._record_to_record_set(
-                gcloud_zone, record))
 
     def test__get_gcloud_client(self):
         provider = self._get_provider()
@@ -403,6 +386,17 @@ class TestGoogleCloudProvider(TestCase):
         self.assertIsNone(provider._get_gcloud_zone("nonexistant.xone"),
                           msg="Check that nonexistant zones return None when"
                               "there's no create=True flag")
+
+    def test__get_rrsets(self):
+        provider = self._get_provider()
+        dummy_gcloud_zone = DummyGoogleCloudZone("unit.tests")
+        for octo_record in octo_records:
+            _rrset_func = getattr(
+                provider, '_rrset_for_{}'.format(octo_record._type))
+            self.assertEqual(
+                _rrset_func(dummy_gcloud_zone, octo_record).record_type,
+                octo_record._type
+            )
 
     def test__create_zone(self):
         provider = self._get_provider()

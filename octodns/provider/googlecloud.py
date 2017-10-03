@@ -16,76 +16,6 @@ from .base import BaseProvider
 from ..record import Record
 
 
-class _GoogleCloudRecordSetMaker(object):
-    """Wrapper to make google cloud client resource record sets from OctoDNS
-    Records.
-
-        googlecloud.py:
-        class: octodns.provider.googlecloud._GoogleCloudRecordSetMaker
-        An _GoogleCloudRecordSetMaker creates google cloued client resource
-        records which can be used to update the Google Cloud DNS zones.
-    """
-
-    def __init__(self, gcloud_zone, record):
-        self.gcloud_zone = gcloud_zone
-        self.record = record
-
-        self._record_set_func = getattr(
-            self, '_record_set_from_{}'.format(record._type))
-
-    def get_record_set(self):
-        return self._record_set_func(self.record)
-
-    def _record_set_from_A(self, record):
-        return self.gcloud_zone.resource_record_set(
-            record.fqdn, record._type, record.ttl, record.values)
-
-    _record_set_from_AAAA = _record_set_from_A
-
-    def _record_set_from_CAA(self, record):
-        return self.gcloud_zone.resource_record_set(
-            record.fqdn, record._type, record.ttl, [
-                '{flags} {tag} {value}'.format(**record.data['value'])])
-
-    def _record_set_from_CNAME(self, record):
-        return self.gcloud_zone.resource_record_set(
-            record.fqdn, record._type, record.ttl, [record.value])
-
-    def _record_set_from_MX(self, record):
-        return self.gcloud_zone.resource_record_set(
-            record.fqdn, record._type, record.ttl, [
-                '{preference} {exchange}'.format(**v.data)
-                for v in record.values])
-
-    def _record_set_from_NAPTR(self, record):
-        return self.gcloud_zone.resource_record_set(
-            record.fqdn, record._type, record.ttl, [
-                '{order} {preference} "{flags}" "{service}" '
-                '"{regexp}" {replacement}'
-                .format(**v.data) for v in record.values])
-
-    _record_set_from_NS = _record_set_from_A
-
-    _record_set_from_PTR = _record_set_from_CNAME
-
-    _record_set_from_SPF = _record_set_from_A
-
-    def _record_set_from_SRV(self, record):
-        return self.gcloud_zone.resource_record_set(
-            record.fqdn, record._type, record.ttl, [
-                '{priority} {weight} {port} {target}'
-                .format(**v.data) for v in record.values])
-
-    def _record_set_from_TXT(self, record):
-        if 'values' in record.data:
-            val = record.data['values']
-        else:
-            val = [record.data['value']]
-
-        return self.gcloud_zone.resource_record_set(
-            record.fqdn, record._type, record.ttl, val)
-
-
 class GoogleCloudProvider(BaseProvider):
     """
     Google Cloud DNS provider
@@ -146,17 +76,20 @@ class GoogleCloudProvider(BaseProvider):
 
         for change in changes:
             class_name = change.__class__.__name__
+            _rrset_func = getattr(
+                self, '_rrset_for_{}'.format(change.record._type))
+
             if class_name in 'Create':
                 gcloud_changes.add_record_set(
-                    self._record_to_record_set(gcloud_zone, change.record))
+                    _rrset_func(gcloud_zone, change.record))
             elif class_name == 'Delete':
                 gcloud_changes.delete_record_set(
-                    self._record_to_record_set(gcloud_zone, change.record))
+                    _rrset_func(gcloud_zone, change.record))
             elif class_name == 'Update':
                 gcloud_changes.delete_record_set(
-                    self._record_to_record_set(gcloud_zone, change.existing))
+                    _rrset_func(gcloud_zone, change.existing))
                 gcloud_changes.add_record_set(
-                    self._record_to_record_set(gcloud_zone, change.new))
+                    _rrset_func(gcloud_zone, change.new))
             else:
                 raise RuntimeError('Change type "{}" for change "{!s}" '
                                    'is none of "Create", "Delete" or "Update'
@@ -260,20 +193,6 @@ class GoogleCloudProvider(BaseProvider):
                 if create:
                     return self._create_gcloud_zone(dns_name)
 
-    @staticmethod
-    def _record_to_record_set(gcloud_zone, record):
-        """create google.cloud.dns.ResourceRecordSet from ocdodns.Record
-
-            :param record: a record object
-            :type  record: ocdodns.Record
-            :param gcloud_zone: a google gcloud zone
-            :type gcloud_zone: google.cloud.dns.ManagedZone
-            :type return: google.cloud.dns.ResourceRecordSet
-        """
-        grm = _GoogleCloudRecordSetMaker(gcloud_zone, record)
-
-        return grm.get_record_set()
-
     def populate(self, zone, target=False, lenient=False):
         """Required function of manager.py to collect records from zone.
 
@@ -373,3 +292,52 @@ class GoogleCloudProvider(BaseProvider):
             for v in [shlex.split(g) for g in gcloud_record.rrdatas]]}
 
     _data_for_TXT = _data_for_SPF
+
+    def _rrset_for_A(self, gcloud_zone, record):
+        return gcloud_zone.resource_record_set(
+            record.fqdn, record._type, record.ttl, record.values)
+
+    _rrset_for_AAAA = _rrset_for_A
+
+    def _rrset_for_CAA(self, gcloud_zone, record):
+        return gcloud_zone.resource_record_set(
+            record.fqdn, record._type, record.ttl, [
+                '{flags} {tag} {value}'.format(**record.data['value'])])
+
+    def _rrset_for_CNAME(self, gcloud_zone, record):
+        return gcloud_zone.resource_record_set(
+            record.fqdn, record._type, record.ttl, [record.value])
+
+    def _rrset_for_MX(self, gcloud_zone, record):
+        return gcloud_zone.resource_record_set(
+            record.fqdn, record._type, record.ttl, [
+                '{preference} {exchange}'.format(**v.data)
+                for v in record.values])
+
+    def _rrset_for_NAPTR(self, gcloud_zone, record):
+        return gcloud_zone.resource_record_set(
+            record.fqdn, record._type, record.ttl, [
+                '{order} {preference} "{flags}" "{service}" '
+                '"{regexp}" {replacement}'
+                .format(**v.data) for v in record.values])
+
+    _rrset_for_NS = _rrset_for_A
+
+    _rrset_for_PTR = _rrset_for_CNAME
+
+    def _rrset_for_SPF(self, gcloud_zone, record):
+        if 'values' in record.data:
+            val = record.data['values']
+        else:
+            val = [record.data['value']]
+
+        return gcloud_zone.resource_record_set(
+            record.fqdn, record._type, record.ttl, val)
+
+    def _rrset_for_SRV(self, gcloud_zone, record):
+        return gcloud_zone.resource_record_set(
+            record.fqdn, record._type, record.ttl, [
+                '{priority} {weight} {port} {target}'
+                .format(**v.data) for v in record.values])
+
+    _rrset_for_TXT = _rrset_for_SPF
