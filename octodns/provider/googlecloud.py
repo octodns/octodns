@@ -96,22 +96,34 @@ class GoogleCloudProvider(BaseProvider):
         # specified with the GOOGLE_APPLICATION_CREDENTIALS environment
         # variable. (https://console.cloud.google.com/apis/credentials)
         #
-        #  The project to work on (not required)
+        # The project to work on (not required)
         # project: foobar
+        #
+        # The File with the google credentials (not required). If used, the
+        # "project" parameter needs to be set, else it will fall back to the
+        #  "default credentials"
+        # credentials_file: ~/google_cloud_credentials_file.json
+        #
     """
 
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NAPTR',
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
     SUPPORTS_GEO = False
 
-    def __init__(self, id, project=None, *args, **kwargs):
+    def __init__(self, id, project=None, credentials_file=None,
+                 *args, **kwargs):
+
+        if credentials_file:
+            self.gcloud_client = dns.Client.from_service_account_json(
+                credentials_file, project=project)
+        else:
+            self.gcloud_client = dns.Client(project=project)
 
         # Logger
         self.log = getLogger('GoogleCloudProvider[{}]'.format(id))
         self.id = id
 
         super(GoogleCloudProvider, self).__init__(id, *args, **kwargs)
-        self.gcloud_client = dns.Client(project=project)
 
     def _apply(self, plan):
         """Required function of manager.py to actually apply a record change.
@@ -345,7 +357,12 @@ class GoogleCloudProvider(BaseProvider):
 
     _data_for_PTR = _data_for_CNAME
 
-    _data_for_SPF = _data_for_A
+    def _data_for_SPF(self, gcloud_record):
+        if len(gcloud_record.rrdatas) > 1:
+            return {
+                'values': gcloud_record.rrdatas}
+        return {
+            'value': gcloud_record.rrdatas[0]}
 
     def _data_for_SRV(self, gcloud_record):
         return {'values': [{
@@ -355,9 +372,4 @@ class GoogleCloudProvider(BaseProvider):
             'target': v[3]}
             for v in [shlex.split(g) for g in gcloud_record.rrdatas]]}
 
-    def _data_for_TXT(self, gcloud_record):
-        if len(gcloud_record.rrdatas) > 1:
-            return {
-                'values': gcloud_record.rrdatas}
-        return {
-            'value': gcloud_record.rrdatas[0]}
+    _data_for_TXT = _data_for_SPF

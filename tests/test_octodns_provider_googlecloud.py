@@ -10,7 +10,7 @@ from octodns.provider.googlecloud import GoogleCloudProvider, \
     _GoogleCloudRecordSetMaker
 
 from octodns.zone import Zone
-from octodns.provider.base import Plan
+from octodns.provider.base import Plan, BaseProvider
 
 from unittest import TestCase
 from mock import Mock, patch, PropertyMock
@@ -215,6 +215,17 @@ class TestGoogleCloudProvider(TestCase):
             :type return: GoogleCloudProvider
         '''
         return GoogleCloudProvider(id=1, project="mock")
+
+    @patch('octodns.provider.googlecloud.time.sleep')
+    @patch('octodns.provider.googlecloud.dns')
+    def test___init__(self, *_):
+        self.assertIsInstance(GoogleCloudProvider(id=1,
+                                                  credentials_file="test",
+                                                  project="unit test"),
+                              BaseProvider)
+
+        self.assertIsInstance(GoogleCloudProvider(id=1),
+                              BaseProvider)
 
     @patch('octodns.provider.googlecloud.time.sleep')
     @patch('octodns.provider.googlecloud.dns')
