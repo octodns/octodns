@@ -114,8 +114,7 @@ class _Route53Record(object):
                 for v in record.values]
 
     def _values_for_quoted(self, record):
-        return ['"{}"'.format(v.replace('"', '\\"'))
-                for v in record.values]
+        return record.chunked_values
 
     _values_for_SPF = _values_for_quoted
     _values_for_TXT = _values_for_quoted
