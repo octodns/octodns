@@ -313,8 +313,11 @@ class TestGoogleCloudProvider(TestCase):
             if not page_token:
                 return DummyIterator([
                     DummyGoogleCloudZone('example.com.'),
+                ], page_token="MOCK_PAGE_TOKEN")
+            elif page_token == "MOCK_PAGE_TOKEN":
+                return DummyIterator([
                     DummyGoogleCloudZone('example2.com.'),
-                ], page_token="DUMMY_PAGE_TOKEN")
+                ], page_token="MOCK_PAGE_TOKEN2")
 
             return DummyIterator([
                 google_cloud_zone
@@ -324,7 +327,12 @@ class TestGoogleCloudProvider(TestCase):
             if not page_token:
                 return DummyIterator(
                     [DummyResourceRecordSet(*v) for v in
-                     resource_record_sets[:5]], page_token="DUMMY_PAGE_TOKEN")
+                     resource_record_sets[:3]], page_token="MOCK_PAGE_TOKEN")
+            elif page_token == "MOCK_PAGE_TOKEN":
+
+                return DummyIterator(
+                    [DummyResourceRecordSet(*v) for v in
+                     resource_record_sets[3:5]], page_token="MOCK_PAGE_TOKEN2")
             return DummyIterator(
                 [DummyResourceRecordSet(*v) for v in resource_record_sets[5:]])
 
