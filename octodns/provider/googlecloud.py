@@ -40,6 +40,8 @@ class GoogleCloudProvider(BaseProvider):
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
     SUPPORTS_GEO = False
 
+    CHANGE_LOOP_WAIT = 5
+
     def __init__(self, id, project=None, credentials_file=None,
                  *args, **kwargs):
 
@@ -101,13 +103,20 @@ class GoogleCloudProvider(BaseProvider):
                                    .format(class_name, change))
 
         gcloud_changes.create()
-        i = 1
-        while gcloud_changes.status != 'done':
-            self.log.debug("Waiting for changes to complete")
-            time.sleep(i)
+
+        for i in range(120):
             gcloud_changes.reload()
-            if i < 30:
-                i += 2
+            self.log.debug("Waiting for changes to complete")
+            # https://cloud.google.com/dns/api/v1/changes#resource
+            # status can be one of either "pending" or "done"
+            if gcloud_changes.status != 'pending':
+                break
+            self.log.debug("Waiting for changes to complete")
+            time.sleep(self.CHANGE_LOOP_WAIT)
+
+        if gcloud_changes.status != 'done':
+            raise RuntimeError("Timeout reached after {} seconds".format(
+                i * self.CHANGE_LOOP_WAIT))
 
     def _create_gcloud_zone(self, dns_name):
         """Creates a google cloud ManagedZone with dns_name, and zone named

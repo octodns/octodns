@@ -206,7 +206,6 @@ class TestGoogleCloudProvider(TestCase):
         '''
         return GoogleCloudProvider(id=1, project="mock")
 
-    @patch('octodns.provider.googlecloud.time.sleep')
     @patch('octodns.provider.googlecloud.dns')
     def test___init__(self, *_):
         self.assertIsInstance(GoogleCloudProvider(id=1,
@@ -246,8 +245,7 @@ class TestGoogleCloudProvider(TestCase):
         gcloud_zone_mock = DummyGoogleCloudZone("unit.tests.", "unit-tests")
         status_mock = Mock()
         return_values_for_status = iter(
-            ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-             '', '', '', 'done'])
+            ["pending"] * 11 + ['done', 'done'])
         type(status_mock).status = PropertyMock(
             side_effect=return_values_for_status.next)
         gcloud_zone_mock.changes = Mock(return_value=status_mock)
@@ -290,6 +288,15 @@ class TestGoogleCloudProvider(TestCase):
             DummyResourceRecordSet(
                 'aa.unit.tests.', 'A', 9001, ['1.2.4.3'])
         ])
+
+        type(status_mock).status = "pending"
+
+        with self.assertRaises(RuntimeError):
+            provider.apply(Plan(
+                existing=[update_existing_r, delete_r],
+                desired=desired,
+                changes=changes
+            ))
 
         unsupported_change = Mock()
         unsupported_change.__len__ = Mock(return_value=1)
