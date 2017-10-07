@@ -164,13 +164,17 @@ class DummyResourceRecordSet:
 
 
 class DummyGoogleCloudZone:
-    def __init__(self, dns_name):
+    def __init__(self, dns_name, name=""):
         self.dns_name = dns_name
+        self.name = name
 
     def resource_record_set(self, *args):
         return DummyResourceRecordSet(*args)
 
     def list_resource_record_sets(self, *args):
+        pass
+
+    def create(self, *args, **kwargs):
         pass
 
 
@@ -239,7 +243,7 @@ class TestGoogleCloudProvider(TestCase):
             'type': 'A',
             'values': ['1.4.3.2']})
 
-        gcloud_zone_mock = DummyGoogleCloudZone("unit.tests.")
+        gcloud_zone_mock = DummyGoogleCloudZone("unit.tests.", "unit-tests")
         status_mock = Mock()
         return_values_for_status = iter(
             ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
@@ -250,10 +254,9 @@ class TestGoogleCloudProvider(TestCase):
 
         provider = self._get_provider()
         provider.gcloud_client = Mock()
-        provider._get_gcloud_zone = Mock(
-            return_value=gcloud_zone_mock)
+        provider._gcloud_zones = {"unit.tests.": gcloud_zone_mock}
         desired = Mock()
-        desired.name = Mock(return_value="unit.tests.")
+        desired.name = "unit.tests."
         changes = []
         changes.append(Create(create_r))
         changes.append(Delete(delete_r))
@@ -343,7 +346,7 @@ class TestGoogleCloudProvider(TestCase):
         google_cloud_zone.list_resource_record_sets = Mock(
             side_effect=_get_mock_record_sets)
 
-        self.assertEqual(provider._get_gcloud_zone("unit.tests.").dns_name,
+        self.assertEqual(provider.gcloud_zones.get("unit.tests.").dns_name,
                          "unit.tests.")
 
         test_zone = Zone('unit.tests.', [])
@@ -374,8 +377,8 @@ class TestGoogleCloudProvider(TestCase):
 
         provider._get_gcloud_records = Mock(
             side_effect=[not_same_fqdn])
-        provider._get_gcloud_zone = Mock(return_value=DummyGoogleCloudZone(
-            dns_name="unit.tests."))
+        provider._gcloud_zones = {
+            "unit.tests.": DummyGoogleCloudZone("unit.tests.", "unit-tests")}
 
         provider.populate(test_zone)
 
@@ -391,7 +394,7 @@ class TestGoogleCloudProvider(TestCase):
         provider.gcloud_client.list_zones = Mock(
             return_value=DummyIterator([]))
 
-        self.assertIsNone(provider._get_gcloud_zone("nonexistant.xone"),
+        self.assertIsNone(provider.gcloud_zones.get("nonexistant.xone"),
                           msg="Check that nonexistant zones return None when"
                               "there's no create=True flag")
 
@@ -413,22 +416,33 @@ class TestGoogleCloudProvider(TestCase):
         provider.gcloud_client.list_zones = Mock(
             return_value=DummyIterator([]))
 
-        mock_zone = provider._get_gcloud_zone(
-            'nonexistant.zone.mock', create=True)
+        mock_zone = provider._create_gcloud_zone("nonexistant.zone.mock")
 
         mock_zone.create.assert_called()
         provider.gcloud_client.zone.assert_called()
         provider.gcloud_client.zone.assert_called_once_with(
             dns_name=u'nonexistant.zone.mock', name=u'nonexistant-zone-moc')
 
-    def test__create_zone_with_numbers_in_name(self):
+    def test__create_zone_with_duplicate_names(self):
+
+        def _create_dummy_zone(name, dns_name):
+            return DummyGoogleCloudZone(name=name, dns_name=dns_name)
+
         provider = self._get_provider()
 
         provider.gcloud_client = Mock()
+        provider.gcloud_client.zone = Mock(side_effect=_create_dummy_zone)
         provider.gcloud_client.list_zones = Mock(
             return_value=DummyIterator([]))
 
-        provider._get_gcloud_zone(
-            '111.', create=True)
-        provider.gcloud_client.zone.assert_called_once_with(
-            dns_name=u'111.', name=u'a111')
+        _gcloud_zones = {
+            'unit-tests': DummyGoogleCloudZone("a.unit-tests.", "unit-tests")
+        }
+
+        provider._gcloud_zones = _gcloud_zones
+
+        test_zone_1 = provider._create_gcloud_zone("unit.tests.")
+        self.assertEqual(test_zone_1.name, "unit-tests-2")
+
+        test_zone_2 = provider._create_gcloud_zone("unit.tests.")
+        self.assertEqual(test_zone_2.name, "unit-tests-3")

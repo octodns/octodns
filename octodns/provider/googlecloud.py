@@ -53,6 +53,8 @@ class GoogleCloudProvider(BaseProvider):
         self.log = getLogger('GoogleCloudProvider[{}]'.format(id))
         self.id = id
 
+        self._gcloud_zones = {}
+
         super(GoogleCloudProvider, self).__init__(id, *args, **kwargs)
 
     def _apply(self, plan):
@@ -70,7 +72,10 @@ class GoogleCloudProvider(BaseProvider):
                        len(changes))
 
         # Get gcloud zone, or create one if none existed before.
-        gcloud_zone = self._get_gcloud_zone(desired.name, create=True)
+        if desired.name not in self.gcloud_zones:
+            gcloud_zone = self._create_gcloud_zone(desired.name)
+        else:
+            gcloud_zone = self.gcloud_zones.get(desired.name)
 
         gcloud_changes = gcloud_zone.changes()
 
@@ -117,19 +122,28 @@ class GoogleCloudProvider(BaseProvider):
         # and only contain lowercase letters, digits or dashes
         zone_name = re.sub("[^a-z0-9-]", "",
                            dns_name[:-1].replace('.', "-"))
-        # make sure that the end result did not end up wo leading letter
-        if re.match('[^a-z]', zone_name[0]):
-            # I cannot think of a situation where a zone name derived from
-            # a domain name would'nt start with leading letter and thereby
-            # violate the constraint, however if such a situation is
-            # encountered, add a leading "a" here.
-            zone_name = "a%s" % zone_name
+
+        # Check if there is another zone in google cloud which has the same
+        # name as the new one
+        while zone_name in [z.name for z in self.gcloud_zones.values()]:
+            # If there is a zone in google cloud alredy, then try suffixing the
+            # name with a -i where i is a number which keeps increasing until
+            # a free name has been reached.
+            m = re.match("^(.+)-([0-9]+$)", zone_name)
+            if m:
+                i = int(m.group(2)) + 1
+                zone_name = "{}-{!s}".format(m.group(1), i)
+            else:
+                zone_name += "-2"
 
         gcloud_zone = self.gcloud_client.zone(
             name=zone_name,
             dns_name=dns_name
         )
         gcloud_zone.create(client=self.gcloud_client)
+
+        # add this new zone to the list of zones.
+        self._gcloud_zones[gcloud_zone.dns_name] = gcloud_zone
 
         self.log.info("Created zone %s. Fqdn %s." %
                       (zone_name, dns_name))
@@ -159,39 +173,25 @@ class GoogleCloudProvider(BaseProvider):
                 # yield from is in python 3 only.
                 yield gcloud_record
 
-    def _get_gcloud_zone(self, dns_name, page_token=None, create=False):
-        """Return the ManagedZone which has has the matching dns_name, or
-            None if no such zone exist, unless create=True, then create a new
-            one and return it.
+    def _get_cloud_zones(self, page_token=None):
+        """Load all ManagedZones into the self._gcloud_zones dict which is
+        mapped with the dns_name as key.
 
-            :param dns_name: fqdn of dns name for zone to get.
-            :type dns_name: str
-            :param page_token: page token for the page to get
-            :type page_token: str
-            :param create: if true, create ManagedZone if it does not exist
-                           already
-
-            :type return: new google.cloud.dns.ManagedZone
+        :return: void
         """
-        # Find the google name for the incoming zone
+
         gcloud_zones = self.gcloud_client.list_zones(page_token=page_token)
         for gcloud_zone in gcloud_zones:
-            if gcloud_zone.dns_name == dns_name:
-                return gcloud_zone
-        else:
-            # Zone not found. Check if there are more results which could be
-            # retrieved by checking "next_page_token".
-            if gcloud_zones.next_page_token:
-                return self._get_gcloud_zone(dns_name,
-                                             gcloud_zones.next_page_token)
-            else:
-                # Nothing found, either return None or else create zone and
-                # return that one (if create=True)
-                self.log.debug('_get_gcloud_zone: zone name=%s, '
-                               'was not found by %s.',
-                               dns_name, self.gcloud_client)
-                if create:
-                    return self._create_gcloud_zone(dns_name)
+            self._gcloud_zones[gcloud_zone.dns_name] = gcloud_zone
+
+        if gcloud_zones.next_page_token:
+            self._get_cloud_zones(gcloud_zones.next_page_token)
+
+    @property
+    def gcloud_zones(self):
+        if not self._gcloud_zones:
+            self._get_cloud_zones()
+        return self._gcloud_zones
 
     def populate(self, zone, target=False, lenient=False):
         """Required function of manager.py to collect records from zone.
@@ -210,7 +210,7 @@ class GoogleCloudProvider(BaseProvider):
                        target, lenient)
         before = len(zone.records)
 
-        gcloud_zone = self._get_gcloud_zone(zone.name)
+        gcloud_zone = self.gcloud_zones.get(zone.name)
 
         if gcloud_zone:
             for gcloud_record in self._get_gcloud_records(gcloud_zone):
