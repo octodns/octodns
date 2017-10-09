@@ -455,7 +455,7 @@ class DynProvider(BaseProvider):
         return [{
             'txtdata': v,
             'ttl': record.ttl,
-        } for v in record.values]
+        } for v in record.chunked_values]
 
     def _kwargs_for_SRV(self, record):
         return [{

@@ -1490,3 +1490,63 @@ class TestRecordValidation(TestCase):
                 'value': 'this has some; semi-colons\; in it',
             })
         self.assertEquals(['unescaped ;'], ctx.exception.reasons)
+
+    def test_TXT_long_value_chunking(self):
+        expected = '"Lorem ipsum dolor sit amet, consectetur adipiscing ' \
+            'elit, sed do eiusmod tempor incididunt ut labore et dolore ' \
+            'magna aliqua. Ut enim ad minim veniam, quis nostrud ' \
+            'exercitation ullamco laboris nisi ut aliquip ex ea commodo ' \
+            'consequat. Duis aute irure dolor i" "n reprehenderit in ' \
+            'voluptate velit esse cillum dolore eu fugiat nulla pariatur. ' \
+            'Excepteur sint occaecat cupidatat non proident, sunt in culpa ' \
+            'qui officia deserunt mollit anim id est laborum."'
+
+        long_value = 'Lorem ipsum dolor sit amet, consectetur adipiscing ' \
+            'elit, sed do eiusmod tempor incididunt ut labore et dolore ' \
+            'magna aliqua. Ut enim ad minim veniam, quis nostrud ' \
+            'exercitation ullamco laboris nisi ut aliquip ex ea commodo ' \
+            'consequat. Duis aute irure dolor in reprehenderit in ' \
+            'voluptate velit esse cillum dolore eu fugiat nulla ' \
+            'pariatur. Excepteur sint occaecat cupidatat non proident, ' \
+            'sunt in culpa qui officia deserunt mollit anim id est ' \
+            'laborum.'
+        # Single string
+        single = Record.new(self.zone, '', {
+            'type': 'TXT',
+            'ttl': 600,
+            'values': [
+                'hello world',
+                long_value,
+                'this has some\; semi-colons\; in it',
+            ]
+        })
+        self.assertEquals(3, len(single.values))
+        self.assertEquals(3, len(single.chunked_values))
+        # Note we are checking that this normalizes the chunking, not that we
+        # get out what we put in.
+        self.assertEquals(expected, single.chunked_values[0])
+
+        long_split_value = '"Lorem ipsum dolor sit amet, consectetur ' \
+            'adipiscing elit, sed do eiusmod tempor incididunt ut ' \
+            'labore et dolore magna aliqua. Ut enim ad minim veniam, ' \
+            'quis nostrud exercitation ullamco laboris nisi ut aliquip ' \
+            'ex" " ea commodo consequat. Duis aute irure dolor in ' \
+            'reprehenderit in voluptate velit esse cillum dolore eu ' \
+            'fugiat nulla pariatur. Excepteur sint occaecat cupidatat ' \
+            'non proident, sunt in culpa qui officia deserunt mollit ' \
+            'anim id est laborum."'
+        # Chunked
+        chunked = Record.new(self.zone, '', {
+            'type': 'TXT',
+            'ttl': 600,
+            'values': [
+                '"hello world"',
+                long_split_value,
+                '"this has some\; semi-colons\; in it"',
+            ]
+        })
+        self.assertEquals(expected, chunked.chunked_values[0])
+        # should be single values, no quoting
+        self.assertEquals(single.values, chunked.values)
+        # should be chunked values, with quoting
+        self.assertEquals(single.chunked_values, chunked.chunked_values)
