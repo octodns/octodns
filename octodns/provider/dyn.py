@@ -96,6 +96,9 @@ class DynProvider(BaseProvider):
         # Whether or not to support TrafficDirectors and enable GeoDNS
         # (optional, default is false)
         traffic_directors_enabled: true
+        # Whether or not to close the Dyn session and flush cache after a run
+        # (optional, default is false)
+        cleanup_session: true
 
     Note: due to the way dyn.tm.session.DynectSession is managing things we can
     only really have a single DynProvider configured. When you create a
@@ -139,13 +142,16 @@ class DynProvider(BaseProvider):
     _sess_create_lock = Lock()
 
     def __init__(self, id, customer, username, password,
-                 traffic_directors_enabled=False, *args, **kwargs):
+                 traffic_directors_enabled=False, cleanup_session=False,
+                 *args, **kwargs):
         self.log = getLogger('DynProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, customer=%s, username=%s, '
-                       'password=***, traffic_directors_enabled=%s', id,
-                       customer, username, traffic_directors_enabled)
+                       'password=***, traffic_directors_enabled=%s, '
+                       'cleanup_session=%s', id, customer, username,
+                       traffic_directors_enabled, cleanup_session)
         # we have to set this before calling super b/c SUPPORTS_GEO requires it
         self.traffic_directors_enabled = traffic_directors_enabled
+        self.cleanup_session = cleanup_session
         super(DynProvider, self).__init__(id, *args, **kwargs)
         self.customer = customer
         self.username = username
@@ -176,6 +182,13 @@ class DynProvider(BaseProvider):
             # accessible session available for it to use.
             with self._sess_create_lock:
                 DynectSession(self.customer, self.username, self.password)
+
+    def _close_dyn_sess(self):
+        # Sessions will wait for a potentially long timeout before expiring
+        # in long running processes.
+        if DynectSession.get_session():
+            with self._sess_create_lock:
+                DynectSession.get_session().log_out()
 
     def _data_for_A(self, _type, records):
         return {
@@ -382,6 +395,10 @@ class DynProvider(BaseProvider):
 
         self.log.info('populate:   found %s records',
                       len(zone.records) - before)
+
+        if self.cleanup_session:
+            _CachingDynZone.flush_zone(zone.name[:-1])
+            self._close_dyn_sess()
 
     def _kwargs_for_A(self, record):
         return [{
@@ -709,3 +726,6 @@ class DynProvider(BaseProvider):
         self._apply_regular(desired, changes, dyn_zone)
 
         dyn_zone.publish()
+
+        if self.cleanup_session:
+            self._close_dyn_sess()
