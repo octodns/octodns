@@ -21,10 +21,14 @@ class Plan(object):
     MAX_SAFE_DELETE_PCENT = .3
     MIN_EXISTING_RECORDS = 10
 
-    def __init__(self, existing, desired, changes):
+    def __init__(self, existing, desired, changes,
+                 update_pcent_threshold=MAX_SAFE_UPDATE_PCENT,
+                 delete_pcent_threshold=MAX_SAFE_DELETE_PCENT):
         self.existing = existing
         self.desired = desired
         self.changes = changes
+        self.update_pcent_threshold = update_pcent_threshold
+        self.delete_pcent_threshold = delete_pcent_threshold
 
         change_counts = {
             'Create': 0,
@@ -55,14 +59,19 @@ class Plan(object):
             update_pcent = self.change_counts['Update'] / existing_record_count
             delete_pcent = self.change_counts['Delete'] / existing_record_count
 
-            if update_pcent > self.MAX_SAFE_UPDATE_PCENT:
+            self.log.debug('raise_if_unsafe: update_pcent_threshold=%d, '
+                           'delete_pcent_threshold=%d',
+                           self.update_pcent_threshold,
+                           self.delete_pcent_threshold)
+
+            if update_pcent > self.update_pcent_threshold:
                 raise UnsafePlan('Too many updates, {} is over {} percent'
                                  '({}/{})'.format(
                                      update_pcent,
                                      self.MAX_SAFE_UPDATE_PCENT * 100,
                                      self.change_counts['Update'],
                                      existing_record_count))
-            if delete_pcent > self.MAX_SAFE_DELETE_PCENT:
+            if delete_pcent > self.delete_pcent_threshold:
                 raise UnsafePlan('Too many deletes, {} is over {} percent'
                                  '({}/{})'.format(
                                      delete_pcent,
@@ -79,11 +88,15 @@ class Plan(object):
 
 class BaseProvider(BaseSource):
 
-    def __init__(self, id, apply_disabled=False):
+    def __init__(self, id, apply_disabled=False,
+                 update_pcent_threshold=Plan.MAX_SAFE_UPDATE_PCENT,
+                 delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT):
         super(BaseProvider, self).__init__(id)
         self.log.debug('__init__: id=%s, apply_disabled=%s', id,
                        apply_disabled)
         self.apply_disabled = apply_disabled
+        self.update_pcent_threshold = update_pcent_threshold
+        self.delete_pcent_threshold = delete_pcent_threshold
 
     def _include_change(self, change):
         '''
@@ -124,7 +137,9 @@ class BaseProvider(BaseSource):
             changes += extra
 
         if changes:
-            plan = Plan(existing, desired, changes)
+            plan = Plan(existing, desired, changes,
+                        self.update_pcent_threshold,
+                        self.delete_pcent_threshold)
             self.log.info('plan:   %s', plan)
             return plan
         self.log.info('plan:   No changes')

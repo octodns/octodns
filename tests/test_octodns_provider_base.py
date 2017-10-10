@@ -23,6 +23,8 @@ class HelperProvider(BaseProvider):
         self.__extra_changes = extra_changes
         self.apply_disabled = apply_disabled
         self.include_change_callback = include_change_callback
+        self.update_pcent_threshold = Plan.MAX_SAFE_UPDATE_PCENT
+        self.delete_pcent_threshold = Plan.MAX_SAFE_DELETE_PCENT
 
     def populate(self, zone, target=False, lenient=False):
         pass
