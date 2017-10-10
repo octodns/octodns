@@ -290,3 +290,59 @@ class TestBaseProvider(TestCase):
                                       Plan.MAX_SAFE_DELETE_PCENT))]
 
         Plan(zone, zone, changes).raise_if_unsafe()
+
+    def test_safe_updates_min_existing_override(self):
+        safe_pcent = .4
+        # 40% + 1 fails when more
+        # than MIN_EXISTING_RECORDS exist
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+
+        for i in range(int(Plan.MIN_EXISTING_RECORDS)):
+            zone.add_record(Record.new(zone, str(i), {
+                            'ttl': 60,
+                            'type': 'A',
+                            'value': '2.3.4.5'
+                            }))
+
+        changes = [Update(record, record)
+                   for i in range(int(Plan.MIN_EXISTING_RECORDS *
+                                      safe_pcent) + 1)]
+
+        with self.assertRaises(UnsafePlan) as ctx:
+            Plan(zone, zone, changes,
+                 update_pcent_threshold=safe_pcent).raise_if_unsafe()
+
+        self.assertTrue('Too many updates' in ctx.exception.message)
+
+    def test_safe_deletes_min_existing_override(self):
+        safe_pcent = .4
+        # 40% + 1 fails when more
+        # than MIN_EXISTING_RECORDS exist
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+
+        for i in range(int(Plan.MIN_EXISTING_RECORDS)):
+            zone.add_record(Record.new(zone, str(i), {
+                            'ttl': 60,
+                            'type': 'A',
+                            'value': '2.3.4.5'
+                            }))
+
+        changes = [Delete(record)
+                   for i in range(int(Plan.MIN_EXISTING_RECORDS *
+                                      safe_pcent) + 1)]
+
+        with self.assertRaises(UnsafePlan) as ctx:
+            Plan(zone, zone, changes,
+                 delete_pcent_threshold=safe_pcent).raise_if_unsafe()
+
+        self.assertTrue('Too many deletes' in ctx.exception.message)
