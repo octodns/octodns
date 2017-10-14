@@ -427,29 +427,3 @@ class TestGoogleCloudProvider(TestCase):
 
         mock_zone.create.assert_called()
         provider.gcloud_client.zone.assert_called()
-        provider.gcloud_client.zone.assert_called_once_with(
-            dns_name=u'nonexistant.zone.mock', name=u'nonexistant-zone-moc')
-
-    def test__create_zone_with_duplicate_names(self):
-
-        def _create_dummy_zone(name, dns_name):
-            return DummyGoogleCloudZone(name=name, dns_name=dns_name)
-
-        provider = self._get_provider()
-
-        provider.gcloud_client = Mock()
-        provider.gcloud_client.zone = Mock(side_effect=_create_dummy_zone)
-        provider.gcloud_client.list_zones = Mock(
-            return_value=DummyIterator([]))
-
-        _gcloud_zones = {
-            'unit-tests': DummyGoogleCloudZone("a.unit-tests.", "unit-tests")
-        }
-
-        provider._gcloud_zones = _gcloud_zones
-
-        test_zone_1 = provider._create_gcloud_zone("unit.tests.")
-        self.assertEqual(test_zone_1.name, "unit-tests-2")
-
-        test_zone_2 = provider._create_gcloud_zone("unit.tests.")
-        self.assertEqual(test_zone_2.name, "unit-tests-3")

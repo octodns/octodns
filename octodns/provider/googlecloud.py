@@ -5,10 +5,10 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-import re
 import shlex
 import time
 from logging import getLogger
+from uuid import uuid4
 
 from google.cloud import dns
 
@@ -128,21 +128,8 @@ class GoogleCloudProvider(BaseProvider):
         """
         # Zone name must begin with a letter, end with a letter or digit,
         # and only contain lowercase letters, digits or dashes
-        zone_name = re.sub("[^a-z0-9-]", "",
-                           dns_name[:-1].replace('.', "-"))
-
-        # Check if there is another zone in google cloud which has the same
-        # name as the new one
-        while zone_name in [z.name for z in self.gcloud_zones.values()]:
-            # If there is a zone in google cloud alredy, then try suffixing the
-            # name with a -i where i is a number which keeps increasing until
-            # a free name has been reached.
-            m = re.match("^(.+)-([0-9]+$)", zone_name)
-            if m:
-                i = int(m.group(2)) + 1
-                zone_name = "{}-{!s}".format(m.group(1), i)
-            else:
-                zone_name += "-2"
+        zone_name = '{}-{}'.format(
+            dns_name[:-1].replace('.', '-'), uuid4().hex)
 
         gcloud_zone = self.gcloud_client.zone(
             name=zone_name,
