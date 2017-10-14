@@ -11,6 +11,7 @@ from unittest import TestCase
 
 from octodns.record import Record
 from octodns.manager import _AggregateTarget, MainThreadExecutor, Manager
+from octodns.yaml import safe_load
 from octodns.zone import Zone
 
 from helpers import GeoProvider, NoSshFpProvider, SimpleProvider, \
@@ -210,6 +211,17 @@ class TestManager(TestCase):
             # tyring to find sub zones
             with self.assertRaises(IOError):
                 manager.dump('unknown.zone.', tmpdir.dirname, False, 'in')
+
+    def test_dump_empty(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            manager = Manager(get_config_filename('simple.yaml'))
+
+            manager.dump('empty.', tmpdir.dirname, False, 'in')
+
+            with open(join(tmpdir.dirname, 'empty.yaml')) as fh:
+                data = safe_load(fh, False)
+                self.assertFalse(data)
 
     def test_validate_configs(self):
         Manager(get_config_filename('simple-validate.yaml')).validate_configs()
