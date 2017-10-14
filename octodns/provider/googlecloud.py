@@ -106,7 +106,6 @@ class GoogleCloudProvider(BaseProvider):
 
         for i in range(120):
             gcloud_changes.reload()
-            self.log.debug("Waiting for changes to complete")
             # https://cloud.google.com/dns/api/v1/changes#resource
             # status can be one of either "pending" or "done"
             if gcloud_changes.status != 'pending':
@@ -154,8 +153,7 @@ class GoogleCloudProvider(BaseProvider):
         # add this new zone to the list of zones.
         self._gcloud_zones[gcloud_zone.dns_name] = gcloud_zone
 
-        self.log.info("Created zone %s. Fqdn %s." %
-                      (zone_name, dns_name))
+        self.log.info("Created zone {}. Fqdn {}.".format(zone_name, dns_name))
 
         return gcloud_zone
 
