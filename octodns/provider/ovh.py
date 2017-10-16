@@ -7,11 +7,14 @@ from __future__ import absolute_import, division, print_function, \
 
 import logging
 from collections import defaultdict
+import re
 
 import ovh
 
 from octodns.record import Record
 from .base import BaseProvider
+
+_fix_semicolons = re.compile(r'(?<!\\);')
 
 
 class OvhProvider(BaseProvider):
@@ -32,8 +35,8 @@ class OvhProvider(BaseProvider):
 
     SUPPORTS_GEO = False
 
-    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR', 'SPF',
-                    'SRV', 'SSHFP', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'DKIM', 'MX', 'NAPTR', 'NS', 'PTR',
+                    'SPF', 'SRV', 'SSHFP', 'TXT'))
 
     def __init__(self, id, endpoint, application_key, application_secret,
                  consumer_key, *args, **kwargs):
@@ -103,7 +106,8 @@ class OvhProvider(BaseProvider):
         return {
             'ttl': records[0]['ttl'],
             'type': _type,
-            'values': [record['target'] for record in records]
+            'values': [_fix_semicolons.sub('\;', record['target'])
+                       for record in records]
         }
 
     @staticmethod
@@ -189,6 +193,8 @@ class OvhProvider(BaseProvider):
     _data_for_NS = _data_for_multiple
     _data_for_TXT = _data_for_multiple
     _data_for_SPF = _data_for_multiple
+    _data_for_DKIM = _data_for_multiple
+
     _data_for_PTR = _data_for_single
     _data_for_CNAME = _data_for_single
 
@@ -263,6 +269,7 @@ class OvhProvider(BaseProvider):
     _params_for_NS = _params_for_multiple
     _params_for_SPF = _params_for_multiple
     _params_for_TXT = _params_for_multiple
+    _params_for_DKIM = _params_for_multiple
 
     _params_for_CNAME = _params_for_single
     _params_for_PTR = _params_for_single

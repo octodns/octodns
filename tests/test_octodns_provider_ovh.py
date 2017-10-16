@@ -233,6 +233,20 @@ class TestOvhProvider(TestCase):
         'value': '1:1ec:1::1',
     }))
 
+    # DKIM
+    api_record.append({
+        'fieldType': 'DKIM',
+        'ttl': 1300,
+        'target': 'v=spf1 include:unit.texts.rerirect ~all',
+        'subDomain': 'default._domainkey',
+        'id': 16
+    })
+    expected.add(Record.new(zone, 'default._domainkey', {
+        'ttl': 1300,
+        'type': 'DKIM',
+        'value': 'v=DKIM1\;k=rsa\;t=s\;p=MIB22IjANB3zRgkqhkiG9w0BcAQEFAAOCAQ8A'
+    }))
+
     @patch('ovh.Client')
     def test_populate(self, client_mock):
         provider = OvhProvider('test', 'endpoint', 'application_key',
@@ -333,6 +347,12 @@ class TestOvhProvider(TestCase):
                                  target=u'v=spf1 include:unit.texts.'
                                         u'rerirect ~all',
                                  ttl=1000),
+                            call(u'/domain/zone/unit.tests/record',
+                                 fieldType=u'DKIM',
+                                 subDomain=u'default._domainkey',
+                                 target=u'v=DKIM1\;k=rsa\;t=s\;p=MIB22IjANB3zR'
+                                        u'gkqhkiG9w0BcAQEFAAOCAQ8A',
+                                 ttl=1300),
                             call(u'/domain/zone/unit.tests/record',
                                  fieldType=u'A',
                                  subDomain='sub', target=u'1.2.3.4', ttl=200),
