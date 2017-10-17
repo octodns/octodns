@@ -290,7 +290,8 @@ class DynProvider(BaseProvider):
             for td in get_all_dsf_services():
                 try:
                     fqdn, _type = td.label.split(':', 1)
-                except ValueError:
+                except ValueError as e:
+                    self.log.warn("Failed to load TraficDirector '{}': {}".format(td.label, e))
                     continue
                 tds[fqdn][_type] = td
             self._traffic_directors = dict(tds)

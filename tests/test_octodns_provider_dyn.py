@@ -8,7 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 from dyn.tm.errors import DynectGetError
 from dyn.tm.services.dsf import DSFResponsePool
 from json import loads
-from mock import MagicMock, call, patch
+from mock import MagicMock, call, patch, Mock
 from unittest import TestCase
 
 from octodns.record import Create, Delete, Record, Update
@@ -601,6 +601,7 @@ class TestDynProviderGeo(TestCase):
         provider = DynProvider('test', 'cust', 'user', 'pass', True)
         # short-circuit session checking
         provider._dyn_sess = True
+        provider.log.warn = MagicMock()
 
         # no tds
         mock.side_effect = [{'data': []}]
@@ -649,6 +650,8 @@ class TestDynProviderGeo(TestCase):
                           set(tds.keys()))
         self.assertEquals(['A'], tds['unit.tests.'].keys())
         self.assertEquals(['A'], tds['geo.unit.tests.'].keys())
+        provider.log.warn.assert_called_with("Failed to load TraficDirector 'something else': need more than 1 value to unpack")
+
 
     @patch('dyn.core.SessionEngine.execute')
     def test_traffic_director_monitor(self, mock):
