@@ -291,7 +291,8 @@ class DynProvider(BaseProvider):
                 try:
                     fqdn, _type = td.label.split(':', 1)
                 except ValueError as e:
-                    self.log.warn("Failed to load TraficDirector '{}': {}".format(td.label, e))
+                    self.log.warn("Failed to load TraficDirector '%s': %s",
+                                  td.label, e.message)
                     continue
                 tds[fqdn][_type] = td
             self._traffic_directors = dict(tds)
