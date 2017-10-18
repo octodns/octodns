@@ -7,7 +7,8 @@ from __future__ import absolute_import, division, print_function, \
 
 from logging import getLogger
 from nsone import NSONE
-from nsone.rest.errors import ResourceException
+from nsone.rest.errors import RateLimitException, ResourceException
+from time import sleep
 
 from ..record import Record
 from .base import BaseProvider
@@ -22,6 +23,9 @@ class Ns1Provider(BaseProvider):
         api_key: env/NS1_API_KEY
     '''
     SUPPORTS_GEO = False
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
+                    'PTR', 'SPF', 'SRV', 'TXT'))
+
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
     def __init__(self, id, api_key, *args, **kwargs):
@@ -29,9 +33,6 @@ class Ns1Provider(BaseProvider):
         self.log.debug('__init__: id=%s, api_key=***', id)
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
         self._client = NSONE(apiKey=api_key)
-
-    def supports(self, record):
-        return record._type != 'SSHFP'
 
     def _data_for_A(self, _type, record):
         return {
@@ -41,8 +42,31 @@ class Ns1Provider(BaseProvider):
         }
 
     _data_for_AAAA = _data_for_A
-    _data_for_SPF = _data_for_A
-    _data_for_TXT = _data_for_A
+
+    def _data_for_SPF(self, _type, record):
+        values = [v.replace(';', '\;') for v in record['short_answers']]
+        return {
+            'ttl': record['ttl'],
+            'type': _type,
+            'values': values
+        }
+
+    _data_for_TXT = _data_for_SPF
+
+    def _data_for_CAA(self, _type, record):
+        values = []
+        for answer in record['short_answers']:
+            flags, tag, value = answer.split(' ', 2)
+            values.append({
+                'flags': flags,
+                'tag': tag,
+                'value': value,
+            })
+        return {
+            'ttl': record['ttl'],
+            'type': _type,
+            'values': values,
+        }
 
     def _data_for_CNAME(self, _type, record):
         return {
@@ -57,10 +81,10 @@ class Ns1Provider(BaseProvider):
     def _data_for_MX(self, _type, record):
         values = []
         for answer in record['short_answers']:
-            priority, value = answer.split(' ', 1)
+            preference, exchange = answer.split(' ', 1)
             values.append({
-                'priority': priority,
-                'value': value,
+                'preference': preference,
+                'exchange': exchange,
             })
         return {
             'ttl': record['ttl'],
@@ -111,8 +135,9 @@ class Ns1Provider(BaseProvider):
             'values': values,
         }
 
-    def populate(self, zone, target=False):
-        self.log.debug('populate: name=%s', zone.name)
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
 
         try:
             nsone_zone = self._client.loadZone(zone.name[:-1])
@@ -127,7 +152,8 @@ class Ns1Provider(BaseProvider):
             _type = record['type']
             data_for = getattr(self, '_data_for_{}'.format(_type))
             name = zone.hostname_from_fqdn(record['domain'])
-            record = Record.new(zone, name, data_for(_type, record))
+            record = Record.new(zone, name, data_for(_type, record),
+                                source=self, lenient=lenient)
             zone.add_record(record)
 
         self.log.info('populate:   found %s records',
@@ -138,8 +164,19 @@ class Ns1Provider(BaseProvider):
 
     _params_for_AAAA = _params_for_A
     _params_for_NS = _params_for_A
-    _params_for_SPF = _params_for_A
-    _params_for_TXT = _params_for_A
+
+    def _params_for_SPF(self, record):
+        # NS1 seems to be the only provider that doesn't want things escaped in
+        # values so we have to strip them here and add them when going the
+        # other way
+        values = [v.replace('\;', ';') for v in record.values]
+        return {'answers': values, 'ttl': record.ttl}
+
+    _params_for_TXT = _params_for_SPF
+
+    def _params_for_CAA(self, record):
+        values = [(v.flags, v.tag, v.value) for v in record.values]
+        return {'answers': values, 'ttl': record.ttl}
 
     def _params_for_CNAME(self, record):
         return {'answers': [record.value], 'ttl': record.ttl}
@@ -148,7 +185,7 @@ class Ns1Provider(BaseProvider):
     _params_for_PTR = _params_for_CNAME
 
     def _params_for_MX(self, record):
-        values = [(v.priority, v.value) for v in record.values]
+        values = [(v.preference, v.exchange) for v in record.values]
         return {'answers': values, 'ttl': record.ttl}
 
     def _params_for_NAPTR(self, record):
@@ -169,7 +206,14 @@ class Ns1Provider(BaseProvider):
         name = self._get_name(new)
         _type = new._type
         params = getattr(self, '_params_for_{}'.format(_type))(new)
-        getattr(nsone_zone, 'add_{}'.format(_type))(name, **params)
+        meth = getattr(nsone_zone, 'add_{}'.format(_type))
+        try:
+            meth(name, **params)
+        except RateLimitException as e:
+            self.log.warn('_apply_Create: rate limit encountered, pausing '
+                          'for %ds and trying again', e.period)
+            sleep(e.period)
+            meth(name, **params)
 
     def _apply_Update(self, nsone_zone, change):
         existing = change.existing
@@ -178,14 +222,26 @@ class Ns1Provider(BaseProvider):
         record = nsone_zone.loadRecord(name, _type)
         new = change.new
         params = getattr(self, '_params_for_{}'.format(_type))(new)
-        record.update(**params)
+        try:
+            record.update(**params)
+        except RateLimitException as e:
+            self.log.warn('_apply_Update: rate limit encountered, pausing '
+                          'for %ds and trying again', e.period)
+            sleep(e.period)
+            record.update(**params)
 
     def _apply_Delete(self, nsone_zone, change):
         existing = change.existing
         name = self._get_name(existing)
         _type = existing._type
         record = nsone_zone.loadRecord(name, _type)
-        record.delete()
+        try:
+            record.delete()
+        except RateLimitException as e:
+            self.log.warn('_apply_Delete: rate limit encountered, pausing '
+                          'for %ds and trying again', e.period)
+            sleep(e.period)
+            record.delete()
 
     def _apply(self, plan):
         desired = plan.desired

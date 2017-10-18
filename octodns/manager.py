@@ -6,13 +6,14 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from StringIO import StringIO
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from os import environ
 import logging
 
-from .provider.base import BaseProvider
+from .provider.base import BaseProvider, Plan
 from .provider.yaml import YamlProvider
+from .record import Record
 from .yaml import safe_load
 from .zone import Zone
 
@@ -37,6 +38,17 @@ class _AggregateTarget(object):
         return True
 
 
+class MakeThreadFuture(object):
+
+    def __init__(self, func, args, kwargs):
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+
+    def result(self):
+        return self.func(*self.args, **self.kwargs)
+
+
 class MainThreadExecutor(object):
     '''
     Dummy executor that runs things on the main thread during the involcation
@@ -47,19 +59,13 @@ class MainThreadExecutor(object):
     '''
 
     def submit(self, func, *args, **kwargs):
-        future = Future()
-        try:
-            future.set_result(func(*args, **kwargs))
-        except Exception as e:
-            # TODO: get right stacktrace here
-            future.set_exception(e)
-        return future
+        return MakeThreadFuture(func, args, kwargs)
 
 
 class Manager(object):
     log = logging.getLogger('Manager')
 
-    def __init__(self, config_file, max_workers=None):
+    def __init__(self, config_file, max_workers=None, include_meta=False):
         self.log.info('__init__: config_file=%s', config_file)
 
         # Read our config file
@@ -69,10 +75,15 @@ class Manager(object):
         manager_config = self.config.get('manager', {})
         max_workers = manager_config.get('max_workers', 1) \
             if max_workers is None else max_workers
+        self.log.info('__init__:   max_workers=%d', max_workers)
         if max_workers > 1:
             self._executor = ThreadPoolExecutor(max_workers=max_workers)
         else:
             self._executor = MainThreadExecutor()
+
+        self.include_meta = include_meta or manager_config.get('include_meta',
+                                                               False)
+        self.log.info('__init__:   max_workers=%s', self.include_meta)
 
         self.log.debug('__init__:   configuring providers')
         self.providers = {}
@@ -175,6 +186,13 @@ class Manager(object):
         plans = []
 
         for target in targets:
+            if self.include_meta:
+                meta = Record.new(zone, 'octodns-meta', {
+                    'type': 'TXT',
+                    'ttl': 60,
+                    'value': 'provider={}'.format(target.id)
+                })
+                zone.add_record(meta, replace=True)
             plan = target.plan(zone)
             if plan:
                 plans.append((target, plan))
@@ -322,7 +340,7 @@ class Manager(object):
 
         return zb.changes(za, _AggregateTarget(a + b))
 
-    def dump(self, zone, output_dir, source, *sources):
+    def dump(self, zone, output_dir, lenient, source, *sources):
         '''
         Dump zone data from the specified source
         '''
@@ -341,9 +359,11 @@ class Manager(object):
 
         zone = Zone(zone, self.configured_sub_zones(zone))
         for source in sources:
-            source.populate(zone)
+            source.populate(zone, lenient=lenient)
 
         plan = target.plan(zone)
+        if plan is None:
+            plan = Plan(zone, zone, [])
         target.apply(plan)
 
     def validate_configs(self):

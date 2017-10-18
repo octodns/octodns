@@ -118,14 +118,35 @@
       "meta": {
         "auto_added": false
       }
+    },
+    {
+      "id": "fc223b34cd5611334422ab3322997667",
+      "type": "CAA",
+      "name": "unit.tests",
+      "data": {
+          "flags": 0,
+          "tag": "issue",
+          "value": "ca.unit.tests"
+      },
+      "proxiable": false,
+      "proxied": false,
+      "ttl": 3600,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "modified_on": "2017-03-11T18:01:42.961566Z",
+      "created_on": "2017-03-11T18:01:42.961566Z",
+      "meta": {
+        "auto_added": false
+      }
     }
   ],
   "result_info": {
     "page": 2,
     "per_page": 10,
     "total_pages": 2,
-    "count": 7,
-    "total_count": 17
+    "count": 8,
+    "total_count": 19
   },
   "success": true,
   "errors": [],

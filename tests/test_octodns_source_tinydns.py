@@ -68,22 +68,22 @@ class TestTinyDnsFileSource(TestCase):
                 'type': 'MX',
                 'ttl': 3600,
                 'values': [{
-                    'priority': 10,
-                    'value': 'smtp-1-host.example.com.',
+                    'preference': 10,
+                    'exchange': 'smtp-1-host.example.com.',
                 }, {
-                    'priority': 20,
-                    'value': 'smtp-2-host.example.com.',
+                    'preference': 20,
+                    'exchange': 'smtp-2-host.example.com.',
                 }]
             }),
             ('smtp', {
                 'type': 'MX',
                 'ttl': 1800,
                 'values': [{
-                    'priority': 30,
-                    'value': 'smtp-1-host.example.com.',
+                    'preference': 30,
+                    'exchange': 'smtp-1-host.example.com.',
                 }, {
-                    'priority': 40,
-                    'value': 'smtp-2-host.example.com.',
+                    'preference': 40,
+                    'exchange': 'smtp-2-host.example.com.',
                 }]
             }),
         ):
