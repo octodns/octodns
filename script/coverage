@@ -24,6 +24,7 @@ export DNSIMPLE_TOKEN=
 export DYN_CUSTOMER=
 export DYN_PASSWORD=
 export DYN_USERNAME=
+export GOOGLE_APPLICATION_CREDENTIALS=
 
 coverage run --branch --source=octodns `which nosetests` --with-xunit "$@"
 coverage html

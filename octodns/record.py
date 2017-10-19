@@ -704,8 +704,8 @@ class SshfpRecord(_ValuesMixin, Record):
 _unescaped_semicolon_re = re.compile(r'\w;')
 
 
-class SpfRecord(_ValuesMixin, Record):
-    _type = 'SPF'
+class _ChunkedValuesMixin(_ValuesMixin):
+    CHUNK_SIZE = 255
 
     @classmethod
     def _validate_value(cls, value):
@@ -714,7 +714,27 @@ class SpfRecord(_ValuesMixin, Record):
         return []
 
     def _process_values(self, values):
+        ret = []
+        for v in values:
+            if v and v[0] == '"':
+                v = v[1:-1]
+            ret.append(v.replace('" "', ''))
+        return ret
+
+    @property
+    def chunked_values(self):
+        values = []
+        for v in self.values:
+            v = v.replace('"', '\\"')
+            vs = [v[i:i + self.CHUNK_SIZE]
+                  for i in range(0, len(v), self.CHUNK_SIZE)]
+            vs = '" "'.join(vs)
+            values.append('"{}"'.format(vs))
         return values
+
+
+class SpfRecord(_ChunkedValuesMixin, Record):
+    _type = 'SPF'
 
 
 class SrvValue(object):
@@ -797,14 +817,5 @@ class SrvRecord(_ValuesMixin, Record):
         return [SrvValue(v) for v in values]
 
 
-class TxtRecord(_ValuesMixin, Record):
+class TxtRecord(_ChunkedValuesMixin, Record):
     _type = 'TXT'
-
-    @classmethod
-    def _validate_value(cls, value):
-        if _unescaped_semicolon_re.search(value):
-            return ['unescaped ;']
-        return []
-
-    def _process_values(self, values):
-        return values

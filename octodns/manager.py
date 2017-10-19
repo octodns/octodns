@@ -11,7 +11,7 @@ from importlib import import_module
 from os import environ
 import logging
 
-from .provider.base import BaseProvider
+from .provider.base import BaseProvider, Plan
 from .provider.yaml import YamlProvider
 from .record import Record
 from .yaml import safe_load
@@ -362,6 +362,8 @@ class Manager(object):
             source.populate(zone, lenient=lenient)
 
         plan = target.plan(zone)
+        if plan is None:
+            plan = Plan(zone, zone, [])
         target.apply(plan)
 
     def validate_configs(self):
