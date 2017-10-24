@@ -1,3 +1,15 @@
+## v0.8.8 - 2017-10-24 - Google Cloud DNS, Large TXT Record support
+
+* Added support for "chunking" TXT records where individual values were larger
+  than 255 chars. This is common with DKIM records involving multiple
+  providers.
+* Added `GoogleCloudProvider`
+* Configurable `UnsafePlan` thresholds to allow modification of how many
+  updates/deletes are allowed before a plan is declared dangerous.
+* Manager.dump bug fix around empty zones.
+* Prefer use of `.` over `source` in shell scripts
+* `DynProvider` warns when it ignores unrecognized traffic directors.
+
 ## v0.8.7 - 2017-09-29 - OVH support
 
 Adds an OVH provider.
