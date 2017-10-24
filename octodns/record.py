@@ -83,6 +83,7 @@ class Record(object):
                 'ALIAS': AliasRecord,
                 'CAA': CaaRecord,
                 'CNAME': CnameRecord,
+                'DKIM': DkimRecord,
                 'MX': MxRecord,
                 'NAPTR': NaptrRecord,
                 'NS': NsRecord,
@@ -462,6 +463,39 @@ class CnameRecord(_ValueMixin, Record):
         return value
 
 
+class _ChunkedValuesMixin(_ValuesMixin):
+    CHUNK_SIZE = 255
+
+    @classmethod
+    def _validate_value(cls, value):
+        if _unescaped_semicolon_re.search(value):
+            return ['unescaped ;']
+        return []
+
+    def _process_values(self, values):
+        ret = []
+        for v in values:
+            if v and v[0] == '"':
+                v = v[1:-1]
+            ret.append(v.replace('" "', ''))
+        return ret
+
+    @property
+    def chunked_values(self):
+        values = []
+        for v in self.values:
+            v = v.replace('"', '\\"')
+            vs = [v[i:i + self.CHUNK_SIZE]
+                  for i in range(0, len(v), self.CHUNK_SIZE)]
+            vs = '" "'.join(vs)
+            values.append('"{}"'.format(vs))
+        return values
+
+
+class DkimRecord(_ChunkedValuesMixin, Record):
+    _type = 'DKIM'
+
+
 class MxValue(object):
 
     @classmethod
@@ -702,35 +736,6 @@ class SshfpRecord(_ValuesMixin, Record):
 
 
 _unescaped_semicolon_re = re.compile(r'\w;')
-
-
-class _ChunkedValuesMixin(_ValuesMixin):
-    CHUNK_SIZE = 255
-
-    @classmethod
-    def _validate_value(cls, value):
-        if _unescaped_semicolon_re.search(value):
-            return ['unescaped ;']
-        return []
-
-    def _process_values(self, values):
-        ret = []
-        for v in values:
-            if v and v[0] == '"':
-                v = v[1:-1]
-            ret.append(v.replace('" "', ''))
-        return ret
-
-    @property
-    def chunked_values(self):
-        values = []
-        for v in self.values:
-            v = v.replace('"', '\\"')
-            vs = [v[i:i + self.CHUNK_SIZE]
-                  for i in range(0, len(v), self.CHUNK_SIZE)]
-            vs = '" "'.join(vs)
-            values.append('"{}"'.format(vs))
-        return values
 
 
 class SpfRecord(_ChunkedValuesMixin, Record):
