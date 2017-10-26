@@ -95,6 +95,10 @@ class Record(object):
         except KeyError:
             raise Exception('Unknown record type: "{}"'.format(_type))
         reasons = _class.validate(name, data)
+        try:
+            lenient |= data['octodns']['lenient']
+        except KeyError:
+            pass
         if reasons:
             if lenient:
                 cls.log.warn(ValidationError.build_message(fqdn, reasons))
