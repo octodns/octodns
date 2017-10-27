@@ -326,3 +326,34 @@ class TestNs1Provider(TestCase):
         })
         self.assertEquals(['foo; bar baz; blip'],
                           provider._params_for_TXT(record)['answers'])
+
+    def test_data_for_CNAME(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        # answers from nsone
+        a_record = {
+            'ttl': 31,
+            'type': 'CNAME',
+            'short_answers': ['foo.unit.tests.']
+        }
+        a_expected = {
+            'ttl': 31,
+            'type': 'CNAME',
+            'value': 'foo.unit.tests.'
+        }
+        self.assertEqual(a_expected,
+                         provider._data_for_CNAME(a_record['type'], a_record))
+
+        # no answers from nsone
+        b_record = {
+            'ttl': 32,
+            'type': 'CNAME',
+            'short_answers': []
+        }
+        b_expected = {
+            'ttl': 32,
+            'type': 'CNAME',
+            'value': None
+        }
+        self.assertEqual(b_expected,
+                         provider._data_for_CNAME(b_record['type'], b_record))
