@@ -69,10 +69,14 @@ class Ns1Provider(BaseProvider):
         }
 
     def _data_for_CNAME(self, _type, record):
+        try:
+            value = record['short_answers'][0]
+        except IndexError:
+            value = None
         return {
             'ttl': record['ttl'],
             'type': _type,
-            'value': record['short_answers'][0],
+            'value': value,
         }
 
     _data_for_ALIAS = _data_for_CNAME
