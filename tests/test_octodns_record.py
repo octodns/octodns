@@ -733,6 +733,16 @@ class TestRecordValidation(TestCase):
             }, lenient=True)
         self.assertEquals(('value',), ctx.exception.args)
 
+        # no exception if we're in lenient mode from config
+        Record.new(self.zone, 'www', {
+            'octodns': {
+                'lenient': True
+            },
+            'type': 'A',
+            'ttl': -1,
+            'value': '1.2.3.4',
+        }, lenient=True)
+
     def test_A_and_values_mixin(self):
         # doesn't blow up
         Record.new(self.zone, '', {
