@@ -96,23 +96,23 @@ class TestDnsimpleProvider(TestCase):
                 mock.get(ANY, text=fh.read())
 
             zone = Zone('unit.tests.', [])
-            provider.populate(zone)
+            provider.populate(zone, lenient=True)
             self.assertEquals(set([
                 Record.new(zone, '', {
                     'ttl': 3600,
                     'type': 'SSHFP',
                     'values': []
-                }),
+                }, lenient=True),
                 Record.new(zone, '_srv._tcp', {
                     'ttl': 600,
                     'type': 'SRV',
                     'values': []
-                }),
+                }, lenient=True),
                 Record.new(zone, 'naptr', {
                     'ttl': 600,
                     'type': 'NAPTR',
                     'values': []
-                }),
+                }, lenient=True),
             ]), zone.records)
 
     def test_apply(self):
