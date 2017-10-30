@@ -290,7 +290,9 @@ class DynProvider(BaseProvider):
             for td in get_all_dsf_services():
                 try:
                     fqdn, _type = td.label.split(':', 1)
-                except ValueError:
+                except ValueError as e:
+                    self.log.warn("Failed to load TraficDirector '%s': %s",
+                                  td.label, e.message)
                     continue
                 tds[fqdn][_type] = td
             self._traffic_directors = dict(tds)
@@ -455,7 +457,7 @@ class DynProvider(BaseProvider):
         return [{
             'txtdata': v,
             'ttl': record.ttl,
-        } for v in record.values]
+        } for v in record.chunked_values]
 
     def _kwargs_for_SRV(self, record):
         return [{

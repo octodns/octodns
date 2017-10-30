@@ -95,6 +95,10 @@ class Record(object):
         except KeyError:
             raise Exception('Unknown record type: "{}"'.format(_type))
         reasons = _class.validate(name, data)
+        try:
+            lenient |= data['octodns']['lenient']
+        except KeyError:
+            pass
         if reasons:
             if lenient:
                 cls.log.warn(ValidationError.build_message(fqdn, reasons))
@@ -209,9 +213,30 @@ class _ValuesMixin(object):
         values = []
         try:
             values = data['values']
+            if not values:
+                values = []
+                reasons.append('missing value(s)')
+            else:
+                # loop through copy of values
+                # remove invalid value from values
+                for value in list(values):
+                    if value is None:
+                        reasons.append('missing value(s)')
+                        values.remove(value)
+                    elif len(value) == 0:
+                        reasons.append('empty value')
+                        values.remove(value)
         except KeyError:
             try:
-                values = [data['value']]
+                value = data['value']
+                if value is None:
+                    reasons.append('missing value(s)')
+                    values = []
+                elif len(value) == 0:
+                    reasons.append('empty value')
+                    values = []
+                else:
+                    values = [value]
             except KeyError:
                 reasons.append('missing value(s)')
 
@@ -236,10 +261,16 @@ class _ValuesMixin(object):
     def _data(self):
         ret = super(_ValuesMixin, self)._data()
         if len(self.values) > 1:
-            ret['values'] = [getattr(v, 'data', v) for v in self.values]
-        else:
+            values = [getattr(v, 'data', v) for v in self.values if v]
+            if len(values) > 1:
+                ret['values'] = values
+            elif len(values) == 1:
+                ret['value'] = values[0]
+        elif len(self.values) == 1:
             v = self.values[0]
-            ret['value'] = getattr(v, 'data', v)
+            if v:
+                ret['value'] = getattr(v, 'data', v)
+
         return ret
 
     def __repr__(self):
@@ -347,6 +378,10 @@ class _ValueMixin(object):
         value = None
         try:
             value = data['value']
+            if value is None:
+                reasons.append('missing value')
+            elif value == '':
+                reasons.append('empty value')
         except KeyError:
             reasons.append('missing value')
         if value:
@@ -364,7 +399,8 @@ class _ValueMixin(object):
 
     def _data(self):
         ret = super(_ValueMixin, self)._data()
-        ret['value'] = getattr(self.value, 'data', self.value)
+        if self.value:
+            ret['value'] = getattr(self.value, 'data', self.value)
         return ret
 
     def __repr__(self):
@@ -706,8 +742,8 @@ class SshfpRecord(_ValuesMixin, Record):
 _unescaped_semicolon_re = re.compile(r'\w;')
 
 
-class SpfRecord(_ValuesMixin, Record):
-    _type = 'SPF'
+class _ChunkedValuesMixin(_ValuesMixin):
+    CHUNK_SIZE = 255
 
     @classmethod
     def _validate_value(cls, value):
@@ -716,7 +752,27 @@ class SpfRecord(_ValuesMixin, Record):
         return []
 
     def _process_values(self, values):
+        ret = []
+        for v in values:
+            if v and v[0] == '"':
+                v = v[1:-1]
+            ret.append(v.replace('" "', ''))
+        return ret
+
+    @property
+    def chunked_values(self):
+        values = []
+        for v in self.values:
+            v = v.replace('"', '\\"')
+            vs = [v[i:i + self.CHUNK_SIZE]
+                  for i in range(0, len(v), self.CHUNK_SIZE)]
+            vs = '" "'.join(vs)
+            values.append('"{}"'.format(vs))
         return values
+
+
+class SpfRecord(_ChunkedValuesMixin, Record):
+    _type = 'SPF'
 
 
 class SrvValue(object):
@@ -799,14 +855,5 @@ class SrvRecord(_ValuesMixin, Record):
         return [SrvValue(v) for v in values]
 
 
-class TxtRecord(_ValuesMixin, Record):
+class TxtRecord(_ChunkedValuesMixin, Record):
     _type = 'TXT'
-
-    @classmethod
-    def _validate_value(cls, value):
-        if _unescaped_semicolon_re.search(value):
-            return ['unescaped ;']
-        return []
-
-    def _process_values(self, values):
-        return values

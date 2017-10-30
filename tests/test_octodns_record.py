@@ -96,6 +96,57 @@ class TestRecord(TestCase):
 
             DummyRecord().__repr__()
 
+    def test_values_mixin_data(self):
+        # no values, no value or values in data
+        a = ARecord(self.zone, '', {
+            'type': 'A',
+            'ttl': 600,
+            'values': []
+        })
+        self.assertNotIn('values', a.data)
+
+        # empty value, no value or values in data
+        b = ARecord(self.zone, '', {
+            'type': 'A',
+            'ttl': 600,
+            'values': ['']
+        })
+        self.assertNotIn('value', b.data)
+
+        # empty/None values, no value or values in data
+        c = ARecord(self.zone, '', {
+            'type': 'A',
+            'ttl': 600,
+            'values': ['', None]
+        })
+        self.assertNotIn('values', c.data)
+
+        # empty/None values and valid, value in data
+        c = ARecord(self.zone, '', {
+            'type': 'A',
+            'ttl': 600,
+            'values': ['', None, '10.10.10.10']
+        })
+        self.assertNotIn('values', c.data)
+        self.assertEqual('10.10.10.10', c.data['value'])
+
+    def test_value_mixin_data(self):
+        # unspecified value, no value in data
+        a = AliasRecord(self.zone, '', {
+            'type': 'ALIAS',
+            'ttl': 600,
+            'value': None
+        })
+        self.assertNotIn('value', a.data)
+
+        # unspecified value, no value in data
+        a = AliasRecord(self.zone, '', {
+            'type': 'ALIAS',
+            'ttl': 600,
+            'value': ''
+        })
+        self.assertNotIn('value', a.data)
+
     def test_geo(self):
         geo_data = {'ttl': 42, 'values': ['5.2.3.4', '6.2.3.4'],
                     'geo': {'AF': ['1.1.1.1'],
@@ -733,6 +784,16 @@ class TestRecordValidation(TestCase):
             }, lenient=True)
         self.assertEquals(('value',), ctx.exception.args)
 
+        # no exception if we're in lenient mode from config
+        Record.new(self.zone, 'www', {
+            'octodns': {
+                'lenient': True
+            },
+            'type': 'A',
+            'ttl': -1,
+            'value': '1.2.3.4',
+        }, lenient=True)
+
     def test_A_and_values_mixin(self):
         # doesn't blow up
         Record.new(self.zone, '', {
@@ -745,17 +806,71 @@ class TestRecordValidation(TestCase):
             'ttl': 600,
             'values': [
                 '1.2.3.4',
+            ]
+        })
+        Record.new(self.zone, '', {
+            'type': 'A',
+            'ttl': 600,
+            'values': [
+                '1.2.3.4',
                 '1.2.3.5',
             ]
         })
 
-        # missing value(s)
+        # missing value(s), no value or value
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'A',
                 'ttl': 600,
             })
         self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # missing value(s), empty values
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'A',
+                'ttl': 600,
+                'values': []
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # missing value(s), None values
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'A',
+                'ttl': 600,
+                'values': None
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # missing value(s) and empty value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'A',
+                'ttl': 600,
+                'values': [None, '']
+            })
+        self.assertEquals(['missing value(s)',
+                           'empty value'], ctx.exception.reasons)
+
+        # missing value(s), None value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'A',
+                'ttl': 600,
+                'value': None
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # empty value, empty string value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'A',
+                'ttl': 600,
+                'value': ''
+            })
+        self.assertEquals(['empty value'], ctx.exception.reasons)
+
         # missing value(s) & ttl
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
@@ -911,6 +1026,24 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
             })
         self.assertEquals(['missing value'], ctx.exception.reasons)
+
+        # missing value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'ALIAS',
+                'ttl': 600,
+                'value': None
+            })
+        self.assertEquals(['missing value'], ctx.exception.reasons)
+
+        # empty value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'ALIAS',
+                'ttl': 600,
+                'value': ''
+            })
+        self.assertEquals(['empty value'], ctx.exception.reasons)
 
         # missing trailing .
         with self.assertRaises(ValidationError) as ctx:
@@ -1490,3 +1623,63 @@ class TestRecordValidation(TestCase):
                 'value': 'this has some; semi-colons\; in it',
             })
         self.assertEquals(['unescaped ;'], ctx.exception.reasons)
+
+    def test_TXT_long_value_chunking(self):
+        expected = '"Lorem ipsum dolor sit amet, consectetur adipiscing ' \
+            'elit, sed do eiusmod tempor incididunt ut labore et dolore ' \
+            'magna aliqua. Ut enim ad minim veniam, quis nostrud ' \
+            'exercitation ullamco laboris nisi ut aliquip ex ea commodo ' \
+            'consequat. Duis aute irure dolor i" "n reprehenderit in ' \
+            'voluptate velit esse cillum dolore eu fugiat nulla pariatur. ' \
+            'Excepteur sint occaecat cupidatat non proident, sunt in culpa ' \
+            'qui officia deserunt mollit anim id est laborum."'
+
+        long_value = 'Lorem ipsum dolor sit amet, consectetur adipiscing ' \
+            'elit, sed do eiusmod tempor incididunt ut labore et dolore ' \
+            'magna aliqua. Ut enim ad minim veniam, quis nostrud ' \
+            'exercitation ullamco laboris nisi ut aliquip ex ea commodo ' \
+            'consequat. Duis aute irure dolor in reprehenderit in ' \
+            'voluptate velit esse cillum dolore eu fugiat nulla ' \
+            'pariatur. Excepteur sint occaecat cupidatat non proident, ' \
+            'sunt in culpa qui officia deserunt mollit anim id est ' \
+            'laborum.'
+        # Single string
+        single = Record.new(self.zone, '', {
+            'type': 'TXT',
+            'ttl': 600,
+            'values': [
+                'hello world',
+                long_value,
+                'this has some\; semi-colons\; in it',
+            ]
+        })
+        self.assertEquals(3, len(single.values))
+        self.assertEquals(3, len(single.chunked_values))
+        # Note we are checking that this normalizes the chunking, not that we
+        # get out what we put in.
+        self.assertEquals(expected, single.chunked_values[0])
+
+        long_split_value = '"Lorem ipsum dolor sit amet, consectetur ' \
+            'adipiscing elit, sed do eiusmod tempor incididunt ut ' \
+            'labore et dolore magna aliqua. Ut enim ad minim veniam, ' \
+            'quis nostrud exercitation ullamco laboris nisi ut aliquip ' \
+            'ex" " ea commodo consequat. Duis aute irure dolor in ' \
+            'reprehenderit in voluptate velit esse cillum dolore eu ' \
+            'fugiat nulla pariatur. Excepteur sint occaecat cupidatat ' \
+            'non proident, sunt in culpa qui officia deserunt mollit ' \
+            'anim id est laborum."'
+        # Chunked
+        chunked = Record.new(self.zone, '', {
+            'type': 'TXT',
+            'ttl': 600,
+            'values': [
+                '"hello world"',
+                long_split_value,
+                '"this has some\; semi-colons\; in it"',
+            ]
+        })
+        self.assertEquals(expected, chunked.chunked_values[0])
+        # should be single values, no quoting
+        self.assertEquals(single.values, chunked.values)
+        # should be chunked values, with quoting
+        self.assertEquals(single.chunked_values, chunked.chunked_values)
