@@ -236,3 +236,102 @@ class TestZone(TestCase):
         zone.add_record(cname)
         with self.assertRaises(InvalidNodeException):
             zone.add_record(a)
+
+    def test_excluded_records(self):
+        zone_normal = Zone('unit.tests.', [])
+        zone_excluded = Zone('unit.tests.', [])
+        zone_missing = Zone('unit.tests.', [])
+
+        normal = Record.new(zone_normal, 'www', {
+            'ttl': 60,
+            'type': 'A',
+            'value': '9.9.9.9',
+        })
+        zone_normal.add_record(normal)
+
+        excluded = Record.new(zone_excluded, 'www', {
+            'octodns': {
+                'excluded': ['test']
+            },
+            'ttl': 60,
+            'type': 'A',
+            'value': '9.9.9.9',
+        })
+        zone_excluded.add_record(excluded)
+
+        provider = SimpleProvider()
+
+        self.assertFalse(zone_normal.changes(zone_excluded, provider))
+        self.assertTrue(zone_normal.changes(zone_missing, provider))
+
+        self.assertFalse(zone_excluded.changes(zone_normal, provider))
+        self.assertFalse(zone_excluded.changes(zone_missing, provider))
+
+        self.assertTrue(zone_missing.changes(zone_normal, provider))
+        self.assertFalse(zone_missing.changes(zone_excluded, provider))
+
+    def test_included_records(self):
+        zone_normal = Zone('unit.tests.', [])
+        zone_included = Zone('unit.tests.', [])
+        zone_missing = Zone('unit.tests.', [])
+
+        normal = Record.new(zone_normal, 'www', {
+            'ttl': 60,
+            'type': 'A',
+            'value': '9.9.9.9',
+        })
+        zone_normal.add_record(normal)
+
+        included = Record.new(zone_included, 'www', {
+            'octodns': {
+                'included': ['test']
+            },
+            'ttl': 60,
+            'type': 'A',
+            'value': '9.9.9.9',
+        })
+        zone_included.add_record(included)
+
+        provider = SimpleProvider()
+
+        self.assertFalse(zone_normal.changes(zone_included, provider))
+        self.assertTrue(zone_normal.changes(zone_missing, provider))
+
+        self.assertFalse(zone_included.changes(zone_normal, provider))
+        self.assertTrue(zone_included.changes(zone_missing, provider))
+
+        self.assertTrue(zone_missing.changes(zone_normal, provider))
+        self.assertTrue(zone_missing.changes(zone_included, provider))
+
+    def test_not_included_records(self):
+        zone_normal = Zone('unit.tests.', [])
+        zone_included = Zone('unit.tests.', [])
+        zone_missing = Zone('unit.tests.', [])
+
+        normal = Record.new(zone_normal, 'www', {
+            'ttl': 60,
+            'type': 'A',
+            'value': '9.9.9.9',
+        })
+        zone_normal.add_record(normal)
+
+        included = Record.new(zone_included, 'www', {
+            'octodns': {
+                'included': ['not-here']
+            },
+            'ttl': 60,
+            'type': 'A',
+            'value': '9.9.9.9',
+        })
+        zone_included.add_record(included)
+
+        provider = SimpleProvider()
+
+        self.assertFalse(zone_normal.changes(zone_included, provider))
+        self.assertTrue(zone_normal.changes(zone_missing, provider))
+
+        self.assertFalse(zone_included.changes(zone_normal, provider))
+        self.assertFalse(zone_included.changes(zone_missing, provider))
+
+        self.assertTrue(zone_missing.changes(zone_normal, provider))
+        self.assertFalse(zone_missing.changes(zone_included, provider))
