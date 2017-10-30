@@ -18,6 +18,7 @@ class SimpleSource(object):
 class SimpleProvider(object):
     SUPPORTS_GEO = False
     SUPPORTS = set(('A',))
+    id = 'test'
 
     def __init__(self, id='test'):
         pass
@@ -34,6 +35,7 @@ class SimpleProvider(object):
 
 class GeoProvider(object):
     SUPPORTS_GEO = True
+    id = 'test'
 
     def __init__(self, id='test'):
         pass
