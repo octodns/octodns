@@ -125,13 +125,13 @@ class Zone(object):
                 desired_record = desired_records[record]
                 if desired_record.ignored:
                     continue
-                elif len(record.included) > 0 and \
-                        target.id not in record.included:
+                elif len(desired_record.included) > 0 and \
+                        target.id not in desired_record.included:
                     self.log.debug('changes:  skipping record=%s %s - %s'
                                    'not included ', record.fqdn, record._type,
                                    target.id)
                     continue
-                elif target.id in record.excluded:
+                elif target.id in desired_record.excluded:
                     continue
             except KeyError:
                 if not target.supports(record):
