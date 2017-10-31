@@ -236,3 +236,71 @@ class TestZone(TestCase):
         zone.add_record(cname)
         with self.assertRaises(InvalidNodeException):
             zone.add_record(a)
+
+    def test_geo_records(self):
+        zone_a = Zone('unit.tests.', [])
+        zone_aaaa = Zone('unit.tests.', [])
+        zone_cname = Zone('unit.tests.', [])
+        zone_geo_a = Zone('unit.tests.', [])
+        zone_geo_aaaa = Zone('unit.tests.', [])
+        zone_geo_cname = Zone('unit.tests.', [])
+
+        zone_a.add_record(Record.new(zone_a, 'www', {
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.1.1.1',
+        }))
+
+        zone_aaaa.add_record(Record.new(zone_aaaa, 'www', {
+            'ttl': 60,
+            'type': 'AAAA',
+            'value': '1:1:1::1',
+        }))
+
+        zone_cname.add_record(Record.new(zone_cname, 'www', {
+            'ttl': 60,
+            'type': 'CNAME',
+            'value': 'foo.bar.com.',
+        }))
+
+        zone_geo_a.add_record(Record.new(zone_geo_a, 'www', {
+            'geo': {
+                'NA': ['1.2.3.5'],
+                'NA-US': ['1.2.3.5', '1.2.3.6']
+            },
+            'type': 'A',
+            'ttl': 60,
+            'value': '1.1.1.1',
+        }))
+
+        zone_geo_aaaa.add_record(Record.new(zone_geo_aaaa, 'www', {
+            'geo': {
+                'NA': ['1:2:3::5'],
+                'NA-US': ['1:2:3::5', '1:2:3::6']
+            },
+            'type': 'AAAA',
+            'ttl': 60,
+            'value': '1:1:1::1',
+        }))
+
+        zone_geo_cname.add_record(Record.new(zone_geo_cname, 'www', {
+            'geo': {
+                'NA': 'na.foo.bar.com.',
+                'NA-US': 'na-us.foo.bar.com.',
+                'NA-US-CA': 'na-us-ca.foo.bar.com.'
+            },
+            'type': 'CNAME',
+            'ttl': 60,
+            'value': 'foo.bar.com.',
+        }))
+
+        provider = SimpleProvider()
+
+        self.assertTrue(zone_a.changes(zone_geo_a, provider))
+        self.assertTrue(zone_geo_a.changes(zone_a, provider))
+
+        self.assertTrue(zone_aaaa.changes(zone_geo_aaaa, provider))
+        self.assertTrue(zone_geo_aaaa.changes(zone_aaaa, provider))
+
+        self.assertTrue(zone_cname.changes(zone_geo_cname, provider))
+        self.assertTrue(zone_geo_cname.changes(zone_cname, provider))
