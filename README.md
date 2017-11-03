@@ -21,6 +21,7 @@ $ cd dns
 $ virtualenv env
 ...
 $ source env/bin/activate
+$ pip install -U setuptools
 $ pip install octodns
 $ mkdir config
 ```

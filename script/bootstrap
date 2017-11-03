@@ -19,10 +19,10 @@ if [ ! -d "$VENV_NAME" ]; then
 fi
 . "$VENV_NAME/bin/activate"
 
-pip install -U -r requirements.txt
+pip install -e .
 
 if [ "$ENV" != "production" ]; then
-    pip install -U -r requirements-dev.txt
+    pip install -e .[dev]
 fi
 
 if [ ! -L ".git/hooks/pre-commit" ]; then
