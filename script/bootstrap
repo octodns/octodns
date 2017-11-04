@@ -22,7 +22,7 @@ fi
 pip install -e .
 
 if [ "$ENV" != "production" ]; then
-    pip install -e .[dev]
+    pip install -e .[dev,test]
 fi
 
 if [ ! -L ".git/hooks/pre-commit" ]; then
