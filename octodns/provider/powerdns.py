@@ -18,13 +18,14 @@ class PowerDnsBaseProvider(BaseProvider):
                     'PTR', 'SPF', 'SSHFP', 'SRV', 'TXT'))
     TIMEOUT = 5
 
-    def __init__(self, id, host, api_key, port=8081, scheme="http", *args,
-                 **kwargs):
+    def __init__(self, id, host, api_key, port=8081, scheme="http",
+                 timeout=TIMEOUT, *args, **kwargs):
         super(PowerDnsBaseProvider, self).__init__(id, *args, **kwargs)
 
         self.host = host
         self.port = port
         self.scheme = scheme
+        self.timeout = timeout
 
         sess = Session()
         sess.headers.update({'X-API-Key': api_key})
@@ -35,7 +36,7 @@ class PowerDnsBaseProvider(BaseProvider):
 
         url = '{}://{}:{}/api/v1/servers/localhost/{}' \
             .format(self.scheme, self.host, self.port, path)
-        resp = self._sess.request(method, url, json=data, timeout=self.TIMEOUT)
+        resp = self._sess.request(method, url, json=data, timeout=self.timeout)
         self.log.debug('_request:   status=%d', resp.status_code)
         resp.raise_for_status()
         return resp
