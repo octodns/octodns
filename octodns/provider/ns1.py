@@ -168,11 +168,15 @@ class Ns1Provider(BaseProvider):
         if record.geo:
             # purposefully set non-geo answers to have an empty meta,
             # so that we know we did this on purpose if/when troubleshooting
-            params['answers'] = [{"answer": x, "meta":{}} for x in record.values]
+            params['answers'] = [{"answer": x, "meta": {}} \
+                                 for x in record.values]
             for iso_region, target in record.geo.items():
-                params['answers'].append({'answer': target.values,
-                                          'meta': {'iso_region_code': [iso_region]},
-                })
+                params['answers'].append(
+                    {
+                        'answer': target.values,
+                        'meta': {'iso_region_code': [iso_region]},
+                    },
+                )
         return params
 
     _params_for_AAAA = _params_for_A
