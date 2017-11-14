@@ -165,7 +165,7 @@ class Ns1Provider(BaseProvider):
 
     def _params_for_A(self, record):
         params = {'answers': record.values, 'ttl': record.ttl}
-        if record.geo:
+        if hasattr(record, 'geo'):
             # purposefully set non-geo answers to have an empty meta,
             # so that we know we did this on purpose if/when troubleshooting
             params['answers'] = [{"answer": x, "meta": {}}
