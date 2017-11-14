@@ -30,11 +30,13 @@ class TestNs1Provider(TestCase):
         'ttl': 32,
         'type': 'A',
         'value': '1.2.3.4',
+        'meta': {},
     }))
     expected.add(Record.new(zone, 'foo', {
         'ttl': 33,
         'type': 'A',
         'values': ['1.2.3.4', '1.2.3.5'],
+        'meta': {},
     }))
     expected.add(Record.new(zone, 'cname', {
         'ttl': 34,
@@ -289,7 +291,7 @@ class TestNs1Provider(TestCase):
             call('delete-me', u'A'),
         ])
         mock_record.assert_has_calls([
-            call.update(answers=[u'1.2.3.4'], ttl=32),
+            call.update(answers=[{'answer': u'1.2.3.4', 'meta': {}}], ttl=32),
             call.delete()
         ])
 

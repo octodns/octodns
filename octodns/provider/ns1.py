@@ -22,7 +22,7 @@ class Ns1Provider(BaseProvider):
         class: octodns.provider.ns1.Ns1Provider
         api_key: env/NS1_API_KEY
     '''
-    SUPPORTS_GEO = False
+    SUPPORTS_GEO = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
                     'PTR', 'SPF', 'SRV', 'TXT'))
 
@@ -164,7 +164,20 @@ class Ns1Provider(BaseProvider):
                       len(zone.records) - before)
 
     def _params_for_A(self, record):
-        return {'answers': record.values, 'ttl': record.ttl}
+        params = {'answers': record.values, 'ttl': record.ttl}
+        if hasattr(record, 'geo'):
+            # purposefully set non-geo answers to have an empty meta,
+            # so that we know we did this on purpose if/when troubleshooting
+            params['answers'] = [{"answer": x, "meta": {}}
+                                 for x in record.values]
+            for iso_region, target in record.geo.items():
+                params['answers'].append(
+                    {
+                        'answer': target.values,
+                        'meta': {'iso_region_code': [iso_region]},
+                    },
+                )
+        return params
 
     _params_for_AAAA = _params_for_A
     _params_for_NS = _params_for_A
