@@ -15,7 +15,7 @@ from octodns.manager import Manager
 def main():
     parser = ArgumentParser(description=__doc__.split('\n')[1])
 
-    parser.add_argument('--config-file', default='./config/production.yaml',
+    parser.add_argument('--config-file', required=True,
                         help='The Manager configuration file to use')
 
     args = parser.parse_args(WARN)
