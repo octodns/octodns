@@ -82,18 +82,23 @@ class DigitalOceanClient(object):
             except KeyError:
                 break
 
-        # change any apex record to empty string to match other provider output
         for record in ret:
+            # change any apex record to empty string
             if record['name'] == '@':
                 record['name'] = ''
+
+            # change any apex value to zone name
+            if record['data'] == '@':
+                record['data'] = zone_name
 
         return ret
 
     def record_create(self, zone_name, params):
         path = '/domains/{}/records'.format(zone_name)
-        # change empty string to @, DigitalOcean uses @ for apex record names
+        # change empty name string to @, DO uses @ for apex record names
         if params['name'] == '':
             params['name'] = '@'
+
         self._request('POST', path, data=params)
 
     def record_delete(self, zone_name, record_id):
