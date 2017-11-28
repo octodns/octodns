@@ -22,6 +22,7 @@ class SortEnforcingLoader(SafeLoader):
         ret = self.construct_pairs(node)
         keys = [d[0] for d in ret]
         keys_sorted = sorted(keys, key=_natsort_key)
+        keys.sort(key=_natsort_key)
         for key in keys:
             expected = keys_sorted.pop(0)
             if key != expected:
