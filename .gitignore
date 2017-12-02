@@ -1,6 +1,8 @@
 *.pyc
 .coverage
 .env
+^config/
+build/
 coverage.xml
 dist/
 env/
@@ -9,5 +11,3 @@ nosetests.xml
 octodns.egg-info/
 output/
 tmp/
-build/
-config/
