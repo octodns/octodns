@@ -138,6 +138,17 @@ class PlanLogger(_PlanOutput):
         log.log(self.level, buf.getvalue())
 
 
+def _value_stringifier(record, sep):
+    try:
+        values = [str(v) for v in record.values]
+    except AttributeError:
+        values = [record.value]
+    for code, gv in getattr(record, 'geo', {}).items():
+        vs = ', '.join([str(v) for v in gv.values])
+        values.append('{}: {}'.format(code, vs))
+    return sep.join(values)
+
+
 class PlanMarkdown(_PlanOutput):
 
     def run(self, plans, *args, **kwargs):
@@ -174,11 +185,7 @@ class PlanMarkdown(_PlanOutput):
                         fh.write(str(existing.ttl))
                         fh.write(' | ')
                         if existing:
-                            try:
-                                v = existing.values
-                            except AttributeError:
-                                v = existing.value
-                            fh.write(str(v))
+                            fh.write(_value_stringifier(existing, '; '))
                         else:
                             fh.write('n/a')
                         fh.write(' | |\n')
@@ -188,11 +195,7 @@ class PlanMarkdown(_PlanOutput):
                     if new:
                         fh.write(str(new.ttl))
                         fh.write(' | ')
-                        try:
-                            v = new.values
-                        except AttributeError:
-                            v = new.value
-                        fh.write(str(v))
+                        fh.write(_value_stringifier(new, '; '))
                         fh.write(' | ')
                         fh.write(new.source.id)
                         fh.write(' |\n')
