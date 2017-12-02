@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from StringIO import StringIO
 from logging import DEBUG, ERROR, INFO, WARN, getLogger
+from sys import stdout
 
 
 class UnsafePlan(Exception):
@@ -135,3 +136,65 @@ class PlanLogger(_PlanOutput):
         buf.write(hr)
         buf.write('\n')
         log.log(self.level, buf.getvalue())
+
+
+class PlanMarkdown(_PlanOutput):
+
+    def run(self, plans, *args, **kwargs):
+        fh = stdout
+        if plans:
+            current_zone = None
+            for target, plan in plans:
+                if plan.desired.name != current_zone:
+                    current_zone = plan.desired.name
+                    fh.write('## ')
+                    fh.write(current_zone)
+                    fh.write('\n\n')
+
+                fh.write('### ')
+                fh.write(target.id)
+                fh.write('\n\n')
+
+                fh.write('| Name | Type | Existing TTL | New TTL | '
+                         'Existing Value | New Value| Source |\n'
+                         '|--|--|--|--|--|--|--|\n')
+
+                for change in plan.changes:
+                    existing = change.existing
+                    new = change.new
+                    record = change.record
+                    fh.write('| ')
+                    fh.write(record.name)
+                    fh.write(' | ')
+                    fh.write(record._type)
+                    fh.write(' | ')
+                    # TTL
+                    if existing:
+                        fh.write(str(existing.ttl))
+                    else:
+                        fh.write('n/a')
+                    fh.write(' | ')
+                    if new:
+                        fh.write(str(new.ttl))
+                    else:
+                        fh.write('n/a')
+                    fh.write(' | ')
+                    # Value
+                    if existing:
+                        fh.write('todo')
+                    else:
+                        fh.write('n/a')
+                    fh.write(' | ')
+                    if new:
+                        fh.write('todo')
+                        fh.write(' | ')
+                        fh.write(new.source.id)
+                    else:
+                        fh.write('n/a')
+                    fh.write(' |\n')
+
+                fh.write('\nSummary: ')
+                fh.write(str(plan))
+                fh.write('\n\n')
+        else:
+            fh.write('## No changes were planned\n')
