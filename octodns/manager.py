@@ -11,7 +11,8 @@ from importlib import import_module
 from os import environ
 import logging
 
-from .provider.base import BaseProvider, Plan
+from .provider.base import BaseProvider
+from .provider.plan import Plan, PlanLogger
 from .provider.yaml import YamlProvider
 from .record import Record
 from .yaml import safe_load
