@@ -155,15 +155,16 @@ class PlanMarkdown(_PlanOutput):
                 fh.write(target.id)
                 fh.write('\n\n')
 
-                fh.write('| Name | Type | Existing TTL | New TTL | '
-                         'Existing Value | New Value| Source |\n'
-                         '|--|--|--|--|--|--|--|\n')
+                fh.write('| Operation | Name | Type | TTL | Value | Source |\n'
+                         '|--|--|--|--|--|--|\n')
 
                 for change in plan.changes:
                     existing = change.existing
                     new = change.new
                     record = change.record
                     fh.write('| ')
+                    fh.write(change.__class__.__name__)
+                    fh.write(' | ')
                     fh.write(record.name)
                     fh.write(' | ')
                     fh.write(record._type)
@@ -171,27 +172,30 @@ class PlanMarkdown(_PlanOutput):
                     # TTL
                     if existing:
                         fh.write(str(existing.ttl))
-                    else:
-                        fh.write('n/a')
-                    fh.write(' | ')
+                        fh.write(' | ')
+                        if existing:
+                            try:
+                                v = existing.values
+                            except AttributeError:
+                                v = existing.value
+                            fh.write(str(v))
+                        else:
+                            fh.write('n/a')
+                        fh.write(' | |\n')
+                        if new:
+                            fh.write('| | | | ')
+
                     if new:
                         fh.write(str(new.ttl))
-                    else:
-                        fh.write('n/a')
-                    fh.write(' | ')
-                    # Value
-                    if existing:
-                        fh.write('todo')
-                    else:
-                        fh.write('n/a')
-                    fh.write(' | ')
-                    if new:
-                        fh.write('todo')
+                        fh.write(' | ')
+                        try:
+                            v = new.values
+                        except AttributeError:
+                            v = new.value
+                        fh.write(str(v))
                         fh.write(' | ')
                         fh.write(new.source.id)
-                    else:
-                        fh.write('n/a')
-                    fh.write(' |\n')
+                        fh.write(' |\n')
 
                 fh.write('\nSummary: ')
                 fh.write(str(plan))
