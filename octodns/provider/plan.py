@@ -86,7 +86,7 @@ class PlanLogger(object):
         self.log = log
         self.level = level
 
-    def output(self, plans):
+    def run(self, plans):
         hr = '*************************************************************' \
             '*******************\n'
         buf = StringIO()

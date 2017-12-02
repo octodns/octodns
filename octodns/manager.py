@@ -68,6 +68,8 @@ class Manager(object):
     def __init__(self, config_file, max_workers=None, include_meta=False):
         self.log.info('__init__: config_file=%s', config_file)
 
+        self.plan_outputs = [PlanLogger(self.log)]
+
         # Read our config file
         with open(config_file, 'r') as fh:
             self.config = safe_load(fh, enforce_order=False)
@@ -259,7 +261,8 @@ class Manager(object):
         # plan pairs.
         plans = [p for f in futures for p in f.result()]
 
-        PlanLogger(self.log).output(plans)
+        for output in self.plan_outputs:
+            output.run(plans)
 
         if not force:
             self.log.debug('sync:   checking safety')
