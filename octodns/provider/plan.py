@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from StringIO import StringIO
-from logging import INFO, getLogger
+from logging import DEBUG, ERROR, INFO, WARN, getLogger
 
 
 class UnsafePlan(Exception):
@@ -80,13 +80,28 @@ class Plan(object):
                     len(self.existing.records))
 
 
-class PlanLogger(object):
+class _PlanOutput(object):
 
-    def __init__(self, log, level=INFO):
-        self.log = log
-        self.level = level
+    def __init__(self, name):
+        self.name = name
 
-    def run(self, plans):
+
+class PlanLogger(_PlanOutput):
+
+    def __init__(self, name, level='info'):
+        super(PlanLogger, self).__init__(name)
+        try:
+            self.level = {
+                'debug': DEBUG,
+                'info': INFO,
+                'warn': WARN,
+                'warning': WARN,
+                'error': ERROR
+            }[level.lower()]
+        except (AttributeError, KeyError):
+            raise Exception('Unsupported level: {}'.format(level))
+
+    def run(self, log, plans, *args, **kwargs):
         hr = '*************************************************************' \
             '*******************\n'
         buf = StringIO()
@@ -119,4 +134,4 @@ class PlanLogger(object):
             buf.write('No changes were planned\n')
         buf.write(hr)
         buf.write('\n')
-        self.log.log(self.level, buf.getvalue())
+        log.log(self.level, buf.getvalue())

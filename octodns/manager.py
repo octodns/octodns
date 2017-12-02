@@ -11,7 +11,7 @@ from os import environ
 import logging
 
 from .provider.base import BaseProvider
-from .provider.plan import Plan, PlanLogger
+from .provider.plan import Plan
 from .provider.yaml import YamlProvider
 from .record import Record
 from .yaml import safe_load
@@ -68,8 +68,6 @@ class Manager(object):
     def __init__(self, config_file, max_workers=None, include_meta=False):
         self.log.info('__init__: config_file=%s', config_file)
 
-        self.plan_outputs = [PlanLogger(self.log)]
-
         # Read our config file
         with open(config_file, 'r') as fh:
             self.config = safe_load(fh, enforce_order=False)
@@ -97,23 +95,8 @@ class Manager(object):
                 self.log.exception('Invalid provider class')
                 raise Exception('Provider {} is missing class'
                                 .format(provider_name))
-            _class = self._get_provider_class(_class)
-            # Build up the arguments we need to pass to the provider
-            kwargs = {}
-            for k, v in provider_config.items():
-                try:
-                    if v.startswith('env/'):
-                        try:
-                            env_var = v[4:]
-                            v = environ[env_var]
-                        except KeyError:
-                            self.log.exception('Invalid provider config')
-                            raise Exception('Incorrect provider config, '
-                                            'missing env var {}'
-                                            .format(env_var))
-                except AttributeError:
-                    pass
-                kwargs[k] = v
+            _class = self._get_named_class('provider', _class)
+            kwargs = self._build_kwargs(provider_config)
             try:
                 self.providers[provider_name] = _class(provider_name, **kwargs)
             except TypeError:
@@ -141,20 +124,64 @@ class Manager(object):
                     where = where[piece]
         self.zone_tree = zone_tree
 
-    def _get_provider_class(self, _class):
+        self.plan_outputs = {}
+        plan_outputs = manager_config.get('plan_outputs', {
+            'logger': {
+                'class': 'octodns.provider.plan.PlanLogger',
+                'level': 'info'
+            }
+        })
+        for plan_output_name, plan_output_config in plan_outputs.items():
+            try:
+                _class = plan_output_config.pop('class')
+            except KeyError:
+                self.log.exception('Invalid plan_output class')
+                raise Exception('plan_output {} is missing class'
+                                .format(plan_output_name))
+            _class = self._get_named_class('plan_output', _class)
+            kwargs = self._build_kwargs(plan_output_config)
+            try:
+                self.plan_outputs[plan_output_name] = \
+                    _class(plan_output_name, **kwargs)
+            except TypeError:
+                self.log.exception('Invalid plan_output config')
+                raise Exception('Incorrect plan_output config for {}'
+                                .format(plan_output_name))
+
+    def _get_named_class(self, _type, _class):
         try:
             module_name, class_name = _class.rsplit('.', 1)
             module = import_module(module_name)
         except (ImportError, ValueError):
-            self.log.exception('_get_provider_class: Unable to import '
+            self.log.exception('_get_{}_class: Unable to import '
                                'module %s', _class)
-            raise Exception('Unknown provider class: {}'.format(_class))
+            raise Exception('Unknown {} class: {}'.format(_type, _class))
         try:
             return getattr(module, class_name)
         except AttributeError:
-            self.log.exception('_get_provider_class: Unable to get class %s '
+            self.log.exception('_get_{}_class: Unable to get class %s '
                                'from module %s', class_name, module)
-            raise Exception('Unknown provider class: {}'.format(_class))
+            raise Exception('Unknown {} class: {}'.format(_type, _class))
+
+    def _build_kwargs(self, source):
+        # Build up the arguments we need to pass to the provider
+        kwargs = {}
+        for k, v in source.items():
+            try:
+                if v.startswith('env/'):
+                    try:
+                        env_var = v[4:]
+                        v = environ[env_var]
+                    except KeyError:
+                        self.log.exception('Invalid provider config')
+                        raise Exception('Incorrect provider config, '
+                                        'missing env var {}'
+                                        .format(env_var))
+            except AttributeError:
+                pass
+            kwargs[k] = v
+
+        return kwargs
 
     def configured_sub_zones(self, zone_name):
         # Reversed pieces of the zone name
@@ -261,8 +288,8 @@ class Manager(object):
         # plan pairs.
         plans = [p for f in futures for p in f.result()]
 
-        for output in self.plan_outputs:
-            output.run(plans)
+        for output in self.plan_outputs.values():
+            output.run(plans=plans, log=self.log)
 
         if not force:
             self.log.debug('sync:   checking safety')

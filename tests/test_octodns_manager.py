@@ -83,6 +83,19 @@ class TestManager(TestCase):
                 .sync(['unknown.target.'])
         self.assertTrue('unknown target' in ctx.exception.message)
 
+    def test_bad_plan_output_class(self):
+        with self.assertRaises(Exception) as ctx:
+            name = 'bad-plan-output-missing-class.yaml'
+            Manager(get_config_filename(name)).sync()
+        self.assertEquals('plan_output bad is missing class',
+                          ctx.exception.message)
+
+    def test_bad_plan_output_config(self):
+        with self.assertRaises(Exception) as ctx:
+            Manager(get_config_filename('bad-plan-output-config.yaml')).sync()
+        self.assertEqual('Incorrect plan_output config for bad',
+                         ctx.exception.message)
+
     def test_source_only_as_a_target(self):
         with self.assertRaises(Exception) as ctx:
             Manager(get_config_filename('unknown-provider.yaml')) \
