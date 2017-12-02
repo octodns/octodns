@@ -5,7 +5,6 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from StringIO import StringIO
 from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from os import environ
@@ -260,39 +259,7 @@ class Manager(object):
         # plan pairs.
         plans = [p for f in futures for p in f.result()]
 
-        hr = '*************************************************************' \
-            '*******************\n'
-        buf = StringIO()
-        buf.write('\n')
-        if plans:
-            current_zone = None
-            for target, plan in plans:
-                if plan.desired.name != current_zone:
-                    current_zone = plan.desired.name
-                    buf.write(hr)
-                    buf.write('* ')
-                    buf.write(current_zone)
-                    buf.write('\n')
-                    buf.write(hr)
-
-                buf.write('* ')
-                buf.write(target.id)
-                buf.write(' (')
-                buf.write(target)
-                buf.write(')\n*   ')
-                for change in plan.changes:
-                    buf.write(change.__repr__(leader='* '))
-                    buf.write('\n*   ')
-
-                buf.write('Summary: ')
-                buf.write(plan)
-                buf.write('\n')
-        else:
-            buf.write(hr)
-            buf.write('No changes were planned\n')
-        buf.write(hr)
-        buf.write('\n')
-        self.log.info(buf.getvalue())
+        PlanLogger(self.log).output(plans)
 
         if not force:
             self.log.debug('sync:   checking safety')
