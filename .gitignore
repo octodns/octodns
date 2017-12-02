@@ -1,8 +1,7 @@
 *.pyc
 .coverage
 .env
-^config/
-build/
+/config/
 coverage.xml
 dist/
 env/

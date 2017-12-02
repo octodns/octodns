@@ -151,8 +151,7 @@ def _value_stringifier(record, sep):
 
 class PlanMarkdown(_PlanOutput):
 
-    def run(self, plans, *args, **kwargs):
-        fh = stdout
+    def run(self, plans, fh=stdout, *args, **kwargs):
         if plans:
             current_zone = None
             for target, plan in plans:
@@ -184,10 +183,7 @@ class PlanMarkdown(_PlanOutput):
                     if existing:
                         fh.write(str(existing.ttl))
                         fh.write(' | ')
-                        if existing:
-                            fh.write(_value_stringifier(existing, '; '))
-                        else:
-                            fh.write('n/a')
+                        fh.write(_value_stringifier(existing, '; '))
                         fh.write(' | |\n')
                         if new:
                             fh.write('| | | | ')
@@ -205,3 +201,66 @@ class PlanMarkdown(_PlanOutput):
                 fh.write('\n\n')
         else:
             fh.write('## No changes were planned\n')
+
+
+class PlanHtml(_PlanOutput):
+
+    def run(self, plans, fh=stdout, *args, **kwargs):
+        if plans:
+            current_zone = None
+            for target, plan in plans:
+                if plan.desired.name != current_zone:
+                    current_zone = plan.desired.name
+                    fh.write('<h2>')
+                    fh.write(current_zone)
+                    fh.write('</h2>\n')
+
+                fh.write('<h3>')
+                fh.write(target.id)
+                fh.write('''</h3>
+<table border=3>
+  <tr>
+    <th>Operation</th>
+    <th>Name</th>
+    <th>Type</th>
+    <th>TTL</th>
+    <th>Value</th>
+    <th>Source</th>
+  </tr>
+''')
+
+                for change in plan.changes:
+                    existing = change.existing
+                    new = change.new
+                    record = change.record
+                    fh.write('  <tr>\n    <td>')
+                    fh.write(change.__class__.__name__)
+                    fh.write('</td>\n    <td>')
+                    fh.write(record.name)
+                    fh.write('</td>\n    <td>')
+                    fh.write(record._type)
+                    fh.write('</td>\n')
+                    # TTL
+                    if existing:
+                        fh.write('    <td>')
+                        fh.write(str(existing.ttl))
+                        fh.write('</td>\n    <td>')
+                        fh.write(_value_stringifier(existing, '<br/>'))
+                        fh.write('</td>\n    <td></td>\n  </tr>\n')
+                        if new:
+                            fh.write('  <tr>\n    <td colspan=3></td>\n')
+
+                    if new:
+                        fh.write('    <td>')
+                        fh.write(str(new.ttl))
+                        fh.write('</td>\n    <td>')
+                        fh.write(_value_stringifier(new, '<br/>'))
+                        fh.write('</td>\n    <td>')
+                        fh.write(new.source.id)
+                        fh.write('</td>\n  </tr>\n')
+
+                fh.write('  <tr>\n    <td colspan=6>Summary: ')
+                fh.write(str(plan))
+                fh.write('</td>\n  </tr>\n</table>\n')
+        else:
+            fh.write('<h2>No changes were planned</h2>')
