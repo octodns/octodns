@@ -218,7 +218,7 @@ class PlanHtml(_PlanOutput):
                 fh.write('<h3>')
                 fh.write(target.id)
                 fh.write('''</h3>
-<table border=3>
+<table>
   <tr>
     <th>Operation</th>
     <th>Name</th>
