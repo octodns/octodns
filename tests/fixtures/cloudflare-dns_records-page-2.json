@@ -139,14 +139,31 @@
       "meta": {
         "auto_added": false
       }
+    },
+    {
+      "id": "fc12ab34cd5611334422ab3322997656",
+      "type": "CNAME",
+      "name": "included.unit.tests",
+      "content": "unit.tests",
+      "proxiable": true,
+      "proxied": false,
+      "ttl": 3600,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "modified_on": "2017-03-11T18:01:43.940682Z",
+      "created_on": "2017-03-11T18:01:43.940682Z",
+      "meta": {
+        "auto_added": false
+      }
     }
   ],
   "result_info": {
     "page": 2,
     "per_page": 10,
     "total_pages": 2,
-    "count": 8,
-    "total_count": 19
+    "count": 9,
+    "total_count": 20
   },
   "success": true,
   "errors": [],

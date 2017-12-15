@@ -38,6 +38,10 @@ Here are a few things you can do that will increase the likelihood of your pull 
 
 - Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
 
+## Development prerequisites
+
+- setuptools >= 30.3.0
+
 ## License note
 
 We can only accept contributions that are compatible with the MIT license.

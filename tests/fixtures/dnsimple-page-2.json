@@ -175,12 +175,28 @@
       "system_record": false,
       "created_at": "2017-03-09T15:55:09Z",
       "updated_at": "2017-03-09T15:55:09Z"
+    },
+    {
+      "id": 12188805,
+      "zone_id": "unit.tests",
+      "parent_id": null,
+      "name": "included",
+      "content": "unit.tests",
+      "ttl": 3600,
+      "priority": null,
+      "type": "CNAME",
+      "regions": [
+        "global"
+      ],
+      "system_record": false,
+      "created_at": "2017-03-09T15:55:09Z",
+      "updated_at": "2017-03-09T15:55:09Z"
     }
   ],
   "pagination": {
     "current_page": 2,
     "per_page": 20,
-    "total_entries": 30,
+    "total_entries": 32,
     "total_pages": 2
   }
 }
