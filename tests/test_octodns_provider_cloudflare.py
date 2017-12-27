@@ -267,13 +267,12 @@ class TestCloudflareProvider(TestCase):
         self.assertEquals(2, provider.apply(plan))
         # recreate for update, and deletes for the 2 parts of the other
         provider._request.assert_has_calls([
-            call('POST', '/zones/42/dns_records', data={
-                'content': '3.2.3.4',
-                'type': 'A',
-                'name': 'ttl.unit.tests',
-                'ttl': 300}),
-            call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
-                 'dns_records/fc12ab34cd5611334422ab3322997655'),
+            call('PUT', '/zones/ff12ab34cd5611334422ab3322997650/dns_records/'
+                 'fc12ab34cd5611334422ab3322997655',
+                 data={'content': '3.2.3.4',
+                       'type': 'A',
+                       'name': 'ttl.unit.tests',
+                       'ttl': 300}),
             call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
                  'dns_records/fc12ab34cd5611334422ab3322997653'),
             call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
