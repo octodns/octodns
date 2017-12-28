@@ -38,6 +38,13 @@ class TestNs1Provider(TestCase):
         'values': ['1.2.3.4', '1.2.3.5'],
         'meta': {},
     }))
+    expected.add(Record.new(zone, 'geo', {
+        'ttl': 34,
+        'type': 'A',
+        'values': ['101.102.103.104', '101.102.103.105'],
+        'geo': {'NA-US-NY': ['201.202.203.204']},
+        'meta': {},
+    }))
     expected.add(Record.new(zone, 'cname', {
         'ttl': 34,
         'type': 'CNAME',
@@ -119,6 +126,11 @@ class TestNs1Provider(TestCase):
         'short_answers': ['1.2.3.4', '1.2.3.5'],
         'domain': 'foo.unit.tests.',
     }, {
+        'type': 'A',
+        'ttl': 34,
+        'short_answers': ['101.102.103.104', '101.102.103.105'],
+        'domain': 'geo.unit.tests.',
+    }, {
         'type': 'CNAME',
         'ttl': 34,
         'short_answers': ['foo.unit.tests.'],
@@ -192,6 +204,9 @@ class TestNs1Provider(TestCase):
         load_mock.reset_mock()
         nsone_zone = DummyZone([])
         load_mock.side_effect = [nsone_zone]
+        zone_search = Mock()
+        zone_search.return_value = []
+        nsone_zone.search = zone_search
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
         self.assertEquals(set(), zone.records)
@@ -201,6 +216,9 @@ class TestNs1Provider(TestCase):
         load_mock.reset_mock()
         nsone_zone = DummyZone(self.nsone_records)
         load_mock.side_effect = [nsone_zone]
+        zone_search = Mock()
+        zone_search.return_value = []
+        nsone_zone.search = zone_search
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
         self.assertEquals(self.expected, zone.records)
@@ -266,11 +284,14 @@ class TestNs1Provider(TestCase):
         }])
         nsone_zone.data['records'][0]['short_answers'][0] = '2.2.2.2'
         nsone_zone.loadRecord = Mock()
+        zone_search = Mock()
+        zone_search.return_value = []
+        nsone_zone.search = zone_search
         load_mock.side_effect = [nsone_zone, nsone_zone]
         plan = provider.plan(desired)
-        self.assertEquals(2, len(plan.changes))
+        self.assertEquals(3, len(plan.changes))
         self.assertIsInstance(plan.changes[0], Update)
-        self.assertIsInstance(plan.changes[1], Delete)
+        self.assertIsInstance(plan.changes[2], Delete)
         # ugh, we need a mock record that can be returned from loadRecord for
         # the update and delete targets, we can add our side effects to that to
         # trigger rate limit handling
@@ -278,22 +299,29 @@ class TestNs1Provider(TestCase):
         mock_record.update.side_effect = [
             RateLimitException('one', period=0),
             None,
+            None,
         ]
         mock_record.delete.side_effect = [
             RateLimitException('two', period=0),
             None,
+            None,
         ]
-        nsone_zone.loadRecord.side_effect = [mock_record, mock_record]
+        nsone_zone.loadRecord.side_effect = [mock_record, mock_record, mock_record]
         got_n = provider.apply(plan)
-        self.assertEquals(2, got_n)
+        self.assertEquals(3, got_n)
         nsone_zone.loadRecord.assert_has_calls([
             call('unit.tests', u'A'),
+            call('geo', u'A'),
             call('delete-me', u'A'),
         ])
         mock_record.assert_has_calls([
-            call.update(answers=[{'answer': u'1.2.3.4', 'meta': {}}], ttl=32),
+            call.update(answers=[{'answer': [u'1.2.3.4'], 'meta': {}}], ttl=32),
+            call.update(answers=[{u'answer': [u'1.2.3.4'], u'meta': {}}], ttl=32),
+            call.update(answers=[{u'answer': [u'101.102.103.104'], u'meta': {}}, {u'answer': [u'101.102.103.105'], u'meta': {}}, {u'answer': [u'201.202.203.204'], u'meta': {u'iso_region_code': [u'NA-US-NY']}}], ttl=34),
+            call.delete(),
             call.delete()
         ])
+
 
     def test_escaping(self):
         provider = Ns1Provider('test', 'api-key')
