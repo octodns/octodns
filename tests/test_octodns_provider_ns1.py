@@ -306,7 +306,8 @@ class TestNs1Provider(TestCase):
             None,
             None,
         ]
-        nsone_zone.loadRecord.side_effect = [mock_record, mock_record, mock_record]
+        nsone_zone.loadRecord.side_effect = [mock_record, mock_record,
+                                             mock_record]
         got_n = provider.apply(plan)
         self.assertEquals(3, got_n)
         nsone_zone.loadRecord.assert_has_calls([
@@ -315,17 +316,28 @@ class TestNs1Provider(TestCase):
             call('delete-me', u'A'),
         ])
         mock_record.assert_has_calls([
-            call.update(answers=[{'answer': [u'1.2.3.4'], 'meta': {}}], ttl=32),
-            call.update(answers=[{u'answer': [u'1.2.3.4'], u'meta': {}}], ttl=32),
-            call.update(answers=[{u'answer': [u'101.102.103.104'], u'meta': {}}, {u'answer': [u'101.102.103.105'], u'meta': {}}, {u'answer': [u'201.202.203.204'], u'meta': {u'iso_region_code': [u'NA-US-NY']}}], ttl=34),
+            call.update(answers=[{'answer': [u'1.2.3.4'], 'meta': {}}],
+                        ttl=32),
+            call.update(answers=[{u'answer': [u'1.2.3.4'], u'meta': {}}],
+                        ttl=32),
+            call.update(
+                answers=[
+                    {u'answer': [u'101.102.103.104'], u'meta': {}},
+                    {u'answer': [u'101.102.103.105'], u'meta': {}},
+                    {
+                        u'answer': [u'201.202.203.204'],
+                        u'meta': {
+                            u'iso_region_code': [u'NA-US-NY']
+                        },
+                    },
+                ],
+                ttl=34),
             call.delete(),
             call.delete()
         ])
 
-
     def test_escaping(self):
         provider = Ns1Provider('test', 'api-key')
-
         record = {
             'ttl': 31,
             'short_answers': ['foo; bar baz; blip']

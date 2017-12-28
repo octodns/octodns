@@ -7,12 +7,12 @@ from __future__ import absolute_import, division, print_function, \
 
 from logging import getLogger
 from itertools import chain
-from nsone import NSONE, Config
+from nsone import NSONE
 from nsone.rest.errors import RateLimitException, ResourceException
 from incf.countryutils import transformations
 from time import sleep
 
-from ..record import _GeoMixin, Record
+from ..record import Record
 from .base import BaseProvider
 
 
@@ -202,7 +202,7 @@ class Ns1Provider(BaseProvider):
         if hasattr(record, 'geo'):
             # purposefully set non-geo answers to have an empty meta,
             # so that we know we did this on purpose if/when troubleshooting
-            params['answers'] = [{"answer": [x], "meta": {}} \
+            params['answers'] = [{"answer": [x], "meta": {}}
                                  for x in record.values]
             for iso_region, target in record.geo.items():
                 key = 'iso_region_code'
