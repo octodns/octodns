@@ -30,7 +30,7 @@ class TestYamlProvider(TestCase):
 
         # without it we see everything
         source.populate(zone)
-        self.assertEquals(16, len(zone.records))
+        self.assertEquals(18, len(zone.records))
 
         # Assumption here is that a clean round-trip means that everything
         # worked as expected, data that went in came back out and could be
@@ -49,12 +49,12 @@ class TestYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(13, len(filter(lambda c: isinstance(c, Create),
+            self.assertEquals(15, len(filter(lambda c: isinstance(c, Create),
                                              plan.changes)))
             self.assertFalse(isfile(yaml_file))
 
             # Now actually do it
-            self.assertEquals(13, target.apply(plan))
+            self.assertEquals(15, target.apply(plan))
             self.assertTrue(isfile(yaml_file))
 
             # There should be no changes after the round trip
@@ -64,15 +64,19 @@ class TestYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(13, len(filter(lambda c: isinstance(c, Create),
+            self.assertEquals(15, len(filter(lambda c: isinstance(c, Create),
                                              plan.changes)))
 
             with open(yaml_file) as fh:
                 data = safe_load(fh.read())
 
+                # '' has some of both
+                roots = sorted(data[''], key=lambda r: r['type'])
+                self.assertTrue('values' in roots[0])  # A
+                self.assertTrue('value' in roots[1])   # CAA
+                self.assertTrue('values' in roots[2])  # SSHFP
+
                 # these are stored as plural 'values'
-                for r in data['']:
-                    self.assertTrue('values' in r)
                 self.assertTrue('values' in data['mx'])
                 self.assertTrue('values' in data['naptr'])
                 self.assertTrue('values' in data['_srv._tcp'])

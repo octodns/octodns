@@ -95,6 +95,10 @@ class Record(object):
         except KeyError:
             raise Exception('Unknown record type: "{}"'.format(_type))
         reasons = _class.validate(name, data)
+        try:
+            lenient |= data['octodns']['lenient']
+        except KeyError:
+            pass
         if reasons:
             if lenient:
                 cls.log.warn(ValidationError.build_message(fqdn, reasons))
@@ -124,6 +128,8 @@ class Record(object):
 
         octodns = data.get('octodns', {})
         self.ignored = octodns.get('ignored', False)
+        self.excluded = octodns.get('excluded', [])
+        self.included = octodns.get('included', [])
 
     def _data(self):
         return {'ttl': self.ttl}
@@ -207,9 +213,30 @@ class _ValuesMixin(object):
         values = []
         try:
             values = data['values']
+            if not values:
+                values = []
+                reasons.append('missing value(s)')
+            else:
+                # loop through copy of values
+                # remove invalid value from values
+                for value in list(values):
+                    if value is None:
+                        reasons.append('missing value(s)')
+                        values.remove(value)
+                    elif len(value) == 0:
+                        reasons.append('empty value')
+                        values.remove(value)
         except KeyError:
             try:
-                values = [data['value']]
+                value = data['value']
+                if value is None:
+                    reasons.append('missing value(s)')
+                    values = []
+                elif len(value) == 0:
+                    reasons.append('empty value')
+                    values = []
+                else:
+                    values = [value]
             except KeyError:
                 reasons.append('missing value(s)')
 
@@ -234,10 +261,16 @@ class _ValuesMixin(object):
     def _data(self):
         ret = super(_ValuesMixin, self)._data()
         if len(self.values) > 1:
-            ret['values'] = [getattr(v, 'data', v) for v in self.values]
-        else:
+            values = [getattr(v, 'data', v) for v in self.values if v]
+            if len(values) > 1:
+                ret['values'] = values
+            elif len(values) == 1:
+                ret['value'] = values[0]
+        elif len(self.values) == 1:
             v = self.values[0]
-            ret['value'] = getattr(v, 'data', v)
+            if v:
+                ret['value'] = getattr(v, 'data', v)
+
         return ret
 
     def __repr__(self):
@@ -345,6 +378,10 @@ class _ValueMixin(object):
         value = None
         try:
             value = data['value']
+            if value is None:
+                reasons.append('missing value')
+            elif value == '':
+                reasons.append('empty value')
         except KeyError:
             reasons.append('missing value')
         if value:
@@ -362,7 +399,8 @@ class _ValueMixin(object):
 
     def _data(self):
         ret = super(_ValueMixin, self)._data()
-        ret['value'] = getattr(self.value, 'data', self.value)
+        if self.value:
+            ret['value'] = getattr(self.value, 'data', self.value)
         return ret
 
     def __repr__(self):

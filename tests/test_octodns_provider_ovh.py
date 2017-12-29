@@ -17,6 +17,14 @@ from octodns.zone import Zone
 
 class TestOvhProvider(TestCase):
     api_record = []
+    valid_dkim = []
+    invalid_dkim = []
+
+    valid_dkim_key = "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCxLaG16G4SaE" \
+                     "cXVdiIxTg7gKSGbHKQLm30CHib1h9FzS9nkcyvQSyQj1rMFyqC//" \
+                     "tft3ohx3nvJl+bGCWxdtLYDSmir9PW54e5CTdxEh8MWRkBO3StF6" \
+                     "QG/tAh3aTGDmkqhIJGLb87iHvpmVKqURmEUzJPv5KPJfWLofADI+" \
+                     "q9lQIDAQAB"
 
     zone = Zone('unit.tests.', [])
     expected = set()
@@ -233,6 +241,65 @@ class TestOvhProvider(TestCase):
         'value': '1:1ec:1::1',
     }))
 
+    # DKIM
+    api_record.append({
+        'fieldType': 'DKIM',
+        'ttl': 1300,
+        'target': valid_dkim_key,
+        'subDomain': 'dkim',
+        'id': 16
+    })
+    expected.add(Record.new(zone, 'dkim', {
+        'ttl': 1300,
+        'type': 'TXT',
+        'value': valid_dkim_key,
+    }))
+
+    # TXT
+    api_record.append({
+        'fieldType': 'TXT',
+        'ttl': 1400,
+        'target': 'TXT text',
+        'subDomain': 'txt',
+        'id': 17
+    })
+    expected.add(Record.new(zone, 'txt', {
+        'ttl': 1400,
+        'type': 'TXT',
+        'value': 'TXT text',
+    }))
+
+    # LOC
+    # We do not have associated record for LOC, as it's not managed
+    api_record.append({
+        'fieldType': 'LOC',
+        'ttl': 1500,
+        'target': '1 1 1 N 1 1 1 E 1m 1m',
+        'subDomain': '',
+        'id': 18
+    })
+
+    valid_dkim = [valid_dkim_key,
+                  'v=DKIM1 \; %s' % valid_dkim_key,
+                  'h=sha256 \; %s' % valid_dkim_key,
+                  'h=sha1 \; %s' % valid_dkim_key,
+                  's=* \; %s' % valid_dkim_key,
+                  's=email \; %s' % valid_dkim_key,
+                  't=y \; %s' % valid_dkim_key,
+                  't=s \; %s' % valid_dkim_key,
+                  'k=rsa \; %s' % valid_dkim_key,
+                  'n=notes \; %s' % valid_dkim_key,
+                  'g=granularity \; %s' % valid_dkim_key,
+                  ]
+    invalid_dkim = ['p=%invalid%',  # Invalid public key
+                    'v=DKIM1',  # Missing public key
+                    'v=DKIM2 \; %s' % valid_dkim_key,  # Invalid version
+                    'h=sha512 \; %s' % valid_dkim_key,  # Invalid hash algo
+                    's=fake \; %s' % valid_dkim_key,  # Invalid selector
+                    't=fake \; %s' % valid_dkim_key,  # Invalid flag
+                    'u=invalid \; %s' % valid_dkim_key,  # Invalid key
+                    ]
+
     @patch('ovh.Client')
     def test_populate(self, client_mock):
         provider = OvhProvider('test', 'endpoint', 'application_key',
@@ -254,6 +321,16 @@ class TestOvhProvider(TestCase):
             self.assertEquals(self.expected, zone.records)
 
     @patch('ovh.Client')
+    def test_is_valid_dkim(self, client_mock):
+        """Test _is_valid_dkim"""
+        provider = OvhProvider('test', 'endpoint', 'application_key',
+                               'application_secret', 'consumer_key')
+        for dkim in self.valid_dkim:
+            self.assertTrue(provider._is_valid_dkim(dkim))
+        for dkim in self.invalid_dkim:
+            self.assertFalse(provider._is_valid_dkim(dkim))
+
+    @patch('ovh.Client')
     def test_apply(self, client_mock):
         provider = OvhProvider('test', 'endpoint', 'application_key',
                                'application_secret', 'consumer_key')
@@ -270,90 +347,91 @@ class TestOvhProvider(TestCase):
                 provider.apply(plan)
             self.assertEquals(get_mock.side_effect, ctx.exception)
 
+        # Records get by API call
         with patch.object(provider._client, 'get') as get_mock:
-            get_returns = [[1, 2], {
-                'fieldType': 'A',
-                'ttl': 600,
-                'target': '5.6.7.8',
-                'subDomain': '',
-                'id': 100
-            }, {'fieldType': 'A',
-                'ttl': 600,
-                'target': '5.6.7.8',
-                'subDomain': 'fake',
-                'id': 101
-                }]
+            get_returns = [
+                [1, 2, 3, 4],
+                {'fieldType': 'A', 'ttl': 600, 'target': '5.6.7.8',
+                 'subDomain': '', 'id': 100},
+                {'fieldType': 'A', 'ttl': 600, 'target': '5.6.7.8',
+                 'subDomain': 'fake', 'id': 101},
+                {'fieldType': 'TXT', 'ttl': 600, 'target': 'fake txt record',
+                 'subDomain': 'txt', 'id': 102},
+                {'fieldType': 'DKIM', 'ttl': 600,
+                 'target': 'v=DKIM1; %s' % self.valid_dkim_key,
+                 'subDomain': 'dkim', 'id': 103}
+            ]
             get_mock.side_effect = get_returns
 
             plan = provider.plan(desired)
 
-            with patch.object(provider._client, 'post') as post_mock:
-                with patch.object(provider._client, 'delete') as delete_mock:
-                    with patch.object(provider._client, 'get') as get_mock:
-                        get_mock.side_effect = [[100], [101]]
-                        provider.apply(plan)
-                        wanted_calls = [
-                            call(u'/domain/zone/unit.tests/record',
-                                 fieldType=u'A',
-                                 subDomain=u'', target=u'1.2.3.4', ttl=100),
-                            call(u'/domain/zone/unit.tests/record',
-                                 fieldType=u'SRV',
-                                 subDomain=u'10 20 30 foo-1.unit.tests.',
-                                 target='_srv._tcp', ttl=800),
-                            call(u'/domain/zone/unit.tests/record',
-                                 fieldType=u'SRV',
-                                 subDomain=u'40 50 60 foo-2.unit.tests.',
-                                 target='_srv._tcp', ttl=800),
-                            call(u'/domain/zone/unit.tests/record',
-                                 fieldType=u'PTR', subDomain='4',
-                                 target=u'unit.tests.', ttl=900),
-                            call(u'/domain/zone/unit.tests/record',
-                                 fieldType=u'NS', subDomain='www3',
-                                 target=u'ns3.unit.tests.', ttl=700),
-                            call(u'/domain/zone/unit.tests/record',
-                                 fieldType=u'NS', subDomain='www3',
-                                 target=u'ns4.unit.tests.', ttl=700),
-                            call(u'/domain/zone/unit.tests/record',
-                                 fieldType=u'SSHFP',
-                                 subDomain=u'1 1 bf6b6825d2977c511a475bbefb88a'
-                                           u'ad54'
-                                           u'a92ac73',
-                                 target=u'', ttl=1100),
-                            call(u'/domain/zone/unit.tests/record',
-                                 fieldType=u'AAAA', subDomain=u'',
-                                 target=u'1:1ec:1::1', ttl=200),
-                            call(u'/domain/zone/unit.tests/record',
-                                 fieldType=u'MX', subDomain=u'',
-                                 target=u'10 mx1.unit.tests.', ttl=400),
-                            call(u'/domain/zone/unit.tests/record',
-                                 fieldType=u'CNAME', subDomain='www2',
-                                 target=u'unit.tests.', ttl=300),
-                            call(u'/domain/zone/unit.tests/record',
-                                 fieldType=u'SPF', subDomain=u'',
-                                 target=u'v=spf1 include:unit.texts.'
-                                        u'rerirect ~all',
-                                 ttl=1000),
-                            call(u'/domain/zone/unit.tests/record',
-                                 fieldType=u'A',
-                                 subDomain='sub', target=u'1.2.3.4', ttl=200),
-                            call(u'/domain/zone/unit.tests/record',
-                                 fieldType=u'NAPTR', subDomain='naptr',
-                                 target=u'10 100 "S" "SIP+D2U" "!^.*$!sip:'
-                                        u'info@bar'
-                                        u'.example.com!" .',
-                                 ttl=500),
-                            call(u'/domain/zone/unit.tests/refresh')]
+            with patch.object(provider._client, 'post') as post_mock, \
+                    patch.object(provider._client, 'delete') as delete_mock:
+                get_mock.side_effect = [[100], [101], [102], [103]]
+                provider.apply(plan)
+                wanted_calls = [
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'TXT',
+                         subDomain='txt', target=u'TXT text', ttl=1400),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'DKIM',
+                         subDomain='dkim', target=self.valid_dkim_key,
+                         ttl=1300),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'A',
+                         subDomain=u'', target=u'1.2.3.4', ttl=100),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'SRV',
+                         subDomain=u'10 20 30 foo-1.unit.tests.',
+                         target='_srv._tcp', ttl=800),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'SRV',
+                         subDomain=u'40 50 60 foo-2.unit.tests.',
+                         target='_srv._tcp', ttl=800),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'PTR',
+                         subDomain='4', target=u'unit.tests.', ttl=900),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'NS',
+                         subDomain='www3', target=u'ns3.unit.tests.', ttl=700),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'NS',
+                         subDomain='www3', target=u'ns4.unit.tests.', ttl=700),
+                    call(u'/domain/zone/unit.tests/record',
+                         fieldType=u'SSHFP', target=u'', ttl=1100,
+                         subDomain=u'1 1 bf6b6825d2977c511a475bbefb88a'
+                                   u'ad54'
+                                   u'a92ac73',
+                         ),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'AAAA',
+                         subDomain=u'', target=u'1:1ec:1::1', ttl=200),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'MX',
+                         subDomain=u'', target=u'10 mx1.unit.tests.', ttl=400),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'CNAME',
+                         subDomain='www2', target=u'unit.tests.', ttl=300),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'SPF',
+                         subDomain=u'', ttl=1000,
+                         target=u'v=spf1 include:unit.texts.'
+                                u'rerirect ~all',
+                         ),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'A',
+                         subDomain='sub', target=u'1.2.3.4', ttl=200),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'NAPTR',
+                         subDomain='naptr', ttl=500,
+                         target=u'10 100 "S" "SIP+D2U" "!^.*$!sip:'
+                                u'info@bar'
+                                u'.example.com!" .'
+                         ),
+                    call(u'/domain/zone/unit.tests/refresh')]
 
-                        post_mock.assert_has_calls(wanted_calls)
+                post_mock.assert_has_calls(wanted_calls)
 
-                        # Get for delete calls
-                        get_mock.assert_has_calls(
-                            [call(u'/domain/zone/unit.tests/record',
-                                  fieldType=u'A', subDomain=u''),
-                             call(u'/domain/zone/unit.tests/record',
-                                  fieldType=u'A', subDomain='fake')]
-                        )
-                        # 2 delete calls, one for update + one for delete
-                        delete_mock.assert_has_calls(
-                            [call(u'/domain/zone/unit.tests/record/100'),
-                             call(u'/domain/zone/unit.tests/record/101')])
+                # Get for delete calls
+                wanted_get_calls = [
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'TXT',
+                         subDomain='txt'),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'DKIM',
+                         subDomain='dkim'),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'A',
+                         subDomain=u''),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'A',
+                         subDomain='fake')]
+                get_mock.assert_has_calls(wanted_get_calls)
+                # 4 delete calls for update and delete
+                delete_mock.assert_has_calls(
+                    [call(u'/domain/zone/unit.tests/record/100'),
+                     call(u'/domain/zone/unit.tests/record/101'),
+                     call(u'/domain/zone/unit.tests/record/102'),
+                     call(u'/domain/zone/unit.tests/record/103')])

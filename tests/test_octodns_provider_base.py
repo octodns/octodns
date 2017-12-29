@@ -17,6 +17,7 @@ class HelperProvider(BaseProvider):
     log = getLogger('HelperProvider')
 
     SUPPORTS = set(('A',))
+    id = 'test'
 
     def __init__(self, extra_changes, apply_disabled=False,
                  include_change_callback=None):
