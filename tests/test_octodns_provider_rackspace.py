@@ -7,17 +7,13 @@ from __future__ import absolute_import, division, print_function, \
 
 import json
 import re
-from os.path import dirname, join
 from unittest import TestCase
 from urlparse import urlparse
-
-from nose.tools import assert_raises
 
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
 
 from octodns.provider.rackspace import RackspaceProvider
-from octodns.provider.yaml import YamlProvider
 from octodns.record import Record
 from octodns.zone import Zone
 
