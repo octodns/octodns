@@ -263,4 +263,4 @@ class PlanHtml(_PlanOutput):
                 fh.write(str(plan))
                 fh.write('</td>\n  </tr>\n</table>\n')
         else:
-            fh.write('<h2>No changes were planned</h2>')
+            fh.write('<b>No changes were planned</b>')
