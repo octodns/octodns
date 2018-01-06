@@ -83,7 +83,6 @@ class RackspaceProvider(BaseProvider):
 
     def _get_zone_id_for(self, zone):
         ret = self._request('GET', 'domains', pagination_key='domains')
-        time.sleep(self.ratelimit_delay)
         return [x for x in ret if x['name'] == zone.name[:-1]][0]['id']
 
     def _request(self, method, path, data=None, pagination_key=None):
@@ -91,14 +90,15 @@ class RackspaceProvider(BaseProvider):
         url = '{}/{}'.format(self.dns_endpoint, path)
 
         if pagination_key:
-            return self._paginated_request_for_url(method, url, data,
+            resp = self._paginated_request_for_url(method, url, data,
                                                    pagination_key)
         else:
-            return self._request_for_url(method, url, data)
+            resp = self._request_for_url(method, url, data)
+        time.sleep(self.ratelimit_delay)
+        return resp
 
     def _request_for_url(self, method, url, data):
         resp = self._sess.request(method, url, json=data, timeout=self.TIMEOUT)
-        time.sleep(self.ratelimit_delay)
         self.log.debug('_request:   status=%d', resp.status_code)
         resp.raise_for_status()
         return resp
@@ -107,7 +107,6 @@ class RackspaceProvider(BaseProvider):
         acc = []
 
         resp = self._sess.request(method, url, json=data, timeout=self.TIMEOUT)
-        time.sleep(self.ratelimit_delay)
         self.log.debug('_request:   status=%d', resp.status_code)
         resp.raise_for_status()
         acc.extend(resp.json()[pagination_key])
