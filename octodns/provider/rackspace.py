@@ -294,12 +294,8 @@ class RackspaceProvider(BaseProvider):
                                                 self._get_values(change.new))
 
     def _create_given_change_values(self, change, values):
-        out = []
-        for value in values:
-            transformer = getattr(self,
-                                  "_record_for_{}".format(change.new._type))
-            out.append(transformer(change.new, value))
-        return out
+        transformer = getattr(self, "_record_for_{}".format(change.new._type))
+        return [transformer(change.new, v) for v in values]
 
     def _mod_Update(self, change):
         existing_values = self._get_values(change.existing)
