@@ -42,7 +42,7 @@ class RackspaceProvider(BaseProvider):
                     'TXT'))
     TIMEOUT = 5
 
-    def __init__(self, id, username, api_key, ratelimit_delay, *args,
+    def __init__(self, id, username, api_key, ratelimit_delay=0.0, *args,
                  **kwargs):
         '''
         Rackspace API v1 Provider
