@@ -332,10 +332,10 @@ class RackspaceProvider(BaseProvider):
             change.existing))
 
     def _delete_given_change_values(self, change, values):
+        transformer = getattr(self, "_record_for_{}".format(
+            change.existing._type))
         out = []
         for value in values:
-            transformer = getattr(self, "_record_for_{}".format(
-                change.existing._type))
             rs_record = transformer(change.existing, value)
             key = self._key_for_record(rs_record)
             out.append('id=' + self._id_map[key])
