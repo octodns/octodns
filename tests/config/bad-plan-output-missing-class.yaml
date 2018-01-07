@@ -1,0 +1,5 @@
+manager:
+  plan_outputs:
+    'bad': {}
+providers: {}
+zones: {}
