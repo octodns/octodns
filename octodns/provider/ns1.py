@@ -50,6 +50,10 @@ class Ns1Provider(BaseProvider):
         for answer in record.get('answers', []):
             meta = answer.get('meta', {})
             if meta:
+                # country + state and country + province are allowed
+                # in that case though, supplying a state/province would
+                # be redundant since the country would supercede in when
+                # resolving the record.  it is syntactically valid, however.
                 country = meta.get('country', [])
                 us_state = meta.get('us_state', [])
                 ca_province = meta.get('ca_province', [])
@@ -204,16 +208,32 @@ class Ns1Provider(BaseProvider):
             # so that we know we did this on purpose if/when troubleshooting
             params['answers'] = [{"answer": [x], "meta": {}}
                                  for x in record.values]
+            has_country = False
             for iso_region, target in record.geo.items():
                 key = 'iso_region_code'
                 value = iso_region
+                if not has_country and len(value.split('-')) > 1:
+                    has_country = True
                 params['answers'].append(
                     {
                         'answer': target.values,
                         'meta': {key: [value]},
                     },
                 )
-        self.log.info("params for A: %s", params)
+            params['filters'] = []
+            if len(params['answers']) > 1:
+                params['filters'].append(
+                    {"filter": "shuffle", "config":{}}
+                )
+            if has_country:
+                params['filters'].append(
+                    {"filter": "geotarget_country", "config": {}}
+                )
+                params['filters'].append(
+                    {"filter": "select_first_n",
+                     "config": {"N": 1}}
+                )
+        self.log.debug("params for A: %s", params)
         return params
 
     _params_for_AAAA = _params_for_A
