@@ -143,7 +143,7 @@ def _value_stringifier(record, sep):
         values = [str(v) for v in record.values]
     except AttributeError:
         values = [record.value]
-    for code, gv in getattr(record, 'geo', {}).items():
+    for code, gv in sorted(getattr(record, 'geo', {}).items()):
         vs = ', '.join([str(v) for v in gv.values])
         values.append('{}: {}'.format(code, vs))
     return sep.join(values)
