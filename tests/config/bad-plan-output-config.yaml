@@ -1,0 +1,7 @@
+manager:
+  plan_outputs:
+    'bad': 
+      class: octodns.provider.plan.PlanLogger
+      invalid: config
+providers: {}
+zones: {}

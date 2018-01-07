@@ -9,7 +9,8 @@ from logging import getLogger
 from unittest import TestCase
 
 from octodns.record import Create, Delete, Record, Update
-from octodns.provider.base import BaseProvider, Plan, UnsafePlan
+from octodns.provider.base import BaseProvider
+from octodns.provider.plan import Plan, UnsafePlan
 from octodns.zone import Zone
 
 
