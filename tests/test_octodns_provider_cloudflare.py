@@ -442,3 +442,45 @@ class TestCloudflareProvider(TestCase):
             call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
                  'dns_records/fc12ab34cd5611334422ab3322997653')
         ])
+
+    def test_alias(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+
+        # A CNAME for us to transform to ALIAS
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "CNAME",
+                "name": "unit.tests",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": False,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+        ])
+
+        zone = Zone('unit.tests.', [])
+        provider.populate(zone)
+        self.assertEquals(1, len(zone.records))
+        record = list(zone.records)[0]
+        self.assertEquals('', record.name)
+        self.assertEquals('unit.tests.', record.fqdn)
+        self.assertEquals('ALIAS', record._type)
+        self.assertEquals('www.unit.tests.', record.value)
+
+        # Make sure we transform back to CNAME going the other way
+        contents = provider._gen_contents(record)
+        self.assertEquals({
+            'content': u'www.unit.tests.',
+            'name': 'unit.tests',
+            'ttl': 300,
+            'type': 'CNAME'
+        }, list(contents)[0])

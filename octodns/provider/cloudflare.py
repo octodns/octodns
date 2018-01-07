@@ -37,7 +37,8 @@ class CloudflareProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     # TODO: support SRV
-    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SPF', 'TXT'))
+    SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SPF',
+                    'TXT'))
 
     MIN_TTL = 120
     TIMEOUT = 15
@@ -124,6 +125,8 @@ class CloudflareProvider(BaseProvider):
             'value': '{}.'.format(only['content'])
         }
 
+    _data_for_ALIAS = _data_for_CNAME
+
     def _data_for_MX(self, _type, records):
         values = []
         for r in records:
@@ -182,6 +185,11 @@ class CloudflareProvider(BaseProvider):
 
             for name, types in values.items():
                 for _type, records in types.items():
+
+                    # Cloudflare supports ALIAS semantics with root CNAMEs
+                    if _type == 'CNAME' and name == '':
+                        _type = 'ALIAS'
+
                     data_for = getattr(self, '_data_for_{}'.format(_type))
                     data = data_for(_type, records)
                     record = Record.new(zone, name, data, source=self,
@@ -237,6 +245,10 @@ class CloudflareProvider(BaseProvider):
         name = record.fqdn[:-1]
         _type = record._type
         ttl = max(self.MIN_TTL, record.ttl)
+
+        # Cloudflare supports ALIAS semantics with a root CNAME
+        if _type == 'ALIAS':
+            _type = 'CNAME'
 
         contents_for = getattr(self, '_contents_for_{}'.format(_type))
         for content in contents_for(record):
