@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from collections import defaultdict
 from logging import getLogger
+from json import dumps
 from requests import Session
 
 from ..record import Record, Update
@@ -232,25 +233,107 @@ class CloudflareProvider(BaseProvider):
                 'content': value.exchange
             }
 
+    def _gen_contents(self, record):
+        name = record.fqdn[:-1]
+        _type = record._type
+        ttl = max(self.MIN_TTL, record.ttl)
+
+        contents_for = getattr(self, '_contents_for_{}'.format(_type))
+        for content in contents_for(record):
+            content.update({
+                'name': name,
+                'type': _type,
+                'ttl': ttl,
+            })
+            yield content
+
     def _apply_Create(self, change):
         new = change.new
         zone_id = self.zones[new.zone.name]
-        contents_for = getattr(self, '_contents_for_{}'.format(new._type))
         path = '/zones/{}/dns_records'.format(zone_id)
-        name = new.fqdn[:-1]
-        for content in contents_for(change.new):
-            content.update({
-                'name': name,
-                'type': new._type,
-                # Cloudflare has a min ttl of 120s
-                'ttl': max(self.MIN_TTL, new.ttl),
-            })
+        for content in self._gen_contents(new):
             self._request('POST', path, data=content)
 
+    def _hash_content(self, content):
+        # Some of the dicts are nested so this seems about as good as any
+        # option we have for consistently hashing them (within a single run)
+        return hash(dumps(content, sort_keys=True))
+
     def _apply_Update(self, change):
-        # Create the new and delete the old
-        self._apply_Create(change)
-        self._apply_Delete(change)
+
+        # Ugh, this is pretty complicated and ugly, mainly due to the
+        # sub-optimal API/semantics. Ideally we'd have a batch change API like
+        # Route53's to make this 100% clean and safe without all this PITA, but
+        # we don't so we'll have to work around that and manually do it as
+        # safely as possible. Note this still isn't perfect as we don't/can't
+        # practically take into account things like the different "types" of
+        # CAA records so when we "swap" there may be brief periods where things
+        # are invalid or even worse Cloudflare may update their validations to
+        # prevent dups. I see no clean way around that short of making this
+        # understand 100% of the details of each record type and develop an
+        # individual/specific ordering of changes that prevents it. That'd
+        # probably result in more code than this whole provider currently has
+        # so... :-(
+
+        existing_contents = {
+            self._hash_content(c): c
+            for c in self._gen_contents(change.existing)
+        }
+        new_contents = {
+            self._hash_content(c): c
+            for c in self._gen_contents(change.new)
+        }
+
+        # We need a list of keys to consider for diffs, use the first content
+        # before we muck with anything
+        keys = existing_contents.values()[0].keys()
+
+        # Find the things we need to add
+        adds = []
+        for k, content in new_contents.items():
+            try:
+                existing_contents.pop(k)
+                self.log.debug('_apply_Update: leaving %s', content)
+            except KeyError:
+                adds.append(content)
+
+        zone_id = self.zones[change.new.zone.name]
+
+        # Find things we need to remove
+        name = change.new.fqdn[:-1]
+        _type = change.new._type
+        # OK, work through each record from the zone
+        for record in self.zone_records(change.new.zone):
+            if name == record['name'] and _type == record['type']:
+                # This is match for our name and type, we need to look at
+                # contents now, build a dict of the relevant keys and vals
+                content = {}
+                for k in keys:
+                    content[k] = record[k]
+                # :-(
+                if _type in ('CNAME', 'MX', 'NS'):
+                    content['content'] += '.'
+                # If the hash of that dict isn't in new this record isn't
+                # needed
+                if self._hash_content(content) not in new_contents:
+                    rid = record['id']
+                    path = '/zones/{}/dns_records/{}'.format(record['zone_id'],
+                                                             rid)
+                    try:
+                        add_content = adds.pop(0)
+                        self.log.debug('_apply_Update: swapping %s -> %s, %s',
+                                       content, add_content, rid)
+                        self._request('PUT', path, data=add_content)
+                    except IndexError:
+                        self.log.debug('_apply_Update: removing %s, %s',
+                                       content, rid)
+                        self._request('DELETE', path)
+
+        # Any remaining adds just need to be created
+        path = '/zones/{}/dns_records'.format(zone_id)
+        for content in adds:
+            self.log.debug('_apply_Update: adding %s', content)
+            self._request('POST', path, data=content)
 
     def _apply_Delete(self, change):
         existing = change.existing

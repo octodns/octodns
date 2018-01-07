@@ -385,10 +385,10 @@ class Route53Provider(BaseProvider):
             values.append({
                 'order': order,
                 'preference': preference,
-                'flags': flags if flags else None,
-                'service': service if service else None,
-                'regexp': regexp if regexp else None,
-                'replacement': replacement if replacement else None,
+                'flags': flags,
+                'service': service,
+                'regexp': regexp,
+                'replacement': replacement,
             })
         return {
             'type': rrset['Type'],
