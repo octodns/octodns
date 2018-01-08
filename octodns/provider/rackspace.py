@@ -348,6 +348,9 @@ class RackspaceProvider(BaseProvider):
         self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
                        len(changes))
 
+        # Creates, updates, and deletes are processed by different endpoints
+        # and are broken out by record-set entries; pre-process everything
+        # into these buckets in order to minimize the number of API calls.
         domain_id = self._get_zone_id_for(desired)
         creates = []
         updates = []
