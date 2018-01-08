@@ -129,7 +129,7 @@ class TestNs1Provider(TestCase):
         'type': 'A',
         'ttl': 34,
         'short_answers': ['101.102.103.104', '101.102.103.105'],
-        'domain': 'geo.unit.tests.',
+        'domain': 'geo.unit.tests',
     }, {
         'type': 'CNAME',
         'ttl': 34,
@@ -205,11 +205,25 @@ class TestNs1Provider(TestCase):
         nsone_zone = DummyZone([])
         load_mock.side_effect = [nsone_zone]
         zone_search = Mock()
-        zone_search.return_value = []
+        zone_search.return_value = [
+            {
+                "domain": "geo.unit.tests",
+                "zone": "unit.tests",
+                "type": "A",
+                "answers": [
+                    {'answer': ['1.1.1.1'], 'meta': {}},
+                    {'answer': ['1.2.3.4'], 'meta': {'ca_province': ['ON']}},
+                    {'answer': ['2.3.4.5'], 'meta': {'us_state': ['NY']}},
+                    {'answer': ['3.4.5.6'], 'meta': {'country': ['US']}},
+                    {'answer': ['4.5.6.7'], 'meta': {'iso_region_code': ['NA-US-WA']}},
+                ],
+                'ttl': 34,
+            },
+        ]
         nsone_zone.search = zone_search
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
-        self.assertEquals(set(), zone.records)
+        self.assertEquals(1, len(zone.records))
         self.assertEquals(('unit.tests',), load_mock.call_args[0])
 
         # Existing zone w/records
@@ -217,7 +231,21 @@ class TestNs1Provider(TestCase):
         nsone_zone = DummyZone(self.nsone_records)
         load_mock.side_effect = [nsone_zone]
         zone_search = Mock()
-        zone_search.return_value = []
+        zone_search.return_value = [
+            {
+                "domain": "geo.unit.tests",
+                "zone": "unit.tests",
+                "type": "A",
+                "answers": [
+                    {'answer': ['1.1.1.1'], 'meta': {}},
+                    {'answer': ['1.2.3.4'], 'meta': {'ca_province': ['ON']}},
+                    {'answer': ['2.3.4.5'], 'meta': {'us_state': ['NY']}},
+                    {'answer': ['3.4.5.6'], 'meta': {'country': ['US']}},
+                    {'answer': ['4.5.6.7'], 'meta': {'iso_region_code': ['NA-US-WA']}},
+                ],
+                'ttl': 34,
+            },
+        ]
         nsone_zone.search = zone_search
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
@@ -285,7 +313,21 @@ class TestNs1Provider(TestCase):
         nsone_zone.data['records'][0]['short_answers'][0] = '2.2.2.2'
         nsone_zone.loadRecord = Mock()
         zone_search = Mock()
-        zone_search.return_value = []
+        zone_search.return_value = [
+            {
+                "domain": "geo.unit.tests",
+                "zone": "unit.tests",
+                "type": "A",
+                "answers": [
+                    {'answer': ['1.1.1.1'], 'meta': {}},
+                    {'answer': ['1.2.3.4'], 'meta': {'ca_province': ['ON']}},
+                    {'answer': ['2.3.4.5'], 'meta': {'us_state': ['NY']}},
+                    {'answer': ['3.4.5.6'], 'meta': {'country': ['US']}},
+                    {'answer': ['4.5.6.7'], 'meta': {'iso_region_code': ['NA-US-WA']}},
+                ],
+                'ttl': 34,
+            },
+        ]
         nsone_zone.search = zone_search
         load_mock.side_effect = [nsone_zone, nsone_zone]
         plan = provider.plan(desired)
@@ -317,8 +359,10 @@ class TestNs1Provider(TestCase):
         ])
         mock_record.assert_has_calls([
             call.update(answers=[{'answer': [u'1.2.3.4'], 'meta': {}}],
+                        filters=[],
                         ttl=32),
             call.update(answers=[{u'answer': [u'1.2.3.4'], u'meta': {}}],
+                        filters=[],
                         ttl=32),
             call.update(
                 answers=[
@@ -330,6 +374,11 @@ class TestNs1Provider(TestCase):
                             u'iso_region_code': [u'NA-US-NY']
                         },
                     },
+                ],
+                filters=[
+                    {u'filter': u'shuffle', u'config': {}},
+                    {u'filter': u'geotarget_country', u'config': {}},
+                    {u'filter': u'select_first_n', u'config': {u'N': 1}},
                 ],
                 ttl=34),
             call.delete(),

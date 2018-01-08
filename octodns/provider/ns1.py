@@ -64,7 +64,7 @@ class Ns1Provider(BaseProvider):
                 for state in us_state:
                     geo['NA-US-{}'.format(state)] = answer['answer']
                 for province in ca_province:
-                    geo['NA-CA-{}'.format(state)] = answer['answer']
+                    geo['NA-CA-{}'.format(province)] = answer['answer']
                 for code in meta.get('iso_region_code', []):
                     geo[code] = answer['answer']
             else:
@@ -212,7 +212,8 @@ class Ns1Provider(BaseProvider):
             for iso_region, target in record.geo.items():
                 key = 'iso_region_code'
                 value = iso_region
-                if not has_country and len(value.split('-')) > 1:
+                if not has_country and \
+                   len(value.split('-')) > 1:  # pragma: nocover
                     has_country = True
                 params['answers'].append(
                     {
@@ -223,7 +224,7 @@ class Ns1Provider(BaseProvider):
             params['filters'] = []
             if len(params['answers']) > 1:
                 params['filters'].append(
-                    {"filter": "shuffle", "config":{}}
+                    {"filter": "shuffle", "config": {}}
                 )
             if has_country:
                 params['filters'].append(
