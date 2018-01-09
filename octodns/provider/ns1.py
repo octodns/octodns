@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from logging import getLogger
 from itertools import chain
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from nsone import NSONE
 from nsone.rest.errors import RateLimitException, ResourceException
 from incf.countryutils import transformations
@@ -40,7 +40,7 @@ class Ns1Provider(BaseProvider):
     def _data_for_A(self, _type, record):
         # record meta (which would include geo information is only
         # returned when getting a record's detail, not from zone detail
-        geo = {}
+        geo = defaultdict(list)
         data = {
             'ttl': record['ttl'],
             'type': _type,
@@ -62,23 +62,15 @@ class Ns1Provider(BaseProvider):
                     cn = transformations.cc_to_cn(cntry)
                     con = transformations.cn_to_ctca2(cn)
                     key = '{}-{}'.format(con, cntry)
-                    if key not in geo:
-                        geo[key] = []
                     geo[key].extend(answer['answer'])
                 for state in us_state:
                     key = 'NA-US-{}'.format(state)
-                    if key not in geo:
-                        geo[key] = []
                     geo[key].extend(answer['answer'])
                 for province in ca_province:
                     key = 'NA-CA-{}'.format(province)
-                    if key not in geo:
-                        geo[key] = []
                     geo[key].extend(answer['answer'])
                 for code in meta.get('iso_region_code', []):
                     key = code
-                    if key not in geo:
-                        geo[key] = []
                     geo[key].extend(answer['answer'])
             else:
                 values.extend(answer['answer'])
