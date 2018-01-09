@@ -26,8 +26,8 @@ class Ns1Provider(BaseProvider):
         api_key: env/NS1_API_KEY
     '''
     SUPPORTS_GEO = True
-    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
-                    'PTR', 'SPF', 'SRV', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR',
+                    'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
@@ -88,7 +88,9 @@ class Ns1Provider(BaseProvider):
                 values.extend(answer['answer'])
                 codes.append([])
         values = [str(x) for x in values]
-        geo = OrderedDict({str(k): [str(x) for x in v] for k, v in sorted(geo.items())})
+        geo = OrderedDict(
+            {str(k): [str(x) for x in v] for k, v in geo.items()}
+        )
         data['values'] = values
         data['geo'] = geo
         return data
@@ -192,7 +194,8 @@ class Ns1Provider(BaseProvider):
         }
 
     def populate(self, zone, target=False, lenient=False):
-        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+        self.log.debug('populate: name=%s, target=%s, lenient=%s',
+                       zone.name,
                        target, lenient)
 
         try:
@@ -261,9 +264,9 @@ class Ns1Provider(BaseProvider):
     _params_for_NS = _params_for_A
 
     def _params_for_SPF(self, record):
-        # NS1 seems to be the only provider that doesn't want things escaped in
-        # values so we have to strip them here and add them when going the
-        # other way
+        # NS1 seems to be the only provider that doesn't want things
+        # escaped in values so we have to strip them here and add
+        # them when going the other way
         values = [v.replace('\;', ';') for v in record.values]
         return {'answers': values, 'ttl': record.ttl}
 
@@ -355,4 +358,5 @@ class Ns1Provider(BaseProvider):
 
         for change in changes:
             class_name = change.__class__.__name__
-            getattr(self, '_apply_{}'.format(class_name))(nsone_zone, change)
+            getattr(self, '_apply_{}'.format(class_name))(nsone_zone,
+                                                          change)
