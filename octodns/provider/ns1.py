@@ -296,9 +296,10 @@ class Ns1Provider(BaseProvider):
         try:
             meth(name, **params)
         except RateLimitException as e:
+            period = float(e.period)
             self.log.warn('_apply_Create: rate limit encountered, pausing '
-                          'for %ds and trying again', e.period)
-            sleep(e.period)
+                          'for %ds and trying again', period)
+            sleep(period)
             meth(name, **params)
 
     def _apply_Update(self, nsone_zone, change):
@@ -311,9 +312,10 @@ class Ns1Provider(BaseProvider):
         try:
             record.update(**params)
         except RateLimitException as e:
+            period = float(e.period)
             self.log.warn('_apply_Update: rate limit encountered, pausing '
-                          'for %ds and trying again', e.period)
-            sleep(e.period)
+                          'for %ds and trying again', period)
+            sleep(period)
             record.update(**params)
 
     def _apply_Delete(self, nsone_zone, change):
@@ -324,9 +326,10 @@ class Ns1Provider(BaseProvider):
         try:
             record.delete()
         except RateLimitException as e:
+            period = float(e.period)
             self.log.warn('_apply_Delete: rate limit encountered, pausing '
-                          'for %ds and trying again', e.period)
-            sleep(e.period)
+                          'for %ds and trying again', period)
+            sleep(period)
             record.delete()
 
     def _apply(self, plan):
