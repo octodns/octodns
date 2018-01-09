@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from logging import getLogger
 from itertools import chain
+from collections import OrderedDict
 from nsone import NSONE
 from nsone.rest.errors import RateLimitException, ResourceException
 from incf.countryutils import transformations
@@ -60,16 +61,34 @@ class Ns1Provider(BaseProvider):
                 for cntry in country:
                     cn = transformations.cc_to_cn(cntry)
                     con = transformations.cn_to_ctca2(cn)
-                    geo['{}-{}'.format(con, cntry)] = answer['answer']
+                    key = '{}-{}'.format(con, cntry)
+                    if key not in geo:
+                        geo[key] = answer['answer']
+                    else:
+                        geo[key].extend(answer['answer'])
                 for state in us_state:
-                    geo['NA-US-{}'.format(state)] = answer['answer']
+                    key = 'NA-US-{}'.format(state)
+                    if key not in geo:
+                        geo[key] = answer['answer']
+                    else:
+                        geo[key].extend(answer['answer'])
                 for province in ca_province:
-                    geo['NA-CA-{}'.format(province)] = answer['answer']
+                    key = 'NA-CA-{}'.format(province)
+                    if key not in geo:
+                        geo[key] = answer['answer']
+                    else:
+                        geo[key].extend(answer['answer'])
                 for code in meta.get('iso_region_code', []):
-                    geo[code] = answer['answer']
+                    key = code
+                    if key not in geo:
+                        geo[key] = answer['answer']
+                    else:
+                        geo[key].extend(answer['answer'])
             else:
                 values.extend(answer['answer'])
                 codes.append([])
+        values = [str(x) for x in values]
+        geo = OrderedDict({str(k): [str(x) for x in v] for k, v in sorted(geo.items())})
         data['values'] = values
         data['geo'] = geo
         return data
