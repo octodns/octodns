@@ -63,27 +63,23 @@ class Ns1Provider(BaseProvider):
                     con = transformations.cn_to_ctca2(cn)
                     key = '{}-{}'.format(con, cntry)
                     if key not in geo:
-                        geo[key] = answer['answer']
-                    else:
-                        geo[key].extend(answer['answer'])
+                        geo[key] = []
+                    geo[key].extend(answer['answer'])
                 for state in us_state:
                     key = 'NA-US-{}'.format(state)
                     if key not in geo:
-                        geo[key] = answer['answer']
-                    else:
-                        geo[key].extend(answer['answer'])
+                        geo[key] = []
+                    geo[key].extend(answer['answer'])
                 for province in ca_province:
                     key = 'NA-CA-{}'.format(province)
                     if key not in geo:
-                        geo[key] = answer['answer']
-                    else:
-                        geo[key].extend(answer['answer'])
+                        geo[key] = []
+                    geo[key].extend(answer['answer'])
                 for code in meta.get('iso_region_code', []):
                     key = code
                     if key not in geo:
-                        geo[key] = answer['answer']
-                    else:
-                        geo[key].extend(answer['answer'])
+                        geo[key] = []
+                    geo[key].extend(answer['answer'])
             else:
                 values.extend(answer['answer'])
                 codes.append([])
