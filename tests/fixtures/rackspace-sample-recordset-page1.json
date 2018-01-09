@@ -1,0 +1,33 @@
+{
+  "totalEntries" : 6,
+  "records" : [ {
+    "name" : "ftp.example.com",
+    "id" : "A-6817754",
+    "type" : "A",
+    "data" : "192.0.2.8",
+    "updated" : "2011-05-19T13:07:08.000+0000",
+    "ttl" : 5771,
+    "created" : "2011-05-18T19:53:09.000+0000"
+  }, {
+    "name" : "example.com",
+    "id" : "A-6822994",
+    "type" : "A",
+    "data" : "192.0.2.17",
+    "updated" : "2011-06-24T01:12:52.000+0000",
+    "ttl" : 86400,
+    "created" : "2011-06-24T01:12:52.000+0000"
+  }, {
+    "name" : "example.com",
+    "id" : "NS-6251982",
+    "type" : "NS",
+    "data" : "ns.rackspace.com",
+    "updated" : "2011-06-24T01:12:51.000+0000",
+    "ttl" : 3600,
+    "created" : "2011-06-24T01:12:51.000+0000"
+  } ],
+  "links" : [ {
+    "content" : "",
+    "href" : "https://localhost/v1.0/1234/domains/domain_id/records?limit=3&offset=3",
+    "rel" : "next"
+  } ]
+}
