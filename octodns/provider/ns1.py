@@ -215,12 +215,13 @@ class Ns1Provider(BaseProvider):
                 if not has_country and \
                    len(value.split('-')) > 1:  # pragma: nocover
                     has_country = True
-                params['answers'].append(
-                    {
-                        'answer': target.values,
-                        'meta': {key: [value]},
-                    },
-                )
+                for answer in target.values:
+                    params['answers'].append(
+                        {
+                            'answer': [answer],
+                            'meta': {key: [value]},
+                        },
+                    )
             params['filters'] = []
             if len(params['answers']) > 1:
                 params['filters'].append(
