@@ -119,13 +119,13 @@ The first step is to create a PR with your changes.
 
 Assuming the code tests and config validation statuses are green the next step is to do a noop deploy and verify that the changes OctoDNS plans to make are the ones you expect.
 
-![](/docs/assets/noop.png)    
+![](/docs/assets/noop.png)
 
 After that comes a set of reviews. One from a teammate who should have full context on what you're trying to accomplish and visibility in to the changes you're making to do it. The other is from a member of the team here at GitHub that owns DNS, mostly as a sanity check and to make sure that best practices are being followed. As much of that as possible is baked into `octodns-validate`.
 
 After the reviews it's time to branch deploy the change.
 
-![](/docs/assets/deploy.png)    
+![](/docs/assets/deploy.png)
 
 If that goes smoothly, you again see the expected changes, and verify them with `dig` and/or `octodns-report` you're good to hit the merge button. If there are problems you can quickly do a `.deploy dns/master` to go back to the previous state.
 
@@ -155,7 +155,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [DnsimpleProvider](/octodns/provider/dnsimple.py) | All | No | CAA tags restricted |
 | [DynProvider](/octodns/provider/dyn.py) | All | Yes | |
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
-| [Ns1Provider](/octodns/provider/ns1.py) | All | No | |
+| [Ns1Provider](/octodns/provider/ns1.py) | All | Yes | |
 | [OVH](/octodns/provider/ovh.py) | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
 | [PowerDnsProvider](/octodns/provider/powerdns.py) | All | No | |
 | [Rackspace](/octodns/provider/rackspace.py) | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
