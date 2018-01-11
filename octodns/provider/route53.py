@@ -466,6 +466,7 @@ class Route53Provider(BaseProvider):
                     # portable, so we need to skip them
                     self.log.warning("%s is an Alias record. Skipping..."
                                      % rrset['Name'])
+                    continue
                 data = getattr(self, '_data_for_{}'.format(record_type))(rrset)
                 records[record_name][record_type].append(data)
 

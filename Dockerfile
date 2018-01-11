@@ -1,14 +1,11 @@
-FROM python:2.7-slim-stretch
+FROM python:2.7-stretch
 
 LABEL maintainer="Fabrice Baumann <fabrice.baumann@mindgeek.com>"
 
-RUN apt-get update \
-    && apt-get install -y \
-        git \
-        python-pip \
-    && mkdir /octodns \
-    && cd /octodns \
-    && git clone https://github.com/MindGeekOSS/octodns.git . \
+ADD . /octodns
+
+RUN cd /octodns \
     && pip install -e . \
     && pip install -e ".[dev]" \
+    && pip install -e ".[test]" \
     && rm -rf /var/lib/apt/lists/*
