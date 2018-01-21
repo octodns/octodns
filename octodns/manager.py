@@ -361,7 +361,7 @@ class Manager(object):
 
         plan = target.plan(zone)
         if plan is None:
-            plan = Plan(zone, zone, [], True)
+            plan = Plan(zone, zone, [], False)
         target.apply(plan)
 
     def validate_configs(self):

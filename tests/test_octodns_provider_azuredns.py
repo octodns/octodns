@@ -339,9 +339,9 @@ class TestAzureDnsProvider(TestCase):
             deletes.append(Delete(i))
 
         self.assertEquals(13, provider.apply(Plan(None, zone,
-                                                  changes, False)))
+                                                  changes, True)))
         self.assertEquals(13, provider.apply(Plan(zone, zone,
-                                                  deletes, False)))
+                                                  deletes, True)))
 
     def test_create_zone(self):
         provider = self._get_provider()
@@ -357,7 +357,7 @@ class TestAzureDnsProvider(TestCase):
         _get.side_effect = CloudError(Mock(status=404), err_msg)
 
         self.assertEquals(13, provider.apply(Plan(None, desired, changes,
-                                                  False)))
+                                                  True)))
 
     def test_check_zone_no_create(self):
         provider = self._get_provider()
