@@ -345,7 +345,7 @@ class TestRecord(TestCase):
         self.assertEquals(a_data, a.data)
 
         b_value = {
-            'preference': 12,
+            'preference': 0,
             'exchange': 'smtp3.',
         }
         b_data = {'ttl': 30, 'value': b_value}
