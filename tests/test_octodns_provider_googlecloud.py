@@ -359,7 +359,8 @@ class TestGoogleCloudProvider(TestCase):
                          "unit.tests.")
 
         test_zone = Zone('unit.tests.', [])
-        provider.populate(test_zone)
+        exists = provider.populate(test_zone)
+        self.assertTrue(exists)
 
         # test_zone gets fed the same records as zone does, except it's in
         # the format returned by google API, so after populate they should look
@@ -367,7 +368,8 @@ class TestGoogleCloudProvider(TestCase):
         self.assertEqual(test_zone.records, zone.records)
 
         test_zone2 = Zone('nonexistant.zone.', [])
-        provider.populate(test_zone2, False, False)
+        exists = provider.populate(test_zone2, False, False)
+        self.assertFalse(exists)
 
         self.assertEqual(len(test_zone2.records), 0,
                          msg="Zone should not get records from wrong domain")
