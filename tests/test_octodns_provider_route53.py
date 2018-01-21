@@ -361,6 +361,7 @@ class TestRoute53Provider(TestCase):
 
         plan = provider.plan(self.expected)
         self.assertEquals(9, len(plan.changes))
+        self.assertTrue(plan.exists)
         for change in plan.changes:
             self.assertIsInstance(change, Create)
         stubber.assert_no_pending_responses()
@@ -593,6 +594,7 @@ class TestRoute53Provider(TestCase):
 
         plan = provider.plan(self.expected)
         self.assertEquals(9, len(plan.changes))
+        self.assertFalse(plan.exists)
         for change in plan.changes:
             self.assertIsInstance(change, Create)
         stubber.assert_no_pending_responses()

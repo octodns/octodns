@@ -451,9 +451,11 @@ class Route53Provider(BaseProvider):
                        target, lenient)
 
         before = len(zone.records)
+        exists = False
 
         zone_id = self._get_zone_id(zone.name)
         if zone_id:
+            exists = True
             records = defaultdict(lambda: defaultdict(list))
             for rrset in self._load_records(zone_id):
                 record_name = zone.hostname_from_fqdn(rrset['Name'])
@@ -483,8 +485,9 @@ class Route53Provider(BaseProvider):
                                         lenient=lenient)
                     zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _gen_mods(self, action, records):
         '''
