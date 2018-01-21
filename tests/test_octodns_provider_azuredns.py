@@ -302,7 +302,8 @@ class TestAzureDnsProvider(TestCase):
         record_list = provider._dns_client.record_sets.list_by_dns_zone
         record_list.return_value = rs
 
-        provider.populate(zone)
+        exists = provider.populate(zone)
+        self.assertTrue(exists)
 
         self.assertEquals(len(zone.records), 16)
 
@@ -377,6 +378,7 @@ class TestAzureDnsProvider(TestCase):
         _get = provider._dns_client.zones.get
         _get.side_effect = CloudError(Mock(status=404), err_msg)
 
-        provider.populate(Zone('unit3.test.', []))
+        exists = provider.populate(Zone('unit3.test.', []))
+        self.assertFalse(exists)
 
         self.assertEquals(len(zone.records), 0)
