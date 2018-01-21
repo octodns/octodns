@@ -430,6 +430,7 @@ class TestDynProvider(TestCase):
                 update_mock.assert_not_called()
                 provider.apply(plan)
                 update_mock.assert_called()
+                self.assertFalse(plan.exists)
             add_mock.assert_called()
             # Once for each dyn record (8 Records, 2 of which have dual values)
             self.assertEquals(15, len(add_mock.call_args_list))
@@ -474,6 +475,7 @@ class TestDynProvider(TestCase):
                     plan = provider.plan(new)
                     provider.apply(plan)
                     update_mock.assert_called()
+                    self.assertTrue(plan.exists)
                 # we expect 4 deletes, 2 from actual deletes and 2 from
                 # updates which delete and recreate
                 self.assertEquals(4, len(delete_mock.call_args_list))
