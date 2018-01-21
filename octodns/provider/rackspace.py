@@ -208,7 +208,7 @@ class RackspaceProvider(BaseProvider):
                 raise Exception('Rackspace request unauthorized')
             elif e.response.status_code == 404:
                 # Zone not found leaves the zone empty instead of failing.
-                return
+                return False
             raise
 
         before = len(zone.records)
@@ -225,8 +225,9 @@ class RackspaceProvider(BaseProvider):
                                         source=self)
                     zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
+        self.log.info('populate:   found %s records, exists=True',
                       len(zone.records) - before)
+        return True
 
     def _group_records(self, all_records):
         records = defaultdict(lambda: defaultdict(list))

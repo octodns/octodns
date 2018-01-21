@@ -73,9 +73,10 @@ class TestRackspaceProvider(TestCase):
                      json={'error': "Could not find domain 'unit.tests.'"})
 
             zone = Zone('unit.tests.', [])
-            self.provider.populate(zone)
+            exists = self.provider.populate(zone)
             self.assertEquals(set(), zone.records)
             self.assertTrue(mock.called_once)
+            self.assertFalse(exists)
 
     def test_multipage_populate(self):
         with requests_mock() as mock:
@@ -109,6 +110,7 @@ class TestRackspaceProvider(TestCase):
 
             plan = self.provider.plan(expected)
             self.assertTrue(mock.called)
+            self.assertTrue(plan.exists)
 
             # OctoDNS does not propagate top-level NS records.
             self.assertEquals(1, len(plan.changes))
