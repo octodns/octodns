@@ -133,6 +133,7 @@ class TestDnsimpleProvider(TestCase):
         n = len(self.expected.records) - 3
         self.assertEquals(n, len(plan.changes))
         self.assertEquals(n, provider.apply(plan))
+        self.assertFalse(plan.exists)
 
         provider._client._request.assert_has_calls([
             # created the domain
@@ -186,6 +187,7 @@ class TestDnsimpleProvider(TestCase):
         }))
 
         plan = provider.plan(wanted)
+        self.assertTrue(plan.exists)
         self.assertEquals(2, len(plan.changes))
         self.assertEquals(2, provider.apply(plan))
         # recreate for update, and deletes for the 2 parts of the other
