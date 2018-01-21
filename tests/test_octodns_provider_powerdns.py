@@ -106,6 +106,7 @@ class TestPowerDnsProvider(TestCase):
             plan = provider.plan(expected)
             self.assertEquals(expected_n, len(plan.changes))
             self.assertEquals(expected_n, provider.apply(plan))
+            self.assertTrue(plan.exists)
 
         # Non-existent zone -> creates for every record in expected
         # OMG this is fucking ugly, probably better to ditch requests_mocks and
@@ -124,6 +125,7 @@ class TestPowerDnsProvider(TestCase):
             plan = provider.plan(expected)
             self.assertEquals(expected_n, len(plan.changes))
             self.assertEquals(expected_n, provider.apply(plan))
+            self.assertFalse(plan.exists)
 
         with requests_mock() as mock:
             # get 422's, unknown zone

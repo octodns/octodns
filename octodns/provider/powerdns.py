@@ -187,8 +187,10 @@ class PowerDnsBaseProvider(BaseProvider):
                 raise
 
         before = len(zone.records)
+        exists = False
 
         if resp:
+            exists = True
             for rrset in resp.json()['rrsets']:
                 _type = rrset['type']
                 if _type == 'SOA':
@@ -199,8 +201,9 @@ class PowerDnsBaseProvider(BaseProvider):
                                     source=self, lenient=lenient)
                 zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _records_for_multiple(self, record):
         return [{'content': v, 'disabled': False}
