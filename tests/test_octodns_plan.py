@@ -52,8 +52,8 @@ update = Update(existing, new)
 delete = Delete(new)
 changes = [create, delete, update]
 plans = [
-    (simple, Plan(zone, zone, changes)),
-    (simple, Plan(zone, zone, changes)),
+    (simple, Plan(zone, zone, changes, False)),
+    (simple, Plan(zone, zone, changes, False)),
 ]
 
 

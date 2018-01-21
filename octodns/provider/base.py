@@ -64,8 +64,9 @@ class BaseProvider(BaseSource):
                           .join([str(c) for c in extra]))
             changes += extra
 
+        create = False
         if changes:
-            plan = Plan(existing, desired, changes,
+            plan = Plan(existing, desired, changes, create,
                         self.update_pcent_threshold,
                         self.delete_pcent_threshold)
             self.log.info('plan:   %s', plan)

@@ -263,7 +263,8 @@ class TestGoogleCloudProvider(TestCase):
         provider.apply(Plan(
             existing=[update_existing_r, delete_r],
             desired=desired,
-            changes=changes
+            changes=changes,
+            create=False
         ))
 
         calls_mock = gcloud_zone_mock.changes.return_value
@@ -295,7 +296,8 @@ class TestGoogleCloudProvider(TestCase):
             provider.apply(Plan(
                 existing=[update_existing_r, delete_r],
                 desired=desired,
-                changes=changes
+                changes=changes,
+                create=False
             ))
 
         unsupported_change = Mock()

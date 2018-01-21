@@ -347,7 +347,7 @@ class TestCloudflareProvider(TestCase):
             'values': ['2.2.2.2', '3.3.3.3', '4.4.4.4'],
         })
         change = Update(existing, new)
-        plan = Plan(zone, zone, [change])
+        plan = Plan(zone, zone, [change], False)
         provider._apply(plan)
 
         provider._request.assert_has_calls([
@@ -432,7 +432,7 @@ class TestCloudflareProvider(TestCase):
             'value': 'ns2.foo.bar.',
         })
         change = Update(existing, new)
-        plan = Plan(zone, zone, [change])
+        plan = Plan(zone, zone, [change], False)
         provider._apply(plan)
 
         provider._request.assert_has_calls([

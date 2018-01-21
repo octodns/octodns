@@ -21,12 +21,13 @@ class Plan(object):
     MAX_SAFE_DELETE_PCENT = .3
     MIN_EXISTING_RECORDS = 10
 
-    def __init__(self, existing, desired, changes,
+    def __init__(self, existing, desired, changes, create,
                  update_pcent_threshold=MAX_SAFE_UPDATE_PCENT,
                  delete_pcent_threshold=MAX_SAFE_DELETE_PCENT):
         self.existing = existing
         self.desired = desired
         self.changes = changes
+        self.create = create
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
 

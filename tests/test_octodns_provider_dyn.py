@@ -913,7 +913,7 @@ class TestDynProviderGeo(TestCase):
             Delete(geo),
             Delete(regular),
         ]
-        plan = Plan(None, desired, changes)
+        plan = Plan(None, desired, changes, False)
         provider._apply(plan)
         mock.assert_has_calls([
             call('/Zone/unit.tests/', 'GET', {}),
