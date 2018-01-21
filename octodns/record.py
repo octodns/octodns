@@ -506,7 +506,10 @@ class MxValue(object):
     def _validate_value(cls, value):
         reasons = []
         try:
-            int(value.get('preference', None) or value['priority'])
+            try:
+                int(value['preference'])
+            except KeyError:
+                int(value['priority'])
         except KeyError:
             reasons.append('missing preference')
         except ValueError:
