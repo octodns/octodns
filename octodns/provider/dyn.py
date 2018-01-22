@@ -139,7 +139,8 @@ class DynProvider(BaseProvider):
     _sess_create_lock = Lock()
 
     def __init__(self, id, customer, username, password,
-                 traffic_directors_enabled=False, *args, **kwargs):
+                 traffic_directors_enabled=False, nameservers=[],
+                 *args, **kwargs):
         self.log = getLogger('DynProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, customer=%s, username=%s, '
                        'password=***, traffic_directors_enabled=%s', id,
@@ -150,6 +151,8 @@ class DynProvider(BaseProvider):
         self.customer = customer
         self.username = username
         self.password = password
+
+        self.nameservers = nameservers
 
         self._cache = {}
         self._traffic_directors = None
@@ -438,7 +441,7 @@ class DynProvider(BaseProvider):
         return [{
             'nsdname': v,
             'ttl': record.ttl,
-        } for v in record.values]
+        } for v in filter(lambda x: x not in self.nameservers, record.values)]
 
     def _kwargs_for_PTR(self, record):
         return [{
@@ -656,6 +659,10 @@ class DynProvider(BaseProvider):
         for kwargs in kwargs_for(new):
             dyn_zone.add_record(new.name, new._type, **kwargs)
 
+    def is_root_ns_record(self, record):
+        return record._record_type == 'NSRecord' and \
+            record._nsdname in self.nameservers
+
     def _mod_Delete(self, dyn_zone, change):
         existing = change.existing
         if existing.name:
@@ -664,7 +671,7 @@ class DynProvider(BaseProvider):
             target = existing.zone.name[:-1]
         _type = self.TYPE_TO_RECORDS[existing._type]
         for rec in dyn_zone.get_all_records()[_type]:
-            if rec.fqdn == target:
+            if rec.fqdn == target and not self.is_root_ns_record(rec):
                 rec.delete()
 
     def _mod_Update(self, dyn_zone, change):

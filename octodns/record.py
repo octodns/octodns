@@ -508,6 +508,7 @@ class MxValue(object):
         try:
             int(value.get('preference', None) or value['priority'])
         except KeyError:
+            print(value)
             reasons.append('missing preference')
         except ValueError:
             reasons.append('invalid preference "{}"'
@@ -842,6 +843,7 @@ class SrvRecord(_ValuesMixin, Record):
     @classmethod
     def validate(cls, name, data):
         reasons = []
+        print(name)
         if not cls._name_re.match(name):
             reasons.append('invalid name')
         reasons.extend(super(SrvRecord, cls).validate(name, data))

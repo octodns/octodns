@@ -43,7 +43,6 @@ class BaseProvider(BaseSource):
 
     def plan(self, desired):
         self.log.info('plan: desired=%s', desired.name)
-
         existing = Zone(desired.name, desired.sub_zones)
         self.populate(existing, target=True, lenient=True)
 

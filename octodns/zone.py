@@ -27,11 +27,14 @@ class InvalidNodeException(Exception):
 def _is_eligible(record):
     # Should this record be considered when computing changes
     # We ignore all top-level NS records
-    return record._type != 'NS' or record.name != ''
+    return Zone.include_nsrecords or \
+        (record._type != 'NS' or record.name != '')
 
 
 class Zone(object):
     log = getLogger('Zone')
+
+    include_nsrecords = False
 
     def __init__(self, name, sub_zones):
         if not name[-1] == '.':
