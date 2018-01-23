@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from collections import defaultdict
 from requests import Session
-from time import strftime, gmtime
+from time import strftime, gmtime, sleep
 import hashlib
 import hmac
 import logging
@@ -22,14 +22,10 @@ class DnsMadeEasyClientException(Exception):
 
 class DnsMadeEasyClientBadRequest(DnsMadeEasyClientException):
 
-    @classmethod
-    def build_message(self, errors):
-        return '\n  - {}'.format('\n  - '.join(errors))
-
     def __init__(self, resp):
         errors = resp.json()['error']
         super(DnsMadeEasyClientBadRequest, self).__init__(
-            self.build_message(errors))
+            '\n  - {}'.format('\n  - '.join(errors)))
 
 
 class DnsMadeEasyClientUnauthorized(DnsMadeEasyClientException):
@@ -54,13 +50,14 @@ class DnsMadeEasyClient(object):
     PRODUCTION = 'https://api.dnsmadeeasy.com/V2.0/dns/managed'
     SANDBOX = 'https://api.sandbox.dnsmadeeasy.com/V2.0/dns/managed'
 
-    def __init__(self, api_key, secret_key, sandbox=False):
+    def __init__(self, api_key, secret_key, sandbox=False,
+                 ratelimit_delay=0.0):
         self.api_key = api_key
         self.secret_key = secret_key
-        self._base = self.PRODUCTION
-        if sandbox:
-            self._base = self.SANDBOX
+        self._base = self.SANDBOX if sandbox else self.PRODUCTION
+        self.ratelimit_delay = ratelimit_delay
         self._sess = Session()
+        self._sess.headers.update({'x-dnsme-apiKey': self.api_key})
         self._domains = None
 
     def _current_time(self):
@@ -75,14 +72,13 @@ class DnsMadeEasyClient(object):
         hmac_hash = self._hmac_hash(now)
 
         headers = {
-            'x-dnsme-apiKey': self.api_key,
             'x-dnsme-hmac': hmac_hash,
             'x-dnsme-requestDate': now
         }
-        self._sess.headers.update(headers)
 
         url = '{}{}'.format(self._base, path)
-        resp = self._sess.request(method, url, params=params, json=data)
+        resp = self._sess.request(method, url, headers=headers,
+                                  params=params, json=data)
         if resp.status_code == 400:
             raise DnsMadeEasyClientBadRequest(resp)
         if resp.status_code == 401:
@@ -92,6 +88,7 @@ class DnsMadeEasyClient(object):
         if resp.status_code == 404:
             raise DnsMadeEasyClientNotFound()
         resp.raise_for_status()
+        sleep(self.ratelimit_delay)
         return resp
 
     @property
@@ -165,12 +162,13 @@ class DnsMadeEasyProvider(BaseProvider):
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 
     def __init__(self, id, api_key, secret_key, sandbox=False,
-                 *args, **kwargs):
+                 ratelimit_delay=0.0, *args, **kwargs):
         self.log = logging.getLogger('DnsMadeEasyProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, api_key=***, secret_key=***, '
                        'sandbox=%s', id, sandbox)
         super(DnsMadeEasyProvider, self).__init__(id, *args, **kwargs)
-        self._client = DnsMadeEasyClient(api_key, secret_key, sandbox)
+        self._client = DnsMadeEasyClient(api_key, secret_key, sandbox,
+                                         ratelimit_delay)
 
         self._zone_records = {}
 
