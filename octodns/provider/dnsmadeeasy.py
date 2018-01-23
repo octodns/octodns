@@ -51,11 +51,15 @@ class DnsMadeEasyClientNotFound(DnsMadeEasyClientException):
 
 
 class DnsMadeEasyClient(object):
-    BASE = 'https://api.dnsmadeeasy.com/V2.0/dns/managed'
+    PRODUCTION = 'https://api.dnsmadeeasy.com/V2.0/dns/managed'
+    SANDBOX = 'https://api.sandbox.dnsmadeeasy.com/V2.0/dns/managed'
 
-    def __init__(self, api_key, secret_key):
+    def __init__(self, api_key, secret_key, sandbox=False):
         self.api_key = api_key
         self.secret_key = secret_key
+        self._base = self.PRODUCTION
+        if sandbox:
+            self._base = self.SANDBOX
         self._sess = Session()
         self._domains = None
 
@@ -77,7 +81,7 @@ class DnsMadeEasyClient(object):
         }
         self._sess.headers.update(headers)
 
-        url = '{}{}'.format(self.BASE, path)
+        url = '{}{}'.format(self._base, path)
         resp = self._sess.request(method, url, params=params, json=data)
         if resp.status_code == 400:
             raise DnsMadeEasyClientBadRequest(resp)
@@ -148,18 +152,25 @@ class DnsMadeEasyProvider(BaseProvider):
 
     dnsmadeeasy:
         class: octodns.provider.dnsmadeeasy.DnsMadeEasyProvider
+        # Your DnsMadeEasy api key (required)
         api_key: env/DNSMADEEASY_API_KEY
+        # Your DnsMadeEasy secret key (required)
         secret_key: env/DNSMADEEASY_SECRET_KEY
+        # Whether or not to use Sandbox environment
+        # (optional, default is false)
+        sandbox: true
     '''
     SUPPORTS_GEO = False
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX',
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 
-    def __init__(self, id, api_key, secret_key, *args, **kwargs):
+    def __init__(self, id, api_key, secret_key, sandbox=False,
+                 *args, **kwargs):
         self.log = logging.getLogger('DnsMadeEasyProvider[{}]'.format(id))
-        self.log.debug('__init__: id=%s, api_key=***, secret_key=***', id)
+        self.log.debug('__init__: id=%s, api_key=***, secret_key=***, '
+                       'sandbox=%s', id, sandbox)
         super(DnsMadeEasyProvider, self).__init__(id, *args, **kwargs)
-        self._client = DnsMadeEasyClient(api_key, secret_key)
+        self._client = DnsMadeEasyClient(api_key, secret_key, sandbox)
 
         self._zone_records = {}
 
