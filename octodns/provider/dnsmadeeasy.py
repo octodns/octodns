@@ -34,12 +34,6 @@ class DnsMadeEasyClientUnauthorized(DnsMadeEasyClientException):
         super(DnsMadeEasyClientUnauthorized, self).__init__('Unauthorized')
 
 
-class DnsMadeEasyClientForbidden(DnsMadeEasyClientException):
-
-    def __init__(self):
-        super(DnsMadeEasyClientForbidden, self).__init__('Forbidden')
-
-
 class DnsMadeEasyClientNotFound(DnsMadeEasyClientException):
 
     def __init__(self):
@@ -81,10 +75,8 @@ class DnsMadeEasyClient(object):
                                   params=params, json=data)
         if resp.status_code == 400:
             raise DnsMadeEasyClientBadRequest(resp)
-        if resp.status_code == 401:
+        if resp.status_code in [401, 403]:
             raise DnsMadeEasyClientUnauthorized()
-        if resp.status_code == 403:
-            raise DnsMadeEasyClientForbidden()
         if resp.status_code == 404:
             raise DnsMadeEasyClientNotFound()
         resp.raise_for_status()
