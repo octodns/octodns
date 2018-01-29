@@ -1,0 +1,16 @@
+{
+	"totalPages": 1,
+	"totalRecords": 1,
+	"data": [{
+		"created": 1511740800000,
+		"folderId": 1990,
+		"gtdEnabled": false,
+		"pendingActionId": 0,
+		"updated": 1511766661574,
+		"processMulti": false,
+		"activeThirdParties": [],
+		"name": "unit.tests",
+		"id": 123123
+	}],
+	"page": 0
+}
