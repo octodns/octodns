@@ -35,6 +35,7 @@ class Zone(object):
     log = getLogger('Zone')
 
     include_nsrecords = False
+    flagged_for_deletion = False
 
     def __init__(self, name, sub_zones):
         if not name[-1] == '.':
@@ -58,6 +59,12 @@ class Zone(object):
 
     def hostname_from_fqdn(self, fqdn):
         return self._name_re.sub('', fqdn)
+
+    def is_flagged_for_deletion(self):
+        return self.flagged_for_deletion
+
+    def flag_for_deletion(self):
+        self.flagged_for_deletion = True
 
     def add_record(self, record, replace=False):
         name = record.name

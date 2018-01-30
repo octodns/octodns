@@ -219,7 +219,7 @@ class Manager(object):
         plans = []
 
         for target in targets:
-            if self.include_meta:
+            if self.include_meta and not zone.is_flagged_for_deletion():
                 meta = Record.new(zone, 'octodns-meta', {
                     'type': 'TXT',
                     'ttl': 60,

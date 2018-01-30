@@ -385,7 +385,6 @@ class UltraProvider(BaseProvider):
     _data_for_A = _data_for_multiple
     _data_for_AAAA = _data_for_multiple
     _data_for_NS = _data_for_multiple
-    _data_for_SPF = _data_for_multiple
 
     _fix_semicolons = re.compile(r'(?<!\\);')
 
@@ -396,6 +395,8 @@ class UltraProvider(BaseProvider):
             'values': [self._fix_semicolons.sub('\;', rr)
                        for rr in records[0]['rdata']]
         }
+
+    _data_for_SPF = _data_for_TXT
 
     def _data_for_CNAME(self, _type, records):
         return {

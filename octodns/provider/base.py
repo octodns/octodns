@@ -44,6 +44,8 @@ class BaseProvider(BaseSource):
     def plan(self, desired):
         self.log.info('plan: desired=%s', desired.name)
         existing = Zone(desired.name, desired.sub_zones)
+        if desired.is_flagged_for_deletion():
+            existing.flag_for_deletion()
         self.populate(existing, target=True, lenient=True)
 
         # compute the changes at the zone/record level

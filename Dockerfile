@@ -30,6 +30,3 @@ WORKDIR /octodns
 RUN pip install -e . \
     && pip install -e ".[dev]" \
     && rm -rf /var/lib/apt/lists/*
-
-
-
