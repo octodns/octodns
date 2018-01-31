@@ -484,3 +484,120 @@ class TestCloudflareProvider(TestCase):
             'ttl': 300,
             'type': 'CNAME'
         }, list(contents)[0])
+
+    def test_cdn(self):
+        provider = CloudflareProvider('test', 'email', 'token', True)
+
+        # A CNAME for us to transform to ALIAS
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "CNAME",
+                "name": "cname.unit.tests",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "A",
+                "name": "a.unit.tests",
+                "content": "1.1.1.1",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "A",
+                "name": "a.unit.tests",
+                "content": "1.1.1.2",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+        ])
+
+        zone = Zone('unit.tests.', [])
+        provider.populate(zone)
+
+        # the two A records get merged into one CNAME record poining to the CDN
+        self.assertEquals(2, len(zone.records))
+
+        record = list(zone.records)[0]
+        self.assertEquals('cname', record.name)
+        self.assertEquals('cname.unit.tests.', record.fqdn)
+        self.assertEquals('CNAME', record._type)
+        self.assertEquals('cname.unit.tests.cdn.cloudflare.net.', record.value)
+
+        record = list(zone.records)[1]
+        self.assertEquals('a', record.name)
+        self.assertEquals('a.unit.tests.', record.fqdn)
+        self.assertEquals('CNAME', record._type)
+        self.assertEquals('a.unit.tests.cdn.cloudflare.net.', record.value)
+
+        # CDN enabled records can't be updated, we don't know the real values
+        contents = provider._gen_contents(record)
+        self.assertEquals(0, len(list(contents)))
+
+    def test_cdn_alias(self):
+        provider = CloudflareProvider('test', 'email', 'token', True)
+
+        # A CNAME for us to transform to ALIAS
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "CNAME",
+                "name": "unit.tests",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+        ])
+
+        zone = Zone('unit.tests.', [])
+        provider.populate(zone)
+        self.assertEquals(1, len(zone.records))
+        record = list(zone.records)[0]
+        self.assertEquals('', record.name)
+        self.assertEquals('unit.tests.', record.fqdn)
+        self.assertEquals('ALIAS', record._type)
+        self.assertEquals('unit.tests.cdn.cloudflare.net.', record.value)
+
+        # CDN enabled records can't be updated, we don't know the real values
+        contents = provider._gen_contents(record)
+        self.assertEquals(0, len(list(contents)))
