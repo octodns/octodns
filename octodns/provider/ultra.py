@@ -556,7 +556,8 @@ class UltraProvider(BaseProvider):
             'ttl': record.ttl,
             'ownerName': record.name,
             'rrtype': record._type,
-            'rdata': ['{} {} "{}"'.format(v.flags, v.tag, v.value)
+            'rdata': ['{} {} {} {}'.format(v.priority, v.weight, v.port,
+                                           v.target)
                       for v in record.values]
         }
 
