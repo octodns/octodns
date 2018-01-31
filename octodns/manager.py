@@ -222,7 +222,7 @@ class Manager(object):
             if self.include_meta and not zone.is_flagged_for_deletion():
                 meta = Record.new(zone, 'octodns-meta', {
                     'type': 'TXT',
-                    'ttl': 60,
+                    'ttl': 604800,
                     'value': 'provider={}'.format(target.id)
                 })
                 zone.add_record(meta, replace=True)

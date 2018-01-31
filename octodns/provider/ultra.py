@@ -9,6 +9,7 @@ from collections import defaultdict
 from requests import Session
 import logging
 from urllib import urlencode
+from time import sleep
 import time
 import json
 import re
@@ -287,6 +288,9 @@ class UltraClient(object):
             }
         }
         self._request('POST', '/zones', data=data)
+        # UltraDNS needs a little bit of time after zone
+        #      creation before we can request the records
+        sleep(1)
 
     def records(self, zone):
         zone_name = zone.name
