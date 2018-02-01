@@ -223,7 +223,8 @@ class Manager(object):
                 meta = Record.new(zone, 'octodns-meta', {
                     'type': 'TXT',
                     'ttl': 604800,
-                    'value': 'provider={}'.format(target.id)
+                    'value': 'providers={}'.format(['{}'.format(v.id)
+                                                    for v in targets])
                 })
                 zone.add_record(meta, replace=True)
             plan = target.plan(zone)
