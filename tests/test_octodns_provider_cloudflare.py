@@ -119,15 +119,16 @@ class TestCloudflareProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(11, len(zone.records))
+            self.assertEquals(12, len(zone.records))
 
             changes = self.expected.changes(zone, provider)
+
             self.assertEquals(0, len(changes))
 
         # re-populating the same zone/records comes out of cache, no calls
         again = Zone('unit.tests.', [])
         provider.populate(again)
-        self.assertEquals(11, len(again.records))
+        self.assertEquals(12, len(again.records))
 
     def test_apply(self):
         provider = CloudflareProvider('test', 'email', 'token')
@@ -141,12 +142,12 @@ class TestCloudflareProvider(TestCase):
                     'id': 42,
                 }
             },  # zone create
-        ] + [None] * 18  # individual record creates
+        ] + [None] * 20  # individual record creates
 
         # non-existant zone, create everything
         plan = provider.plan(self.expected)
-        self.assertEquals(11, len(plan.changes))
-        self.assertEquals(11, provider.apply(plan))
+        self.assertEquals(12, len(plan.changes))
+        self.assertEquals(12, provider.apply(plan))
 
         provider._request.assert_has_calls([
             # created the domain
@@ -171,7 +172,7 @@ class TestCloudflareProvider(TestCase):
             }),
         ], True)
         # expected number of total calls
-        self.assertEquals(20, provider._request.call_count)
+        self.assertEquals(22, provider._request.call_count)
 
         provider._request.reset_mock()
 
