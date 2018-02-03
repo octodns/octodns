@@ -186,7 +186,7 @@ class UltraClient(object):
     }
     _unknown_type_pattern = re.compile('TYPE([0-9]+)$', re.I)
 
-    def __init__(self, account_name, username, password):
+    def __init__(self, account_name, username, password, sleep_period):
         self._connected = False
         sess = Session()
         self._sess = sess
@@ -194,6 +194,7 @@ class UltraClient(object):
         self.account_name = account_name
         self._username = username
         self._password = password
+        self.sleep_after_zone_creation = sleep_period
 
     def _check_ultra_session(self):
         current_time = time.time()
@@ -290,7 +291,7 @@ class UltraClient(object):
         self._request('POST', '/zones', data=data)
         # UltraDNS needs a little bit of time after zone
         #      creation before we can request the records
-        sleep(1)
+        sleep(self.sleep_after_zone_creation)
 
     def records(self, zone):
         zone_name = zone.name
@@ -368,22 +369,25 @@ class UltraProvider(BaseProvider):
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS',
                     'TXT', 'SRV', 'NAPTR', 'SPF'))
 
-    def __init__(self, id, account_name, username, password, *args, **kwargs):
+    def __init__(self, id, account_name, username, password,
+                 sleep_period, *args, **kwargs):
         self.log = logging.getLogger('UltraProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, token=***', id)
         super(UltraProvider, self).__init__(id, *args, **kwargs)
         self.username = username
         self.password = password
         self.account_name = account_name
-        self._client = UltraClient(account_name, username, password)
+        self._client = UltraClient(account_name, username, password,
+                                   sleep_period)
 
         self._zone_records = {}
 
     def _data_for_multiple(self, _type, records):
+        record = records[0]
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': record['ttl'],
             'type': _type,
-            'values': records[0]['rdata']
+            'values': record['rdata']
         }
 
     _data_for_A = _data_for_multiple
@@ -517,8 +521,30 @@ class UltraProvider(BaseProvider):
             'rdata': record.values
         }
 
-    _params_for_A = _params_for_multiple
-    _params_for_AAAA = _params_for_multiple
+    def _params_for_multiple_ips(self, record):
+        if len(record.values) > 1:
+            yield {
+                'ttl': record.ttl,
+                'ownerName': record.name,
+                'rrtype': record._type,
+                'rdata': record.values,
+                'profile': {
+                    '@context':
+                        'http://schemas.ultradns.com/RDPool.jsonschema',
+                    'order': 'RANDOM',
+                    'description': record.name
+                }
+            }
+        else:
+            yield {
+                'ttl': record.ttl,
+                'ownerName': record.name,
+                'rrtype': record._type,
+                'rdata': record.values
+            }
+
+    _params_for_A = _params_for_multiple_ips
+    _params_for_AAAA = _params_for_multiple_ips
     _params_for_NS = _params_for_multiple
     _params_for_SPF = _params_for_multiple
     _params_for_TXT = _params_for_multiple
@@ -597,6 +623,8 @@ class UltraProvider(BaseProvider):
         for record in self.zone_records(zone):
             if existing.name == record['ownerName'] and \
                existing._type == record['rrtype']:
+                if existing.name == '':
+                    existing.name = zone.name
                 self._client.record_delete(zone.name, existing)
 
     def _apply(self, plan):
