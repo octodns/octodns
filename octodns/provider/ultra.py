@@ -431,11 +431,12 @@ class UltraProvider(BaseProvider):
     def _data_for_MX(self, _type, records):
         values = []
         for record in records:
-            preference, exchange = record['rdata'][0].split(' ')
-            values.append({
-                'preference': preference,
-                'exchange': exchange,
-            })
+            for value in record['rdata']:
+                preference, exchange = value.split(' ')
+                values.append({
+                    'preference': preference,
+                    'exchange': exchange,
+                })
         return {
             'ttl': records[0]['ttl'],
             'type': _type,
@@ -547,7 +548,14 @@ class UltraProvider(BaseProvider):
     _params_for_AAAA = _params_for_multiple_ips
     _params_for_NS = _params_for_multiple
     _params_for_SPF = _params_for_multiple
-    _params_for_TXT = _params_for_multiple
+
+    def _params_for_TXT(self, record):
+        yield {
+            'ttl': record.ttl,
+            'ownerName': record.name,
+            'rrtype': record._type,
+            'rdata': record.chunked_values
+        }
 
     def _params_for_CAA(self, record):
         yield {
