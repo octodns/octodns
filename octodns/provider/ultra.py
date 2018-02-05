@@ -547,15 +547,17 @@ class UltraProvider(BaseProvider):
     _params_for_A = _params_for_multiple_ips
     _params_for_AAAA = _params_for_multiple_ips
     _params_for_NS = _params_for_multiple
-    _params_for_SPF = _params_for_multiple
 
     def _params_for_TXT(self, record):
+        values = [v.replace('\;', ';') for v in record.chunked_values]
         yield {
             'ttl': record.ttl,
             'ownerName': record.name,
             'rrtype': record._type,
-            'rdata': record.chunked_values
+            'rdata': values
         }
+
+    _params_for_SPF = _params_for_TXT
 
     def _params_for_CAA(self, record):
         yield {
