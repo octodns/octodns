@@ -62,7 +62,7 @@ class TestCloudflareProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            self.assertEquals('Authentication error', ctx.exception.message)
+            self.assertEquals('Cloudflare error', ctx.exception.message)
 
         # General error
         with requests_mock() as mock:
@@ -562,8 +562,21 @@ class TestCloudflareProvider(TestCase):
         self.assertEquals('a.unit.tests.cdn.cloudflare.net.', record.value)
 
         # CDN enabled records can't be updated, we don't know the real values
-        contents = provider._gen_contents(record)
-        self.assertEquals(0, len(list(contents)))
+        # never point a Cloudflare record to itsself.
+        wanted = Zone('unit.tests.', [])
+        wanted.add_record(Record.new(wanted, 'cname', {
+            'ttl': 300,
+            'type': 'CNAME',
+            'value': 'change.unit.tests.cdn.cloudflare.net.'
+        }))
+        wanted.add_record(Record.new(wanted, 'new', {
+            'ttl': 300,
+            'type': 'CNAME',
+            'value': 'new.unit.tests.cdn.cloudflare.net.'
+        }))
+
+        plan = provider.plan(wanted)
+        self.assertEquals(1, len(plan.changes))
 
     def test_cdn_alias(self):
         provider = CloudflareProvider('test', 'email', 'token', True)
@@ -599,5 +612,13 @@ class TestCloudflareProvider(TestCase):
         self.assertEquals('unit.tests.cdn.cloudflare.net.', record.value)
 
         # CDN enabled records can't be updated, we don't know the real values
-        contents = provider._gen_contents(record)
-        self.assertEquals(0, len(list(contents)))
+        # never point a Cloudflare record to itsself.
+        wanted = Zone('unit.tests.', [])
+        wanted.add_record(Record.new(wanted, '', {
+            'ttl': 300,
+            'type': 'ALIAS',
+            'value': 'change.unit.tests.cdn.cloudflare.net.'
+        }))
+
+        plan = provider.plan(wanted)
+        self.assertEquals(False, hasattr(plan, 'changes'))

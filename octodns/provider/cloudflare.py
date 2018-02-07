@@ -15,13 +15,17 @@ from .base import BaseProvider
 
 
 class CloudflareError(Exception):
-
     def __init__(self, data):
         try:
             message = data['errors'][0]['message']
         except (IndexError, KeyError):
-            message = 'Authentication error'
+            message = 'Cloudflare error'
         super(CloudflareError, self).__init__(message)
+
+
+class CloudflareAuthenticationError(CloudflareError):
+    def __init__(self, data):
+        CloudflareError.__init__(self, data)
 
 
 class CloudflareProvider(BaseProvider):
@@ -53,7 +57,7 @@ class CloudflareProvider(BaseProvider):
         self.log = getLogger('CloudflareProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, email=%s, token=***, cdn=%s', id,
                        email, cdn)
-        super(CloudflareProvider, self).__init__(id, *args, **kwargs)
+        super(CloudflareProvider, self).__init__(id, cdn, *args, **kwargs)
 
         sess = Session()
         sess.headers.update({
@@ -73,8 +77,11 @@ class CloudflareProvider(BaseProvider):
         resp = self._sess.request(method, url, params=params, json=data,
                                   timeout=self.TIMEOUT)
         self.log.debug('_request:   status=%d', resp.status_code)
-        if resp.status_code == 400 or resp.status_code == 403:
+        if resp.status_code == 400:
             raise CloudflareError(resp.json())
+        if resp.status_code == 403:
+            raise CloudflareAuthenticationError(resp.json())
+
         resp.raise_for_status()
         return resp.json()
 
@@ -190,8 +197,8 @@ class CloudflareProvider(BaseProvider):
         return self._zone_records[zone.name]
 
     def populate(self, zone, target=False, lenient=False):
-        self.log.debug('populate: name=%s, cdn=%s, target=%s, lenient=%s',
-                       zone.name, self.cdn, target, lenient)
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
 
         before = len(zone.records)
         records = self.zone_records(zone)
@@ -232,6 +239,14 @@ class CloudflareProvider(BaseProvider):
             new['ttl'] = max(120, new['ttl'])
             if new == existing:
                 return False
+
+        # If this is a record to enable to Cloudflare CDN don't update as
+        # we don't know the original values.
+        if (hasattr(change.new, '_type') and (change.new._type == 'CNAME' or
+            change.new._type == 'ALIAS') and
+                change.new.value.endswith('.cdn.cloudflare.net.')):
+            return False
+
         return True
 
     def _contents_for_multiple(self, record):
@@ -275,12 +290,6 @@ class CloudflareProvider(BaseProvider):
         # Cloudflare supports ALIAS semantics with a root CNAME
         if _type == 'ALIAS':
             _type = 'CNAME'
-
-        # If this is a record to enable to Cloudflare CDN don't update as we
-        # don't know the original values.
-        if (self.cdn and _type == 'CNAME' and
-           record.value.endswith('.cdn.cloudflare.net.')):
-            raise StopIteration
 
         contents_for = getattr(self, '_contents_for_{}'.format(_type))
         for content in contents_for(record):
