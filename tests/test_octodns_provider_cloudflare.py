@@ -541,21 +541,61 @@ class TestCloudflareProvider(TestCase):
                     "auto_added": False
                 }
             },
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "A",
+                "name": "multi.unit.tests",
+                "content": "1.1.1.3",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "AAAA",
+                "name": "multi.unit.tests",
+                "content": "::1",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
         ])
 
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
 
         # the two A records get merged into one CNAME record poining to the CDN
-        self.assertEquals(2, len(zone.records))
+        self.assertEquals(3, len(zone.records))
 
         record = list(zone.records)[0]
+        self.assertEquals('multi', record.name)
+        self.assertEquals('multi.unit.tests.', record.fqdn)
+        self.assertEquals('CNAME', record._type)
+        self.assertEquals('multi.unit.tests.cdn.cloudflare.net.', record.value)
+
+        record = list(zone.records)[1]
         self.assertEquals('cname', record.name)
         self.assertEquals('cname.unit.tests.', record.fqdn)
         self.assertEquals('CNAME', record._type)
         self.assertEquals('cname.unit.tests.cdn.cloudflare.net.', record.value)
 
-        record = list(zone.records)[1]
+        record = list(zone.records)[2]
         self.assertEquals('a', record.name)
         self.assertEquals('a.unit.tests.', record.fqdn)
         self.assertEquals('CNAME', record._type)
@@ -573,6 +613,11 @@ class TestCloudflareProvider(TestCase):
             'ttl': 300,
             'type': 'CNAME',
             'value': 'new.unit.tests.cdn.cloudflare.net.'
+        }))
+        wanted.add_record(Record.new(wanted, 'created', {
+            'ttl': 300,
+            'type': 'CNAME',
+            'value': 'www.unit.tests.'
         }))
 
         plan = provider.plan(wanted)

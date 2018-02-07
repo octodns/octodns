@@ -227,6 +227,15 @@ class CloudflareProvider(BaseProvider):
 
                     record = Record.new(zone, name, data, source=self,
                                         lenient=lenient)
+
+                    # only one rewrite is needed for names where the proxy is
+                    # enabled at multiple records with a different type but
+                    # the same name
+                    if (self.cdn and records[0]['proxied'] and
+                       record in zone._records[name]):
+                        self.log.info('CDN rewrite %s already in zone', name)
+                        continue
+
                     zone.add_record(record)
 
         self.log.info('populate:   found %s records',
@@ -240,11 +249,17 @@ class CloudflareProvider(BaseProvider):
             if new == existing:
                 return False
 
-        # If this is a record to enable to Cloudflare CDN don't update as
+        # If this is a record to enable Cloudflare CDN don't update as
         # we don't know the original values.
-        if (hasattr(change.new, '_type') and (change.new._type == 'CNAME' or
-            change.new._type == 'ALIAS') and
+        if (hasattr(change.new, '_type') and
+            (change.new._type == 'CNAME' or
+             change.new._type == 'ALIAS') and
                 change.new.value.endswith('.cdn.cloudflare.net.')):
+            return False
+        if (hasattr(change.existing, '_type') and
+            (change.existing._type == 'CNAME' or
+             change.existing._type == 'ALIAS') and
+                change.existing.value.endswith('.cdn.cloudflare.net.')):
             return False
 
         return True
