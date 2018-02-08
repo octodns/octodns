@@ -42,6 +42,20 @@ class TestCloudflareProvider(TestCase):
     def test_populate(self):
         provider = CloudflareProvider('test', 'email', 'token')
 
+        # Bad requests
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=400,
+                     text='{"success":false,"errors":[{"code":1101,'
+                     '"message":"request was invalid"}],'
+                     '"messages":[],"result":null}')
+
+            with self.assertRaises(Exception) as ctx:
+                zone = Zone('unit.tests.', [])
+                provider.populate(zone)
+
+            self.assertEquals('CloudflareError', type(ctx.exception).__name__)
+            self.assertEquals('request was invalid', ctx.exception.message)
+
         # Bad auth
         with requests_mock() as mock:
             mock.get(ANY, status_code=403,
@@ -52,6 +66,8 @@ class TestCloudflareProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
+            self.assertEquals('CloudflareAuthenticationError',
+                              type(ctx.exception).__name__)
             self.assertEquals('Unknown X-Auth-Key or X-Auth-Email',
                               ctx.exception.message)
 
@@ -62,6 +78,8 @@ class TestCloudflareProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
+            self.assertEquals('CloudflareAuthenticationError',
+                              type(ctx.exception).__name__)
             self.assertEquals('Cloudflare error', ctx.exception.message)
 
         # General error
