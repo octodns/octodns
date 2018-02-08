@@ -532,7 +532,7 @@ class UltraProvider(BaseProvider):
                 'profile': {
                     '@context':
                         'http://schemas.ultradns.com/RDPool.jsonschema',
-                    'order': 'RANDOM',
+                    'order': 'ROUND_ROBIN',
                     'description': record.name
                 }
             }
@@ -646,7 +646,7 @@ class UltraProvider(BaseProvider):
         domain_name = desired.name
         try:
             self._client.domain(domain_name)
-        except UltraClientNotFound:
+        except UltraClientException:
             self.log.debug('_apply:   no matching zone, creating domain')
             self._client.domain_create(domain_name)
 
