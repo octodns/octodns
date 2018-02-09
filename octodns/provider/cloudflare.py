@@ -46,9 +46,8 @@ class CloudflareProvider(BaseProvider):
         cdn: false
     '''
     SUPPORTS_GEO = False
-    # TODO: support SRV
-    SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SPF',
-                    'TXT'))
+    SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SRV',
+                    'SPF', 'TXT'))
 
     MIN_TTL = 120
     TIMEOUT = 15
@@ -174,6 +173,21 @@ class CloudflareProvider(BaseProvider):
             'values': ['{}.'.format(r['content']) for r in records],
         }
 
+    def _data_for_SRV(self, _type, records):
+        values = []
+        for r in records:
+            values.append({
+                'priority': r['data']['priority'],
+                'weight': r['data']['weight'],
+                'port': r['data']['port'],
+                'target': '{}.'.format(r['data']['target']),
+            })
+        return {
+            'type': _type,
+            'ttl': records[0]['ttl'],
+            'values': values
+        }
+
     def zone_records(self, zone):
         if zone.name not in self._zone_records:
             zone_id = self.zones.get(zone.name, False)
@@ -288,6 +302,21 @@ class CloudflareProvider(BaseProvider):
             yield {
                 'priority': value.preference,
                 'content': value.exchange
+            }
+
+    def _contents_for_SRV(self, record):
+        service, proto = record.name.split('.', 2)
+        for value in record.values:
+            yield {
+                'data': {
+                    'service': service,
+                    'proto': proto,
+                    'name': record.zone.name,
+                    'priority': value.priority,
+                    'weight': value.weight,
+                    'port': value.port,
+                    'target': value.target[:-1],
+                }
             }
 
     def _gen_contents(self, record):
