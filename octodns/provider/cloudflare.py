@@ -251,15 +251,8 @@ class CloudflareProvider(BaseProvider):
 
         # If this is a record to enable Cloudflare CDN don't update as
         # we don't know the original values.
-        if (hasattr(change.new, '_type') and
-            (change.new._type == 'CNAME' or
-             change.new._type == 'ALIAS') and
-                change.new.value.endswith('.cdn.cloudflare.net.')):
-            return False
-        if (hasattr(change.existing, '_type') and
-            (change.existing._type == 'CNAME' or
-             change.existing._type == 'ALIAS') and
-                change.existing.value.endswith('.cdn.cloudflare.net.')):
+        if (change.record._type in ('ALIAS', 'CNAME') and
+                change.record.value.endswith('.cdn.cloudflare.net.')):
             return False
 
         return True
