@@ -14,6 +14,7 @@ import time
 import json
 import re
 
+from ..zone import Zone
 from ..record import Record
 from .base import BaseProvider
 
@@ -292,6 +293,12 @@ class UltraClient(object):
         # UltraDNS needs a little bit of time after zone
         #      creation before we can request the records
         sleep(self.sleep_after_zone_creation)
+        zone = Zone(name, [])
+        records = self.records(zone)
+        for record in records:
+            if record['rrtype'] == 'SOA':
+                continue
+            self.record_delete(name, record)
 
     def records(self, zone):
         zone_name = zone.name
@@ -347,10 +354,13 @@ class UltraClient(object):
                                                params['ownerName'])
         self._request('PUT', path, data=params)
 
-    def record_delete(self, zone_name, record):
+    def record_delete(self, zone_name, r):
+        t = r['rrtype'] if 'rrtype' in r else r._type
+        n = r['ownerName'] if 'ownerName' in r else r.name
+        n = zone_name if not n else n
         path = '/zones/{}/rrsets/{}/{}'.format(zone_name,
-                                               record._type.upper(),
-                                               record.name)
+                                               t.upper(),
+                                               n)
         self._request('DELETE', path)
 
 
@@ -377,8 +387,8 @@ class UltraProvider(BaseProvider):
         self.username = username
         self.password = password
         self.account_name = account_name
-        self._client = UltraClient(account_name, username, password,
-                                   sleep_period)
+        self._client = UltraClient(account_name, username,
+                                   password, sleep_period)
 
         self._zone_records = {}
 
