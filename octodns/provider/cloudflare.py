@@ -14,14 +14,18 @@ from ..record import Record, Update
 from .base import BaseProvider
 
 
-class CloudflareAuthenticationError(Exception):
-
+class CloudflareError(Exception):
     def __init__(self, data):
         try:
             message = data['errors'][0]['message']
         except (IndexError, KeyError):
-            message = 'Authentication error'
-        super(CloudflareAuthenticationError, self).__init__(message)
+            message = 'Cloudflare error'
+        super(CloudflareError, self).__init__(message)
+
+
+class CloudflareAuthenticationError(CloudflareError):
+    def __init__(self, data):
+        CloudflareError.__init__(self, data)
 
 
 class CloudflareProvider(BaseProvider):
@@ -34,6 +38,12 @@ class CloudflareProvider(BaseProvider):
         email: dns-manager@example.com
         # The api key (required)
         token: foo
+        # Import CDN enabled records as CNAME to {}.cdn.cloudflare.net. Records
+        # ending at .cdn.cloudflare.net. will be ignored when this provider is
+        # not used as the source and the cdn option is enabled.
+        #
+        # See: https://support.cloudflare.com/hc/en-us/articles/115000830351
+        cdn: false
     '''
     SUPPORTS_GEO = False
     SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SRV',
@@ -42,16 +52,18 @@ class CloudflareProvider(BaseProvider):
     MIN_TTL = 120
     TIMEOUT = 15
 
-    def __init__(self, id, email, token, *args, **kwargs):
+    def __init__(self, id, email, token, cdn=False, *args, **kwargs):
         self.log = getLogger('CloudflareProvider[{}]'.format(id))
-        self.log.debug('__init__: id=%s, email=%s, token=***', id, email)
-        super(CloudflareProvider, self).__init__(id, *args, **kwargs)
+        self.log.debug('__init__: id=%s, email=%s, token=***, cdn=%s', id,
+                       email, cdn)
+        super(CloudflareProvider, self).__init__(id, cdn, *args, **kwargs)
 
         sess = Session()
         sess.headers.update({
             'X-Auth-Email': email,
             'X-Auth-Key': token,
         })
+        self.cdn = cdn
         self._sess = sess
 
         self._zones = None
@@ -64,8 +76,11 @@ class CloudflareProvider(BaseProvider):
         resp = self._sess.request(method, url, params=params, json=data,
                                   timeout=self.TIMEOUT)
         self.log.debug('_request:   status=%d', resp.status_code)
+        if resp.status_code == 400:
+            raise CloudflareError(resp.json())
         if resp.status_code == 403:
             raise CloudflareAuthenticationError(resp.json())
+
         resp.raise_for_status()
         return resp.json()
 
@@ -86,6 +101,18 @@ class CloudflareProvider(BaseProvider):
             self._zones = {'{}.'.format(z['name']): z['id'] for z in zones}
 
         return self._zones
+
+    def _data_for_cdn(self, name, _type, records):
+        self.log.info('CDN rewrite for %s', records[0]['name'])
+        _type = "CNAME"
+        if name == "":
+            _type = "ALIAS"
+
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'value': '{}.cdn.cloudflare.net.'.format(records[0]['name']),
+        }
 
     def _data_for_multiple(self, _type, records):
         return {
@@ -200,14 +227,29 @@ class CloudflareProvider(BaseProvider):
             for name, types in values.items():
                 for _type, records in types.items():
 
-                    # Cloudflare supports ALIAS semantics with root CNAMEs
-                    if _type == 'CNAME' and name == '':
-                        _type = 'ALIAS'
+                    # rewrite Cloudflare proxied records
+                    if self.cdn and records[0]['proxied']:
+                        data = self._data_for_cdn(name, _type, records)
 
-                    data_for = getattr(self, '_data_for_{}'.format(_type))
-                    data = data_for(_type, records)
+                    else:
+                        # Cloudflare supports ALIAS semantics with root CNAMEs
+                        if _type == 'CNAME' and name == '':
+                            _type = 'ALIAS'
+
+                        data_for = getattr(self, '_data_for_{}'.format(_type))
+                        data = data_for(_type, records)
+
                     record = Record.new(zone, name, data, source=self,
                                         lenient=lenient)
+
+                    # only one rewrite is needed for names where the proxy is
+                    # enabled at multiple records with a different type but
+                    # the same name
+                    if (self.cdn and records[0]['proxied'] and
+                       record in zone._records[name]):
+                        self.log.info('CDN rewrite %s already in zone', name)
+                        continue
+
                     zone.add_record(record)
 
         self.log.info('populate:   found %s records',
@@ -220,6 +262,13 @@ class CloudflareProvider(BaseProvider):
             new['ttl'] = max(120, new['ttl'])
             if new == existing:
                 return False
+
+        # If this is a record to enable Cloudflare CDN don't update as
+        # we don't know the original values.
+        if (change.record._type in ('ALIAS', 'CNAME') and
+                change.record.value.endswith('.cdn.cloudflare.net.')):
+            return False
+
         return True
 
     def _contents_for_multiple(self, record):
