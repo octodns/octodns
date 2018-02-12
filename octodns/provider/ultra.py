@@ -636,6 +636,13 @@ class UltraProvider(BaseProvider):
 
     def _apply_Update(self, change):
         new = change.new
+        existing = change.existing
+        # RDPool needs to be deleted first and then re-created to
+        #    convert to a non-rdpool record
+        if len(existing.values) > 1 and (not isinstance(new.values, list) or
+           len(new.values) < 2):
+                self._apply_Delete(change)
+                self._apply_Create(change)
         params_for = getattr(self, '_params_for_{}'.format(new._type))
         for params in params_for(new):
             if params['ownerName'] == '':
