@@ -355,8 +355,13 @@ class UltraClient(object):
         self._request('PUT', path, data=params)
 
     def record_delete(self, zone_name, r):
-        t = r['rrtype'] if 'rrtype' in r else r._type
-        n = r['ownerName'] if 'ownerName' in r else r.name
+        try:
+            t = r['rrtype'] if 'rrtype' in r else r._type
+            n = r['ownerName'] if 'ownerName' in r else r.name
+        except TypeError:
+            t = r._type
+            n = r.name
+
         n = zone_name if not n else n
         path = '/zones/{}/rrsets/{}/{}'.format(zone_name,
                                                t.upper(),
