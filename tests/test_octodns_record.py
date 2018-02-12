@@ -1360,7 +1360,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': {
                     'algorithm': 'nope',
-                    'fingerprint_type': 1,
+                    'fingerprint_type': 2,
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }
             })
@@ -1386,7 +1386,7 @@ class TestRecordValidation(TestCase):
                 'type': 'SSHFP',
                 'ttl': 600,
                 'value': {
-                    'algorithm': 1,
+                    'algorithm': 2,
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }
             })
@@ -1398,7 +1398,7 @@ class TestRecordValidation(TestCase):
                 'type': 'SSHFP',
                 'ttl': 600,
                 'value': {
-                    'algorithm': 1,
+                    'algorithm': 3,
                     'fingerprint_type': 'yeeah',
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }
