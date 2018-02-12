@@ -259,10 +259,11 @@ class OvhProvider(BaseProvider):
     def _params_for_SRV(record):
         for value in record.values:
             yield {
-                'subDomain': '{} {} {} {}'.format(value.priority,
-                                                  value.weight, value.port,
-                                                  value.target),
-                'target': record.name,
+                'target': '{} {} {} {}'.format(value.priority,
+                                               value.weight,
+                                               value.port,
+                                               value.target),
+                'subDomain': record.name,
                 'ttl': record.ttl,
                 'fieldType': record._type
             }
@@ -271,10 +272,10 @@ class OvhProvider(BaseProvider):
     def _params_for_SSHFP(record):
         for value in record.values:
             yield {
-                'subDomain': '{} {} {}'.format(value.algorithm,
-                                               value.fingerprint_type,
-                                               value.fingerprint),
-                'target': record.name,
+                'target': '{} {} {}'.format(value.algorithm,
+                                            value.fingerprint_type,
+                                            value.fingerprint),
+                'subDomain': record.name,
                 'ttl': record.ttl,
                 'fieldType': record._type
             }
