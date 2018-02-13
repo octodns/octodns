@@ -427,3 +427,13 @@ class TestGoogleCloudProvider(TestCase):
 
         mock_zone.create.assert_called()
         provider.gcloud_client.zone.assert_called()
+
+    def test_semicolon_fixup(self):
+        provider = self._get_provider()
+
+        self.assertEquals({
+            'values': ['abcd\\; ef\\;g', 'hij\\; klm\\;n']
+        }, provider._data_for_TXT(
+            DummyResourceRecordSet(
+                'unit.tests.', 'TXT', 0, ['abcd; ef;g', 'hij\\; klm\\;n'])
+        ))
