@@ -678,8 +678,8 @@ class PtrRecord(_ValueMixin, Record):
 
 
 class SshfpValue(object):
-    VALID_ALGORITHMS = (1, 2)
-    VALID_FINGERPRINT_TYPES = (1,)
+    VALID_ALGORITHMS = (1, 2, 3)
+    VALID_FINGERPRINT_TYPES = (1, 2)
 
     @classmethod
     def _validate_value(cls, value):
