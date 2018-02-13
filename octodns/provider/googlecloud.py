@@ -127,9 +127,12 @@ class GoogleCloudProvider(BaseProvider):
             :type return: new google.cloud.dns.ManagedZone
         """
         # Zone name must begin with a letter, end with a letter or digit,
-        # and only contain lowercase letters, digits or dashes
+        # and only contain lowercase letters, digits or dashes,
+        # and be 63 characters or less
         zone_name = '{}-{}'.format(
-            dns_name[:-1].replace('.', '-'), uuid4().hex)
+            dns_name.replace('.', '-'), uuid4().hex)[:63]
+        if not zone_name[:1].isalpha():
+            zone_name = 'zone-{}'.format(zone_name[:58])
 
         gcloud_zone = self.gcloud_client.zone(
             name=zone_name,
