@@ -234,10 +234,9 @@ class Ns1Provider(BaseProvider):
                     )
             params['filters'] = []
             if has_country:
-                if len(params['answers']) > 1:
-                    params['filters'].append(
-                        {"filter": "shuffle", "config": {}}
-                    )
+                params['filters'].append(
+                    {"filter": "shuffle", "config": {}}
+                )
                 params['filters'].append(
                     {"filter": "geotarget_country", "config": {}}
                 )
