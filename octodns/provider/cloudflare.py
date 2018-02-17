@@ -56,7 +56,7 @@ class CloudflareProvider(BaseProvider):
         self.log = getLogger('CloudflareProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, email=%s, token=***, cdn=%s', id,
                        email, cdn)
-        super(CloudflareProvider, self).__init__(id, cdn, *args, **kwargs)
+        super(CloudflareProvider, self).__init__(id, *args, **kwargs)
 
         sess = Session()
         sess.headers.update({
