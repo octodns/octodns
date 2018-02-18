@@ -428,6 +428,21 @@ class TestGoogleCloudProvider(TestCase):
         mock_zone.create.assert_called()
         provider.gcloud_client.zone.assert_called()
 
+    def test__create_zone_ip6_arpa(self):
+        def _create_dummy_zone(name, dns_name):
+            return DummyGoogleCloudZone(name=name, dns_name=dns_name)
+
+        provider = self._get_provider()
+
+        provider.gcloud_client = Mock()
+        provider.gcloud_client.zone = Mock(side_effect=_create_dummy_zone)
+
+        mock_zone = \
+            provider._create_gcloud_zone('0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa')
+
+        self.assertRegexpMatches(mock_zone.name, '^[a-z][a-z0-9-]*[a-z0-9]$')
+        self.assertEqual(len(mock_zone.name), 63)
+
     def test_semicolon_fixup(self):
         provider = self._get_provider()
 
