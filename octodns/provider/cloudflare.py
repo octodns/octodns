@@ -260,7 +260,7 @@ class CloudflareProvider(BaseProvider):
         if isinstance(change, Update):
             existing = change.existing.data
             new = change.new.data
-            new['ttl'] = max(120, new['ttl'])
+            new['ttl'] = max(self.MIN_TTL, new['ttl'])
             if new == existing:
                 return False
 
