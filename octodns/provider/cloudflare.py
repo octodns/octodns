@@ -259,7 +259,7 @@ class CloudflareProvider(BaseProvider):
         if isinstance(change, Update):
             existing = change.existing.data
             new = change.new.data
-            new['ttl'] = max(120, new['ttl'])
+            new['ttl'] = self._min_ttl(new['ttl'])
             if new == existing:
                 return False
 
@@ -319,10 +319,15 @@ class CloudflareProvider(BaseProvider):
                 }
             }
 
+    def _min_ttl(self, ttl):
+        if ttl == 1 or ttl > self.MIN_TTL:
+            return ttl
+        return self.MIN_TTL
+
     def _gen_contents(self, record):
         name = record.fqdn[:-1]
         _type = record._type
-        ttl = max(self.MIN_TTL, record.ttl)
+        ttl = self._min_ttl(record.ttl)
 
         # Cloudflare supports ALIAS semantics with a root CNAME
         if _type == 'ALIAS':
