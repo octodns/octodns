@@ -38,7 +38,7 @@ class Zone(object):
             raise Exception('Invalid zone name {}, missing ending dot'
                             .format(name))
         # Force everyting to lowercase just to be safe
-        self.name = str(name).lower() if name else name
+        self.name = unicode(name).lower() if name else name
         self.sub_zones = sub_zones
         # We're grouping by node, it allows us to efficently search for
         # duplicates and detect when CNAMEs co-exist with other records
