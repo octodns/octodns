@@ -122,7 +122,7 @@ class Record(object):
                        self.__class__.__name__, name)
         self.zone = zone
         # force everything lower-case just to be safe
-        self.name = str(name).lower() if name else name
+        self.name = unicode(name).lower() if name else name
         self.source = source
         self.ttl = int(data['ttl'])
 
@@ -274,7 +274,8 @@ class _ValuesMixin(object):
         return ret
 
     def __repr__(self):
-        values = "['{}']".format("', '".join([str(v) for v in self.values]))
+        values = "['{}']".format("', '".join([unicode(v)
+                                              for v in self.values]))
         return '<{} {} {}, {}, {}>'.format(self.__class__.__name__,
                                            self._type, self.ttl,
                                            self.fqdn, values)
