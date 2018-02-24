@@ -388,17 +388,19 @@ class CloudflareProvider(BaseProvider):
         zone_id = self.zones[zone.name]
 
         # Find things we need to remove
-        name = change.new.fqdn[:-1]
-        hostname = zone.hostname_from_fqdn(name)
+        hostname = zone.hostname_from_fqdn(change.new.fqdn[:-1])
         _type = change.new._type
         # OK, work through each record from the zone
         for record in self.zone_records(zone):
-            if name == record['name'] and _type == record['type']:
+            name = zone.hostname_from_fqdn(record['name'])
+            # Use the _record_for so that we include all of standard
+            # converstion logic
+            r = self._record_for(zone, name, record['type'], [record], True)
+            if hostname == r.name and _type == r._type:
 
                 # Round trip the single value through a record to contents flow
                 # to get a consistent _gen_contents result that matches what
                 # went in to new_contents
-                r = self._record_for(zone, hostname, _type, [record], True)
                 content = self._gen_contents(r).next()
 
                 # If the hash of that dict isn't in new this record isn't
