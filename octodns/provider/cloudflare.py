@@ -102,6 +102,15 @@ class CloudflareProvider(BaseProvider):
 
         return self._zones
 
+    def _ttl_data(self, ttl):
+        # Apparently CF's ttl=1 (automatic) is just an alias for 300 :shrug:
+        # https://support.cloudflare.com/hc/en-us/articles/
+        #   200168866-What-does-the-Automatic-TTL-value-mean-
+        # We'll map it to what it actually does so that dumps and syncs to
+        # other provider that don't do anything similar get the same behavior
+        # that CF has.
+        return 300 if ttl == 1 else ttl
+
     def _data_for_cdn(self, name, _type, records):
         self.log.info('CDN rewrite for %s', records[0]['name'])
         _type = "CNAME"
@@ -109,14 +118,14 @@ class CloudflareProvider(BaseProvider):
             _type = "ALIAS"
 
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'value': '{}.cdn.cloudflare.net.'.format(records[0]['name']),
         }
 
     def _data_for_multiple(self, _type, records):
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': [r['content'] for r in records],
         }
@@ -127,7 +136,7 @@ class CloudflareProvider(BaseProvider):
 
     def _data_for_TXT(self, _type, records):
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': [r['content'].replace(';', '\;') for r in records],
         }
@@ -138,7 +147,7 @@ class CloudflareProvider(BaseProvider):
             data = r['data']
             values.append(data)
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': values,
         }
@@ -146,7 +155,7 @@ class CloudflareProvider(BaseProvider):
     def _data_for_CNAME(self, _type, records):
         only = records[0]
         return {
-            'ttl': only['ttl'],
+            'ttl': self._ttl_data(only['ttl']),
             'type': _type,
             'value': '{}.'.format(only['content'])
         }
@@ -161,14 +170,14 @@ class CloudflareProvider(BaseProvider):
                 'exchange': '{}.'.format(r['content']),
             })
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': values,
         }
 
     def _data_for_NS(self, _type, records):
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': ['{}.'.format(r['content']) for r in records],
         }
@@ -184,7 +193,7 @@ class CloudflareProvider(BaseProvider):
             })
         return {
             'type': _type,
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'values': values
         }
 
@@ -259,7 +268,7 @@ class CloudflareProvider(BaseProvider):
     def _include_change(self, change):
         if isinstance(change, Update):
             existing = change.existing.data
-            new = change.new.data
+            new = self._ttl_data(change.new.data)
             new['ttl'] = max(self.MIN_TTL, new['ttl'])
             if new == existing:
                 return False

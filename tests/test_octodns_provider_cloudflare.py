@@ -686,3 +686,11 @@ class TestCloudflareProvider(TestCase):
 
         plan = provider.plan(wanted)
         self.assertEquals(False, hasattr(plan, 'changes'))
+
+    def test_ttl_mapping(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+
+        self.assertEquals(120, provider._ttl_data(120))
+        self.assertEquals(120, provider._ttl_data(120))
+        self.assertEquals(3600, provider._ttl_data(3600))
+        self.assertEquals(300, provider._ttl_data(1))
