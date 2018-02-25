@@ -18,6 +18,10 @@ def main():
     parser.add_argument('--doit', action='store_true', default=False,
                         help='Whether to take action or just show what would '
                         'change')
+    parser.add_argument('--cautious', action='store_true', default=False,
+                        help='Cautiously make changes, any updates or '
+                        'creates will have their TTL set to 60s to allow '
+                        'reverts to take effect more quickly')
     parser.add_argument('--force', action='store_true', default=False,
                         help='Acknowledge that significant changes are being '
                         'made and do them')
@@ -36,7 +40,8 @@ def main():
 
     manager = Manager(args.config_file)
     manager.sync(eligible_zones=args.zone, eligible_targets=args.target,
-                 dry_run=not args.doit, force=args.force)
+                 dry_run=not args.doit, force=args.force,
+                 cautious=args.cautious)
 
 
 if __name__ == '__main__':

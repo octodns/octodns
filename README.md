@@ -65,7 +65,7 @@ Now that we have something to tell OctoDNS about our providers & zones we need t
 ```yaml
 ---
 '':
-  ttl: 60
+  ttl: 300
   type: A
   values:
     - 1.2.3.4
@@ -85,10 +85,10 @@ $ octodns-sync --config-file=./config/production.yaml
 * example.com.
 ********************************************************************************
 * route53 (Route53Provider)
-*   Create <ARecord A 60, example.com., [u'1.2.3.4', '1.2.3.5']>
+*   Create <ARecord A 300, example.com., [u'1.2.3.4', '1.2.3.5']>
 *   Summary: Creates=1, Updates=0, Deletes=0, Existing Records=0
 * dyn (DynProvider)
-*   Create <ARecord A 60, example.com., [u'1.2.3.4', '1.2.3.5']>
+*   Create <ARecord A 300, example.com., [u'1.2.3.4', '1.2.3.5']>
 *   Summary: Creates=1, Updates=0, Deletes=0, Existing Records=0
 ********************************************************************************
 ...
@@ -108,6 +108,36 @@ $ octodns-sync --config-file=./config/production.yaml --doit
 ```
 
 The output here would be the same as before with a few more log lines at the end as it makes the actual changes. After which the config in Route53 and Dyn should match what's in the yaml file.
+
+#### Cautious Mode
+
+If changing sensitive records where the repercussions of problems may be substantial octoDNS sync offers a flag `--cautious` that can be added to the sync command to lower the TTL of any modified or added records down to 60s. Deletes are essentially cautious by default since they will become available immediately once you add them back.
+
+While this doesn't help address any problems with the changes themselves what it does is provide a reasonably quick path to a revert. If a change was being made to a record whose TTL is normally 3600, 1 hour, reverting changes to that record will take up to an hour. This is due to the need to wait for caches to expire the problematic value. Using `--cautious` the change would be made with a 60s TTL, so that the problematic value would be flushed quickly. The expected flow using cautious would look something like the following.
+
+
+```
+$ octodns-sync --config-file=./config/production.yaml
+# Review the changes as they would be made normally
+$ octodns-sync --config-file=./config/production.yaml --cautious
+# Review the cautious version of th changes, should be the same, just with 60s TTLs
+$ octodns-sync --config-file=./config/production.yaml --cautious --doit
+# Make the cautious version of the changes, verify they're working as expected,
+# allowing original records to expire and the new to take effect
+$ octodns-sync --config-file=./config/production.yaml --doit
+# Make the normal version of the changes active, should only modify TTLs
+```
+
+If there were problems after the `--cautious --doit` step you can quickly jump back and deploy out the previous version.
+
+```
+$ git checkout master
+# Go back to a known good state
+$ octodns-sync --config-file=./config/production.yaml
+# Make sure the revert is doing what you expect/need
+$ octodns-sync --config-file=./config/production.yaml --doit
+# Apply it, after 60s it should take effect
+```
 
 ### Workflow
 

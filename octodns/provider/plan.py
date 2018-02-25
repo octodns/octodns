@@ -50,6 +50,11 @@ class Plan(object):
                        self.change_counts['Update'],
                        self.change_counts['Delete'], existing_n)
 
+    def make_cautious(self):
+        for change in self.changes:
+            if change.new:
+                change.new.ttl = 60
+
     def raise_if_unsafe(self):
         # TODO: what is safe really?
         if self.existing and \

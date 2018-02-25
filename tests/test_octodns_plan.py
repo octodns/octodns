@@ -27,6 +27,44 @@ class TestPlanLogger(TestCase):
 
 simple = SimpleProvider()
 zone = Zone('unit.tests.', [])
+
+
+class TestPlan(TestCase):
+
+    def test_make_cautious(self):
+        existing = Record.new(zone, 'a', {
+            'ttl': 300,
+            'type': 'A',
+            # This matches the zone data above, one to swap, one to leave
+            'values': ['1.1.1.1', '2.2.2.2'],
+        })
+        new = Record.new(zone, 'a', {
+            'geo': {
+                'AF': ['5.5.5.5'],
+                'NA-US': ['6.6.6.6']
+            },
+            'ttl': 300,
+            'type': 'A',
+            # This leaves one, swaps ones, and adds one
+            'values': ['2.2.2.2', '3.3.3.3', '4.4.4.4'],
+        }, simple)
+        create = Create(Record.new(zone, 'b', {
+            'ttl': 3600,
+            'type': 'CNAME',
+            'value': 'foo.unit.tests.'
+        }, simple))
+        update = Update(existing, new)
+        delete = Delete(new)
+        changes = [create, delete, update]
+        plan = Plan(zone, zone, changes)
+
+        self.assertEquals(3600, create.new.ttl)
+        self.assertEquals(300, update.new.ttl)
+        plan.make_cautious()
+        self.assertEquals(60, create.new.ttl)
+        self.assertEquals(60, update.new.ttl)
+
+
 existing = Record.new(zone, 'a', {
     'ttl': 300,
     'type': 'A',

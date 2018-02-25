@@ -11,6 +11,7 @@ from unittest import TestCase
 
 from octodns.record import Record
 from octodns.manager import _AggregateTarget, MainThreadExecutor, Manager
+from octodns.provider.yaml import YamlProvider
 from octodns.yaml import safe_load
 from octodns.zone import Zone
 
@@ -147,6 +148,19 @@ class TestManager(TestCase):
                          include_meta=True) \
                 .sync(dry_run=False, force=True)
             self.assertEquals(25, tc)
+
+            # Cautious
+            tc = Manager(get_config_filename('simple.yaml'), max_workers=1,
+                         include_meta=True) \
+                .sync(dry_run=False, cautious=True)
+            # Same changes
+            self.assertEquals(25, tc)
+            # But we expect all of their TTLs to be 60s
+            source = YamlProvider('verify', tmpdir.dirname)
+            found = Zone('unit.tests.', [])
+            source.populate(found)
+            for record in found.records:
+                self.assertEquals(60, record.ttl)
 
     def test_eligible_targets(self):
         with TemporaryDirectory() as tmpdir:
