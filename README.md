@@ -169,6 +169,7 @@ The above command pulled the existing data out of Route53 and placed the results
 * ALIAS support varies a lot from provider to provider care should be taken to verify that your needs are met in detail.
    * Dyn's UI doesn't allow editing or view of TTL, but the API accepts and stores the value provided, this value does not appear to be used when served
    * Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
+* octoDNS itself supports non-ASCII character sets, but in testing Cloudflare is the only provider where that is currently functional end-to-end. Others have failures either in the client libraries or API calls
 
 ## Custom Sources and Providers
 
