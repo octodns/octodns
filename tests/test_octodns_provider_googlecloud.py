@@ -364,7 +364,7 @@ class TestGoogleCloudProvider(TestCase):
         # exactly the same.
         self.assertEqual(test_zone.records, zone.records)
 
-        test_zone2 = Zone('nonexistant.zone.', [])
+        test_zone2 = Zone('nonexistent.zone.', [])
         provider.populate(test_zone2, False, False)
 
         self.assertEqual(len(test_zone2.records), 0,
@@ -401,8 +401,8 @@ class TestGoogleCloudProvider(TestCase):
         provider.gcloud_client.list_zones = Mock(
             return_value=DummyIterator([]))
 
-        self.assertIsNone(provider.gcloud_zones.get("nonexistant.xone"),
-                          msg="Check that nonexistant zones return None when"
+        self.assertIsNone(provider.gcloud_zones.get("nonexistent.xone"),
+                          msg="Check that nonexistent zones return None when"
                               "there's no create=True flag")
 
     def test__get_rrsets(self):
@@ -423,7 +423,7 @@ class TestGoogleCloudProvider(TestCase):
         provider.gcloud_client.list_zones = Mock(
             return_value=DummyIterator([]))
 
-        mock_zone = provider._create_gcloud_zone("nonexistant.zone.mock")
+        mock_zone = provider._create_gcloud_zone("nonexistent.zone.mock")
 
         mock_zone.create.assert_called()
         provider.gcloud_client.zone.assert_called()
