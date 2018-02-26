@@ -599,7 +599,8 @@ class TestCloudflareProvider(TestCase):
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
 
-        # the two A records get merged into one CNAME record poining to the CDN
+        # the two A records get merged into one CNAME record pointing to
+        # the CDN.
         self.assertEquals(3, len(zone.records))
 
         record = list(zone.records)[0]
