@@ -679,7 +679,7 @@ class Route53Provider(BaseProvider):
                    .get('CountryCode', False) == '*':
                     # it's a default record
                     continue
-                # we expect a healtcheck now
+                # we expect a healthcheck now
                 try:
                     health_check_id = rrset['HealthCheckId']
                     caller_ref = \
