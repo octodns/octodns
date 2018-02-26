@@ -430,7 +430,7 @@ class TestRecord(TestCase):
         self.assertEqual(change.new, other)
 
         # full sorting
-        # equivilent
+        # equivalent
         b_naptr_value = b.values[0]
         self.assertEquals(0, b_naptr_value.__cmp__(b_naptr_value))
         # by order
