@@ -40,7 +40,7 @@ class _CachingDynZone(DynZone):
                 cls.log.debug('get:   fetched')
             except DynectGetError:
                 if not create:
-                    cls.log.debug("get:   does't exist")
+                    cls.log.debug("get:   doesn't exist")
                     return None
                 # this value shouldn't really matter, it's not tied to
                 # whois or anything
