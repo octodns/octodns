@@ -222,7 +222,7 @@ class AzureProvider(BaseProvider):
               azuredns:
                 class: octodns.provider.azuredns.AzureProvider
                 client_id: env/AZURE_APPLICATION_ID
-                key: env/AZURE_AUTHENICATION_KEY
+                key: env/AZURE_AUTHENTICATION_KEY
                 directory_id: env/AZURE_DIRECTORY_ID
                 sub_id: env/AZURE_SUBSCRIPTION_ID
                 resource_group: 'TestResource1'
