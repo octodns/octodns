@@ -295,7 +295,7 @@ class PowerDnsBaseProvider(BaseProvider):
 
         # sorting mostly to make things deterministic for testing, but in
         # theory it let us find what we're after quickier (though sorting would
-        # ve more exepensive.)
+        # be more exepensive.)
         for record in sorted(existing.records):
             if record == ns:
                 # We've found the top-level NS record, return any changes
