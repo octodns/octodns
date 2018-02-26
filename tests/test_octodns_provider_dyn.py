@@ -650,7 +650,7 @@ class TestDynProviderGeo(TestCase):
                           set(tds.keys()))
         self.assertEquals(['A'], tds['unit.tests.'].keys())
         self.assertEquals(['A'], tds['geo.unit.tests.'].keys())
-        provider.log.warn.assert_called_with("Failed to load TraficDirector "
+        provider.log.warn.assert_called_with("Failed to load TrafficDirector "
                                              "'%s': %s", 'something else',
                                              'need more than 1 value to '
                                              'unpack')
