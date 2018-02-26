@@ -710,7 +710,7 @@ class TestRecord(TestCase):
             Record.new(self.zone, 'unknown', {})
         self.assertTrue('missing type' in ctx.exception.message)
 
-        # Unkown type
+        # Unknown type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {
                 'type': 'XXX',
