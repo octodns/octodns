@@ -39,7 +39,7 @@ class _AzureRecord(object):
     }
 
     def __init__(self, resource_group, record, delete=False):
-        '''Contructor for _AzureRecord.
+        '''Constructor for _AzureRecord.
 
             Notes on Azure records: An Azure record set has the form
             RecordSet(name=<...>, type=<...>, arecords=[...], aaaa_records, ..)
