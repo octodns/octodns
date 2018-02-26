@@ -294,7 +294,7 @@ class PowerDnsBaseProvider(BaseProvider):
             return []
 
         # sorting mostly to make things deterministic for testing, but in
-        # theory it let us find what we're after quickier (though sorting would
+        # theory it let us find what we're after quicker (though sorting would
         # be more expensive.)
         for record in sorted(existing.records):
             if record == ns:
