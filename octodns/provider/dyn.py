@@ -129,10 +129,10 @@ class DynProvider(BaseProvider):
     REGION_CODES = {
         'NA': 11,  # Continental North America
         'SA': 12,  # Continental South America
-        'EU': 13,  # Contentinal Europe
+        'EU': 13,  # Continental Europe
         'AF': 14,  # Continental Africa
-        'AS': 15,  # Contentinal Asia
-        'OC': 16,  # Contentinal Australia/Oceania
+        'AS': 15,  # Continental Asia
+        'OC': 16,  # Continental Australia/Oceania
         'AN': 17,  # Continental Antarctica
     }
 

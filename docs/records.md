@@ -54,10 +54,10 @@ The geo labels breakdown based on:
 1.
     - 'AF': 14,  # Continental Africa
     - 'AN': 17,  # Continental Antarctica
-    - 'AS': 15,  # Contentinal Asia
-    - 'EU': 13,  # Contentinal Europe
+    - 'AS': 15,  # Continental Asia
+    - 'EU': 13,  # Continental Europe
     - 'NA': 11,  # Continental North America
-    - 'OC': 16,  # Contentinal Australia/Oceania
+    - 'OC': 16,  # Continental Australia/Oceania
     - 'SA': 12,  # Continental South America
 
 2. ISO Country Code https://en.wikipedia.org/wiki/ISO_3166-2
