@@ -178,7 +178,7 @@ class PowerDnsBaseProvider(BaseProvider):
                 raise Exception('PowerDNS unauthorized host={}'
                                 .format(self.host))
             elif e.response.status_code == 422:
-                # 422 means powerdns doesn't know anything about the requsted
+                # 422 means powerdns doesn't know anything about the requested
                 # domain. We'll just ignore it here and leave the zone
                 # untouched.
                 pass
@@ -341,7 +341,7 @@ class PowerDnsBaseProvider(BaseProvider):
                                e.response.text)
                 raise
             self.log.info('_apply:   creating zone=%s', desired.name)
-            # 422 means powerdns doesn't know anything about the requsted
+            # 422 means powerdns doesn't know anything about the requested
             # domain. We'll try to create it with the correct records instead
             # of update. Hopefully all the mods are creates :-)
             data = {
