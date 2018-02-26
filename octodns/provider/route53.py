@@ -61,7 +61,7 @@ class _Route53Record(object):
 
     # NOTE: we're using __hash__ and __cmp__ methods that consider
     # _Route53Records equivalent if they have the same class, fqdn, and _type.
-    # Values are ignored. This is usful when computing diffs/changes.
+    # Values are ignored. This is useful when computing diffs/changes.
 
     def __hash__(self):
         'sub-classes should never use this method'
