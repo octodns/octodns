@@ -166,7 +166,7 @@ class DynProvider(BaseProvider):
         if DynectSession.get_session() is None:
             # We need to create a new session for this thread and DynectSession
             # creation is not thread-safe so we have to do the locking. If we
-            # don't and multiple sessions start creattion before the the first
+            # don't and multiple sessions start creation before the the first
             # has finished (long time b/c it makes http calls) the subsequent
             # creates will blow away DynectSession._instances, potentially
             # multiple times if there are multiple creates in flight. Only the
