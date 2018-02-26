@@ -199,14 +199,14 @@ class TestOvhProvider(TestCase):
     api_record.append({
         'fieldType': 'SPF',
         'ttl': 1000,
-        'target': 'v=spf1 include:unit.texts.rerirect ~all',
+        'target': 'v=spf1 include:unit.texts.redirect ~all',
         'subDomain': '',
         'id': 13
     })
     expected.add(Record.new(zone, '', {
         'ttl': 1000,
         'type': 'SPF',
-        'value': 'v=spf1 include:unit.texts.rerirect ~all'
+        'value': 'v=spf1 include:unit.texts.redirect ~all'
     }))
 
     # SSHFP
@@ -404,7 +404,7 @@ class TestOvhProvider(TestCase):
                     call(u'/domain/zone/unit.tests/record', fieldType=u'SPF',
                          subDomain=u'', ttl=1000,
                          target=u'v=spf1 include:unit.texts.'
-                                u'rerirect ~all',
+                                u'redirect ~all',
                          ),
                     call(u'/domain/zone/unit.tests/record', fieldType=u'A',
                          subDomain='sub', target=u'1.2.3.4', ttl=200),
