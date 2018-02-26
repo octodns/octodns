@@ -37,7 +37,7 @@ class BaseProvider(BaseSource):
     def _extra_changes(self, existing, changes):
         '''
         An opportunity for providers to add extra changes to the plan that are
-        necessary to update ancilary record data or configure the zone. E.g.
+        necessary to update ancillary record data or configure the zone. E.g.
         base NS records.
         '''
         return []
