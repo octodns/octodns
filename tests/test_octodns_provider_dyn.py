@@ -607,7 +607,7 @@ class TestDynProviderGeo(TestCase):
         mock.side_effect = [{'data': []}]
         self.assertEquals({}, provider.traffic_directors)
 
-        # a supported td and an ingored one
+        # a supported td and an ignored one
         response = {
             'data': [{
                 'active': 'Y',
