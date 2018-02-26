@@ -30,7 +30,7 @@ class BaseProvider(BaseSource):
     def _include_change(self, change):
         '''
         An opportunity for providers to filter out false positives due to
-        pecularities in their implementation. E.g. minimum TTLs.
+        peculiarities in their implementation. E.g. minimum TTLs.
         '''
         return True
 
