@@ -132,7 +132,7 @@ class DynProvider(BaseProvider):
         'EU': 13,  # Contentinal Europe
         'AF': 14,  # Continental Africa
         'AS': 15,  # Contentinal Asia
-        'OC': 16,  # Contentinal Austrailia/Oceania
+        'OC': 16,  # Contentinal Australia/Oceania
         'AN': 17,  # Continental Antarctica
     }
 

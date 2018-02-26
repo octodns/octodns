@@ -57,7 +57,7 @@ The geo labels breakdown based on:
     - 'AS': 15,  # Contentinal Asia
     - 'EU': 13,  # Contentinal Europe
     - 'NA': 11,  # Continental North America
-    - 'OC': 16,  # Contentinal Austrailia/Oceania
+    - 'OC': 16,  # Contentinal Australia/Oceania
     - 'SA': 12,  # Continental South America
 
 2. ISO Country Code https://en.wikipedia.org/wiki/ISO_3166-2
