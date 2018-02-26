@@ -427,10 +427,14 @@ class CloudflareProvider(BaseProvider):
 
     def _apply_Delete(self, change):
         existing = change.existing
-        existing_name = existing.fqdn[:-1]
+        zone = existing.zone
+        existing_name = zone.hostname_from_fqdn(existing.fqdn[:-1])
         for record in self.zone_records(existing.zone):
-            if existing_name == record['name'] and \
-               existing._type == record['type']:
+            name = zone.hostname_from_fqdn(record['name'])
+            # Use the _record_for so that we include all of standard
+            # converstion logic
+            r = self._record_for(zone, name, record['type'], [record], True)
+            if existing_name == r.name and existing._type == r._type:
                 path = '/zones/{}/dns_records/{}'.format(record['zone_id'],
                                                          record['id'])
                 self._request('DELETE', path)
