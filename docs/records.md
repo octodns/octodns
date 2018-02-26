@@ -53,7 +53,7 @@ The geo labels breakdown based on:
 
 1.
     - 'AF': 14,  # Continental Africa
-    - 'AN': 17,  # Continental Antartica
+    - 'AN': 17,  # Continental Antarctica
     - 'AS': 15,  # Contentinal Asia
     - 'EU': 13,  # Contentinal Europe
     - 'NA': 11,  # Continental North America

@@ -133,7 +133,7 @@ class DynProvider(BaseProvider):
         'AF': 14,  # Continental Africa
         'AS': 15,  # Contentinal Asia
         'OC': 16,  # Contentinal Austrailia/Oceania
-        'AN': 17,  # Continental Antartica
+        'AN': 17,  # Continental Antarctica
     }
 
     _sess_create_lock = Lock()
