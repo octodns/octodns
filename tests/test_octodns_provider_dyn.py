@@ -491,7 +491,7 @@ class TestDynProviderGeo(TestCase):
         traffic_director_response = loads(fh.read())
 
     @property
-    def traffic_directors_reponse(self):
+    def traffic_directors_response(self):
         return {
             'data': [{
                 'active': 'Y',
@@ -758,7 +758,7 @@ class TestDynProviderGeo(TestCase):
         # only traffic director
         mock.side_effect = [
             # get traffic directors
-            self.traffic_directors_reponse,
+            self.traffic_directors_response,
             # get traffic director
             self.traffic_director_response,
             # get zone
@@ -809,7 +809,7 @@ class TestDynProviderGeo(TestCase):
         # both traffic director and regular, regular is ignored
         mock.side_effect = [
             # get traffic directors
-            self.traffic_directors_reponse,
+            self.traffic_directors_response,
             # get traffic director
             self.traffic_director_response,
             # get zone
@@ -859,7 +859,7 @@ class TestDynProviderGeo(TestCase):
         # busted traffic director
         mock.side_effect = [
             # get traffic directors
-            self.traffic_directors_reponse,
+            self.traffic_directors_response,
             # get traffic director
             busted_traffic_director_response,
             # get zone
@@ -939,7 +939,7 @@ class TestDynProviderGeo(TestCase):
             # create traffic director
             self.traffic_director_response,
             # get traffic directors
-            self.traffic_directors_reponse
+            self.traffic_directors_response
         ]
         provider._mod_geo_Create(None, Create(self.geo_record))
         # td now lives in cache
