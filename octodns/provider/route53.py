@@ -730,7 +730,7 @@ class Route53Provider(BaseProvider):
                               batch_rs_count)
                 # send the batch
                 self._really_apply(batch, zone_id)
-                # start a new batch with the lefovers
+                # start a new batch with the leftovers
                 batch = mods
                 batch_rs_count = mods_rs_count
 
