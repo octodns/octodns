@@ -361,7 +361,7 @@ class TestGoogleCloudProvider(TestCase):
 
         # test_zone gets fed the same records as zone does, except it's in
         # the format returned by google API, so after populate they should look
-        # excactly the same.
+        # exactly the same.
         self.assertEqual(test_zone.records, zone.records)
 
         test_zone2 = Zone('nonexistant.zone.', [])
