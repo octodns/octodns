@@ -401,7 +401,7 @@ class TestGoogleCloudProvider(TestCase):
         provider.gcloud_client.list_zones = Mock(
             return_value=DummyIterator([]))
 
-        self.assertIsNone(provider.gcloud_zones.get("nonexistent.xone"),
+        self.assertIsNone(provider.gcloud_zones.get("nonexistent.zone"),
                           msg="Check that nonexistent zones return None when"
                               "there's no create=True flag")
 
