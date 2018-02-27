@@ -394,7 +394,7 @@ class CloudflareProvider(BaseProvider):
         for record in self.zone_records(zone):
             name = zone.hostname_from_fqdn(record['name'])
             # Use the _record_for so that we include all of standard
-            # converstion logic
+            # conversion logic
             r = self._record_for(zone, name, record['type'], [record], True)
             if hostname == r.name and _type == r._type:
 

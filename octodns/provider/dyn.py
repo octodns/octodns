@@ -40,7 +40,7 @@ class _CachingDynZone(DynZone):
                 cls.log.debug('get:   fetched')
             except DynectGetError:
                 if not create:
-                    cls.log.debug("get:   does't exist")
+                    cls.log.debug("get:   doesn't exist")
                     return None
                 # this value shouldn't really matter, it's not tied to
                 # whois or anything
@@ -129,11 +129,11 @@ class DynProvider(BaseProvider):
     REGION_CODES = {
         'NA': 11,  # Continental North America
         'SA': 12,  # Continental South America
-        'EU': 13,  # Contentinal Europe
+        'EU': 13,  # Continental Europe
         'AF': 14,  # Continental Africa
-        'AS': 15,  # Contentinal Asia
-        'OC': 16,  # Contentinal Austrailia/Oceania
-        'AN': 17,  # Continental Antartica
+        'AS': 15,  # Continental Asia
+        'OC': 16,  # Continental Australia/Oceania
+        'AN': 17,  # Continental Antarctica
     }
 
     _sess_create_lock = Lock()
@@ -166,7 +166,7 @@ class DynProvider(BaseProvider):
         if DynectSession.get_session() is None:
             # We need to create a new session for this thread and DynectSession
             # creation is not thread-safe so we have to do the locking. If we
-            # don't and multiple sessions start creattion before the the first
+            # don't and multiple sessions start creation before the the first
             # has finished (long time b/c it makes http calls) the subsequent
             # creates will blow away DynectSession._instances, potentially
             # multiple times if there are multiple creates in flight. Only the
@@ -291,7 +291,7 @@ class DynProvider(BaseProvider):
                 try:
                     fqdn, _type = td.label.split(':', 1)
                 except ValueError as e:
-                    self.log.warn("Failed to load TraficDirector '%s': %s",
+                    self.log.warn("Failed to load TrafficDirector '%s': %s",
                                   td.label, e.message)
                     continue
                 tds[fqdn][_type] = td

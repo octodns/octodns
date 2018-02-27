@@ -599,7 +599,8 @@ class TestCloudflareProvider(TestCase):
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
 
-        # the two A records get merged into one CNAME record poining to the CDN
+        # the two A records get merged into one CNAME record pointing to
+        # the CDN.
         self.assertEquals(3, len(zone.records))
 
         record = list(zone.records)[0]
@@ -621,7 +622,7 @@ class TestCloudflareProvider(TestCase):
         self.assertEquals('a.unit.tests.cdn.cloudflare.net.', record.value)
 
         # CDN enabled records can't be updated, we don't know the real values
-        # never point a Cloudflare record to itsself.
+        # never point a Cloudflare record to itself.
         wanted = Zone('unit.tests.', [])
         wanted.add_record(Record.new(wanted, 'cname', {
             'ttl': 300,
@@ -676,7 +677,7 @@ class TestCloudflareProvider(TestCase):
         self.assertEquals('unit.tests.cdn.cloudflare.net.', record.value)
 
         # CDN enabled records can't be updated, we don't know the real values
-        # never point a Cloudflare record to itsself.
+        # never point a Cloudflare record to itself.
         wanted = Zone('unit.tests.', [])
         wanted.add_record(Record.new(wanted, '', {
             'ttl': 300,

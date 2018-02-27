@@ -37,10 +37,10 @@ class Zone(object):
         if not name[-1] == '.':
             raise Exception('Invalid zone name {}, missing ending dot'
                             .format(name))
-        # Force everyting to lowercase just to be safe
+        # Force everything to lowercase just to be safe
         self.name = unicode(name).lower() if name else name
         self.sub_zones = sub_zones
-        # We're grouping by node, it allows us to efficently search for
+        # We're grouping by node, it allows us to efficiently search for
         # duplicates and detect when CNAMEs co-exist with other records
         self._records = defaultdict(set)
         # optional leading . to match empty hostname

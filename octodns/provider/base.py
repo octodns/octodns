@@ -30,14 +30,14 @@ class BaseProvider(BaseSource):
     def _include_change(self, change):
         '''
         An opportunity for providers to filter out false positives due to
-        pecularities in their implementation. E.g. minimum TTLs.
+        peculiarities in their implementation. E.g. minimum TTLs.
         '''
         return True
 
     def _extra_changes(self, existing, changes):
         '''
         An opportunity for providers to add extra changes to the plan that are
-        necessary to update ancilary record data or configure the zone. E.g.
+        necessary to update ancillary record data or configure the zone. E.g.
         base NS records.
         '''
         return []

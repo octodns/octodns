@@ -491,7 +491,7 @@ class TestDynProviderGeo(TestCase):
         traffic_director_response = loads(fh.read())
 
     @property
-    def traffic_directors_reponse(self):
+    def traffic_directors_response(self):
         return {
             'data': [{
                 'active': 'Y',
@@ -607,7 +607,7 @@ class TestDynProviderGeo(TestCase):
         mock.side_effect = [{'data': []}]
         self.assertEquals({}, provider.traffic_directors)
 
-        # a supported td and an ingored one
+        # a supported td and an ignored one
         response = {
             'data': [{
                 'active': 'Y',
@@ -650,7 +650,7 @@ class TestDynProviderGeo(TestCase):
                           set(tds.keys()))
         self.assertEquals(['A'], tds['unit.tests.'].keys())
         self.assertEquals(['A'], tds['geo.unit.tests.'].keys())
-        provider.log.warn.assert_called_with("Failed to load TraficDirector "
+        provider.log.warn.assert_called_with("Failed to load TrafficDirector "
                                              "'%s': %s", 'something else',
                                              'need more than 1 value to '
                                              'unpack')
@@ -758,7 +758,7 @@ class TestDynProviderGeo(TestCase):
         # only traffic director
         mock.side_effect = [
             # get traffic directors
-            self.traffic_directors_reponse,
+            self.traffic_directors_response,
             # get traffic director
             self.traffic_director_response,
             # get zone
@@ -809,7 +809,7 @@ class TestDynProviderGeo(TestCase):
         # both traffic director and regular, regular is ignored
         mock.side_effect = [
             # get traffic directors
-            self.traffic_directors_reponse,
+            self.traffic_directors_response,
             # get traffic director
             self.traffic_director_response,
             # get zone
@@ -859,7 +859,7 @@ class TestDynProviderGeo(TestCase):
         # busted traffic director
         mock.side_effect = [
             # get traffic directors
-            self.traffic_directors_reponse,
+            self.traffic_directors_response,
             # get traffic director
             busted_traffic_director_response,
             # get zone
@@ -932,14 +932,14 @@ class TestDynProviderGeo(TestCase):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
-        # will be tested seperately
+        # will be tested separately
         provider._mod_rulesets = MagicMock()
 
         mock.side_effect = [
             # create traffic director
             self.traffic_director_response,
             # get traffic directors
-            self.traffic_directors_reponse
+            self.traffic_directors_response
         ]
         provider._mod_geo_Create(None, Create(self.geo_record))
         # td now lives in cache

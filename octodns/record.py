@@ -151,7 +151,7 @@ class Record(object):
 
     # NOTE: we're using __hash__ and __cmp__ methods that consider Records
     # equivalent if they have the same name & _type. Values are ignored. This
-    # is usful when computing diffs/changes.
+    # is useful when computing diffs/changes.
 
     def __hash__(self):
         return '{}:{}'.format(self.name, self._type).__hash__()
