@@ -932,7 +932,7 @@ class TestDynProviderGeo(TestCase):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
-        # will be tested seperately
+        # will be tested separately
         provider._mod_rulesets = MagicMock()
 
         mock.side_effect = [
