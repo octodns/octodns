@@ -263,7 +263,8 @@ class TestGoogleCloudProvider(TestCase):
         provider.apply(Plan(
             existing=[update_existing_r, delete_r],
             desired=desired,
-            changes=changes
+            changes=changes,
+            exists=True
         ))
 
         calls_mock = gcloud_zone_mock.changes.return_value
@@ -295,7 +296,8 @@ class TestGoogleCloudProvider(TestCase):
             provider.apply(Plan(
                 existing=[update_existing_r, delete_r],
                 desired=desired,
-                changes=changes
+                changes=changes,
+                exists=True
             ))
 
         unsupported_change = Mock()
@@ -357,15 +359,17 @@ class TestGoogleCloudProvider(TestCase):
                          "unit.tests.")
 
         test_zone = Zone('unit.tests.', [])
-        provider.populate(test_zone)
+        exists = provider.populate(test_zone)
+        self.assertTrue(exists)
 
         # test_zone gets fed the same records as zone does, except it's in
         # the format returned by google API, so after populate they should look
-        # excactly the same.
+        # exactly the same.
         self.assertEqual(test_zone.records, zone.records)
 
-        test_zone2 = Zone('nonexistant.zone.', [])
-        provider.populate(test_zone2, False, False)
+        test_zone2 = Zone('nonexistent.zone.', [])
+        exists = provider.populate(test_zone2, False, False)
+        self.assertFalse(exists)
 
         self.assertEqual(len(test_zone2.records), 0,
                          msg="Zone should not get records from wrong domain")
@@ -401,8 +405,8 @@ class TestGoogleCloudProvider(TestCase):
         provider.gcloud_client.list_zones = Mock(
             return_value=DummyIterator([]))
 
-        self.assertIsNone(provider.gcloud_zones.get("nonexistant.xone"),
-                          msg="Check that nonexistant zones return None when"
+        self.assertIsNone(provider.gcloud_zones.get("nonexistent.zone"),
+                          msg="Check that nonexistent zones return None when"
                               "there's no create=True flag")
 
     def test__get_rrsets(self):
@@ -423,7 +427,7 @@ class TestGoogleCloudProvider(TestCase):
         provider.gcloud_client.list_zones = Mock(
             return_value=DummyIterator([]))
 
-        mock_zone = provider._create_gcloud_zone("nonexistant.zone.mock")
+        mock_zone = provider._create_gcloud_zone("nonexistent.zone.mock")
 
         mock_zone.create.assert_called()
         provider.gcloud_client.zone.assert_called()
@@ -442,3 +446,13 @@ class TestGoogleCloudProvider(TestCase):
 
         self.assertRegexpMatches(mock_zone.name, '^[a-z][a-z0-9-]*[a-z0-9]$')
         self.assertEqual(len(mock_zone.name), 63)
+
+    def test_semicolon_fixup(self):
+        provider = self._get_provider()
+
+        self.assertEquals({
+            'values': ['abcd\\; ef\\;g', 'hij\\; klm\\;n']
+        }, provider._data_for_TXT(
+            DummyResourceRecordSet(
+                'unit.tests.', 'TXT', 0, ['abcd; ef;g', 'hij\\; klm\\;n'])
+        ))

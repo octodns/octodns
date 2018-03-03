@@ -60,7 +60,7 @@ better in the future :fingers_crossed:
 
 #### Miscellaneous
 
-* Use a 3rd party lib for nautrual sorting of keys, rather than my old
+* Use a 3rd party lib for natural sorting of keys, rather than my old
   implementation. Sorting can be disabled in the YamlProvider with
   `enforce_order: False`.
 * Semi-colon/escaping fixes and improvements.

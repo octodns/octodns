@@ -51,7 +51,7 @@ class MakeThreadFuture(object):
 
 class MainThreadExecutor(object):
     '''
-    Dummy executor that runs things on the main thread during the involcation
+    Dummy executor that runs things on the main thread during the invocation
     of submit, but still returns a future object with the result. This allows
     code to be written to handle async, even in the case where we don't want to
     use multiple threads/workers and would prefer that things flow as if
@@ -361,7 +361,7 @@ class Manager(object):
 
         plan = target.plan(zone)
         if plan is None:
-            plan = Plan(zone, zone, [])
+            plan = Plan(zone, zone, [], False)
         target.apply(plan)
 
     def validate_configs(self):

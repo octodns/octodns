@@ -160,7 +160,7 @@ class DnsimpleProvider(BaseProvider):
                     record['content'].split(' ', 5)
             except ValueError:
                 # their api will let you create invalid records, this
-                # essnetially handles that by ignoring them for values
+                # essentially handles that by ignoring them for values
                 # purposes. That will cause updates to happen to delete them if
                 # they shouldn't exist or update them if they're wrong
                 continue
@@ -272,8 +272,10 @@ class DnsimpleProvider(BaseProvider):
                                     source=self, lenient=lenient)
                 zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        exists = zone.name in self._zone_records
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _params_for_multiple(self, record):
         for value in record.values:

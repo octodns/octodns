@@ -8,7 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 from unittest import TestCase
 
 from mock import patch, call
-from ovh import APIError
+from ovh import APIError, ResourceNotFoundError, InvalidCredential
 
 from octodns.provider.ovh import OvhProvider
 from octodns.record import Record
@@ -199,14 +199,14 @@ class TestOvhProvider(TestCase):
     api_record.append({
         'fieldType': 'SPF',
         'ttl': 1000,
-        'target': 'v=spf1 include:unit.texts.rerirect ~all',
+        'target': 'v=spf1 include:unit.texts.redirect ~all',
         'subDomain': '',
         'id': 13
     })
     expected.add(Record.new(zone, '', {
         'ttl': 1000,
         'type': 'SPF',
-        'value': 'v=spf1 include:unit.texts.rerirect ~all'
+        'value': 'v=spf1 include:unit.texts.redirect ~all'
     }))
 
     # SSHFP
@@ -307,18 +307,30 @@ class TestOvhProvider(TestCase):
 
         with patch.object(provider._client, 'get') as get_mock:
             zone = Zone('unit.tests.', [])
-            get_mock.side_effect = APIError('boom')
+            get_mock.side_effect = ResourceNotFoundError('boom')
             with self.assertRaises(APIError) as ctx:
                 provider.populate(zone)
             self.assertEquals(get_mock.side_effect, ctx.exception)
 
-        with patch.object(provider._client, 'get') as get_mock:
+            get_mock.side_effect = InvalidCredential('boom')
+            with self.assertRaises(APIError) as ctx:
+                provider.populate(zone)
+            self.assertEquals(get_mock.side_effect, ctx.exception)
+
+            zone = Zone('unit.tests.', [])
+            get_mock.side_effect = ResourceNotFoundError('This service does '
+                                                         'not exist')
+            exists = provider.populate(zone)
+            self.assertEquals(set(), zone.records)
+            self.assertFalse(exists)
+
             zone = Zone('unit.tests.', [])
             get_returns = [[record['id'] for record in self.api_record]]
             get_returns += self.api_record
             get_mock.side_effect = get_returns
-            provider.populate(zone)
+            exists = provider.populate(zone)
             self.assertEquals(self.expected, zone.records)
+            self.assertTrue(exists)
 
     @patch('ovh.Client')
     def test_is_valid_dkim(self, client_mock):
@@ -404,7 +416,7 @@ class TestOvhProvider(TestCase):
                     call(u'/domain/zone/unit.tests/record', fieldType=u'SPF',
                          subDomain=u'', ttl=1000,
                          target=u'v=spf1 include:unit.texts.'
-                                u'rerirect ~all',
+                                u'redirect ~all',
                          ),
                     call(u'/domain/zone/unit.tests/record', fieldType=u'A',
                          subDomain='sub', target=u'1.2.3.4', ttl=200),

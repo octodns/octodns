@@ -228,9 +228,11 @@ class CloudflareProvider(BaseProvider):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
 
+        exists = False
         before = len(zone.records)
         records = self.zone_records(zone)
         if records:
+            exists = True
             values = defaultdict(lambda: defaultdict(list))
             for record in records:
                 name = zone.hostname_from_fqdn(record['name'])
@@ -253,8 +255,9 @@ class CloudflareProvider(BaseProvider):
 
                     zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _include_change(self, change):
         if isinstance(change, Update):
@@ -394,7 +397,7 @@ class CloudflareProvider(BaseProvider):
         for record in self.zone_records(zone):
             name = zone.hostname_from_fqdn(record['name'])
             # Use the _record_for so that we include all of standard
-            # converstion logic
+            # conversion logic
             r = self._record_for(zone, name, record['type'], [record], True)
             if hostname == r.name and _type == r._type:
 

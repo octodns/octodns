@@ -430,7 +430,7 @@ class TestRecord(TestCase):
         self.assertEqual(change.new, other)
 
         # full sorting
-        # equivilent
+        # equivalent
         b_naptr_value = b.values[0]
         self.assertEquals(0, b_naptr_value.__cmp__(b_naptr_value))
         # by order
@@ -710,7 +710,7 @@ class TestRecord(TestCase):
             Record.new(self.zone, 'unknown', {})
         self.assertTrue('missing type' in ctx.exception.message)
 
-        # Unkown type
+        # Unknown type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {
                 'type': 'XXX',
