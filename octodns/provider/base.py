@@ -46,7 +46,12 @@ class BaseProvider(BaseSource):
         self.log.info('plan: desired=%s', desired.name)
 
         existing = Zone(desired.name, desired.sub_zones)
-        self.populate(existing, target=True, lenient=True)
+        exists = self.populate(existing, target=True, lenient=True)
+        if exists is None:
+            # If your code gets this warning see Source.populate for more
+            # information
+            self.log.warn('Provider %s used in target mode did not return '
+                          'exists', self.id)
 
         # compute the changes at the zone/record level
         changes = existing.changes(desired, self)
@@ -66,7 +71,7 @@ class BaseProvider(BaseSource):
             changes += extra
 
         if changes:
-            plan = Plan(existing, desired, changes,
+            plan = Plan(existing, desired, changes, exists,
                         self.update_pcent_threshold,
                         self.delete_pcent_threshold)
             self.log.info('plan:   %s', plan)

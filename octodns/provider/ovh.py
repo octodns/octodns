@@ -11,6 +11,7 @@ import logging
 from collections import defaultdict
 
 import ovh
+from ovh import ResourceNotFoundError
 
 from octodns.record import Record
 from .base import BaseProvider
@@ -33,6 +34,7 @@ class OvhProvider(BaseProvider):
     """
 
     SUPPORTS_GEO = False
+    ZONE_NOT_FOUND_MESSAGE = 'This service does not exist'
 
     # This variable is also used in populate method to filter which OVH record
     # types are supported by octodns
@@ -57,7 +59,14 @@ class OvhProvider(BaseProvider):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
         zone_name = zone.name[:-1]
-        records = self.get_records(zone_name=zone_name)
+        try:
+            records = self.get_records(zone_name=zone_name)
+            exists = True
+        except ResourceNotFoundError as e:
+            if e.message != self.ZONE_NOT_FOUND_MESSAGE:
+                raise
+            exists = False
+            records = []
 
         values = defaultdict(lambda: defaultdict(list))
         for record in records:
@@ -75,8 +84,9 @@ class OvhProvider(BaseProvider):
                                     source=self, lenient=lenient)
                 zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _apply(self, plan):
         desired = plan.desired

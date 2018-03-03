@@ -196,9 +196,10 @@ class TestNs1Provider(TestCase):
         load_mock.side_effect = \
             ResourceException('server error: zone not found')
         zone = Zone('unit.tests.', [])
-        provider.populate(zone)
+        exists = provider.populate(zone)
         self.assertEquals(set(), zone.records)
         self.assertEquals(('unit.tests',), load_mock.call_args[0])
+        self.assertFalse(exists)
 
         # Existing zone w/o records
         load_mock.reset_mock()
@@ -269,6 +270,7 @@ class TestNs1Provider(TestCase):
         # everything except the root NS
         expected_n = len(self.expected) - 1
         self.assertEquals(expected_n, len(plan.changes))
+        self.assertTrue(plan.exists)
 
         # Fails, general error
         load_mock.reset_mock()

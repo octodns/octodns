@@ -263,7 +263,8 @@ class TestGoogleCloudProvider(TestCase):
         provider.apply(Plan(
             existing=[update_existing_r, delete_r],
             desired=desired,
-            changes=changes
+            changes=changes,
+            exists=True
         ))
 
         calls_mock = gcloud_zone_mock.changes.return_value
@@ -295,7 +296,8 @@ class TestGoogleCloudProvider(TestCase):
             provider.apply(Plan(
                 existing=[update_existing_r, delete_r],
                 desired=desired,
-                changes=changes
+                changes=changes,
+                exists=True
             ))
 
         unsupported_change = Mock()
@@ -357,7 +359,8 @@ class TestGoogleCloudProvider(TestCase):
                          "unit.tests.")
 
         test_zone = Zone('unit.tests.', [])
-        provider.populate(test_zone)
+        exists = provider.populate(test_zone)
+        self.assertTrue(exists)
 
         # test_zone gets fed the same records as zone does, except it's in
         # the format returned by google API, so after populate they should look
@@ -365,7 +368,8 @@ class TestGoogleCloudProvider(TestCase):
         self.assertEqual(test_zone.records, zone.records)
 
         test_zone2 = Zone('nonexistent.zone.', [])
-        provider.populate(test_zone2, False, False)
+        exists = provider.populate(test_zone2, False, False)
+        self.assertFalse(exists)
 
         self.assertEqual(len(test_zone2.records), 0,
                          msg="Zone should not get records from wrong domain")

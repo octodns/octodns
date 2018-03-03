@@ -166,6 +166,7 @@ class TestCloudflareProvider(TestCase):
         plan = provider.plan(self.expected)
         self.assertEquals(12, len(plan.changes))
         self.assertEquals(12, provider.apply(plan))
+        self.assertFalse(plan.exists)
 
         provider._request.assert_has_calls([
             # created the domain
@@ -285,6 +286,7 @@ class TestCloudflareProvider(TestCase):
         # only see the delete & ttl update, below min-ttl is filtered out
         self.assertEquals(2, len(plan.changes))
         self.assertEquals(2, provider.apply(plan))
+        self.assertTrue(plan.exists)
         # recreate for update, and deletes for the 2 parts of the other
         provider._request.assert_has_calls([
             call('PUT', '/zones/ff12ab34cd5611334422ab3322997650/dns_records/'
@@ -366,7 +368,7 @@ class TestCloudflareProvider(TestCase):
             'values': ['2.2.2.2', '3.3.3.3', '4.4.4.4'],
         })
         change = Update(existing, new)
-        plan = Plan(zone, zone, [change])
+        plan = Plan(zone, zone, [change], True)
         provider._apply(plan)
 
         provider._request.assert_has_calls([
@@ -451,7 +453,7 @@ class TestCloudflareProvider(TestCase):
             'value': 'ns2.foo.bar.',
         })
         change = Update(existing, new)
-        plan = Plan(zone, zone, [change])
+        plan = Plan(zone, zone, [change], True)
         provider._apply(plan)
 
         provider._request.assert_has_calls([

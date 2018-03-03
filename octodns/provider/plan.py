@@ -21,12 +21,13 @@ class Plan(object):
     MAX_SAFE_DELETE_PCENT = .3
     MIN_EXISTING_RECORDS = 10
 
-    def __init__(self, existing, desired, changes,
+    def __init__(self, existing, desired, changes, exists,
                  update_pcent_threshold=MAX_SAFE_UPDATE_PCENT,
                  delete_pcent_threshold=MAX_SAFE_DELETE_PCENT):
         self.existing = existing
         self.desired = desired
         self.changes = changes
+        self.exists = exists
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
 
@@ -123,6 +124,12 @@ class PlanLogger(_PlanOutput):
                 buf.write(' (')
                 buf.write(target)
                 buf.write(')\n*   ')
+
+                if plan.exists is False:
+                    buf.write('Create ')
+                    buf.write(str(plan.desired))
+                    buf.write('\n*   ')
+
                 for change in plan.changes:
                     buf.write(change.__repr__(leader='* '))
                     buf.write('\n*   ')
@@ -168,6 +175,11 @@ class PlanMarkdown(_PlanOutput):
                 fh.write('| Operation | Name | Type | TTL | Value | Source |\n'
                          '|--|--|--|--|--|--|\n')
 
+                if plan.exists is False:
+                    fh.write('| Create | ')
+                    fh.write(str(plan.desired))
+                    fh.write(' | | | | |\n')
+
                 for change in plan.changes:
                     existing = change.existing
                     new = change.new
@@ -193,7 +205,8 @@ class PlanMarkdown(_PlanOutput):
                         fh.write(' | ')
                         fh.write(_value_stringifier(new, '; '))
                         fh.write(' | ')
-                        fh.write(new.source.id)
+                        if new.source:
+                            fh.write(new.source.id)
                         fh.write(' |\n')
 
                 fh.write('\nSummary: ')
@@ -229,6 +242,11 @@ class PlanHtml(_PlanOutput):
   </tr>
 ''')
 
+                if plan.exists is False:
+                    fh.write('  <tr>\n    <td>Create</td>\n    <td colspan=5>')
+                    fh.write(str(plan.desired))
+                    fh.write('</td>\n  </tr>\n')
+
                 for change in plan.changes:
                     existing = change.existing
                     new = change.new
@@ -256,7 +274,8 @@ class PlanHtml(_PlanOutput):
                         fh.write('</td>\n    <td>')
                         fh.write(_value_stringifier(new, '<br/>'))
                         fh.write('</td>\n    <td>')
-                        fh.write(new.source.id)
+                        if new.source:
+                            fh.write(new.source.id)
                         fh.write('</td>\n  </tr>\n')
 
                 fh.write('  <tr>\n    <td colspan=6>Summary: ')

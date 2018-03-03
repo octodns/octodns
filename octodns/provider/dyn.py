@@ -353,6 +353,7 @@ class DynProvider(BaseProvider):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
 
+        exists = False
         before = len(zone.records)
 
         self._check_dyn_sess()
@@ -360,10 +361,12 @@ class DynProvider(BaseProvider):
         td_records = set()
         if self.traffic_directors_enabled:
             td_records = self._populate_traffic_directors(zone)
+            exists = True
 
         dyn_zone = _CachingDynZone.get(zone.name[:-1])
 
         if dyn_zone:
+            exists = True
             values = defaultdict(lambda: defaultdict(list))
             for _type, records in dyn_zone.get_all_records().items():
                 if _type == 'soa_records':
@@ -382,8 +385,9 @@ class DynProvider(BaseProvider):
                     if record not in td_records:
                         zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _kwargs_for_A(self, record):
         return [{
