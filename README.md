@@ -150,8 +150,9 @@ The above command pulled the existing data out of Route53 and placed the results
 | Provider | Record Support | GeoDNS Support | Notes |
 |--|--|--|--|
 | [AzureProvider](/octodns/provider/azuredns.py) | A, AAAA, CNAME, MX, NS, PTR, SRV, TXT | No | |
-| [CloudflareProvider](/octodns/provider/cloudflare.py) | A, AAAA, ALIAS, CAA, CNAME, MX, NS, SPF, TXT | No | CAA tags restricted |
+| [CloudflareProvider](/octodns/provider/cloudflare.py) | A, AAAA, ALIAS, CAA, CNAME, MX, NS, SPF, SRV, TXT | No | CAA tags restricted |
 | [DigitalOceanProvider](/octodns/provider/digitalocean.py) | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
+| [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
 | [DnsimpleProvider](/octodns/provider/dnsimple.py) | All | No | CAA tags restricted |
 | [DynProvider](/octodns/provider/dyn.py) | All | Yes | |
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
@@ -168,6 +169,7 @@ The above command pulled the existing data out of Route53 and placed the results
 * ALIAS support varies a lot from provider to provider care should be taken to verify that your needs are met in detail.
    * Dyn's UI doesn't allow editing or view of TTL, but the API accepts and stores the value provided, this value does not appear to be used when served
    * Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
+* octoDNS itself supports non-ASCII character sets, but in testing Cloudflare is the only provider where that is currently functional end-to-end. Others have failures either in the client libraries or API calls
 
 ## Custom Sources and Providers
 

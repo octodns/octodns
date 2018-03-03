@@ -100,7 +100,7 @@ class TestPowerDnsProvider(TestCase):
         # No existing records -> creates for every record in expected
         with requests_mock() as mock:
             mock.get(ANY, status_code=200, text=EMPTY_TEXT)
-            # post 201, is reponse to the create with data
+            # post 201, is response to the create with data
             mock.patch(ANY, status_code=201, text=assert_rrsets_callback)
 
             plan = provider.plan(expected)
@@ -119,7 +119,7 @@ class TestPowerDnsProvider(TestCase):
             mock.get(ANY, status_code=422, text='')
             # patch 422's, unknown zone
             mock.patch(ANY, status_code=422, text=dumps(not_found))
-            # post 201, is reponse to the create with data
+            # post 201, is response to the create with data
             mock.post(ANY, status_code=201, text=assert_rrsets_callback)
 
             plan = provider.plan(expected)

@@ -331,9 +331,9 @@ class TestRoute53Provider(TestCase):
         stubber.assert_no_pending_responses()
 
         # Populate a zone that doesn't exist
-        noexist = Zone('does.not.exist.', [])
-        provider.populate(noexist)
-        self.assertEquals(set(), noexist.records)
+        nonexistent = Zone('does.not.exist.', [])
+        provider.populate(nonexistent)
+        self.assertEquals(set(), nonexistent.records)
 
     def test_sync(self):
         provider, stubber = self._get_stubbed_provider()

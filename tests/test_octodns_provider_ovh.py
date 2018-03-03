@@ -199,14 +199,14 @@ class TestOvhProvider(TestCase):
     api_record.append({
         'fieldType': 'SPF',
         'ttl': 1000,
-        'target': 'v=spf1 include:unit.texts.rerirect ~all',
+        'target': 'v=spf1 include:unit.texts.redirect ~all',
         'subDomain': '',
         'id': 13
     })
     expected.add(Record.new(zone, '', {
         'ttl': 1000,
         'type': 'SPF',
-        'value': 'v=spf1 include:unit.texts.rerirect ~all'
+        'value': 'v=spf1 include:unit.texts.redirect ~all'
     }))
 
     # SSHFP
@@ -390,11 +390,11 @@ class TestOvhProvider(TestCase):
                     call(u'/domain/zone/unit.tests/record', fieldType=u'A',
                          subDomain=u'', target=u'1.2.3.4', ttl=100),
                     call(u'/domain/zone/unit.tests/record', fieldType=u'SRV',
-                         subDomain=u'10 20 30 foo-1.unit.tests.',
-                         target='_srv._tcp', ttl=800),
+                         subDomain='_srv._tcp',
+                         target=u'10 20 30 foo-1.unit.tests.', ttl=800),
                     call(u'/domain/zone/unit.tests/record', fieldType=u'SRV',
-                         subDomain=u'40 50 60 foo-2.unit.tests.',
-                         target='_srv._tcp', ttl=800),
+                         subDomain='_srv._tcp',
+                         target=u'40 50 60 foo-2.unit.tests.', ttl=800),
                     call(u'/domain/zone/unit.tests/record', fieldType=u'PTR',
                          subDomain='4', target=u'unit.tests.', ttl=900),
                     call(u'/domain/zone/unit.tests/record', fieldType=u'NS',
@@ -402,8 +402,8 @@ class TestOvhProvider(TestCase):
                     call(u'/domain/zone/unit.tests/record', fieldType=u'NS',
                          subDomain='www3', target=u'ns4.unit.tests.', ttl=700),
                     call(u'/domain/zone/unit.tests/record',
-                         fieldType=u'SSHFP', target=u'', ttl=1100,
-                         subDomain=u'1 1 bf6b6825d2977c511a475bbefb88a'
+                         fieldType=u'SSHFP', subDomain=u'', ttl=1100,
+                         target=u'1 1 bf6b6825d2977c511a475bbefb88a'
                                    u'ad54'
                                    u'a92ac73',
                          ),
@@ -416,7 +416,7 @@ class TestOvhProvider(TestCase):
                     call(u'/domain/zone/unit.tests/record', fieldType=u'SPF',
                          subDomain=u'', ttl=1000,
                          target=u'v=spf1 include:unit.texts.'
-                                u'rerirect ~all',
+                                u'redirect ~all',
                          ),
                     call(u'/domain/zone/unit.tests/record', fieldType=u'A',
                          subDomain='sub', target=u'1.2.3.4', ttl=200),

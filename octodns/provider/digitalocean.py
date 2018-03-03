@@ -56,7 +56,7 @@ class DigitalOceanClient(object):
         self._request('POST', '/domains', data={'name': name,
                                                 'ip_address': '192.0.2.1'})
 
-        # After the zone is created, immeadiately delete the record
+        # After the zone is created, immediately delete the record
         records = self.records(name)
         for record in records:
             if record['name'] == '' and record['type'] == 'A':

@@ -11,4 +11,4 @@ git tag -s v$VERSION -m "Release $VERSION"
 git push origin v$VERSION
 echo "Tagged and pushed v$VERSION"
 python setup.py sdist upload
-echo "Updloaded $VERSION"
+echo "Uploaded $VERSION"

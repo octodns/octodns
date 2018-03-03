@@ -160,7 +160,7 @@ class DnsimpleProvider(BaseProvider):
                     record['content'].split(' ', 5)
             except ValueError:
                 # their api will let you create invalid records, this
-                # essnetially handles that by ignoring them for values
+                # essentially handles that by ignoring them for values
                 # purposes. That will cause updates to happen to delete them if
                 # they shouldn't exist or update them if they're wrong
                 continue

@@ -75,9 +75,9 @@ class Ns1Provider(BaseProvider):
             else:
                 values.extend(answer['answer'])
                 codes.append([])
-        values = [str(x) for x in values]
+        values = [unicode(x) for x in values]
         geo = OrderedDict(
-            {str(k): [str(x) for x in v] for k, v in geo.items()}
+            {unicode(k): [unicode(x) for x in v] for k, v in geo.items()}
         )
         data['values'] = values
         data['geo'] = geo
@@ -236,11 +236,10 @@ class Ns1Provider(BaseProvider):
                         },
                     )
             params['filters'] = []
-            if len(params['answers']) > 1:
+            if has_country:
                 params['filters'].append(
                     {"filter": "shuffle", "config": {}}
                 )
-            if has_country:
                 params['filters'].append(
                     {"filter": "geotarget_country", "config": {}}
                 )

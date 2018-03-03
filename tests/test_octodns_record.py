@@ -430,7 +430,7 @@ class TestRecord(TestCase):
         self.assertEqual(change.new, other)
 
         # full sorting
-        # equivilent
+        # equivalent
         b_naptr_value = b.values[0]
         self.assertEquals(0, b_naptr_value.__cmp__(b_naptr_value))
         # by order
@@ -710,7 +710,7 @@ class TestRecord(TestCase):
             Record.new(self.zone, 'unknown', {})
         self.assertTrue('missing type' in ctx.exception.message)
 
-        # Unkown type
+        # Unknown type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {
                 'type': 'XXX',
@@ -1360,7 +1360,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': {
                     'algorithm': 'nope',
-                    'fingerprint_type': 1,
+                    'fingerprint_type': 2,
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }
             })
@@ -1386,7 +1386,7 @@ class TestRecordValidation(TestCase):
                 'type': 'SSHFP',
                 'ttl': 600,
                 'value': {
-                    'algorithm': 1,
+                    'algorithm': 2,
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }
             })
@@ -1398,7 +1398,7 @@ class TestRecordValidation(TestCase):
                 'type': 'SSHFP',
                 'ttl': 600,
                 'value': {
-                    'algorithm': 1,
+                    'algorithm': 3,
                     'fingerprint_type': 'yeeah',
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }

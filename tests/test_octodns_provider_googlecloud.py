@@ -364,10 +364,10 @@ class TestGoogleCloudProvider(TestCase):
 
         # test_zone gets fed the same records as zone does, except it's in
         # the format returned by google API, so after populate they should look
-        # excactly the same.
+        # exactly the same.
         self.assertEqual(test_zone.records, zone.records)
 
-        test_zone2 = Zone('nonexistant.zone.', [])
+        test_zone2 = Zone('nonexistent.zone.', [])
         exists = provider.populate(test_zone2, False, False)
         self.assertFalse(exists)
 
@@ -405,8 +405,8 @@ class TestGoogleCloudProvider(TestCase):
         provider.gcloud_client.list_zones = Mock(
             return_value=DummyIterator([]))
 
-        self.assertIsNone(provider.gcloud_zones.get("nonexistant.xone"),
-                          msg="Check that nonexistant zones return None when"
+        self.assertIsNone(provider.gcloud_zones.get("nonexistent.zone"),
+                          msg="Check that nonexistent zones return None when"
                               "there's no create=True flag")
 
     def test__get_rrsets(self):
@@ -427,7 +427,22 @@ class TestGoogleCloudProvider(TestCase):
         provider.gcloud_client.list_zones = Mock(
             return_value=DummyIterator([]))
 
-        mock_zone = provider._create_gcloud_zone("nonexistant.zone.mock")
+        mock_zone = provider._create_gcloud_zone("nonexistent.zone.mock")
 
         mock_zone.create.assert_called()
         provider.gcloud_client.zone.assert_called()
+
+    def test__create_zone_ip6_arpa(self):
+        def _create_dummy_zone(name, dns_name):
+            return DummyGoogleCloudZone(name=name, dns_name=dns_name)
+
+        provider = self._get_provider()
+
+        provider.gcloud_client = Mock()
+        provider.gcloud_client.zone = Mock(side_effect=_create_dummy_zone)
+
+        mock_zone = \
+            provider._create_gcloud_zone('0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa')
+
+        self.assertRegexpMatches(mock_zone.name, '^[a-z][a-z0-9-]*[a-z0-9]$')
+        self.assertEqual(len(mock_zone.name), 63)
