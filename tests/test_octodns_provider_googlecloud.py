@@ -446,3 +446,13 @@ class TestGoogleCloudProvider(TestCase):
 
         self.assertRegexpMatches(mock_zone.name, '^[a-z][a-z0-9-]*[a-z0-9]$')
         self.assertEqual(len(mock_zone.name), 63)
+
+    def test_semicolon_fixup(self):
+        provider = self._get_provider()
+
+        self.assertEquals({
+            'values': ['abcd\\; ef\\;g', 'hij\\; klm\\;n']
+        }, provider._data_for_TXT(
+            DummyResourceRecordSet(
+                'unit.tests.', 'TXT', 0, ['abcd; ef;g', 'hij\\; klm\\;n'])
+        ))
