@@ -204,11 +204,14 @@ class GoogleCloudProvider(BaseProvider):
 
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
+
+        exists = False
         before = len(zone.records)
 
         gcloud_zone = self.gcloud_zones.get(zone.name)
 
         if gcloud_zone:
+            exists = True
             for gcloud_record in self._get_gcloud_records(gcloud_zone):
                 if gcloud_record.record_type.upper() not in self.SUPPORTS:
                     continue
@@ -229,7 +232,9 @@ class GoogleCloudProvider(BaseProvider):
                 record = Record.new(zone, record_name, data, source=self)
                 zone.add_record(record)
 
-        self.log.info('populate: found %s records', len(zone.records) - before)
+        self.log.info('populate: found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _data_for_A(self, gcloud_record):
         return {

@@ -75,9 +75,9 @@ class Ns1Provider(BaseProvider):
             else:
                 values.extend(answer['answer'])
                 codes.append([])
-        values = [str(x) for x in values]
+        values = [unicode(x) for x in values]
         geo = OrderedDict(
-            {str(k): [str(x) for x in v] for k, v in geo.items()}
+            {unicode(k): [unicode(x) for x in v] for k, v in geo.items()}
         )
         data['values'] = values
         data['geo'] = geo
@@ -190,11 +190,13 @@ class Ns1Provider(BaseProvider):
             nsone_zone = self._client.loadZone(zone.name[:-1])
             records = nsone_zone.data['records']
             geo_records = nsone_zone.search(has_geo=True)
+            exists = True
         except ResourceException as e:
             if e.message != self.ZONE_NOT_FOUND_MESSAGE:
                 raise
             records = []
             geo_records = []
+            exists = False
 
         before = len(zone.records)
         # geo information isn't returned from the main endpoint, so we need
@@ -208,8 +210,9 @@ class Ns1Provider(BaseProvider):
                                 source=self, lenient=lenient)
             zone_hash[(_type, name)] = record
         [zone.add_record(r) for r in zone_hash.values()]
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _params_for_A(self, record):
         params = {'answers': record.values, 'ttl': record.ttl}

@@ -17,7 +17,8 @@ class BaseProvider(BaseSource):
                  delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT):
         super(BaseProvider, self).__init__(id)
         self.log.debug('__init__: id=%s, apply_disabled=%s, '
-                       'update_pcent_threshold=%d, delete_pcent_threshold=%d',
+                       'update_pcent_threshold=%.2f'
+                       'delete_pcent_threshold=%.2f',
                        id,
                        apply_disabled,
                        update_pcent_threshold,
@@ -29,14 +30,14 @@ class BaseProvider(BaseSource):
     def _include_change(self, change):
         '''
         An opportunity for providers to filter out false positives due to
-        pecularities in their implementation. E.g. minimum TTLs.
+        peculiarities in their implementation. E.g. minimum TTLs.
         '''
         return True
 
     def _extra_changes(self, existing, changes):
         '''
         An opportunity for providers to add extra changes to the plan that are
-        necessary to update ancilary record data or configure the zone. E.g.
+        necessary to update ancillary record data or configure the zone. E.g.
         base NS records.
         '''
         return []
@@ -45,7 +46,12 @@ class BaseProvider(BaseSource):
         self.log.info('plan: desired=%s', desired.name)
 
         existing = Zone(desired.name, desired.sub_zones)
-        self.populate(existing, target=True, lenient=True)
+        exists = self.populate(existing, target=True, lenient=True)
+        if exists is None:
+            # If your code gets this warning see Source.populate for more
+            # information
+            self.log.warn('Provider %s used in target mode did not return '
+                          'exists', self.id)
 
         # compute the changes at the zone/record level
         changes = existing.changes(desired, self)
@@ -61,11 +67,11 @@ class BaseProvider(BaseSource):
         extra = self._extra_changes(existing, changes)
         if extra:
             self.log.info('plan:   extra changes\n  %s', '\n  '
-                          .join([str(c) for c in extra]))
+                          .join([unicode(c) for c in extra]))
             changes += extra
 
         if changes:
-            plan = Plan(existing, desired, changes,
+            plan = Plan(existing, desired, changes, exists,
                         self.update_pcent_threshold,
                         self.delete_pcent_threshold)
             self.log.info('plan:   %s', plan)

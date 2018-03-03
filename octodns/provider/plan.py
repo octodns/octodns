@@ -21,12 +21,13 @@ class Plan(object):
     MAX_SAFE_DELETE_PCENT = .3
     MIN_EXISTING_RECORDS = 10
 
-    def __init__(self, existing, desired, changes,
+    def __init__(self, existing, desired, changes, exists,
                  update_pcent_threshold=MAX_SAFE_UPDATE_PCENT,
                  delete_pcent_threshold=MAX_SAFE_DELETE_PCENT):
         self.existing = existing
         self.desired = desired
         self.changes = changes
+        self.exists = exists
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
 
@@ -60,17 +61,17 @@ class Plan(object):
             delete_pcent = self.change_counts['Delete'] / existing_record_count
 
             if update_pcent > self.update_pcent_threshold:
-                raise UnsafePlan('Too many updates, {} is over {} percent'
+                raise UnsafePlan('Too many updates, {:.2f} is over {:.2f} %'
                                  '({}/{})'.format(
-                                     update_pcent,
-                                     self.MAX_SAFE_UPDATE_PCENT * 100,
+                                     update_pcent * 100,
+                                     self.update_pcent_threshold * 100,
                                      self.change_counts['Update'],
                                      existing_record_count))
             if delete_pcent > self.delete_pcent_threshold:
-                raise UnsafePlan('Too many deletes, {} is over {} percent'
+                raise UnsafePlan('Too many deletes, {:.2f} is over {:.2f} %'
                                  '({}/{})'.format(
-                                     delete_pcent,
-                                     self.MAX_SAFE_DELETE_PCENT * 100,
+                                     delete_pcent * 100,
+                                     self.delete_pcent_threshold * 100,
                                      self.change_counts['Delete'],
                                      existing_record_count))
 
@@ -123,6 +124,12 @@ class PlanLogger(_PlanOutput):
                 buf.write(' (')
                 buf.write(target)
                 buf.write(')\n*   ')
+
+                if plan.exists is False:
+                    buf.write('Create ')
+                    buf.write(str(plan.desired))
+                    buf.write('\n*   ')
+
                 for change in plan.changes:
                     buf.write(change.__repr__(leader='* '))
                     buf.write('\n*   ')
@@ -140,11 +147,11 @@ class PlanLogger(_PlanOutput):
 
 def _value_stringifier(record, sep):
     try:
-        values = [str(v) for v in record.values]
+        values = [unicode(v) for v in record.values]
     except AttributeError:
         values = [record.value]
     for code, gv in sorted(getattr(record, 'geo', {}).items()):
-        vs = ', '.join([str(v) for v in gv.values])
+        vs = ', '.join([unicode(v) for v in gv.values])
         values.append('{}: {}'.format(code, vs))
     return sep.join(values)
 
@@ -168,6 +175,11 @@ class PlanMarkdown(_PlanOutput):
                 fh.write('| Operation | Name | Type | TTL | Value | Source |\n'
                          '|--|--|--|--|--|--|\n')
 
+                if plan.exists is False:
+                    fh.write('| Create | ')
+                    fh.write(str(plan.desired))
+                    fh.write(' | | | | |\n')
+
                 for change in plan.changes:
                     existing = change.existing
                     new = change.new
@@ -181,7 +193,7 @@ class PlanMarkdown(_PlanOutput):
                     fh.write(' | ')
                     # TTL
                     if existing:
-                        fh.write(str(existing.ttl))
+                        fh.write(unicode(existing.ttl))
                         fh.write(' | ')
                         fh.write(_value_stringifier(existing, '; '))
                         fh.write(' | |\n')
@@ -189,15 +201,16 @@ class PlanMarkdown(_PlanOutput):
                             fh.write('| | | | ')
 
                     if new:
-                        fh.write(str(new.ttl))
+                        fh.write(unicode(new.ttl))
                         fh.write(' | ')
                         fh.write(_value_stringifier(new, '; '))
                         fh.write(' | ')
-                        fh.write(new.source.id)
+                        if new.source:
+                            fh.write(new.source.id)
                         fh.write(' |\n')
 
                 fh.write('\nSummary: ')
-                fh.write(str(plan))
+                fh.write(unicode(plan))
                 fh.write('\n\n')
         else:
             fh.write('## No changes were planned\n')
@@ -229,6 +242,11 @@ class PlanHtml(_PlanOutput):
   </tr>
 ''')
 
+                if plan.exists is False:
+                    fh.write('  <tr>\n    <td>Create</td>\n    <td colspan=5>')
+                    fh.write(str(plan.desired))
+                    fh.write('</td>\n  </tr>\n')
+
                 for change in plan.changes:
                     existing = change.existing
                     new = change.new
@@ -243,7 +261,7 @@ class PlanHtml(_PlanOutput):
                     # TTL
                     if existing:
                         fh.write('    <td>')
-                        fh.write(str(existing.ttl))
+                        fh.write(unicode(existing.ttl))
                         fh.write('</td>\n    <td>')
                         fh.write(_value_stringifier(existing, '<br/>'))
                         fh.write('</td>\n    <td></td>\n  </tr>\n')
@@ -252,15 +270,16 @@ class PlanHtml(_PlanOutput):
 
                     if new:
                         fh.write('    <td>')
-                        fh.write(str(new.ttl))
+                        fh.write(unicode(new.ttl))
                         fh.write('</td>\n    <td>')
                         fh.write(_value_stringifier(new, '<br/>'))
                         fh.write('</td>\n    <td>')
-                        fh.write(new.source.id)
+                        if new.source:
+                            fh.write(new.source.id)
                         fh.write('</td>\n  </tr>\n')
 
                 fh.write('  <tr>\n    <td colspan=6>Summary: ')
-                fh.write(str(plan))
+                fh.write(unicode(plan))
                 fh.write('</td>\n  </tr>\n</table>\n')
         else:
             fh.write('<b>No changes were planned</b>')

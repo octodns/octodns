@@ -210,13 +210,29 @@ class CloudflareProvider(BaseProvider):
 
         return self._zone_records[zone.name]
 
+    def _record_for(self, zone, name, _type, records, lenient):
+        # rewrite Cloudflare proxied records
+        if self.cdn and records[0]['proxied']:
+            data = self._data_for_cdn(name, _type, records)
+        else:
+            # Cloudflare supports ALIAS semantics with root CNAMEs
+            if _type == 'CNAME' and name == '':
+                _type = 'ALIAS'
+
+            data_for = getattr(self, '_data_for_{}'.format(_type))
+            data = data_for(_type, records)
+
+        return Record.new(zone, name, data, source=self, lenient=lenient)
+
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
 
+        exists = False
         before = len(zone.records)
         records = self.zone_records(zone)
         if records:
+            exists = True
             values = defaultdict(lambda: defaultdict(list))
             for record in records:
                 name = zone.hostname_from_fqdn(record['name'])
@@ -226,21 +242,8 @@ class CloudflareProvider(BaseProvider):
 
             for name, types in values.items():
                 for _type, records in types.items():
-
-                    # rewrite Cloudflare proxied records
-                    if self.cdn and records[0]['proxied']:
-                        data = self._data_for_cdn(name, _type, records)
-
-                    else:
-                        # Cloudflare supports ALIAS semantics with root CNAMEs
-                        if _type == 'CNAME' and name == '':
-                            _type = 'ALIAS'
-
-                        data_for = getattr(self, '_data_for_{}'.format(_type))
-                        data = data_for(_type, records)
-
-                    record = Record.new(zone, name, data, source=self,
-                                        lenient=lenient)
+                    record = self._record_for(zone, name, _type, records,
+                                              lenient)
 
                     # only one rewrite is needed for names where the proxy is
                     # enabled at multiple records with a different type but
@@ -252,14 +255,15 @@ class CloudflareProvider(BaseProvider):
 
                     zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _include_change(self, change):
         if isinstance(change, Update):
             existing = change.existing.data
             new = change.new.data
-            new['ttl'] = max(120, new['ttl'])
+            new['ttl'] = max(self.MIN_TTL, new['ttl'])
             if new == existing:
                 return False
 
@@ -374,10 +378,6 @@ class CloudflareProvider(BaseProvider):
             for c in self._gen_contents(change.new)
         }
 
-        # We need a list of keys to consider for diffs, use the first content
-        # before we muck with anything
-        keys = existing_contents.values()[0].keys()
-
         # Find the things we need to add
         adds = []
         for k, content in new_contents.items():
@@ -387,22 +387,25 @@ class CloudflareProvider(BaseProvider):
             except KeyError:
                 adds.append(content)
 
-        zone_id = self.zones[change.new.zone.name]
+        zone = change.new.zone
+        zone_id = self.zones[zone.name]
 
         # Find things we need to remove
-        name = change.new.fqdn[:-1]
+        hostname = zone.hostname_from_fqdn(change.new.fqdn[:-1])
         _type = change.new._type
         # OK, work through each record from the zone
-        for record in self.zone_records(change.new.zone):
-            if name == record['name'] and _type == record['type']:
-                # This is match for our name and type, we need to look at
-                # contents now, build a dict of the relevant keys and vals
-                content = {}
-                for k in keys:
-                    content[k] = record[k]
-                # :-(
-                if _type in ('CNAME', 'MX', 'NS'):
-                    content['content'] += '.'
+        for record in self.zone_records(zone):
+            name = zone.hostname_from_fqdn(record['name'])
+            # Use the _record_for so that we include all of standard
+            # conversion logic
+            r = self._record_for(zone, name, record['type'], [record], True)
+            if hostname == r.name and _type == r._type:
+
+                # Round trip the single value through a record to contents flow
+                # to get a consistent _gen_contents result that matches what
+                # went in to new_contents
+                content = self._gen_contents(r).next()
+
                 # If the hash of that dict isn't in new this record isn't
                 # needed
                 if self._hash_content(content) not in new_contents:

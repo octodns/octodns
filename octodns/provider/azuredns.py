@@ -39,7 +39,7 @@ class _AzureRecord(object):
     }
 
     def __init__(self, resource_group, record, delete=False):
-        '''Contructor for _AzureRecord.
+        '''Constructor for _AzureRecord.
 
             Notes on Azure records: An Azure record set has the form
             RecordSet(name=<...>, type=<...>, arecords=[...], aaaa_records, ..)
@@ -222,7 +222,7 @@ class AzureProvider(BaseProvider):
               azuredns:
                 class: octodns.provider.azuredns.AzureProvider
                 client_id: env/AZURE_APPLICATION_ID
-                key: env/AZURE_AUTHENICATION_KEY
+                key: env/AZURE_AUTHENTICATION_KEY
                 directory_id: env/AZURE_DIRECTORY_ID
                 sub_id: env/AZURE_SUBSCRIPTION_ID
                 resource_group: 'TestResource1'
@@ -322,6 +322,8 @@ class AzureProvider(BaseProvider):
             :type return: void
         '''
         self.log.debug('populate: name=%s', zone.name)
+
+        exists = False
         before = len(zone.records)
 
         zone_name = zone.name[:len(zone.name) - 1]
@@ -331,6 +333,7 @@ class AzureProvider(BaseProvider):
         _records = set()
         records = self._dns_client.record_sets.list_by_dns_zone
         if self._check_zone(zone_name):
+            exists = True
             for azrecord in records(self._resource_group, zone_name):
                 if _parse_azure_type(azrecord.type) in self.SUPPORTS:
                     _records.add(azrecord)
@@ -344,7 +347,9 @@ class AzureProvider(BaseProvider):
                 record = Record.new(zone, record_name, data, source=self)
                 zone.add_record(record)
 
-        self.log.info('populate: found %s records', len(zone.records) - before)
+        self.log.info('populate: found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _data_for_A(self, azrecord):
         return {'values': [ar.ipv4_address for ar in azrecord.arecords]}

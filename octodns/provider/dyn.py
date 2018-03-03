@@ -40,7 +40,7 @@ class _CachingDynZone(DynZone):
                 cls.log.debug('get:   fetched')
             except DynectGetError:
                 if not create:
-                    cls.log.debug("get:   does't exist")
+                    cls.log.debug("get:   doesn't exist")
                     return None
                 # this value shouldn't really matter, it's not tied to
                 # whois or anything
@@ -129,11 +129,11 @@ class DynProvider(BaseProvider):
     REGION_CODES = {
         'NA': 11,  # Continental North America
         'SA': 12,  # Continental South America
-        'EU': 13,  # Contentinal Europe
+        'EU': 13,  # Continental Europe
         'AF': 14,  # Continental Africa
-        'AS': 15,  # Contentinal Asia
-        'OC': 16,  # Contentinal Austrailia/Oceania
-        'AN': 17,  # Continental Antartica
+        'AS': 15,  # Continental Asia
+        'OC': 16,  # Continental Australia/Oceania
+        'AN': 17,  # Continental Antarctica
     }
 
     _sess_create_lock = Lock()
@@ -166,7 +166,7 @@ class DynProvider(BaseProvider):
         if DynectSession.get_session() is None:
             # We need to create a new session for this thread and DynectSession
             # creation is not thread-safe so we have to do the locking. If we
-            # don't and multiple sessions start creattion before the the first
+            # don't and multiple sessions start creation before the the first
             # has finished (long time b/c it makes http calls) the subsequent
             # creates will blow away DynectSession._instances, potentially
             # multiple times if there are multiple creates in flight. Only the
@@ -291,7 +291,7 @@ class DynProvider(BaseProvider):
                 try:
                     fqdn, _type = td.label.split(':', 1)
                 except ValueError as e:
-                    self.log.warn("Failed to load TraficDirector '%s': %s",
+                    self.log.warn("Failed to load TrafficDirector '%s': %s",
                                   td.label, e.message)
                     continue
                 tds[fqdn][_type] = td
@@ -353,6 +353,7 @@ class DynProvider(BaseProvider):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
 
+        exists = False
         before = len(zone.records)
 
         self._check_dyn_sess()
@@ -360,10 +361,12 @@ class DynProvider(BaseProvider):
         td_records = set()
         if self.traffic_directors_enabled:
             td_records = self._populate_traffic_directors(zone)
+            exists = True
 
         dyn_zone = _CachingDynZone.get(zone.name[:-1])
 
         if dyn_zone:
+            exists = True
             values = defaultdict(lambda: defaultdict(list))
             for _type, records in dyn_zone.get_all_records().items():
                 if _type == 'soa_records':
@@ -382,8 +385,9 @@ class DynProvider(BaseProvider):
                     if record not in td_records:
                         zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _kwargs_for_A(self, record):
         return [{

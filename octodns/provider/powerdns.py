@@ -178,7 +178,7 @@ class PowerDnsBaseProvider(BaseProvider):
                 raise Exception('PowerDNS unauthorized host={}'
                                 .format(self.host))
             elif e.response.status_code == 422:
-                # 422 means powerdns doesn't know anything about the requsted
+                # 422 means powerdns doesn't know anything about the requested
                 # domain. We'll just ignore it here and leave the zone
                 # untouched.
                 pass
@@ -187,8 +187,10 @@ class PowerDnsBaseProvider(BaseProvider):
                 raise
 
         before = len(zone.records)
+        exists = False
 
         if resp:
+            exists = True
             for rrset in resp.json()['rrsets']:
                 _type = rrset['type']
                 if _type == 'SOA':
@@ -199,8 +201,9 @@ class PowerDnsBaseProvider(BaseProvider):
                                     source=self, lenient=lenient)
                 zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _records_for_multiple(self, record):
         return [{'content': v, 'disabled': False}
@@ -294,8 +297,8 @@ class PowerDnsBaseProvider(BaseProvider):
             return []
 
         # sorting mostly to make things deterministic for testing, but in
-        # theory it let us find what we're after quickier (though sorting would
-        # ve more exepensive.)
+        # theory it let us find what we're after quicker (though sorting would
+        # be more expensive.)
         for record in sorted(existing.records):
             if record == ns:
                 # We've found the top-level NS record, return any changes
@@ -341,7 +344,7 @@ class PowerDnsBaseProvider(BaseProvider):
                                e.response.text)
                 raise
             self.log.info('_apply:   creating zone=%s', desired.name)
-            # 422 means powerdns doesn't know anything about the requsted
+            # 422 means powerdns doesn't know anything about the requested
             # domain. We'll try to create it with the correct records instead
             # of update. Hopefully all the mods are creates :-)
             data = {

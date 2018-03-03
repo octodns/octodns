@@ -56,7 +56,7 @@ class DigitalOceanClient(object):
         self._request('POST', '/domains', data={'name': name,
                                                 'ip_address': '192.0.2.1'})
 
-        # After the zone is created, immeadiately delete the record
+        # After the zone is created, immediately delete the record
         records = self.records(name)
         for record in records:
             if record['name'] == '' and record['type'] == 'A':
@@ -232,8 +232,10 @@ class DigitalOceanProvider(BaseProvider):
                                     source=self, lenient=lenient)
                 zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        exists = zone.name in self._zone_records
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _params_for_multiple(self, record):
         for value in record.values:

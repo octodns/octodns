@@ -302,7 +302,8 @@ class TestAzureDnsProvider(TestCase):
         record_list = provider._dns_client.record_sets.list_by_dns_zone
         record_list.return_value = rs
 
-        provider.populate(zone)
+        exists = provider.populate(zone)
+        self.assertTrue(exists)
 
         self.assertEquals(len(zone.records), 16)
 
@@ -338,8 +339,10 @@ class TestAzureDnsProvider(TestCase):
             changes.append(Create(i))
             deletes.append(Delete(i))
 
-        self.assertEquals(13, provider.apply(Plan(None, zone, changes)))
-        self.assertEquals(13, provider.apply(Plan(zone, zone, deletes)))
+        self.assertEquals(13, provider.apply(Plan(None, zone,
+                                                  changes, True)))
+        self.assertEquals(13, provider.apply(Plan(zone, zone,
+                                                  deletes, True)))
 
     def test_create_zone(self):
         provider = self._get_provider()
@@ -354,7 +357,8 @@ class TestAzureDnsProvider(TestCase):
         _get = provider._dns_client.zones.get
         _get.side_effect = CloudError(Mock(status=404), err_msg)
 
-        self.assertEquals(13, provider.apply(Plan(None, desired, changes)))
+        self.assertEquals(13, provider.apply(Plan(None, desired, changes,
+                                                  True)))
 
     def test_check_zone_no_create(self):
         provider = self._get_provider()
@@ -374,6 +378,7 @@ class TestAzureDnsProvider(TestCase):
         _get = provider._dns_client.zones.get
         _get.side_effect = CloudError(Mock(status=404), err_msg)
 
-        provider.populate(Zone('unit3.test.', []))
+        exists = provider.populate(Zone('unit3.test.', []))
+        self.assertFalse(exists)
 
         self.assertEquals(len(zone.records), 0)

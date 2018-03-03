@@ -63,14 +63,14 @@ class TestBaseProvider(TestCase):
 
         zone = Zone('unit.tests.', [])
         with self.assertRaises(NotImplementedError) as ctx:
-            HasSupportsGeo('hassupportesgeo').populate(zone)
+            HasSupportsGeo('hassupportsgeo').populate(zone)
         self.assertEquals('Abstract base class, SUPPORTS property missing',
                           ctx.exception.message)
 
         class HasSupports(HasSupportsGeo):
             SUPPORTS = set(('A',))
         with self.assertRaises(NotImplementedError) as ctx:
-            HasSupports('hassupportes').populate(zone)
+            HasSupports('hassupports').populate(zone)
         self.assertEquals('Abstract base class, populate method missing',
                           ctx.exception.message)
 
@@ -94,7 +94,7 @@ class TestBaseProvider(TestCase):
             'value': '1.2.3.4'
         }))
 
-        self.assertTrue(HasSupports('hassupportesgeo')
+        self.assertTrue(HasSupports('hassupportsgeo')
                         .supports(list(zone.records)[0]))
 
         plan = HasPopulate('haspopulate').plan(zone)
@@ -153,7 +153,7 @@ class TestBaseProvider(TestCase):
 
     def test_safe_none(self):
         # No changes is safe
-        Plan(None, None, []).raise_if_unsafe()
+        Plan(None, None, [], True).raise_if_unsafe()
 
     def test_safe_creates(self):
         # Creates are safe when existing records is under MIN_EXISTING_RECORDS
@@ -164,7 +164,8 @@ class TestBaseProvider(TestCase):
             'type': 'A',
             'value': '1.2.3.4',
         })
-        Plan(zone, zone, [Create(record) for i in range(10)]).raise_if_unsafe()
+        Plan(zone, zone, [Create(record) for i in range(10)], True) \
+            .raise_if_unsafe()
 
     def test_safe_min_existing_creates(self):
         # Creates are safe when existing records is over MIN_EXISTING_RECORDS
@@ -177,13 +178,14 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, str(i), {
+            zone.add_record(Record.new(zone, unicode(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
                             }))
 
-        Plan(zone, zone, [Create(record) for i in range(10)]).raise_if_unsafe()
+        Plan(zone, zone, [Create(record) for i in range(10)], True) \
+            .raise_if_unsafe()
 
     def test_safe_no_existing(self):
         # existing records fewer than MIN_EXISTING_RECORDS is safe
@@ -195,7 +197,7 @@ class TestBaseProvider(TestCase):
         })
 
         updates = [Update(record, record), Update(record, record)]
-        Plan(zone, zone, updates).raise_if_unsafe()
+        Plan(zone, zone, updates, True).raise_if_unsafe()
 
     def test_safe_updates_min_existing(self):
         # MAX_SAFE_UPDATE_PCENT+1 fails when more
@@ -208,7 +210,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, str(i), {
+            zone.add_record(Record.new(zone, unicode(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -219,7 +221,7 @@ class TestBaseProvider(TestCase):
                                       Plan.MAX_SAFE_UPDATE_PCENT) + 1)]
 
         with self.assertRaises(UnsafePlan) as ctx:
-            Plan(zone, zone, changes).raise_if_unsafe()
+            Plan(zone, zone, changes, True).raise_if_unsafe()
 
         self.assertTrue('Too many updates' in ctx.exception.message)
 
@@ -234,7 +236,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, str(i), {
+            zone.add_record(Record.new(zone, unicode(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -243,7 +245,7 @@ class TestBaseProvider(TestCase):
                    for i in range(int(Plan.MIN_EXISTING_RECORDS *
                                       Plan.MAX_SAFE_UPDATE_PCENT))]
 
-        Plan(zone, zone, changes).raise_if_unsafe()
+        Plan(zone, zone, changes, True).raise_if_unsafe()
 
     def test_safe_deletes_min_existing(self):
         # MAX_SAFE_DELETE_PCENT+1 fails when more
@@ -256,7 +258,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, str(i), {
+            zone.add_record(Record.new(zone, unicode(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -267,7 +269,7 @@ class TestBaseProvider(TestCase):
                                       Plan.MAX_SAFE_DELETE_PCENT) + 1)]
 
         with self.assertRaises(UnsafePlan) as ctx:
-            Plan(zone, zone, changes).raise_if_unsafe()
+            Plan(zone, zone, changes, True).raise_if_unsafe()
 
         self.assertTrue('Too many deletes' in ctx.exception.message)
 
@@ -282,7 +284,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, str(i), {
+            zone.add_record(Record.new(zone, unicode(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -291,7 +293,7 @@ class TestBaseProvider(TestCase):
                    for i in range(int(Plan.MIN_EXISTING_RECORDS *
                                       Plan.MAX_SAFE_DELETE_PCENT))]
 
-        Plan(zone, zone, changes).raise_if_unsafe()
+        Plan(zone, zone, changes, True).raise_if_unsafe()
 
     def test_safe_updates_min_existing_override(self):
         safe_pcent = .4
@@ -305,7 +307,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, str(i), {
+            zone.add_record(Record.new(zone, unicode(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -316,7 +318,7 @@ class TestBaseProvider(TestCase):
                                       safe_pcent) + 1)]
 
         with self.assertRaises(UnsafePlan) as ctx:
-            Plan(zone, zone, changes,
+            Plan(zone, zone, changes, True,
                  update_pcent_threshold=safe_pcent).raise_if_unsafe()
 
         self.assertTrue('Too many updates' in ctx.exception.message)
@@ -333,7 +335,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, str(i), {
+            zone.add_record(Record.new(zone, unicode(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -344,7 +346,7 @@ class TestBaseProvider(TestCase):
                                       safe_pcent) + 1)]
 
         with self.assertRaises(UnsafePlan) as ctx:
-            Plan(zone, zone, changes,
+            Plan(zone, zone, changes, True,
                  delete_pcent_threshold=safe_pcent).raise_if_unsafe()
 
         self.assertTrue('Too many deletes' in ctx.exception.message)
