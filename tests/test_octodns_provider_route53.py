@@ -313,6 +313,14 @@ class TestRoute53Provider(TestCase):
                     'Value': '0 issue "ca.unit.tests"',
                 }],
                 'TTL': 69,
+            }, {
+                'AliasTarget': {
+                    'HostedZoneId': 'Z119WBBTVP5WFX',
+                    'EvaluateTargetHealth': False,
+                    'DNSName': 'unit.tests.'
+                },
+                'Type': 'A',
+                'Name': 'alias.unit.tests.'
             }],
             'IsTruncated': False,
             'MaxItems': '100',
