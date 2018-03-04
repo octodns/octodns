@@ -461,7 +461,7 @@ class Route53Provider(BaseProvider):
                 record_name = zone.hostname_from_fqdn(rrset['Name'])
                 record_name = _octal_replace(record_name)
                 record_type = rrset['Type']
-                if record_type == 'SOA':
+                if record_type not in self.SUPPORTS:
                     continue
                 if 'AliasTarget' in rrset:
                     # Alias records are Route53 specific and are not
