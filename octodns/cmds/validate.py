@@ -17,6 +17,8 @@ def main():
 
     parser.add_argument('--config-file', required=True,
                         help='The Manager configuration file to use')
+    parser.add_argument('--sort', action='store_true', default=False,
+                      help='Sort the zone before sending to validation')
 
     args = parser.parse_args(WARN)
 

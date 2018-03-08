@@ -2,10 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="5dba8fff-ec86-4dc6-83f5-ecd72c871d3a" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/../../.idea/workspace.xml" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/../../.idea/workspace.xml" afterPath="" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../../octodns/cmds/args.py" afterPath="$PROJECT_DIR$/../../octodns/cmds/args.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../../octodns/cmds/validate.py" afterPath="$PROJECT_DIR$/../../octodns/cmds/validate.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../../octodns/manager.py" afterPath="$PROJECT_DIR$/../../octodns/manager.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -41,8 +40,8 @@
       <file leaf-file-name="3dx-star.com.yaml" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/../../config/3dx-star.com.yaml">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="360">
-              <caret line="24" column="9" lean-forward="false" selection-start-line="24" selection-start-column="9" selection-end-line="24" selection-end-column="9" />
+            <state relative-caret-position="330">
+              <caret line="22" column="9" lean-forward="true" selection-start-line="22" selection-start-column="9" selection-end-line="22" selection-end-column="9" />
               <folding />
             </state>
           </provider>
@@ -58,11 +57,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="validate.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="validate.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/../../octodns/cmds/validate.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="480">
-              <caret line="32" column="0" lean-forward="true" selection-start-line="32" selection-start-column="0" selection-end-line="32" selection-end-column="0" />
+            <state relative-caret-position="360">
+              <caret line="24" column="39" lean-forward="true" selection-start-line="24" selection-start-column="39" selection-end-line="24" selection-end-column="39" />
               <folding>
                 <element signature="e#50#138#0" expanded="true" />
               </folding>
@@ -102,11 +101,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="args.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="args.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/../../octodns/cmds/args.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="868">
-              <caret line="69" column="0" lean-forward="true" selection-start-line="69" selection-start-column="0" selection-end-line="69" selection-end-column="0" />
+            <state relative-caret-position="343">
+              <caret line="34" column="49" lean-forward="false" selection-start-line="34" selection-start-column="49" selection-end-line="34" selection-end-column="49" />
               <folding />
             </state>
           </provider>
@@ -156,11 +155,11 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/../../octodns/cmds/compare.py" />
-        <option value="$PROJECT_DIR$/../../config/3dx-star.com.yaml" />
         <option value="$PROJECT_DIR$/../../octodns/yaml.py" />
         <option value="$PROJECT_DIR$/../../octodns/manager.py" />
-        <option value="$PROJECT_DIR$/../../octodns/cmds/validate.py" />
+        <option value="$PROJECT_DIR$/../../config/3dx-star.com.yaml" />
         <option value="$PROJECT_DIR$/../../octodns/cmds/args.py" />
+        <option value="$PROJECT_DIR$/../../octodns/cmds/validate.py" />
       </list>
     </option>
   </component>
@@ -372,14 +371,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/../../config/3dx-star.com.yaml">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="360">
-          <caret line="24" column="9" lean-forward="false" selection-start-line="24" selection-start-column="9" selection-end-line="24" selection-end-column="9" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/../../config/3dx-star.com.yaml-copy">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -408,21 +399,29 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/../../octodns/cmds/validate.py">
+    <entry file="file://$PROJECT_DIR$/../../config/3dx-star.com.yaml">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="480">
-          <caret line="32" column="0" lean-forward="true" selection-start-line="32" selection-start-column="0" selection-end-line="32" selection-end-column="0" />
-          <folding>
-            <element signature="e#50#138#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="330">
+          <caret line="22" column="9" lean-forward="true" selection-start-line="22" selection-start-column="9" selection-end-line="22" selection-end-column="9" />
+          <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/../../octodns/cmds/args.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="868">
-          <caret line="69" column="0" lean-forward="true" selection-start-line="69" selection-start-column="0" selection-end-line="69" selection-end-column="0" />
+        <state relative-caret-position="343">
+          <caret line="34" column="49" lean-forward="false" selection-start-line="34" selection-start-column="49" selection-end-line="34" selection-end-column="49" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../octodns/cmds/validate.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="360">
+          <caret line="24" column="39" lean-forward="true" selection-start-line="24" selection-start-column="39" selection-end-line="24" selection-end-column="39" />
+          <folding>
+            <element signature="e#50#138#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

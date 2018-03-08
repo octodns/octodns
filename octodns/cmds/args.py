@@ -33,8 +33,6 @@ class ArgumentParser(_Base):
                           help='Syslog device')
         self.add_argument('--syslog-facility', default='local0',
                           help='Syslog facility')
-        self.add_argument('--sort', action='store_true', default=False,
-                          help='Sort the zone before sending to validation')
 
         _help = 'Increase verbosity to get details and help track down issues'
         self.add_argument('--debug', action='store_true', default=False,
