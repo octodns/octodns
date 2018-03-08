@@ -15,6 +15,7 @@ from .provider.plan import Plan
 from .provider.yaml import YamlProvider
 from .record import Record
 from .yaml import safe_load
+from .yaml import safe_dump
 from .zone import Zone
 
 
@@ -39,7 +40,6 @@ class _AggregateTarget(object):
 
 
 class MakeThreadFuture(object):
-
     def __init__(self, func, args, kwargs):
         self.func = func
         self.args = args
@@ -85,8 +85,8 @@ class Manager(object):
         self.include_meta = include_meta or manager_config.get('include_meta',
                                                                False)
         self.log.info('__init__:   include_meta=%s', self.include_meta)
-        include_nsrecords = include_ns_records or \
-            manager_config.get('include_ns_records', False)
+        include_nsrecords = (include_ns_records or
+                             manager_config.get('include_ns_records', False))
         Zone.include_nsrecords = include_nsrecords
         self.log.info('__init__:   include_ns_records=%s', include_nsrecords)
         self.log.debug('__init__:   configuring providers')
@@ -387,3 +387,13 @@ class Manager(object):
             for source in sources:
                 if isinstance(source, YamlProvider):
                     source.populate(zone)
+
+    def sort_configs(self):
+        for zone_name, config in self.config['zones'].items():
+            self.log.debug('Sorting: {} From: {}'
+                           .format(zone_name, config['sources']))
+            for config_folder in config['sources']:
+                with open(config_folder + "/" + zone_name + "yaml", 'r') as fh:
+                    self.dump_data = safe_load(fh, enforce_order=False)
+                with open(config_folder + "/" + zone_name + "yaml", 'w') as fh:
+                    self.dump_data = safe_dump(self.dump_data, fh)

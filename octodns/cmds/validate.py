@@ -21,6 +21,10 @@ def main():
     args = parser.parse_args(WARN)
 
     manager = Manager(args.config_file)
+
+    if args.sort:
+        manager.sort_configs()
+
     manager.validate_configs()
 
 
