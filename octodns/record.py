@@ -184,7 +184,7 @@ class GeoValue(object):
         self.continent_code = match.group('continent_code')
         self.country_code = match.group('country_code')
         self.subdivision_code = match.group('subdivision_code')
-        self.values = values
+        self.values = sorted(values)
 
     @property
     def parents(self):
