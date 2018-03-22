@@ -33,6 +33,7 @@ from .base import BaseProvider
 ###############################################################################
 def _monitor_host_get(self):
     return self._host or self._options['host']
+
 DSFMonitor.host = property(_monitor_host_get)
 
 
@@ -40,11 +41,13 @@ def _monitor_host_set(self, value):
     if self._options is None:
         self._options = {}
     self._host = self._options['host'] = value
+
 DSFMonitor.host = DSFMonitor.host.setter(_monitor_host_set)
 
 
 def _monitor_path_get(self):
     return self._path or self._options['path']
+
 DSFMonitor.path = property(_monitor_path_get)
 
 
@@ -52,6 +55,7 @@ def _monitor_path_set(self, value):
     if self._options is None:
         self._options = {}
     self._path = self._options['path'] = value
+
 DSFMonitor.path = DSFMonitor.path.setter(_monitor_path_set)
 
 
@@ -68,6 +72,7 @@ def _monitor_update(self, host, path):
             'header': DynProvider.MONITOR_HEADER,
         }
     })
+
 DSFMonitor.update = _monitor_update
 ###############################################################################
 
