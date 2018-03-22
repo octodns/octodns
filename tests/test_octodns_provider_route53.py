@@ -324,6 +324,14 @@ class TestRoute53Provider(TestCase):
                     'Value': '0 issue "ca.unit.tests"',
                 }],
                 'TTL': 69,
+            }, {
+                'AliasTarget': {
+                    'HostedZoneId': 'Z119WBBTVP5WFX',
+                    'EvaluateTargetHealth': False,
+                    'DNSName': 'unit.tests.'
+                },
+                'Type': 'A',
+                'Name': 'alias.unit.tests.'
             }],
             'IsTruncated': False,
             'MaxItems': '100',
@@ -342,9 +350,9 @@ class TestRoute53Provider(TestCase):
         stubber.assert_no_pending_responses()
 
         # Populate a zone that doesn't exist
-        noexist = Zone('does.not.exist.', [])
-        provider.populate(noexist)
-        self.assertEquals(set(), noexist.records)
+        nonexistent = Zone('does.not.exist.', [])
+        provider.populate(nonexistent)
+        self.assertEquals(set(), nonexistent.records)
 
     def test_sync(self):
         provider, stubber = self._get_stubbed_provider()
@@ -372,6 +380,7 @@ class TestRoute53Provider(TestCase):
 
         plan = provider.plan(self.expected)
         self.assertEquals(9, len(plan.changes))
+        self.assertTrue(plan.exists)
         for change in plan.changes:
             self.assertIsInstance(change, Create)
         stubber.assert_no_pending_responses()
@@ -604,6 +613,7 @@ class TestRoute53Provider(TestCase):
 
         plan = provider.plan(self.expected)
         self.assertEquals(9, len(plan.changes))
+        self.assertFalse(plan.exists)
         for change in plan.changes:
             self.assertIsInstance(change, Create)
         stubber.assert_no_pending_responses()

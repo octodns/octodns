@@ -31,8 +31,8 @@ class YamlProvider(BaseProvider):
         enforce_order: True
     '''
     SUPPORTS_GEO = True
-    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
-                   'SSHFP', 'SPF', 'SRV', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
+                    'PTR', 'SSHFP', 'SPF', 'SRV', 'TXT'))
 
     def __init__(self, id, directory, default_ttl=3600, enforce_order=True,
                  *args, **kwargs):
@@ -52,7 +52,7 @@ class YamlProvider(BaseProvider):
         if target:
             # When acting as a target we ignore any existing records so that we
             # create a completely new copy
-            return
+            return False
 
         before = len(zone.records)
         filename = join(self.directory, '{}yaml'.format(zone.name))
@@ -69,8 +69,9 @@ class YamlProvider(BaseProvider):
                                             lenient=lenient)
                         zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
+        self.log.info('populate:   found %s records, exists=False',
                       len(zone.records) - before)
+        return False
 
     def _apply(self, plan):
         desired = plan.desired

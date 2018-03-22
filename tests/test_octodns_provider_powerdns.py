@@ -77,8 +77,8 @@ class TestPowerDnsProvider(TestCase):
         expected = Zone('unit.tests.', [])
         source = YamlProvider('test', join(dirname(__file__), 'config'))
         source.populate(expected)
-        expected_n = len(expected.records) - 1
-        self.assertEquals(15, expected_n)
+        expected_n = len(expected.records) - 2
+        self.assertEquals(16, expected_n)
 
         # No diffs == no changes
         with requests_mock() as mock:
@@ -86,7 +86,7 @@ class TestPowerDnsProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(15, len(zone.records))
+            self.assertEquals(16, len(zone.records))
             changes = expected.changes(zone, provider)
             self.assertEquals(0, len(changes))
 
@@ -99,12 +99,13 @@ class TestPowerDnsProvider(TestCase):
         # No existing records -> creates for every record in expected
         with requests_mock() as mock:
             mock.get(ANY, status_code=200, text=EMPTY_TEXT)
-            # post 201, is reponse to the create with data
+            # post 201, is response to the create with data
             mock.patch(ANY, status_code=201, text=assert_rrsets_callback)
 
             plan = provider.plan(expected)
             self.assertEquals(expected_n, len(plan.changes))
             self.assertEquals(expected_n, provider.apply(plan))
+            self.assertTrue(plan.exists)
 
         # Non-existent zone -> creates for every record in expected
         # OMG this is fucking ugly, probably better to ditch requests_mocks and
@@ -117,12 +118,13 @@ class TestPowerDnsProvider(TestCase):
             mock.get(ANY, status_code=422, text='')
             # patch 422's, unknown zone
             mock.patch(ANY, status_code=422, text=dumps(not_found))
-            # post 201, is reponse to the create with data
+            # post 201, is response to the create with data
             mock.post(ANY, status_code=201, text=assert_rrsets_callback)
 
             plan = provider.plan(expected)
             self.assertEquals(expected_n, len(plan.changes))
             self.assertEquals(expected_n, provider.apply(plan))
+            self.assertFalse(plan.exists)
 
         with requests_mock() as mock:
             # get 422's, unknown zone
@@ -166,7 +168,7 @@ class TestPowerDnsProvider(TestCase):
         expected = Zone('unit.tests.', [])
         source = YamlProvider('test', join(dirname(__file__), 'config'))
         source.populate(expected)
-        self.assertEquals(16, len(expected.records))
+        self.assertEquals(18, len(expected.records))
 
         # A small change to a single record
         with requests_mock() as mock:

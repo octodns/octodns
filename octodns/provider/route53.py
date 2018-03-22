@@ -61,7 +61,7 @@ class _Route53Record(object):
 
     # NOTE: we're using __hash__ and __cmp__ methods that consider
     # _Route53Records equivalent if they have the same class, fqdn, and _type.
-    # Values are ignored. This is usful when computing diffs/changes.
+    # Values are ignored. This is useful when computing diffs/changes.
 
     def __hash__(self):
         'sub-classes should never use this method'
@@ -385,10 +385,10 @@ class Route53Provider(BaseProvider):
             values.append({
                 'order': order,
                 'preference': preference,
-                'flags': flags if flags else None,
-                'service': service if service else None,
-                'regexp': regexp if regexp else None,
-                'replacement': replacement if replacement else None,
+                'flags': flags,
+                'service': service,
+                'regexp': regexp,
+                'replacement': replacement,
             })
         return {
             'type': rrset['Type'],
@@ -451,15 +451,23 @@ class Route53Provider(BaseProvider):
                        target, lenient)
 
         before = len(zone.records)
+        exists = False
 
         zone_id = self._get_zone_id(zone.name)
         if zone_id:
+            exists = True
             records = defaultdict(lambda: defaultdict(list))
             for rrset in self._load_records(zone_id):
                 record_name = zone.hostname_from_fqdn(rrset['Name'])
                 record_name = _octal_replace(record_name)
                 record_type = rrset['Type']
-                if record_type == 'SOA':
+                if record_type not in self.SUPPORTS:
+                    continue
+                if 'AliasTarget' in rrset:
+                    # Alias records are Route53 specific and are not
+                    # portable, so we need to skip them
+                    self.log.warning("%s is an Alias record. Skipping..."
+                                     % rrset['Name'])
                     continue
                 data = getattr(self, '_data_for_{}'.format(record_type))(rrset)
                 records[record_name][record_type].append(data)
@@ -483,8 +491,9 @@ class Route53Provider(BaseProvider):
                                         lenient=lenient)
                     zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _gen_mods(self, action, records):
         '''
@@ -701,7 +710,7 @@ class Route53Provider(BaseProvider):
                    .get('CountryCode', False) == '*':
                     # it's a default record
                     continue
-                # we expect a healtcheck now
+                # we expect a healthcheck now
                 try:
                     health_check_id = rrset['HealthCheckId']
                     health_check = self.health_checks[health_check_id]
@@ -755,7 +764,7 @@ class Route53Provider(BaseProvider):
                               batch_rs_count)
                 # send the batch
                 self._really_apply(batch, zone_id)
-                # start a new batch with the lefovers
+                # start a new batch with the leftovers
                 batch = mods
                 batch_rs_count = mods_rs_count
 

@@ -5,10 +5,13 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+import base64
+import binascii
 import logging
 from collections import defaultdict
 
 import ovh
+from ovh import ResourceNotFoundError
 
 from octodns.record import Record
 from .base import BaseProvider
@@ -31,9 +34,12 @@ class OvhProvider(BaseProvider):
     """
 
     SUPPORTS_GEO = False
+    ZONE_NOT_FOUND_MESSAGE = 'This service does not exist'
 
-    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR', 'SPF',
-                    'SRV', 'SSHFP', 'TXT'))
+    # This variable is also used in populate method to filter which OVH record
+    # types are supported by octodns
+    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'DKIM', 'MX', 'NAPTR', 'NS', 'PTR',
+                    'SPF', 'SRV', 'SSHFP', 'TXT'))
 
     def __init__(self, id, endpoint, application_key, application_secret,
                  consumer_key, *args, **kwargs):
@@ -53,7 +59,14 @@ class OvhProvider(BaseProvider):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
         zone_name = zone.name[:-1]
-        records = self.get_records(zone_name=zone_name)
+        try:
+            records = self.get_records(zone_name=zone_name)
+            exists = True
+        except ResourceNotFoundError as e:
+            if e.message != self.ZONE_NOT_FOUND_MESSAGE:
+                raise
+            exists = False
+            records = []
 
         values = defaultdict(lambda: defaultdict(list))
         for record in records:
@@ -62,13 +75,18 @@ class OvhProvider(BaseProvider):
         before = len(zone.records)
         for name, types in values.items():
             for _type, records in types.items():
+                if _type not in self.SUPPORTS:
+                    self.log.warning('Not managed record of type %s, skip',
+                                     _type)
+                    continue
                 data_for = getattr(self, '_data_for_{}'.format(_type))
                 record = Record.new(zone, name, data_for(_type, records),
                                     source=self, lenient=lenient)
                 zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _apply(self, plan):
         desired = plan.desired
@@ -96,7 +114,11 @@ class OvhProvider(BaseProvider):
 
     def _apply_delete(self, zone_name, change):
         existing = change.existing
-        self.delete_records(zone_name, existing._type, existing.name)
+        record_type = existing._type
+        if record_type == "TXT":
+            if self._is_valid_dkim(existing.values[0]):
+                record_type = 'DKIM'
+        self.delete_records(zone_name, record_type, existing.name)
 
     @staticmethod
     def _data_for_multiple(_type, records):
@@ -184,6 +206,15 @@ class OvhProvider(BaseProvider):
             'values': values
         }
 
+    @staticmethod
+    def _data_for_DKIM(_type, records):
+        return {
+            'ttl': records[0]['ttl'],
+            'type': "TXT",
+            'values': [record['target'].replace(';', '\;')
+                       for record in records]
+        }
+
     _data_for_A = _data_for_multiple
     _data_for_AAAA = _data_for_multiple
     _data_for_NS = _data_for_multiple
@@ -238,10 +269,11 @@ class OvhProvider(BaseProvider):
     def _params_for_SRV(record):
         for value in record.values:
             yield {
-                'subDomain': '{} {} {} {}'.format(value.priority,
-                                                  value.weight, value.port,
-                                                  value.target),
-                'target': record.name,
+                'target': '{} {} {} {}'.format(value.priority,
+                                               value.weight,
+                                               value.port,
+                                               value.target),
+                'subDomain': record.name,
                 'ttl': record.ttl,
                 'fieldType': record._type
             }
@@ -250,22 +282,70 @@ class OvhProvider(BaseProvider):
     def _params_for_SSHFP(record):
         for value in record.values:
             yield {
-                'subDomain': '{} {} {}'.format(value.algorithm,
-                                               value.fingerprint_type,
-                                               value.fingerprint),
-                'target': record.name,
+                'target': '{} {} {}'.format(value.algorithm,
+                                            value.fingerprint_type,
+                                            value.fingerprint),
+                'subDomain': record.name,
                 'ttl': record.ttl,
                 'fieldType': record._type
+            }
+
+    def _params_for_TXT(self, record):
+        for value in record.values:
+            field_type = 'TXT'
+            if self._is_valid_dkim(value):
+                field_type = 'DKIM'
+                value = value.replace("\;", ";")
+            yield {
+                'target': value,
+                'subDomain': record.name,
+                'ttl': record.ttl,
+                'fieldType': field_type
             }
 
     _params_for_A = _params_for_multiple
     _params_for_AAAA = _params_for_multiple
     _params_for_NS = _params_for_multiple
     _params_for_SPF = _params_for_multiple
-    _params_for_TXT = _params_for_multiple
 
     _params_for_CNAME = _params_for_single
     _params_for_PTR = _params_for_single
+
+    def _is_valid_dkim(self, value):
+        """Check if value is a valid DKIM"""
+        validator_dict = {'h': lambda val: val in ['sha1', 'sha256'],
+                          's': lambda val: val in ['*', 'email'],
+                          't': lambda val: val in ['y', 's'],
+                          'v': lambda val: val == 'DKIM1',
+                          'k': lambda val: val == 'rsa',
+                          'n': lambda _: True,
+                          'g': lambda _: True}
+
+        splitted = value.split('\;')
+        found_key = False
+        for splitted_value in splitted:
+            sub_split = map(lambda x: x.strip(), splitted_value.split("=", 1))
+            if len(sub_split) < 2:
+                return False
+            key, value = sub_split[0], sub_split[1]
+            if key == "p":
+                is_valid_key = self._is_valid_dkim_key(value)
+                if not is_valid_key:
+                    return False
+                found_key = True
+            else:
+                is_valid_key = validator_dict.get(key, lambda _: False)(value)
+                if not is_valid_key:
+                    return False
+        return found_key
+
+    @staticmethod
+    def _is_valid_dkim_key(key):
+        try:
+            base64.decodestring(key)
+        except binascii.Error:
+            return False
+        return True
 
     def get_records(self, zone_name):
         """

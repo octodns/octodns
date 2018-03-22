@@ -83,6 +83,19 @@ class TestManager(TestCase):
                 .sync(['unknown.target.'])
         self.assertTrue('unknown target' in ctx.exception.message)
 
+    def test_bad_plan_output_class(self):
+        with self.assertRaises(Exception) as ctx:
+            name = 'bad-plan-output-missing-class.yaml'
+            Manager(get_config_filename(name)).sync()
+        self.assertEquals('plan_output bad is missing class',
+                          ctx.exception.message)
+
+    def test_bad_plan_output_config(self):
+        with self.assertRaises(Exception) as ctx:
+            Manager(get_config_filename('bad-plan-output-config.yaml')).sync()
+        self.assertEqual('Incorrect plan_output config for bad',
+                         ctx.exception.message)
+
     def test_source_only_as_a_target(self):
         with self.assertRaises(Exception) as ctx:
             Manager(get_config_filename('unknown-provider.yaml')) \
@@ -102,12 +115,12 @@ class TestManager(TestCase):
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False)
-            self.assertEquals(19, tc)
+            self.assertEquals(21, tc)
 
             # try with just one of the zones
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, eligible_zones=['unit.tests.'])
-            self.assertEquals(13, tc)
+            self.assertEquals(15, tc)
 
             # the subzone, with 2 targets
             tc = Manager(get_config_filename('simple.yaml')) \
@@ -122,18 +135,18 @@ class TestManager(TestCase):
             # Again with force
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(19, tc)
+            self.assertEquals(21, tc)
 
             # Again with max_workers = 1
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(19, tc)
+            self.assertEquals(21, tc)
 
             # Include meta
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1,
                          include_meta=True) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(23, tc)
+            self.assertEquals(25, tc)
 
     def test_eligible_targets(self):
         with TemporaryDirectory() as tmpdir:
@@ -159,13 +172,13 @@ class TestManager(TestCase):
                 fh.write('---\n{}')
 
             changes = manager.compare(['in'], ['dump'], 'unit.tests.')
-            self.assertEquals(13, len(changes))
+            self.assertEquals(15, len(changes))
 
             # Compound sources with varying support
             changes = manager.compare(['in', 'nosshfp'],
                                       ['dump'],
                                       'unit.tests.')
-            self.assertEquals(12, len(changes))
+            self.assertEquals(14, len(changes))
 
             with self.assertRaises(Exception) as ctx:
                 manager.compare(['nope'], ['dump'], 'unit.tests.')

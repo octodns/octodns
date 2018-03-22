@@ -5,13 +5,13 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from StringIO import StringIO
 from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from os import environ
 import logging
 
-from .provider.base import BaseProvider, Plan
+from .provider.base import BaseProvider
+from .provider.plan import Plan
 from .provider.yaml import YamlProvider
 from .record import Record
 from .yaml import safe_load
@@ -51,7 +51,7 @@ class MakeThreadFuture(object):
 
 class MainThreadExecutor(object):
     '''
-    Dummy executor that runs things on the main thread during the involcation
+    Dummy executor that runs things on the main thread during the invocation
     of submit, but still returns a future object with the result. This allows
     code to be written to handle async, even in the case where we don't want to
     use multiple threads/workers and would prefer that things flow as if
@@ -95,23 +95,8 @@ class Manager(object):
                 self.log.exception('Invalid provider class')
                 raise Exception('Provider {} is missing class'
                                 .format(provider_name))
-            _class = self._get_provider_class(_class)
-            # Build up the arguments we need to pass to the provider
-            kwargs = {}
-            for k, v in provider_config.items():
-                try:
-                    if v.startswith('env/'):
-                        try:
-                            env_var = v[4:]
-                            v = environ[env_var]
-                        except KeyError:
-                            self.log.exception('Invalid provider config')
-                            raise Exception('Incorrect provider config, '
-                                            'missing env var {}'
-                                            .format(env_var))
-                except AttributeError:
-                    pass
-                kwargs[k] = v
+            _class = self._get_named_class('provider', _class)
+            kwargs = self._build_kwargs(provider_config)
             try:
                 self.providers[provider_name] = _class(provider_name, **kwargs)
             except TypeError:
@@ -139,20 +124,64 @@ class Manager(object):
                     where = where[piece]
         self.zone_tree = zone_tree
 
-    def _get_provider_class(self, _class):
+        self.plan_outputs = {}
+        plan_outputs = manager_config.get('plan_outputs', {
+            'logger': {
+                'class': 'octodns.provider.plan.PlanLogger',
+                'level': 'info'
+            }
+        })
+        for plan_output_name, plan_output_config in plan_outputs.items():
+            try:
+                _class = plan_output_config.pop('class')
+            except KeyError:
+                self.log.exception('Invalid plan_output class')
+                raise Exception('plan_output {} is missing class'
+                                .format(plan_output_name))
+            _class = self._get_named_class('plan_output', _class)
+            kwargs = self._build_kwargs(plan_output_config)
+            try:
+                self.plan_outputs[plan_output_name] = \
+                    _class(plan_output_name, **kwargs)
+            except TypeError:
+                self.log.exception('Invalid plan_output config')
+                raise Exception('Incorrect plan_output config for {}'
+                                .format(plan_output_name))
+
+    def _get_named_class(self, _type, _class):
         try:
             module_name, class_name = _class.rsplit('.', 1)
             module = import_module(module_name)
         except (ImportError, ValueError):
-            self.log.exception('_get_provider_class: Unable to import '
+            self.log.exception('_get_{}_class: Unable to import '
                                'module %s', _class)
-            raise Exception('Unknown provider class: {}'.format(_class))
+            raise Exception('Unknown {} class: {}'.format(_type, _class))
         try:
             return getattr(module, class_name)
         except AttributeError:
-            self.log.exception('_get_provider_class: Unable to get class %s '
+            self.log.exception('_get_{}_class: Unable to get class %s '
                                'from module %s', class_name, module)
-            raise Exception('Unknown provider class: {}'.format(_class))
+            raise Exception('Unknown {} class: {}'.format(_type, _class))
+
+    def _build_kwargs(self, source):
+        # Build up the arguments we need to pass to the provider
+        kwargs = {}
+        for k, v in source.items():
+            try:
+                if v.startswith('env/'):
+                    try:
+                        env_var = v[4:]
+                        v = environ[env_var]
+                    except KeyError:
+                        self.log.exception('Invalid provider config')
+                        raise Exception('Incorrect provider config, '
+                                        'missing env var {}'
+                                        .format(env_var))
+            except AttributeError:
+                pass
+            kwargs[k] = v
+
+        return kwargs
 
     def configured_sub_zones(self, zone_name):
         # Reversed pieces of the zone name
@@ -259,39 +288,8 @@ class Manager(object):
         # plan pairs.
         plans = [p for f in futures for p in f.result()]
 
-        hr = '*************************************************************' \
-            '*******************\n'
-        buf = StringIO()
-        buf.write('\n')
-        if plans:
-            current_zone = None
-            for target, plan in plans:
-                if plan.desired.name != current_zone:
-                    current_zone = plan.desired.name
-                    buf.write(hr)
-                    buf.write('* ')
-                    buf.write(current_zone)
-                    buf.write('\n')
-                    buf.write(hr)
-
-                buf.write('* ')
-                buf.write(target.id)
-                buf.write(' (')
-                buf.write(target)
-                buf.write(')\n*   ')
-                for change in plan.changes:
-                    buf.write(change.__repr__(leader='* '))
-                    buf.write('\n*   ')
-
-                buf.write('Summary: ')
-                buf.write(plan)
-                buf.write('\n')
-        else:
-            buf.write(hr)
-            buf.write('No changes were planned\n')
-        buf.write(hr)
-        buf.write('\n')
-        self.log.info(buf.getvalue())
+        for output in self.plan_outputs.values():
+            output.run(plans=plans, log=self.log)
 
         if not force:
             self.log.debug('sync:   checking safety')
@@ -363,7 +361,7 @@ class Manager(object):
 
         plan = target.plan(zone)
         if plan is None:
-            plan = Plan(zone, zone, [])
+            plan = Plan(zone, zone, [], False)
         target.apply(plan)
 
     def validate_configs(self):

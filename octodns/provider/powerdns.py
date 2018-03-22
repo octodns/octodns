@@ -18,13 +18,14 @@ class PowerDnsBaseProvider(BaseProvider):
                     'PTR', 'SPF', 'SSHFP', 'SRV', 'TXT'))
     TIMEOUT = 5
 
-    def __init__(self, id, host, api_key, port=8081, scheme="http", *args,
-                 **kwargs):
+    def __init__(self, id, host, api_key, port=8081, scheme="http",
+                 timeout=TIMEOUT, *args, **kwargs):
         super(PowerDnsBaseProvider, self).__init__(id, *args, **kwargs)
 
         self.host = host
         self.port = port
         self.scheme = scheme
+        self.timeout = timeout
 
         sess = Session()
         sess.headers.update({'X-API-Key': api_key})
@@ -35,7 +36,7 @@ class PowerDnsBaseProvider(BaseProvider):
 
         url = '{}://{}:{}/api/v1/servers/localhost/{}' \
             .format(self.scheme, self.host, self.port, path)
-        resp = self._sess.request(method, url, json=data, timeout=self.TIMEOUT)
+        resp = self._sess.request(method, url, json=data, timeout=self.timeout)
         self.log.debug('_request:   status=%d', resp.status_code)
         resp.raise_for_status()
         return resp
@@ -177,7 +178,7 @@ class PowerDnsBaseProvider(BaseProvider):
                 raise Exception('PowerDNS unauthorized host={}'
                                 .format(self.host))
             elif e.response.status_code == 422:
-                # 422 means powerdns doesn't know anything about the requsted
+                # 422 means powerdns doesn't know anything about the requested
                 # domain. We'll just ignore it here and leave the zone
                 # untouched.
                 pass
@@ -186,8 +187,10 @@ class PowerDnsBaseProvider(BaseProvider):
                 raise
 
         before = len(zone.records)
+        exists = False
 
         if resp:
+            exists = True
             for rrset in resp.json()['rrsets']:
                 _type = rrset['type']
                 if _type == 'SOA':
@@ -198,8 +201,9 @@ class PowerDnsBaseProvider(BaseProvider):
                                     source=self, lenient=lenient)
                 zone.add_record(record)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _records_for_multiple(self, record):
         return [{'content': v, 'disabled': False}
@@ -293,8 +297,8 @@ class PowerDnsBaseProvider(BaseProvider):
             return []
 
         # sorting mostly to make things deterministic for testing, but in
-        # theory it let us find what we're after quickier (though sorting would
-        # ve more exepensive.)
+        # theory it let us find what we're after quicker (though sorting would
+        # be more expensive.)
         for record in sorted(existing.records):
             if record == ns:
                 # We've found the top-level NS record, return any changes
@@ -340,7 +344,7 @@ class PowerDnsBaseProvider(BaseProvider):
                                e.response.text)
                 raise
             self.log.info('_apply:   creating zone=%s', desired.name)
-            # 422 means powerdns doesn't know anything about the requsted
+            # 422 means powerdns doesn't know anything about the requested
             # domain. We'll try to create it with the correct records instead
             # of update. Hopefully all the mods are creates :-)
             data = {

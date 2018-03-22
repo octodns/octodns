@@ -3,6 +3,5 @@ include CONTRIBUTING.md
 include LICENSE
 include docs/*
 include octodns/*
-include requirements*.txt
 include script/*
 include tests/*

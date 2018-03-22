@@ -96,6 +96,57 @@ class TestRecord(TestCase):
 
             DummyRecord().__repr__()
 
+    def test_values_mixin_data(self):
+        # no values, no value or values in data
+        a = ARecord(self.zone, '', {
+            'type': 'A',
+            'ttl': 600,
+            'values': []
+        })
+        self.assertNotIn('values', a.data)
+
+        # empty value, no value or values in data
+        b = ARecord(self.zone, '', {
+            'type': 'A',
+            'ttl': 600,
+            'values': ['']
+        })
+        self.assertNotIn('value', b.data)
+
+        # empty/None values, no value or values in data
+        c = ARecord(self.zone, '', {
+            'type': 'A',
+            'ttl': 600,
+            'values': ['', None]
+        })
+        self.assertNotIn('values', c.data)
+
+        # empty/None values and valid, value in data
+        c = ARecord(self.zone, '', {
+            'type': 'A',
+            'ttl': 600,
+            'values': ['', None, '10.10.10.10']
+        })
+        self.assertNotIn('values', c.data)
+        self.assertEqual('10.10.10.10', c.data['value'])
+
+    def test_value_mixin_data(self):
+        # unspecified value, no value in data
+        a = AliasRecord(self.zone, '', {
+            'type': 'ALIAS',
+            'ttl': 600,
+            'value': None
+        })
+        self.assertNotIn('value', a.data)
+
+        # unspecified value, no value in data
+        a = AliasRecord(self.zone, '', {
+            'type': 'ALIAS',
+            'ttl': 600,
+            'value': ''
+        })
+        self.assertNotIn('value', a.data)
+
     def test_geo(self):
         geo_data = {'ttl': 42, 'values': ['5.2.3.4', '6.2.3.4'],
                     'geo': {'AF': ['1.1.1.1'],
@@ -294,7 +345,7 @@ class TestRecord(TestCase):
         self.assertEquals(a_data, a.data)
 
         b_value = {
-            'preference': 12,
+            'preference': 0,
             'exchange': 'smtp3.',
         }
         b_data = {'ttl': 30, 'value': b_value}
@@ -379,7 +430,7 @@ class TestRecord(TestCase):
         self.assertEqual(change.new, other)
 
         # full sorting
-        # equivilent
+        # equivalent
         b_naptr_value = b.values[0]
         self.assertEquals(0, b_naptr_value.__cmp__(b_naptr_value))
         # by order
@@ -659,7 +710,7 @@ class TestRecord(TestCase):
             Record.new(self.zone, 'unknown', {})
         self.assertTrue('missing type' in ctx.exception.message)
 
-        # Unkown type
+        # Unknown type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {
                 'type': 'XXX',
@@ -781,6 +832,16 @@ class TestRecordValidation(TestCase):
             }, lenient=True)
         self.assertEquals(('value',), ctx.exception.args)
 
+        # no exception if we're in lenient mode from config
+        Record.new(self.zone, 'www', {
+            'octodns': {
+                'lenient': True
+            },
+            'type': 'A',
+            'ttl': -1,
+            'value': '1.2.3.4',
+        }, lenient=True)
+
     def test_A_and_values_mixin(self):
         # doesn't blow up
         Record.new(self.zone, '', {
@@ -793,17 +854,71 @@ class TestRecordValidation(TestCase):
             'ttl': 600,
             'values': [
                 '1.2.3.4',
+            ]
+        })
+        Record.new(self.zone, '', {
+            'type': 'A',
+            'ttl': 600,
+            'values': [
+                '1.2.3.4',
                 '1.2.3.5',
             ]
         })
 
-        # missing value(s)
+        # missing value(s), no value or value
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'A',
                 'ttl': 600,
             })
         self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # missing value(s), empty values
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'A',
+                'ttl': 600,
+                'values': []
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # missing value(s), None values
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'A',
+                'ttl': 600,
+                'values': None
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # missing value(s) and empty value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'A',
+                'ttl': 600,
+                'values': [None, '']
+            })
+        self.assertEquals(['missing value(s)',
+                           'empty value'], ctx.exception.reasons)
+
+        # missing value(s), None value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'A',
+                'ttl': 600,
+                'value': None
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # empty value, empty string value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'A',
+                'ttl': 600,
+                'value': ''
+            })
+        self.assertEquals(['empty value'], ctx.exception.reasons)
+
         # missing value(s) & ttl
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
@@ -959,6 +1074,24 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
             })
         self.assertEquals(['missing value'], ctx.exception.reasons)
+
+        # missing value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'ALIAS',
+                'ttl': 600,
+                'value': None
+            })
+        self.assertEquals(['missing value'], ctx.exception.reasons)
+
+        # empty value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'ALIAS',
+                'ttl': 600,
+                'value': ''
+            })
+        self.assertEquals(['empty value'], ctx.exception.reasons)
 
         # missing trailing .
         with self.assertRaises(ValidationError) as ctx:
@@ -1275,7 +1408,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': {
                     'algorithm': 'nope',
-                    'fingerprint_type': 1,
+                    'fingerprint_type': 2,
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }
             })
@@ -1301,7 +1434,7 @@ class TestRecordValidation(TestCase):
                 'type': 'SSHFP',
                 'ttl': 600,
                 'value': {
-                    'algorithm': 1,
+                    'algorithm': 2,
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }
             })
@@ -1313,7 +1446,7 @@ class TestRecordValidation(TestCase):
                 'type': 'SSHFP',
                 'ttl': 600,
                 'value': {
-                    'algorithm': 1,
+                    'algorithm': 3,
                     'fingerprint_type': 'yeeah',
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }

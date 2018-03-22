@@ -242,6 +242,18 @@
             ],
             "ttl": 3600,
             "type": "CAA"
+        },
+	{
+            "comments": [],
+            "name": "included.unit.tests.",
+            "records": [
+                {
+                    "content": "unit.tests.",
+                    "disabled": false
+                }
+            ],
+            "ttl": 3600,
+            "type": "CNAME"
         }
     ],
     "serial": 2017012803,

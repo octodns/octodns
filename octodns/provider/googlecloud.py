@@ -9,6 +9,7 @@ import shlex
 import time
 from logging import getLogger
 from uuid import uuid4
+import re
 
 from google.cloud import dns
 
@@ -127,9 +128,10 @@ class GoogleCloudProvider(BaseProvider):
             :type return: new google.cloud.dns.ManagedZone
         """
         # Zone name must begin with a letter, end with a letter or digit,
-        # and only contain lowercase letters, digits or dashes
-        zone_name = '{}-{}'.format(
-            dns_name[:-1].replace('.', '-'), uuid4().hex)
+        # and only contain lowercase letters, digits or dashes,
+        # and be 63 characters or less
+        zone_name = 'zone-{}-{}'.format(
+            dns_name.replace('.', '-'), uuid4().hex)[:63]
 
         gcloud_zone = self.gcloud_client.zone(
             name=zone_name,
@@ -202,11 +204,14 @@ class GoogleCloudProvider(BaseProvider):
 
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
+
+        exists = False
         before = len(zone.records)
 
         gcloud_zone = self.gcloud_zones.get(zone.name)
 
         if gcloud_zone:
+            exists = True
             for gcloud_record in self._get_gcloud_records(gcloud_zone):
                 if gcloud_record.record_type.upper() not in self.SUPPORTS:
                     continue
@@ -227,7 +232,9 @@ class GoogleCloudProvider(BaseProvider):
                 record = Record.new(zone, record_name, data, source=self)
                 zone.add_record(record)
 
-        self.log.info('populate: found %s records', len(zone.records) - before)
+        self.log.info('populate: found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _data_for_A(self, gcloud_record):
         return {
@@ -269,12 +276,15 @@ class GoogleCloudProvider(BaseProvider):
 
     _data_for_PTR = _data_for_CNAME
 
+    _fix_semicolons = re.compile(r'(?<!\\);')
+
     def _data_for_SPF(self, gcloud_record):
         if len(gcloud_record.rrdatas) > 1:
             return {
-                'values': gcloud_record.rrdatas}
+                'values': [self._fix_semicolons.sub('\;', rr)
+                           for rr in gcloud_record.rrdatas]}
         return {
-            'value': gcloud_record.rrdatas[0]}
+            'value': self._fix_semicolons.sub('\;', gcloud_record.rrdatas[0])}
 
     def _data_for_SRV(self, gcloud_record):
         return {'values': [{

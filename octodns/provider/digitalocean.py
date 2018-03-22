@@ -13,38 +13,37 @@ from ..record import Record
 from .base import BaseProvider
 
 
-class DnsimpleClientException(Exception):
+class DigitalOceanClientException(Exception):
     pass
 
 
-class DnsimpleClientNotFound(DnsimpleClientException):
+class DigitalOceanClientNotFound(DigitalOceanClientException):
 
     def __init__(self):
-        super(DnsimpleClientNotFound, self).__init__('Not found')
+        super(DigitalOceanClientNotFound, self).__init__('Not Found')
 
 
-class DnsimpleClientUnauthorized(DnsimpleClientException):
+class DigitalOceanClientUnauthorized(DigitalOceanClientException):
 
     def __init__(self):
-        super(DnsimpleClientUnauthorized, self).__init__('Unauthorized')
+        super(DigitalOceanClientUnauthorized, self).__init__('Unauthorized')
 
 
-class DnsimpleClient(object):
-    BASE = 'https://api.dnsimple.com/v2/'
+class DigitalOceanClient(object):
+    BASE = 'https://api.digitalocean.com/v2'
 
-    def __init__(self, token, account):
-        self.account = account
+    def __init__(self, token):
         sess = Session()
         sess.headers.update({'Authorization': 'Bearer {}'.format(token)})
         self._sess = sess
 
     def _request(self, method, path, params=None, data=None):
-        url = '{}{}{}'.format(self.BASE, self.account, path)
+        url = '{}{}'.format(self.BASE, path)
         resp = self._sess.request(method, url, params=params, json=data)
         if resp.status_code == 401:
-            raise DnsimpleClientUnauthorized()
+            raise DigitalOceanClientUnauthorized()
         if resp.status_code == 404:
-            raise DnsimpleClientNotFound()
+            raise DigitalOceanClientNotFound()
         resp.raise_for_status()
         return resp
 
@@ -53,52 +52,77 @@ class DnsimpleClient(object):
         return self._request('GET', path).json()
 
     def domain_create(self, name):
-        return self._request('POST', '/domains', data={'name': name})
+        # Digitalocean requires an IP on zone creation
+        self._request('POST', '/domains', data={'name': name,
+                                                'ip_address': '192.0.2.1'})
+
+        # After the zone is created, immediately delete the record
+        records = self.records(name)
+        for record in records:
+            if record['name'] == '' and record['type'] == 'A':
+                self.record_delete(name, record['id'])
 
     def records(self, zone_name):
+        path = '/domains/{}/records'.format(zone_name)
         ret = []
 
         page = 1
         while True:
-            data = self._request('GET', '/zones/{}/records'.format(zone_name),
-                                 {'page': page}).json()
-            ret += data['data']
-            pagination = data['pagination']
-            if page >= pagination['total_pages']:
+            data = self._request('GET', path, {'page': page}).json()
+
+            ret += data['domain_records']
+            links = data['links']
+
+            # https://developers.digitalocean.com/documentation/v2/#links
+            # pages exists if there is more than 1 page
+            # last doesn't exist if you're on the last page
+            try:
+                links['pages']['last']
+                page += 1
+            except KeyError:
                 break
-            page += 1
+
+        for record in ret:
+            # change any apex record to empty string
+            if record['name'] == '@':
+                record['name'] = ''
+
+            # change any apex value to zone name
+            if record['data'] == '@':
+                record['data'] = zone_name
 
         return ret
 
     def record_create(self, zone_name, params):
-        path = '/zones/{}/records'.format(zone_name)
+        path = '/domains/{}/records'.format(zone_name)
+        # change empty name string to @, DO uses @ for apex record names
+        if params['name'] == '':
+            params['name'] = '@'
+
         self._request('POST', path, data=params)
 
     def record_delete(self, zone_name, record_id):
-        path = '/zones/{}/records/{}'.format(zone_name, record_id)
+        path = '/domains/{}/records/{}'.format(zone_name, record_id)
         self._request('DELETE', path)
 
 
-class DnsimpleProvider(BaseProvider):
+class DigitalOceanProvider(BaseProvider):
     '''
-    Dnsimple provider using API v2
+    DigitalOcean DNS provider using API v2
 
-    dnsimple:
-        class: octodns.provider.dnsimple.DnsimpleProvider
-        # API v2 account access token (required)
-        token: letmein
-        # Your account number (required)
-        account: 42
+    digitalocean:
+        class: octodns.provider.digitalocean.DigitalOceanProvider
+        # Your DigitalOcean API token (required)
+        token: foo
     '''
     SUPPORTS_GEO = False
-    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
-                    'PTR', 'SPF', 'SRV', 'SSHFP', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'TXT', 'SRV'))
 
-    def __init__(self, id, token, account, *args, **kwargs):
-        self.log = logging.getLogger('DnsimpleProvider[{}]'.format(id))
-        self.log.debug('__init__: id=%s, token=***, account=%s', id, account)
-        super(DnsimpleProvider, self).__init__(id, *args, **kwargs)
-        self._client = DnsimpleClient(token, account)
+    def __init__(self, id, token, *args, **kwargs):
+        self.log = logging.getLogger('DigitalOceanProvider[{}]'.format(id))
+        self.log.debug('__init__: id=%s, token=***', id)
+        super(DigitalOceanProvider, self).__init__(id, *args, **kwargs)
+        self._client = DigitalOceanClient(token)
 
         self._zone_records = {}
 
@@ -106,22 +130,19 @@ class DnsimpleProvider(BaseProvider):
         return {
             'ttl': records[0]['ttl'],
             'type': _type,
-            'values': [r['content'] for r in records]
+            'values': [r['data'] for r in records]
         }
 
     _data_for_A = _data_for_multiple
     _data_for_AAAA = _data_for_multiple
-    _data_for_SPF = _data_for_multiple
-    _data_for_TXT = _data_for_multiple
 
     def _data_for_CAA(self, _type, records):
         values = []
         for record in records:
-            flags, tag, value = record['content'].split(' ')
             values.append({
-                'flags': flags,
-                'tag': tag,
-                'value': value[1:-1],
+                'flags': record['flags'],
+                'tag': record['tag'],
+                'value': record['data'],
             })
         return {
             'ttl': records[0]['ttl'],
@@ -134,84 +155,41 @@ class DnsimpleProvider(BaseProvider):
         return {
             'ttl': record['ttl'],
             'type': _type,
-            'value': '{}.'.format(record['content'])
+            'value': '{}.'.format(record['data'])
         }
-
-    _data_for_ALIAS = _data_for_CNAME
 
     def _data_for_MX(self, _type, records):
         values = []
         for record in records:
             values.append({
                 'preference': record['priority'],
-                'exchange': '{}.'.format(record['content'])
+                'exchange': '{}.'.format(record['data'])
             })
         return {
             'ttl': records[0]['ttl'],
             'type': _type,
-            'values': values
-        }
-
-    def _data_for_NAPTR(self, _type, records):
-        values = []
-        for record in records:
-            try:
-                order, preference, flags, service, regexp, replacement = \
-                    record['content'].split(' ', 5)
-            except ValueError:
-                # their api will let you create invalid records, this
-                # essentially handles that by ignoring them for values
-                # purposes. That will cause updates to happen to delete them if
-                # they shouldn't exist or update them if they're wrong
-                continue
-            values.append({
-                'flags': flags[1:-1],
-                'order': order,
-                'preference': preference,
-                'regexp': regexp[1:-1],
-                'replacement': replacement,
-                'service': service[1:-1],
-            })
-        return {
-            'type': _type,
-            'ttl': records[0]['ttl'],
             'values': values
         }
 
     def _data_for_NS(self, _type, records):
         values = []
         for record in records:
-            content = record['content']
-            if content[-1] != '.':
-                content = '{}.'.format(content)
-            values.append(content)
+            data = '{}.'.format(record['data'])
+            values.append(data)
         return {
             'ttl': records[0]['ttl'],
             'type': _type,
             'values': values,
         }
 
-    def _data_for_PTR(self, _type, records):
-        record = records[0]
-        return {
-            'ttl': record['ttl'],
-            'type': _type,
-            'value': record['content']
-        }
-
     def _data_for_SRV(self, _type, records):
         values = []
         for record in records:
-            try:
-                weight, port, target = record['content'].split(' ', 2)
-            except ValueError:
-                # see _data_for_NAPTR's continue
-                continue
             values.append({
-                'port': port,
+                'port': record['port'],
                 'priority': record['priority'],
-                'target': '{}.'.format(target),
-                'weight': weight
+                'target': '{}.'.format(record['data']),
+                'weight': record['weight']
             })
         return {
             'type': _type,
@@ -219,23 +197,11 @@ class DnsimpleProvider(BaseProvider):
             'values': values
         }
 
-    def _data_for_SSHFP(self, _type, records):
-        values = []
-        for record in records:
-            try:
-                algorithm, fingerprint_type, fingerprint = \
-                    record['content'].split(' ', 2)
-            except ValueError:
-                # see _data_for_NAPTR's continue
-                continue
-            values.append({
-                'algorithm': algorithm,
-                'fingerprint': fingerprint,
-                'fingerprint_type': fingerprint_type
-            })
+    def _data_for_TXT(self, _type, records):
+        values = [value['data'].replace(';', '\;') for value in records]
         return {
-            'type': _type,
             'ttl': records[0]['ttl'],
+            'type': _type,
             'values': values
         }
 
@@ -244,7 +210,7 @@ class DnsimpleProvider(BaseProvider):
             try:
                 self._zone_records[zone.name] = \
                     self._client.records(zone.name[:-1])
-            except DnsimpleClientNotFound:
+            except DigitalOceanClientNotFound:
                 return []
 
         return self._zone_records[zone.name]
@@ -256,12 +222,6 @@ class DnsimpleProvider(BaseProvider):
         values = defaultdict(lambda: defaultdict(list))
         for record in self.zone_records(zone):
             _type = record['type']
-            if _type == 'SOA':
-                continue
-            elif _type == 'TXT' and record['content'].startswith('ALIAS for'):
-                # ALIAS has a "ride along" TXT record with 'ALIAS for XXXX',
-                # we're ignoring it
-                continue
             values[record['name']][record['type']].append(record)
 
         before = len(zone.records)
@@ -280,58 +240,43 @@ class DnsimpleProvider(BaseProvider):
     def _params_for_multiple(self, record):
         for value in record.values:
             yield {
-                'content': value,
+                'data': value,
                 'name': record.name,
                 'ttl': record.ttl,
-                'type': record._type,
+                'type': record._type
             }
 
     _params_for_A = _params_for_multiple
     _params_for_AAAA = _params_for_multiple
     _params_for_NS = _params_for_multiple
-    _params_for_SPF = _params_for_multiple
-    _params_for_TXT = _params_for_multiple
 
     def _params_for_CAA(self, record):
         for value in record.values:
             yield {
-                'content': '{} {} "{}"'.format(value.flags, value.tag,
-                                               value.value),
+                'data': '{}.'.format(value.value),
+                'flags': value.flags,
                 'name': record.name,
+                'tag': value.tag,
                 'ttl': record.ttl,
                 'type': record._type
             }
 
     def _params_for_single(self, record):
         yield {
-            'content': record.value,
+            'data': record.value,
             'name': record.name,
             'ttl': record.ttl,
             'type': record._type
         }
 
-    _params_for_ALIAS = _params_for_single
     _params_for_CNAME = _params_for_single
-    _params_for_PTR = _params_for_single
 
     def _params_for_MX(self, record):
         for value in record.values:
             yield {
-                'content': value.exchange,
+                'data': value.exchange,
                 'name': record.name,
                 'priority': value.preference,
-                'ttl': record.ttl,
-                'type': record._type
-            }
-
-    def _params_for_NAPTR(self, record):
-        for value in record.values:
-            content = '{} {} "{}" "{}" "{}" {}' \
-                .format(value.order, value.preference, value.flags,
-                        value.service, value.regexp, value.replacement)
-            yield {
-                'content': content,
-                'name': record.name,
                 'ttl': record.ttl,
                 'type': record._type
             }
@@ -339,20 +284,21 @@ class DnsimpleProvider(BaseProvider):
     def _params_for_SRV(self, record):
         for value in record.values:
             yield {
-                'content': '{} {} {}'.format(value.weight, value.port,
-                                             value.target),
+                'data': value.target,
                 'name': record.name,
+                'port': value.port,
                 'priority': value.priority,
                 'ttl': record.ttl,
-                'type': record._type
+                'type': record._type,
+                'weight': value.weight
             }
 
-    def _params_for_SSHFP(self, record):
+    def _params_for_TXT(self, record):
+        # DigitalOcean doesn't want things escaped in values so we
+        # have to strip them here and add them when going the other way
         for value in record.values:
             yield {
-                'content': '{} {} {}'.format(value.algorithm,
-                                             value.fingerprint_type,
-                                             value.fingerprint),
+                'data': value.replace('\;', ';'),
                 'name': record.name,
                 'ttl': record.ttl,
                 'type': record._type
@@ -385,7 +331,7 @@ class DnsimpleProvider(BaseProvider):
         domain_name = desired.name[:-1]
         try:
             self._client.domain(domain_name)
-        except DnsimpleClientNotFound:
+        except DigitalOceanClientNotFound:
             self.log.debug('_apply:   no matching zone, creating domain')
             self._client.domain_create(domain_name)
 

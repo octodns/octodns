@@ -37,10 +37,10 @@ class Zone(object):
         if not name[-1] == '.':
             raise Exception('Invalid zone name {}, missing ending dot'
                             .format(name))
-        # Force everyting to lowercase just to be safe
-        self.name = str(name).lower() if name else name
+        # Force everything to lowercase just to be safe
+        self.name = unicode(name).lower() if name else name
         self.sub_zones = sub_zones
-        # We're grouping by node, it allows us to efficently search for
+        # We're grouping by node, it allows us to efficiently search for
         # duplicates and detect when CNAMEs co-exist with other records
         self._records = defaultdict(set)
         # optional leading . to match empty hostname
@@ -110,9 +110,28 @@ class Zone(object):
         for record in filter(_is_eligible, self.records):
             if record.ignored:
                 continue
+            elif len(record.included) > 0 and \
+                    target.id not in record.included:
+                self.log.debug('changes:  skipping record=%s %s - %s not'
+                               ' included ', record.fqdn, record._type,
+                               target.id)
+                continue
+            elif target.id in record.excluded:
+                self.log.debug('changes:  skipping record=%s %s - %s '
+                               'excluded ', record.fqdn, record._type,
+                               target.id)
+                continue
             try:
                 desired_record = desired_records[record]
                 if desired_record.ignored:
+                    continue
+                elif len(desired_record.included) > 0 and \
+                        target.id not in desired_record.included:
+                    self.log.debug('changes:  skipping record=%s %s - %s'
+                                   'not included ', record.fqdn, record._type,
+                                   target.id)
+                    continue
+                elif target.id in desired_record.excluded:
                     continue
             except KeyError:
                 if not target.supports(record):
@@ -141,6 +160,18 @@ class Zone(object):
         for record in filter(_is_eligible, desired.records - self.records):
             if record.ignored:
                 continue
+            elif len(record.included) > 0 and \
+                    target.id not in record.included:
+                self.log.debug('changes:  skipping record=%s %s - %s not'
+                               ' included ', record.fqdn, record._type,
+                               target.id)
+                continue
+            elif target.id in record.excluded:
+                self.log.debug('changes:  skipping record=%s %s - %s '
+                               'excluded ', record.fqdn, record._type,
+                               target.id)
+                continue
+
             if not target.supports(record):
                 self.log.debug('changes:  skipping record=%s %s - %s does not '
                                'support it', record.fqdn, record._type,

@@ -430,6 +430,7 @@ class TestDynProvider(TestCase):
                 update_mock.assert_not_called()
                 provider.apply(plan)
                 update_mock.assert_called()
+                self.assertFalse(plan.exists)
             add_mock.assert_called()
             # Once for each dyn record (8 Records, 2 of which have dual values)
             self.assertEquals(15, len(add_mock.call_args_list))
@@ -474,6 +475,7 @@ class TestDynProvider(TestCase):
                     plan = provider.plan(new)
                     provider.apply(plan)
                     update_mock.assert_called()
+                    self.assertTrue(plan.exists)
                 # we expect 4 deletes, 2 from actual deletes and 2 from
                 # updates which delete and recreate
                 self.assertEquals(4, len(delete_mock.call_args_list))
@@ -491,7 +493,7 @@ class TestDynProviderGeo(TestCase):
         traffic_director_response = loads(fh.read())
 
     @property
-    def traffic_directors_reponse(self):
+    def traffic_directors_response(self):
         return {
             'data': [{
                 'active': 'Y',
@@ -626,7 +628,7 @@ class TestDynProviderGeo(TestCase):
         mock.side_effect = [{'data': []}]
         self.assertEquals({}, provider.traffic_directors)
 
-        # a supported td and an ingored one
+        # a supported td and an ignored one
         response = {
             'data': [{
                 'active': 'Y',
@@ -669,7 +671,7 @@ class TestDynProviderGeo(TestCase):
                           set(tds.keys()))
         self.assertEquals(['A'], tds['unit.tests.'].keys())
         self.assertEquals(['A'], tds['geo.unit.tests.'].keys())
-        provider.log.warn.assert_called_with("Failed to load TraficDirector "
+        provider.log.warn.assert_called_with("Failed to load TrafficDirector "
                                              "'%s': %s", 'something else',
                                              'need more than 1 value to '
                                              'unpack')
@@ -975,7 +977,7 @@ class TestDynProviderGeo(TestCase):
         # only traffic director
         mock.side_effect = [
             # get traffic directors
-            self.traffic_directors_reponse,
+            self.traffic_directors_response,
             # get traffic director
             self.traffic_director_response,
             # get zone
@@ -1026,7 +1028,7 @@ class TestDynProviderGeo(TestCase):
         # both traffic director and regular, regular is ignored
         mock.side_effect = [
             # get traffic directors
-            self.traffic_directors_reponse,
+            self.traffic_directors_response,
             # get traffic director
             self.traffic_director_response,
             # get zone
@@ -1076,7 +1078,7 @@ class TestDynProviderGeo(TestCase):
         # busted traffic director
         mock.side_effect = [
             # get traffic directors
-            self.traffic_directors_reponse,
+            self.traffic_directors_response,
             # get traffic director
             busted_traffic_director_response,
             # get zone
@@ -1130,7 +1132,7 @@ class TestDynProviderGeo(TestCase):
             Delete(geo),
             Delete(regular),
         ]
-        plan = Plan(None, desired, changes)
+        plan = Plan(None, desired, changes, True)
         provider._apply(plan)
         mock.assert_has_calls([
             call('/Zone/unit.tests/', 'GET', {}),
@@ -1149,14 +1151,14 @@ class TestDynProviderGeo(TestCase):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
-        # will be tested seperately
+        # will be tested separately
         provider._mod_rulesets = MagicMock()
 
         mock.side_effect = [
             # create traffic director
             self.traffic_director_response,
             # get traffic directors
-            self.traffic_directors_reponse
+            self.traffic_directors_response
         ]
         provider._mod_geo_Create(None, Create(self.geo_record))
         # td now lives in cache

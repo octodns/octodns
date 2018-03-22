@@ -119,13 +119,13 @@ The first step is to create a PR with your changes.
 
 Assuming the code tests and config validation statuses are green the next step is to do a noop deploy and verify that the changes OctoDNS plans to make are the ones you expect.
 
-![](/docs/assets/noop.png)    
+![](/docs/assets/noop.png)
 
 After that comes a set of reviews. One from a teammate who should have full context on what you're trying to accomplish and visibility in to the changes you're making to do it. The other is from a member of the team here at GitHub that owns DNS, mostly as a sanity check and to make sure that best practices are being followed. As much of that as possible is baked into `octodns-validate`.
 
 After the reviews it's time to branch deploy the change.
 
-![](/docs/assets/deploy.png)    
+![](/docs/assets/deploy.png)
 
 If that goes smoothly, you again see the expected changes, and verify them with `dig` and/or `octodns-report` you're good to hit the merge button. If there are problems you can quickly do a `.deploy dns/master` to go back to the previous state.
 
@@ -150,13 +150,16 @@ The above command pulled the existing data out of Route53 and placed the results
 | Provider | Record Support | GeoDNS Support | Notes |
 |--|--|--|--|
 | [AzureProvider](/octodns/provider/azuredns.py) | A, AAAA, CNAME, MX, NS, PTR, SRV, TXT | No | |
-| [CloudflareProvider](/octodns/provider/cloudflare.py) | A, AAAA, CAA, CNAME, MX, NS, SPF, TXT | No | CAA tags restricted |
+| [CloudflareProvider](/octodns/provider/cloudflare.py) | A, AAAA, ALIAS, CAA, CNAME, MX, NS, SPF, SRV, TXT | No | CAA tags restricted |
+| [DigitalOceanProvider](/octodns/provider/digitalocean.py) | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
+| [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
 | [DnsimpleProvider](/octodns/provider/dnsimple.py) | All | No | CAA tags restricted |
 | [DynProvider](/octodns/provider/dyn.py) | All | Yes | |
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
-| [Ns1Provider](/octodns/provider/ns1.py) | All | No | |
-| [OVH](/octodns/provider/ovh.py) | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
+| [Ns1Provider](/octodns/provider/ns1.py) | All | Yes | No health checking for GeoDNS |
+| [OVH](/octodns/provider/ovh.py) | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
 | [PowerDnsProvider](/octodns/provider/powerdns.py) | All | No | |
+| [Rackspace](/octodns/provider/rackspace.py) | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
 | [Route53](/octodns/provider/route53.py) | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Yes | |
 | [TinyDNSSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |
 | [YamlProvider](/octodns/provider/yaml.py) | All | Yes | config |
@@ -166,6 +169,7 @@ The above command pulled the existing data out of Route53 and placed the results
 * ALIAS support varies a lot from provider to provider care should be taken to verify that your needs are met in detail.
    * Dyn's UI doesn't allow editing or view of TTL, but the API accepts and stores the value provided, this value does not appear to be used when served
    * Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
+* octoDNS itself supports non-ASCII character sets, but in testing Cloudflare is the only provider where that is currently functional end-to-end. Others have failures either in the client libraries or API calls
 
 ## Custom Sources and Providers
 

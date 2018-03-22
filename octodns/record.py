@@ -95,6 +95,10 @@ class Record(object):
         except KeyError:
             raise Exception('Unknown record type: "{}"'.format(_type))
         reasons = _class.validate(name, data)
+        try:
+            lenient |= data['octodns']['lenient']
+        except KeyError:
+            pass
         if reasons:
             if lenient:
                 cls.log.warn(ValidationError.build_message(fqdn, reasons))
@@ -118,11 +122,14 @@ class Record(object):
                        self.__class__.__name__, name)
         self.zone = zone
         # force everything lower-case just to be safe
-        self.name = str(name).lower() if name else name
+        self.name = unicode(name).lower() if name else name
         self.source = source
         self.ttl = int(data['ttl'])
 
         self._octodns = data.get('octodns', {})
+        self.ignored = octodns.get('ignored', False)
+        self.excluded = octodns.get('excluded', [])
+        self.included = octodns.get('included', [])
 
     def _data(self):
         return {'ttl': self.ttl}
@@ -162,7 +169,7 @@ class Record(object):
 
     # NOTE: we're using __hash__ and __cmp__ methods that consider Records
     # equivalent if they have the same name & _type. Values are ignored. This
-    # is usful when computing diffs/changes.
+    # is useful when computing diffs/changes.
 
     def __hash__(self):
         return '{}:{}'.format(self.name, self._type).__hash__()
@@ -195,7 +202,7 @@ class GeoValue(object):
         self.continent_code = match.group('continent_code')
         self.country_code = match.group('country_code')
         self.subdivision_code = match.group('subdivision_code')
-        self.values = values
+        self.values = sorted(values)
 
     @property
     def parents(self):
@@ -224,9 +231,30 @@ class _ValuesMixin(object):
         values = []
         try:
             values = data['values']
+            if not values:
+                values = []
+                reasons.append('missing value(s)')
+            else:
+                # loop through copy of values
+                # remove invalid value from values
+                for value in list(values):
+                    if value is None:
+                        reasons.append('missing value(s)')
+                        values.remove(value)
+                    elif len(value) == 0:
+                        reasons.append('empty value')
+                        values.remove(value)
         except KeyError:
             try:
-                values = [data['value']]
+                value = data['value']
+                if value is None:
+                    reasons.append('missing value(s)')
+                    values = []
+                elif len(value) == 0:
+                    reasons.append('empty value')
+                    values = []
+                else:
+                    values = [value]
             except KeyError:
                 reasons.append('missing value(s)')
 
@@ -251,14 +279,21 @@ class _ValuesMixin(object):
     def _data(self):
         ret = super(_ValuesMixin, self)._data()
         if len(self.values) > 1:
-            ret['values'] = [getattr(v, 'data', v) for v in self.values]
-        else:
+            values = [getattr(v, 'data', v) for v in self.values if v]
+            if len(values) > 1:
+                ret['values'] = values
+            elif len(values) == 1:
+                ret['value'] = values[0]
+        elif len(self.values) == 1:
             v = self.values[0]
-            ret['value'] = getattr(v, 'data', v)
+            if v:
+                ret['value'] = getattr(v, 'data', v)
+
         return ret
 
     def __repr__(self):
-        values = "['{}']".format("', '".join([str(v) for v in self.values]))
+        values = "['{}']".format("', '".join([unicode(v)
+                                              for v in self.values]))
         return '<{} {} {}, {}, {}>'.format(self.__class__.__name__,
                                            self._type, self.ttl,
                                            self.fqdn, values)
@@ -362,6 +397,10 @@ class _ValueMixin(object):
         value = None
         try:
             value = data['value']
+            if value is None:
+                reasons.append('missing value')
+            elif value == '':
+                reasons.append('empty value')
         except KeyError:
             reasons.append('missing value')
         if value:
@@ -379,7 +418,8 @@ class _ValueMixin(object):
 
     def _data(self):
         ret = super(_ValueMixin, self)._data()
-        ret['value'] = getattr(self.value, 'data', self.value)
+        if self.value:
+            ret['value'] = getattr(self.value, 'data', self.value)
         return ret
 
     def __repr__(self):
@@ -485,7 +525,10 @@ class MxValue(object):
     def _validate_value(cls, value):
         reasons = []
         try:
-            int(value.get('preference', None) or value['priority'])
+            try:
+                int(value['preference'])
+            except KeyError:
+                int(value['priority'])
         except KeyError:
             reasons.append('missing preference')
         except ValueError:
@@ -654,8 +697,8 @@ class PtrRecord(_ValueMixin, Record):
 
 
 class SshfpValue(object):
-    VALID_ALGORITHMS = (1, 2)
-    VALID_FINGERPRINT_TYPES = (1,)
+    VALID_ALGORITHMS = (1, 2, 3)
+    VALID_FINGERPRINT_TYPES = (1, 2)
 
     @classmethod
     def _validate_value(cls, value):
