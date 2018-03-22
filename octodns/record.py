@@ -127,9 +127,9 @@ class Record(object):
         self.ttl = int(data['ttl'])
 
         self._octodns = data.get('octodns', {})
-        self.ignored = octodns.get('ignored', False)
-        self.excluded = octodns.get('excluded', [])
-        self.included = octodns.get('included', [])
+        self.ignored = self._octodns.get('ignored', False)
+        self.excluded = self._octodns.get('excluded', [])
+        self.included = self._octodns.get('included', [])
 
     def _data(self):
         return {'ttl': self.ttl}
