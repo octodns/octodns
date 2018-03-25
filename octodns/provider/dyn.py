@@ -535,6 +535,12 @@ class DynProvider(BaseProvider):
         for ruleset in existing_rulesets:
             for pool in ruleset.response_pools:
                 pools[pool.response_pool_id] = pool
+        # Reverse sort the existing_rulesets by _ordering so that we'll remove
+        # them in that order later, this will ensure that we remove the old
+        # default before any of the old geo rules preventing it from catching
+        # everything.
+        existing_rulesets.sort(key=lambda r: r._ordering, reverse=True)
+
         # Now we need to find any pools that aren't referenced by rules
         for pool in td.all_response_pools:
             rpid = pool.response_pool_id
