@@ -1151,11 +1151,11 @@ class TestDynProviderGeo(TestCase):
         change = Create(self.geo_record)
         provider._mod_rulesets(td_mock, change)
         ruleset_create_mock.assert_has_calls((
-            call(td_mock, index=0),
-            call(td_mock, index=0),
-            call(td_mock, index=0),
-            call(td_mock, index=0),
-            call(td_mock, index=0),
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+            call(td_mock, index=2),
         ))
         add_response_pool_mock.assert_has_calls((
             # default

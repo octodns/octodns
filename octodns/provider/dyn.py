@@ -535,6 +535,12 @@ class DynProvider(BaseProvider):
         for ruleset in existing_rulesets:
             for pool in ruleset.response_pools:
                 pools[pool.response_pool_id] = pool
+        # Reverse sort the existing_rulesets by _ordering so that we'll remove
+        # them in that order later, this will ensure that we remove the old
+        # default before any of the old geo rules preventing it from catching
+        # everything.
+        existing_rulesets.sort(key=lambda r: r._ordering, reverse=True)
+
         # Now we need to find any pools that aren't referenced by rules
         for pool in td.all_response_pools:
             rpid = pool.response_pool_id
@@ -547,10 +553,22 @@ class DynProvider(BaseProvider):
 
         # Rulesets
 
+        # We need to make sure and insert the new rules after any existing
+        # rules so they won't take effect before we've had a chance to add
+        # response pools to them. I've tried both publish=False (which is
+        # completely broken in the client) and creating the rulesets with
+        # response_pool_ids neither of which appear to work from the client
+        # library. If there are no existing rulesets fallback to 0
+        insert_at = max([
+            int(r._ordering)
+            for r in existing_rulesets
+        ] + [-1]) + 1
+        self.log.debug('_mod_rulesets: insert_at=%d', insert_at)
+
         # add the default
         label = 'default:{}'.format(uuid4().hex)
         ruleset = DSFRuleset(label, 'always', [])
-        ruleset.create(td, index=0)
+        ruleset.create(td, index=insert_at)
         pool = self._find_or_create_pool(td, pools, 'default', new._type,
                                          new.values)
         # There's no way in the client lib to create a ruleset with an existing
@@ -583,7 +601,7 @@ class DynProvider(BaseProvider):
                 'geoip': criteria
             })
             # Something you have to call create others the constructor does it
-            ruleset.create(td, index=0)
+            ruleset.create(td, index=insert_at)
 
             first = geo.values[0]
             pool = self._find_or_create_pool(td, pools, first, new._type,
