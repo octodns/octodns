@@ -1,3 +1,18 @@
+## v0.9.0 - 2018-03-26 - Way too long since we last met
+
+* Way way way too much to list out here, shouldn't have waited so long
+* Initial NS1 geo support
+* Major reworking of `CloudflareProvider`'s update process, was only partially
+  functional before, also ignore proxied records
+* Fixes and improvements to better support non-ascii records and zones
+* Plans indicate when Zones are going to be created
+* Fix for `GoogleCloudProvider` handling of ; escapes
+* Skip Alias recordsets for Route53 (unsupported concept/type)
+* Make sure that Record geo values are sorted to prevent false diffs that can
+  never be fixed
+* `DynProvider` fix to safely roll rulesets, things could end up on rules
+  without a pool and/or hitting the default rule previously.
+
 ## v0.8.8 - 2017-10-24 - Google Cloud DNS, Large TXT Record support
 
 * Added support for "chunking" TXT records where individual values were larger
