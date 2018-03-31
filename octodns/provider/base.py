@@ -64,7 +64,8 @@ class BaseProvider(BaseSource):
             self.log.info('plan:   filtered out %s changes', before - after)
 
         # allow the provider to add extra changes it needs
-        extra = self._extra_changes(existing, desired, changes)
+        extra = self._extra_changes(existing=existing, desired=desired,
+                                    changes=changes)
         if extra:
             self.log.info('plan:   extra changes\n  %s', '\n  '
                           .join([unicode(c) for c in extra]))

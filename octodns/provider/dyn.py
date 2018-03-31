@@ -454,7 +454,7 @@ class DynProvider(BaseProvider):
                       len(zone.records) - before, exists)
         return exists
 
-    def _extra_changes(self, _, desired, changes):
+    def _extra_changes(self, desired, changes, **kwargs):
         self.log.debug('_extra_changes: desired=%s', desired.name)
 
         changed = set([c.record for c in changes])

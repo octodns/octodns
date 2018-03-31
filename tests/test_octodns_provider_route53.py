@@ -970,7 +970,7 @@ class TestRoute53Provider(TestCase):
 
         # empty is empty
         desired = Zone('unit.tests.', [])
-        extra = provider._extra_changes(None, desired, [])
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals([], extra)
         stubber.assert_no_pending_responses()
 
@@ -982,13 +982,13 @@ class TestRoute53Provider(TestCase):
             'value': '1.2.3.4',
         })
         desired.add_record(record)
-        extra = provider._extra_changes(None, desired, [])
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals([], extra)
         stubber.assert_no_pending_responses()
 
         # short-circuit for unknown zone
         other = Zone('other.tests.', [])
-        extra = provider._extra_changes(None, other, [])
+        extra = provider._extra_changes(desired=other, changes=[])
         self.assertEquals([], extra)
         stubber.assert_no_pending_responses()
 
@@ -1036,7 +1036,7 @@ class TestRoute53Provider(TestCase):
         stubber.add_response('list_resource_record_sets',
                              list_resource_record_sets_resp,
                              {'HostedZoneId': 'z42'})
-        extra = provider._extra_changes(None, desired, [])
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals(1, len(extra))
         stubber.assert_no_pending_responses()
 
@@ -1101,12 +1101,12 @@ class TestRoute53Provider(TestCase):
             'MaxItems': '100',
             'Marker': '',
         })
-        extra = provider._extra_changes(None, desired, [])
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals(1, len(extra))
         stubber.assert_no_pending_responses()
 
         for change in (Create(record), Update(record, record), Delete(record)):
-            extra = provider._extra_changes(None, desired, [change])
+            extra = provider._extra_changes(desired=desired, changes=[change])
             self.assertEquals(0, len(extra))
             stubber.assert_no_pending_responses()
 
@@ -1202,7 +1202,7 @@ class TestRoute53Provider(TestCase):
             'MaxItems': '100',
             'Marker': '',
         })
-        extra = provider._extra_changes(None, desired, [])
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals(0, len(extra))
         stubber.assert_no_pending_responses()
 
@@ -1210,7 +1210,7 @@ class TestRoute53Provider(TestCase):
         record._octodns['healthcheck'] = {
             'path': '/_ready'
         }
-        extra = provider._extra_changes(None, desired, [])
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals(1, len(extra))
         stubber.assert_no_pending_responses()
 
@@ -1218,7 +1218,7 @@ class TestRoute53Provider(TestCase):
         record._octodns['healthcheck'] = {
             'host': 'foo.bar.io'
         }
-        extra = provider._extra_changes(None, desired, [])
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals(1, len(extra))
         stubber.assert_no_pending_responses()
 

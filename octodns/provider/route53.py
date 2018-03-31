@@ -673,7 +673,7 @@ class Route53Provider(BaseProvider):
         self._gc_health_checks(change.existing, [])
         return self._gen_mods('DELETE', existing_records)
 
-    def _extra_changes(self, existing, desired, changes):
+    def _extra_changes(self, desired, changes, **kwargs):
         self.log.debug('_extra_changes: desired=%s', desired.name)
         zone_id = self._get_zone_id(desired.name)
         if not zone_id:

@@ -882,7 +882,8 @@ class TestDynProviderGeo(TestCase):
             'value': '1.2.3.4',
         })
         desired.add_record(record)
-        extra = provider._extra_changes(None, desired, [Create(record)])
+        extra = provider._extra_changes(desired=desired,
+                                        changes=[Create(record)])
         self.assertEquals(0, len(extra))
 
         # in changes, noop
@@ -896,11 +897,12 @@ class TestDynProviderGeo(TestCase):
             'value': '1.2.3.4',
         })
         desired.add_record(record)
-        extra = provider._extra_changes(None, desired, [Create(record)])
+        extra = provider._extra_changes(desired=desired,
+                                        changes=[Create(record)])
         self.assertEquals(0, len(extra))
 
         # no diff, no extra
-        extra = provider._extra_changes(None, desired, [])
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals(0, len(extra))
 
         # monitors should have been fetched now
@@ -923,7 +925,7 @@ class TestDynProviderGeo(TestCase):
             'value': '1.2.3.4',
         })
         desired.add_record(record)
-        extra = provider._extra_changes(None, desired, [])
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals(1, len(extra))
         extra = extra[0]
         self.assertIsInstance(extra, Update)
@@ -940,7 +942,7 @@ class TestDynProviderGeo(TestCase):
             'value': '1.2.3.4',
         })
         desired.add_record(record)
-        extra = provider._extra_changes(None, desired, [])
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals(1, len(extra))
         extra = extra[0]
         self.assertIsInstance(extra, Update)
