@@ -127,9 +127,6 @@ class Record(object):
         self.ttl = int(data['ttl'])
 
         self._octodns = data.get('octodns', {})
-        self.ignored = self._octodns.get('ignored', False)
-        self.excluded = self._octodns.get('excluded', [])
-        self.included = self._octodns.get('included', [])
 
     def _data(self):
         return {'ttl': self.ttl}
@@ -147,6 +144,14 @@ class Record(object):
     @property
     def ignored(self):
         return self._octodns.get('ignored', False)
+
+    @property
+    def excluded(self):
+        return self._octodns.get('excluded', [])
+
+    @property
+    def included(self):
+        return self._octodns.get('included', [])
 
     @property
     def healthcheck_path(self):
