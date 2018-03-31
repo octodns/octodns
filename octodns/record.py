@@ -154,6 +154,13 @@ class Record(object):
         return self._octodns.get('included', [])
 
     @property
+    def healthcheck_host(self):
+        try:
+            return self._octodns['healthcheck']['host']
+        except KeyError:
+            return self.fqdn[:-1]
+
+    @property
     def healthcheck_path(self):
         try:
             return self._octodns['healthcheck']['path']
@@ -161,11 +168,18 @@ class Record(object):
             return '/_dns'
 
     @property
-    def healthcheck_host(self):
+    def healthcheck_protocol(self):
         try:
-            return self._octodns['healthcheck']['host']
+            return self._octodns['healthcheck']['protocol']
         except KeyError:
-            return self.fqdn[:-1]
+            return 'https'
+
+    @property
+    def healthcheck_port(self):
+        try:
+            return self._octodns['healthcheck']['port']
+        except KeyError:
+            return 443
 
     def changes(self, other, target):
         # We're assuming we have the same name and type if we're being compared

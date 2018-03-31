@@ -755,11 +755,16 @@ class TestRecord(TestCase):
                 'healthcheck': {
                     'path': '/_ready',
                     'host': 'bleep.bloop',
+                    'protocol': 'http',
+                    'port': 8080,
                 }
             }
         })
         self.assertEquals('/_ready', new.healthcheck_path)
         self.assertEquals('bleep.bloop', new.healthcheck_host)
+        self.assertEquals('http', new.healthcheck_protocol)
+        self.assertEquals(8080, new.healthcheck_port)
+
         new = Record.new(self.zone, 'a', {
             'ttl': 44,
             'type': 'A',
@@ -767,6 +772,8 @@ class TestRecord(TestCase):
         })
         self.assertEquals('/_dns', new.healthcheck_path)
         self.assertEquals('a.unit.tests', new.healthcheck_host)
+        self.assertEquals('https', new.healthcheck_protocol)
+        self.assertEquals(443, new.healthcheck_port)
 
     def test_inored(self):
         new = Record.new(self.zone, 'txt', {
