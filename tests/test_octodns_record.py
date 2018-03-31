@@ -1020,6 +1020,25 @@ class TestRecordValidation(TestCase):
             'invalid ip address "goodbye"'
         ], ctx.exception.reasons)
 
+        # invalid healthcheck protocol
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'a', {
+                'geo': {
+                    'NA': ['1.2.3.5'],
+                    'NA-US': ['1.2.3.5', '1.2.3.6']
+                },
+                'type': 'A',
+                'ttl': 600,
+                'value': '1.2.3.4',
+                'octodns': {
+                    'healthcheck': {
+                        'protocol': 'FTP',
+                    }
+                }
+            })
+        self.assertEquals(['invalid healthcheck protocol'],
+                          ctx.exception.reasons)
+
     def test_AAAA(self):
         # doesn't blow up
         Record.new(self.zone, '', {

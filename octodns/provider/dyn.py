@@ -63,15 +63,46 @@ def _monitor_path_set(self, value):
 DSFMonitor.path = DSFMonitor.path.setter(_monitor_path_set)
 
 
-def _monitor_update(self, host, path):
+def _monitor_protocol_get(self):
+    return self._protocol
+
+
+DSFMonitor.protocol = property(_monitor_protocol_get)
+
+
+def _monitor_protocol_set(self, value):
+    self._protocol = value
+
+
+DSFMonitor.protocol = DSFMonitor.protocol.setter(_monitor_protocol_set)
+
+
+def _monitor_port_get(self):
+    return self._port or self._options['port']
+
+
+DSFMonitor.port = property(_monitor_port_get)
+
+
+def _monitor_port_set(self, value):
+    if self._options is None:
+        self._options = {}
+    self._port = self._options['port'] = value
+
+
+DSFMonitor.port = DSFMonitor.port.setter(_monitor_port_set)
+
+
+def _monitor_update(self, host, path, protocol, port):
     # I can't see how to actually do this with the client lib so
     # I'm having to hack around it. Have to provide all the
     # options or else things complain
     return self._update({
+        'protocol': protocol,
         'options': {
             'host': host,
             'path': path,
-            'port': DynProvider.MONITOR_PORT,
+            'port': port,
             'timeout': DynProvider.MONITOR_TIMEOUT,
             'header': DynProvider.MONITOR_HEADER,
         }
@@ -80,6 +111,11 @@ def _monitor_update(self, host, path):
 
 DSFMonitor.update = _monitor_update
 ###############################################################################
+
+
+def _monitor_matches(monitor, host, path, protocol, port):
+    return monitor.host != host or monitor.path != path or \
+        monitor.protocol != protocol or int(monitor.port) != port
 
 
 class _CachingDynZone(DynZone):
@@ -142,10 +178,6 @@ class _CachingDynZone(DynZone):
         self.flush_cache()
 
 
-def _monitor_matches(monitor, host, path):
-    return monitor.host != host or monitor.path != path
-
-
 class DynProvider(BaseProvider):
     '''
     Dynect Managed DNS provider
@@ -202,7 +234,6 @@ class DynProvider(BaseProvider):
     }
 
     MONITOR_HEADER = 'User-Agent: Dyn Monitor'
-    MONITOR_PORT = 443
     MONITOR_TIMEOUT = 10
 
     _sess_create_lock = Lock()
@@ -479,7 +510,9 @@ class DynProvider(BaseProvider):
             # Heh, when pulled from the API host & path live under options, but
             # when you create with the constructor they're top-level :-(
             if _monitor_matches(monitor, record.healthcheck_host,
-                                record.healthcheck_path):
+                                record.healthcheck_path,
+                                record.healthcheck_protocol,
+                                record.healthcheck_port):
                 self.log.info('_extra_changes: health-check mis-match for %s',
                               label)
                 extra.append(Update(record, record))
@@ -586,6 +619,8 @@ class DynProvider(BaseProvider):
         try:
             try:
                 monitor = self.traffic_director_monitors[label]
+                self.log.debug('_traffic_director_monitor: existing for %s',
+                               label)
             except KeyError:
                 # UNTIL 1.0 We don't have one for the new label format, see if
                 # we still have one for the old and update it
@@ -597,19 +632,23 @@ class DynProvider(BaseProvider):
                     self.traffic_director_monitors[fqdn]
                 del self.traffic_director_monitors[fqdn]
             if _monitor_matches(monitor, record.healthcheck_host,
-                                record.healthcheck_path):
+                                record.healthcheck_path,
+                                record.healthcheck_protocol,
+                                record.healthcheck_port):
                 self.log.info('_traffic_director_monitor: updating monitor '
                               'for %s', label)
                 monitor.update(record.healthcheck_host,
-                               record.healthcheck_path)
+                               record.healthcheck_path,
+                               record.healthcheck_protocol,
+                               record.healthcheck_port)
             return monitor
         except KeyError:
             self.log.info('_traffic_director_monitor: creating monitor '
                           'for %s', label)
-            monitor = DSFMonitor(label, protocol='HTTPS', response_count=2,
-                                 probe_interval=60, retries=2,
-                                 port=self.MONITOR_PORT, active='Y',
-                                 host=record.healthcheck_host,
+            monitor = DSFMonitor(label, protocol=record.healthcheck_protocol,
+                                 response_count=2, probe_interval=60,
+                                 retries=2, port=record.healthcheck_port,
+                                 active='Y', host=record.healthcheck_host,
                                  timeout=self.MONITOR_TIMEOUT,
                                  header=self.MONITOR_HEADER,
                                  path=record.healthcheck_path)

@@ -768,7 +768,9 @@ class TestDynProviderGeo(TestCase):
             'octodns': {
                 'healthcheck': {
                     'host': 'bleep.bloop',
-                    'path': '/_nope'
+                    'path': '/_nope',
+                    'protocol': 'HTTP',
+                    'port': 8080,
                 }
             },
             'ttl': 60,
@@ -787,10 +789,10 @@ class TestDynProviderGeo(TestCase):
                 'header': 'User-Agent: Dyn Monitor',
                 'host': 'bleep.bloop',
                 'path': '/_nope',
-                'port': '443',
+                'port': '8080',
                 'timeout': '10',
                 'probe_interval': '60',
-                'protocol': 'HTTPS',
+                'protocol': 'HTTP',
                 'response_count': '2',
                 'retries': '2'
             },
@@ -806,11 +808,12 @@ class TestDynProviderGeo(TestCase):
         # should have resulted an update
         mock.assert_has_calls([
             call('/DSFMonitor/42a/', 'PUT', {
+                'protocol': 'HTTP',
                 'options': {
                     'path': '/_nope',
                     'host': 'bleep.bloop',
                     'header': 'User-Agent: Dyn Monitor',
-                    'port': 443,
+                    'port': 8080,
                     'timeout': 10
                 }
             })
@@ -821,6 +824,8 @@ class TestDynProviderGeo(TestCase):
         monitor = provider._traffic_director_monitors['unit.tests.:A']
         self.assertEquals('bleep.bloop', monitor.host)
         self.assertEquals('/_nope', monitor.path)
+        self.assertEquals('HTTP', monitor.protocol)
+        self.assertEquals('8080', monitor.port)
 
         # test upgrading an old label
         record = Record.new(existing, 'old-label', {
@@ -1510,15 +1515,20 @@ class TestDynProviderAlias(TestCase):
 # patching
 class DummyDSFMonitor(DSFMonitor):
 
-    def __init__(self, host=None, path=None, options_host=None,
-                 options_path=None):
+    def __init__(self, host=None, path=None, protocol=None, port=None,
+                 options_host=None, options_path=None, options_protocol=None,
+                 options_port=None):
         # not calling super on purpose
         self._host = host
         self._path = path
+        self._protocol = protocol
+        self._port = port
         if options_host:
             self._options = {
                 'host': options_host,
                 'path': options_path,
+                'protocol': options_protocol,
+                'port': options_port,
             }
         else:
             self._options = None
@@ -1527,12 +1537,16 @@ class DummyDSFMonitor(DSFMonitor):
 class TestDSFMonitorMonkeyPatching(TestCase):
 
     def test_host(self):
-        monitor = DummyDSFMonitor(host='host.com', path='/path')
+        monitor = DummyDSFMonitor(host='host.com', path='/path',
+                                  protocol='HTTP', port=8080)
         self.assertEquals('host.com', monitor.host)
         self.assertEquals('/path', monitor.path)
+        self.assertEquals('HTTP', monitor.protocol)
+        self.assertEquals(8080, monitor.port)
 
         monitor = DummyDSFMonitor(options_host='host.com',
-                                  options_path='/path')
+                                  options_path='/path',
+                                  options_protocol='HTTP', options_port=8080)
         self.assertEquals('host.com', monitor.host)
         self.assertEquals('/path', monitor.path)
 
@@ -1540,6 +1554,10 @@ class TestDSFMonitorMonkeyPatching(TestCase):
         self.assertEquals('other.com', monitor.host)
         monitor.path = '/other-path'
         self.assertEquals('/other-path', monitor.path)
+        monitor.protocol = 'HTTPS'
+        self.assertEquals('HTTPS', monitor.protocol)
+        monitor.port = 8081
+        self.assertEquals(8081, monitor.port)
 
         monitor = DummyDSFMonitor()
         monitor.host = 'other.com'
@@ -1547,3 +1565,15 @@ class TestDSFMonitorMonkeyPatching(TestCase):
         monitor = DummyDSFMonitor()
         monitor.path = '/other-path'
         self.assertEquals('/other-path', monitor.path)
+        monitor.protocol = 'HTTP'
+        self.assertEquals('HTTP', monitor.protocol)
+        monitor.port = 8080
+        self.assertEquals(8080, monitor.port)
+
+        # Just to exercise the _options init
+        monitor = DummyDSFMonitor()
+        monitor.protocol = 'HTTP'
+        self.assertEquals('HTTP', monitor.protocol)
+        monitor = DummyDSFMonitor()
+        monitor.port = 8080
+        self.assertEquals(8080, monitor.port)
