@@ -102,6 +102,8 @@ class TestRoute53Provider(TestCase):
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '4.2.3.4',
             'ResourcePath': '/_dns',
+            'Type': 'HTTPS',
+            'Port': 443,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -112,6 +114,8 @@ class TestRoute53Provider(TestCase):
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '5.2.3.4',
             'ResourcePath': '/_dns',
+            'Type': 'HTTPS',
+            'Port': 443,
         },
         'HealthCheckVersion': 42,
     }, {
@@ -122,6 +126,8 @@ class TestRoute53Provider(TestCase):
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '5.2.3.4',
             'ResourcePath': '/_dns',
+            'Type': 'HTTPS',
+            'Port': 443,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -132,6 +138,8 @@ class TestRoute53Provider(TestCase):
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '7.2.3.4',
             'ResourcePath': '/_dns',
+            'Type': 'HTTPS',
+            'Port': 443,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -143,6 +151,8 @@ class TestRoute53Provider(TestCase):
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '7.2.3.4',
             'ResourcePath': '/_dns',
+            'Type': 'HTTPS',
+            'Port': 443,
         },
         'HealthCheckVersion': 2,
     }]
@@ -674,6 +684,8 @@ class TestRoute53Provider(TestCase):
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
                 'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -684,6 +696,8 @@ class TestRoute53Provider(TestCase):
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '9.2.3.4',
                 'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
             },
             'HealthCheckVersion': 2,
         }]
@@ -704,6 +718,8 @@ class TestRoute53Provider(TestCase):
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '8.2.3.4',
                 'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
             },
             'HealthCheckVersion': 2,
         }]
@@ -749,6 +765,8 @@ class TestRoute53Provider(TestCase):
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
                 'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -759,6 +777,8 @@ class TestRoute53Provider(TestCase):
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
                 'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
             },
             'HealthCheckVersion': 2,
         }]
@@ -770,16 +790,15 @@ class TestRoute53Provider(TestCase):
         })
 
         health_check_config = {
-            'EnableSNI': True,
+            'EnableSNI': False,
             'FailureThreshold': 6,
-            'FullyQualifiedDomainName': 'unit.tests',
+            'FullyQualifiedDomainName': 'foo.bar.com',
             'IPAddress': '4.2.3.4',
-            'ResourcePath': '/_dns',
             'MeasureLatency': True,
-            'Port': 443,
+            'Port': 8080,
             'RequestInterval': 10,
-            'ResourcePath': '/_dns',
-            'Type': 'HTTPS'
+            'ResourcePath': '/_status',
+            'Type': 'HTTP'
         }
         stubber.add_response('create_health_check', {
             'HealthCheck': {
@@ -800,6 +819,14 @@ class TestRoute53Provider(TestCase):
             'values': ['2.2.3.4', '3.2.3.4'],
             'geo': {
                 'AF': ['4.2.3.4'],
+            },
+            'octodns': {
+                'healthcheck': {
+                    'host': 'foo.bar.com',
+                    'path': '/_status',
+                    'port': 8080,
+                    'protocol': 'HTTP',
+                },
             }
         })
 
@@ -900,6 +927,8 @@ class TestRoute53Provider(TestCase):
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
                 'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -910,6 +939,8 @@ class TestRoute53Provider(TestCase):
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
                 'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -920,6 +951,8 @@ class TestRoute53Provider(TestCase):
                 'FullyQualifiedDomainName': 'other.unit.tests',
                 'IPAddress': '4.2.3.4',
                 'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
             },
             'HealthCheckVersion': 2,
         }]
@@ -1094,6 +1127,8 @@ class TestRoute53Provider(TestCase):
                     'FullyQualifiedDomainName': 'unit.tests',
                     'IPAddress': '2.2.3.4',
                     'ResourcePath': '/_dns',
+                    'Type': 'HTTPS',
+                    'Port': 443,
                 },
                 'HealthCheckVersion': 2,
             }],
@@ -1195,6 +1230,8 @@ class TestRoute53Provider(TestCase):
                     'FullyQualifiedDomainName': 'a.unit.tests',
                     'IPAddress': '2.2.3.4',
                     'ResourcePath': '/_dns',
+                    'Type': 'HTTPS',
+                    'Port': 443,
                 },
                 'HealthCheckVersion': 2,
             }],
