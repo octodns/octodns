@@ -142,6 +142,10 @@ class _CachingDynZone(DynZone):
         self.flush_cache()
 
 
+def _monitor_matches(monitor, host, path):
+    return monitor.host != host or monitor.path != path
+
+
 class DynProvider(BaseProvider):
     '''
     Dynect Managed DNS provider
@@ -474,8 +478,8 @@ class DynProvider(BaseProvider):
                 continue
             # Heh, when pulled from the API host & path live under options, but
             # when you create with the constructor they're top-level :-(
-            if monitor.host != record.healthcheck_host or \
-               monitor.path != record.healthcheck_path:
+            if _monitor_matches(monitor, record.healthcheck_host,
+                                record.healthcheck_path):
                 self.log.info('_extra_changes: health-check mis-match for %s',
                               label)
                 extra.append(Update(record, record))
@@ -592,8 +596,8 @@ class DynProvider(BaseProvider):
                 self.traffic_director_monitors[label] = \
                     self.traffic_director_monitors[fqdn]
                 del self.traffic_director_monitors[fqdn]
-            if monitor.host != record.healthcheck_host or \
-               monitor.path != record.healthcheck_path:
+            if _monitor_matches(monitor, record.healthcheck_host,
+                                record.healthcheck_path):
                 self.log.info('_traffic_director_monitor: updating monitor '
                               'for %s', label)
                 monitor.update(record.healthcheck_host,
