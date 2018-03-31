@@ -115,6 +115,12 @@ class Record(object):
                 reasons.append('invalid ttl')
         except KeyError:
             reasons.append('missing ttl')
+        try:
+            if data['octodns']['healthcheck']['protocol'] \
+               not in ('HTTP', 'HTTPS'):
+                reasons.append('invalid healthcheck protocol')
+        except KeyError:
+            pass
         return reasons
 
     def __init__(self, zone, name, data, source=None):
@@ -172,12 +178,12 @@ class Record(object):
         try:
             return self._octodns['healthcheck']['protocol']
         except KeyError:
-            return 'https'
+            return 'HTTPS'
 
     @property
     def healthcheck_port(self):
         try:
-            return self._octodns['healthcheck']['port']
+            return int(self._octodns['healthcheck']['port'])
         except KeyError:
             return 443
 
