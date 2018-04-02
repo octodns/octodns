@@ -507,8 +507,6 @@ class DynProvider(BaseProvider):
                               label)
                 extra.append(Update(record, record))
                 continue
-            # Heh, when pulled from the API host & path live under options, but
-            # when you create with the constructor they're top-level :-(
             if _monitor_matches(monitor, record.healthcheck_host,
                                 record.healthcheck_path,
                                 record.healthcheck_protocol,
