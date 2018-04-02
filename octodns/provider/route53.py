@@ -556,7 +556,7 @@ class Route53Provider(BaseProvider):
                                           record._type, record.name)
         for id, health_check in self.health_checks.items():
             if not health_check['CallerReference'].startswith(expected_ref):
-                # not a version & type match, ignore
+                # not match, ignore
                 continue
             if self._health_check_equivilent(healthcheck_host,
                                              healthcheck_path,
