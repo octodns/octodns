@@ -113,7 +113,7 @@ DSFMonitor.update = _monitor_update
 ###############################################################################
 
 
-def _monitor_matches(monitor, host, path, protocol, port):
+def _monitor_doesnt_match(monitor, host, path, protocol, port):
     return monitor.host != host or monitor.path != path or \
         monitor.protocol != protocol or int(monitor.port) != port
 
@@ -507,10 +507,10 @@ class DynProvider(BaseProvider):
                               label)
                 extra.append(Update(record, record))
                 continue
-            if _monitor_matches(monitor, record.healthcheck_host,
-                                record.healthcheck_path,
-                                record.healthcheck_protocol,
-                                record.healthcheck_port):
+            if _monitor_doesnt_match(monitor, record.healthcheck_host,
+                                     record.healthcheck_path,
+                                     record.healthcheck_protocol,
+                                     record.healthcheck_port):
                 self.log.info('_extra_changes: health-check mis-match for %s',
                               label)
                 extra.append(Update(record, record))
@@ -629,10 +629,10 @@ class DynProvider(BaseProvider):
                 self.traffic_director_monitors[label] = \
                     self.traffic_director_monitors[fqdn]
                 del self.traffic_director_monitors[fqdn]
-            if _monitor_matches(monitor, record.healthcheck_host,
-                                record.healthcheck_path,
-                                record.healthcheck_protocol,
-                                record.healthcheck_port):
+            if _monitor_doesnt_match(monitor, record.healthcheck_host,
+                                     record.healthcheck_path,
+                                     record.healthcheck_protocol,
+                                     record.healthcheck_port):
                 self.log.info('_traffic_director_monitor: updating monitor '
                               'for %s', label)
                 monitor.update(record.healthcheck_host,
