@@ -93,7 +93,8 @@ class TestRoute53Provider(TestCase):
         record = Record.new(expected, name, data)
         expected.add_record(record)
 
-    caller_ref = '{}:A::1324'.format(Route53Provider.HEALTH_CHECK_VERSION)
+    caller_ref = '{}:A:unit.tests.:1324' \
+        .format(Route53Provider.HEALTH_CHECK_VERSION)
     health_checks = [{
         'Id': '42',
         'CallerReference': caller_ref,

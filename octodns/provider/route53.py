@@ -553,7 +553,7 @@ class Route53Provider(BaseProvider):
         # we're looking for a healthcheck with the current version & our record
         # type, we'll ignore anything else
         expected_ref = '{}:{}:{}:'.format(self.HEALTH_CHECK_VERSION,
-                                          record._type, record.name)
+                                          record._type, record.fqdn)
         for id, health_check in self.health_checks.items():
             if not health_check['CallerReference'].startswith(expected_ref):
                 # not match, ignore
@@ -564,10 +564,12 @@ class Route53Provider(BaseProvider):
                                              healthcheck_port, health_check,
                                              first_value=first_value):
                 # this is the health check we're looking for
+                self.log.debug('get_health_check_id:   found match id=%s', id)
                 return id
 
         if not create:
             # no existing matches and not allowed to create, return none
+            self.log.debug('get_health_check_id:   no matches, no create')
             return
 
         # no existing matches, we need to create a new health check
@@ -583,7 +585,7 @@ class Route53Provider(BaseProvider):
             'Type': healthcheck_protocol,
         }
         ref = '{}:{}:{}:{}'.format(self.HEALTH_CHECK_VERSION, record._type,
-                                   record.name, uuid4().hex[:16])
+                                   record.fqdn, uuid4().hex[:12])
         resp = self._conn.create_health_check(CallerReference=ref,
                                               HealthCheckConfig=config)
         health_check = resp['HealthCheck']
@@ -591,9 +593,10 @@ class Route53Provider(BaseProvider):
         # store the new health check so that we'll be able to find it in the
         # future
         self._health_checks[id] = health_check
-        self.log.info('get_health_check_id: created id=%s, host=%s, path=%s'
-                      'first_value=%s', id, healthcheck_host, healthcheck_path,
-                      first_value)
+        self.log.info('get_health_check_id: created id=%s, host=%s, path=%s, '
+                      'protocol=%s, port=%d, first_value=%s', id,
+                      healthcheck_host, healthcheck_path, healthcheck_protocol,
+                      healthcheck_port, first_value)
         return id
 
     def _gc_health_checks(self, record, new):
@@ -611,7 +614,7 @@ class Route53Provider(BaseProvider):
         # that apply to this record, deleting any that do and are no longer in
         # use
         expected_re = re.compile(r'^\d\d\d\d:{}:{}:'
-                                 .format(record._type, record.name))
+                                 .format(record._type, record.fqdn))
         # UNITL 1.0: we'll clean out the previous version of Route53 health
         # checks as best as we can.
         expected_legacy_host = record.fqdn[:-1]
