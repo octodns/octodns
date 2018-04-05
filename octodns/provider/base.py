@@ -34,7 +34,7 @@ class BaseProvider(BaseSource):
         '''
         return True
 
-    def _extra_changes(self, existing, changes):
+    def _extra_changes(self, existing, desired, changes):
         '''
         An opportunity for providers to add extra changes to the plan that are
         necessary to update ancillary record data or configure the zone. E.g.
@@ -64,7 +64,8 @@ class BaseProvider(BaseSource):
             self.log.info('plan:   filtered out %s changes', before - after)
 
         # allow the provider to add extra changes it needs
-        extra = self._extra_changes(existing, changes)
+        extra = self._extra_changes(existing=existing, desired=desired,
+                                    changes=changes)
         if extra:
             self.log.info('plan:   extra changes\n  %s', '\n  '
                           .join([unicode(c) for c in extra]))

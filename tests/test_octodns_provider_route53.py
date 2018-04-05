@@ -18,6 +18,12 @@ from octodns.zone import Zone
 from helpers import GeoProvider
 
 
+class DummyR53Record(object):
+
+    def __init__(self, health_check_id):
+        self.health_check_id = health_check_id
+
+
 class TestOctalReplace(TestCase):
 
     def test_basic(self):
@@ -87,7 +93,8 @@ class TestRoute53Provider(TestCase):
         record = Record.new(expected, name, data)
         expected.add_record(record)
 
-    caller_ref = '{}:A:1324'.format(Route53Provider.HEALTH_CHECK_VERSION)
+    caller_ref = '{}:A:unit.tests.:1324' \
+        .format(Route53Provider.HEALTH_CHECK_VERSION)
     health_checks = [{
         'Id': '42',
         'CallerReference': caller_ref,
@@ -95,6 +102,9 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '4.2.3.4',
+            'ResourcePath': '/_dns',
+            'Type': 'HTTPS',
+            'Port': 443,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -104,6 +114,9 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '5.2.3.4',
+            'ResourcePath': '/_dns',
+            'Type': 'HTTPS',
+            'Port': 443,
         },
         'HealthCheckVersion': 42,
     }, {
@@ -113,6 +126,9 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '5.2.3.4',
+            'ResourcePath': '/_dns',
+            'Type': 'HTTPS',
+            'Port': 443,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -122,6 +138,9 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '7.2.3.4',
+            'ResourcePath': '/_dns',
+            'Type': 'HTTPS',
+            'Port': 443,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -132,6 +151,9 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '7.2.3.4',
+            'ResourcePath': '/_dns',
+            'Type': 'HTTPS',
+            'Port': 443,
         },
         'HealthCheckVersion': 2,
     }]
@@ -662,6 +684,9 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
+                'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -671,6 +696,9 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '9.2.3.4',
+                'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
             },
             'HealthCheckVersion': 2,
         }]
@@ -690,6 +718,9 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '8.2.3.4',
+                'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
             },
             'HealthCheckVersion': 2,
         }]
@@ -734,6 +765,9 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
+                'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -743,6 +777,9 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
+                'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
             },
             'HealthCheckVersion': 2,
         }]
@@ -754,15 +791,15 @@ class TestRoute53Provider(TestCase):
         })
 
         health_check_config = {
-            'EnableSNI': True,
+            'EnableSNI': False,
             'FailureThreshold': 6,
-            'FullyQualifiedDomainName': 'unit.tests',
+            'FullyQualifiedDomainName': 'foo.bar.com',
             'IPAddress': '4.2.3.4',
             'MeasureLatency': True,
-            'Port': 443,
+            'Port': 8080,
             'RequestInterval': 10,
-            'ResourcePath': '/_dns',
-            'Type': 'HTTPS'
+            'ResourcePath': '/_status',
+            'Type': 'HTTP'
         }
         stubber.add_response('create_health_check', {
             'HealthCheck': {
@@ -783,6 +820,14 @@ class TestRoute53Provider(TestCase):
             'values': ['2.2.3.4', '3.2.3.4'],
             'geo': {
                 'AF': ['4.2.3.4'],
+            },
+            'octodns': {
+                'healthcheck': {
+                    'host': 'foo.bar.com',
+                    'path': '/_status',
+                    'port': 8080,
+                    'protocol': 'HTTP',
+                },
             }
         })
 
@@ -817,18 +862,13 @@ class TestRoute53Provider(TestCase):
             }
         })
 
-        class DummyRecord(object):
-
-            def __init__(self, health_check_id):
-                self.health_check_id = health_check_id
-
         # gc no longer in_use records (directly)
         stubber.add_response('delete_health_check', {}, {
             'HealthCheckId': '44',
         })
         provider._gc_health_checks(record, [
-            DummyRecord('42'),
-            DummyRecord('43'),
+            DummyR53Record('42'),
+            DummyR53Record('43'),
         ])
         stubber.assert_no_pending_responses()
 
@@ -876,6 +916,77 @@ class TestRoute53Provider(TestCase):
         provider._gc_health_checks(record, [])
         stubber.assert_no_pending_responses()
 
+    def test_legacy_health_check_gc(self):
+        provider, stubber = self._get_stubbed_provider()
+
+        old_caller_ref = '0000:A:3333'
+        health_checks = [{
+            'Id': '42',
+            'CallerReference': self.caller_ref,
+            'HealthCheckConfig': {
+                'Type': 'HTTPS',
+                'FullyQualifiedDomainName': 'unit.tests',
+                'IPAddress': '4.2.3.4',
+                'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
+            },
+            'HealthCheckVersion': 2,
+        }, {
+            'Id': '43',
+            'CallerReference': old_caller_ref,
+            'HealthCheckConfig': {
+                'Type': 'HTTPS',
+                'FullyQualifiedDomainName': 'unit.tests',
+                'IPAddress': '4.2.3.4',
+                'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
+            },
+            'HealthCheckVersion': 2,
+        }, {
+            'Id': '44',
+            'CallerReference': old_caller_ref,
+            'HealthCheckConfig': {
+                'Type': 'HTTPS',
+                'FullyQualifiedDomainName': 'other.unit.tests',
+                'IPAddress': '4.2.3.4',
+                'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
+            },
+            'HealthCheckVersion': 2,
+        }]
+
+        stubber.add_response('list_health_checks', {
+            'HealthChecks': health_checks,
+            'IsTruncated': False,
+            'MaxItems': '100',
+            'Marker': '',
+        })
+
+        # No changes to the record itself
+        record = Record.new(self.expected, '', {
+            'ttl': 61,
+            'type': 'A',
+            'values': ['2.2.3.4', '3.2.3.4'],
+            'geo': {
+                'AF': ['4.2.3.4'],
+                'NA-US': ['5.2.3.4', '6.2.3.4'],
+                'NA-US-CA': ['7.2.3.4']
+            }
+        })
+
+        # Expect to delete the legacy hc for our record, but not touch the new
+        # one or the other legacy record
+        stubber.add_response('delete_health_check', {}, {
+            'HealthCheckId': '43',
+        })
+
+        provider._gc_health_checks(record, [
+            DummyR53Record('42'),
+        ])
+
     def test_no_extra_changes(self):
         provider, stubber = self._get_stubbed_provider()
 
@@ -892,26 +1003,26 @@ class TestRoute53Provider(TestCase):
         stubber.add_response('list_hosted_zones', list_hosted_zones_resp, {})
 
         # empty is empty
-        existing = Zone('unit.tests.', [])
-        extra = provider._extra_changes(existing, [])
+        desired = Zone('unit.tests.', [])
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals([], extra)
         stubber.assert_no_pending_responses()
 
         # single record w/o geo is empty
-        existing = Zone('unit.tests.', [])
-        record = Record.new(existing, 'a', {
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, 'a', {
             'ttl': 30,
             'type': 'A',
             'value': '1.2.3.4',
         })
-        existing.add_record(record)
-        extra = provider._extra_changes(existing, [])
+        desired.add_record(record)
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals([], extra)
         stubber.assert_no_pending_responses()
 
         # short-circuit for unknown zone
         other = Zone('other.tests.', [])
-        extra = provider._extra_changes(other, [])
+        extra = provider._extra_changes(desired=other, changes=[])
         self.assertEquals([], extra)
         stubber.assert_no_pending_responses()
 
@@ -931,8 +1042,8 @@ class TestRoute53Provider(TestCase):
         stubber.add_response('list_hosted_zones', list_hosted_zones_resp, {})
 
         # record with geo and no health check returns change
-        existing = Zone('unit.tests.', [])
-        record = Record.new(existing, 'a', {
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, 'a', {
             'ttl': 30,
             'type': 'A',
             'value': '1.2.3.4',
@@ -940,7 +1051,7 @@ class TestRoute53Provider(TestCase):
                 'NA': ['2.2.3.4'],
             }
         })
-        existing.add_record(record)
+        desired.add_record(record)
         list_resource_record_sets_resp = {
             'ResourceRecordSets': [{
                 'Name': 'a.unit.tests.',
@@ -959,7 +1070,7 @@ class TestRoute53Provider(TestCase):
         stubber.add_response('list_resource_record_sets',
                              list_resource_record_sets_resp,
                              {'HostedZoneId': 'z42'})
-        extra = provider._extra_changes(existing, [])
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals(1, len(extra))
         stubber.assert_no_pending_responses()
 
@@ -979,8 +1090,8 @@ class TestRoute53Provider(TestCase):
         stubber.add_response('list_hosted_zones', list_hosted_zones_resp, {})
 
         # record with geo and no health check returns change
-        existing = Zone('unit.tests.', [])
-        record = Record.new(existing, 'a', {
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, 'a', {
             'ttl': 30,
             'type': 'A',
             'value': '1.2.3.4',
@@ -988,7 +1099,7 @@ class TestRoute53Provider(TestCase):
                 'NA': ['2.2.3.4'],
             }
         })
-        existing.add_record(record)
+        desired.add_record(record)
         list_resource_record_sets_resp = {
             'ResourceRecordSets': [{
                 'Name': 'a.unit.tests.',
@@ -1016,6 +1127,9 @@ class TestRoute53Provider(TestCase):
                     'Type': 'HTTPS',
                     'FullyQualifiedDomainName': 'unit.tests',
                     'IPAddress': '2.2.3.4',
+                    'ResourcePath': '/_dns',
+                    'Type': 'HTTPS',
+                    'Port': 443,
                 },
                 'HealthCheckVersion': 2,
             }],
@@ -1023,12 +1137,12 @@ class TestRoute53Provider(TestCase):
             'MaxItems': '100',
             'Marker': '',
         })
-        extra = provider._extra_changes(existing, [])
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals(1, len(extra))
         stubber.assert_no_pending_responses()
 
         for change in (Create(record), Update(record, record), Delete(record)):
-            extra = provider._extra_changes(existing, [change])
+            extra = provider._extra_changes(desired=desired, changes=[change])
             self.assertEquals(0, len(extra))
             stubber.assert_no_pending_responses()
 
@@ -1048,8 +1162,8 @@ class TestRoute53Provider(TestCase):
         stubber.add_response('list_hosted_zones', list_hosted_zones_resp, {})
 
         # record with geo and no health check returns change
-        existing = Zone('unit.tests.', [])
-        record = Record.new(existing, 'a', {
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, 'a', {
             'ttl': 30,
             'type': 'A',
             'value': '1.2.3.4',
@@ -1057,7 +1171,7 @@ class TestRoute53Provider(TestCase):
                 'NA': ['2.2.3.4'],
             }
         })
-        existing.add_record(record)
+        desired.add_record(record)
         list_resource_record_sets_resp = {
             'ResourceRecordSets': [{
                 # other name
@@ -1114,8 +1228,11 @@ class TestRoute53Provider(TestCase):
                 'CallerReference': self.caller_ref,
                 'HealthCheckConfig': {
                     'Type': 'HTTPS',
-                    'FullyQualifiedDomainName': 'unit.tests',
+                    'FullyQualifiedDomainName': 'a.unit.tests',
                     'IPAddress': '2.2.3.4',
+                    'ResourcePath': '/_dns',
+                    'Type': 'HTTPS',
+                    'Port': 443,
                 },
                 'HealthCheckVersion': 2,
             }],
@@ -1123,8 +1240,24 @@ class TestRoute53Provider(TestCase):
             'MaxItems': '100',
             'Marker': '',
         })
-        extra = provider._extra_changes(existing, [])
+        extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals(0, len(extra))
+        stubber.assert_no_pending_responses()
+
+        # change b/c of healthcheck path
+        record._octodns['healthcheck'] = {
+            'path': '/_ready'
+        }
+        extra = provider._extra_changes(desired=desired, changes=[])
+        self.assertEquals(1, len(extra))
+        stubber.assert_no_pending_responses()
+
+        # change b/c of healthcheck host
+        record._octodns['healthcheck'] = {
+            'host': 'foo.bar.io'
+        }
+        extra = provider._extra_changes(desired=desired, changes=[])
+        self.assertEquals(1, len(extra))
         stubber.assert_no_pending_responses()
 
     def _get_test_plan(self, max_changes):

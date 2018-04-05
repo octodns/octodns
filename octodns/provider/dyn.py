@@ -17,8 +17,105 @@ from logging import getLogger
 from threading import Lock
 from uuid import uuid4
 
-from ..record import Record
+from ..record import Record, Update
 from .base import BaseProvider
+
+
+###############################################################################
+#
+# The following monkey patching is to work around functionality that is lacking
+# from DSFMonitor. You cannot set host or path (which we need) and there's no
+# update method. What's more host & path aren't publically accessible on the
+# object so you can't see their current values and depending on how the object
+# came to be (constructor vs pulled from the api) the "private" location of
+# those fields varies :-(
+#
+###############################################################################
+def _monitor_host_get(self):
+    return self._host or self._options['host']
+
+
+DSFMonitor.host = property(_monitor_host_get)
+
+
+def _monitor_host_set(self, value):
+    if self._options is None:
+        self._options = {}
+    self._host = self._options['host'] = value
+
+
+DSFMonitor.host = DSFMonitor.host.setter(_monitor_host_set)
+
+
+def _monitor_path_get(self):
+    return self._path or self._options['path']
+
+
+DSFMonitor.path = property(_monitor_path_get)
+
+
+def _monitor_path_set(self, value):
+    if self._options is None:
+        self._options = {}
+    self._path = self._options['path'] = value
+
+
+DSFMonitor.path = DSFMonitor.path.setter(_monitor_path_set)
+
+
+def _monitor_protocol_get(self):
+    return self._protocol
+
+
+DSFMonitor.protocol = property(_monitor_protocol_get)
+
+
+def _monitor_protocol_set(self, value):
+    self._protocol = value
+
+
+DSFMonitor.protocol = DSFMonitor.protocol.setter(_monitor_protocol_set)
+
+
+def _monitor_port_get(self):
+    return self._port or self._options['port']
+
+
+DSFMonitor.port = property(_monitor_port_get)
+
+
+def _monitor_port_set(self, value):
+    if self._options is None:
+        self._options = {}
+    self._port = self._options['port'] = value
+
+
+DSFMonitor.port = DSFMonitor.port.setter(_monitor_port_set)
+
+
+def _monitor_update(self, host, path, protocol, port):
+    # I can't see how to actually do this with the client lib so
+    # I'm having to hack around it. Have to provide all the
+    # options or else things complain
+    return self._update({
+        'protocol': protocol,
+        'options': {
+            'host': host,
+            'path': path,
+            'port': port,
+            'timeout': DynProvider.MONITOR_TIMEOUT,
+            'header': DynProvider.MONITOR_HEADER,
+        }
+    })
+
+
+DSFMonitor.update = _monitor_update
+###############################################################################
+
+
+def _monitor_doesnt_match(monitor, host, path, protocol, port):
+    return monitor.host != host or monitor.path != path or \
+        monitor.protocol != protocol or int(monitor.port) != port
 
 
 class _CachingDynZone(DynZone):
@@ -135,6 +232,9 @@ class DynProvider(BaseProvider):
         'OC': 16,  # Continental Australia/Oceania
         'AN': 17,  # Continental Antarctica
     }
+
+    MONITOR_HEADER = 'User-Agent: Dyn Monitor'
+    MONITOR_TIMEOUT = 10
 
     _sess_create_lock = Lock()
 
@@ -389,6 +489,34 @@ class DynProvider(BaseProvider):
                       len(zone.records) - before, exists)
         return exists
 
+    def _extra_changes(self, desired, changes, **kwargs):
+        self.log.debug('_extra_changes: desired=%s', desired.name)
+
+        changed = set([c.record for c in changes])
+
+        extra = []
+        for record in desired.records:
+            if record in changed or not getattr(record, 'geo', False):
+                # Already changed, or no geo, no need to check it
+                continue
+            label = '{}:{}'.format(record.fqdn, record._type)
+            try:
+                monitor = self.traffic_director_monitors[label]
+            except KeyError:
+                self.log.info('_extra_changes: health-check missing for %s',
+                              label)
+                extra.append(Update(record, record))
+                continue
+            if _monitor_doesnt_match(monitor, record.healthcheck_host,
+                                     record.healthcheck_path,
+                                     record.healthcheck_protocol,
+                                     record.healthcheck_port):
+                self.log.info('_extra_changes: health-check mis-match for %s',
+                              label)
+                extra.append(Update(record, record))
+
+        return extra
+
     def _kwargs_for_A(self, record):
         return [{
             'address': v,
@@ -474,20 +602,55 @@ class DynProvider(BaseProvider):
 
     _kwargs_for_TXT = _kwargs_for_SPF
 
-    def _traffic_director_monitor(self, fqdn):
+    @property
+    def traffic_director_monitors(self):
         if self._traffic_director_monitors is None:
+            self.log.debug('traffic_director_monitors: loading')
             self._traffic_director_monitors = \
                 {m.label: m for m in get_all_dsf_monitors()}
 
+        return self._traffic_director_monitors
+
+    def _traffic_director_monitor(self, record):
+        fqdn = record.fqdn
+        label = '{}:{}'.format(fqdn, record._type)
         try:
-            return self._traffic_director_monitors[fqdn]
+            try:
+                monitor = self.traffic_director_monitors[label]
+                self.log.debug('_traffic_director_monitor: existing for %s',
+                               label)
+            except KeyError:
+                # UNTIL 1.0 We don't have one for the new label format, see if
+                # we still have one for the old and update it
+                monitor = self.traffic_director_monitors[fqdn]
+                self.log.info('_traffic_director_monitor: upgrading label '
+                              'to %s', label)
+                monitor.label = label
+                self.traffic_director_monitors[label] = \
+                    self.traffic_director_monitors[fqdn]
+                del self.traffic_director_monitors[fqdn]
+            if _monitor_doesnt_match(monitor, record.healthcheck_host,
+                                     record.healthcheck_path,
+                                     record.healthcheck_protocol,
+                                     record.healthcheck_port):
+                self.log.info('_traffic_director_monitor: updating monitor '
+                              'for %s', label)
+                monitor.update(record.healthcheck_host,
+                               record.healthcheck_path,
+                               record.healthcheck_protocol,
+                               record.healthcheck_port)
+            return monitor
         except KeyError:
-            monitor = DSFMonitor(fqdn, protocol='HTTPS', response_count=2,
-                                 probe_interval=60, retries=2, port=443,
-                                 active='Y', host=fqdn[:-1], timeout=10,
-                                 header='User-Agent: Dyn Monitor',
-                                 path='/_dns')
-            self._traffic_director_monitors[fqdn] = monitor
+            self.log.info('_traffic_director_monitor: creating monitor '
+                          'for %s', label)
+            monitor = DSFMonitor(label, protocol=record.healthcheck_protocol,
+                                 response_count=2, probe_interval=60,
+                                 retries=2, port=record.healthcheck_port,
+                                 active='Y', host=record.healthcheck_host,
+                                 timeout=self.MONITOR_TIMEOUT,
+                                 header=self.MONITOR_HEADER,
+                                 path=record.healthcheck_path)
+            self._traffic_director_monitors[label] = monitor
             return monitor
 
     def _find_or_create_pool(self, td, pools, label, _type, values,
@@ -578,7 +741,7 @@ class DynProvider(BaseProvider):
         }
         ruleset.add_response_pool(pool.response_pool_id)
 
-        monitor_id = self._traffic_director_monitor(new.fqdn).dsf_monitor_id
+        monitor_id = self._traffic_director_monitor(new).dsf_monitor_id
         # Geos ordered least to most specific so that parents will always be
         # created before their children (and thus can be referenced
         geos = sorted(new.geo.items(), key=lambda d: d[0])

@@ -52,7 +52,6 @@ class TestPowerDnsProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            print(ctx.exception.message)
             self.assertTrue('unauthorized' in ctx.exception.message)
 
         # General error

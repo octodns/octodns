@@ -13,7 +13,7 @@ from unittest import TestCase
 
 from octodns.record import Create, Delete, Record, Update
 from octodns.provider.base import Plan
-from octodns.provider.dyn import DynProvider, _CachingDynZone
+from octodns.provider.dyn import DynProvider, _CachingDynZone, DSFMonitor
 from octodns.zone import Zone
 
 from helpers import SimpleProvider
@@ -547,21 +547,40 @@ class TestDynProviderGeo(TestCase):
     monitors_response = {
         'data': [{
             'active': 'Y',
+            'agent_scheme': 'geo',
             'dsf_monitor_id': monitor_id,
             'endpoints': [],
-            'label': 'unit.tests.',
-            'notifier': '',
-            'options': {
-                'expected': '',
-                'header': 'User-Agent: Dyn Monitor',
-                'host': 'unit.tests',
-                'path': '/_dns',
-                'port': '443',
-                'timeout': '10'},
+            'label': 'unit.tests.:A',
+            'notifier': [],
+            'expected': '',
+            'header': 'User-Agent: Dyn Monitor',
+            'host': 'unit.tests',
+            'path': '/_dns',
+            'port': '443',
+            'timeout': '10',
             'probe_interval': '60',
             'protocol': 'HTTPS',
             'response_count': '2',
-            'retries': '2'
+            'retries': '2',
+            'services': ['12311']
+        }, {
+            'active': 'Y',
+            'agent_scheme': 'geo',
+            'dsf_monitor_id': 'b52',
+            'endpoints': [],
+            'label': 'old-label.unit.tests.',
+            'notifier': [],
+            'expected': '',
+            'header': 'User-Agent: Dyn Monitor',
+            'host': 'old-label.unit.tests',
+            'path': '/_dns',
+            'port': '443',
+            'timeout': '10',
+            'probe_interval': '60',
+            'protocol': 'HTTPS',
+            'response_count': '2',
+            'retries': '2',
+            'services': ['12312']
         }],
         'job_id': 3376281406,
         'msgs': [{
@@ -662,6 +681,7 @@ class TestDynProviderGeo(TestCase):
         provider = DynProvider('test', 'cust', 'user', 'pass', True)
         # short-circuit session checking
         provider._dyn_sess = True
+        existing = Zone('unit.tests.', [])
 
         # no monitors, will try and create
         geo_monitor_id = '42x'
@@ -670,16 +690,14 @@ class TestDynProviderGeo(TestCase):
                 'active': 'Y',
                 'dsf_monitor_id': geo_monitor_id,
                 'endpoints': [],
-                'label': 'geo.unit.tests.',
+                'label': 'geo.unit.tests.:A',
                 'notifier': '',
-                'options': {
-                    'expected': '',
-                    'header': 'User-Agent: Dyn Monitor',
-                    'host': 'geo.unit.tests.',
-                    'path': '/_dns',
-                    'port': '443',
-                    'timeout': '10'
-                },
+                'expected': '',
+                'header': 'User-Agent: Dyn Monitor',
+                'host': 'geo.unit.tests.',
+                'path': '/_dns',
+                'port': '443',
+                'timeout': '10',
                 'probe_interval': '60',
                 'protocol': 'HTTPS',
                 'response_count': '2',
@@ -694,7 +712,18 @@ class TestDynProviderGeo(TestCase):
         }]
 
         # ask for a monitor that doesn't exist
-        monitor = provider._traffic_director_monitor('geo.unit.tests.')
+        record = Record.new(existing, 'geo', {
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                    'host': 'foo.bar',
+                    'path': '/_ready'
+                }
+            }
+        })
+        monitor = provider._traffic_director_monitor(record)
         self.assertEquals(geo_monitor_id, monitor.dsf_monitor_id)
         # should see a request for the list and a create
         mock.assert_has_calls([
@@ -703,12 +732,12 @@ class TestDynProviderGeo(TestCase):
                 'retries': 2,
                 'protocol': 'HTTPS',
                 'response_count': 2,
-                'label': 'geo.unit.tests.',
+                'label': 'geo.unit.tests.:A',
                 'probe_interval': 60,
                 'active': 'Y',
                 'options': {
-                    'path': '/_dns',
-                    'host': 'geo.unit.tests',
+                    'path': '/_ready',
+                    'host': 'foo.bar',
                     'header': 'User-Agent: Dyn Monitor',
                     'port': 443,
                     'timeout': 10
@@ -716,18 +745,213 @@ class TestDynProviderGeo(TestCase):
             })
         ])
         # created monitor is now cached
-        self.assertTrue('geo.unit.tests.' in
+        self.assertTrue('geo.unit.tests.:A' in
                         provider._traffic_director_monitors)
         # pre-existing one is there too
-        self.assertTrue('unit.tests.' in
+        self.assertTrue('unit.tests.:A' in
                         provider._traffic_director_monitors)
 
         # now ask for a monitor that does exist
+        record = Record.new(existing, '', {
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4'
+        })
         mock.reset_mock()
-        monitor = provider._traffic_director_monitor('unit.tests.')
+        monitor = provider._traffic_director_monitor(record)
         self.assertEquals(self.monitor_id, monitor.dsf_monitor_id)
         # should have resulted in no calls b/c exists & we've cached the list
         mock.assert_not_called()
+
+        # and finally for a monitor that exists, but with a differing config
+        record = Record.new(existing, '', {
+            'octodns': {
+                'healthcheck': {
+                    'host': 'bleep.bloop',
+                    'path': '/_nope',
+                    'protocol': 'HTTP',
+                    'port': 8080,
+                }
+            },
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4'
+        })
+        mock.reset_mock()
+        mock.side_effect = [{
+            'data': {
+                'active': 'Y',
+                'dsf_monitor_id': self.monitor_id,
+                'endpoints': [],
+                'label': 'unit.tests.:A',
+                'notifier': '',
+                'expected': '',
+                'header': 'User-Agent: Dyn Monitor',
+                'host': 'bleep.bloop',
+                'path': '/_nope',
+                'port': '8080',
+                'timeout': '10',
+                'probe_interval': '60',
+                'protocol': 'HTTP',
+                'response_count': '2',
+                'retries': '2'
+            },
+            'job_id': 3376259461,
+            'msgs': [{'ERR_CD': None,
+                      'INFO': 'add: Here is the new monitor',
+                      'LVL': 'INFO',
+                      'SOURCE': 'BLL'}],
+            'status': 'success'
+        }]
+        monitor = provider._traffic_director_monitor(record)
+        self.assertEquals(self.monitor_id, monitor.dsf_monitor_id)
+        # should have resulted an update
+        mock.assert_has_calls([
+            call('/DSFMonitor/42a/', 'PUT', {
+                'protocol': 'HTTP',
+                'options': {
+                    'path': '/_nope',
+                    'host': 'bleep.bloop',
+                    'header': 'User-Agent: Dyn Monitor',
+                    'port': 8080,
+                    'timeout': 10
+                }
+            })
+        ])
+        # cached monitor should have been updated
+        self.assertTrue('unit.tests.:A' in
+                        provider._traffic_director_monitors)
+        monitor = provider._traffic_director_monitors['unit.tests.:A']
+        self.assertEquals('bleep.bloop', monitor.host)
+        self.assertEquals('/_nope', monitor.path)
+        self.assertEquals('HTTP', monitor.protocol)
+        self.assertEquals('8080', monitor.port)
+
+        # test upgrading an old label
+        record = Record.new(existing, 'old-label', {
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4'
+        })
+        mock.reset_mock()
+        mock.side_effect = [{
+            'data': {
+                'active': 'Y',
+                'dsf_monitor_id': self.monitor_id,
+                'endpoints': [],
+                'label': 'old-label.unit.tests.:A',
+                'notifier': '',
+                'expected': '',
+                'header': 'User-Agent: Dyn Monitor',
+                'host': 'old-label.unit.tests',
+                'path': '/_dns',
+                'port': '443',
+                'timeout': '10',
+                'probe_interval': '60',
+                'protocol': 'HTTPS',
+                'response_count': '2',
+                'retries': '2'
+            },
+            'job_id': 3376259461,
+            'msgs': [{'ERR_CD': None,
+                      'INFO': 'add: Here is the new monitor',
+                      'LVL': 'INFO',
+                      'SOURCE': 'BLL'}],
+            'status': 'success'
+        }]
+        monitor = provider._traffic_director_monitor(record)
+        self.assertEquals(self.monitor_id, monitor.dsf_monitor_id)
+        # should have resulted an update
+        mock.assert_has_calls([
+            call('/DSFMonitor/b52/', 'PUT', {
+                'label': 'old-label.unit.tests.:A'
+            })
+        ])
+        # cached monitor should have been updated
+        self.assertTrue('old-label.unit.tests.:A' in
+                        provider._traffic_director_monitors)
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_extra_changes(self, mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass', True)
+        # short-circuit session checking
+        provider._dyn_sess = True
+
+        mock.side_effect = [self.monitors_response]
+
+        # non-geo
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, '', {
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        desired.add_record(record)
+        extra = provider._extra_changes(desired=desired,
+                                        changes=[Create(record)])
+        self.assertEquals(0, len(extra))
+
+        # in changes, noop
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, '', {
+            'geo': {
+                'NA': ['1.2.3.4'],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        desired.add_record(record)
+        extra = provider._extra_changes(desired=desired,
+                                        changes=[Create(record)])
+        self.assertEquals(0, len(extra))
+
+        # no diff, no extra
+        extra = provider._extra_changes(desired=desired, changes=[])
+        self.assertEquals(0, len(extra))
+
+        # monitors should have been fetched now
+        mock.assert_called_once()
+
+        # diff in healthcheck, gets extra
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, '', {
+            'geo': {
+                'NA': ['1.2.3.4'],
+            },
+            'octodns': {
+                'healthcheck': {
+                    'host': 'foo.bar',
+                    'path': '/_ready'
+                }
+            },
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        desired.add_record(record)
+        extra = provider._extra_changes(desired=desired, changes=[])
+        self.assertEquals(1, len(extra))
+        extra = extra[0]
+        self.assertIsInstance(extra, Update)
+        self.assertEquals(record, extra.record)
+
+        # missing health check
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, 'geo', {
+            'geo': {
+                'NA': ['1.2.3.4'],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        desired.add_record(record)
+        extra = provider._extra_changes(desired=desired, changes=[])
+        self.assertEquals(1, len(extra))
+        extra = extra[0]
+        self.assertIsInstance(extra, Update)
+        self.assertEquals(record, extra.record)
 
     @patch('dyn.core.SessionEngine.execute')
     def test_populate_traffic_directors_empty(self, mock):
@@ -1285,3 +1509,71 @@ class TestDynProviderAlias(TestCase):
         execute_mock.assert_has_calls([call('/Zone/unit.tests/', 'GET', {}),
                                        call('/Zone/unit.tests/', 'GET', {})])
         self.assertEquals(2, len(plan.changes))
+
+
+# Need a class that doesn't do all the "real" stuff, but gets our monkey
+# patching
+class DummyDSFMonitor(DSFMonitor):
+
+    def __init__(self, host=None, path=None, protocol=None, port=None,
+                 options_host=None, options_path=None, options_protocol=None,
+                 options_port=None):
+        # not calling super on purpose
+        self._host = host
+        self._path = path
+        self._protocol = protocol
+        self._port = port
+        if options_host:
+            self._options = {
+                'host': options_host,
+                'path': options_path,
+                'protocol': options_protocol,
+                'port': options_port,
+            }
+        else:
+            self._options = None
+
+
+class TestDSFMonitorMonkeyPatching(TestCase):
+
+    def test_host(self):
+        monitor = DummyDSFMonitor(host='host.com', path='/path',
+                                  protocol='HTTP', port=8080)
+        self.assertEquals('host.com', monitor.host)
+        self.assertEquals('/path', monitor.path)
+        self.assertEquals('HTTP', monitor.protocol)
+        self.assertEquals(8080, monitor.port)
+
+        monitor = DummyDSFMonitor(options_host='host.com',
+                                  options_path='/path',
+                                  options_protocol='HTTP', options_port=8080)
+        self.assertEquals('host.com', monitor.host)
+        self.assertEquals('/path', monitor.path)
+
+        monitor.host = 'other.com'
+        self.assertEquals('other.com', monitor.host)
+        monitor.path = '/other-path'
+        self.assertEquals('/other-path', monitor.path)
+        monitor.protocol = 'HTTPS'
+        self.assertEquals('HTTPS', monitor.protocol)
+        monitor.port = 8081
+        self.assertEquals(8081, monitor.port)
+
+        monitor = DummyDSFMonitor()
+        monitor.host = 'other.com'
+        self.assertEquals('other.com', monitor.host)
+        monitor = DummyDSFMonitor()
+        monitor.path = '/other-path'
+        self.assertEquals('/other-path', monitor.path)
+        monitor.protocol = 'HTTP'
+        self.assertEquals('HTTP', monitor.protocol)
+        monitor.port = 8080
+        self.assertEquals(8080, monitor.port)
+
+        # Just to exercise the _options init
+        monitor = DummyDSFMonitor()
+        monitor.protocol = 'HTTP'
+        self.assertEquals('HTTP', monitor.protocol)
+        monitor = DummyDSFMonitor()
+        monitor.port = 8080
+        self.assertEquals(8080, monitor.port)

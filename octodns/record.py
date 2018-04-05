@@ -115,6 +115,12 @@ class Record(object):
                 reasons.append('invalid ttl')
         except KeyError:
             reasons.append('missing ttl')
+        try:
+            if data['octodns']['healthcheck']['protocol'] \
+               not in ('HTTP', 'HTTPS'):
+                reasons.append('invalid healthcheck protocol')
+        except KeyError:
+            pass
         return reasons
 
     def __init__(self, zone, name, data, source=None):
@@ -126,10 +132,7 @@ class Record(object):
         self.source = source
         self.ttl = int(data['ttl'])
 
-        octodns = data.get('octodns', {})
-        self.ignored = octodns.get('ignored', False)
-        self.excluded = octodns.get('excluded', [])
-        self.included = octodns.get('included', [])
+        self._octodns = data.get('octodns', {})
 
     def _data(self):
         return {'ttl': self.ttl}
@@ -143,6 +146,46 @@ class Record(object):
         if self.name:
             return '{}.{}'.format(self.name, self.zone.name)
         return self.zone.name
+
+    @property
+    def ignored(self):
+        return self._octodns.get('ignored', False)
+
+    @property
+    def excluded(self):
+        return self._octodns.get('excluded', [])
+
+    @property
+    def included(self):
+        return self._octodns.get('included', [])
+
+    @property
+    def healthcheck_host(self):
+        try:
+            return self._octodns['healthcheck']['host']
+        except KeyError:
+            return self.fqdn[:-1]
+
+    @property
+    def healthcheck_path(self):
+        try:
+            return self._octodns['healthcheck']['path']
+        except KeyError:
+            return '/_dns'
+
+    @property
+    def healthcheck_protocol(self):
+        try:
+            return self._octodns['healthcheck']['protocol']
+        except KeyError:
+            return 'HTTPS'
+
+    @property
+    def healthcheck_port(self):
+        try:
+            return int(self._octodns['healthcheck']['port'])
+        except KeyError:
+            return 443
 
     def changes(self, other, target):
         # We're assuming we have the same name and type if we're being compared

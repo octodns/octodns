@@ -746,6 +746,61 @@ class TestRecord(TestCase):
         self.assertEquals(values, geo.values)
         self.assertEquals(['NA-US', 'NA'], list(geo.parents))
 
+    def test_healthcheck(self):
+        new = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                    'path': '/_ready',
+                    'host': 'bleep.bloop',
+                    'protocol': 'HTTP',
+                    'port': 8080,
+                }
+            }
+        })
+        self.assertEquals('/_ready', new.healthcheck_path)
+        self.assertEquals('bleep.bloop', new.healthcheck_host)
+        self.assertEquals('HTTP', new.healthcheck_protocol)
+        self.assertEquals(8080, new.healthcheck_port)
+
+        new = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        self.assertEquals('/_dns', new.healthcheck_path)
+        self.assertEquals('a.unit.tests', new.healthcheck_host)
+        self.assertEquals('HTTPS', new.healthcheck_protocol)
+        self.assertEquals(443, new.healthcheck_port)
+
+    def test_inored(self):
+        new = Record.new(self.zone, 'txt', {
+            'ttl': 44,
+            'type': 'TXT',
+            'value': 'some change',
+            'octodns': {
+                'ignored': True,
+            }
+        })
+        self.assertTrue(new.ignored)
+        new = Record.new(self.zone, 'txt', {
+            'ttl': 44,
+            'type': 'TXT',
+            'value': 'some change',
+            'octodns': {
+                'ignored': False,
+            }
+        })
+        self.assertFalse(new.ignored)
+        new = Record.new(self.zone, 'txt', {
+            'ttl': 44,
+            'type': 'TXT',
+            'value': 'some change',
+        })
+        self.assertFalse(new.ignored)
+
 
 class TestRecordValidation(TestCase):
     zone = Zone('unit.tests.', [])
@@ -964,6 +1019,25 @@ class TestRecordValidation(TestCase):
             'invalid ip address "hello"',
             'invalid ip address "goodbye"'
         ], ctx.exception.reasons)
+
+        # invalid healthcheck protocol
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'a', {
+                'geo': {
+                    'NA': ['1.2.3.5'],
+                    'NA-US': ['1.2.3.5', '1.2.3.6']
+                },
+                'type': 'A',
+                'ttl': 600,
+                'value': '1.2.3.4',
+                'octodns': {
+                    'healthcheck': {
+                        'protocol': 'FTP',
+                    }
+                }
+            })
+        self.assertEquals(['invalid healthcheck protocol'],
+                          ctx.exception.reasons)
 
     def test_AAAA(self):
         # doesn't blow up
