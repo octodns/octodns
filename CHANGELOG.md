@@ -1,3 +1,17 @@
+## v0.9.1 - UNRELEASED
+
+### NOTICE
+
+Using this version on existing records with `geo` will result in
+recreating all health checks. This process has been tested pretty thoroughly to
+try and ensure a seemless upgrade without any traffic shifting around. It's
+probably best to take extra care when updating and to try and make sure that
+all health checks are passing before the first sync with `--doit`. See
+[#67](https://github.com/github/octodns/pull/67) for more information.
+
+* Major update to geo healthchecks to allow configuring host (header), path,
+  protocol, and port [#67](https://github.com/github/octodns/pull/67)
+
 ## v0.9.0 - 2018-03-26 - Way too long since we last met
 
 * Way way way too much to list out here, shouldn't have waited so long
