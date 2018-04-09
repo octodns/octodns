@@ -256,7 +256,7 @@ class DnsimpleProvider(BaseProvider):
         values = defaultdict(lambda: defaultdict(list))
         for record in self.zone_records(zone):
             _type = record['type']
-            if _type == 'SOA':
+            if _type not in self.SUPPORTS:
                 continue
             elif _type == 'TXT' and record['content'].startswith('ALIAS for'):
                 # ALIAS has a "ride along" TXT record with 'ALIAS for XXXX',
