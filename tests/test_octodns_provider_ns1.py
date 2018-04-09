@@ -257,6 +257,39 @@ class TestNs1Provider(TestCase):
         self.assertEquals(self.expected, zone.records)
         self.assertEquals(('unit.tests',), load_mock.call_args[0])
 
+        # Test skipping unsupported record type
+        load_mock.reset_mock()
+        nsone_zone = DummyZone(self.nsone_records + [{
+            'type': 'UNSUPPORTED',
+            'ttl': 42,
+            'short_answers': ['unsupported'],
+            'domain': 'unsupported.unit.tests.',
+        }])
+        load_mock.side_effect = [nsone_zone]
+        zone_search = Mock()
+        zone_search.return_value = [
+            {
+                "domain": "geo.unit.tests",
+                "zone": "unit.tests",
+                "type": "A",
+                "answers": [
+                    {'answer': ['1.1.1.1'], 'meta': {}},
+                    {'answer': ['1.2.3.4'],
+                     'meta': {'ca_province': ['ON']}},
+                    {'answer': ['2.3.4.5'], 'meta': {'us_state': ['NY']}},
+                    {'answer': ['3.4.5.6'], 'meta': {'country': ['US']}},
+                    {'answer': ['4.5.6.7'],
+                     'meta': {'iso_region_code': ['NA-US-WA']}},
+                ],
+                'ttl': 34,
+            },
+        ]
+        nsone_zone.search = zone_search
+        zone = Zone('unit.tests.', [])
+        provider.populate(zone)
+        self.assertEquals(self.expected, zone.records)
+        self.assertEquals(('unit.tests',), load_mock.call_args[0])
+
     @patch('nsone.NSONE.createZone')
     @patch('nsone.NSONE.loadZone')
     def test_sync(self, load_mock, create_mock):

@@ -204,6 +204,8 @@ class Ns1Provider(BaseProvider):
         zone_hash = {}
         for record in chain(records, geo_records):
             _type = record['type']
+            if _type not in self.SUPPORTS:
+                continue
             data_for = getattr(self, '_data_for_{}'.format(_type))
             name = zone.hostname_from_fqdn(record['domain'])
             record = Record.new(zone, name, data_for(_type, record),
