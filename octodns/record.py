@@ -722,7 +722,7 @@ class PtrRecord(_ValueMixin, Record):
 
 
 class SshfpValue(object):
-    VALID_ALGORITHMS = (1, 2, 3)
+    VALID_ALGORITHMS = (1, 2, 3, 4)
     VALID_FINGERPRINT_TYPES = (1, 2)
 
     @classmethod
