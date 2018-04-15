@@ -432,21 +432,21 @@ class TestNs1Provider(TestCase):
             'ttl': 31,
             'short_answers': ['foo; bar baz; blip']
         }
-        self.assertEquals(['foo\; bar baz\; blip'],
+        self.assertEquals(['foo\\; bar baz\\; blip'],
                           provider._data_for_SPF('SPF', record)['values'])
 
         record = {
             'ttl': 31,
             'short_answers': ['no', 'foo; bar baz; blip', 'yes']
         }
-        self.assertEquals(['no', 'foo\; bar baz\; blip', 'yes'],
+        self.assertEquals(['no', 'foo\\; bar baz\\; blip', 'yes'],
                           provider._data_for_TXT('TXT', record)['values'])
 
         zone = Zone('unit.tests.', [])
         record = Record.new(zone, 'spf', {
             'ttl': 34,
             'type': 'SPF',
-            'value': 'foo\; bar baz\; blip'
+            'value': 'foo\\; bar baz\\; blip'
         })
         self.assertEquals(['foo; bar baz; blip'],
                           provider._params_for_SPF(record)['answers'])
@@ -454,7 +454,7 @@ class TestNs1Provider(TestCase):
         record = Record.new(zone, 'txt', {
             'ttl': 35,
             'type': 'TXT',
-            'value': 'foo\; bar baz\; blip'
+            'value': 'foo\\; bar baz\\; blip'
         })
         self.assertEquals(['foo; bar baz; blip'],
                           provider._params_for_TXT(record)['answers'])

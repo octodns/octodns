@@ -211,7 +211,7 @@ class OvhProvider(BaseProvider):
         return {
             'ttl': records[0]['ttl'],
             'type': "TXT",
-            'values': [record['target'].replace(';', '\;')
+            'values': [record['target'].replace(';', '\\;')
                        for record in records]
         }
 
@@ -295,7 +295,7 @@ class OvhProvider(BaseProvider):
             field_type = 'TXT'
             if self._is_valid_dkim(value):
                 field_type = 'DKIM'
-                value = value.replace("\;", ";")
+                value = value.replace("\\;", ";")
             yield {
                 'target': value,
                 'subDomain': record.name,
@@ -321,7 +321,7 @@ class OvhProvider(BaseProvider):
                           'n': lambda _: True,
                           'g': lambda _: True}
 
-        splitted = value.split('\;')
+        splitted = value.split('\\;')
         found_key = False
         for splitted_value in splitted:
             sub_split = map(lambda x: x.strip(), splitted_value.split("=", 1))

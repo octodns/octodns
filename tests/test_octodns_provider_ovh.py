@@ -280,24 +280,24 @@ class TestOvhProvider(TestCase):
     })
 
     valid_dkim = [valid_dkim_key,
-                  'v=DKIM1 \; %s' % valid_dkim_key,
-                  'h=sha256 \; %s' % valid_dkim_key,
-                  'h=sha1 \; %s' % valid_dkim_key,
-                  's=* \; %s' % valid_dkim_key,
-                  's=email \; %s' % valid_dkim_key,
-                  't=y \; %s' % valid_dkim_key,
-                  't=s \; %s' % valid_dkim_key,
-                  'k=rsa \; %s' % valid_dkim_key,
-                  'n=notes \; %s' % valid_dkim_key,
-                  'g=granularity \; %s' % valid_dkim_key,
+                  'v=DKIM1 \\; %s' % valid_dkim_key,
+                  'h=sha256 \\; %s' % valid_dkim_key,
+                  'h=sha1 \\; %s' % valid_dkim_key,
+                  's=* \\; %s' % valid_dkim_key,
+                  's=email \\; %s' % valid_dkim_key,
+                  't=y \\; %s' % valid_dkim_key,
+                  't=s \\; %s' % valid_dkim_key,
+                  'k=rsa \\; %s' % valid_dkim_key,
+                  'n=notes \\; %s' % valid_dkim_key,
+                  'g=granularity \\; %s' % valid_dkim_key,
                   ]
     invalid_dkim = ['p=%invalid%',  # Invalid public key
                     'v=DKIM1',  # Missing public key
-                    'v=DKIM2 \; %s' % valid_dkim_key,  # Invalid version
-                    'h=sha512 \; %s' % valid_dkim_key,  # Invalid hash algo
-                    's=fake \; %s' % valid_dkim_key,  # Invalid selector
-                    't=fake \; %s' % valid_dkim_key,  # Invalid flag
-                    'u=invalid \; %s' % valid_dkim_key,  # Invalid key
+                    'v=DKIM2 \\; %s' % valid_dkim_key,  # Invalid version
+                    'h=sha512 \\; %s' % valid_dkim_key,  # Invalid hash algo
+                    's=fake \\; %s' % valid_dkim_key,  # Invalid selector
+                    't=fake \\; %s' % valid_dkim_key,  # Invalid flag
+                    'u=invalid \\; %s' % valid_dkim_key,  # Invalid key
                     ]
 
     @patch('ovh.Client')

@@ -129,7 +129,7 @@ class CloudflareProvider(BaseProvider):
         return {
             'ttl': records[0]['ttl'],
             'type': _type,
-            'values': [r['content'].replace(';', '\;') for r in records],
+            'values': [r['content'].replace(';', '\\;') for r in records],
         }
 
     def _data_for_CAA(self, _type, records):
@@ -296,7 +296,7 @@ class CloudflareProvider(BaseProvider):
 
     def _contents_for_TXT(self, record):
         for value in record.values:
-            yield {'content': value.replace('\;', ';')}
+            yield {'content': value.replace('\\;', ';')}
 
     def _contents_for_CNAME(self, record):
         yield {'content': record.value}

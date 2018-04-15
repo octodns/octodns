@@ -1515,7 +1515,7 @@ class TestRecordValidation(TestCase):
             'values': [
                 'v=spf1 ip4:192.168.0.1/16-all',
                 'v=spf1 ip4:10.1.2.1/24-all',
-                'this has some\; semi-colons\; in it',
+                'this has some\\; semi-colons\\; in it',
             ]
         })
 
@@ -1532,7 +1532,7 @@ class TestRecordValidation(TestCase):
             Record.new(self.zone, '', {
                 'type': 'SPF',
                 'ttl': 600,
-                'value': 'this has some; semi-colons\; in it',
+                'value': 'this has some; semi-colons\\; in it',
             })
         self.assertEquals(['unescaped ;'], ctx.exception.reasons)
 
@@ -1677,7 +1677,7 @@ class TestRecordValidation(TestCase):
             'ttl': 600,
             'values': [
                 'hello world',
-                'this has some\; semi-colons\; in it',
+                'this has some\\; semi-colons\\; in it',
             ]
         })
 
@@ -1694,7 +1694,7 @@ class TestRecordValidation(TestCase):
             Record.new(self.zone, '', {
                 'type': 'TXT',
                 'ttl': 600,
-                'value': 'this has some; semi-colons\; in it',
+                'value': 'this has some; semi-colons\\; in it',
             })
         self.assertEquals(['unescaped ;'], ctx.exception.reasons)
 
@@ -1724,7 +1724,7 @@ class TestRecordValidation(TestCase):
             'values': [
                 'hello world',
                 long_value,
-                'this has some\; semi-colons\; in it',
+                'this has some\\; semi-colons\\; in it',
             ]
         })
         self.assertEquals(3, len(single.values))
@@ -1749,7 +1749,7 @@ class TestRecordValidation(TestCase):
             'values': [
                 '"hello world"',
                 long_split_value,
-                '"this has some\; semi-colons\; in it"',
+                '"this has some\\; semi-colons\\; in it"',
             ]
         })
         self.assertEquals(expected, chunked.chunked_values[0])
