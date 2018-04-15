@@ -13,7 +13,7 @@ It is similar to [Netflix/denominator](https://github.com/Netflix/denominator).
 
 ### Workspace
 
-Running through the following commands will install the latest release of OctoDNS and set up a place for your config files to live.
+Running through the following commands will install the latest release of OctoDNS and set up a place for your config files to live. To determine if provider specific requirements are necessary see the [Supported providers table](#supported-providers) below.
 
 ```
 $ mkdir dns
@@ -21,7 +21,7 @@ $ cd dns
 $ virtualenv env
 ...
 $ source env/bin/activate
-$ pip install octodns
+$ pip install octodns <provider-specific-requirements>
 $ mkdir config
 ```
 
@@ -147,22 +147,22 @@ The above command pulled the existing data out of Route53 and placed the results
 
 ## Supported providers
 
-| Provider | Record Support | GeoDNS Support | Notes |
+| Provider | Requirements | Record Support | GeoDNS Support | Notes |
 |--|--|--|--|
-| [AzureProvider](/octodns/provider/azuredns.py) | A, AAAA, CNAME, MX, NS, PTR, SRV, TXT | No | |
-| [CloudflareProvider](/octodns/provider/cloudflare.py) | A, AAAA, ALIAS, CAA, CNAME, MX, NS, SPF, SRV, TXT | No | CAA tags restricted |
-| [DigitalOceanProvider](/octodns/provider/digitalocean.py) | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
-| [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
-| [DnsimpleProvider](/octodns/provider/dnsimple.py) | All | No | CAA tags restricted |
-| [DynProvider](/octodns/provider/dyn.py) | All | Yes | |
-| [GoogleCloudProvider](/octodns/provider/googlecloud.py) | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
-| [Ns1Provider](/octodns/provider/ns1.py) | All | Yes | No health checking for GeoDNS |
-| [OVH](/octodns/provider/ovh.py) | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
-| [PowerDnsProvider](/octodns/provider/powerdns.py) | All | No | |
-| [Rackspace](/octodns/provider/rackspace.py) | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
-| [Route53](/octodns/provider/route53.py) | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Yes | |
-| [TinyDNSSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |
-| [YamlProvider](/octodns/provider/yaml.py) | All | Yes | config |
+| [AzureProvider](/octodns/provider/azuredns.py) | azure-mgmt-dns | A, AAAA, CNAME, MX, NS, PTR, SRV, TXT | No | |
+| [CloudflareProvider](/octodns/provider/cloudflare.py) | | A, AAAA, ALIAS, CAA, CNAME, MX, NS, SPF, SRV, TXT | No | CAA tags restricted |
+| [DigitalOceanProvider](/octodns/provider/digitalocean.py) | | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
+| [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
+| [DnsimpleProvider](/octodns/provider/dnsimple.py) | | All | No | CAA tags restricted |
+| [DynProvider](/octodns/provider/dyn.py) | dyn | All | Yes | |
+| [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
+| [Ns1Provider](/octodns/provider/ns1.py) | nsone | All | Yes | No health checking for GeoDNS |
+| [OVH](/octodns/provider/ovh.py) | ovh | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
+| [PowerDnsProvider](/octodns/provider/powerdns.py) | | All | No | |
+| [Rackspace](/octodns/provider/rackspace.py) | | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
+| [Route53](/octodns/provider/route53.py) | boto3 | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Yes | |
+| [TinyDNSSource](/octodns/source/tinydns.py) | | A, CNAME, MX, NS, PTR | No | read-only |
+| [YamlProvider](/octodns/provider/yaml.py) | | All | Yes | config |
 
 #### Notes
 
