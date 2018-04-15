@@ -28,12 +28,12 @@ def remove_trailing_dot(s):
 
 def escape_semicolon(s):
     assert s
-    return string.replace(s, ';', '\;')
+    return string.replace(s, ';', '\\;')
 
 
 def unescape_semicolon(s):
     assert s
-    return string.replace(s, '\;', ';')
+    return string.replace(s, '\\;', ';')
 
 
 class RackspaceProvider(BaseProvider):

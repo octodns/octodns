@@ -190,7 +190,7 @@ class DnsMadeEasyProvider(BaseProvider):
         }
 
     def _data_for_TXT(self, _type, records):
-        values = [value['value'].replace(';', '\;') for value in records]
+        values = [value['value'].replace(';', '\\;') for value in records]
         return {
             'ttl': records[0]['ttl'],
             'type': _type,
@@ -324,7 +324,7 @@ class DnsMadeEasyProvider(BaseProvider):
         # DNSMadeEasy does not want values escaped
         for value in record.chunked_values:
             yield {
-                'value': value.replace('\;', ';'),
+                'value': value.replace('\\;', ';'),
                 'name': record.name,
                 'ttl': record.ttl,
                 'type': record._type

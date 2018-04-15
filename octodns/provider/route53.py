@@ -352,7 +352,7 @@ class Route53Provider(BaseProvider):
     def _data_for_quoted(self, rrset):
         return {
             'type': rrset['Type'],
-            'values': [self._fix_semicolons.sub('\;', rr['Value'][1:-1])
+            'values': [self._fix_semicolons.sub('\\;', rr['Value'][1:-1])
                        for rr in rrset['ResourceRecords']],
             'ttl': int(rrset['TTL'])
         }
