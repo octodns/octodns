@@ -45,7 +45,7 @@ class Zone(object):
         self._records = defaultdict(set)
         # optional leading . to match empty hostname
         # optional trailing . b/c some sources don't have it on their fqdn
-        self._name_re = re.compile('\.?{}?$'.format(name))
+        self._name_re = re.compile(r'\.?{}?$'.format(name))
 
         self.log.debug('__init__: zone=%s, sub_zones=%s', self, sub_zones)
 

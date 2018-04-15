@@ -198,7 +198,7 @@ class DigitalOceanProvider(BaseProvider):
         }
 
     def _data_for_TXT(self, _type, records):
-        values = [value['data'].replace(';', '\;') for value in records]
+        values = [value['data'].replace(';', '\\;') for value in records]
         return {
             'ttl': records[0]['ttl'],
             'type': _type,
@@ -298,7 +298,7 @@ class DigitalOceanProvider(BaseProvider):
         # have to strip them here and add them when going the other way
         for value in record.values:
             yield {
-                'data': value.replace('\;', ';'),
+                'data': value.replace('\\;', ';'),
                 'name': record.name,
                 'ttl': record.ttl,
                 'type': record._type

@@ -281,10 +281,10 @@ class GoogleCloudProvider(BaseProvider):
     def _data_for_SPF(self, gcloud_record):
         if len(gcloud_record.rrdatas) > 1:
             return {
-                'values': [self._fix_semicolons.sub('\;', rr)
+                'values': [self._fix_semicolons.sub('\\;', rr)
                            for rr in gcloud_record.rrdatas]}
         return {
-            'value': self._fix_semicolons.sub('\;', gcloud_record.rrdatas[0])}
+            'value': self._fix_semicolons.sub('\\;', gcloud_record.rrdatas[0])}
 
     def _data_for_SRV(self, gcloud_record):
         return {'values': [{
