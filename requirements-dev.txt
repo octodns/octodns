@@ -1,0 +1,7 @@
+coverage
+mock
+nose
+pycodestyle==2.4.0
+pyflakes==1.6.0
+requests_mock
+twine==1.11.0
