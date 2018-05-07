@@ -83,7 +83,7 @@ class Manager(object):
 
         self.include_meta = include_meta or manager_config.get('include_meta',
                                                                False)
-        self.log.info('__init__:   max_workers=%s', self.include_meta)
+        self.log.info('__init__:   include_meta=%s', self.include_meta)
 
         self.log.debug('__init__:   configuring providers')
         self.providers = {}
@@ -229,10 +229,10 @@ class Manager(object):
         return plans
 
     def sync(self, eligible_zones=[], eligible_targets=[], dry_run=True,
-             force=False):
+             force=False, cautious=False):
         self.log.info('sync: eligible_zones=%s, eligible_targets=%s, '
-                      'dry_run=%s, force=%s', eligible_zones, eligible_targets,
-                      dry_run, force)
+                      'dry_run=%s, force=%s, cautious=%s', eligible_zones,
+                      eligible_targets, dry_run, force, cautious)
 
         zones = self.config['zones'].items()
         if eligible_zones:
@@ -287,6 +287,10 @@ class Manager(object):
         # Wait on all results and unpack/flatten them in to a list of target &
         # plan pairs.
         plans = [p for f in futures for p in f.result()]
+
+        if cautious:
+            for target, plan in plans:
+                plan.make_cautious()
 
         for output in self.plan_outputs.values():
             output.run(plans=plans, log=self.log)
