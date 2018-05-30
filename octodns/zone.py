@@ -56,11 +56,11 @@ class Zone(object):
     def hostname_from_fqdn(self, fqdn):
         return self._name_re.sub('', fqdn)
 
-    def add_record(self, record, replace=False):
+    def add_record(self, record, replace=False, lenient=False):
         name = record.name
         last = name.split('.')[-1]
 
-        if last in self.sub_zones:
+        if not lenient and last in self.sub_zones:
             if name != last:
                 # it's a record for something under a sub-zone
                 raise SubzoneRecordException('Record {} is under a '
@@ -82,8 +82,8 @@ class Zone(object):
             raise DuplicateRecordException('Duplicate record {}, type {}'
                                            .format(record.fqdn,
                                                    record._type))
-        elif ((record._type == 'CNAME' and len(node) > 0) or
-              ('CNAME' in map(lambda r: r._type, node))):
+        elif not lenient and (((record._type == 'CNAME' and len(node) > 0) or
+                               ('CNAME' in map(lambda r: r._type, node)))):
             # We're adding a CNAME to existing records or adding to an existing
             # CNAME
             raise InvalidNodeException('Invalid state, CNAME at {} cannot '

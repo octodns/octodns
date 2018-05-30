@@ -242,12 +242,18 @@ class TestZone(TestCase):
         zone.add_record(a)
         with self.assertRaises(InvalidNodeException):
             zone.add_record(cname)
+        self.assertEquals(set([a]), zone.records)
+        zone.add_record(cname, lenient=True)
+        self.assertEquals(set([a, cname]), zone.records)
 
         # add a to cname
         zone = Zone('unit.tests.', [])
         zone.add_record(cname)
         with self.assertRaises(InvalidNodeException):
             zone.add_record(a)
+        self.assertEquals(set([cname]), zone.records)
+        zone.add_record(a, lenient=True)
+        self.assertEquals(set([a, cname]), zone.records)
 
     def test_excluded_records(self):
         zone_normal = Zone('unit.tests.', [])
