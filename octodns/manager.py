@@ -65,6 +65,11 @@ class MainThreadExecutor(object):
 class Manager(object):
     log = logging.getLogger('Manager')
 
+    @classmethod
+    def _plan_keyer(cls, p):
+        plan = p[1]
+        return len(plan.changes[0].record.zone.name) if plan.changes else 0
+
     def __init__(self, config_file, max_workers=None, include_meta=False):
         self.log.info('__init__: config_file=%s', config_file)
 
@@ -287,6 +292,13 @@ class Manager(object):
         # Wait on all results and unpack/flatten them in to a list of target &
         # plan pairs.
         plans = [p for f in futures for p in f.result()]
+
+        # Best effort sort plans children first so that we create/update
+        # children zones before parents which should allow us to more safely
+        # extract things into sub-zones. Combining a child back into a parent
+        # can't really be done all that safely in general so we'll optimize for
+        # this direction.
+        plans.sort(key=self._plan_keyer, reverse=True)
 
         for output in self.plan_outputs.values():
             output.run(plans=plans, log=self.log)
