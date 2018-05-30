@@ -67,10 +67,8 @@ class Manager(object):
 
     @classmethod
     def _plan_keyer(cls, p):
-        try:
-            return len(p[1].changes[0].record.zone.name)
-        except (AttributeError, IndexError):
-            return 0
+        plan = p[1]
+        return len(plan.changes[0].record.zone.name) if plan.changes else 0
 
     def __init__(self, config_file, max_workers=None, include_meta=False):
         self.log.info('__init__: config_file=%s', config_file)
