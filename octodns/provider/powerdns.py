@@ -199,7 +199,7 @@ class PowerDnsBaseProvider(BaseProvider):
                 record_name = zone.hostname_from_fqdn(rrset['name'])
                 record = Record.new(zone, record_name, data_for(rrset),
                                     source=self, lenient=lenient)
-                zone.add_record(record)
+                zone.add_record(record, lenient=lenient)
 
         self.log.info('populate:   found %s records, exists=%s',
                       len(zone.records) - before, exists)

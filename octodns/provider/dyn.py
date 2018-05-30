@@ -399,7 +399,7 @@ class DynProvider(BaseProvider):
 
         return self._traffic_directors
 
-    def _populate_traffic_directors(self, zone):
+    def _populate_traffic_directors(self, zone, lenient):
         self.log.debug('_populate_traffic_directors: zone=%s', zone.name)
         td_records = set()
         for fqdn, types in self.traffic_directors.items():
@@ -444,7 +444,7 @@ class DynProvider(BaseProvider):
 
                 name = zone.hostname_from_fqdn(fqdn)
                 record = Record.new(zone, name, data, source=self)
-                zone.add_record(record)
+                zone.add_record(record, lenient=lenient)
                 td_records.add(record)
 
         return td_records
@@ -460,7 +460,7 @@ class DynProvider(BaseProvider):
 
         td_records = set()
         if self.traffic_directors_enabled:
-            td_records = self._populate_traffic_directors(zone)
+            td_records = self._populate_traffic_directors(zone, lenient)
             exists = True
 
         dyn_zone = _CachingDynZone.get(zone.name[:-1])
@@ -483,7 +483,7 @@ class DynProvider(BaseProvider):
                     record = Record.new(zone, name, data, source=self,
                                         lenient=lenient)
                     if record not in td_records:
-                        zone.add_record(record)
+                        zone.add_record(record, lenient=lenient)
 
         self.log.info('populate:   found %s records, exists=%s',
                       len(zone.records) - before, exists)

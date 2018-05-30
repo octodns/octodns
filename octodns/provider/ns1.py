@@ -211,7 +211,7 @@ class Ns1Provider(BaseProvider):
             record = Record.new(zone, name, data_for(_type, record),
                                 source=self, lenient=lenient)
             zone_hash[(_type, name)] = record
-        [zone.add_record(r) for r in zone_hash.values()]
+        [zone.add_record(r, lenient=lenient) for r in zone_hash.values()]
         self.log.info('populate:   found %s records, exists=%s',
                       len(zone.records) - before, exists)
         return exists
