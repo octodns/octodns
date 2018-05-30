@@ -61,7 +61,7 @@ class TestBaseProvider(TestCase):
         class HasSupportsGeo(HasLog):
             SUPPORTS_GEO = False
 
-        zone = Zone('unit.tests.', [])
+        zone = Zone('unit.tests.', ['sub'])
         with self.assertRaises(NotImplementedError) as ctx:
             HasSupportsGeo('hassupportsgeo').populate(zone)
         self.assertEquals('Abstract base class, SUPPORTS property missing',
@@ -81,12 +81,17 @@ class TestBaseProvider(TestCase):
                     'ttl': 60,
                     'type': 'A',
                     'value': '2.3.4.5'
-                }))
+                }), lenient=lenient)
                 zone.add_record(Record.new(zone, 'going', {
                     'ttl': 60,
                     'type': 'A',
                     'value': '3.4.5.6'
-                }))
+                }), lenient=lenient)
+                zone.add_record(Record.new(zone, 'foo.sub', {
+                    'ttl': 61,
+                    'type': 'A',
+                    'value': '4.5.6.7'
+                }), lenient=lenient)
 
         zone.add_record(Record.new(zone, '', {
             'ttl': 60,
@@ -98,7 +103,7 @@ class TestBaseProvider(TestCase):
                         .supports(list(zone.records)[0]))
 
         plan = HasPopulate('haspopulate').plan(zone)
-        self.assertEquals(2, len(plan.changes))
+        self.assertEquals(3, len(plan.changes))
 
         with self.assertRaises(NotImplementedError) as ctx:
             HasPopulate('haspopulate').apply(plan)

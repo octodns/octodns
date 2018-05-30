@@ -345,7 +345,7 @@ class AzureProvider(BaseProvider):
                 data['type'] = typ
                 data['ttl'] = azrecord.ttl
                 record = Record.new(zone, record_name, data, source=self)
-                zone.add_record(record)
+                zone.add_record(record, lenient=lenient)
 
         self.log.info('populate: found %s records, exists=%s',
                       len(zone.records) - before, exists)

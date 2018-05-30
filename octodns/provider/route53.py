@@ -489,7 +489,7 @@ class Route53Provider(BaseProvider):
                         data = data[0]
                     record = Record.new(zone, name, data, source=self,
                                         lenient=lenient)
-                    zone.add_record(record)
+                    zone.add_record(record, lenient=lenient)
 
         self.log.info('populate:   found %s records, exists=%s',
                       len(zone.records) - before, exists)

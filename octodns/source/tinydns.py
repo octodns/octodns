@@ -134,7 +134,7 @@ class TinyDnsBaseSource(BaseSource):
                     record = Record.new(zone, name, data, source=self,
                                         lenient=lenient)
                     try:
-                        zone.add_record(record)
+                        zone.add_record(record, lenient=lenient)
                     except SubzoneRecordException:
                         self.log.debug('_populate_normal: skipping subzone '
                                        'record=%s', record)
@@ -175,7 +175,7 @@ class TinyDnsBaseSource(BaseSource):
                     'value': value
                 }, source=self, lenient=lenient)
                 try:
-                    zone.add_record(record)
+                    zone.add_record(record, lenient=lenient)
                 except DuplicateRecordException:
                     self.log.warn('Duplicate PTR record for {}, '
                                   'skipping'.format(addr))
