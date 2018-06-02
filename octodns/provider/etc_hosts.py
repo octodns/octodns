@@ -69,11 +69,13 @@ class EtcHostsProvider(BaseProvider):
         filename = '{}hosts'.format(join(self.directory, desired.name))
         self.log.info('_apply: filename=%s', filename)
         with open(filename, 'w') as fh:
-            fh.write('########################################\n')
+            fh.write('##################################################\n')
             fh.write('# octoDNS ')
             fh.write(self.id)
+            fh.write(' ')
+            fh.write(desired.name)
             fh.write('\n')
-            fh.write('########################################\n\n')
+            fh.write('##################################################\n\n')
             if values:
                 fh.write('## A & AAAA\n\n')
                 for fqdn, value in sorted(values.items()):
