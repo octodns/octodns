@@ -1,5 +1,7 @@
 ## v0.9.2 - Unreleased
 
+* EtcHostsProvider implementation to create static/emergency best effort
+  content that can be used in /etc/hosts to resolve things.
 * Add lenient support to Zone.add_record, allows populate from providers that
   have allowed/created invalid data and situations where a sub-zone is being
   extracted from a parent, but the records still exist in the remote provider.
