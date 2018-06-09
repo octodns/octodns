@@ -5,8 +5,8 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from os import makedirs
-from os.path import isdir, join
+from os import makedirs, path
+from os.path import isdir
 import logging
 
 from .base import BaseProvider
@@ -66,60 +66,50 @@ class EtcHostsProvider(BaseProvider):
         if not isdir(self.directory):
             makedirs(self.directory)
 
-        filename = '{}hosts'.format(join(self.directory, desired.name))
+        filename = '{}hosts'.format(path.join(self.directory, desired.name))
         self.log.info('_apply: filename=%s', filename)
         with open(filename, 'w') as fh:
             fh.write('##################################################\n')
-            fh.write('# octoDNS ')
-            fh.write(self.id)
-            fh.write(' ')
-            fh.write(desired.name)
-            fh.write('\n')
+            fh.write('# octoDNS {} {}\n'.format(self.id, desired.name))
             fh.write('##################################################\n\n')
             if values:
                 fh.write('## A & AAAA\n\n')
                 for fqdn, value in sorted(values.items()):
                     if fqdn[0] == '*':
                         fh.write('# ')
-                    fh.write(value)
-                    fh.write('\t')
-                    fh.write(fqdn)
-                    fh.write('\n\n')
+                    fh.write('{}\t{}\n\n'.format(value, fqdn))
 
             if cnames:
-                fh.write('\n')
-                fh.write('## CNAME (mapped)\n\n')
+                fh.write('\n## CNAME (mapped)\n\n')
                 for fqdn, value in sorted(cnames.items()):
                     # Print out a comment of the first level
-                    fh.write('# ')
-                    fh.write(fqdn)
-                    fh.write(' -> ')
-                    fh.write(value)
-                    fh.write('\n')
-                    # No loop protection :-/
+                    fh.write('# {} -> {}\n'.format(fqdn, value))
+                    seen = set()
                     while True:
+                        seen.add(value)
                         try:
                             value = values[value]
                             # If we're here we've found the target, print it
                             # and break the loop
-                            fh.write(value)
-                            fh.write('\t')
-                            fh.write(fqdn)
-                            fh.write('\n')
+                            fh.write('{}\t{}\n'.format(value, fqdn))
                             break
                         except KeyError:
                             # Try and step down one level
                             orig = value
                             value = cnames.get(value, None)
                             # Print out this step
-                            fh.write('# ')
-                            fh.write(orig)
-                            fh.write(' -> ')
                             if value:
-                                fh.write(value)
+                                if value in seen:
+                                    # We'd loop here, break it
+                                    fh.write('# {} -> {} **loop**\n'
+                                             .format(orig, value))
+                                    break
+                                else:
+                                    fh.write('# {} -> {}\n'
+                                             .format(orig, value))
                             else:
                                 # Don't have anywhere else to go
-                                fh.write('**unknown**')
+                                fh.write('# {} -> **unknown**\n'.format(orig))
                                 break
-                            fh.write('\n')
+
                     fh.write('\n')
