@@ -167,6 +167,23 @@ class TestRoute53Provider(TestCase):
 
         return (provider, stubber)
 
+    def _get_stubbed_fallback_auth_provider(self):
+        provider = Route53Provider('test')
+
+        # Use the stubber
+        stubber = Stubber(provider._conn)
+        stubber.activate()
+
+        return (provider, stubber)
+
+    def test_populate_with_fallback(self):
+        provider, stubber = self._get_stubbed_fallback_auth_provider()
+
+        got = Zone('unit.tests.', [])
+        with self.assertRaises(ClientError):
+            stubber.add_client_error('list_hosted_zones')
+            provider.populate(got)
+
     def test_populate(self):
         provider, stubber = self._get_stubbed_provider()
 
