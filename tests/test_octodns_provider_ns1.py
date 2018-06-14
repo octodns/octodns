@@ -133,12 +133,12 @@ class TestNs1Provider(TestCase):
     }, {
         'type': 'CNAME',
         'ttl': 34,
-        'short_answers': ['foo.unit.tests.'],
+        'short_answers': ['foo.unit.tests'],
         'domain': 'cname.unit.tests.',
     }, {
         'type': 'MX',
         'ttl': 35,
-        'short_answers': ['10 mx1.unit.tests.', '20 mx2.unit.tests.'],
+        'short_answers': ['10 mx1.unit.tests.', '20 mx2.unit.tests'],
         'domain': 'unit.tests.',
     }, {
         'type': 'NAPTR',
@@ -151,18 +151,18 @@ class TestNs1Provider(TestCase):
     }, {
         'type': 'NS',
         'ttl': 37,
-        'short_answers': ['ns1.unit.tests.', 'ns2.unit.tests.'],
+        'short_answers': ['ns1.unit.tests.', 'ns2.unit.tests'],
         'domain': 'unit.tests.',
     }, {
         'type': 'SRV',
         'ttl': 38,
         'short_answers': ['12 30 30 foo-2.unit.tests.',
-                          '10 20 30 foo-1.unit.tests.'],
+                          '10 20 30 foo-1.unit.tests'],
         'domain': '_srv._tcp.unit.tests.',
     }, {
         'type': 'NS',
         'ttl': 39,
-        'short_answers': ['ns3.unit.tests.', 'ns4.unit.tests.'],
+        'short_answers': ['ns3.unit.tests.', 'ns4.unit.tests'],
         'domain': 'sub.unit.tests.',
     }, {
         'type': 'CAA',
