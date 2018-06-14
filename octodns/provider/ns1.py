@@ -189,6 +189,15 @@ class Ns1Provider(BaseProvider):
         try:
             nsone_zone = self._client.loadZone(zone.name[:-1])
             records = nsone_zone.data['records']
+
+            # change answers for certain types to always be absolute
+            for record in records:
+                if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'PTR',
+                                      'SRV']:
+                    for i, a in enumerate(record['short_answers']):
+                        if not a.endswith('.'):
+                            record['short_answers'][i] = '{}.'.format(a)
+
             geo_records = nsone_zone.search(has_geo=True)
             exists = True
         except ResourceException as e:
