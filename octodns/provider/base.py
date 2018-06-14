@@ -17,7 +17,7 @@ class BaseProvider(BaseSource):
                  delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT):
         super(BaseProvider, self).__init__(id)
         self.log.debug('__init__: id=%s, apply_disabled=%s, '
-                       'update_pcent_threshold=%.2f'
+                       'update_pcent_threshold=%.2f, '
                        'delete_pcent_threshold=%.2f',
                        id,
                        apply_disabled,
