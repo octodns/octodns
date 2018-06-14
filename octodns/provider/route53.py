@@ -232,12 +232,14 @@ class Route53Provider(BaseProvider):
     # health check config.
     HEALTH_CHECK_VERSION = '0001'
 
-    def __init__(self, id, access_key_id, secret_access_key, max_changes=1000,
-                 client_max_attempts=None, *args, **kwargs):
+    def __init__(self, id, access_key_id=None, secret_access_key=None,
+                 max_changes=1000, client_max_attempts=None, *args, **kwargs):
         self.max_changes = max_changes
+        _msg = 'access_key_id={}, secret_access_key=***'.format(access_key_id)
+        if access_key_id is None and secret_access_key is None:
+            _msg = 'auth=fallback'
         self.log = logging.getLogger('Route53Provider[{}]'.format(id))
-        self.log.debug('__init__: id=%s, access_key_id=%s, '
-                       'secret_access_key=***', id, access_key_id)
+        self.log.debug('__init__: id=%s, %s', id, _msg)
         super(Route53Provider, self).__init__(id, *args, **kwargs)
 
         config = None
@@ -246,9 +248,12 @@ class Route53Provider(BaseProvider):
                           client_max_attempts)
             config = Config(retries={'max_attempts': client_max_attempts})
 
-        self._conn = client('route53', aws_access_key_id=access_key_id,
-                            aws_secret_access_key=secret_access_key,
-                            config=config)
+        if access_key_id is None and secret_access_key is None:
+            self._conn = client('route53', config=config)
+        else:
+            self._conn = client('route53', aws_access_key_id=access_key_id,
+                                aws_secret_access_key=secret_access_key,
+                                config=config)
 
         self._r53_zones = None
         self._r53_rrsets = {}
