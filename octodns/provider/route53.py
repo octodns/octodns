@@ -217,10 +217,13 @@ class Route53Provider(BaseProvider):
 
     route53:
         class: octodns.provider.route53.Route53Provider
-        # The AWS access key id (required)
+        # The AWS access key id
         access_key_id:
-        # The AWS secret access key (required)
+        # The AWS secret access key
         secret_access_key:
+
+    Alternatively, you may leave out access_key_id and secret_access_key,
+    this will result in boto3 deciding authentication dynamically.
 
     In general the account used will need full permissions on Route53.
     '''
