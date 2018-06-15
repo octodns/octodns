@@ -230,7 +230,7 @@ class DigitalOceanProvider(BaseProvider):
                 data_for = getattr(self, '_data_for_{}'.format(_type))
                 record = Record.new(zone, name, data_for(_type, records),
                                     source=self, lenient=lenient)
-                zone.add_record(record)
+                zone.add_record(record, lenient=lenient)
 
         exists = zone.name in self._zone_records
         self.log.info('populate:   found %s records, exists=%s',

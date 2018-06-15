@@ -253,7 +253,7 @@ class CloudflareProvider(BaseProvider):
                         self.log.info('CDN rewrite %s already in zone', name)
                         continue
 
-                    zone.add_record(record)
+                    zone.add_record(record, lenient=lenient)
 
         self.log.info('populate:   found %s records, exists=%s',
                       len(zone.records) - before, exists)

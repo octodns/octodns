@@ -215,7 +215,7 @@ class RackspaceProvider(BaseProvider):
                     record = Record.new(zone, record_name,
                                         data_for(record_set),
                                         source=self)
-                    zone.add_record(record)
+                    zone.add_record(record, lenient=lenient)
 
         self.log.info('populate:   found %s records, exists=True',
                       len(zone.records) - before)

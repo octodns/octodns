@@ -98,7 +98,7 @@ There will be other logging information presented on the screen, but successful 
 
 ### Making changes
 
-**WARNING**: OctoDNS assumes ownership of any domain you point it to. When you tell it to act it will do whatever is necessary to try and match up states including deleting any unexpected records. Be careful when playing around with OctoDNS. It's best to experiment with a fake zone or one without any data that matters until your comfortable with the system.
+**WARNING**: OctoDNS assumes ownership of any domain you point it to. When you tell it to act it will do whatever is necessary to try and match up states including deleting any unexpected records. Be careful when playing around with OctoDNS. It's best to experiment with a fake zone or one without any data that matters until you're comfortable with the system.
 
 Now it's time to tell OctoDNS to make things happen. We'll invoke it again with the same options and add a `--doit` on the end to tell it this time we actually want it to try and make the specified changes.
 

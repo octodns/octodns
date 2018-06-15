@@ -67,7 +67,7 @@ class YamlProvider(BaseProvider):
                             d['ttl'] = self.default_ttl
                         record = Record.new(zone, name, d, source=self,
                                             lenient=lenient)
-                        zone.add_record(record)
+                        zone.add_record(record, lenient=lenient)
 
         self.log.info('populate:   found %s records, exists=False',
                       len(zone.records) - before)

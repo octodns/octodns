@@ -139,9 +139,9 @@ class TestZone(TestCase):
         self.assertTrue('missing ending dot' in ctx.exception.message)
 
     def test_sub_zones(self):
-        zone = Zone('unit.tests.', set(['sub', 'barred']))
 
         # NS for exactly the sub is allowed
+        zone = Zone('unit.tests.', set(['sub', 'barred']))
         record = Record.new(zone, 'sub', {
             'ttl': 3600,
             'type': 'NS',
@@ -151,6 +151,7 @@ class TestZone(TestCase):
         self.assertEquals(set([record]), zone.records)
 
         # non-NS for exactly the sub is rejected
+        zone = Zone('unit.tests.', set(['sub', 'barred']))
         record = Record.new(zone, 'sub', {
             'ttl': 3600,
             'type': 'A',
@@ -159,8 +160,12 @@ class TestZone(TestCase):
         with self.assertRaises(SubzoneRecordException) as ctx:
             zone.add_record(record)
         self.assertTrue('not of type NS', ctx.exception.message)
+        # Can add it w/lenient
+        zone.add_record(record, lenient=True)
+        self.assertEquals(set([record]), zone.records)
 
         # NS for something below the sub is rejected
+        zone = Zone('unit.tests.', set(['sub', 'barred']))
         record = Record.new(zone, 'foo.sub', {
             'ttl': 3600,
             'type': 'NS',
@@ -169,8 +174,12 @@ class TestZone(TestCase):
         with self.assertRaises(SubzoneRecordException) as ctx:
             zone.add_record(record)
         self.assertTrue('under a managed sub-zone', ctx.exception.message)
+        # Can add it w/lenient
+        zone.add_record(record, lenient=True)
+        self.assertEquals(set([record]), zone.records)
 
         # A for something below the sub is rejected
+        zone = Zone('unit.tests.', set(['sub', 'barred']))
         record = Record.new(zone, 'foo.bar.sub', {
             'ttl': 3600,
             'type': 'A',
@@ -179,6 +188,9 @@ class TestZone(TestCase):
         with self.assertRaises(SubzoneRecordException) as ctx:
             zone.add_record(record)
         self.assertTrue('under a managed sub-zone', ctx.exception.message)
+        # Can add it w/lenient
+        zone.add_record(record, lenient=True)
+        self.assertEquals(set([record]), zone.records)
 
     def test_ignored_records(self):
         zone_normal = Zone('unit.tests.', [])
@@ -230,12 +242,18 @@ class TestZone(TestCase):
         zone.add_record(a)
         with self.assertRaises(InvalidNodeException):
             zone.add_record(cname)
+        self.assertEquals(set([a]), zone.records)
+        zone.add_record(cname, lenient=True)
+        self.assertEquals(set([a, cname]), zone.records)
 
         # add a to cname
         zone = Zone('unit.tests.', [])
         zone.add_record(cname)
         with self.assertRaises(InvalidNodeException):
             zone.add_record(a)
+        self.assertEquals(set([cname]), zone.records)
+        zone.add_record(a, lenient=True)
+        self.assertEquals(set([a, cname]), zone.records)
 
     def test_excluded_records(self):
         zone_normal = Zone('unit.tests.', [])
