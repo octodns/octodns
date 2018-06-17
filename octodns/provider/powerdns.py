@@ -20,6 +20,10 @@ class PowerDnsBaseProvider(BaseProvider):
 
     def __init__(self, id, host, api_key, port=8081, scheme="http",
                  timeout=TIMEOUT, *args, **kwargs):
+        self.log = logging.getLogger('PowerDnsBaseProvider[{}]'.format(id))
+        self.log.debug('__init__: id=%s, host=%s, api_key=%s, '
+                       'port=%d, scheme=%s', id, host, api_key,
+                       port, scheme)
         super(PowerDnsBaseProvider, self).__init__(id, *args, **kwargs)
 
         self.host = host
