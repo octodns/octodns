@@ -66,10 +66,10 @@ class Zone(object):
                 raise SubzoneRecordException('Record {} is under a '
                                              'managed subzone'
                                              .format(record.fqdn))
-            elif record._type != 'NS':
-                # It's a non NS record for exactly a sub-zone
+            elif record._type != 'NS' and record._type != 'DS':
+                # It's a non NS or DS record for exactly a sub-zone
                 raise SubzoneRecordException('Record {} a managed sub-zone '
-                                             'and not of type NS'
+                                             'and not of type NS or DS'
                                              .format(record.fqdn))
 
         if replace:
