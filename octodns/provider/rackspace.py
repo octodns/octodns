@@ -28,12 +28,12 @@ def remove_trailing_dot(s):
 
 def escape_semicolon(s):
     assert s
-    return string.replace(s, ';', '\;')
+    return string.replace(s, ';', '\\;')
 
 
 def unescape_semicolon(s):
     assert s
-    return string.replace(s, '\;', ';')
+    return string.replace(s, '\\;', ';')
 
 
 class RackspaceProvider(BaseProvider):
@@ -130,17 +130,9 @@ class RackspaceProvider(BaseProvider):
     def _delete(self, path, data=None):
         return self._request('DELETE', path, data=data)
 
-    @staticmethod
-    def _as_unicode(s, codec):
-        if not isinstance(s, unicode):
-            return unicode(s, codec)
-        return s
-
     @classmethod
     def _key_for_record(cls, rs_record):
-        return cls._as_unicode(rs_record['type'], 'ascii'), \
-            cls._as_unicode(rs_record['name'], 'utf-8'), \
-            cls._as_unicode(rs_record['data'], 'utf-8')
+        return rs_record['type'], rs_record['name'], rs_record['data']
 
     def _data_for_multiple(self, rrset):
         return {
@@ -208,7 +200,7 @@ class RackspaceProvider(BaseProvider):
                 raise Exception('Rackspace request unauthorized')
             elif e.response.status_code == 404:
                 # Zone not found leaves the zone empty instead of failing.
-                return
+                return False
             raise
 
         before = len(zone.records)
@@ -223,10 +215,11 @@ class RackspaceProvider(BaseProvider):
                     record = Record.new(zone, record_name,
                                         data_for(record_set),
                                         source=self)
-                    zone.add_record(record)
+                    zone.add_record(record, lenient=lenient)
 
-        self.log.info('populate:   found %s records',
+        self.log.info('populate:   found %s records, exists=True',
                       len(zone.records) - before)
+        return True
 
     def _group_records(self, all_records):
         records = defaultdict(lambda: defaultdict(list))

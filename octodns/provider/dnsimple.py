@@ -160,7 +160,7 @@ class DnsimpleProvider(BaseProvider):
                     record['content'].split(' ', 5)
             except ValueError:
                 # their api will let you create invalid records, this
-                # essnetially handles that by ignoring them for values
+                # essentially handles that by ignoring them for values
                 # purposes. That will cause updates to happen to delete them if
                 # they shouldn't exist or update them if they're wrong
                 continue
@@ -256,7 +256,7 @@ class DnsimpleProvider(BaseProvider):
         values = defaultdict(lambda: defaultdict(list))
         for record in self.zone_records(zone):
             _type = record['type']
-            if _type == 'SOA':
+            if _type not in self.SUPPORTS:
                 continue
             elif _type == 'TXT' and record['content'].startswith('ALIAS for'):
                 # ALIAS has a "ride along" TXT record with 'ALIAS for XXXX',
@@ -270,10 +270,12 @@ class DnsimpleProvider(BaseProvider):
                 data_for = getattr(self, '_data_for_{}'.format(_type))
                 record = Record.new(zone, name, data_for(_type, records),
                                     source=self, lenient=lenient)
-                zone.add_record(record)
+                zone.add_record(record, lenient=lenient)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        exists = zone.name in self._zone_records
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _params_for_multiple(self, record):
         for value in record.values:

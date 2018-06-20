@@ -104,7 +104,7 @@ class TinyDnsBaseSource(BaseSource):
             '+': 'A',
             '@': 'MX',
         }
-        name_re = re.compile('((?P<name>.+)\.)?{}$'.format(zone.name[:-1]))
+        name_re = re.compile(r'((?P<name>.+)\.)?{}$'.format(zone.name[:-1]))
 
         data = defaultdict(lambda: defaultdict(list))
         for line in self._lines():
@@ -134,13 +134,13 @@ class TinyDnsBaseSource(BaseSource):
                     record = Record.new(zone, name, data, source=self,
                                         lenient=lenient)
                     try:
-                        zone.add_record(record)
+                        zone.add_record(record, lenient=lenient)
                     except SubzoneRecordException:
                         self.log.debug('_populate_normal: skipping subzone '
                                        'record=%s', record)
 
     def _populate_in_addr_arpa(self, zone, lenient):
-        name_re = re.compile('(?P<name>.+)\.{}$'.format(zone.name[:-1]))
+        name_re = re.compile(r'(?P<name>.+)\.{}$'.format(zone.name[:-1]))
 
         for line in self._lines():
             _type = line[0]
@@ -175,7 +175,7 @@ class TinyDnsBaseSource(BaseSource):
                     'value': value
                 }, source=self, lenient=lenient)
                 try:
-                    zone.add_record(record)
+                    zone.add_record(record, lenient=lenient)
                 except DuplicateRecordException:
                     self.log.warn('Duplicate PTR record for {}, '
                                   'skipping'.format(addr))

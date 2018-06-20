@@ -1,3 +1,44 @@
+## v0.9.2 - Unreleased
+
+* EtcHostsProvider implementation to create static/emergency best effort
+  content that can be used in /etc/hosts to resolve things.
+* Add lenient support to Zone.add_record, allows populate from providers that
+  have allowed/created invalid data and situations where a sub-zone is being
+  extracted from a parent, but the records still exist in the remote provider.
+
+## v0.9.1 - 2018-05-21 - Going backwards with setup.py
+
+### NOTICE
+
+Using this version on existing records with `geo` will result in
+recreating all health checks. This process has been tested pretty thoroughly to
+try and ensure a seemless upgrade without any traffic shifting around. It's
+probably best to take extra care when updating and to try and make sure that
+all health checks are passing before the first sync with `--doit`. See
+[#67](https://github.com/github/octodns/pull/67) for more information.
+
+* Major update to geo healthchecks to allow configuring host (header), path,
+  protocol, and port [#67](https://github.com/github/octodns/pull/67)
+* SSHFP algorithm type 4
+* NS1 and DNSimple support skipping unsupported record types
+* Revert back to old style setup.py &amp; requirements.txt, setup.cfg was
+  causing too much pita
+
+## v0.9.0 - 2018-03-26 - Way too long since we last met
+
+* Way way way too much to list out here, shouldn't have waited so long
+* Initial NS1 geo support
+* Major reworking of `CloudflareProvider`'s update process, was only partially
+  functional before, also ignore proxied records
+* Fixes and improvements to better support non-ascii records and zones
+* Plans indicate when Zones are going to be created
+* Fix for `GoogleCloudProvider` handling of ; escapes
+* Skip Alias recordsets for Route53 (unsupported concept/type)
+* Make sure that Record geo values are sorted to prevent false diffs that can
+  never be fixed
+* `DynProvider` fix to safely roll rulesets, things could end up on rules
+  without a pool and/or hitting the default rule previously.
+
 ## v0.8.8 - 2017-10-24 - Google Cloud DNS, Large TXT Record support
 
 * Added support for "chunking" TXT records where individual values were larger
@@ -60,7 +101,7 @@ better in the future :fingers_crossed:
 
 #### Miscellaneous
 
-* Use a 3rd party lib for nautrual sorting of keys, rather than my old
+* Use a 3rd party lib for natural sorting of keys, rather than my old
   implementation. Sorting can be disabled in the YamlProvider with
   `enforce_order: False`.
 * Semi-colon/escaping fixes and improvements.

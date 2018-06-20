@@ -430,7 +430,7 @@ class TestRecord(TestCase):
         self.assertEqual(change.new, other)
 
         # full sorting
-        # equivilent
+        # equivalent
         b_naptr_value = b.values[0]
         self.assertEquals(0, b_naptr_value.__cmp__(b_naptr_value))
         # by order
@@ -710,7 +710,7 @@ class TestRecord(TestCase):
             Record.new(self.zone, 'unknown', {})
         self.assertTrue('missing type' in ctx.exception.message)
 
-        # Unkown type
+        # Unknown type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {
                 'type': 'XXX',
@@ -745,6 +745,61 @@ class TestRecord(TestCase):
         self.assertEquals('CA', geo.subdivision_code)
         self.assertEquals(values, geo.values)
         self.assertEquals(['NA-US', 'NA'], list(geo.parents))
+
+    def test_healthcheck(self):
+        new = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                    'path': '/_ready',
+                    'host': 'bleep.bloop',
+                    'protocol': 'HTTP',
+                    'port': 8080,
+                }
+            }
+        })
+        self.assertEquals('/_ready', new.healthcheck_path)
+        self.assertEquals('bleep.bloop', new.healthcheck_host)
+        self.assertEquals('HTTP', new.healthcheck_protocol)
+        self.assertEquals(8080, new.healthcheck_port)
+
+        new = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        self.assertEquals('/_dns', new.healthcheck_path)
+        self.assertEquals('a.unit.tests', new.healthcheck_host)
+        self.assertEquals('HTTPS', new.healthcheck_protocol)
+        self.assertEquals(443, new.healthcheck_port)
+
+    def test_inored(self):
+        new = Record.new(self.zone, 'txt', {
+            'ttl': 44,
+            'type': 'TXT',
+            'value': 'some change',
+            'octodns': {
+                'ignored': True,
+            }
+        })
+        self.assertTrue(new.ignored)
+        new = Record.new(self.zone, 'txt', {
+            'ttl': 44,
+            'type': 'TXT',
+            'value': 'some change',
+            'octodns': {
+                'ignored': False,
+            }
+        })
+        self.assertFalse(new.ignored)
+        new = Record.new(self.zone, 'txt', {
+            'ttl': 44,
+            'type': 'TXT',
+            'value': 'some change',
+        })
+        self.assertFalse(new.ignored)
 
 
 class TestRecordValidation(TestCase):
@@ -964,6 +1019,25 @@ class TestRecordValidation(TestCase):
             'invalid ip address "hello"',
             'invalid ip address "goodbye"'
         ], ctx.exception.reasons)
+
+        # invalid healthcheck protocol
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'a', {
+                'geo': {
+                    'NA': ['1.2.3.5'],
+                    'NA-US': ['1.2.3.5', '1.2.3.6']
+                },
+                'type': 'A',
+                'ttl': 600,
+                'value': '1.2.3.4',
+                'octodns': {
+                    'healthcheck': {
+                        'protocol': 'FTP',
+                    }
+                }
+            })
+        self.assertEquals(['invalid healthcheck protocol'],
+                          ctx.exception.reasons)
 
     def test_AAAA(self):
         # doesn't blow up
@@ -1441,7 +1515,7 @@ class TestRecordValidation(TestCase):
             'values': [
                 'v=spf1 ip4:192.168.0.1/16-all',
                 'v=spf1 ip4:10.1.2.1/24-all',
-                'this has some\; semi-colons\; in it',
+                'this has some\\; semi-colons\\; in it',
             ]
         })
 
@@ -1458,7 +1532,7 @@ class TestRecordValidation(TestCase):
             Record.new(self.zone, '', {
                 'type': 'SPF',
                 'ttl': 600,
-                'value': 'this has some; semi-colons\; in it',
+                'value': 'this has some; semi-colons\\; in it',
             })
         self.assertEquals(['unescaped ;'], ctx.exception.reasons)
 
@@ -1603,7 +1677,7 @@ class TestRecordValidation(TestCase):
             'ttl': 600,
             'values': [
                 'hello world',
-                'this has some\; semi-colons\; in it',
+                'this has some\\; semi-colons\\; in it',
             ]
         })
 
@@ -1620,7 +1694,7 @@ class TestRecordValidation(TestCase):
             Record.new(self.zone, '', {
                 'type': 'TXT',
                 'ttl': 600,
-                'value': 'this has some; semi-colons\; in it',
+                'value': 'this has some; semi-colons\\; in it',
             })
         self.assertEquals(['unescaped ;'], ctx.exception.reasons)
 
@@ -1650,7 +1724,7 @@ class TestRecordValidation(TestCase):
             'values': [
                 'hello world',
                 long_value,
-                'this has some\; semi-colons\; in it',
+                'this has some\\; semi-colons\\; in it',
             ]
         })
         self.assertEquals(3, len(single.values))
@@ -1675,7 +1749,7 @@ class TestRecordValidation(TestCase):
             'values': [
                 '"hello world"',
                 long_split_value,
-                '"this has some\; semi-colons\; in it"',
+                '"this has some\\; semi-colons\\; in it"',
             ]
         })
         self.assertEquals(expected, chunked.chunked_values[0])

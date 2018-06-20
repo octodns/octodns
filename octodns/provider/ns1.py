@@ -75,9 +75,9 @@ class Ns1Provider(BaseProvider):
             else:
                 values.extend(answer['answer'])
                 codes.append([])
-        values = [str(x) for x in values]
+        values = [unicode(x) for x in values]
         geo = OrderedDict(
-            {str(k): [str(x) for x in v] for k, v in geo.items()}
+            {unicode(k): [unicode(x) for x in v] for k, v in geo.items()}
         )
         data['values'] = values
         data['geo'] = geo
@@ -86,7 +86,7 @@ class Ns1Provider(BaseProvider):
     _data_for_AAAA = _data_for_A
 
     def _data_for_SPF(self, _type, record):
-        values = [v.replace(';', '\;') for v in record['short_answers']]
+        values = [v.replace(';', '\\;') for v in record['short_answers']]
         return {
             'ttl': record['ttl'],
             'type': _type,
@@ -189,12 +189,23 @@ class Ns1Provider(BaseProvider):
         try:
             nsone_zone = self._client.loadZone(zone.name[:-1])
             records = nsone_zone.data['records']
+
+            # change answers for certain types to always be absolute
+            for record in records:
+                if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'PTR',
+                                      'SRV']:
+                    for i, a in enumerate(record['short_answers']):
+                        if not a.endswith('.'):
+                            record['short_answers'][i] = '{}.'.format(a)
+
             geo_records = nsone_zone.search(has_geo=True)
+            exists = True
         except ResourceException as e:
             if e.message != self.ZONE_NOT_FOUND_MESSAGE:
                 raise
             records = []
             geo_records = []
+            exists = False
 
         before = len(zone.records)
         # geo information isn't returned from the main endpoint, so we need
@@ -202,14 +213,17 @@ class Ns1Provider(BaseProvider):
         zone_hash = {}
         for record in chain(records, geo_records):
             _type = record['type']
+            if _type not in self.SUPPORTS:
+                continue
             data_for = getattr(self, '_data_for_{}'.format(_type))
             name = zone.hostname_from_fqdn(record['domain'])
             record = Record.new(zone, name, data_for(_type, record),
                                 source=self, lenient=lenient)
             zone_hash[(_type, name)] = record
-        [zone.add_record(r) for r in zone_hash.values()]
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        [zone.add_record(r, lenient=lenient) for r in zone_hash.values()]
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _params_for_A(self, record):
         params = {'answers': record.values, 'ttl': record.ttl}
@@ -254,7 +268,7 @@ class Ns1Provider(BaseProvider):
         # NS1 seems to be the only provider that doesn't want things
         # escaped in values so we have to strip them here and add
         # them when going the other way
-        values = [v.replace('\;', ';') for v in record.values]
+        values = [v.replace('\\;', ';') for v in record.values]
         return {'answers': values, 'ttl': record.ttl}
 
     _params_for_TXT = _params_for_SPF

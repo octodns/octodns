@@ -56,7 +56,7 @@ class DigitalOceanClient(object):
         self._request('POST', '/domains', data={'name': name,
                                                 'ip_address': '192.0.2.1'})
 
-        # After the zone is created, immeadiately delete the record
+        # After the zone is created, immediately delete the record
         records = self.records(name)
         for record in records:
             if record['name'] == '' and record['type'] == 'A':
@@ -198,7 +198,7 @@ class DigitalOceanProvider(BaseProvider):
         }
 
     def _data_for_TXT(self, _type, records):
-        values = [value['data'].replace(';', '\;') for value in records]
+        values = [value['data'].replace(';', '\\;') for value in records]
         return {
             'ttl': records[0]['ttl'],
             'type': _type,
@@ -230,10 +230,12 @@ class DigitalOceanProvider(BaseProvider):
                 data_for = getattr(self, '_data_for_{}'.format(_type))
                 record = Record.new(zone, name, data_for(_type, records),
                                     source=self, lenient=lenient)
-                zone.add_record(record)
+                zone.add_record(record, lenient=lenient)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        exists = zone.name in self._zone_records
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _params_for_multiple(self, record):
         for value in record.values:
@@ -296,7 +298,7 @@ class DigitalOceanProvider(BaseProvider):
         # have to strip them here and add them when going the other way
         for value in record.values:
             yield {
-                'data': value.replace('\;', ';'),
+                'data': value.replace('\\;', ';'),
                 'name': record.name,
                 'ttl': record.ttl,
                 'type': record._type

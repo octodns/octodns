@@ -13,7 +13,7 @@ It is similar to [Netflix/denominator](https://github.com/Netflix/denominator).
 
 ### Workspace
 
-Running through the following commands will install the latest release of OctoDNS and set up a place for your config files to live.
+Running through the following commands will install the latest release of OctoDNS and set up a place for your config files to live. To determine if provider specific requirements are necessary see the [Supported providers table](#supported-providers) below.
 
 ```
 $ mkdir dns
@@ -21,7 +21,7 @@ $ cd dns
 $ virtualenv env
 ...
 $ source env/bin/activate
-$ pip install octodns
+$ pip install octodns <provider-specific-requirements>
 $ mkdir config
 ```
 
@@ -98,7 +98,7 @@ There will be other logging information presented on the screen, but successful 
 
 ### Making changes
 
-**WARNING**: OctoDNS assumes ownership of any domain you point it to. When you tell it to act it will do whatever is necessary to try and match up states including deleting any unexpected records. Be careful when playing around with OctoDNS. It's best to experiment with a fake zone or one without any data that matters until your comfortable with the system.
+**WARNING**: OctoDNS assumes ownership of any domain you point it to. When you tell it to act it will do whatever is necessary to try and match up states including deleting any unexpected records. Be careful when playing around with OctoDNS. It's best to experiment with a fake zone or one without any data that matters until you're comfortable with the system.
 
 Now it's time to tell OctoDNS to make things happen. We'll invoke it again with the same options and add a `--doit` on the end to tell it this time we actually want it to try and make the specified changes.
 
@@ -147,28 +147,30 @@ The above command pulled the existing data out of Route53 and placed the results
 
 ## Supported providers
 
-| Provider | Record Support | GeoDNS Support | Notes |
-|--|--|--|--|
-| [AzureProvider](/octodns/provider/azuredns.py) | A, AAAA, CNAME, MX, NS, PTR, SRV, TXT | No | |
-| [CloudflareProvider](/octodns/provider/cloudflare.py) | A, AAAA, ALIAS, CAA, CNAME, MX, NS, SPF, SRV, TXT | No | CAA tags restricted |
-| [DigitalOceanProvider](/octodns/provider/digitalocean.py) | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
-| [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
-| [DnsimpleProvider](/octodns/provider/dnsimple.py) | All | No | CAA tags restricted |
-| [DynProvider](/octodns/provider/dyn.py) | All | Yes | |
-| [GoogleCloudProvider](/octodns/provider/googlecloud.py) | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
-| [Ns1Provider](/octodns/provider/ns1.py) | All | Yes | No health checking for GeoDNS |
-| [OVH](/octodns/provider/ovh.py) | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
-| [PowerDnsProvider](/octodns/provider/powerdns.py) | All | No | |
-| [Rackspace](/octodns/provider/rackspace.py) | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
-| [Route53](/octodns/provider/route53.py) | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Yes | |
-| [TinyDNSSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |
-| [YamlProvider](/octodns/provider/yaml.py) | All | Yes | config |
+| Provider | Requirements | Record Support | GeoDNS Support | Notes |
+|--|--|--|--|--|
+| [AzureProvider](/octodns/provider/azuredns.py) | azure-mgmt-dns | A, AAAA, CNAME, MX, NS, PTR, SRV, TXT | No | |
+| [CloudflareProvider](/octodns/provider/cloudflare.py) | | A, AAAA, ALIAS, CAA, CNAME, MX, NS, SPF, SRV, TXT | No | CAA tags restricted |
+| [DigitalOceanProvider](/octodns/provider/digitalocean.py) | | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
+| [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
+| [DnsimpleProvider](/octodns/provider/dnsimple.py) | | All | No | CAA tags restricted |
+| [DynProvider](/octodns/provider/dyn.py) | dyn | All | Yes | |
+| [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | A, AAAA, ALIAS, CNAME | No | |
+| [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
+| [Ns1Provider](/octodns/provider/ns1.py) | nsone | All | Yes | No health checking for GeoDNS |
+| [OVH](/octodns/provider/ovh.py) | ovh | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
+| [PowerDnsProvider](/octodns/provider/powerdns.py) | | All | No | |
+| [Rackspace](/octodns/provider/rackspace.py) | | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
+| [Route53](/octodns/provider/route53.py) | boto3 | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Yes | |
+| [TinyDNSSource](/octodns/source/tinydns.py) | | A, CNAME, MX, NS, PTR | No | read-only |
+| [YamlProvider](/octodns/provider/yaml.py) | | All | Yes | config |
 
 #### Notes
 
 * ALIAS support varies a lot from provider to provider care should be taken to verify that your needs are met in detail.
    * Dyn's UI doesn't allow editing or view of TTL, but the API accepts and stores the value provided, this value does not appear to be used when served
    * Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
+* octoDNS itself supports non-ASCII character sets, but in testing Cloudflare is the only provider where that is currently functional end-to-end. Others have failures either in the client libraries or API calls
 
 ## Custom Sources and Providers
 

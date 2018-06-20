@@ -17,8 +17,105 @@ from logging import getLogger
 from threading import Lock
 from uuid import uuid4
 
-from ..record import Record
+from ..record import Record, Update
 from .base import BaseProvider
+
+
+###############################################################################
+#
+# The following monkey patching is to work around functionality that is lacking
+# from DSFMonitor. You cannot set host or path (which we need) and there's no
+# update method. What's more host & path aren't publically accessible on the
+# object so you can't see their current values and depending on how the object
+# came to be (constructor vs pulled from the api) the "private" location of
+# those fields varies :-(
+#
+###############################################################################
+def _monitor_host_get(self):
+    return self._host or self._options['host']
+
+
+DSFMonitor.host = property(_monitor_host_get)
+
+
+def _monitor_host_set(self, value):
+    if self._options is None:
+        self._options = {}
+    self._host = self._options['host'] = value
+
+
+DSFMonitor.host = DSFMonitor.host.setter(_monitor_host_set)
+
+
+def _monitor_path_get(self):
+    return self._path or self._options['path']
+
+
+DSFMonitor.path = property(_monitor_path_get)
+
+
+def _monitor_path_set(self, value):
+    if self._options is None:
+        self._options = {}
+    self._path = self._options['path'] = value
+
+
+DSFMonitor.path = DSFMonitor.path.setter(_monitor_path_set)
+
+
+def _monitor_protocol_get(self):
+    return self._protocol
+
+
+DSFMonitor.protocol = property(_monitor_protocol_get)
+
+
+def _monitor_protocol_set(self, value):
+    self._protocol = value
+
+
+DSFMonitor.protocol = DSFMonitor.protocol.setter(_monitor_protocol_set)
+
+
+def _monitor_port_get(self):
+    return self._port or self._options['port']
+
+
+DSFMonitor.port = property(_monitor_port_get)
+
+
+def _monitor_port_set(self, value):
+    if self._options is None:
+        self._options = {}
+    self._port = self._options['port'] = value
+
+
+DSFMonitor.port = DSFMonitor.port.setter(_monitor_port_set)
+
+
+def _monitor_update(self, host, path, protocol, port):
+    # I can't see how to actually do this with the client lib so
+    # I'm having to hack around it. Have to provide all the
+    # options or else things complain
+    return self._update({
+        'protocol': protocol,
+        'options': {
+            'host': host,
+            'path': path,
+            'port': port,
+            'timeout': DynProvider.MONITOR_TIMEOUT,
+            'header': DynProvider.MONITOR_HEADER,
+        }
+    })
+
+
+DSFMonitor.update = _monitor_update
+###############################################################################
+
+
+def _monitor_doesnt_match(monitor, host, path, protocol, port):
+    return monitor.host != host or monitor.path != path or \
+        monitor.protocol != protocol or int(monitor.port) != port
 
 
 class _CachingDynZone(DynZone):
@@ -40,7 +137,7 @@ class _CachingDynZone(DynZone):
                 cls.log.debug('get:   fetched')
             except DynectGetError:
                 if not create:
-                    cls.log.debug("get:   does't exist")
+                    cls.log.debug("get:   doesn't exist")
                     return None
                 # this value shouldn't really matter, it's not tied to
                 # whois or anything
@@ -129,12 +226,15 @@ class DynProvider(BaseProvider):
     REGION_CODES = {
         'NA': 11,  # Continental North America
         'SA': 12,  # Continental South America
-        'EU': 13,  # Contentinal Europe
+        'EU': 13,  # Continental Europe
         'AF': 14,  # Continental Africa
-        'AS': 15,  # Contentinal Asia
-        'OC': 16,  # Contentinal Austrailia/Oceania
-        'AN': 17,  # Continental Antartica
+        'AS': 15,  # Continental Asia
+        'OC': 16,  # Continental Australia/Oceania
+        'AN': 17,  # Continental Antarctica
     }
+
+    MONITOR_HEADER = 'User-Agent: Dyn Monitor'
+    MONITOR_TIMEOUT = 10
 
     _sess_create_lock = Lock()
 
@@ -166,7 +266,7 @@ class DynProvider(BaseProvider):
         if DynectSession.get_session() is None:
             # We need to create a new session for this thread and DynectSession
             # creation is not thread-safe so we have to do the locking. If we
-            # don't and multiple sessions start creattion before the the first
+            # don't and multiple sessions start creation before the the first
             # has finished (long time b/c it makes http calls) the subsequent
             # creates will blow away DynectSession._instances, potentially
             # multiple times if there are multiple creates in flight. Only the
@@ -291,7 +391,7 @@ class DynProvider(BaseProvider):
                 try:
                     fqdn, _type = td.label.split(':', 1)
                 except ValueError as e:
-                    self.log.warn("Failed to load TraficDirector '%s': %s",
+                    self.log.warn("Failed to load TrafficDirector '%s': %s",
                                   td.label, e.message)
                     continue
                 tds[fqdn][_type] = td
@@ -299,7 +399,7 @@ class DynProvider(BaseProvider):
 
         return self._traffic_directors
 
-    def _populate_traffic_directors(self, zone):
+    def _populate_traffic_directors(self, zone, lenient):
         self.log.debug('_populate_traffic_directors: zone=%s', zone.name)
         td_records = set()
         for fqdn, types in self.traffic_directors.items():
@@ -344,7 +444,7 @@ class DynProvider(BaseProvider):
 
                 name = zone.hostname_from_fqdn(fqdn)
                 record = Record.new(zone, name, data, source=self)
-                zone.add_record(record)
+                zone.add_record(record, lenient=lenient)
                 td_records.add(record)
 
         return td_records
@@ -353,17 +453,20 @@ class DynProvider(BaseProvider):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
 
+        exists = False
         before = len(zone.records)
 
         self._check_dyn_sess()
 
         td_records = set()
         if self.traffic_directors_enabled:
-            td_records = self._populate_traffic_directors(zone)
+            td_records = self._populate_traffic_directors(zone, lenient)
+            exists = True
 
         dyn_zone = _CachingDynZone.get(zone.name[:-1])
 
         if dyn_zone:
+            exists = True
             values = defaultdict(lambda: defaultdict(list))
             for _type, records in dyn_zone.get_all_records().items():
                 if _type == 'soa_records':
@@ -380,10 +483,39 @@ class DynProvider(BaseProvider):
                     record = Record.new(zone, name, data, source=self,
                                         lenient=lenient)
                     if record not in td_records:
-                        zone.add_record(record)
+                        zone.add_record(record, lenient=lenient)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
+
+    def _extra_changes(self, desired, changes, **kwargs):
+        self.log.debug('_extra_changes: desired=%s', desired.name)
+
+        changed = set([c.record for c in changes])
+
+        extra = []
+        for record in desired.records:
+            if record in changed or not getattr(record, 'geo', False):
+                # Already changed, or no geo, no need to check it
+                continue
+            label = '{}:{}'.format(record.fqdn, record._type)
+            try:
+                monitor = self.traffic_director_monitors[label]
+            except KeyError:
+                self.log.info('_extra_changes: health-check missing for %s',
+                              label)
+                extra.append(Update(record, record))
+                continue
+            if _monitor_doesnt_match(monitor, record.healthcheck_host,
+                                     record.healthcheck_path,
+                                     record.healthcheck_protocol,
+                                     record.healthcheck_port):
+                self.log.info('_extra_changes: health-check mis-match for %s',
+                              label)
+                extra.append(Update(record, record))
+
+        return extra
 
     def _kwargs_for_A(self, record):
         return [{
@@ -470,20 +602,55 @@ class DynProvider(BaseProvider):
 
     _kwargs_for_TXT = _kwargs_for_SPF
 
-    def _traffic_director_monitor(self, fqdn):
+    @property
+    def traffic_director_monitors(self):
         if self._traffic_director_monitors is None:
+            self.log.debug('traffic_director_monitors: loading')
             self._traffic_director_monitors = \
                 {m.label: m for m in get_all_dsf_monitors()}
 
+        return self._traffic_director_monitors
+
+    def _traffic_director_monitor(self, record):
+        fqdn = record.fqdn
+        label = '{}:{}'.format(fqdn, record._type)
         try:
-            return self._traffic_director_monitors[fqdn]
+            try:
+                monitor = self.traffic_director_monitors[label]
+                self.log.debug('_traffic_director_monitor: existing for %s',
+                               label)
+            except KeyError:
+                # UNTIL 1.0 We don't have one for the new label format, see if
+                # we still have one for the old and update it
+                monitor = self.traffic_director_monitors[fqdn]
+                self.log.info('_traffic_director_monitor: upgrading label '
+                              'to %s', label)
+                monitor.label = label
+                self.traffic_director_monitors[label] = \
+                    self.traffic_director_monitors[fqdn]
+                del self.traffic_director_monitors[fqdn]
+            if _monitor_doesnt_match(monitor, record.healthcheck_host,
+                                     record.healthcheck_path,
+                                     record.healthcheck_protocol,
+                                     record.healthcheck_port):
+                self.log.info('_traffic_director_monitor: updating monitor '
+                              'for %s', label)
+                monitor.update(record.healthcheck_host,
+                               record.healthcheck_path,
+                               record.healthcheck_protocol,
+                               record.healthcheck_port)
+            return monitor
         except KeyError:
-            monitor = DSFMonitor(fqdn, protocol='HTTPS', response_count=2,
-                                 probe_interval=60, retries=2, port=443,
-                                 active='Y', host=fqdn[:-1], timeout=10,
-                                 header='User-Agent: Dyn Monitor',
-                                 path='/_dns')
-            self._traffic_director_monitors[fqdn] = monitor
+            self.log.info('_traffic_director_monitor: creating monitor '
+                          'for %s', label)
+            monitor = DSFMonitor(label, protocol=record.healthcheck_protocol,
+                                 response_count=2, probe_interval=60,
+                                 retries=2, port=record.healthcheck_port,
+                                 active='Y', host=record.healthcheck_host,
+                                 timeout=self.MONITOR_TIMEOUT,
+                                 header=self.MONITOR_HEADER,
+                                 path=record.healthcheck_path)
+            self._traffic_director_monitors[label] = monitor
             return monitor
 
     def _find_or_create_pool(self, td, pools, label, _type, values,
@@ -531,6 +698,12 @@ class DynProvider(BaseProvider):
         for ruleset in existing_rulesets:
             for pool in ruleset.response_pools:
                 pools[pool.response_pool_id] = pool
+        # Reverse sort the existing_rulesets by _ordering so that we'll remove
+        # them in that order later, this will ensure that we remove the old
+        # default before any of the old geo rules preventing it from catching
+        # everything.
+        existing_rulesets.sort(key=lambda r: r._ordering, reverse=True)
+
         # Now we need to find any pools that aren't referenced by rules
         for pool in td.all_response_pools:
             rpid = pool.response_pool_id
@@ -543,10 +716,22 @@ class DynProvider(BaseProvider):
 
         # Rulesets
 
+        # We need to make sure and insert the new rules after any existing
+        # rules so they won't take effect before we've had a chance to add
+        # response pools to them. I've tried both publish=False (which is
+        # completely broken in the client) and creating the rulesets with
+        # response_pool_ids neither of which appear to work from the client
+        # library. If there are no existing rulesets fallback to 0
+        insert_at = max([
+            int(r._ordering)
+            for r in existing_rulesets
+        ] + [-1]) + 1
+        self.log.debug('_mod_rulesets: insert_at=%d', insert_at)
+
         # add the default
         label = 'default:{}'.format(uuid4().hex)
         ruleset = DSFRuleset(label, 'always', [])
-        ruleset.create(td, index=0)
+        ruleset.create(td, index=insert_at)
         pool = self._find_or_create_pool(td, pools, 'default', new._type,
                                          new.values)
         # There's no way in the client lib to create a ruleset with an existing
@@ -556,7 +741,7 @@ class DynProvider(BaseProvider):
         }
         ruleset.add_response_pool(pool.response_pool_id)
 
-        monitor_id = self._traffic_director_monitor(new.fqdn).dsf_monitor_id
+        monitor_id = self._traffic_director_monitor(new).dsf_monitor_id
         # Geos ordered least to most specific so that parents will always be
         # created before their children (and thus can be referenced
         geos = sorted(new.geo.items(), key=lambda d: d[0])
@@ -579,7 +764,7 @@ class DynProvider(BaseProvider):
                 'geoip': criteria
             })
             # Something you have to call create others the constructor does it
-            ruleset.create(td, index=0)
+            ruleset.create(td, index=insert_at)
 
             first = geo.values[0]
             pool = self._find_or_create_pool(td, pools, first, new._type,

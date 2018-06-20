@@ -133,12 +133,12 @@ class TestNs1Provider(TestCase):
     }, {
         'type': 'CNAME',
         'ttl': 34,
-        'short_answers': ['foo.unit.tests.'],
+        'short_answers': ['foo.unit.tests'],
         'domain': 'cname.unit.tests.',
     }, {
         'type': 'MX',
         'ttl': 35,
-        'short_answers': ['10 mx1.unit.tests.', '20 mx2.unit.tests.'],
+        'short_answers': ['10 mx1.unit.tests.', '20 mx2.unit.tests'],
         'domain': 'unit.tests.',
     }, {
         'type': 'NAPTR',
@@ -151,18 +151,18 @@ class TestNs1Provider(TestCase):
     }, {
         'type': 'NS',
         'ttl': 37,
-        'short_answers': ['ns1.unit.tests.', 'ns2.unit.tests.'],
+        'short_answers': ['ns1.unit.tests.', 'ns2.unit.tests'],
         'domain': 'unit.tests.',
     }, {
         'type': 'SRV',
         'ttl': 38,
         'short_answers': ['12 30 30 foo-2.unit.tests.',
-                          '10 20 30 foo-1.unit.tests.'],
+                          '10 20 30 foo-1.unit.tests'],
         'domain': '_srv._tcp.unit.tests.',
     }, {
         'type': 'NS',
         'ttl': 39,
-        'short_answers': ['ns3.unit.tests.', 'ns4.unit.tests.'],
+        'short_answers': ['ns3.unit.tests.', 'ns4.unit.tests'],
         'domain': 'sub.unit.tests.',
     }, {
         'type': 'CAA',
@@ -196,9 +196,10 @@ class TestNs1Provider(TestCase):
         load_mock.side_effect = \
             ResourceException('server error: zone not found')
         zone = Zone('unit.tests.', [])
-        provider.populate(zone)
+        exists = provider.populate(zone)
         self.assertEquals(set(), zone.records)
         self.assertEquals(('unit.tests',), load_mock.call_args[0])
+        self.assertFalse(exists)
 
         # Existing zone w/o records
         load_mock.reset_mock()
@@ -256,6 +257,39 @@ class TestNs1Provider(TestCase):
         self.assertEquals(self.expected, zone.records)
         self.assertEquals(('unit.tests',), load_mock.call_args[0])
 
+        # Test skipping unsupported record type
+        load_mock.reset_mock()
+        nsone_zone = DummyZone(self.nsone_records + [{
+            'type': 'UNSUPPORTED',
+            'ttl': 42,
+            'short_answers': ['unsupported'],
+            'domain': 'unsupported.unit.tests.',
+        }])
+        load_mock.side_effect = [nsone_zone]
+        zone_search = Mock()
+        zone_search.return_value = [
+            {
+                "domain": "geo.unit.tests",
+                "zone": "unit.tests",
+                "type": "A",
+                "answers": [
+                    {'answer': ['1.1.1.1'], 'meta': {}},
+                    {'answer': ['1.2.3.4'],
+                     'meta': {'ca_province': ['ON']}},
+                    {'answer': ['2.3.4.5'], 'meta': {'us_state': ['NY']}},
+                    {'answer': ['3.4.5.6'], 'meta': {'country': ['US']}},
+                    {'answer': ['4.5.6.7'],
+                     'meta': {'iso_region_code': ['NA-US-WA']}},
+                ],
+                'ttl': 34,
+            },
+        ]
+        nsone_zone.search = zone_search
+        zone = Zone('unit.tests.', [])
+        provider.populate(zone)
+        self.assertEquals(self.expected, zone.records)
+        self.assertEquals(('unit.tests',), load_mock.call_args[0])
+
     @patch('nsone.NSONE.createZone')
     @patch('nsone.NSONE.loadZone')
     def test_sync(self, load_mock, create_mock):
@@ -269,6 +303,7 @@ class TestNs1Provider(TestCase):
         # everything except the root NS
         expected_n = len(self.expected) - 1
         self.assertEquals(expected_n, len(plan.changes))
+        self.assertTrue(plan.exists)
 
         # Fails, general error
         load_mock.reset_mock()
@@ -397,21 +432,21 @@ class TestNs1Provider(TestCase):
             'ttl': 31,
             'short_answers': ['foo; bar baz; blip']
         }
-        self.assertEquals(['foo\; bar baz\; blip'],
+        self.assertEquals(['foo\\; bar baz\\; blip'],
                           provider._data_for_SPF('SPF', record)['values'])
 
         record = {
             'ttl': 31,
             'short_answers': ['no', 'foo; bar baz; blip', 'yes']
         }
-        self.assertEquals(['no', 'foo\; bar baz\; blip', 'yes'],
+        self.assertEquals(['no', 'foo\\; bar baz\\; blip', 'yes'],
                           provider._data_for_TXT('TXT', record)['values'])
 
         zone = Zone('unit.tests.', [])
         record = Record.new(zone, 'spf', {
             'ttl': 34,
             'type': 'SPF',
-            'value': 'foo\; bar baz\; blip'
+            'value': 'foo\\; bar baz\\; blip'
         })
         self.assertEquals(['foo; bar baz; blip'],
                           provider._params_for_SPF(record)['answers'])
@@ -419,7 +454,7 @@ class TestNs1Provider(TestCase):
         record = Record.new(zone, 'txt', {
             'ttl': 35,
             'type': 'TXT',
-            'value': 'foo\; bar baz\; blip'
+            'value': 'foo\\; bar baz\\; blip'
         })
         self.assertEquals(['foo; bar baz; blip'],
                           provider._params_for_TXT(record)['answers'])

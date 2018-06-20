@@ -52,7 +52,7 @@ class YamlProvider(BaseProvider):
         if target:
             # When acting as a target we ignore any existing records so that we
             # create a completely new copy
-            return
+            return False
 
         before = len(zone.records)
         filename = join(self.directory, '{}yaml'.format(zone.name))
@@ -67,10 +67,11 @@ class YamlProvider(BaseProvider):
                             d['ttl'] = self.default_ttl
                         record = Record.new(zone, name, d, source=self,
                                             lenient=lenient)
-                        zone.add_record(record)
+                        zone.add_record(record, lenient=lenient)
 
-        self.log.info('populate:   found %s records',
+        self.log.info('populate:   found %s records, exists=False',
                       len(zone.records) - before)
+        return False
 
     def _apply(self, plan):
         desired = plan.desired

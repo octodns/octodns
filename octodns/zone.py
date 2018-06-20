@@ -37,15 +37,15 @@ class Zone(object):
         if not name[-1] == '.':
             raise Exception('Invalid zone name {}, missing ending dot'
                             .format(name))
-        # Force everyting to lowercase just to be safe
-        self.name = str(name).lower() if name else name
+        # Force everything to lowercase just to be safe
+        self.name = unicode(name).lower() if name else name
         self.sub_zones = sub_zones
-        # We're grouping by node, it allows us to efficently search for
+        # We're grouping by node, it allows us to efficiently search for
         # duplicates and detect when CNAMEs co-exist with other records
         self._records = defaultdict(set)
         # optional leading . to match empty hostname
         # optional trailing . b/c some sources don't have it on their fqdn
-        self._name_re = re.compile('\.?{}?$'.format(name))
+        self._name_re = re.compile(r'\.?{}?$'.format(name))
 
         self.log.debug('__init__: zone=%s, sub_zones=%s', self, sub_zones)
 
@@ -56,11 +56,11 @@ class Zone(object):
     def hostname_from_fqdn(self, fqdn):
         return self._name_re.sub('', fqdn)
 
-    def add_record(self, record, replace=False):
+    def add_record(self, record, replace=False, lenient=False):
         name = record.name
         last = name.split('.')[-1]
 
-        if last in self.sub_zones:
+        if not lenient and last in self.sub_zones:
             if name != last:
                 # it's a record for something under a sub-zone
                 raise SubzoneRecordException('Record {} is under a '
@@ -82,8 +82,8 @@ class Zone(object):
             raise DuplicateRecordException('Duplicate record {}, type {}'
                                            .format(record.fqdn,
                                                    record._type))
-        elif ((record._type == 'CNAME' and len(node) > 0) or
-              ('CNAME' in map(lambda r: r._type, node))):
+        elif not lenient and (((record._type == 'CNAME' and len(node) > 0) or
+                               ('CNAME' in map(lambda r: r._type, node)))):
             # We're adding a CNAME to existing records or adding to an existing
             # CNAME
             raise InvalidNodeException('Invalid state, CNAME at {} cannot '

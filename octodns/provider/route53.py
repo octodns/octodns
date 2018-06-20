@@ -61,7 +61,7 @@ class _Route53Record(object):
 
     # NOTE: we're using __hash__ and __cmp__ methods that consider
     # _Route53Records equivalent if they have the same class, fqdn, and _type.
-    # Values are ignored. This is usful when computing diffs/changes.
+    # Values are ignored. This is useful when computing diffs/changes.
 
     def __hash__(self):
         'sub-classes should never use this method'
@@ -217,10 +217,13 @@ class Route53Provider(BaseProvider):
 
     route53:
         class: octodns.provider.route53.Route53Provider
-        # The AWS access key id (required)
+        # The AWS access key id
         access_key_id:
-        # The AWS secret access key (required)
+        # The AWS secret access key
         secret_access_key:
+
+    Alternatively, you may leave out access_key_id and secret_access_key,
+    this will result in boto3 deciding authentication dynamically.
 
     In general the account used will need full permissions on Route53.
     '''
@@ -230,14 +233,16 @@ class Route53Provider(BaseProvider):
 
     # This should be bumped when there are underlying changes made to the
     # health check config.
-    HEALTH_CHECK_VERSION = '0000'
+    HEALTH_CHECK_VERSION = '0001'
 
-    def __init__(self, id, access_key_id, secret_access_key, max_changes=1000,
-                 client_max_attempts=None, *args, **kwargs):
+    def __init__(self, id, access_key_id=None, secret_access_key=None,
+                 max_changes=1000, client_max_attempts=None, *args, **kwargs):
         self.max_changes = max_changes
+        _msg = 'access_key_id={}, secret_access_key=***'.format(access_key_id)
+        if access_key_id is None and secret_access_key is None:
+            _msg = 'auth=fallback'
         self.log = logging.getLogger('Route53Provider[{}]'.format(id))
-        self.log.debug('__init__: id=%s, access_key_id=%s, '
-                       'secret_access_key=***', id, access_key_id)
+        self.log.debug('__init__: id=%s, %s', id, _msg)
         super(Route53Provider, self).__init__(id, *args, **kwargs)
 
         config = None
@@ -246,9 +251,12 @@ class Route53Provider(BaseProvider):
                           client_max_attempts)
             config = Config(retries={'max_attempts': client_max_attempts})
 
-        self._conn = client('route53', aws_access_key_id=access_key_id,
-                            aws_secret_access_key=secret_access_key,
-                            config=config)
+        if access_key_id is None and secret_access_key is None:
+            self._conn = client('route53', config=config)
+        else:
+            self._conn = client('route53', aws_access_key_id=access_key_id,
+                                aws_secret_access_key=secret_access_key,
+                                config=config)
 
         self._r53_zones = None
         self._r53_rrsets = {}
@@ -352,7 +360,7 @@ class Route53Provider(BaseProvider):
     def _data_for_quoted(self, rrset):
         return {
             'type': rrset['Type'],
-            'values': [self._fix_semicolons.sub('\;', rr['Value'][1:-1])
+            'values': [self._fix_semicolons.sub('\\;', rr['Value'][1:-1])
                        for rr in rrset['ResourceRecords']],
             'ttl': int(rrset['TTL'])
         }
@@ -451,15 +459,23 @@ class Route53Provider(BaseProvider):
                        target, lenient)
 
         before = len(zone.records)
+        exists = False
 
         zone_id = self._get_zone_id(zone.name)
         if zone_id:
+            exists = True
             records = defaultdict(lambda: defaultdict(list))
             for rrset in self._load_records(zone_id):
                 record_name = zone.hostname_from_fqdn(rrset['Name'])
                 record_name = _octal_replace(record_name)
                 record_type = rrset['Type']
-                if record_type == 'SOA':
+                if record_type not in self.SUPPORTS:
+                    continue
+                if 'AliasTarget' in rrset:
+                    # Alias records are Route53 specific and are not
+                    # portable, so we need to skip them
+                    self.log.warning("%s is an Alias record. Skipping..."
+                                     % rrset['Name'])
                     continue
                 data = getattr(self, '_data_for_{}'.format(record_type))(rrset)
                 records[record_name][record_type].append(data)
@@ -481,10 +497,11 @@ class Route53Provider(BaseProvider):
                         data = data[0]
                     record = Record.new(zone, name, data, source=self,
                                         lenient=lenient)
-                    zone.add_record(record)
+                    zone.add_record(record, lenient=lenient)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _gen_mods(self, action, records):
         '''
@@ -517,6 +534,14 @@ class Route53Provider(BaseProvider):
         # We've got a cached version use it
         return self._health_checks
 
+    def _health_check_equivilent(self, host, path, protocol, port,
+                                 health_check, first_value=None):
+        config = health_check['HealthCheckConfig']
+        return host == config['FullyQualifiedDomainName'] and \
+            path == config['ResourcePath'] and protocol == config['Type'] \
+            and port == config['Port'] and \
+            (first_value is None or first_value == config['IPAddress'])
+
     def get_health_check_id(self, record, ident, geo, create):
         # fqdn & the first value are special, we use them to match up health
         # checks to their records. Route53 health checks check a single ip and
@@ -528,41 +553,47 @@ class Route53Provider(BaseProvider):
                        'first_value=%s', fqdn, record._type, ident,
                        first_value)
 
-        # health check host can't end with a .
-        host = fqdn[:-1]
+        healthcheck_host = record.healthcheck_host
+        healthcheck_path = record.healthcheck_path
+        healthcheck_protocol = record.healthcheck_protocol
+        healthcheck_port = record.healthcheck_port
+
         # we're looking for a healthcheck with the current version & our record
         # type, we'll ignore anything else
-        expected_version_and_type = '{}:{}:'.format(self.HEALTH_CHECK_VERSION,
-                                                    record._type)
+        expected_ref = '{}:{}:{}:'.format(self.HEALTH_CHECK_VERSION,
+                                          record._type, record.fqdn)
         for id, health_check in self.health_checks.items():
-            if not health_check['CallerReference'] \
-               .startswith(expected_version_and_type):
-                # not a version & type match, ignore
+            if not health_check['CallerReference'].startswith(expected_ref):
+                # not match, ignore
                 continue
-            config = health_check['HealthCheckConfig']
-            if host == config['FullyQualifiedDomainName'] and \
-               first_value == config['IPAddress']:
+            if self._health_check_equivilent(healthcheck_host,
+                                             healthcheck_path,
+                                             healthcheck_protocol,
+                                             healthcheck_port, health_check,
+                                             first_value=first_value):
                 # this is the health check we're looking for
+                self.log.debug('get_health_check_id:   found match id=%s', id)
                 return id
 
         if not create:
             # no existing matches and not allowed to create, return none
+            self.log.debug('get_health_check_id:   no matches, no create')
             return
 
         # no existing matches, we need to create a new health check
         config = {
-            'EnableSNI': True,
+            'EnableSNI': healthcheck_protocol == 'HTTPS',
             'FailureThreshold': 6,
-            'FullyQualifiedDomainName': host,
+            'FullyQualifiedDomainName': healthcheck_host,
             'IPAddress': first_value,
             'MeasureLatency': True,
-            'Port': 443,
+            'Port': healthcheck_port,
             'RequestInterval': 10,
-            'ResourcePath': '/_dns',
-            'Type': 'HTTPS',
+            'ResourcePath': healthcheck_path,
+            'Type': healthcheck_protocol,
         }
-        ref = '{}:{}:{}'.format(self.HEALTH_CHECK_VERSION, record._type,
-                                uuid4().hex[:16])
+        ref = '{}:{}:{}:{}'.format(self.HEALTH_CHECK_VERSION, record._type,
+                                   record.fqdn, uuid4().hex[:12])
         resp = self._conn.create_health_check(CallerReference=ref,
                                               HealthCheckConfig=config)
         health_check = resp['HealthCheck']
@@ -570,11 +601,15 @@ class Route53Provider(BaseProvider):
         # store the new health check so that we'll be able to find it in the
         # future
         self._health_checks[id] = health_check
-        self.log.info('get_health_check_id: created id=%s, host=%s, '
-                      'first_value=%s', id, host, first_value)
+        self.log.info('get_health_check_id: created id=%s, host=%s, path=%s, '
+                      'protocol=%s, port=%d, first_value=%s', id,
+                      healthcheck_host, healthcheck_path, healthcheck_protocol,
+                      healthcheck_port, first_value)
         return id
 
     def _gc_health_checks(self, record, new):
+        if record._type not in ('A', 'AAAA'):
+            return
         self.log.debug('_gc_health_checks: record=%s', record)
         # Find the health checks we're using for the new route53 records
         in_use = set()
@@ -586,17 +621,25 @@ class Route53Provider(BaseProvider):
         # Now we need to run through ALL the health checks looking for those
         # that apply to this record, deleting any that do and are no longer in
         # use
-        host = record.fqdn[:-1]
+        expected_re = re.compile(r'^\d\d\d\d:{}:{}:'
+                                 .format(record._type, record.fqdn))
+        # UNITL 1.0: we'll clean out the previous version of Route53 health
+        # checks as best as we can.
+        expected_legacy_host = record.fqdn[:-1]
+        expected_legacy = '0000:{}:'.format(record._type)
         for id, health_check in self.health_checks.items():
-            config = health_check['HealthCheckConfig']
-            _type = health_check['CallerReference'].split(':', 2)[1]
-            # if host and the pulled out type match it applies
-            if host == config['FullyQualifiedDomainName'] and \
-               _type == record._type and id not in in_use:
-                # this is a health check for our fqdn & type but not one we're
+            ref = health_check['CallerReference']
+            if expected_re.match(ref) and id not in in_use:
+                # this is a health check for this record, but not one we're
                 # planning to use going forward
                 self.log.info('_gc_health_checks:   deleting id=%s', id)
                 self._conn.delete_health_check(HealthCheckId=id)
+            elif ref.startswith(expected_legacy):
+                config = health_check['HealthCheckConfig']
+                if expected_legacy_host == config['FullyQualifiedDomainName']:
+                    self.log.info('_gc_health_checks:   deleting legacy id=%s',
+                                  id)
+                    self._conn.delete_health_check(HealthCheckId=id)
 
     def _gen_records(self, record, creating=False):
         '''
@@ -646,18 +689,18 @@ class Route53Provider(BaseProvider):
         self._gc_health_checks(change.existing, [])
         return self._gen_mods('DELETE', existing_records)
 
-    def _extra_changes(self, existing, changes):
-        self.log.debug('_extra_changes: existing=%s', existing.name)
-        zone_id = self._get_zone_id(existing.name)
+    def _extra_changes(self, desired, changes, **kwargs):
+        self.log.debug('_extra_changes: desired=%s', desired.name)
+        zone_id = self._get_zone_id(desired.name)
         if not zone_id:
             # zone doesn't exist so no extras to worry about
             return []
         # we'll skip extra checking for anything we're already going to change
         changed = set([c.record for c in changes])
         # ok, now it's time for the reason we're here, we need to go over all
-        # the existing records
+        # the desired records
         extra = []
-        for record in existing.records:
+        for record in desired.records:
             if record in changed:
                 # already have a change for it, skipping
                 continue
@@ -669,7 +712,13 @@ class Route53Provider(BaseProvider):
             # b/c of a health check version bump
             self.log.debug('_extra_changes:   inspecting=%s, %s', record.fqdn,
                            record._type)
+
+            healthcheck_host = record.healthcheck_host
+            healthcheck_path = record.healthcheck_path
+            healthcheck_protocol = record.healthcheck_protocol
+            healthcheck_port = record.healthcheck_port
             fqdn = record.fqdn
+
             # loop through all the r53 rrsets
             for rrset in self._load_records(zone_id):
                 if fqdn != rrset['Name'] or record._type != rrset['Type']:
@@ -679,20 +728,25 @@ class Route53Provider(BaseProvider):
                    .get('CountryCode', False) == '*':
                     # it's a default record
                     continue
-                # we expect a healtcheck now
+                # we expect a healthcheck now
                 try:
                     health_check_id = rrset['HealthCheckId']
-                    caller_ref = \
-                        self.health_checks[health_check_id]['CallerReference']
+                    health_check = self.health_checks[health_check_id]
+                    caller_ref = health_check['CallerReference']
                     if caller_ref.startswith(self.HEALTH_CHECK_VERSION):
-                        # it has the right health check
-                        continue
-                except KeyError:
+                        if self._health_check_equivilent(healthcheck_host,
+                                                         healthcheck_path,
+                                                         healthcheck_protocol,
+                                                         healthcheck_port,
+                                                         health_check):
+                            # it has the right health check
+                            continue
+                except (IndexError, KeyError):
                     # no health check id or one that isn't the right version
                     pass
                 # no good, doesn't have the right health check, needs an update
-                self.log.debug('_extra_changes:     health-check caused '
-                               'update')
+                self.log.info('_extra_changes:     health-check caused '
+                              'update of %s:%s', record.fqdn, record._type)
                 extra.append(Update(record, record))
                 # We don't need to process this record any longer
                 break
@@ -730,7 +784,7 @@ class Route53Provider(BaseProvider):
                               batch_rs_count)
                 # send the batch
                 self._really_apply(batch, zone_id)
-                # start a new batch with the lefovers
+                # start a new batch with the leftovers
                 batch = mods
                 batch_rs_count = mods_rs_count
 

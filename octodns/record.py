@@ -115,6 +115,12 @@ class Record(object):
                 reasons.append('invalid ttl')
         except KeyError:
             reasons.append('missing ttl')
+        try:
+            if data['octodns']['healthcheck']['protocol'] \
+               not in ('HTTP', 'HTTPS'):
+                reasons.append('invalid healthcheck protocol')
+        except KeyError:
+            pass
         return reasons
 
     def __init__(self, zone, name, data, source=None):
@@ -122,14 +128,11 @@ class Record(object):
                        self.__class__.__name__, name)
         self.zone = zone
         # force everything lower-case just to be safe
-        self.name = str(name).lower() if name else name
+        self.name = unicode(name).lower() if name else name
         self.source = source
         self.ttl = int(data['ttl'])
 
-        octodns = data.get('octodns', {})
-        self.ignored = octodns.get('ignored', False)
-        self.excluded = octodns.get('excluded', [])
-        self.included = octodns.get('included', [])
+        self._octodns = data.get('octodns', {})
 
     def _data(self):
         return {'ttl': self.ttl}
@@ -144,6 +147,46 @@ class Record(object):
             return '{}.{}'.format(self.name, self.zone.name)
         return self.zone.name
 
+    @property
+    def ignored(self):
+        return self._octodns.get('ignored', False)
+
+    @property
+    def excluded(self):
+        return self._octodns.get('excluded', [])
+
+    @property
+    def included(self):
+        return self._octodns.get('included', [])
+
+    @property
+    def healthcheck_host(self):
+        try:
+            return self._octodns['healthcheck']['host']
+        except KeyError:
+            return self.fqdn[:-1]
+
+    @property
+    def healthcheck_path(self):
+        try:
+            return self._octodns['healthcheck']['path']
+        except KeyError:
+            return '/_dns'
+
+    @property
+    def healthcheck_protocol(self):
+        try:
+            return self._octodns['healthcheck']['protocol']
+        except KeyError:
+            return 'HTTPS'
+
+    @property
+    def healthcheck_port(self):
+        try:
+            return int(self._octodns['healthcheck']['port'])
+        except KeyError:
+            return 443
+
     def changes(self, other, target):
         # We're assuming we have the same name and type if we're being compared
         if self.ttl != other.ttl:
@@ -151,7 +194,7 @@ class Record(object):
 
     # NOTE: we're using __hash__ and __cmp__ methods that consider Records
     # equivalent if they have the same name & _type. Values are ignored. This
-    # is usful when computing diffs/changes.
+    # is useful when computing diffs/changes.
 
     def __hash__(self):
         return '{}:{}'.format(self.name, self._type).__hash__()
@@ -184,7 +227,7 @@ class GeoValue(object):
         self.continent_code = match.group('continent_code')
         self.country_code = match.group('country_code')
         self.subdivision_code = match.group('subdivision_code')
-        self.values = values
+        self.values = sorted(values)
 
     @property
     def parents(self):
@@ -274,7 +317,8 @@ class _ValuesMixin(object):
         return ret
 
     def __repr__(self):
-        values = "['{}']".format("', '".join([str(v) for v in self.values]))
+        values = "['{}']".format("', '".join([unicode(v)
+                                              for v in self.values]))
         return '<{} {} {}, {}, {}>'.format(self.__class__.__name__,
                                            self._type, self.ttl,
                                            self.fqdn, values)
@@ -678,7 +722,7 @@ class PtrRecord(_ValueMixin, Record):
 
 
 class SshfpValue(object):
-    VALID_ALGORITHMS = (1, 2, 3)
+    VALID_ALGORITHMS = (1, 2, 3, 4)
     VALID_FINGERPRINT_TYPES = (1, 2)
 
     @classmethod
