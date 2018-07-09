@@ -15,7 +15,7 @@ from helpers import SimpleProvider
 
 
 class TestTinyDnsFileSource(TestCase):
-    source = TinyDnsFileSource('test', './tests/zones')
+    source = TinyDnsFileSource('test', './tests/zones/tinydns')
 
     def test_populate_normal(self):
         got = Zone('example.com.', [])
