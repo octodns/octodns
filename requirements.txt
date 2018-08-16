@@ -7,7 +7,7 @@ dnspython==1.15.0
 docutils==0.14
 dyn==1.8.1
 futures==3.2.0
-google-cloud==0.32.0
+google-cloud-dns==0.29.0
 incf.countryutils==1.0
 ipaddress==1.0.22
 jmespath==0.9.3
