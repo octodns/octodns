@@ -156,7 +156,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [DnsimpleProvider](/octodns/provider/dnsimple.py) | | All | No | CAA tags restricted |
 | [DynProvider](/octodns/provider/dyn.py) | dyn | All | Yes | |
 | [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | A, AAAA, ALIAS, CNAME | No | |
-| [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
+| [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
 | [Ns1Provider](/octodns/provider/ns1.py) | nsone | All | Yes | No health checking for GeoDNS |
 | [OVH](/octodns/provider/ovh.py) | ovh | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
 | [PowerDnsProvider](/octodns/provider/powerdns.py) | | All | No | |
