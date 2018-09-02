@@ -294,6 +294,7 @@ class TestCloudflareProvider(TestCase):
                      'content': '3.2.3.4',
                      'type': 'A',
                      'name': 'ttl.unit.tests',
+                     'proxied': False,
                      'ttl': 300
                  }),
             call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
@@ -386,6 +387,7 @@ class TestCloudflareProvider(TestCase):
                 'content': '4.4.4.4',
                 'type': 'A',
                 'name': 'a.unit.tests',
+                'proxied': False,
                 'ttl': 300
             }),
             call('PUT', '/zones/42/dns_records/'
@@ -393,6 +395,7 @@ class TestCloudflareProvider(TestCase):
                      'content': '2.2.2.2',
                      'type': 'A',
                      'name': 'a.unit.tests',
+                     'proxied': False,
                      'ttl': 300
                  }),
             call('PUT', '/zones/42/dns_records/'
@@ -400,6 +403,7 @@ class TestCloudflareProvider(TestCase):
                      'content': '3.3.3.3',
                      'type': 'A',
                      'name': 'a.unit.tests',
+                     'proxied': False,
                      'ttl': 300
                  }),
         ])
@@ -532,6 +536,7 @@ class TestCloudflareProvider(TestCase):
         self.assertEquals({
             'content': 'www.unit.tests.',
             'name': 'unit.tests',
+            'proxied': False,
             'ttl': 300,
             'type': 'CNAME'
         }, list(contents)[0])
