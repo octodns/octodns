@@ -47,6 +47,16 @@ class CloudflareProvider(BaseProvider):
         #
         # See: https://support.cloudflare.com/hc/en-us/articles/115000830351
         cdn: false
+
+    Note: The "proxied" flag of "A", "AAAA" and "CNAME" records can be managed
+          via the YAML provider like so:
+              name:
+                octodons:
+                  cloudflare:
+                    proxied: true
+                ttl: 120
+                type: A
+                value: 1.2.3.4
     '''
     SUPPORTS_GEO = False
     SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SRV',
