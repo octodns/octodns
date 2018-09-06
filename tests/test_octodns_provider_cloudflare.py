@@ -18,6 +18,17 @@ from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
 
 
+def set_record_proxied_flag(record, proxied):
+    try:
+        record._octodns['cloudflare']['proxied'] = proxied
+    except KeyError:
+        record._octodns['cloudflare'] = {
+            'proxied': proxied
+        }
+
+    return record
+
+
 class TestCloudflareProvider(TestCase):
     expected = Zone('unit.tests.', [])
     source = YamlProvider('test', join(dirname(__file__), 'config'))
@@ -754,6 +765,466 @@ class TestCloudflareProvider(TestCase):
             'type': 'ALIAS',
             'value': 'change.unit.tests.cdn.cloudflare.net.'
         }))
+
+        plan = provider.plan(wanted)
+        self.assertEquals(False, hasattr(plan, 'changes'))
+
+    def test_proxied_ignore_ttl(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "A",
+                "name": "unit.tests.a",
+                "content": "1.2.3.4",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 1,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+            {
+                "id": "fc12ab34cd5611334422ab3322997643",
+                "type": "AAAA",
+                "name": "unit.tests.aaaa",
+                "content": "::1",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 1,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+            {
+                "id": "fc12ab34cd5611334422ab3322997644",
+                "type": "CNAME",
+                "name": "unit.tests.cname",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 1,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+        ])
+
+        zone = Zone('unit.tests.', [])
+        provider.populate(zone)
+
+        wanted = Zone('unit.tests.', [])
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.a', {
+                    'ttl': 120,
+                    'type': 'A',
+                    'value': '1.2.3.4'
+                }), True
+            )
+        )
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.aaaa', {
+                    'ttl': 250,
+                    'type': 'AAAA',
+                    'value': '::1'
+                }), True
+            )
+        )
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.cname', {
+                    'ttl': 300,
+                    'type': 'CNAME',
+                    'value': 'www.unit.tests.'
+                }), True
+            )
+        )
+
+        plan = provider.plan(wanted)
+        self.assertEquals(False, hasattr(plan, 'changes'))
+
+    def test_enable_proxied(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "A",
+                "name": "unit.tests.a",
+                "content": "1.2.3.4",
+                "proxiable": True,
+                "proxied": False,
+                "ttl": 120,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+            {
+                "id": "fc12ab34cd5611334422ab3322997643",
+                "type": "AAAA",
+                "name": "unit.tests.aaaa",
+                "content": "::1",
+                "proxiable": True,
+                "proxied": False,
+                "ttl": 250,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+            {
+                "id": "fc12ab34cd5611334422ab3322997644",
+                "type": "CNAME",
+                "name": "unit.tests.cname",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": False,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+        ])
+
+        zone = Zone('unit.tests.', [])
+        provider.populate(zone)
+
+        wanted = Zone('unit.tests.', [])
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.a', {
+                    'ttl': 120,
+                    'type': 'A',
+                    'value': '1.2.3.4'
+                }), True
+            )
+        )
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.aaaa', {
+                    'ttl': 250,
+                    'type': 'AAAA',
+                    'value': '::1'
+                }), True
+            )
+        )
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.cname', {
+                    'ttl': 300,
+                    'type': 'CNAME',
+                    'value': 'www.unit.tests.'
+                }), True
+            )
+        )
+
+        plan = provider.plan(wanted)
+        self.assertEquals(True, hasattr(plan, 'changes'))
+
+    def test_disable_proxied(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "A",
+                "name": "unit.tests.a",
+                "content": "1.2.3.4",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 120,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+            {
+                "id": "fc12ab34cd5611334422ab3322997643",
+                "type": "AAAA",
+                "name": "unit.tests.aaaa",
+                "content": "::1",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 250,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+            {
+                "id": "fc12ab34cd5611334422ab3322997644",
+                "type": "CNAME",
+                "name": "unit.tests.cname",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+        ])
+
+        zone = Zone('unit.tests.', [])
+        provider.populate(zone)
+
+        wanted = Zone('unit.tests.', [])
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.a', {
+                    'ttl': 120,
+                    'type': 'A',
+                    'value': '1.2.3.4'
+                }), False
+            )
+        )
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.aaaa', {
+                    'ttl': 250,
+                    'type': 'AAAA',
+                    'value': '::1'
+                }), False
+            )
+        )
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.cname', {
+                    'ttl': 300,
+                    'type': 'CNAME',
+                    'value': 'www.unit.tests.'
+                }), False
+            )
+        )
+
+        plan = provider.plan(wanted)
+        self.assertEquals(True, hasattr(plan, 'changes'))
+
+    def test_leave_proxied_disabled(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "A",
+                "name": "unit.tests.a",
+                "content": "1.2.3.4",
+                "proxiable": True,
+                "proxied": False,
+                "ttl": 120,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+            {
+                "id": "fc12ab34cd5611334422ab3322997643",
+                "type": "AAAA",
+                "name": "unit.tests.aaaa",
+                "content": "::1",
+                "proxiable": True,
+                "proxied": False,
+                "ttl": 250,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+            {
+                "id": "fc12ab34cd5611334422ab3322997644",
+                "type": "CNAME",
+                "name": "unit.tests.cname",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": False,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+        ])
+
+        zone = Zone('unit.tests.', [])
+        provider.populate(zone)
+
+        wanted = Zone('unit.tests.', [])
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.a', {
+                    'ttl': 120,
+                    'type': 'A',
+                    'value': '1.2.3.4'
+                }), False
+            )
+        )
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.aaaa', {
+                    'ttl': 250,
+                    'type': 'AAAA',
+                    'value': '::1'
+                }), False
+            )
+        )
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.cname', {
+                    'ttl': 300,
+                    'type': 'CNAME',
+                    'value': 'www.unit.tests.'
+                }), False
+            )
+        )
+
+        plan = provider.plan(wanted)
+        self.assertEquals(False, hasattr(plan, 'changes'))
+
+    def test_leave_proxied_enabled(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "A",
+                "name": "unit.tests.a",
+                "content": "1.2.3.4",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 120,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+            {
+                "id": "fc12ab34cd5611334422ab3322997643",
+                "type": "AAAA",
+                "name": "unit.tests.aaaa",
+                "content": "::1",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 250,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+            {
+                "id": "fc12ab34cd5611334422ab3322997644",
+                "type": "CNAME",
+                "name": "unit.tests.cname",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            },
+        ])
+
+        zone = Zone('unit.tests.', [])
+        provider.populate(zone)
+
+        wanted = Zone('unit.tests.', [])
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.a', {
+                    'ttl': 120,
+                    'type': 'A',
+                    'value': '1.2.3.4'
+                }), True
+            )
+        )
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.aaaa', {
+                    'ttl': 250,
+                    'type': 'AAAA',
+                    'value': '::1'
+                }), True
+            )
+        )
+        wanted.add_record(
+            set_record_proxied_flag(
+                Record.new(wanted, 'unit.tests.cname', {
+                    'ttl': 300,
+                    'type': 'CNAME',
+                    'value': 'www.unit.tests.'
+                }), True
+            )
+        )
 
         plan = provider.plan(wanted)
         self.assertEquals(False, hasattr(plan, 'changes'))
