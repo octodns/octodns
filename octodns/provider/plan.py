@@ -147,11 +147,11 @@ class PlanLogger(_PlanOutput):
 
 def _value_stringifier(record, sep):
     try:
-        values = [unicode(v) for v in record.values]
+        values = [str(v) for v in record.values]
     except AttributeError:
         values = [record.value]
     for code, gv in sorted(getattr(record, 'geo', {}).items()):
-        vs = ', '.join([unicode(v) for v in gv.values])
+        vs = ', '.join([str(v) for v in gv.values])
         values.append('{}: {}'.format(code, vs))
     return sep.join(values)
 
@@ -193,7 +193,7 @@ class PlanMarkdown(_PlanOutput):
                     fh.write(' | ')
                     # TTL
                     if existing:
-                        fh.write(unicode(existing.ttl))
+                        fh.write(str(existing.ttl))
                         fh.write(' | ')
                         fh.write(_value_stringifier(existing, '; '))
                         fh.write(' | |\n')
@@ -201,7 +201,7 @@ class PlanMarkdown(_PlanOutput):
                             fh.write('| | | | ')
 
                     if new:
-                        fh.write(unicode(new.ttl))
+                        fh.write(str(new.ttl))
                         fh.write(' | ')
                         fh.write(_value_stringifier(new, '; '))
                         fh.write(' | ')
@@ -210,7 +210,7 @@ class PlanMarkdown(_PlanOutput):
                         fh.write(' |\n')
 
                 fh.write('\nSummary: ')
-                fh.write(unicode(plan))
+                fh.write(str(plan))
                 fh.write('\n\n')
         else:
             fh.write('## No changes were planned\n')
@@ -261,7 +261,7 @@ class PlanHtml(_PlanOutput):
                     # TTL
                     if existing:
                         fh.write('    <td>')
-                        fh.write(unicode(existing.ttl))
+                        fh.write(str(existing.ttl))
                         fh.write('</td>\n    <td>')
                         fh.write(_value_stringifier(existing, '<br/>'))
                         fh.write('</td>\n    <td></td>\n  </tr>\n')
@@ -270,7 +270,7 @@ class PlanHtml(_PlanOutput):
 
                     if new:
                         fh.write('    <td>')
-                        fh.write(unicode(new.ttl))
+                        fh.write(str(new.ttl))
                         fh.write('</td>\n    <td>')
                         fh.write(_value_stringifier(new, '<br/>'))
                         fh.write('</td>\n    <td>')
@@ -279,7 +279,7 @@ class PlanHtml(_PlanOutput):
                         fh.write('</td>\n  </tr>\n')
 
                 fh.write('  <tr>\n    <td colspan=6>Summary: ')
-                fh.write(unicode(plan))
+                fh.write(str(plan))
                 fh.write('</td>\n  </tr>\n</table>\n')
         else:
             fh.write('<b>No changes were planned</b>')

@@ -183,7 +183,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, str(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -215,7 +215,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, str(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -241,7 +241,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, str(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -263,7 +263,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, str(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -289,7 +289,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, str(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -312,7 +312,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, str(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -340,7 +340,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, str(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'

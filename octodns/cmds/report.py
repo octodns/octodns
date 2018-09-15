@@ -65,7 +65,7 @@ def main():
         resolver = AsyncResolver(configure=False,
                                  num_workers=int(args.num_workers))
         if not ip_addr_re.match(server):
-            server = unicode(query(server, 'A')[0])
+            server = str(query(server, 'A')[0])
         log.info('server=%s', server)
         resolver.nameservers = [server]
         resolver.lifetime = int(args.timeout)
@@ -81,12 +81,12 @@ def main():
         stdout.write(',')
         stdout.write(record._type)
         stdout.write(',')
-        stdout.write(unicode(record.ttl))
+        stdout.write(str(record.ttl))
         compare = {}
         for future in futures:
             stdout.write(',')
             try:
-                answers = [unicode(r) for r in future.result()]
+                answers = [str(r) for r in future.result()]
             except (NoAnswer, NoNameservers):
                 answers = ['*no answer*']
             except NXDOMAIN:

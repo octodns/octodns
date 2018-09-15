@@ -68,7 +68,7 @@ class BaseProvider(BaseSource):
                                     changes=changes)
         if extra:
             self.log.info('plan:   extra changes\n  %s', '\n  '
-                          .join([unicode(c) for c in extra]))
+                          .join([str(c) for c in extra]))
             changes += extra
 
         if changes:
