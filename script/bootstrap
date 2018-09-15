@@ -19,8 +19,14 @@ if [ ! -d "$VENV_NAME" ]; then
 fi
 . "$VENV_NAME/bin/activate"
 
+if [ "$(python -c 'import sys; print(sys.version_info[0])')" = "3" ]; then
+    REQUIREMENTS=requirements-py3.txt
+else
+    REQUIREMENTS=requirements.txt
+fi
+
 pip install -U 'pip>=10.0.1'
-pip install -r requirements.txt
+pip install -r $REQUIREMENTS
 
 if [ "$ENV" != "production" ]; then
     pip install -r requirements-dev.txt
