@@ -8,6 +8,12 @@ from __future__ import absolute_import, division, print_function, \
 from ipaddress import IPv4Address, IPv6Address
 from logging import getLogger
 import re
+import sys
+
+
+if sys.version_info[0] == 3:
+    def cmp(x, y):
+        return (x > y) - (x < y)
 
 
 class Change(object):

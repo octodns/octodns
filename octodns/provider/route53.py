@@ -12,10 +12,14 @@ from incf.countryutils.transformations import cca_to_ctca2
 from uuid import uuid4
 import logging
 import re
+import sys
 
 from ..record import Record, Update
 from .base import BaseProvider
 
+if sys.version_info[0] == 3:
+    def cmp(x, y):
+        return (x > y) - (x < y)
 
 octal_re = re.compile(r'\\(\d\d\d)')
 

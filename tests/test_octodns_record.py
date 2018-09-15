@@ -695,6 +695,14 @@ class TestRecord(TestCase):
         b_value = 'b other'
         self.assertMultipleValues(TxtRecord, a_values, b_value)
 
+    def test_idn_lowering(self):
+        record = Record(self.zone, 'ＭｉＸｅＤｃＡｓＥ', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        self.assertEquals('ＭｉＸｅＤｃＡｓＥ', record.name)
+
     def test_record_new(self):
         txt = Record.new(self.zone, 'txt', {
             'ttl': 44,

@@ -269,9 +269,9 @@ class Manager(object):
 
             try:
                 sources = [self.providers[source] for source in sources]
-            except KeyError:
+            except KeyError as e:
                 raise Exception('Zone {}, unknown source: {}'.format(zone_name,
-                                                                     source))
+                                                                     e))
 
             try:
                 trgs = []
@@ -387,9 +387,9 @@ class Manager(object):
 
             try:
                 sources = [self.providers[source] for source in sources]
-            except KeyError:
+            except KeyError as e:
                 raise Exception('Zone {}, unknown source: {}'.format(zone_name,
-                                                                     source))
+                                                                     e))
 
             for source in sources:
                 if isinstance(source, YamlProvider):
