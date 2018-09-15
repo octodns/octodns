@@ -130,9 +130,17 @@ class RackspaceProvider(BaseProvider):
     def _delete(self, path, data=None):
         return self._request('DELETE', path, data=data)
 
+    @staticmethod
+    def _as_unicode(s, codec):
+        if not isinstance(s, unicode):
+            return unicode(s, codec)
+        return s
+
     @classmethod
     def _key_for_record(cls, rs_record):
-        return rs_record['type'], rs_record['name'], rs_record['data']
+        return cls._as_unicode(rs_record['type'], 'ascii'), \
+            cls._as_unicode(rs_record['name'], 'utf-8'), \
+            cls._as_unicode(rs_record['data'], 'utf-8')
 
     def _data_for_multiple(self, rrset):
         return {
