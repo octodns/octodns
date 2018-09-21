@@ -258,46 +258,63 @@ class TestAzureDnsProvider(TestCase):
         provider = self._get_provider()
 
         rs = []
-        rs.append(RecordSet(name='a1', ttl=0, type='A',
-                            arecords=[ARecord('1.1.1.1')]))
-        rs.append(RecordSet(name='a2', ttl=1, type='A',
-                            arecords=[ARecord('1.1.1.1'),
-                                      ARecord('2.2.2.2')]))
-        rs.append(RecordSet(name='aaaa1', ttl=2, type='AAAA',
-                            aaaa_records=[AaaaRecord('1:1ec:1::1')]))
-        rs.append(RecordSet(name='aaaa2', ttl=3, type='AAAA',
-                            aaaa_records=[AaaaRecord('1:1ec:1::1'),
-                                          AaaaRecord('1:1ec:1::2')]))
-        rs.append(RecordSet(name='cname1', ttl=4, type='CNAME',
-                            cname_record=CnameRecord('cname.unit.test.')))
-        rs.append(RecordSet(name='cname2', ttl=5, type='CNAME',
-                            cname_record=None))
-        rs.append(RecordSet(name='mx1', ttl=6, type='MX',
-                            mx_records=[MxRecord(10, 'mx1.unit.test.')]))
-        rs.append(RecordSet(name='mx2', ttl=7, type='MX',
-                            mx_records=[MxRecord(10, 'mx1.unit.test.'),
-                                        MxRecord(11, 'mx2.unit.test.')]))
-        rs.append(RecordSet(name='ns1', ttl=8, type='NS',
-                            ns_records=[NsRecord('ns1.unit.test.')]))
-        rs.append(RecordSet(name='ns2', ttl=9, type='NS',
-                            ns_records=[NsRecord('ns1.unit.test.'),
-                                        NsRecord('ns2.unit.test.')]))
-        rs.append(RecordSet(name='ptr1', ttl=10, type='PTR',
-                            ptr_records=[PtrRecord('ptr1.unit.test.')]))
-        rs.append(RecordSet(name='ptr2', ttl=11, type='PTR',
-                            ptr_records=[PtrRecord(None)]))
-        rs.append(RecordSet(name='_srv1._tcp', ttl=12, type='SRV',
-                            srv_records=[SrvRecord(1, 2, 3, '1unit.tests.')]))
-        rs.append(RecordSet(name='_srv2._tcp', ttl=13, type='SRV',
-                            srv_records=[SrvRecord(1, 2, 3, '1unit.tests.'),
-                                         SrvRecord(4, 5, 6, '2unit.tests.')]))
-        rs.append(RecordSet(name='txt1', ttl=14, type='TXT',
-                            txt_records=[TxtRecord('sample text1')]))
-        rs.append(RecordSet(name='txt2', ttl=15, type='TXT',
-                            txt_records=[TxtRecord('sample text1'),
-                                         TxtRecord('sample text2')]))
-        rs.append(RecordSet(name='', ttl=16, type='SOA',
-                            soa_record=[SoaRecord()]))
+        recordSet = RecordSet(arecords=[ARecord('1.1.1.1')])
+        recordSet.name, recordSet.ttl, recordSet.type = 'a1', 0, 'A'
+        rs.append(recordSet)
+        recordSet = RecordSet(arecords=[ARecord('1.1.1.1'),
+                                        ARecord('2.2.2.2')])
+        recordSet.name, recordSet.ttl, recordSet.type = 'a2', 1, 'A'
+        rs.append(recordSet)
+        recordSet = RecordSet(aaaa_records=[AaaaRecord('1:1ec:1::1')])
+        recordSet.name, recordSet.ttl, recordSet.type = 'aaaa1', 2, 'AAAA'
+        rs.append(recordSet)
+        recordSet = RecordSet(aaaa_records=[AaaaRecord('1:1ec:1::1'),
+                                            AaaaRecord('1:1ec:1::2')])
+        recordSet.name, recordSet.ttl, recordSet.type = 'aaaa2', 3, 'AAAA'
+        rs.append(recordSet)
+        recordSet = RecordSet(cname_record=CnameRecord('cname.unit.test.'))
+        recordSet.name, recordSet.ttl, recordSet.type = 'cname1', 4, 'CNAME'
+        rs.append(recordSet)
+        recordSet = RecordSet(cname_record=None)
+        recordSet.name, recordSet.ttl, recordSet.type = 'cname2', 5, 'CNAME'
+        rs.append(recordSet)
+        recordSet = RecordSet(mx_records=[MxRecord(10, 'mx1.unit.test.')])
+        recordSet.name, recordSet.ttl, recordSet.type = 'mx1', 6, 'MX'
+        rs.append(recordSet)
+        recordSet = RecordSet(mx_records=[MxRecord(10, 'mx1.unit.test.'),
+                                          MxRecord(11, 'mx2.unit.test.')])
+        recordSet.name, recordSet.ttl, recordSet.type = 'mx2', 7, 'MX'
+        rs.append(recordSet)
+        recordSet = RecordSet(ns_records=[NsRecord('ns1.unit.test.')])
+        recordSet.name, recordSet.ttl, recordSet.type = 'ns1', 8, 'NS'
+        rs.append(recordSet)
+        recordSet = RecordSet(ns_records=[NsRecord('ns1.unit.test.'),
+                                          NsRecord('ns2.unit.test.')])
+        recordSet.name, recordSet.ttl, recordSet.type = 'ns2', 9, 'NS'
+        rs.append(recordSet)
+        recordSet = RecordSet(ptr_records=[PtrRecord('ptr1.unit.test.')])
+        recordSet.name, recordSet.ttl, recordSet.type = 'ptr1', 10, 'PTR'
+        rs.append(recordSet)
+        recordSet = RecordSet(ptr_records=[PtrRecord(None)])
+        recordSet.name, recordSet.ttl, recordSet.type = 'ptr2', 11, 'PTR'
+        rs.append(recordSet)
+        recordSet = RecordSet(srv_records=[SrvRecord(1, 2, 3, '1unit.tests.')])
+        recordSet.name, recordSet.ttl, recordSet.type = '_srv1._tcp', 12, 'SRV'
+        rs.append(recordSet)
+        recordSet = RecordSet(srv_records=[SrvRecord(1, 2, 3, '1unit.tests.'),
+                                           SrvRecord(4, 5, 6, '2unit.tests.')])
+        recordSet.name, recordSet.ttl, recordSet.type = '_srv2._tcp', 13, 'SRV'
+        rs.append(recordSet)
+        recordSet = RecordSet(txt_records=[TxtRecord('sample text1')])
+        recordSet.name, recordSet.ttl, recordSet.type = 'txt1', 14, 'TXT'
+        rs.append(recordSet)
+        recordSet = RecordSet(txt_records=[TxtRecord('sample text1'),
+                                           TxtRecord('sample text2')])
+        recordSet.name, recordSet.ttl, recordSet.type = 'txt2', 15, 'TXT'
+        rs.append(recordSet)
+        recordSet = RecordSet(soa_record=[SoaRecord()])
+        recordSet.name, recordSet.ttl, recordSet.type = '', 16, 'SOA'
+        rs.append(recordSet)
 
         record_list = provider._dns_client.record_sets.list_by_dns_zone
         record_list.return_value = rs
@@ -364,11 +381,13 @@ class TestAzureDnsProvider(TestCase):
         provider = self._get_provider()
 
         rs = []
-        rs.append(RecordSet(name='a1', ttl=0, type='A',
-                            arecords=[ARecord('1.1.1.1')]))
-        rs.append(RecordSet(name='a2', ttl=1, type='A',
-                            arecords=[ARecord('1.1.1.1'),
-                                      ARecord('2.2.2.2')]))
+        recordSet = RecordSet(arecords=[ARecord('1.1.1.1')])
+        recordSet.name, recordSet.ttl, recordSet.type = 'a1', 0, 'A'
+        rs.append(recordSet)
+        recordSet = RecordSet(arecords=[ARecord('1.1.1.1'),
+                                        ARecord('2.2.2.2')])
+        recordSet.name, recordSet.ttl, recordSet.type = 'a2', 1, 'A'
+        rs.append(recordSet)
 
         record_list = provider._dns_client.record_sets.list_by_dns_zone
         record_list.return_value = rs
