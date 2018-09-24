@@ -5,6 +5,8 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+import string
+
 from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.dns import DnsManagementClient
 from msrestazure.azure_exceptions import CloudError
@@ -16,6 +18,16 @@ import logging
 from functools import reduce
 from ..record import Record
 from .base import BaseProvider
+
+
+def escape_semicolon(s):
+    assert s
+    return string.replace(s, ';', '\\;')
+
+
+def unescape_semicolon(s):
+    assert s
+    return string.replace(s, '\\;', ';')
 
 
 class _AzureRecord(object):
@@ -123,9 +135,9 @@ class _AzureRecord(object):
 
     def _params_for_TXT(self, data, key_name, azure_class):
         try:  # API for TxtRecord has list of str, even for singleton
-            values = data['values']
+            values = [unescape_semicolon(v) for v in data['values']]
         except KeyError:
-            values = [data['value']]
+            values = [unescape_semicolon(data['value'])]
         return {key_name: [azure_class([v]) for v in values]}
 
     def _equals(self, b):
@@ -394,7 +406,8 @@ class AzureProvider(BaseProvider):
                            for ar in azrecord.srv_records]}
 
     def _data_for_TXT(self, azrecord):
-        return {'values': [reduce((lambda a, b: a + b), ar.value)
+        return {'values': [escape_semicolon(reduce((lambda a, b: a + b),
+                                                   ar.value))
                            for ar in azrecord.txt_records]}
 
     def _apply_Create(self, change):
