@@ -13,6 +13,8 @@ import dns.rdatatype
 from dns.exception import DNSException
 
 from collections import defaultdict
+from os import listdir
+from os.path import join
 import logging
 
 from ..record import Record
@@ -160,3 +162,73 @@ class AxfrSource(AxfrBaseSource):
             })
 
         return records
+
+
+class ZoneFileSourceException(Exception):
+    pass
+
+
+class ZoneFileSourceNotFound(ZoneFileSourceException):
+
+    def __init__(self):
+        super(ZoneFileSourceNotFound, self).__init__(
+            'Zone file not found')
+
+
+class ZoneFileSourceLoadFailure(ZoneFileSourceException):
+
+    def __init__(self, error):
+        super(ZoneFileSourceLoadFailure, self).__init__(
+            error.message)
+
+
+class ZoneFileSource(AxfrBaseSource):
+    '''
+    Bind compatible zone file source
+
+    zonefile:
+        class: octodns.source.axfr.ZoneFileSource
+        # The directory holding the zone files
+        # Filenames should match zone name (eg. example.com.)
+        directory: ./zonefiles
+    '''
+    def __init__(self, id, directory):
+        self.log = logging.getLogger('ZoneFileSource[{}]'.format(id))
+        self.log.debug('__init__: id=%s, directory=%s', id, directory)
+        super(ZoneFileSource, self).__init__(id)
+        self.directory = directory
+
+        self._zone_records = {}
+
+    def _load_zone_file(self, zone_name):
+        zonefiles = listdir(self.directory)
+        if zone_name in zonefiles:
+            try:
+                z = dns.zone.from_file(join(self.directory, zone_name),
+                                       zone_name, relativize=False)
+            except DNSException as error:
+                raise ZoneFileSourceLoadFailure(error)
+        else:
+            raise ZoneFileSourceNotFound()
+
+        return z
+
+    def zone_records(self, zone):
+        if zone.name not in self._zone_records:
+            try:
+                z = self._load_zone_file(zone.name)
+                records = []
+                for (name, ttl, rdata) in z.iterate_rdatas():
+                    rdtype = dns.rdatatype.to_text(rdata.rdtype)
+                    records.append({
+                        "name": name.to_text(),
+                        "ttl": ttl,
+                        "type": rdtype,
+                        "value": rdata.to_text()
+                    })
+
+                self._zone_records[zone.name] = records
+            except ZoneFileSourceNotFound:
+                return []
+
+        return self._zone_records[zone.name]
