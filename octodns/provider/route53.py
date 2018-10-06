@@ -222,7 +222,7 @@ class Route53Provider(BaseProvider):
         # The AWS secret access key
         secret_access_key:
         # URL of endpoint of AWS-compatible API (optional)
-        endpoint_url: "http://localhost:3000",
+        endpoint_url: "http://localhost:3000"
 
     Alternatively, you may leave out access_key_id and secret_access_key,
     this will result in boto3 deciding authentication dynamically.
