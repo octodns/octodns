@@ -221,6 +221,8 @@ class Route53Provider(BaseProvider):
         access_key_id:
         # The AWS secret access key
         secret_access_key:
+        # URL of endpoint of AWS-compatible API (optional)
+        endpoint_url: "http://localhost:3000",
 
     Alternatively, you may leave out access_key_id and secret_access_key,
     this will result in boto3 deciding authentication dynamically.
@@ -236,7 +238,8 @@ class Route53Provider(BaseProvider):
     HEALTH_CHECK_VERSION = '0001'
 
     def __init__(self, id, access_key_id=None, secret_access_key=None,
-                 max_changes=1000, client_max_attempts=None, *args, **kwargs):
+                 max_changes=1000, client_max_attempts=None, endpoint_url=None,
+                 *args, **kwargs):
         self.max_changes = max_changes
         _msg = 'access_key_id={}, secret_access_key=***'.format(access_key_id)
         if access_key_id is None and secret_access_key is None:
@@ -252,10 +255,12 @@ class Route53Provider(BaseProvider):
             config = Config(retries={'max_attempts': client_max_attempts})
 
         if access_key_id is None and secret_access_key is None:
-            self._conn = client('route53', config=config)
+            self._conn = client('route53', config=config,
+                                endpoint_url=endpoint_url)
         else:
             self._conn = client('route53', aws_access_key_id=access_key_id,
                                 aws_secret_access_key=secret_access_key,
+                                endpoint_url=endpoint_url,
                                 config=config)
 
         self._r53_zones = None
