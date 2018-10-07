@@ -11,7 +11,7 @@ from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
 from unittest import TestCase
 
-from octodns.record import Record
+from octodns.record import Record, TxtRecord
 from octodns.provider.powerdns import PowerDnsProvider
 from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
@@ -200,6 +200,45 @@ class TestPowerDnsProvider(TestCase):
             plan = provider.plan(missing)
             self.assertEquals(1, len(plan.changes))
             self.assertEquals(1, provider.apply(plan))
+
+    def test_populate_escapes_semicolons(self):
+        provider = PowerDnsProvider('test', 'non.existant', 'api-key')
+        zone = Zone('unit.tests.', [])
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=200, text=FULL_TEXT)
+            provider.populate(zone)
+        txts = [r for r in zone.records if isinstance(r, TxtRecord)]
+        self.assertEquals(
+            'v=DKIM1\\;k=rsa\\;s=email\\;h=sha256\\;'
+            'p=A/kinda+of/long/string+with+numb3rs',
+            txts[0].values[2])
+
+    def test_apply_unescapes_semicolons(self):
+        desired = Zone('unit.tests.', [])
+        source = YamlProvider('test', join(dirname(__file__), 'config'))
+        source.populate(desired)
+
+        # save the rrsets sent to the API so we can assert them later.
+        patch_rrsets = []
+
+        def save_rrsets_callback(request, context):
+            data = loads(request.body)
+            patch_rrsets.extend(data['rrsets'])
+            return ''
+
+        provider = PowerDnsProvider('test', 'non.existant', 'api-key')
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=200, text=EMPTY_TEXT)
+            # post 201, is response to the create with data
+            mock.patch(ANY, status_code=201, text=save_rrsets_callback)
+            plan = provider.plan(desired)
+            provider.apply(plan)
+
+        txts = [c for c in patch_rrsets if c['type'] == 'TXT']
+        self.assertEquals(
+            '"v=DKIM1;k=rsa;s=email;h=sha256;'
+            'p=A/kinda+of/long/string+with+numb3rs"',
+            txts[0]['records'][2]['content'])
 
     def test_existing_nameservers(self):
         ns_values = ['8.8.8.8.', '9.9.9.9.']
