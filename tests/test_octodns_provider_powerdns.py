@@ -38,7 +38,45 @@ with open('./tests/fixtures/powerdns-full-data.json') as fh:
     FULL_TEXT = fh.read()
 
 
+def _normalize_rrsets(rrsets):
+    '''Normalizes PowerDNS RRsets for easier comparison.
+
+        RRsets are in the form defined by the PowerDNS API
+        (https://doc.powerdns.com/md/httpapi/api_spec/), i.e.  dicts with
+        keys including `name', `type', `ttl', `records' and `comments'.
+
+        :param rrsets: List of RRset dicts.
+        :type  rrsets: list
+    '''
+    rrsets_clean = []
+    for r in rrsets:
+        if r['type'] in ('NS', 'SOA'):
+            # NS records are overridden by nameserver_values and SOA
+            # records are ignored by populate() so don't bother comparing
+            # those.
+            continue
+        # Remove fields that aren't present in both the PATCH request _and_
+        # GET response.
+        r = r.copy()
+        for field in ['comments', 'changetype']:
+            if field in r:
+                del r[field]
+        # Record ordering shouldn't matter so sort consistently.
+        if 'records' in r:
+            r['records'] = sorted(r['records'],
+                                  key=lambda r: r['content'])
+        rrsets_clean.append(r)
+    # rrset ordering shouldn't matter so sort consistently.
+    return sorted(rrsets_clean, key=lambda r: (r['type'], r['name']))
+
+
 class TestPowerDnsProvider(TestCase):
+
+    def assertRrsetsEqual(self, first, second):
+        """Checks whether two rrsets are equivalent when normalized."""
+        first = _normalize_rrsets(first)
+        second = _normalize_rrsets(second)
+        self.assertEqual(first, second)
 
     def test_provider(self):
         provider = PowerDnsProvider('test', 'non.existant', 'api-key',
@@ -94,6 +132,9 @@ class TestPowerDnsProvider(TestCase):
         def assert_rrsets_callback(request, context):
             data = loads(request.body)
             self.assertEquals(expected_n, len(data['rrsets']))
+            # Verify that the records survive a round-trip.
+            full_rrsets = loads(FULL_TEXT)['rrsets']
+            self.assertRrsetsEqual(full_rrsets, data['rrsets'])
             return ''
 
         # No existing records -> creates for every record in expected
