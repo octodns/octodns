@@ -89,9 +89,11 @@ class PowerDnsBaseProvider(BaseProvider):
     _data_for_PTR = _data_for_single
 
     def _data_for_quoted(self, rrset):
+        values = [r['content'][1:-1].replace(';', '\\;')
+                  for r in rrset['records']]
         return {
             'type': rrset['type'],
-            'values': [r['content'][1:-1] for r in rrset['records']],
+            'values': values,
             'ttl': rrset['ttl']
         }
 
@@ -227,8 +229,10 @@ class PowerDnsBaseProvider(BaseProvider):
     _records_for_PTR = _records_for_single
 
     def _records_for_quoted(self, record):
-        return [{'content': '"{}"'.format(v), 'disabled': False}
-                for v in record.values]
+        return [{
+            'content': '"{}"'.format(v.replace('\\;', ';')),
+            'disabled': False
+        } for v in record.values]
 
     _records_for_SPF = _records_for_quoted
     _records_for_TXT = _records_for_quoted
