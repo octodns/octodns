@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function, \
 
 from collections import defaultdict
 from logging import getLogger
-from json import dumps
 from requests import Session
 
 from ..record import Record, Update
@@ -347,11 +346,6 @@ class CloudflareProvider(BaseProvider):
         path = '/zones/{}/dns_records'.format(zone_id)
         for content in self._gen_data(new):
             self._request('POST', path, data=content)
-
-    def _hash_data(self, data):
-        # Some of the dicts are nested so this seems about as good as any
-        # option we have for consistently hashing them (within a single run)
-        return hash(dumps(data, sort_keys=True))
 
     def _apply_Update(self, change):
         # Note that all CF records have a `content` field the value of which
