@@ -340,14 +340,7 @@ class CloudflareProvider(BaseProvider):
             })
             yield content
 
-    def _apply_Create(self, change):
-        new = change.new
-        zone_id = self.zones[new.zone.name]
-        path = '/zones/{}/dns_records'.format(zone_id)
-        for content in self._gen_data(new):
-            self._request('POST', path, data=content)
-
-    def _apply_Update(self, change):
+    def _gen_key(self, data):
         # Note that all CF records have a `content` field the value of which
         # appears to be a unique/hashable string for the record's. It includes
         # all the "value" bits, but not the secondary stuff like TTL's. E.g.
@@ -356,7 +349,21 @@ class CloudflareProvider(BaseProvider):
         # old & new records cleanly. In general when there are multiple records
         # for a name & type each will have a distinct/consistent `content` that
         # can serve as a unique identifier.
+        # BUT... there's an exception. For some reason MX doesn't include
+        # priority in its `content` so it's an odd-ball. I haven't found any
+        # others so hopefully they don't exist :-(
+        if data['type'] == 'MX':
+            return '{} {}'.format(data['priority'], data['content'])
+        return data['content']
 
+    def _apply_Create(self, change):
+        new = change.new
+        zone_id = self.zones[new.zone.name]
+        path = '/zones/{}/dns_records'.format(zone_id)
+        for content in self._gen_data(new):
+            self._request('POST', path, data=content)
+
+    def _apply_Update(self, change):
         zone = change.new.zone
         zone_id = self.zones[zone.name]
         hostname = zone.hostname_from_fqdn(change.new.fqdn[:-1])
@@ -376,14 +383,15 @@ class CloudflareProvider(BaseProvider):
                 data = self._gen_data(r).next()
 
                 # Record the record_id and data for this existing record
-                existing[data['content']] = {
+                key = self._gen_key(data)
+                existing[key] = {
                     'record_id': record['id'],
                     'data': data,
                 }
 
         # Build up a list of new CF records for this Update
         new = {
-            d['content']: d for d in self._gen_data(change.new)
+            self._gen_key(d): d for d in self._gen_data(change.new)
         }
 
         # OK we now have a picture of the old & new CF records, our next step

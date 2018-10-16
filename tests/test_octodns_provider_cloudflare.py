@@ -536,6 +536,20 @@ class TestCloudflareProvider(TestCase):
             'type': 'CNAME'
         }, list(contents)[0])
 
+    def test_gen_key(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+
+        self.assertEqual('10 foo.bar.com.', provider._gen_key({
+            'content': 'foo.bar.com.',
+            'priority': 10,
+            'type': 'MX',
+        }))
+
+        self.assertEqual('foo.bar.com.', provider._gen_key({
+            'content': 'foo.bar.com.',
+            'type': 'CNAME',
+        }))
+
     def test_cdn(self):
         provider = CloudflareProvider('test', 'email', 'token', True)
 
