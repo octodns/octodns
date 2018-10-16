@@ -289,14 +289,13 @@ class TestCloudflareProvider(TestCase):
         self.assertTrue(plan.exists)
         # creates a the new value and then deletes all the old
         provider._request.assert_has_calls([
-            call('POST', '/zones/42/dns_records', data={
-                'content': '3.2.3.4',
-                'type': 'A',
-                'name': 'ttl.unit.tests',
-                'ttl': 300
-            }),
-            call('DELETE',
-                 '/zones/42/dns_records/fc12ab34cd5611334422ab3322997655'),
+            call('PUT', '/zones/42/dns_records/'
+                 'fc12ab34cd5611334422ab3322997655', data={
+                     'content': '3.2.3.4',
+                     'type': 'A',
+                     'name': 'ttl.unit.tests',
+                     'ttl': 300
+                 }),
             call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
                  'dns_records/fc12ab34cd5611334422ab3322997653'),
             call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
@@ -384,12 +383,6 @@ class TestCloudflareProvider(TestCase):
                 'name': 'unit.tests'
             }),
             call('POST', '/zones/42/dns_records', data={
-                'content': '3.3.3.3',
-                'type': 'A',
-                'name': 'a.unit.tests',
-                'ttl': 300
-            }),
-            call('POST', '/zones/42/dns_records', data={
                 'content': '4.4.4.4',
                 'type': 'A',
                 'name': 'a.unit.tests',
@@ -402,8 +395,13 @@ class TestCloudflareProvider(TestCase):
                      'name': 'a.unit.tests',
                      'ttl': 300
                  }),
-            call('DELETE', '/zones/42/dns_records/'
-                 'fc12ab34cd5611334422ab3322997653')
+            call('PUT', '/zones/42/dns_records/'
+                 'fc12ab34cd5611334422ab3322997653', data={
+                     'content': '3.3.3.3',
+                     'type': 'A',
+                     'name': 'a.unit.tests',
+                     'ttl': 300
+                 }),
         ])
 
     def test_update_delete(self):

@@ -417,6 +417,24 @@ class CloudflareProvider(BaseProvider):
         # could be done atomically, but that's not available so we made the
         # best of it...
 
+        # However, there are record types like CNAME that can only have a
+        # single value. B/c of that our create and then delete approach isn't
+        # actually viable. To address this we'll convert as many creates &
+        # deletes as we can to updates. This will have a minor upside of
+        # resulting in fewer ops and in the case of things like CNAME where
+        # there's a single create and delete result in a single update instead.
+        create_keys = sorted(creates.keys())
+        delete_keys = sorted(deletes.keys())
+        for i in range(0, min(len(create_keys), len(delete_keys))):
+            create_key = create_keys[i]
+            create_data = creates.pop(create_key)
+            delete_info = deletes.pop(delete_keys[i])
+            updates[create_key] = {
+                'record_id': delete_info['record_id'],
+                'data': create_data,
+                'old_data': delete_info['data'],
+            }
+
         # The sorts ensure a consistent order of operations, they're not
         # otherwise required, just makes things deterministic
 
