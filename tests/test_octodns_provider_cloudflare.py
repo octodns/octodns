@@ -539,16 +539,35 @@ class TestCloudflareProvider(TestCase):
     def test_gen_key(self):
         provider = CloudflareProvider('test', 'email', 'token')
 
-        self.assertEqual('10 foo.bar.com.', provider._gen_key({
-            'content': 'foo.bar.com.',
-            'priority': 10,
-            'type': 'MX',
-        }))
-
-        self.assertEqual('foo.bar.com.', provider._gen_key({
-            'content': 'foo.bar.com.',
-            'type': 'CNAME',
-        }))
+        for expected, data in (
+            ('foo.bar.com.', {
+                'content': 'foo.bar.com.',
+                'type': 'CNAME',
+            }),
+            ('10 foo.bar.com.', {
+                'content': 'foo.bar.com.',
+                'priority': 10,
+                'type': 'MX',
+            }),
+            ('0 tag some-value', {
+                'data': {
+                    'flags': 0,
+                    'tag': 'tag',
+                    'value': 'some-value',
+                },
+                'type': 'CAA',
+            }),
+            ('42 100 thing-were-pointed.at 101', {
+                'data': {
+                    'port': 42,
+                    'priority': 100,
+                    'target': 'thing-were-pointed.at',
+                    'weight': 101,
+                },
+                'type': 'SRV',
+            }),
+        ):
+            self.assertEqual(expected, provider._gen_key(data))
 
     def test_cdn(self):
         provider = CloudflareProvider('test', 'email', 'token', True)

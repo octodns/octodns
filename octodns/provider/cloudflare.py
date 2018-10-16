@@ -341,19 +341,26 @@ class CloudflareProvider(BaseProvider):
             yield content
 
     def _gen_key(self, data):
-        # Note that all CF records have a `content` field the value of which
-        # appears to be a unique/hashable string for the record's. It includes
-        # all the "value" bits, but not the secondary stuff like TTL's. E.g.
-        # for an A it'll include the value, for a CAA it'll include the flags,
-        # tag, and value, ... We'll take advantage of this to try and match up
-        # old & new records cleanly. In general when there are multiple records
-        # for a name & type each will have a distinct/consistent `content` that
-        # can serve as a unique identifier.
-        # BUT... there's an exception. For some reason MX doesn't include
-        # priority in its `content` so it's an odd-ball. I haven't found any
-        # others so hopefully they don't exist :-(
-        if data['type'] == 'MX':
-            return '{} {}'.format(data['priority'], data['content'])
+        # Note that most CF record data has a `content` field the value of
+        # which is a unique/hashable string for the record's. It includes all
+        # the "value" bits, but not the secondary stuff like TTL's. E.g.  for
+        # an A it'll include the value, for a CAA it'll include the flags, tag,
+        # and value, ... We'll take advantage of this to try and match up old &
+        # new records cleanly. In general when there are multiple records for a
+        # name & type each will have a distinct/consistent `content` that can
+        # serve as a unique identifier.
+        # BUT... there are exceptions. MX, CAA, and SRV don't have a simple
+        # content as things are currently implemented so we need to handle
+        # those explicitly and create unique/hashable strings for them.
+        _type = data['type']
+        if _type == 'MX':
+            return '{priority} {content}'.format(**data)
+        elif _type == 'CAA':
+            data = data['data']
+            return '{flags} {tag} {value}'.format(**data)
+        elif _type == 'SRV':
+            data = data['data']
+            return '{port} {priority} {target} {weight}'.format(**data)
         return data['content']
 
     def _apply_Create(self, change):
