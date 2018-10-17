@@ -287,14 +287,15 @@ class TestCloudflareProvider(TestCase):
         self.assertEquals(2, len(plan.changes))
         self.assertEquals(2, provider.apply(plan))
         self.assertTrue(plan.exists)
-        # recreate for update, and deletes for the 2 parts of the other
+        # creates a the new value and then deletes all the old
         provider._request.assert_has_calls([
-            call('PUT', '/zones/ff12ab34cd5611334422ab3322997650/dns_records/'
-                 'fc12ab34cd5611334422ab3322997655',
-                 data={'content': '3.2.3.4',
-                       'type': 'A',
-                       'name': 'ttl.unit.tests',
-                       'ttl': 300}),
+            call('PUT', '/zones/42/dns_records/'
+                 'fc12ab34cd5611334422ab3322997655', data={
+                     'content': '3.2.3.4',
+                     'type': 'A',
+                     'name': 'ttl.unit.tests',
+                     'ttl': 300
+                 }),
             call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
                  'dns_records/fc12ab34cd5611334422ab3322997653'),
             call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
@@ -351,6 +352,8 @@ class TestCloudflareProvider(TestCase):
             },  # zone create
             None,
             None,
+            None,
+            None,
         ]
 
         # Add something and delete something
@@ -371,17 +374,34 @@ class TestCloudflareProvider(TestCase):
         plan = Plan(zone, zone, [change], True)
         provider._apply(plan)
 
+        # get the list of zones, create a zone, add some records, update
+        # something, and delete something
         provider._request.assert_has_calls([
             call('GET', '/zones', params={'page': 1}),
-            call('POST', '/zones', data={'jump_start': False,
-                                         'name': 'unit.tests'}),
-            call('PUT', '/zones/ff12ab34cd5611334422ab3322997650/dns_records/'
-                 'fc12ab34cd5611334422ab3322997653',
-                 data={'content': '4.4.4.4', 'type': 'A', 'name':
-                       'a.unit.tests', 'ttl': 300}),
-            call('POST', '/zones/42/dns_records',
-                 data={'content': '3.3.3.3', 'type': 'A',
-                       'name': 'a.unit.tests', 'ttl': 300})
+            call('POST', '/zones', data={
+                'jump_start': False,
+                'name': 'unit.tests'
+            }),
+            call('POST', '/zones/42/dns_records', data={
+                'content': '4.4.4.4',
+                'type': 'A',
+                'name': 'a.unit.tests',
+                'ttl': 300
+            }),
+            call('PUT', '/zones/42/dns_records/'
+                 'fc12ab34cd5611334422ab3322997654', data={
+                     'content': '2.2.2.2',
+                     'type': 'A',
+                     'name': 'a.unit.tests',
+                     'ttl': 300
+                 }),
+            call('PUT', '/zones/42/dns_records/'
+                 'fc12ab34cd5611334422ab3322997653', data={
+                     'content': '3.3.3.3',
+                     'type': 'A',
+                     'name': 'a.unit.tests',
+                     'ttl': 300
+                 }),
         ])
 
     def test_update_delete(self):
@@ -456,12 +476,22 @@ class TestCloudflareProvider(TestCase):
         plan = Plan(zone, zone, [change], True)
         provider._apply(plan)
 
+        # Get zones, create zone, create a record, delete a record
         provider._request.assert_has_calls([
             call('GET', '/zones', params={'page': 1}),
-            call('POST', '/zones',
-                 data={'jump_start': False, 'name': 'unit.tests'}),
-            call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
-                 'dns_records/fc12ab34cd5611334422ab3322997653')
+            call('POST', '/zones', data={
+                'jump_start': False,
+                'name': 'unit.tests'
+            }),
+            call('PUT', '/zones/42/dns_records/'
+                 'fc12ab34cd5611334422ab3322997654', data={
+                     'content': 'ns2.foo.bar.',
+                     'type': 'NS',
+                     'name': 'unit.tests',
+                     'ttl': 300
+                 }),
+            call('DELETE', '/zones/42/dns_records/'
+                 'fc12ab34cd5611334422ab3322997653')
         ])
 
     def test_alias(self):
@@ -498,13 +528,46 @@ class TestCloudflareProvider(TestCase):
         self.assertEquals('www.unit.tests.', record.value)
 
         # Make sure we transform back to CNAME going the other way
-        contents = provider._gen_contents(record)
+        contents = provider._gen_data(record)
         self.assertEquals({
-            'content': u'www.unit.tests.',
+            'content': 'www.unit.tests.',
             'name': 'unit.tests',
             'ttl': 300,
             'type': 'CNAME'
         }, list(contents)[0])
+
+    def test_gen_key(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+
+        for expected, data in (
+            ('foo.bar.com.', {
+                'content': 'foo.bar.com.',
+                'type': 'CNAME',
+            }),
+            ('10 foo.bar.com.', {
+                'content': 'foo.bar.com.',
+                'priority': 10,
+                'type': 'MX',
+            }),
+            ('0 tag some-value', {
+                'data': {
+                    'flags': 0,
+                    'tag': 'tag',
+                    'value': 'some-value',
+                },
+                'type': 'CAA',
+            }),
+            ('42 100 thing-were-pointed.at 101', {
+                'data': {
+                    'port': 42,
+                    'priority': 100,
+                    'target': 'thing-were-pointed.at',
+                    'weight': 101,
+                },
+                'type': 'SRV',
+            }),
+        ):
+            self.assertEqual(expected, provider._gen_key(data))
 
     def test_cdn(self):
         provider = CloudflareProvider('test', 'email', 'token', True)
