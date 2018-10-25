@@ -382,3 +382,43 @@ class TestAzureDnsProvider(TestCase):
         self.assertFalse(exists)
 
         self.assertEquals(len(zone.records), 0)
+
+    def test_not_accepted_apply(self):
+        provider = self._get_provider()
+
+        changes = []
+        changes.append(Create(Record.new(zone, 'ok-cname', {
+            'ttl': 3,
+            'type': 'CNAME',
+            'value': 'a.test.com.'})))
+        changes.append(Create(Record.new(zone, 'not-accepted-cname', {
+            'ttl': 3,
+            'type': 'CNAME',
+            'value': '*.not.accepted.test.com.'})))
+        changes.append(Create(Record.new(zone, 'ok-cname-2', {
+            'ttl': 3,
+            'type': 'CNAME',
+            'value': 'a.test.com.'})))
+
+        err_msg = 'Client Error: Bad Request for url:'
+
+        _create = provider._dns_client.record_sets.create_or_update
+
+        def side_effect(**kwargs):
+            if "parameters" in kwargs and \
+                    "cname_record" in kwargs["parameters"] and \
+                    "*" in kwargs["parameters"]["cname_record"].cname:
+                raise CloudError(Mock(status=400), err_msg)
+
+        _create.side_effect = side_effect
+        self.assertEquals(3, provider.apply(Plan(None, zone, changes, True)))
+
+        def side_effect_unexpected(**kwargs):
+            if "parameters" in kwargs and \
+                    "cname_record" in kwargs["parameters"] and \
+                    "*" in kwargs["parameters"]["cname_record"].cname:
+                raise RuntimeError("Unexpected error")
+
+        _create.side_effect = side_effect_unexpected
+        with self.assertRaises(RuntimeError):
+            provider.apply(Plan(None, zone, changes, True))

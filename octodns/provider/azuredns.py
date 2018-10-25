@@ -445,4 +445,8 @@ class AzureProvider(BaseProvider):
 
         for change in changes:
             class_name = change.__class__.__name__
-            getattr(self, '_apply_{}'.format(class_name))(change)
+            try:
+                getattr(self, '_apply_{}'.format(class_name))(change)
+            except CloudError as err:
+                self.log.warning("Change %s failed: %s" % (change,
+                                                           err.message))
