@@ -18,6 +18,17 @@ from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
 
 
+def set_record_proxied_flag(record, proxied):
+    try:
+        record._octodns['cloudflare']['proxied'] = proxied
+    except KeyError:
+        record._octodns['cloudflare'] = {
+            'proxied': proxied
+        }
+
+    return record
+
+
 class TestCloudflareProvider(TestCase):
     expected = Zone('unit.tests.', [])
     source = YamlProvider('test', join(dirname(__file__), 'config'))
@@ -294,6 +305,7 @@ class TestCloudflareProvider(TestCase):
                      'content': '3.2.3.4',
                      'type': 'A',
                      'name': 'ttl.unit.tests',
+                     'proxied': False,
                      'ttl': 300
                  }),
             call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
@@ -386,6 +398,7 @@ class TestCloudflareProvider(TestCase):
                 'content': '4.4.4.4',
                 'type': 'A',
                 'name': 'a.unit.tests',
+                'proxied': False,
                 'ttl': 300
             }),
             call('PUT', '/zones/42/dns_records/'
@@ -393,6 +406,7 @@ class TestCloudflareProvider(TestCase):
                      'content': '2.2.2.2',
                      'type': 'A',
                      'name': 'a.unit.tests',
+                     'proxied': False,
                      'ttl': 300
                  }),
             call('PUT', '/zones/42/dns_records/'
@@ -400,6 +414,7 @@ class TestCloudflareProvider(TestCase):
                      'content': '3.3.3.3',
                      'type': 'A',
                      'name': 'a.unit.tests',
+                     'proxied': False,
                      'ttl': 300
                  }),
         ])
@@ -532,6 +547,7 @@ class TestCloudflareProvider(TestCase):
         self.assertEquals({
             'content': 'www.unit.tests.',
             'name': 'unit.tests',
+            'proxied': False,
             'ttl': 300,
             'type': 'CNAME'
         }, list(contents)[0])
@@ -752,3 +768,386 @@ class TestCloudflareProvider(TestCase):
 
         plan = provider.plan(wanted)
         self.assertEquals(False, hasattr(plan, 'changes'))
+
+    def test_unproxiabletype_recordfor_returnsrecordwithnocloudflare(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+        name = "unit.tests"
+        _type = "NS"
+        zone_records = [
+            {
+                "id": "fc12ab34cd5611334422ab3322997654",
+                "type": _type,
+                "name": name,
+                "content": "ns2.foo.bar",
+                "proxiable": True,
+                "proxied": False,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            }
+        ]
+        provider.zone_records = Mock(return_value=zone_records)
+        zone = Zone('unit.tests.', [])
+        provider.populate(zone)
+
+        record = provider._record_for(zone, name, _type, zone_records, False)
+
+        self.assertFalse('cloudflare' in record._octodns)
+
+    def test_proxiabletype_recordfor_retrecordwithcloudflareunproxied(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+        name = "multi.unit.tests"
+        _type = "AAAA"
+        zone_records = [
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": _type,
+                "name": name,
+                "content": "::1",
+                "proxiable": True,
+                "proxied": False,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            }
+        ]
+        provider.zone_records = Mock(return_value=zone_records)
+        zone = Zone('unit.tests.', [])
+        provider.populate(zone)
+
+        record = provider._record_for(zone, name, _type, zone_records, False)
+
+        self.assertFalse(record._octodns['cloudflare']['proxied'])
+
+    def test_proxiabletype_recordfor_returnsrecordwithcloudflareproxied(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+        name = "multi.unit.tests"
+        _type = "AAAA"
+        zone_records = [
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": _type,
+                "name": name,
+                "content": "::1",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            }
+        ]
+        provider.zone_records = Mock(return_value=zone_records)
+        zone = Zone('unit.tests.', [])
+        provider.populate(zone)
+
+        record = provider._record_for(zone, name, _type, zone_records, False)
+
+        self.assertTrue(record._octodns['cloudflare']['proxied'])
+
+    def test_proxiedrecordandnewttl_includechange_returnsfalse(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+        zone = Zone('unit.tests.', [])
+        existing = set_record_proxied_flag(
+            Record.new(zone, 'a', {
+                'ttl': 1,
+                'type': 'A',
+                'values': ['1.1.1.1', '2.2.2.2']
+            }), True
+        )
+        new = Record.new(zone, 'a', {
+            'ttl': 300,
+            'type': 'A',
+            'values': ['1.1.1.1', '2.2.2.2']
+        })
+        change = Update(existing, new)
+
+        include_change = provider._include_change(change)
+
+        self.assertFalse(include_change)
+
+    def test_unproxiabletype_gendata_returnsnoproxied(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, 'a', {
+            'ttl': 3600,
+            'type': 'NS',
+            'value': 'ns1.unit.tests.'
+        })
+
+        data = provider._gen_data(record).next()
+
+        self.assertFalse('proxied' in data)
+
+    def test_proxiabletype_gendata_returnsunproxied(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+        zone = Zone('unit.tests.', [])
+        record = set_record_proxied_flag(
+            Record.new(zone, 'a', {
+                'ttl': 300,
+                'type': 'A',
+                'value': '1.2.3.4'
+            }), False
+        )
+
+        data = provider._gen_data(record).next()
+
+        self.assertFalse(data['proxied'])
+
+    def test_proxiabletype_gendata_returnsproxied(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+        zone = Zone('unit.tests.', [])
+        record = set_record_proxied_flag(
+            Record.new(zone, 'a', {
+                'ttl': 300,
+                'type': 'A',
+                'value': '1.2.3.4'
+            }), True
+        )
+
+        data = provider._gen_data(record).next()
+
+        self.assertTrue(data['proxied'])
+
+    def test_createrecord_extrachanges_returnsemptylist(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+        provider.zone_records = Mock(return_value=[])
+        existing = Zone('unit.tests.', [])
+        provider.populate(existing)
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "CNAME",
+                "name": "a.unit.tests",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            }
+        ])
+        desired = Zone('unit.tests.', [])
+        provider.populate(desired)
+        changes = existing.changes(desired, provider)
+
+        extra_changes = provider._extra_changes(existing, desired, changes)
+
+        self.assertFalse(extra_changes)
+
+    def test_updaterecord_extrachanges_returnsemptylist(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "CNAME",
+                "name": "a.unit.tests",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 120,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            }
+        ])
+        existing = Zone('unit.tests.', [])
+        provider.populate(existing)
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "CNAME",
+                "name": "a.unit.tests",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            }
+        ])
+        desired = Zone('unit.tests.', [])
+        provider.populate(desired)
+        changes = existing.changes(desired, provider)
+
+        extra_changes = provider._extra_changes(existing, desired, changes)
+
+        self.assertFalse(extra_changes)
+
+    def test_deleterecord_extrachanges_returnsemptylist(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "CNAME",
+                "name": "a.unit.tests",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            }
+        ])
+        existing = Zone('unit.tests.', [])
+        provider.populate(existing)
+        provider.zone_records = Mock(return_value=[])
+        desired = Zone('unit.tests.', [])
+        provider.populate(desired)
+        changes = existing.changes(desired, provider)
+
+        extra_changes = provider._extra_changes(existing, desired, changes)
+
+        self.assertFalse(extra_changes)
+
+    def test_proxify_extrachanges_returnsupdatelist(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "CNAME",
+                "name": "a.unit.tests",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": False,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            }
+        ])
+        existing = Zone('unit.tests.', [])
+        provider.populate(existing)
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "CNAME",
+                "name": "a.unit.tests",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            }
+        ])
+        desired = Zone('unit.tests.', [])
+        provider.populate(desired)
+        changes = existing.changes(desired, provider)
+
+        extra_changes = provider._extra_changes(existing, desired, changes)
+
+        self.assertEquals(1, len(extra_changes))
+        self.assertFalse(
+            extra_changes[0].existing._octodns['cloudflare']['proxied']
+        )
+        self.assertTrue(
+            extra_changes[0].new._octodns['cloudflare']['proxied']
+        )
+
+    def test_unproxify_extrachanges_returnsupdatelist(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "CNAME",
+                "name": "a.unit.tests",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": True,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            }
+        ])
+        existing = Zone('unit.tests.', [])
+        provider.populate(existing)
+        provider.zone_records = Mock(return_value=[
+            {
+                "id": "fc12ab34cd5611334422ab3322997642",
+                "type": "CNAME",
+                "name": "a.unit.tests",
+                "content": "www.unit.tests",
+                "proxiable": True,
+                "proxied": False,
+                "ttl": 300,
+                "locked": False,
+                "zone_id": "ff12ab34cd5611334422ab3322997650",
+                "zone_name": "unit.tests",
+                "modified_on": "2017-03-11T18:01:43.420689Z",
+                "created_on": "2017-03-11T18:01:43.420689Z",
+                "meta": {
+                    "auto_added": False
+                }
+            }
+        ])
+        desired = Zone('unit.tests.', [])
+        provider.populate(desired)
+        changes = existing.changes(desired, provider)
+
+        extra_changes = provider._extra_changes(existing, desired, changes)
+
+        self.assertEquals(1, len(extra_changes))
+        self.assertTrue(
+            extra_changes[0].existing._octodns['cloudflare']['proxied']
+        )
+        self.assertFalse(
+            extra_changes[0].new._octodns['cloudflare']['proxied']
+        )
