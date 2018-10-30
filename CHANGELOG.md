@@ -1,3 +1,11 @@
+## v0.9.2 - 2018-10-29 - Misc. stuff sort of release
+
+* ZoneFile source added
+* Major rework/improvements to the Cloudflare record update process, fixed bugs
+  and optimized it quite a bit
+* Add ability to manage Cloudflare proxy flag
+* Bump requests version to 2.20.0
+
 ## v0.9.2 - 2018-08-20 - More sources
 
 * EtcHostsProvider implementation to create static/emergency best effort
