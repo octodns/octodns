@@ -1,4 +1,4 @@
-## v0.9.2 - 2018-10-29 - Misc. stuff sort of release
+## v0.9.3 - 2018-10-29 - Misc. stuff sort of release
 
 * ZoneFile source added
 * Major rework/improvements to the Cloudflare record update process, fixed bugs
