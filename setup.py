@@ -34,10 +34,10 @@ setup(
         'futures>=3.2.0',
         'incf.countryutils>=1.0',
         'ipaddress>=1.0.22',
-        'natsort>=5.2.0',
+        'natsort>=5.2.0,<5.3',
         # botocore doesn't like >=2.7.0 for some reason
         'python-dateutil>=2.6.0,<2.7.0',
-        'requests>=2.18.4'
+        'requests>=2.20.0'
     ],
     license='MIT',
     long_description=open('README.md').read(),

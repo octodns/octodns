@@ -6,8 +6,8 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from collections import defaultdict
+from copy import deepcopy
 from logging import getLogger
-from json import dumps
 from requests import Session
 
 from ..record import Record, Update
@@ -28,6 +28,9 @@ class CloudflareAuthenticationError(CloudflareError):
         CloudflareError.__init__(self, data)
 
 
+_PROXIABLE_RECORD_TYPES = {'A', 'AAAA', 'CNAME'}
+
+
 class CloudflareProvider(BaseProvider):
     '''
     Cloudflare DNS provider
@@ -44,6 +47,16 @@ class CloudflareProvider(BaseProvider):
         #
         # See: https://support.cloudflare.com/hc/en-us/articles/115000830351
         cdn: false
+
+    Note: The "proxied" flag of "A", "AAAA" and "CNAME" records can be managed
+          via the YAML provider like so:
+              name:
+                octodons:
+                  cloudflare:
+                    proxied: true
+                ttl: 120
+                type: A
+                value: 1.2.3.4
     '''
     SUPPORTS_GEO = False
     SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SRV',
@@ -222,7 +235,14 @@ class CloudflareProvider(BaseProvider):
             data_for = getattr(self, '_data_for_{}'.format(_type))
             data = data_for(_type, records)
 
-        return Record.new(zone, name, data, source=self, lenient=lenient)
+        record = Record.new(zone, name, data, source=self, lenient=lenient)
+
+        if _type in _PROXIABLE_RECORD_TYPES:
+            record._octodns['cloudflare'] = {
+                'proxied': records[0].get('proxied', False)
+            }
+
+        return record
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
@@ -261,8 +281,18 @@ class CloudflareProvider(BaseProvider):
 
     def _include_change(self, change):
         if isinstance(change, Update):
-            existing = change.existing.data
             new = change.new.data
+
+            # Cloudflare manages TTL of proxied records, so we should exclude
+            # TTL from the comparison (to prevent false-positives).
+            if self._record_is_proxied(change.existing):
+                existing = deepcopy(change.existing.data)
+                existing.update({
+                    'ttl': new['ttl']
+                })
+            else:
+                existing = change.existing.data
+
             new['ttl'] = max(self.MIN_TTL, new['ttl'])
             if new == existing:
                 return False
@@ -323,7 +353,13 @@ class CloudflareProvider(BaseProvider):
                 }
             }
 
-    def _gen_contents(self, record):
+    def _record_is_proxied(self, record):
+        return (
+            not self.cdn and
+            record._octodns.get('cloudflare', {}).get('proxied', False)
+        )
+
+    def _gen_data(self, record):
         name = record.fqdn[:-1]
         _type = record._type
         ttl = max(self.MIN_TTL, record.ttl)
@@ -339,94 +375,151 @@ class CloudflareProvider(BaseProvider):
                 'type': _type,
                 'ttl': ttl,
             })
+
+            if _type in _PROXIABLE_RECORD_TYPES:
+                content.update({
+                    'proxied': self._record_is_proxied(record)
+                })
+
             yield content
+
+    def _gen_key(self, data):
+        # Note that most CF record data has a `content` field the value of
+        # which is a unique/hashable string for the record's. It includes all
+        # the "value" bits, but not the secondary stuff like TTL's. E.g.  for
+        # an A it'll include the value, for a CAA it'll include the flags, tag,
+        # and value, ... We'll take advantage of this to try and match up old &
+        # new records cleanly. In general when there are multiple records for a
+        # name & type each will have a distinct/consistent `content` that can
+        # serve as a unique identifier.
+        # BUT... there are exceptions. MX, CAA, and SRV don't have a simple
+        # content as things are currently implemented so we need to handle
+        # those explicitly and create unique/hashable strings for them.
+        _type = data['type']
+        if _type == 'MX':
+            return '{priority} {content}'.format(**data)
+        elif _type == 'CAA':
+            data = data['data']
+            return '{flags} {tag} {value}'.format(**data)
+        elif _type == 'SRV':
+            data = data['data']
+            return '{port} {priority} {target} {weight}'.format(**data)
+        return data['content']
 
     def _apply_Create(self, change):
         new = change.new
         zone_id = self.zones[new.zone.name]
         path = '/zones/{}/dns_records'.format(zone_id)
-        for content in self._gen_contents(new):
+        for content in self._gen_data(new):
             self._request('POST', path, data=content)
 
-    def _hash_content(self, content):
-        # Some of the dicts are nested so this seems about as good as any
-        # option we have for consistently hashing them (within a single run)
-        return hash(dumps(content, sort_keys=True))
-
     def _apply_Update(self, change):
-
-        # Ugh, this is pretty complicated and ugly, mainly due to the
-        # sub-optimal API/semantics. Ideally we'd have a batch change API like
-        # Route53's to make this 100% clean and safe without all this PITA, but
-        # we don't so we'll have to work around that and manually do it as
-        # safely as possible. Note this still isn't perfect as we don't/can't
-        # practically take into account things like the different "types" of
-        # CAA records so when we "swap" there may be brief periods where things
-        # are invalid or even worse Cloudflare may update their validations to
-        # prevent dups. I see no clean way around that short of making this
-        # understand 100% of the details of each record type and develop an
-        # individual/specific ordering of changes that prevents it. That'd
-        # probably result in more code than this whole provider currently has
-        # so... :-(
-
-        existing_contents = {
-            self._hash_content(c): c
-            for c in self._gen_contents(change.existing)
-        }
-        new_contents = {
-            self._hash_content(c): c
-            for c in self._gen_contents(change.new)
-        }
-
-        # Find the things we need to add
-        adds = []
-        for k, content in new_contents.items():
-            try:
-                existing_contents.pop(k)
-                self.log.debug('_apply_Update: leaving %s', content)
-            except KeyError:
-                adds.append(content)
-
         zone = change.new.zone
         zone_id = self.zones[zone.name]
-
-        # Find things we need to remove
         hostname = zone.hostname_from_fqdn(change.new.fqdn[:-1])
         _type = change.new._type
-        # OK, work through each record from the zone
+
+        existing = {}
+        # Find all of the existing CF records for this name & type
         for record in self.zone_records(zone):
             name = zone.hostname_from_fqdn(record['name'])
             # Use the _record_for so that we include all of standard
             # conversion logic
             r = self._record_for(zone, name, record['type'], [record], True)
             if hostname == r.name and _type == r._type:
-
                 # Round trip the single value through a record to contents flow
-                # to get a consistent _gen_contents result that matches what
+                # to get a consistent _gen_data result that matches what
                 # went in to new_contents
-                content = self._gen_contents(r).next()
+                data = self._gen_data(r).next()
 
-                # If the hash of that dict isn't in new this record isn't
-                # needed
-                if self._hash_content(content) not in new_contents:
-                    rid = record['id']
-                    path = '/zones/{}/dns_records/{}'.format(record['zone_id'],
-                                                             rid)
-                    try:
-                        add_content = adds.pop(0)
-                        self.log.debug('_apply_Update: swapping %s -> %s, %s',
-                                       content, add_content, rid)
-                        self._request('PUT', path, data=add_content)
-                    except IndexError:
-                        self.log.debug('_apply_Update: removing %s, %s',
-                                       content, rid)
-                        self._request('DELETE', path)
+                # Record the record_id and data for this existing record
+                key = self._gen_key(data)
+                existing[key] = {
+                    'record_id': record['id'],
+                    'data': data,
+                }
 
-        # Any remaining adds just need to be created
+        # Build up a list of new CF records for this Update
+        new = {
+            self._gen_key(d): d for d in self._gen_data(change.new)
+        }
+
+        # OK we now have a picture of the old & new CF records, our next step
+        # is to figure out which records need to be deleted
+        deletes = {}
+        for key, info in existing.items():
+            if key not in new:
+                deletes[key] = info
+        # Now we need to figure out which records will need to be created
+        creates = {}
+        # And which will be updated
+        updates = {}
+        for key, data in new.items():
+            if key in existing:
+                # To update we need to combine the new data and existing's
+                # record_id. old_data is just for debugging/logging purposes
+                old_info = existing[key]
+                updates[key] = {
+                    'record_id': old_info['record_id'],
+                    'data': data,
+                    'old_data': old_info['data'],
+                }
+            else:
+                creates[key] = data
+
+        # To do this as safely as possible we'll add new things first, update
+        # existing things, and then remove old things. This should (try) and
+        # ensure that we have as many value CF records in their system as
+        # possible at any given time. Ideally we'd have a "batch" API that
+        # would allow create, delete, and upsert style stuff so operations
+        # could be done atomically, but that's not available so we made the
+        # best of it...
+
+        # However, there are record types like CNAME that can only have a
+        # single value. B/c of that our create and then delete approach isn't
+        # actually viable. To address this we'll convert as many creates &
+        # deletes as we can to updates. This will have a minor upside of
+        # resulting in fewer ops and in the case of things like CNAME where
+        # there's a single create and delete result in a single update instead.
+        create_keys = sorted(creates.keys())
+        delete_keys = sorted(deletes.keys())
+        for i in range(0, min(len(create_keys), len(delete_keys))):
+            create_key = create_keys[i]
+            create_data = creates.pop(create_key)
+            delete_info = deletes.pop(delete_keys[i])
+            updates[create_key] = {
+                'record_id': delete_info['record_id'],
+                'data': create_data,
+                'old_data': delete_info['data'],
+            }
+
+        # The sorts ensure a consistent order of operations, they're not
+        # otherwise required, just makes things deterministic
+
+        # Creates
         path = '/zones/{}/dns_records'.format(zone_id)
-        for content in adds:
-            self.log.debug('_apply_Update: adding %s', content)
-            self._request('POST', path, data=content)
+        for _, data in sorted(creates.items()):
+            self.log.debug('_apply_Update: creating %s', data)
+            self._request('POST', path, data=data)
+
+        # Updates
+        for _, info in sorted(updates.items()):
+            record_id = info['record_id']
+            data = info['data']
+            old_data = info['old_data']
+            path = '/zones/{}/dns_records/{}'.format(zone_id, record_id)
+            self.log.debug('_apply_Update: updating %s, %s -> %s',
+                           record_id, data, old_data)
+            self._request('PUT', path, data=data)
+
+        # Deletes
+        for _, info in sorted(deletes.items()):
+            record_id = info['record_id']
+            old_data = info['data']
+            path = '/zones/{}/dns_records/{}'.format(zone_id, record_id)
+            self.log.debug('_apply_Update: removing %s, %s', record_id,
+                           old_data)
+            self._request('DELETE', path)
 
     def _apply_Delete(self, change):
         existing = change.existing
@@ -462,3 +555,23 @@ class CloudflareProvider(BaseProvider):
 
         # clear the cache
         self._zone_records.pop(name, None)
+
+    def _extra_changes(self, existing, desired, changes):
+        extra_changes = []
+
+        existing_records = {r: r for r in existing.records}
+        changed_records = {c.record for c in changes}
+
+        for desired_record in desired.records:
+            if desired_record not in existing.records:  # Will be created
+                continue
+            elif desired_record in changed_records:  # Already being updated
+                continue
+
+            existing_record = existing_records[desired_record]
+
+            if (self._record_is_proxied(existing_record) !=
+                    self._record_is_proxied(desired_record)):
+                extra_changes.append(Update(existing_record, desired_record))
+
+        return extra_changes
