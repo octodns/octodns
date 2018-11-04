@@ -60,6 +60,12 @@ class TestYamlProvider(TestCase):
             # There should be no changes after the round trip
             reloaded = Zone('unit.tests.', [])
             target.populate(reloaded)
+            self.assertDictEqual(
+                {'included': ['test']},
+                filter(
+                    lambda x: x.name == 'included', reloaded.records
+                )[0]._octodns)
+
             self.assertFalse(zone.changes(reloaded, target=source))
 
             # A 2nd sync should still create everything
