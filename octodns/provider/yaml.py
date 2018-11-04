@@ -89,6 +89,8 @@ class YamlProvider(BaseProvider):
             if record.ttl == self.default_ttl:
                 # ttl is the default, we don't need to store it
                 del d['ttl']
+            if record._octodns:
+                d['octodns'] = record._octodns
             data[record.name].append(d)
 
         # Flatten single element lists
