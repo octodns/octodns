@@ -225,7 +225,7 @@ class Route53Provider(BaseProvider):
         session_token:
 
     Alternatively, you may leave out access_key_id, secret_access_key
-    and session_token. 
+    and session_token.
     This will result in boto3 deciding authentication dynamically.
 
     In general the account used will need full permissions on Route53.
@@ -239,11 +239,15 @@ class Route53Provider(BaseProvider):
     HEALTH_CHECK_VERSION = '0001'
 
     def __init__(self, id, access_key_id=None, secret_access_key=None,
-                 session_token=None, max_changes=1000, 
+                 session_token=None, max_changes=1000,
                  client_max_attempts=None, *args, **kwargs):
         self.max_changes = max_changes
-        _msg = 'access_key_id={}, secret_access_key=***, session_token=***'.format(access_key_id)
-        if access_key_id is None and secret_access_key is None and session_token is None:
+        _msg = 'access_key_id={}, secret_access_key=***, ' \
+               'session_token=***'.format(access_key_id)
+        use_fallback_auth = access_key_id is None and \
+                            secret_access_key is None and \
+                            session_token is None
+        if use_fallback_auth:
             _msg = 'auth=fallback'
         self.log = logging.getLogger('Route53Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, %s', id, _msg)
@@ -255,7 +259,7 @@ class Route53Provider(BaseProvider):
                           client_max_attempts)
             config = Config(retries={'max_attempts': client_max_attempts})
 
-        if access_key_id is None and secret_access_key is None and session_token is None:
+        if use_fallback_auth:
             self._conn = client('route53', config=config)
         else:
             self._conn = client('route53', aws_access_key_id=access_key_id,
