@@ -28,7 +28,7 @@ class CloudflareAuthenticationError(CloudflareError):
         CloudflareError.__init__(self, data)
 
 
-_PROXIABLE_RECORD_TYPES = {'A', 'AAAA', 'CNAME'}
+_PROXIABLE_RECORD_TYPES = {'A', 'AAAA', 'ALIAS', 'CNAME'}
 
 
 class CloudflareProvider(BaseProvider):
@@ -51,7 +51,7 @@ class CloudflareProvider(BaseProvider):
     Note: The "proxied" flag of "A", "AAAA" and "CNAME" records can be managed
           via the YAML provider like so:
               name:
-                octodons:
+                octodns:
                   cloudflare:
                     proxied: true
                 ttl: 120
