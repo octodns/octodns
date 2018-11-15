@@ -221,7 +221,8 @@ class Route53Provider(BaseProvider):
         access_key_id:
         # The AWS secret access key
         secret_access_key:
-        # The AWS session token
+        # The AWS session token (optional)
+        # Only needed if using temporary security credentials
         session_token:
 
     Alternatively, you may leave out access_key_id, secret_access_key
