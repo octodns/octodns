@@ -246,8 +246,7 @@ class Route53Provider(BaseProvider):
         _msg = 'access_key_id={}, secret_access_key=***, ' \
                'session_token=***'.format(access_key_id)
         use_fallback_auth = access_key_id is None and \
-                            secret_access_key is None and \
-                            session_token is None
+            secret_access_key is None and session_token is None
         if use_fallback_auth:
             _msg = 'auth=fallback'
         self.log = logging.getLogger('Route53Provider[{}]'.format(id))
