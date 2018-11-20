@@ -133,7 +133,7 @@
       "zone_id": "unit.tests",
       "parent_id": null,
       "name": "txt",
-      "content": "v=DKIM1\\;k=rsa\\;s=email\\;h=sha256\\;p=A/kinda+of/long/string+with+numb3rs",
+      "content": "v=DKIM1;k=rsa;s=email;h=sha256;p=A/kinda+of/long/string+with+numb3rs",
       "ttl": 600,
       "priority": null,
       "type": "TXT",
