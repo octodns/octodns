@@ -10,6 +10,16 @@ from logging import getLogger
 import re
 
 
+def _stringify(d, prefix=''):
+    buf = []
+    for k, v in sorted(d.items()):
+        if isinstance(v, dict):
+            v = _stringify(v, '{}{}.'.format(prefix, k))
+        buf.append('{}{}={}'.format(prefix, k, v))
+
+    return ', '.join(buf)
+
+
 class Change(object):
 
     def __init__(self, existing, new):
@@ -319,9 +329,12 @@ class _ValuesMixin(object):
     def __repr__(self):
         values = "['{}']".format("', '".join([unicode(v)
                                               for v in self.values]))
-        return '<{} {} {}, {}, {}>'.format(self.__class__.__name__,
-                                           self._type, self.ttl,
-                                           self.fqdn, values)
+        special = ''
+        if self._octodns:
+            special = ', {}'.format(_stringify(self._octodns))
+        return '<{} {} {}, {}, {}{}>'.format(self.__class__.__name__,
+                                             self._type, self.ttl,
+                                             self.fqdn, values, special)
 
 
 class _GeoMixin(_ValuesMixin):
