@@ -240,8 +240,8 @@ class Route53Provider(BaseProvider):
     HEALTH_CHECK_VERSION = '0001'
 
     def __init__(self, id, access_key_id=None, secret_access_key=None,
-                 session_token=None, max_changes=1000,
-                 client_max_attempts=None, *args, **kwargs):
+                 max_changes=1000, client_max_attempts=None, 
+                 session_token=None, *args, **kwargs):
         self.max_changes = max_changes
         _msg = 'access_key_id={}, secret_access_key=***, ' \
                'session_token=***'.format(access_key_id)
