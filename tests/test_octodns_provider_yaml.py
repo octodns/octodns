@@ -23,6 +23,7 @@ class TestYamlProvider(TestCase):
         source = YamlProvider('test', join(dirname(__file__), 'config'))
 
         zone = Zone('unit.tests.', [])
+        dynamic_zone = Zone('dynamic.tests.', [])
 
         # With target we don't add anything
         source.populate(zone, target=source)
@@ -31,6 +32,9 @@ class TestYamlProvider(TestCase):
         # without it we see everything
         source.populate(zone)
         self.assertEquals(18, len(zone.records))
+
+        source.populate(dynamic_zone)
+        self.assertEquals(2, len(dynamic_zone.records))
 
         # Assumption here is that a clean round-trip means that everything
         # worked as expected, data that went in came back out and could be
@@ -45,6 +49,7 @@ class TestYamlProvider(TestCase):
             # Add some subdirs to make sure that it can create them
             directory = join(td.dirname, 'sub', 'dir')
             yaml_file = join(directory, 'unit.tests.yaml')
+            dynamic_yaml_file = join(directory, 'dynamic.tests.yaml')
             target = YamlProvider('test', directory)
 
             # We add everything
@@ -56,6 +61,15 @@ class TestYamlProvider(TestCase):
             # Now actually do it
             self.assertEquals(15, target.apply(plan))
             self.assertTrue(isfile(yaml_file))
+
+            # Dynamic plan
+            plan = target.plan(dynamic_zone)
+            self.assertEquals(2, len(filter(lambda c: isinstance(c, Create),
+                                            plan.changes)))
+            self.assertFalse(isfile(dynamic_yaml_file))
+            # Apply it
+            self.assertEquals(2, target.apply(plan))
+            self.assertTrue(isfile(dynamic_yaml_file))
 
             # There should be no changes after the round trip
             reloaded = Zone('unit.tests.', [])
@@ -77,21 +91,44 @@ class TestYamlProvider(TestCase):
                 data = safe_load(fh.read())
 
                 # '' has some of both
-                roots = sorted(data[''], key=lambda r: r['type'])
+                roots = sorted(data.pop(''), key=lambda r: r['type'])
                 self.assertTrue('values' in roots[0])  # A
+                self.assertTrue('geo' in roots[0])  # geo made the trip
                 self.assertTrue('value' in roots[1])   # CAA
                 self.assertTrue('values' in roots[2])  # SSHFP
 
                 # these are stored as plural 'values'
-                self.assertTrue('values' in data['mx'])
-                self.assertTrue('values' in data['naptr'])
-                self.assertTrue('values' in data['_srv._tcp'])
-                self.assertTrue('values' in data['txt'])
+                self.assertTrue('values' in data.pop('_srv._tcp'))
+                self.assertTrue('values' in data.pop('mx'))
+                self.assertTrue('values' in data.pop('naptr'))
+                self.assertTrue('values' in data.pop('sub'))
+                self.assertTrue('values' in data.pop('txt'))
                 # these are stored as singular 'value'
-                self.assertTrue('value' in data['aaaa'])
-                self.assertTrue('value' in data['ptr'])
-                self.assertTrue('value' in data['spf'])
-                self.assertTrue('value' in data['www'])
+                self.assertTrue('value' in data.pop('aaaa'))
+                self.assertTrue('value' in data.pop('cname'))
+                self.assertTrue('value' in data.pop('included'))
+                self.assertTrue('value' in data.pop('ptr'))
+                self.assertTrue('value' in data.pop('spf'))
+                self.assertTrue('value' in data.pop('www'))
+                self.assertTrue('value' in data.pop('www.sub'))
+
+                # make sure nothing is left
+                self.assertEquals([], data.keys())
+
+            with open(dynamic_yaml_file) as fh:
+                data = safe_load(fh.read())
+
+                # make sure new dynamic records made the trip
+                dyna = data.pop('a')
+                self.assertTrue('values' in dyna)
+                #self.assertTrue('dynamic' in dyna)
+
+                dyna = data.pop('cname')
+                self.assertTrue('value' in dyna)
+                #self.assertTrue('dynamic' in dyna)
+
+                # make sure nothing is left
+                self.assertEquals([], data.keys())
 
     def test_empty(self):
         source = YamlProvider('test', join(dirname(__file__), 'config'))

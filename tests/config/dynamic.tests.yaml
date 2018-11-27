@@ -1,0 +1,66 @@
+---
+a:
+  dynamic:
+    pools:
+      ams:
+        values:
+          - 1.1.1.1
+      iad:
+        values:
+          - 2.2.2.2
+          - 3.3.3.3
+      lax:
+        value: 4.4.4.4
+      sea:
+        value: 5.5.5.5
+    rules:
+      - geo: EU-UK
+        pools:
+          - iad
+      - geo: EU
+        pools:
+          - ams
+          - iad
+      - geos:
+          - NA-US-CA
+          - NA-US-OR
+          - NA-US-WA
+        pools:
+          - sea
+          - iad
+      - default:
+        pool: iad
+  type: A
+  values:
+    - 2.2.2.2
+    - 3.3.3.3
+cname:
+  dynamic:
+    pools:
+      ams:
+        value: target-ams.unit.tests.
+      iad:
+        value: target-iad.unit.tests.
+      lax:
+        value: target-lax.unit.tests.
+      sea:
+        value: target-sea.unit.tests.
+    rules:
+      - geo: EU-UK
+        pools:
+          - iad
+      - geo: EU
+        pools:
+          - ams
+          - iad
+      - geos:
+          - NA-US-CA
+          - NA-US-OR
+          - NA-US-WA
+        pools:
+          - sea
+          - iad
+      - default:
+        pool: iad
+  type: CNAME
+  value: target.unit.tests.
