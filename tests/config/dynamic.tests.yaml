@@ -58,9 +58,23 @@ cname:
           - NA-US-OR
           - NA-US-WA
         pools:
-          25: iad
-          75: sea
+          12: sea
+          250: iad
       - default:
-        pool: iad
+          1: sea
+          4: iad
   type: CNAME
   value: target.unit.tests.
+simple-weighted:
+  dynamic:
+    pools:
+      one:
+        one.unit.tests.
+      two:
+        two.unit.tests.
+    rules:
+      - default:
+         100: one
+         200: two
+  type: CNAME
+  value: default.unit.tests.

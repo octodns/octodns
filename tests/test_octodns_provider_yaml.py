@@ -34,7 +34,7 @@ class TestYamlProvider(TestCase):
         self.assertEquals(18, len(zone.records))
 
         source.populate(dynamic_zone)
-        self.assertEquals(2, len(dynamic_zone.records))
+        self.assertEquals(3, len(dynamic_zone.records))
 
         # Assumption here is that a clean round-trip means that everything
         # worked as expected, data that went in came back out and could be
@@ -64,11 +64,11 @@ class TestYamlProvider(TestCase):
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
-            self.assertEquals(2, len(filter(lambda c: isinstance(c, Create),
+            self.assertEquals(3, len(filter(lambda c: isinstance(c, Create),
                                             plan.changes)))
             self.assertFalse(isfile(dynamic_yaml_file))
             # Apply it
-            self.assertEquals(2, target.apply(plan))
+            self.assertEquals(3, target.apply(plan))
             self.assertTrue(isfile(dynamic_yaml_file))
 
             # There should be no changes after the round trip
@@ -124,6 +124,10 @@ class TestYamlProvider(TestCase):
                 # self.assertTrue('dynamic' in dyna)
 
                 dyna = data.pop('cname')
+                self.assertTrue('value' in dyna)
+                # self.assertTrue('dynamic' in dyna)
+
+                dyna = data.pop('simple-weighted')
                 self.assertTrue('value' in dyna)
                 # self.assertTrue('dynamic' in dyna)
 
