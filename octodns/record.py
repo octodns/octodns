@@ -382,38 +382,6 @@ class _GeoMixin(_ValuesMixin):
         return super(_GeoMixin, self).__repr__()
 
 
-class ARecord(_GeoMixin, Record):
-    _type = 'A'
-
-    @classmethod
-    def _validate_value(self, value):
-        reasons = []
-        try:
-            IPv4Address(unicode(value))
-        except Exception:
-            reasons.append('invalid ip address "{}"'.format(value))
-        return reasons
-
-    def _process_values(self, values):
-        return values
-
-
-class AaaaRecord(_GeoMixin, Record):
-    _type = 'AAAA'
-
-    @classmethod
-    def _validate_value(self, value):
-        reasons = []
-        try:
-            IPv6Address(unicode(value))
-        except Exception:
-            reasons.append('invalid ip address "{}"'.format(value))
-        return reasons
-
-    def _process_values(self, values):
-        return values
-
-
 class _ValueMixin(object):
 
     @classmethod
@@ -451,6 +419,50 @@ class _ValueMixin(object):
         return '<{} {} {}, {}, {}>'.format(self.__class__.__name__,
                                            self._type, self.ttl,
                                            self.fqdn, self.value)
+
+
+class _DynamicBaseMixin(object):
+    pass
+
+
+class _DynamicValuesMixin(_DynamicBaseMixin, _GeoMixin):
+    pass
+
+
+class _DynamicValueMixin(_DynamicBaseMixin, _ValueMixin):
+    pass
+
+
+class ARecord(_DynamicValuesMixin, Record):
+    _type = 'A'
+
+    @classmethod
+    def _validate_value(self, value):
+        reasons = []
+        try:
+            IPv4Address(unicode(value))
+        except Exception:
+            reasons.append('invalid ip address "{}"'.format(value))
+        return reasons
+
+    def _process_values(self, values):
+        return values
+
+
+class AaaaRecord(_GeoMixin, Record):
+    _type = 'AAAA'
+
+    @classmethod
+    def _validate_value(self, value):
+        reasons = []
+        try:
+            IPv6Address(unicode(value))
+        except Exception:
+            reasons.append('invalid ip address "{}"'.format(value))
+        return reasons
+
+    def _process_values(self, values):
+        return values
 
 
 class AliasRecord(_ValueMixin, Record):
