@@ -121,11 +121,11 @@ class TestYamlProvider(TestCase):
                 # make sure new dynamic records made the trip
                 dyna = data.pop('a')
                 self.assertTrue('values' in dyna)
-                #self.assertTrue('dynamic' in dyna)
+                # self.assertTrue('dynamic' in dyna)
 
                 dyna = data.pop('cname')
                 self.assertTrue('value' in dyna)
-                #self.assertTrue('dynamic' in dyna)
+                # self.assertTrue('dynamic' in dyna)
 
                 # make sure nothing is left
                 self.assertEquals([], data.keys())

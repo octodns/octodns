@@ -26,8 +26,8 @@ a:
           - NA-US-OR
           - NA-US-WA
         pools:
-          - sea
-          - iad
+          25: iad
+          75: sea
       - default:
         pool: iad
   type: A
@@ -58,8 +58,8 @@ cname:
           - NA-US-OR
           - NA-US-WA
         pools:
-          - sea
-          - iad
+          25: iad
+          75: sea
       - default:
         pool: iad
   type: CNAME
