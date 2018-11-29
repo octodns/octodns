@@ -253,6 +253,7 @@ class _ValuesMixin(object):
     @classmethod
     def validate(cls, name, data):
         reasons = super(_ValuesMixin, cls).validate(name, data)
+
         values = []
         try:
             values = data['values']
@@ -279,12 +280,11 @@ class _ValuesMixin(object):
                     reasons.append('empty value')
                     values = []
                 else:
-                    values = [value]
+                    values = value
             except KeyError:
                 reasons.append('missing value(s)')
 
-        for value in values:
-            reasons.extend(cls._validate_value(value))
+        reasons.extend(cls._value_type.validate(values))
 
         return reasons
 
@@ -339,8 +339,7 @@ class _GeoMixin(_ValuesMixin):
             # TODO: validate legal codes
             for code, values in geo.items():
                 reasons.extend(GeoValue._validate_geo(code))
-                for value in values:
-                    reasons.extend(cls._validate_value(value))
+                reasons.extend(cls._value_type.validate(values))
         except KeyError:
             pass
         return reasons
@@ -353,6 +352,8 @@ class _GeoMixin(_ValuesMixin):
         super(_GeoMixin, self).__init__(zone, name, data, *args, **kwargs)
         try:
             self.geo = dict(data['geo'])
+            self.log.warn("'geo' support has been deprecated, "
+                          "transition %s to use 'dynamic'", name)
         except KeyError:
             self.geo = {}
         for code, values in self.geo.items():
@@ -397,7 +398,7 @@ class _ValueMixin(object):
         except KeyError:
             reasons.append('missing value')
         if value:
-            reasons.extend(cls._validate_value(value))
+            reasons.extend(cls._value_type.validate(value, cls))
         return reasons
 
     def __init__(self, zone, name, data, source=None):
@@ -421,29 +422,77 @@ class _ValueMixin(object):
                                            self.fqdn, self.value)
 
 
-class _DynamicBaseMixin(object):
-    pass
-
-
-class _DynamicValuesMixin(_DynamicBaseMixin, _GeoMixin):
-    pass
-
-
-class _DynamicValueMixin(_DynamicBaseMixin, _ValueMixin):
-    pass
-
-
-class ARecord(_DynamicValuesMixin, Record):
-    _type = 'A'
+class _DynamicMixin(object):
 
     @classmethod
-    def _validate_value(self, value):
-        reasons = []
+    def validate(cls, name, data):
+        reasons = super(_DynamicMixin, cls).validate(name, data)
         try:
-            IPv4Address(unicode(value))
-        except Exception:
-            reasons.append('invalid ip address "{}"'.format(value))
+            pools = data['dynamic']['pools']
+        except KeyError:
+            pools = {}
+        for pool in sorted(pools.values()):
+            reasons.extend(cls._value_type.validate(pool))
         return reasons
+
+    def __init__(self, zone, name, data, *args, **kwargs):
+        super(_DynamicMixin, self).__init__(zone, name, data, *args,
+                                            **kwargs)
+        try:
+            self.dynamic = dict(data['dynamic'])
+        except:
+            self.dynamic = {}
+        # TODO:
+
+
+class Ipv4List(object):
+
+    @classmethod
+    def validate(cls, data):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
+        reasons = []
+        for value in data:
+            try:
+                IPv4Address(unicode(value))
+            except Exception:
+                reasons.append('invalid IPv4 address "{}"'.format(value))
+        return reasons
+
+
+class Ipv6List(object):
+
+    @classmethod
+    def validate(cls, data):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
+        reasons = []
+        for value in data:
+            try:
+                IPv6Address(unicode(value))
+            except Exception:
+                reasons.append('invalid IPv6 address "{}"'.format(value))
+        return reasons
+
+
+class _TargetValue(object):
+
+    @classmethod
+    def validate(cls, data, record_cls):
+        reasons = []
+        if not data.endswith('.'):
+            reasons.append('{} value "{}" missing trailing .'
+                           .format(record_cls._type, data))
+        return reasons
+
+
+class CnameValue(_TargetValue):
+    pass
+
+
+class ARecord(_DynamicMixin, _GeoMixin, Record):
+    _type = 'A'
+    _value_type = Ipv4List
 
     def _process_values(self, values):
         return values
@@ -451,29 +500,19 @@ class ARecord(_DynamicValuesMixin, Record):
 
 class AaaaRecord(_GeoMixin, Record):
     _type = 'AAAA'
-
-    @classmethod
-    def _validate_value(self, value):
-        reasons = []
-        try:
-            IPv6Address(unicode(value))
-        except Exception:
-            reasons.append('invalid ip address "{}"'.format(value))
-        return reasons
+    _value_type = Ipv6List
 
     def _process_values(self, values):
         return values
 
 
+class AliasValue(_TargetValue):
+    pass
+
+
 class AliasRecord(_ValueMixin, Record):
     _type = 'ALIAS'
-
-    @classmethod
-    def _validate_value(self, value):
-        reasons = []
-        if not value.endswith('.'):
-            reasons.append('missing trailing .')
-        return reasons
+    _value_type = AliasValue
 
     def _process_value(self, value):
         return value
@@ -483,20 +522,22 @@ class CaaValue(object):
     # https://tools.ietf.org/html/rfc6844#page-5
 
     @classmethod
-    def _validate_value(cls, value):
+    def validate(cls, data):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
         reasons = []
-        try:
-            flags = int(value.get('flags', 0))
-            if flags < 0 or flags > 255:
-                reasons.append('invalid flags "{}"'.format(flags))
-        except ValueError:
-            reasons.append('invalid flags "{}"'.format(value['flags']))
+        for value in data:
+            try:
+                flags = int(value.get('flags', 0))
+                if flags < 0 or flags > 255:
+                    reasons.append('invalid flags "{}"'.format(flags))
+            except ValueError:
+                reasons.append('invalid flags "{}"'.format(value['flags']))
 
-        if 'tag' not in value:
-            reasons.append('missing tag')
-        if 'value' not in value:
-            reasons.append('missing value')
-
+            if 'tag' not in value:
+                reasons.append('missing tag')
+            if 'value' not in value:
+                reasons.append('missing value')
         return reasons
 
     def __init__(self, value):
@@ -525,10 +566,7 @@ class CaaValue(object):
 
 class CaaRecord(_ValuesMixin, Record):
     _type = 'CAA'
-
-    @classmethod
-    def _validate_value(cls, value):
-        return CaaValue._validate_value(value)
+    _value_type = CaaValue
 
     def _process_values(self, values):
         return [CaaValue(v) for v in values]
@@ -536,6 +574,7 @@ class CaaRecord(_ValuesMixin, Record):
 
 class CnameRecord(_ValueMixin, Record):
     _type = 'CNAME'
+    _value_type = CnameValue
 
     @classmethod
     def validate(cls, name, data):
@@ -545,13 +584,6 @@ class CnameRecord(_ValueMixin, Record):
         reasons.extend(super(CnameRecord, cls).validate(name, data))
         return reasons
 
-    @classmethod
-    def _validate_value(cls, value):
-        reasons = []
-        if not value.endswith('.'):
-            reasons.append('missing trailing .')
-        return reasons
-
     def _process_value(self, value):
         return value
 
@@ -559,25 +591,29 @@ class CnameRecord(_ValueMixin, Record):
 class MxValue(object):
 
     @classmethod
-    def _validate_value(cls, value):
+    def validate(cls, data):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
         reasons = []
-        try:
+        for value in data:
             try:
-                int(value['preference'])
+                try:
+                    int(value['preference'])
+                except KeyError:
+                    int(value['priority'])
             except KeyError:
-                int(value['priority'])
-        except KeyError:
-            reasons.append('missing preference')
-        except ValueError:
-            reasons.append('invalid preference "{}"'
-                           .format(value['preference']))
-        exchange = None
-        try:
-            exchange = value.get('exchange', None) or value['value']
-            if not exchange.endswith('.'):
-                reasons.append('missing trailing .')
-        except KeyError:
-            reasons.append('missing exchange')
+                reasons.append('missing preference')
+            except ValueError:
+                reasons.append('invalid preference "{}"'
+                               .format(value['preference']))
+            exchange = None
+            try:
+                exchange = value.get('exchange', None) or value['value']
+                if not exchange.endswith('.'):
+                    reasons.append('MX value "{}" missing trailing .'
+                                   .format(exchange))
+            except KeyError:
+                reasons.append('missing exchange')
         return reasons
 
     def __init__(self, value):
@@ -612,10 +648,7 @@ class MxValue(object):
 
 class MxRecord(_ValuesMixin, Record):
     _type = 'MX'
-
-    @classmethod
-    def _validate_value(cls, value):
-        return MxValue._validate_value(value)
+    _value_type = MxValue
 
     def _process_values(self, values):
         return [MxValue(v) for v in values]
@@ -625,32 +658,36 @@ class NaptrValue(object):
     VALID_FLAGS = ('S', 'A', 'U', 'P')
 
     @classmethod
-    def _validate_value(cls, data):
+    def validate(cls, data):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
         reasons = []
-        try:
-            int(data['order'])
-        except KeyError:
-            reasons.append('missing order')
-        except ValueError:
-            reasons.append('invalid order "{}"'.format(data['order']))
-        try:
-            int(data['preference'])
-        except KeyError:
-            reasons.append('missing preference')
-        except ValueError:
-            reasons.append('invalid preference "{}"'
-                           .format(data['preference']))
-        try:
-            flags = data['flags']
-            if flags not in cls.VALID_FLAGS:
-                reasons.append('unrecognized flags "{}"'.format(flags))
-        except KeyError:
-            reasons.append('missing flags')
+        for value in data:
+            try:
+                int(value['order'])
+            except KeyError:
+                reasons.append('missing order')
+            except ValueError:
+                reasons.append('invalid order "{}"'.format(value['order']))
+            try:
+                int(value['preference'])
+            except KeyError:
+                reasons.append('missing preference')
+            except ValueError:
+                reasons.append('invalid preference "{}"'
+                               .format(value['preference']))
+            try:
+                flags = value['flags']
+                if flags not in cls.VALID_FLAGS:
+                    reasons.append('unrecognized flags "{}"'.format(flags))
+            except KeyError:
+                reasons.append('missing flags')
 
-        # TODO: validate these... they're non-trivial
-        for k in ('service', 'regexp', 'replacement'):
-            if k not in data:
-                reasons.append('missing {}'.format(k))
+            # TODO: validate these... they're non-trivial
+            for k in ('service', 'regexp', 'replacement'):
+                if k not in value:
+                    reasons.append('missing {}'.format(k))
+
         return reasons
 
     def __init__(self, value):
@@ -696,38 +733,41 @@ class NaptrValue(object):
 
 class NaptrRecord(_ValuesMixin, Record):
     _type = 'NAPTR'
-
-    @classmethod
-    def _validate_value(cls, value):
-        return NaptrValue._validate_value(value)
+    _value_type = NaptrValue
 
     def _process_values(self, values):
         return [NaptrValue(v) for v in values]
 
 
-class NsRecord(_ValuesMixin, Record):
-    _type = 'NS'
+class _NsValue(object):
 
     @classmethod
-    def _validate_value(cls, value):
+    def validate(cls, data):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
         reasons = []
-        if not value.endswith('.'):
-            reasons.append('missing trailing .')
+        for value in data:
+            if not value.endswith('.'):
+                reasons.append('NS value "{}" missing trailing .'
+                               .format(value))
         return reasons
+
+
+class NsRecord(_ValuesMixin, Record):
+    _type = 'NS'
+    _value_type = _NsValue
 
     def _process_values(self, values):
         return values
 
 
+class PtrValue(_TargetValue):
+    pass
+
+
 class PtrRecord(_ValueMixin, Record):
     _type = 'PTR'
-
-    @classmethod
-    def _validate_value(cls, value):
-        reasons = []
-        if not value.endswith('.'):
-            reasons.append('missing trailing .')
-        return reasons
+    _value_type = PtrValue
 
     def _process_value(self, value):
         return value
@@ -738,28 +778,33 @@ class SshfpValue(object):
     VALID_FINGERPRINT_TYPES = (1, 2)
 
     @classmethod
-    def _validate_value(cls, value):
+    def validate(cls, data):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
         reasons = []
-        try:
-            algorithm = int(value['algorithm'])
-            if algorithm not in cls.VALID_ALGORITHMS:
-                reasons.append('unrecognized algorithm "{}"'.format(algorithm))
-        except KeyError:
-            reasons.append('missing algorithm')
-        except ValueError:
-            reasons.append('invalid algorithm "{}"'.format(value['algorithm']))
-        try:
-            fingerprint_type = int(value['fingerprint_type'])
-            if fingerprint_type not in cls.VALID_FINGERPRINT_TYPES:
-                reasons.append('unrecognized fingerprint_type "{}"'
-                               .format(fingerprint_type))
-        except KeyError:
-            reasons.append('missing fingerprint_type')
-        except ValueError:
-            reasons.append('invalid fingerprint_type "{}"'
-                           .format(value['fingerprint_type']))
-        if 'fingerprint' not in value:
-            reasons.append('missing fingerprint')
+        for value in data:
+            try:
+                algorithm = int(value['algorithm'])
+                if algorithm not in cls.VALID_ALGORITHMS:
+                    reasons.append('unrecognized algorithm "{}"'
+                                   .format(algorithm))
+            except KeyError:
+                reasons.append('missing algorithm')
+            except ValueError:
+                reasons.append('invalid algorithm "{}"'
+                               .format(value['algorithm']))
+            try:
+                fingerprint_type = int(value['fingerprint_type'])
+                if fingerprint_type not in cls.VALID_FINGERPRINT_TYPES:
+                    reasons.append('unrecognized fingerprint_type "{}"'
+                                   .format(fingerprint_type))
+            except KeyError:
+                reasons.append('missing fingerprint_type')
+            except ValueError:
+                reasons.append('invalid fingerprint_type "{}"'
+                               .format(value['fingerprint_type']))
+            if 'fingerprint' not in value:
+                reasons.append('missing fingerprint')
         return reasons
 
     def __init__(self, value):
@@ -789,26 +834,15 @@ class SshfpValue(object):
 
 class SshfpRecord(_ValuesMixin, Record):
     _type = 'SSHFP'
-
-    @classmethod
-    def _validate_value(cls, value):
-        return SshfpValue._validate_value(value)
+    _value_type = SshfpValue
 
     def _process_values(self, values):
         return [SshfpValue(v) for v in values]
 
 
-_unescaped_semicolon_re = re.compile(r'\w;')
-
-
 class _ChunkedValuesMixin(_ValuesMixin):
     CHUNK_SIZE = 255
-
-    @classmethod
-    def _validate_value(cls, value):
-        if _unescaped_semicolon_re.search(value):
-            return ['unescaped ;']
-        return []
+    _unescaped_semicolon_re = re.compile(r'\w;')
 
     def _process_values(self, values):
         ret = []
@@ -830,39 +864,59 @@ class _ChunkedValuesMixin(_ValuesMixin):
         return values
 
 
+class _ChunkedValue(object):
+    _unescaped_semicolon_re = re.compile(r'\w;')
+
+    @classmethod
+    def validate(cls, data):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
+        reasons = []
+        for value in data:
+            if cls._unescaped_semicolon_re.search(value):
+                reasons.append('unescaped ; in "{}"'.format(value))
+        return reasons
+
+
 class SpfRecord(_ChunkedValuesMixin, Record):
     _type = 'SPF'
+    _value_type = _ChunkedValue
 
 
 class SrvValue(object):
 
     @classmethod
-    def _validate_value(self, value):
+    def validate(cls, data):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
         reasons = []
-        # TODO: validate algorithm and fingerprint_type values
-        try:
-            int(value['priority'])
-        except KeyError:
-            reasons.append('missing priority')
-        except ValueError:
-            reasons.append('invalid priority "{}"'.format(value['priority']))
-        try:
-            int(value['weight'])
-        except KeyError:
-            reasons.append('missing weight')
-        except ValueError:
-            reasons.append('invalid weight "{}"'.format(value['weight']))
-        try:
-            int(value['port'])
-        except KeyError:
-            reasons.append('missing port')
-        except ValueError:
-            reasons.append('invalid port "{}"'.format(value['port']))
-        try:
-            if not value['target'].endswith('.'):
-                reasons.append('missing trailing .')
-        except KeyError:
-            reasons.append('missing target')
+        for value in data:
+            # TODO: validate algorithm and fingerprint_type values
+            try:
+                int(value['priority'])
+            except KeyError:
+                reasons.append('missing priority')
+            except ValueError:
+                reasons.append('invalid priority "{}"'
+                               .format(value['priority']))
+            try:
+                int(value['weight'])
+            except KeyError:
+                reasons.append('missing weight')
+            except ValueError:
+                reasons.append('invalid weight "{}"'.format(value['weight']))
+            try:
+                int(value['port'])
+            except KeyError:
+                reasons.append('missing port')
+            except ValueError:
+                reasons.append('invalid port "{}"'.format(value['port']))
+            try:
+                if not value['target'].endswith('.'):
+                    reasons.append('SRV value "{}" missing trailing .'
+                                   .format(value['target']))
+            except KeyError:
+                reasons.append('missing target')
         return reasons
 
     def __init__(self, value):
@@ -896,6 +950,7 @@ class SrvValue(object):
 
 class SrvRecord(_ValuesMixin, Record):
     _type = 'SRV'
+    _value_type = SrvValue
     _name_re = re.compile(r'^_[^\.]+\.[^\.]+')
 
     @classmethod
@@ -906,13 +961,14 @@ class SrvRecord(_ValuesMixin, Record):
         reasons.extend(super(SrvRecord, cls).validate(name, data))
         return reasons
 
-    @classmethod
-    def _validate_value(cls, value):
-        return SrvValue._validate_value(value)
-
     def _process_values(self, values):
         return [SrvValue(v) for v in values]
 
 
+class _TxtValue(_ChunkedValue):
+    pass
+
+
 class TxtRecord(_ChunkedValuesMixin, Record):
     _type = 'TXT'
+    _value_type = _TxtValue

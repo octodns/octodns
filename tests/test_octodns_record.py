@@ -941,7 +941,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'hello'
             })
-        self.assertEquals(['invalid ip address "hello"'],
+        self.assertEquals(['invalid IPv4 address "hello"'],
                           ctx.exception.reasons)
 
         # invalid ip addresses
@@ -952,8 +952,8 @@ class TestRecordValidation(TestCase):
                 'values': ['hello', 'goodbye']
             })
         self.assertEquals([
-            'invalid ip address "hello"',
-            'invalid ip address "goodbye"'
+            'invalid IPv4 address "hello"',
+            'invalid IPv4 address "goodbye"'
         ], ctx.exception.reasons)
 
         # invalid & valid ip addresses, no ttl
@@ -964,7 +964,7 @@ class TestRecordValidation(TestCase):
             })
         self.assertEquals([
             'missing ttl',
-            'invalid ip address "hello"',
+            'invalid IPv4 address "hello"',
         ], ctx.exception.reasons)
 
     def test_geo(self):
@@ -989,7 +989,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': '1.2.3.4',
             })
-        self.assertEquals(['invalid ip address "hello"'],
+        self.assertEquals(['invalid IPv4 address "hello"'],
                           ctx.exception.reasons)
 
         # invalid geo code
@@ -1016,8 +1016,8 @@ class TestRecordValidation(TestCase):
                 'value': '1.2.3.4',
             })
         self.assertEquals([
-            'invalid ip address "hello"',
-            'invalid ip address "goodbye"'
+            'invalid IPv4 address "hello"',
+            'invalid IPv4 address "goodbye"'
         ], ctx.exception.reasons)
 
         # invalid healthcheck protocol
@@ -1062,16 +1062,21 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'hello'
             })
-        self.assertEquals(['invalid ip address "hello"'],
+        self.assertEquals(['invalid IPv6 address "hello"'],
                           ctx.exception.reasons)
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'AAAA',
                 'ttl': 600,
-                'value': '1.2.3.4'
+                'values': [
+                    '1.2.3.4',
+                    '2.3.4.5',
+                ],
             })
-        self.assertEquals(['invalid ip address "1.2.3.4"'],
-                          ctx.exception.reasons)
+        self.assertEquals([
+            'invalid IPv6 address "1.2.3.4"',
+            'invalid IPv6 address "2.3.4.5"',
+        ], ctx.exception.reasons)
 
         # invalid ip addresses
         with self.assertRaises(ValidationError) as ctx:
@@ -1081,8 +1086,8 @@ class TestRecordValidation(TestCase):
                 'values': ['hello', 'goodbye']
             })
         self.assertEquals([
-            'invalid ip address "hello"',
-            'invalid ip address "goodbye"'
+            'invalid IPv6 address "hello"',
+            'invalid IPv6 address "goodbye"'
         ], ctx.exception.reasons)
 
     def test_ALIAS_and_value_mixin(self):
@@ -1126,7 +1131,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar.com',
             })
-        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+        self.assertEquals(['ALIAS value "foo.bar.com" missing trailing .'],
+                          ctx.exception.reasons)
 
     def test_CAA(self):
         # doesn't blow up
@@ -1221,7 +1227,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar.com',
             })
-        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+        self.assertEquals(['CNAME value "foo.bar.com" missing trailing .'],
+                          ctx.exception.reasons)
 
     def test_MX(self):
         # doesn't blow up
@@ -1278,7 +1285,8 @@ class TestRecordValidation(TestCase):
                     'exchange': 'foo.bar.com'
                 }
             })
-        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+        self.assertEquals(['MX value "foo.bar.com" missing trailing .'],
+                          ctx.exception.reasons)
 
     def test_NXPTR(self):
         # doesn't blow up
@@ -1375,7 +1383,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar',
             })
-        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+        self.assertEquals(['NS value "foo.bar" missing trailing .'],
+                          ctx.exception.reasons)
 
     def test_PTR(self):
         # doesn't blow up (name & zone here don't make any sense, but not
@@ -1401,7 +1410,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar',
             })
-        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+        self.assertEquals(['PTR value "foo.bar" missing trailing .'],
+                          ctx.exception.reasons)
 
     def test_SSHFP(self):
         # doesn't blow up
@@ -1534,7 +1544,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'this has some; semi-colons\\; in it',
             })
-        self.assertEquals(['unescaped ;'], ctx.exception.reasons)
+        self.assertEquals(['unescaped ; in "this has some; '
+                           'semi-colons\\; in it"'], ctx.exception.reasons)
 
     def test_SRV(self):
         # doesn't blow up
@@ -1666,7 +1677,7 @@ class TestRecordValidation(TestCase):
                     'target': 'foo.bar.baz'
                 }
             })
-        self.assertEquals(['missing trailing .'],
+        self.assertEquals(['SRV value "foo.bar.baz" missing trailing .'],
                           ctx.exception.reasons)
 
     def test_TXT(self):
@@ -1696,7 +1707,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'this has some; semi-colons\\; in it',
             })
-        self.assertEquals(['unescaped ;'], ctx.exception.reasons)
+        self.assertEquals(['unescaped ; in "this has some; semi-colons\\; '
+                           'in it"'], ctx.exception.reasons)
 
     def test_TXT_long_value_chunking(self):
         expected = '"Lorem ipsum dolor sit amet, consectetur adipiscing ' \
@@ -1757,3 +1769,66 @@ class TestRecordValidation(TestCase):
         self.assertEquals(single.values, chunked.values)
         # should be chunked values, with quoting
         self.assertEquals(single.chunked_values, chunked.chunked_values)
+
+
+class TestDynamicRecords(TestCase):
+    zone = Zone('unit.tests.', [])
+
+    def test_simple_a_weighted(self):
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '3.3.3.3',
+                    'two': [
+                        '4.4.4.4',
+                        '5.5.5.5',
+                    ],
+                },
+                'rules': [{
+                    'pools': {
+                        100: 'one',
+                        200: 'two',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        a = ARecord(self.zone, 'weighted', a_data)
+        self.assertEquals('A', a._type)
+        self.assertEquals(a_data['ttl'], a.ttl)
+        self.assertEquals(a_data['values'], a.values)
+        self.assertEquals(a_data['dynamic'], a.dynamic)
+
+    def test_a_validation(self):
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': 'this-aint-right',
+                    'two': [
+                        '4.4.4.4',
+                        'nor-is-this',
+                    ],
+                },
+                'rules': [{
+                    'pools': {
+                        100: '5.5.5.5',
+                        200: '6.6.6.6',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['invalid IPv4 address "nor-is-this"',
+                           'invalid IPv4 address "this-aint-right"'],
+                          ctx.exception.reasons)

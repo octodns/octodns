@@ -2,17 +2,12 @@
 a:
   dynamic:
     pools:
-      ams:
-        values:
-          - 1.1.1.1
+      ams: 1.1.1.1
       iad:
-        values:
           - 2.2.2.2
           - 3.3.3.3
-      lax:
-        value: 4.4.4.4
-      sea:
-        value: 5.5.5.5
+      lax: 4.4.4.4
+      sea: 5.5.5.5
     rules:
       - geo: EU-UK
         pools:
@@ -28,8 +23,7 @@ a:
         pools:
           25: iad
           75: sea
-      - default:
-        pool: iad
+      - pool: iad
   type: A
   values:
     - 2.2.2.2
@@ -60,7 +54,7 @@ cname:
         pools:
           12: sea
           250: iad
-      - default:
+      - pools:
           1: sea
           4: iad
   type: CNAME
@@ -69,12 +63,12 @@ simple-weighted:
   dynamic:
     pools:
       one:
-        one.unit.tests.
+        value: one.unit.tests.
       two:
-        two.unit.tests.
+        value: two.unit.tests.
     rules:
-      - default:
-         100: one
-         200: two
+      - pools:
+          100: one
+          200: two
   type: CNAME
   value: default.unit.tests.
