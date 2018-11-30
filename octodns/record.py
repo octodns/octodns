@@ -366,17 +366,7 @@ class _ValueMixin(object):
     @classmethod
     def validate(cls, name, data):
         reasons = super(_ValueMixin, cls).validate(name, data)
-        value = None
-        try:
-            value = data['value']
-            if value == '':
-                reasons.append('empty value')
-            elif value is None:
-                reasons.append('missing value')
-        except KeyError:
-            reasons.append('missing value')
-        if value:
-            reasons.extend(cls._value_type.validate(value, cls))
+        reasons.extend(cls._value_type.validate(data.get('value', None), cls))
         return reasons
 
     def __init__(self, zone, name, data, source=None):
@@ -472,7 +462,11 @@ class _TargetValue(object):
     @classmethod
     def validate(cls, data, record_cls):
         reasons = []
-        if not data.endswith('.'):
+        if data == '':
+            reasons.append('empty value')
+        elif not data:
+            reasons.append('missing value')
+        elif not data.endswith('.'):
             reasons.append('{} value "{}" missing trailing .'
                            .format(record_cls._type, data))
         return reasons
