@@ -934,7 +934,7 @@ class TestRecordValidation(TestCase):
         self.assertEquals(['missing ttl', 'missing value(s)'],
                           ctx.exception.reasons)
 
-        # invalid ip address
+        # invalid ipv4 address
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'A',
@@ -944,7 +944,7 @@ class TestRecordValidation(TestCase):
         self.assertEquals(['invalid IPv4 address "hello"'],
                           ctx.exception.reasons)
 
-        # invalid ip addresses
+        # invalid ipv4 addresses
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'A',
@@ -956,7 +956,7 @@ class TestRecordValidation(TestCase):
             'invalid IPv4 address "goodbye"'
         ], ctx.exception.reasons)
 
-        # invalid & valid ip addresses, no ttl
+        # invalid & valid ipv4 addresses, no ttl
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'A',
@@ -965,6 +965,128 @@ class TestRecordValidation(TestCase):
         self.assertEquals([
             'missing ttl',
             'invalid IPv4 address "hello"',
+        ], ctx.exception.reasons)
+
+    def test_AAAA_validation(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'AAAA',
+            'ttl': 600,
+            'value': '2601:644:500:e210:62f8:1dff:feb8:947a',
+        })
+        Record.new(self.zone, '', {
+            'type': 'AAAA',
+            'ttl': 600,
+            'values': [
+                '2601:644:500:e210:62f8:1dff:feb8:947a',
+            ]
+        })
+        Record.new(self.zone, '', {
+            'type': 'AAAA',
+            'ttl': 600,
+            'values': [
+                '2601:644:500:e210:62f8:1dff:feb8:947a',
+                '2601:642:500:e210:62f8:1dff:feb8:947a',
+            ]
+        })
+
+        # missing value(s), no value or value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'AAAA',
+                'ttl': 600,
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # missing value(s), empty values
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'values': []
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # missing value(s), None values
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'values': None
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # missing value(s) and empty value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'values': [None, '']
+            })
+        self.assertEquals(['missing value(s)',
+                           'empty value'], ctx.exception.reasons)
+
+        # missing value(s), None value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'value': None
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # empty value, empty string value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'value': ''
+            })
+        self.assertEquals(['empty value'], ctx.exception.reasons)
+
+        # missing value(s) & ttl
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'AAAA',
+            })
+        self.assertEquals(['missing ttl', 'missing value(s)'],
+                          ctx.exception.reasons)
+
+        # invalid IPv6 address
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'value': 'hello'
+            })
+        self.assertEquals(['invalid IPv6 address "hello"'],
+                          ctx.exception.reasons)
+
+        # invalid IPv6 addresses
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'values': ['hello', 'goodbye']
+            })
+        self.assertEquals([
+            'invalid IPv6 address "hello"',
+            'invalid IPv6 address "goodbye"'
+        ], ctx.exception.reasons)
+
+        # invalid & valid IPv6 addresses, no ttl
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'AAAA',
+                'values': [
+                    '2601:644:500:e210:62f8:1dff:feb8:947a',
+                    'hello',
+                    '2601:642:500:e210:62f8:1dff:feb8:947a'
+                ]
+            })
+        self.assertEquals([
+            'missing ttl',
+            'invalid IPv6 address "hello"',
         ], ctx.exception.reasons)
 
     def test_geo(self):

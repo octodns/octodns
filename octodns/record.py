@@ -254,35 +254,13 @@ class _ValuesMixin(object):
     def validate(cls, name, data):
         reasons = super(_ValuesMixin, cls).validate(name, data)
 
-        values = []
         try:
             values = data['values']
-            if not values:
-                values = []
-                reasons.append('missing value(s)')
-            else:
-                # loop through copy of values
-                # remove invalid value from values
-                for value in list(values):
-                    if value is None:
-                        reasons.append('missing value(s)')
-                        values.remove(value)
-                    elif len(value) == 0:
-                        reasons.append('empty value')
-                        values.remove(value)
         except KeyError:
             try:
-                value = data['value']
-                if value is None:
-                    reasons.append('missing value(s)')
-                    values = []
-                elif len(value) == 0:
-                    reasons.append('empty value')
-                    values = []
-                else:
-                    values = value
+                values = data['value']
             except KeyError:
-                reasons.append('missing value(s)')
+                values = []
 
         reasons.extend(cls._value_type.validate(values))
 
@@ -391,10 +369,10 @@ class _ValueMixin(object):
         value = None
         try:
             value = data['value']
-            if value is None:
-                reasons.append('missing value')
-            elif value == '':
+            if value == '':
                 reasons.append('empty value')
+            elif value is None:
+                reasons.append('missing value')
         except KeyError:
             reasons.append('missing value')
         if value:
@@ -451,12 +429,19 @@ class Ipv4List(object):
     def validate(cls, data):
         if not isinstance(data, (list, tuple)):
             data = (data,)
+        if len(data) == 0:
+            return ['missing value(s)']
         reasons = []
         for value in data:
-            try:
-                IPv4Address(unicode(value))
-            except Exception:
-                reasons.append('invalid IPv4 address "{}"'.format(value))
+            if value is '':
+                reasons.append('empty value')
+            elif value is None:
+                reasons.append('missing value(s)')
+            else:
+                try:
+                    IPv4Address(unicode(value))
+                except Exception:
+                    reasons.append('invalid IPv4 address "{}"'.format(value))
         return reasons
 
 
@@ -466,12 +451,19 @@ class Ipv6List(object):
     def validate(cls, data):
         if not isinstance(data, (list, tuple)):
             data = (data,)
+        if len(data) == 0:
+            return ['missing value(s)']
         reasons = []
         for value in data:
-            try:
-                IPv6Address(unicode(value))
-            except Exception:
-                reasons.append('invalid IPv6 address "{}"'.format(value))
+            if value is '':
+                reasons.append('empty value')
+            elif value is None:
+                reasons.append('missing value(s)')
+            else:
+                try:
+                    IPv6Address(unicode(value))
+                except Exception:
+                    reasons.append('invalid IPv6 address "{}"'.format(value))
         return reasons
 
 
@@ -743,7 +735,9 @@ class _NsValue(object):
 
     @classmethod
     def validate(cls, data):
-        if not isinstance(data, (list, tuple)):
+        if not data:
+            return ['missing value(s)']
+        elif not isinstance(data, (list, tuple)):
             data = (data,)
         reasons = []
         for value in data:
@@ -869,7 +863,9 @@ class _ChunkedValue(object):
 
     @classmethod
     def validate(cls, data):
-        if not isinstance(data, (list, tuple)):
+        if not data:
+            return ['missing value(s)']
+        elif not isinstance(data, (list, tuple)):
             data = (data,)
         reasons = []
         for value in data:
