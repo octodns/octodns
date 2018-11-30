@@ -272,7 +272,7 @@ class _ValuesMixin(object):
             values = data['values']
         except KeyError:
             values = [data['value']]
-        self.values = sorted(self._process_values(values))
+        self.values = sorted(self._value_type.process(values))
 
     def changes(self, other, target):
         if self.values != other.values:
@@ -371,7 +371,7 @@ class _ValueMixin(object):
 
     def __init__(self, zone, name, data, source=None):
         super(_ValueMixin, self).__init__(zone, name, data, source=source)
-        self.value = self._process_value(data['value'])
+        self.value = self._value_type.process(data['value'])
 
     def changes(self, other, target):
         if self.value != other.value:
@@ -434,6 +434,10 @@ class Ipv4List(object):
                     reasons.append('invalid IPv4 address "{}"'.format(value))
         return reasons
 
+    @classmethod
+    def process(cls, values):
+        return values
+
 
 class Ipv6List(object):
 
@@ -456,6 +460,10 @@ class Ipv6List(object):
                     reasons.append('invalid IPv6 address "{}"'.format(value))
         return reasons
 
+    @classmethod
+    def process(cls, values):
+        return values
+
 
 class _TargetValue(object):
 
@@ -471,6 +479,10 @@ class _TargetValue(object):
                            .format(record_cls._type, data))
         return reasons
 
+    @classmethod
+    def process(self, value):
+        return value
+
 
 class CnameValue(_TargetValue):
     pass
@@ -480,16 +492,10 @@ class ARecord(_DynamicMixin, _GeoMixin, Record):
     _type = 'A'
     _value_type = Ipv4List
 
-    def _process_values(self, values):
-        return values
-
 
 class AaaaRecord(_GeoMixin, Record):
     _type = 'AAAA'
     _value_type = Ipv6List
-
-    def _process_values(self, values):
-        return values
 
 
 class AliasValue(_TargetValue):
@@ -499,9 +505,6 @@ class AliasValue(_TargetValue):
 class AliasRecord(_ValueMixin, Record):
     _type = 'ALIAS'
     _value_type = AliasValue
-
-    def _process_value(self, value):
-        return value
 
 
 class CaaValue(object):
@@ -525,6 +528,10 @@ class CaaValue(object):
             if 'value' not in value:
                 reasons.append('missing value')
         return reasons
+
+    @classmethod
+    def process(cls, values):
+        return [CaaValue(v) for v in values]
 
     def __init__(self, value):
         self.flags = int(value.get('flags', 0))
@@ -554,9 +561,6 @@ class CaaRecord(_ValuesMixin, Record):
     _type = 'CAA'
     _value_type = CaaValue
 
-    def _process_values(self, values):
-        return [CaaValue(v) for v in values]
-
 
 class CnameRecord(_ValueMixin, Record):
     _type = 'CNAME'
@@ -569,9 +573,6 @@ class CnameRecord(_ValueMixin, Record):
             reasons.append('root CNAME not allowed')
         reasons.extend(super(CnameRecord, cls).validate(name, data))
         return reasons
-
-    def _process_value(self, value):
-        return value
 
 
 class MxValue(object):
@@ -601,6 +602,10 @@ class MxValue(object):
             except KeyError:
                 reasons.append('missing exchange')
         return reasons
+
+    @classmethod
+    def process(cls, values):
+        return [MxValue(v) for v in values]
 
     def __init__(self, value):
         # RFC1035 says preference, half the providers use priority
@@ -635,9 +640,6 @@ class MxValue(object):
 class MxRecord(_ValuesMixin, Record):
     _type = 'MX'
     _value_type = MxValue
-
-    def _process_values(self, values):
-        return [MxValue(v) for v in values]
 
 
 class NaptrValue(object):
@@ -675,6 +677,10 @@ class NaptrValue(object):
                     reasons.append('missing {}'.format(k))
 
         return reasons
+
+    @classmethod
+    def process(cls, values):
+        return [NaptrValue(v) for v in values]
 
     def __init__(self, value):
         self.order = int(value['order'])
@@ -721,9 +727,6 @@ class NaptrRecord(_ValuesMixin, Record):
     _type = 'NAPTR'
     _value_type = NaptrValue
 
-    def _process_values(self, values):
-        return [NaptrValue(v) for v in values]
-
 
 class _NsValue(object):
 
@@ -740,13 +743,14 @@ class _NsValue(object):
                                .format(value))
         return reasons
 
+    @classmethod
+    def process(cls, values):
+        return values
+
 
 class NsRecord(_ValuesMixin, Record):
     _type = 'NS'
     _value_type = _NsValue
-
-    def _process_values(self, values):
-        return values
 
 
 class PtrValue(_TargetValue):
@@ -756,9 +760,6 @@ class PtrValue(_TargetValue):
 class PtrRecord(_ValueMixin, Record):
     _type = 'PTR'
     _value_type = PtrValue
-
-    def _process_value(self, value):
-        return value
 
 
 class SshfpValue(object):
@@ -795,6 +796,10 @@ class SshfpValue(object):
                 reasons.append('missing fingerprint')
         return reasons
 
+    @classmethod
+    def process(cls, values):
+        return [SshfpValue(v) for v in values]
+
     def __init__(self, value):
         self.algorithm = int(value['algorithm'])
         self.fingerprint_type = int(value['fingerprint_type'])
@@ -824,21 +829,10 @@ class SshfpRecord(_ValuesMixin, Record):
     _type = 'SSHFP'
     _value_type = SshfpValue
 
-    def _process_values(self, values):
-        return [SshfpValue(v) for v in values]
-
 
 class _ChunkedValuesMixin(_ValuesMixin):
     CHUNK_SIZE = 255
     _unescaped_semicolon_re = re.compile(r'\w;')
-
-    def _process_values(self, values):
-        ret = []
-        for v in values:
-            if v and v[0] == '"':
-                v = v[1:-1]
-            ret.append(v.replace('" "', ''))
-        return ret
 
     @property
     def chunked_values(self):
@@ -866,6 +860,15 @@ class _ChunkedValue(object):
             if cls._unescaped_semicolon_re.search(value):
                 reasons.append('unescaped ; in "{}"'.format(value))
         return reasons
+
+    @classmethod
+    def process(cls, values):
+        ret = []
+        for v in values:
+            if v and v[0] == '"':
+                v = v[1:-1]
+            ret.append(v.replace('" "', ''))
+        return ret
 
 
 class SpfRecord(_ChunkedValuesMixin, Record):
@@ -909,6 +912,10 @@ class SrvValue(object):
                 reasons.append('missing target')
         return reasons
 
+    @classmethod
+    def process(cls, values):
+        return [SrvValue(v) for v in values]
+
     def __init__(self, value):
         self.priority = int(value['priority'])
         self.weight = int(value['weight'])
@@ -950,9 +957,6 @@ class SrvRecord(_ValuesMixin, Record):
             reasons.append('invalid name')
         reasons.extend(super(SrvRecord, cls).validate(name, data))
         return reasons
-
-    def _process_values(self, values):
-        return [SrvValue(v) for v in values]
 
 
 class _TxtValue(_ChunkedValue):
