@@ -1926,6 +1926,51 @@ class TestDynamicRecords(TestCase):
         self.assertEquals(a_data['dynamic'], a.dynamic)
 
     def test_a_validation(self):
+        # Missing pools
+        a_data = {
+            'dynamic': {
+                'rules': [{
+                    'pools': {
+                        1: 'one',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['missing pools', 'undefined pool "one"'],
+                          ctx.exception.reasons)
+
+        # Empty pools
+        a_data = {
+            'dynamic': {
+                'pools': {
+                },
+                'rules': [{
+                    'pools': {
+                        1: 'one',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['missing pools', 'undefined pool "one"'],
+                          ctx.exception.reasons)
+
+        # Invalid addresses
         a_data = {
             'dynamic': {
                 'pools': {
@@ -1937,8 +1982,8 @@ class TestDynamicRecords(TestCase):
                 },
                 'rules': [{
                     'pools': {
-                        100: '5.5.5.5',
-                        200: '6.6.6.6',
+                        100: 'one',
+                        200: 'two',
                     }
                 }],
             },
@@ -1953,4 +1998,260 @@ class TestDynamicRecords(TestCase):
             Record.new(self.zone, 'bad', a_data)
         self.assertEquals(['invalid IPv4 address "nor-is-this"',
                            'invalid IPv4 address "this-aint-right"'],
+                          ctx.exception.reasons)
+
+        # missing value(s)
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': [],
+                    'two': [
+                        '3.3.3.3',
+                        '4.4.4.4',
+                    ],
+                },
+                'rules': [{
+                    'pools': {
+                        100: 'one',
+                        200: 'two',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # Empty value
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '',
+                    'two': [
+                        '3.3.3.3',
+                        'blip',
+                    ],
+                },
+                'rules': [{
+                    'pools': {
+                        100: 'one',
+                        200: 'two',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['invalid IPv4 address "blip"', 'empty value'],
+                          ctx.exception.reasons)
+
+        # multiple problems
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '',
+                    'two': [
+                        '3.3.3.3',
+                        'blip',
+                    ],
+                },
+                'rules': [{
+                    'pools': {
+                        100: 'one',
+                        200: 'two',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['invalid IPv4 address "blip"', 'empty value'],
+                          ctx.exception.reasons)
+
+        # missing rules
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '1.2.3.4',
+                },
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['missing rules'], ctx.exception.reasons)
+
+        # empty rules
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '1.2.3.4',
+                },
+                'rules': [],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['missing rules'], ctx.exception.reasons)
+
+        # rules not a list/tuple
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '1.2.3.4',
+                },
+                'rules': {},
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['rules must be a list'], ctx.exception.reasons)
+
+        # rule without pools
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '1.2.3.4',
+                },
+                'rules': [{
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['rule 1 missing pools'], ctx.exception.reasons)
+
+        # rule with non-dict pools
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '1.2.3.4',
+                },
+                'rules': [{
+                    'pools': ['one'],
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(["rule 1 pools must be a dict"],
+                          ctx.exception.reasons)
+
+        # rule references non-existant pool
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '1.2.3.4',
+                },
+                'rules': [{
+                    'pools': {
+                        10: 'non-existant'
+                    }
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(["undefined pool \"non-existant\""],
+                          ctx.exception.reasons)
+
+        # invalid int weight
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '1.2.3.4',
+                },
+                'rules': [{
+                    'pools': {
+                        256: 'one'
+                    }
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['invalid pool weight "256"'],
+                          ctx.exception.reasons)
+
+        # invalid non-int weight
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '1.2.3.4',
+                },
+                'rules': [{
+                    'pools': {
+                        'foo': 'one'
+                    }
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['invalid pool weight "foo"'],
                           ctx.exception.reasons)

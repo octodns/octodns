@@ -11,11 +11,11 @@ a:
     rules:
       - geo: EU-UK
         pools:
-          - iad
+          10: iad
       - geo: EU
         pools:
-          - ams
-          - iad
+          10: ams
+          10: iad
       - geos:
           - NA-US-CA
           - NA-US-OR
@@ -23,7 +23,8 @@ a:
         pools:
           25: iad
           75: sea
-      - pool: iad
+      - pools:
+          10: iad
   type: A
   values:
     - 2.2.2.2
@@ -42,11 +43,11 @@ cname:
     rules:
       - geo: EU-UK
         pools:
-          - iad
+          10: iad
       - geo: EU
         pools:
-          - ams
-          - iad
+          10: ams
+          10: iad
       - geos:
           - NA-US-CA
           - NA-US-OR

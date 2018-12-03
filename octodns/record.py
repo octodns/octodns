@@ -395,12 +395,55 @@ class _DynamicMixin(object):
     @classmethod
     def validate(cls, name, data):
         reasons = super(_DynamicMixin, cls).validate(name, data)
+
+        if 'dynamic' not in data:
+            return reasons
+
         try:
             pools = data['dynamic']['pools']
         except KeyError:
             pools = {}
-        for pool in sorted(pools.values()):
-            reasons.extend(cls._value_type.validate(pool))
+
+        if not pools:
+            reasons.append('missing pools')
+        else:
+            for pool in sorted(pools.values()):
+                reasons.extend(cls._value_type.validate(pool))
+
+        try:
+            rules = data['dynamic']['rules']
+        except KeyError:
+            rules = []
+
+        if not isinstance(rules, (list, tuple)):
+            reasons.append('rules must be a list')
+        elif not rules:
+            reasons.append('missing rules')
+        else:
+            for rule_num, rule in enumerate(rules):
+                rule_num += 1
+                try:
+                    rule_pools = rule['pools']
+                except KeyError:
+                    rule_pools = {}
+                if not rule_pools:
+                    reasons.append('rule {} missing pools'.format(rule_num))
+                elif not isinstance(rule_pools, dict):
+                    reasons.append('rule {} pools must be a dict'
+                                   .format(rule_num))
+                else:
+                    for weight, pool in rule_pools.items():
+                        try:
+                            weight = int(weight)
+                            if weight < 1 or weight > 255:
+                                reasons.append('invalid pool weight "{}"'
+                                               .format(weight))
+                        except ValueError:
+                            reasons.append('invalid pool weight "{}"'
+                                           .format(weight))
+                        if pool not in pools:
+                            reasons.append('undefined pool "{}"'.format(pool))
+
         return reasons
 
     def __init__(self, zone, name, data, *args, **kwargs):
