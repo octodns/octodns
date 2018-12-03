@@ -29,6 +29,36 @@ a:
   values:
     - 2.2.2.2
     - 3.3.3.3
+aaaa:
+  dynamic:
+    pools:
+      ams: 2601:642:500:e210:62f8:1dff:feb8:9471
+      iad:
+          - 2601:642:500:e210:62f8:1dff:feb8:9472
+          - 2601:642:500:e210:62f8:1dff:feb8:9473
+      lax: 2601:642:500:e210:62f8:1dff:feb8:9474
+      sea: 2601:642:500:e210:62f8:1dff:feb8:9475
+    rules:
+      - geo: EU-UK
+        pools:
+          10: iad
+      - geo: EU
+        pools:
+          10: ams
+          10: iad
+      - geos:
+          - NA-US-CA
+          - NA-US-OR
+          - NA-US-WA
+        pools:
+          25: iad
+          75: sea
+      - pools:
+          10: iad
+  type: AAAA
+  values:
+    - 2601:642:500:e210:62f8:1dff:feb8:947a
+    - 2601:644:500:e210:62f8:1dff:feb8:947a
 cname:
   dynamic:
     pools:

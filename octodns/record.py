@@ -322,10 +322,6 @@ class _GeoMixin(_ValuesMixin):
             pass
         return reasons
 
-    # TODO: support 'value' as well
-    # TODO: move away from "data" hash to strict params, it's kind of leaking
-    # the yaml implementation into here and then forcing it back out into
-    # non-yaml providers during input
     def __init__(self, zone, name, data, *args, **kwargs):
         super(_GeoMixin, self).__init__(zone, name, data, *args, **kwargs)
         try:
@@ -453,7 +449,8 @@ class _DynamicMixin(object):
             self.dynamic = dict(data['dynamic'])
         except:
             self.dynamic = {}
-        # TODO:
+
+    # TODO: implement all this
 
 
 class Ipv4List(object):
