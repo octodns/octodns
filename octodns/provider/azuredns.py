@@ -239,6 +239,7 @@ class AzureProvider(BaseProvider):
         possible to also hard-code into the config file: eg, resource_group.
     '''
     SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NS', 'PTR', 'SRV', 'TXT'))
 
     def __init__(self, id, client_id, key, directory_id, sub_id,

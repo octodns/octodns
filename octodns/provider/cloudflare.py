@@ -59,6 +59,7 @@ class CloudflareProvider(BaseProvider):
                 value: 1.2.3.4
     '''
     SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SRV',
                     'SPF', 'TXT'))
 

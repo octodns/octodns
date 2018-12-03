@@ -232,6 +232,8 @@ class Route53Provider(BaseProvider):
     In general the account used will need full permissions on Route53.
     '''
     SUPPORTS_GEO = True
+    # TODO: dynamic
+    SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
                     'SPF', 'SRV', 'TXT'))
 

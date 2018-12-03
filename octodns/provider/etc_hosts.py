@@ -25,6 +25,7 @@ class EtcHostsProvider(BaseProvider):
         directory: ./hosts
     '''
     SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME'))
 
     def __init__(self, id, directory, *args, **kwargs):

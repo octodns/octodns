@@ -34,6 +34,7 @@ class OvhProvider(BaseProvider):
     """
 
     SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
     ZONE_NOT_FOUND_MESSAGE = 'This service does not exist'
 
     # This variable is also used in populate method to filter which OVH record

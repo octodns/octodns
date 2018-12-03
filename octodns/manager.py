@@ -37,6 +37,13 @@ class _AggregateTarget(object):
                 return False
         return True
 
+    @property
+    def SUPPORTS_DYNAMIC(self):
+        for target in self.targets:
+            if not target.SUPPORTS_DYNAMIC:
+                return False
+        return True
+
 
 class MakeThreadFuture(object):
 

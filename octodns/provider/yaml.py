@@ -31,6 +31,7 @@ class YamlProvider(BaseProvider):
         enforce_order: True
     '''
     SUPPORTS_GEO = True
+    SUPPORTS_DYNAMIC = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
                     'PTR', 'SSHFP', 'SPF', 'SRV', 'TXT'))
 

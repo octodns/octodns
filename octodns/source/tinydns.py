@@ -19,6 +19,7 @@ from .base import BaseSource
 
 class TinyDnsBaseSource(BaseSource):
     SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'CNAME', 'MX', 'NS'))
 
     split_re = re.compile(r':+')
