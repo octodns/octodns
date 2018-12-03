@@ -1923,9 +1923,98 @@ class TestDynamicRecords(TestCase):
         self.assertEquals('A', a._type)
         self.assertEquals(a_data['ttl'], a.ttl)
         self.assertEquals(a_data['values'], a.values)
-        self.assertEquals(a_data['dynamic'], a.dynamic)
 
-    def test_a_validation(self):
+        dynamic = a.dynamic
+        self.assertTrue(dynamic)
+
+        pools = dynamic.pools
+        self.assertTrue(pools)
+        self.assertEquals(a_data['dynamic']['pools']['one'], pools['one'].data)
+        self.assertEquals(a_data['dynamic']['pools']['two'], pools['two'].data)
+
+        rules = dynamic.rules
+        self.assertTrue(rules)
+        self.assertEquals(a_data['dynamic']['rules'][0], rules[0].data)
+
+    def test_simple_aaaa_weighted(self):
+        aaaa_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '2601:642:500:e210:62f8:1dff:feb8:9473',
+                    'two': [
+                        '2601:642:500:e210:62f8:1dff:feb8:9474',
+                        '2601:642:500:e210:62f8:1dff:feb8:9475',
+                    ],
+                },
+                'rules': [{
+                    'pools': {
+                        100: 'one',
+                        200: 'two',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'values': [
+                '2601:642:500:e210:62f8:1dff:feb8:9471',
+                '2601:642:500:e210:62f8:1dff:feb8:9472',
+            ],
+        }
+        aaaa = AaaaRecord(self.zone, 'weighted', aaaa_data)
+        self.assertEquals('AAAA', aaaa._type)
+        self.assertEquals(aaaa_data['ttl'], aaaa.ttl)
+        self.assertEquals(aaaa_data['values'], aaaa.values)
+
+        dynamic = aaaa.dynamic
+        self.assertTrue(dynamic)
+
+        pools = dynamic.pools
+        self.assertTrue(pools)
+        self.assertEquals(aaaa_data['dynamic']['pools']['one'],
+                          pools['one'].data)
+        self.assertEquals(aaaa_data['dynamic']['pools']['two'],
+                          pools['two'].data)
+
+        rules = dynamic.rules
+        self.assertTrue(rules)
+        self.assertEquals(aaaa_data['dynamic']['rules'][0], rules[0].data)
+
+    def test_simple_cname_weighted(self):
+        cname_data = {
+            'dynamic': {
+                'pools': {
+                    'one': 'one.cname.target.',
+                    'two': 'two.cname.target.',
+                },
+                'rules': [{
+                    'pools': {
+                        100: 'one',
+                        200: 'two',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'value': 'cname.target.',
+        }
+        cname = CnameRecord(self.zone, 'weighted', cname_data)
+        self.assertEquals('CNAME', cname._type)
+        self.assertEquals(cname_data['ttl'], cname.ttl)
+        self.assertEquals(cname_data['value'], cname.value)
+
+        dynamic = cname.dynamic
+        self.assertTrue(dynamic)
+
+        pools = dynamic.pools
+        self.assertTrue(pools)
+        self.assertEquals(cname_data['dynamic']['pools']['one'],
+                          pools['one'].data)
+        self.assertEquals(cname_data['dynamic']['pools']['two'],
+                          pools['two'].data)
+
+        rules = dynamic.rules
+        self.assertTrue(rules)
+        self.assertEquals(cname_data['dynamic']['rules'][0], rules[0].data)
+
+    def test_dynamic_validation(self):
         # Missing pools
         a_data = {
             'dynamic': {
@@ -2255,3 +2344,48 @@ class TestDynamicRecords(TestCase):
             Record.new(self.zone, 'bad', a_data)
         self.assertEquals(['invalid pool weight "foo"'],
                           ctx.exception.reasons)
+
+    def test_dynamic_lenient(self):
+        # Missing pools
+        a_data = {
+            'dynamic': {
+                'rules': [{
+                    'pools': {
+                        1: 'one',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        a = Record.new(self.zone, 'bad', a_data, lenient=True)
+        self.assertEquals({
+            'pools': {},
+            'rules': a_data['dynamic']['rules'],
+        }, a._data()['dynamic'])
+
+        # Missing rule
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '1.1.1.1',
+                },
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        a = Record.new(self.zone, 'bad', a_data, lenient=True)
+        self.assertEquals({
+            'pools': {
+                'one': '1.1.1.1',
+            },
+            'rules': [],
+        }, a._data()['dynamic'])

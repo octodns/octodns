@@ -386,6 +386,47 @@ class _ValueMixin(object):
                                            self.fqdn, self.value)
 
 
+class _DynamicPool(object):
+
+    def __init__(self, _id, data):
+        self._id = _id
+        # TODO: actually parse this
+        self.data = data
+
+    def _data(self):
+        return self.data
+
+
+class _DynamicRule(object):
+
+    def __init__(self, i, data):
+        self.i = i
+        # TODO: actually parse this
+        self.data = data
+
+    def _data(self):
+        return self.data
+
+
+class _Dynamic(object):
+
+    def __init__(self, pools, rules):
+        self.pools = pools
+        self.rules = rules
+
+    def _data(self):
+        pools = {}
+        for _id, pool in self.pools.items():
+            pools[_id] = pool._data()
+        rules = []
+        for rule in self.rules:
+            rules.append(rule._data())
+        return {
+            'pools': pools,
+            'rules': rules,
+        }
+
+
 class _DynamicMixin(object):
 
     @classmethod
@@ -445,12 +486,62 @@ class _DynamicMixin(object):
     def __init__(self, zone, name, data, *args, **kwargs):
         super(_DynamicMixin, self).__init__(zone, name, data, *args,
                                             **kwargs)
-        try:
-            self.dynamic = dict(data['dynamic'])
-        except:
-            self.dynamic = {}
 
-    # TODO: implement all this
+        self.dynamic = {}
+
+        if 'dynamic' not in data:
+            return
+
+        # pools
+        try:
+            pools = dict(data['dynamic']['pools'])
+        except:
+            pools = {}
+
+        for _id, pool in sorted(pools.items()):
+            pools[_id] = _DynamicPool(_id, pool)
+
+        # rules
+        try:
+            rules = list(data['dynamic']['rules'])
+        except:
+            rules = []
+
+        parsed = []
+        for i, rule in enumerate(rules):
+            parsed.append(_DynamicRule(i, rule))
+
+        # dynamic
+        self.dynamic = _Dynamic(pools, parsed)
+
+    def _data(self):
+        ret = super(_DynamicMixin, self)._data()
+        if self.dynamic:
+            ret['dynamic'] = self.dynamic._data()
+        return ret
+
+    def changes(self, other, target):
+        if target.SUPPORTS_DYNAMIC:
+            if self.dynamic != other.dynamic:
+                return Update(self, other)
+        return super(_DynamicMixin, self).changes(other, target)
+
+    def __repr__(self):
+        # TODO: improve this whole thing, we need multi-line...
+        if self.dynamic:
+            # TODO: this hack can't going to cut it, as part of said
+            # improvements the value types should deal with serializing their
+            # value
+            try:
+                values = self.values
+            except AttributeError:
+                values = self.value
+
+            return '<{} {} {}, {}, {}, {}>'.format(self.__class__.__name__,
+                                                   self._type, self.ttl,
+                                                   self.fqdn, values,
+                                                   self.dynamic)
+        return super(_DynamicMixin, self).__repr__()
 
 
 class Ipv4List(object):
