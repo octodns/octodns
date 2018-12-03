@@ -32,14 +32,10 @@ a:
 cname:
   dynamic:
     pools:
-      ams:
-        value: target-ams.unit.tests.
-      iad:
-        value: target-iad.unit.tests.
-      lax:
-        value: target-lax.unit.tests.
-      sea:
-        value: target-sea.unit.tests.
+      ams: target-ams.unit.tests.
+      iad: target-iad.unit.tests.
+      lax: target-lax.unit.tests.
+      sea: target-sea.unit.tests.
     rules:
       - geo: EU-UK
         pools:
@@ -63,10 +59,8 @@ cname:
 simple-weighted:
   dynamic:
     pools:
-      one:
-        value: one.unit.tests.
-      two:
-        value: two.unit.tests.
+      one: one.unit.tests.
+      two: two.unit.tests.
     rules:
       - pools:
           100: one
