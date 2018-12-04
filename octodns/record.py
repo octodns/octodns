@@ -396,6 +396,15 @@ class _DynamicPool(object):
     def _data(self):
         return self.data
 
+    def __eq__(self, other):
+        return self.data == other.data
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __repr__(self):
+        return '{}'.format(self.data)
+
 
 class _DynamicRule(object):
 
@@ -406,6 +415,15 @@ class _DynamicRule(object):
 
     def _data(self):
         return self.data
+
+    def __eq__(self, other):
+        return self.data == other.data
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __repr__(self):
+        return '{}'.format(self.data)
 
 
 class _Dynamic(object):
@@ -425,6 +443,16 @@ class _Dynamic(object):
             'pools': pools,
             'rules': rules,
         }
+
+    def __eq__(self, other):
+        ret = self.pools == other.pools and self.rules == other.rules
+        return ret
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __repr__(self):
+        return '{}, {}'.format(self.pools, self.rules)
 
 
 class _DynamicMixin(object):

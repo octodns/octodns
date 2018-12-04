@@ -13,7 +13,7 @@ from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
     TxtRecord, Update, ValidationError
 from octodns.zone import Zone
 
-from helpers import GeoProvider, SimpleProvider
+from helpers import DynamicProvider, GeoProvider, SimpleProvider
 
 
 class TestRecord(TestCase):
@@ -2389,3 +2389,110 @@ class TestDynamicRecords(TestCase):
             },
             'rules': [],
         }, a._data()['dynamic'])
+
+    def test_dynamic_changes(self):
+        simple = SimpleProvider()
+        dynamic = DynamicProvider()
+
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '3.3.3.3',
+                    'two': [
+                        '4.4.4.4',
+                        '5.5.5.5',
+                    ],
+                },
+                'rules': [{
+                    'pools': {
+                        100: 'one',
+                        200: 'two',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        a = ARecord(self.zone, 'weighted', a_data)
+        dup = ARecord(self.zone, 'weighted', a_data)
+
+        b_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '3.3.3.5',
+                    'two': [
+                        '4.4.4.4',
+                        '5.5.5.5',
+                    ],
+                },
+                'rules': [{
+                    'pools': {
+                        100: 'one',
+                        200: 'two',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        b = ARecord(self.zone, 'weighted', b_data)
+
+        c_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '3.3.3.3',
+                    'two': [
+                        '4.4.4.4',
+                        '5.5.5.5',
+                    ],
+                },
+                'rules': [{
+                    'pools': {
+                        100: 'one',
+                        300: 'two',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        c = ARecord(self.zone, 'weighted', c_data)
+
+        # a changes a (identical dup) is never true
+        self.assertFalse(a.changes(dup, simple))
+        self.assertFalse(a.changes(dup, dynamic))
+
+        # a changes b is not true for simple
+        self.assertFalse(a.changes(b, simple))
+        # but is true for dynamic
+        update = a.changes(b, dynamic)
+        self.assertEquals(a, update.existing)
+        self.assertEquals(b, update.new)
+        # transitive
+        self.assertFalse(b.changes(a, simple))
+        update = b.changes(a, dynamic)
+        self.assertEquals(a, update.existing)
+        self.assertEquals(b, update.new)
+
+        # same for a change c
+        self.assertFalse(a.changes(c, simple))
+        self.assertTrue(a.changes(c, dynamic))
+        self.assertFalse(c.changes(a, simple))
+        self.assertTrue(c.changes(a, dynamic))
+
+        # smoke test some of the equiality bits
+        self.assertEquals(a.dynamic.pools, a.dynamic.pools)
+        self.assertEquals(a.dynamic.pools['one'], a.dynamic.pools['one'])
+        self.assertNotEquals(a.dynamic.pools['one'], a.dynamic.pools['two'])
+        self.assertEquals(a.dynamic.rules, a.dynamic.rules)
+        self.assertEquals(a.dynamic.rules[0], a.dynamic.rules[0])
+        self.assertNotEquals(a.dynamic.rules[0], c.dynamic.rules[0])
