@@ -22,12 +22,12 @@ from .base import BaseProvider
 
 def escape_semicolon(s):
     assert s
-    return string.replace(s, ';', '\\;')
+    return s.replace(';', '\\;')
 
 
 def unescape_semicolon(s):
     assert s
-    return string.replace(s, '\\;', ';')
+    return s.replace('\\;', ';')
 
 
 class _AzureRecord(object):
