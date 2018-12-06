@@ -406,6 +406,22 @@ class _DynamicPool(object):
         return '{}'.format(self.data)
 
 
+class _DynamicRuleGeo(object):
+    geo_re = re.compile(r'^(?P<continent_code>\w\w)(-(?P<country_code>\w\w)'
+                        r'(-(?P<subdivision_code>\w\w))?)?$')
+
+    @classmethod
+    def validate(cls, rule_num, code):
+        reasons = []
+        # TODO: ideally this would validate the actual code...
+        match = cls.geo_re.match(code)
+        if not match:
+            reasons.append('rule {} invalid geo "{}"'.format(rule_num, code))
+        return reasons
+
+    # TODO: flesh this out
+
+
 class _DynamicRule(object):
 
     def __init__(self, i, data):
@@ -517,6 +533,8 @@ class _DynamicMixin(object):
         elif not rules:
             reasons.append('missing rules')
         else:
+            seen_default = False
+
             for rule_num, rule in enumerate(rules):
                 rule_num += 1
                 try:
@@ -532,7 +550,21 @@ class _DynamicMixin(object):
                     reasons.append('rule {} undefined pool "{}"'
                                    .format(rule_num, pool))
 
-                # TODO: validate GEOs if present
+                try:
+                    geos = rule['geos']
+                except KeyError:
+                    geos = []
+                    if seen_default:
+                        reasons.append('rule {} duplicate default'
+                                       .format(rule_num))
+                    seen_default = True
+
+                if not isinstance(geos, (list, tuple)):
+                    reasons.append('rule {} geos must be a list'
+                                   .format(rule_num))
+                else:
+                    for geo in geos:
+                        reasons.extend(_DynamicRuleGeo.validate(rule_num, geo))
 
         return reasons
 

@@ -2688,6 +2688,113 @@ class TestDynamicRecords(TestCase):
         self.assertEquals(["rule 1 undefined pool \"non-existant\""],
                           ctx.exception.reasons)
 
+        # rule with invalid geos
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': 'NA-US-CA',
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['rule 1 geos must be a list'],
+                          ctx.exception.reasons)
+
+        # rule with invalid geo
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': ['invalid'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['rule 1 invalid geo "invalid"'],
+                          ctx.exception.reasons)
+
+        # multiple default rules
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['rule 2 duplicate default'],
+                          ctx.exception.reasons)
+
     def test_dynamic_lenient(self):
         # Missing pools
         a_data = {

@@ -21,9 +21,11 @@ a:
           - value: 5.5.5.5
             weight: 25
     rules:
-      - geo: EU-UK
+      - geos:
+        - EU-UK
         pool: iad
-      - geo: EU
+      - geos:
+        - EU
         pool: ams
       - geos:
           - NA-US-CA
@@ -55,9 +57,11 @@ aaaa:
           - value: 2601:642:500:e210:62f8:1dff:feb8:9476
             weight: 2
     rules:
-      - geo: EU-UK
+      - geos:
+        - EU-UK
         pool: iad
-      - geo: EU
+      - geos:
+        - EU
         pool: ams
       - geos:
           - NA-US-CA
@@ -88,9 +92,11 @@ cname:
           - value: target-sea-2.unit.tests.
             weight: 175
     rules:
-      - geo: EU-UK
+      - geos:
+        - EU-UK
         pool: iad
-      - geo: EU
+      - geos:
+        - EU
         pool: ams
       - geos:
           - NA-US-CA
