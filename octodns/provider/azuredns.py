@@ -5,8 +5,6 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-import string
-
 from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.dns import DnsManagementClient
 from msrestazure.azure_exceptions import CloudError
