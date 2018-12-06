@@ -262,7 +262,7 @@ class _ValuesMixin(object):
             except KeyError:
                 values = []
 
-        reasons.extend(cls._value_type.validate(values, cls))
+        reasons.extend(cls._value_type.validate(values, cls._type))
 
         return reasons
 
@@ -317,7 +317,7 @@ class _GeoMixin(_ValuesMixin):
             # TODO: validate legal codes
             for code, values in geo.items():
                 reasons.extend(GeoValue._validate_geo(code))
-                reasons.extend(cls._value_type.validate(values, cls))
+                reasons.extend(cls._value_type.validate(values, cls._type))
         except KeyError:
             pass
         return reasons
@@ -362,7 +362,8 @@ class _ValueMixin(object):
     @classmethod
     def validate(cls, name, data):
         reasons = super(_ValueMixin, cls).validate(name, data)
-        reasons.extend(cls._value_type.validate(data.get('value', None), cls))
+        reasons.extend(cls._value_type.validate(data.get('value', None),
+                                                cls._type))
         return reasons
 
     def __init__(self, zone, name, data, source=None):
@@ -502,7 +503,8 @@ class _DynamicMixin(object):
 
                     try:
                         value = value['value']
-                        reasons.extend(cls._value_type.validate(value, cls))
+                        reasons.extend(cls._value_type.validate(value,
+                                                                cls._type))
                     except KeyError:
                         reasons.append('missing value in pool "{}" '
                                        'value {}'.format(_id, value_num))
@@ -620,8 +622,7 @@ class _DynamicMixin(object):
 class Ipv4List(object):
 
     @classmethod
-    # TODO: remove record_cls it's redudant (cls)
-    def validate(cls, data, record_cls):
+    def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         if len(data) == 0:
@@ -647,7 +648,7 @@ class Ipv4List(object):
 class Ipv6List(object):
 
     @classmethod
-    def validate(cls, data, record_cls):
+    def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         if len(data) == 0:
@@ -673,7 +674,7 @@ class Ipv6List(object):
 class _TargetValue(object):
 
     @classmethod
-    def validate(cls, data, record_cls):
+    def validate(cls, data, _type):
         reasons = []
         if data == '':
             reasons.append('empty value')
@@ -681,7 +682,7 @@ class _TargetValue(object):
             reasons.append('missing value')
         elif not data.endswith('.'):
             reasons.append('{} value "{}" missing trailing .'
-                           .format(record_cls._type, data))
+                           .format(_type, data))
         return reasons
 
     @classmethod
@@ -716,7 +717,7 @@ class CaaValue(object):
     # https://tools.ietf.org/html/rfc6844#page-5
 
     @classmethod
-    def validate(cls, data, record_cls):
+    def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         reasons = []
@@ -783,7 +784,7 @@ class CnameRecord(_DynamicMixin, _ValueMixin, Record):
 class MxValue(object):
 
     @classmethod
-    def validate(cls, data, record_cls):
+    def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         reasons = []
@@ -851,7 +852,7 @@ class NaptrValue(object):
     VALID_FLAGS = ('S', 'A', 'U', 'P')
 
     @classmethod
-    def validate(cls, data, record_cls):
+    def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         reasons = []
@@ -936,7 +937,7 @@ class NaptrRecord(_ValuesMixin, Record):
 class _NsValue(object):
 
     @classmethod
-    def validate(cls, data, record_cls):
+    def validate(cls, data, _type):
         if not data:
             return ['missing value(s)']
         elif not isinstance(data, (list, tuple)):
@@ -972,7 +973,7 @@ class SshfpValue(object):
     VALID_FINGERPRINT_TYPES = (1, 2)
 
     @classmethod
-    def validate(cls, data, record_cls):
+    def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         reasons = []
@@ -1055,7 +1056,7 @@ class _ChunkedValue(object):
     _unescaped_semicolon_re = re.compile(r'\w;')
 
     @classmethod
-    def validate(cls, data, record_cls):
+    def validate(cls, data, _type):
         if not data:
             return ['missing value(s)']
         elif not isinstance(data, (list, tuple)):
@@ -1084,7 +1085,7 @@ class SpfRecord(_ChunkedValuesMixin, Record):
 class SrvValue(object):
 
     @classmethod
-    def validate(cls, data, record_cls):
+    def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         reasons = []
