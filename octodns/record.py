@@ -469,11 +469,43 @@ class _DynamicMixin(object):
         except KeyError:
             pools = {}
 
-        if not pools:
+        if not isinstance(pools, dict):
+            reasons.append('pools must be a dict')
+        elif not pools:
             reasons.append('missing pools')
         else:
-            for pool in sorted(pools.values()):
-                reasons.extend(cls._value_type.validate(pool, cls))
+            for _id, pool in sorted(pools.items()):
+                if not isinstance(pool, dict):
+                    reasons.append('pool "{}" must be a dict'.format(_id))
+                    continue
+                try:
+                    values = pool['values']
+                except KeyError:
+                    reasons.append('pool "{}" is missing values'.format(_id))
+                    continue
+
+                for value_num, value in enumerate(values):
+                    value_num += 1
+                    try:
+                        weight = value['weight']
+                        weight = int(weight)
+                        if weight < 1 or weight > 255:
+                            reasons.append('invalid weight "{}" in pool "{}" '
+                                           'value {}'.format(weight, _id,
+                                                             value_num))
+                    except KeyError:
+                        pass
+                    except ValueError:
+                        reasons.append('invalid weight "{}" in pool "{}" '
+                                       'value {}'.format(weight, _id,
+                                                         value_num))
+
+                    try:
+                        value = value['value']
+                        reasons.extend(cls._value_type.validate(value, cls))
+                    except KeyError:
+                        reasons.append('missing value in pool "{}" '
+                                       'value {}'.format(_id, value_num))
 
         try:
             rules = data['dynamic']['rules']
@@ -488,26 +520,19 @@ class _DynamicMixin(object):
             for rule_num, rule in enumerate(rules):
                 rule_num += 1
                 try:
-                    rule_pools = rule['pools']
+                    pool = rule['pool']
                 except KeyError:
-                    rule_pools = {}
-                if not rule_pools:
-                    reasons.append('rule {} missing pools'.format(rule_num))
-                elif not isinstance(rule_pools, dict):
-                    reasons.append('rule {} pools must be a dict'
-                                   .format(rule_num))
-                else:
-                    for weight, pool in rule_pools.items():
-                        try:
-                            weight = int(weight)
-                            if weight < 1 or weight > 255:
-                                reasons.append('invalid pool weight "{}"'
-                                               .format(weight))
-                        except ValueError:
-                            reasons.append('invalid pool weight "{}"'
-                                           .format(weight))
-                        if pool not in pools:
-                            reasons.append('undefined pool "{}"'.format(pool))
+                    reasons.append('rule {} missing pool'.format(rule_num))
+                    continue
+
+                if not isinstance(pool, basestring):
+                    reasons.append('rule {} invalid pool "{}"'
+                                   .format(rule_num, pool))
+                elif pool not in pools:
+                    reasons.append('rule {} undefined pool "{}"'
+                                   .format(rule_num, pool))
+
+                # TODO: validate GEOs if present
 
         return reasons
 
@@ -575,6 +600,7 @@ class _DynamicMixin(object):
 class Ipv4List(object):
 
     @classmethod
+    # TODO: remove record_cls it's redudant (cls)
     def validate(cls, data, record_cls):
         if not isinstance(data, (list, tuple)):
             data = (data,)
