@@ -2177,6 +2177,7 @@ class TestDynamicRecords(TestCase):
                         }],
                     },
                     'two': {
+                        'fallback': 'one',
                         'values': [{
                             'value': '4.4.4.4',
                         }, {
@@ -2184,6 +2185,7 @@ class TestDynamicRecords(TestCase):
                         }]
                     },
                     'three': {
+                        'fallback': 'two',
                         'values': [{
                             'weight': 1,
                             'value': '5.5.5.5',
@@ -2445,6 +2447,110 @@ class TestDynamicRecords(TestCase):
             Record.new(self.zone, 'bad', a_data)
         self.assertEquals(['invalid weight "foo" in pool "three" value 2'],
                           ctx.exception.reasons)
+
+        # invalid fallback
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }],
+                    },
+                    'two': {
+                        'fallback': 'invalid',
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                    'three': {
+                        'fallback': 'two',
+                        'values': [{
+                            'weight': 1,
+                            'value': '6.6.6.6',
+                        }, {
+                            'weight': 5,
+                            'value': '7.7.7.7',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['undefined fallback "invalid" for pool "two"'],
+                          ctx.exception.reasons)
+
+        # fallback loop
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'fallback': 'three',
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }],
+                    },
+                    'two': {
+                        'fallback': 'one',
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                    'three': {
+                        'fallback': 'two',
+                        'values': [{
+                            'weight': 1,
+                            'value': '6.6.6.6',
+                        }, {
+                            'weight': 5,
+                            'value': '7.7.7.7',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals([
+            'loop in pool fallbacks: one -> three -> two',
+            'loop in pool fallbacks: three -> two -> one',
+            'loop in pool fallbacks: two -> one -> three'
+        ], ctx.exception.reasons)
 
         # multiple pool problems
         a_data = {

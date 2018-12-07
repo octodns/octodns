@@ -509,6 +509,25 @@ class _DynamicMixin(object):
                         reasons.append('missing value in pool "{}" '
                                        'value {}'.format(_id, value_num))
 
+                fallback = pool.get('fallback', None)
+                if fallback is not None and fallback not in pools:
+                    reasons.append('undefined fallback "{}" for pool "{}"'
+                                   .format(fallback, _id))
+
+                # Check for loops
+                fallback = pools[_id].get('fallback', None)
+                seen = [_id, fallback]
+                while fallback is not None:
+                    # See if there's a next fallback
+                    fallback = pools.get(fallback, {}).get('fallback', None)
+                    if fallback in seen:
+                        seen = ' -> '.join(seen)
+                        reasons.append('loop in pool fallbacks: {}'
+                                       .format(seen))
+                        # exit the loop
+                        break
+                    seen.append(fallback)
+
         try:
             rules = data['dynamic']['rules']
         except KeyError:
