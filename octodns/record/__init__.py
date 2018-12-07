@@ -533,6 +533,7 @@ class _DynamicMixin(object):
         else:
             seen_default = False
 
+            # TODO: warn or error on unused pools?
             for i, rule in enumerate(rules):
                 rule_num = i + 1
                 try:
@@ -566,6 +567,11 @@ class _DynamicMixin(object):
                                                          .format(rule_num)))
 
         return reasons
+
+    @classmethod
+    def geo_parse(cls, code):
+        match = cls.geo_re.match(code)
+        return match.groupdict()
 
     def __init__(self, zone, name, data, *args, **kwargs):
         super(_DynamicMixin, self).__init__(zone, name, data, *args,
