@@ -529,6 +529,7 @@ class DynProvider(BaseProvider):
         return [{
             'flags': v.flags,
             'tag': v.tag,
+            'ttl': record.ttl,
             'value': v.value,
         } for v in record.values]
 

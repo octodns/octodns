@@ -11,6 +11,8 @@ from logging import DEBUG, INFO, WARN, Formatter, StreamHandler, \
 from logging.handlers import SysLogHandler
 from sys import stderr, stdout
 
+from octodns import __VERSION__
+
 
 class ArgumentParser(_Base):
     '''
@@ -23,6 +25,9 @@ class ArgumentParser(_Base):
         super(ArgumentParser, self).__init__(*args, **kwargs)
 
     def parse_args(self, default_log_level=INFO):
+        version = 'octoDNS {}'.format(__VERSION__)
+        self.add_argument('--version', action='version', version=version,
+                          help='Print octoDNS version and exit')
         self.add_argument('--log-stream-stdout', action='store_true',
                           default=False,
                           help='Log to stdout instead of stderr')
