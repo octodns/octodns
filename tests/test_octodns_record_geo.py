@@ -51,3 +51,20 @@ class TestRecordGeoCodes(TestCase):
         # Bad province code, good continent and country
         self.assertEquals(['xyz unknown province code "NA-US-XX"'],
                           GeoCodes.validate('NA-US-XX', prefix))
+
+    def test_parse(self):
+        self.assertEquals({
+            'continent_code': 'NA',
+            'country_code': None,
+            'province_code': None,
+        }, GeoCodes.parse('NA'))
+        self.assertEquals({
+            'continent_code': 'NA',
+            'country_code': 'US',
+            'province_code': None,
+        }, GeoCodes.parse('NA-US'))
+        self.assertEquals({
+            'continent_code': 'NA',
+            'country_code': 'US',
+            'province_code': 'CA',
+        }, GeoCodes.parse('NA-US-CA'))

@@ -568,11 +568,6 @@ class _DynamicMixin(object):
 
         return reasons
 
-    @classmethod
-    def geo_parse(cls, code):
-        match = cls.geo_re.match(code)
-        return match.groupdict()
-
     def __init__(self, zone, name, data, *args, **kwargs):
         super(_DynamicMixin, self).__init__(zone, name, data, *args,
                                             **kwargs)

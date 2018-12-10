@@ -33,3 +33,20 @@ class GeoCodes(object):
             reasons.append('{}unknown province code "{}"'.format(prefix, code))
 
         return reasons
+
+    @classmethod
+    def parse(cls, code):
+        pieces = code.split('-')
+        try:
+            country_code = pieces[1]
+        except IndexError:
+            country_code = None
+        try:
+            province_code = pieces[2]
+        except IndexError:
+            province_code = None
+        return {
+            'continent_code': pieces[0],
+            'country_code': country_code,
+            'province_code': province_code,
+        }

@@ -18,6 +18,7 @@ from threading import Lock
 from uuid import uuid4
 
 from ..record import Record, Update
+from ..record.geo import GeoCodes
 from .base import BaseProvider
 
 
@@ -1109,7 +1110,7 @@ class DynProvider(BaseProvider):
             criteria_type = 'always'
             try:
                 for geo in rule.data['geos']:
-                    geo = new.geo_parse(geo)
+                    geo = GeoCodes.geo_parse(geo)
                     pprint(geo)
                     criteria_type = 'geoip'
                     if geo['subdivision_code']:
