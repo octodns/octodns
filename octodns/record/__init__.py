@@ -9,6 +9,8 @@ from ipaddress import IPv4Address, IPv6Address
 from logging import getLogger
 import re
 
+from .geo import GeoCodes
+
 
 class Change(object):
 
@@ -563,11 +565,8 @@ class _DynamicMixin(object):
                                    .format(rule_num))
                 else:
                     for geo in geos:
-                        # TODO: ideally this would validate the actual code...
-                        match = cls.geo_re.match(geo)
-                        if not match:
-                            reasons.append('rule {} invalid geo "{}"'
-                                           .format(rule_num, geo))
+                        reasons.extend(GeoCodes.validate(geo, 'rule {} '
+                                                         .format(rule_num)))
 
         return reasons
 

@@ -2863,7 +2863,7 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['rule 1 invalid geo "invalid"'],
+        self.assertEquals(['rule 1 unknown continent code "invalid"'],
                           ctx.exception.reasons)
 
         # multiple default rules
