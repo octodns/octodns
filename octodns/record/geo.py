@@ -2,11 +2,13 @@
 #
 #
 
+from logging import getLogger
+
 from .geo_data import geo_data
 
 
 class GeoCodes(object):
-    __COUNTRIES = None
+    log = getLogger('GeoCodes')
 
     @classmethod
     def validate(cls, code, prefix):
@@ -50,3 +52,20 @@ class GeoCodes(object):
             'country_code': country_code,
             'province_code': province_code,
         }
+
+    @classmethod
+    def country_to_code(cls, country):
+        for continent, countries in geo_data.items():
+            if country in countries:
+                return '{}-{}'.format(continent, country)
+        cls.log.warn('country_to_code: unrecognized country "%s"', country)
+        return
+
+    @classmethod
+    def province_to_code(cls, province):
+        # We get to cheat on this one since we only support provinces in NA-US
+        if province not in geo_data['NA']['US']['provinces']:
+            cls.log.warn('country_to_code: unrecognized province "%s"',
+                         province)
+            return
+        return 'NA-US-{}'.format(province)

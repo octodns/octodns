@@ -1906,10 +1906,11 @@ class TestDynamicRecords(TestCase):
                         }],
                     },
                     'two': {
+                        # Testing out of order value sorting here
                         'values': [{
-                            'value': '4.4.4.4',
-                        }, {
                             'value': '5.5.5.5',
+                        }, {
+                            'value': '4.4.4.4',
                         }],
                     },
                     'three': {
@@ -1948,10 +1949,24 @@ class TestDynamicRecords(TestCase):
 
         pools = dynamic.pools
         self.assertTrue(pools)
-        self.assertEquals(a_data['dynamic']['pools']['one'], pools['one'].data)
-        self.assertEquals(a_data['dynamic']['pools']['two'], pools['two'].data)
-        self.assertEquals(a_data['dynamic']['pools']['three'],
-                          pools['three'].data)
+        self.assertEquals({
+            'value': '3.3.3.3',
+            'weight': 1,
+        }, pools['one'].data['values'][0])
+        self.assertEquals([{
+            'value': '4.4.4.4',
+            'weight': 1,
+        }, {
+            'value': '5.5.5.5',
+            'weight': 1,
+        }], pools['two'].data['values'])
+        self.assertEquals([{
+            'weight': 10,
+            'value': '4.4.4.4',
+        }, {
+            'weight': 12,
+            'value': '5.5.5.5',
+        }], pools['three'].data['values'])
 
         rules = dynamic.rules
         self.assertTrue(rules)
@@ -1994,10 +2009,11 @@ class TestDynamicRecords(TestCase):
                         }],
                     },
                     'two': {
+                        # Testing out of order value sorting here
                         'values': [{
-                            'value': '2601:642:500:e210:62f8:1dff:feb8:9474',
-                        }, {
                             'value': '2601:642:500:e210:62f8:1dff:feb8:9475',
+                        }, {
+                            'value': '2601:642:500:e210:62f8:1dff:feb8:9474',
                         }],
                     },
                     'three': {
@@ -2036,12 +2052,24 @@ class TestDynamicRecords(TestCase):
 
         pools = dynamic.pools
         self.assertTrue(pools)
-        self.assertEquals(aaaa_data['dynamic']['pools']['one'],
-                          pools['one'].data)
-        self.assertEquals(aaaa_data['dynamic']['pools']['two'],
-                          pools['two'].data)
-        self.assertEquals(aaaa_data['dynamic']['pools']['three'],
-                          pools['three'].data)
+        self.assertEquals({
+            'value': '2601:642:500:e210:62f8:1dff:feb8:9473',
+            'weight': 1,
+        }, pools['one'].data['values'][0])
+        self.assertEquals([{
+            'value': '2601:642:500:e210:62f8:1dff:feb8:9474',
+            'weight': 1,
+        }, {
+            'value': '2601:642:500:e210:62f8:1dff:feb8:9475',
+            'weight': 1,
+        }], pools['two'].data['values'])
+        self.assertEquals([{
+            'weight': 10,
+            'value': '2601:642:500:e210:62f8:1dff:feb8:9476',
+        }, {
+            'weight': 12,
+            'value': '2601:642:500:e210:62f8:1dff:feb8:9477',
+        }], pools['three'].data['values'])
 
         rules = dynamic.rules
         self.assertTrue(rules)
@@ -2094,12 +2122,21 @@ class TestDynamicRecords(TestCase):
 
         pools = dynamic.pools
         self.assertTrue(pools)
-        self.assertEquals(cname_data['dynamic']['pools']['one'],
-                          pools['one'].data)
-        self.assertEquals(cname_data['dynamic']['pools']['two'],
-                          pools['two'].data)
-        self.assertEquals(cname_data['dynamic']['pools']['three'],
-                          pools['three'].data)
+        self.assertEquals({
+            'value': 'one.cname.target.',
+            'weight': 1,
+        }, pools['one'].data['values'][0])
+        self.assertEquals({
+            'value': 'two.cname.target.',
+            'weight': 1,
+        }, pools['two'].data['values'][0])
+        self.assertEquals([{
+            'value': 'three-1.cname.target.',
+            'weight': 12,
+        }, {
+            'value': 'three-2.cname.target.',
+            'weight': 32,
+        }], pools['three'].data['values'])
 
         rules = dynamic.rules
         self.assertTrue(rules)
@@ -2906,9 +2943,10 @@ class TestDynamicRecords(TestCase):
         a_data = {
             'dynamic': {
                 'rules': [{
-                    'pools': {
-                        1: 'one',
-                    }
+                    'geos': ['EU'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
                 }],
             },
             'ttl': 60,
@@ -2928,7 +2966,19 @@ class TestDynamicRecords(TestCase):
         a_data = {
             'dynamic': {
                 'pools': {
-                    'one': '1.1.1.1',
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                            'weight': 2,
+                        }]
+                    },
                 },
             },
             'ttl': 60,
@@ -2941,9 +2991,80 @@ class TestDynamicRecords(TestCase):
         a = Record.new(self.zone, 'bad', a_data, lenient=True)
         self.assertEquals({
             'pools': {
-                'one': '1.1.1.1',
+                'one': {
+                    'fallback': None,
+                    'values': [{
+                        'value': '3.3.3.3',
+                        'weight': 1,
+                    }]
+                },
+                'two': {
+                    'fallback': None,
+                    'values': [{
+                        'value': '4.4.4.4',
+                        'weight': 1,
+                    }, {
+                        'value': '5.5.5.5',
+                        'weight': 2,
+                    }]
+                },
             },
             'rules': [],
+        }, a._data()['dynamic'])
+
+        # rule without pool
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                            'weight': 2,
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': ['EU'],
+                    'pool': 'two',
+                }, {
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        a = Record.new(self.zone, 'bad', a_data, lenient=True)
+        self.assertEquals({
+            'pools': {
+                'one': {
+                    'fallback': None,
+                    'values': [{
+                        'value': '3.3.3.3',
+                        'weight': 1,
+                    }]
+                },
+                'two': {
+                    'fallback': None,
+                    'values': [{
+                        'value': '4.4.4.4',
+                        'weight': 1,
+                    }, {
+                        'value': '5.5.5.5',
+                        'weight': 2,
+                    }]
+                },
+            },
+            'rules': a_data['dynamic']['rules'],
         }, a._data()['dynamic'])
 
     def test_dynamic_changes(self):
@@ -2953,17 +3074,24 @@ class TestDynamicRecords(TestCase):
         a_data = {
             'dynamic': {
                 'pools': {
-                    'one': '3.3.3.3',
-                    'two': [
-                        '4.4.4.4',
-                        '5.5.5.5',
-                    ],
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
                 },
                 'rules': [{
-                    'pools': {
-                        100: 'one',
-                        200: 'two',
-                    }
+                    'geos': ['EU'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
                 }],
             },
             'ttl': 60,
@@ -2978,17 +3106,25 @@ class TestDynamicRecords(TestCase):
         b_data = {
             'dynamic': {
                 'pools': {
-                    'one': '3.3.3.5',
-                    'two': [
-                        '4.4.4.4',
-                        '5.5.5.5',
-                    ],
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                            'weight': 2,
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
                 },
                 'rules': [{
-                    'pools': {
-                        100: 'one',
-                        200: 'two',
-                    }
+                    'geos': ['EU'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
                 }],
             },
             'ttl': 60,
@@ -3002,17 +3138,24 @@ class TestDynamicRecords(TestCase):
         c_data = {
             'dynamic': {
                 'pools': {
-                    'one': '3.3.3.3',
-                    'two': [
-                        '4.4.4.4',
-                        '5.5.5.5',
-                    ],
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
                 },
                 'rules': [{
-                    'pools': {
-                        100: 'one',
-                        300: 'two',
-                    }
+                    'geos': ['NA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
                 }],
             },
             'ttl': 60,

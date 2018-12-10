@@ -68,3 +68,13 @@ class TestRecordGeoCodes(TestCase):
             'country_code': 'US',
             'province_code': 'CA',
         }, GeoCodes.parse('NA-US-CA'))
+
+    def test_country_to_code(self):
+        self.assertEquals('NA-US', GeoCodes.country_to_code('US'))
+        self.assertEquals('EU-GB', GeoCodes.country_to_code('GB'))
+        self.assertFalse(GeoCodes.country_to_code('XX'))
+
+    def test_province_to_code(self):
+        self.assertEquals('NA-US-OR', GeoCodes.province_to_code('OR'))
+        self.assertEquals('NA-US-KY', GeoCodes.province_to_code('KY'))
+        self.assertFalse(GeoCodes.province_to_code('XX'))

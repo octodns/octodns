@@ -12,6 +12,9 @@ import re
 from .geo import GeoCodes
 
 
+from pprint import pprint
+
+
 class Change(object):
 
     def __init__(self, existing, new):
@@ -384,7 +387,24 @@ class _DynamicPool(object):
 
     def __init__(self, _id, data):
         self._id = _id
-        self.data = data
+
+        pprint(['before', data])
+
+        values = [
+            {
+                'value': d['value'],
+                'weight': d.get('weight', 1),
+            } for d in data['values']
+        ]
+        values.sort(key=lambda d: d['value'])
+
+        fallback = data.get('fallback', None)
+        self.data = {
+            'fallback': fallback if fallback != 'default' else None,
+            'values': values,
+        }
+
+        pprint(['after', self.data])
 
     def _data(self):
         return self.data
@@ -403,12 +423,30 @@ class _DynamicRule(object):
 
     def __init__(self, i, data):
         self.i = i
-        self.data = data
+
+        pprint(['before', data])
+
+        self.data = {}
+        try:
+            self.data['pool'] = data['pool']
+        except KeyError:
+            pass
+        try:
+            self.data['geos'] = sorted(data['geos'])
+        except KeyError:
+            pass
+
+        pprint(['after', self.data])
 
     def _data(self):
         return self.data
 
     def __eq__(self, other):
+        pprint([
+            self.data,
+            other.data,
+            self.data == other.data,
+        ])
         return self.data == other.data
 
     def __ne__(self, other):

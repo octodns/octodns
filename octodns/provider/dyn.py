@@ -466,7 +466,7 @@ class DynProvider(BaseProvider):
         values = []
         data = {
             'dynamic': {
-                'pool': pools,
+                'pools': pools,
                 'rules': rules,
             },
             'type': _type,
@@ -523,11 +523,13 @@ class DynProvider(BaseProvider):
                     # Geo
                     geo = ruleset.criteria['geoip']
                     geos = []
-                    # TODO: we need to reconstitude geos here :-/
+                    # Dyn uses the same 2-letter codes as octoDNS (except for
+                    # continents) but it doesn't have the hierary, e.g. US is
+                    # just US, not NA-US. We'll have to map these things back
                     for code in geo['country']:
-                        geos.append(code)
+                        geos.append(GeoCodes.country_to_code(code))
                     for code in geo['province']:
-                        geos.append(code)
+                        geos.append(GeoCodes.province_to_code(code.upper()))
                     for code in geo['region']:
                         geos.append(self.REGION_CODES_LOOKUP[int(code)])
                     rule['geos'] = geos
@@ -542,8 +544,6 @@ class DynProvider(BaseProvider):
                 rules.append(rule)
 
         pprint(data)
-
-        raise Exception('boom')
 
         name = zone.hostname_from_fqdn(fqdn)
         record = Record.new(zone, name, data, source=self, lenient=lenient)
@@ -1011,6 +1011,10 @@ class DynProvider(BaseProvider):
 
     def _mod_dynamic_rulesets(self, td, change):
         new = change.new
+
+        # TODO: make sure we can update TTLs
+        if td.ttl != new.ttl:
+            td.ttl = new.ttl
 
         # Get existing pools. This should be simple, but it's not b/c the dyn
         # api is a POS. We need all response pools so we can GC and check to
