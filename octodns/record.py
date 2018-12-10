@@ -254,13 +254,7 @@ class _ValuesMixin(object):
     def validate(cls, name, data):
         reasons = super(_ValuesMixin, cls).validate(name, data)
 
-        try:
-            values = data['values']
-        except KeyError:
-            try:
-                values = data['value']
-            except KeyError:
-                values = []
+        values = data.get('values', data.get('value', []))
 
         reasons.extend(cls._value_type.validate(values, cls._type))
 
