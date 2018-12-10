@@ -22,7 +22,7 @@ a:
             weight: 25
     rules:
       - geos:
-        - EU-UK
+        - EU-GB
         pool: iad
       - geos:
         - EU
@@ -58,7 +58,7 @@ aaaa:
             weight: 2
     rules:
       - geos:
-        - EU-UK
+        - EU-GB
         pool: iad
       - geos:
         - EU
@@ -93,7 +93,7 @@ cname:
             weight: 175
     rules:
       - geos:
-        - EU-UK
+        - EU-GB
         pool: iad
       - geos:
         - EU
