@@ -671,10 +671,8 @@ class TestDynProviderGeo(TestCase):
                           set(tds.keys()))
         self.assertEquals(['A'], tds['unit.tests.'].keys())
         self.assertEquals(['A'], tds['geo.unit.tests.'].keys())
-        provider.log.warn.assert_called_with("Failed to load TrafficDirector "
-                                             "'%s': %s", 'something else',
-                                             'need more than 1 value to '
-                                             'unpack')
+        provider.log.warn.assert_called_with("Unsupported TrafficDirector "
+                                             "'%s'", 'something else')
 
     @patch('dyn.core.SessionEngine.execute')
     def test_traffic_director_monitor(self, mock):
@@ -1159,7 +1157,7 @@ class TestDynProviderGeo(TestCase):
                                traffic_directors_enabled=True)
 
         # will be tested separately
-        provider._mod_rulesets = MagicMock()
+        provider._mod_geo_rulesets = MagicMock()
 
         mock.side_effect = [
             # create traffic director
@@ -1171,7 +1169,7 @@ class TestDynProviderGeo(TestCase):
         # td now lives in cache
         self.assertTrue('A' in provider.traffic_directors['unit.tests.'])
         # should have seen 1 gen call
-        provider._mod_rulesets.assert_called_once()
+        provider._mod_geo_rulesets.assert_called_once()
 
     def test_mod_geo_update_geo_geo(self):
         provider = DynProvider('test', 'cust', 'user', 'pass',
@@ -1185,8 +1183,8 @@ class TestDynProviderGeo(TestCase):
                 'A': 42,
             }
         }
-        # mock _mod_rulesets
-        provider._mod_rulesets = MagicMock()
+        # mock _mod_geo_rulesets
+        provider._mod_geo_rulesets = MagicMock()
 
         geo = self.geo_record
         change = Update(geo, geo)
@@ -1194,7 +1192,7 @@ class TestDynProviderGeo(TestCase):
         # still in cache
         self.assertTrue('A' in provider.traffic_directors['unit.tests.'])
         # should have seen 1 gen call
-        provider._mod_rulesets.assert_called_once_with(42, change)
+        provider._mod_geo_rulesets.assert_called_once_with(42, change)
 
     @patch('dyn.core.SessionEngine.execute')
     def test_mod_geo_update_geo_regular(self, _):
@@ -1248,7 +1246,7 @@ class TestDynProviderGeo(TestCase):
         self.assertFalse('A' in provider.traffic_directors['unit.tests.'])
 
     @patch('dyn.tm.services.DSFResponsePool.create')
-    def test_find_or_create_pool(self, mock):
+    def test_find_or_create_geo_pool(self, mock):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
@@ -1256,7 +1254,8 @@ class TestDynProviderGeo(TestCase):
 
         # no candidates cache miss, so create
         values = ['1.2.3.4', '1.2.3.5']
-        pool = provider._find_or_create_pool(td, [], 'default', 'A', values)
+        pool = provider._find_or_create_geo_pool(td, [], 'default', 'A',
+                                                 values)
         self.assertIsInstance(pool, DSFResponsePool)
         self.assertEquals(1, len(pool.rs_chains))
         records = pool.rs_chains[0].record_sets[0].records
@@ -1266,15 +1265,15 @@ class TestDynProviderGeo(TestCase):
         # cache hit, use the one we just created
         mock.reset_mock()
         pools = [pool]
-        cached = provider._find_or_create_pool(td, pools, 'default', 'A',
-                                               values)
+        cached = provider._find_or_create_geo_pool(td, pools, 'default', 'A',
+                                                   values)
         self.assertEquals(pool, cached)
         mock.assert_not_called()
 
         # cache miss, non-matching label
         mock.reset_mock()
-        miss = provider._find_or_create_pool(td, pools, 'NA-US-CA', 'A',
-                                             values)
+        miss = provider._find_or_create_geo_pool(td, pools, 'NA-US-CA', 'A',
+                                                 values)
         self.assertNotEquals(pool, miss)
         self.assertEquals('NA-US-CA', miss.label)
         mock.assert_called_once_with(td)
@@ -1282,7 +1281,8 @@ class TestDynProviderGeo(TestCase):
         # cache miss, non-matching label
         mock.reset_mock()
         values = ['2.2.3.4.', '2.2.3.5']
-        miss = provider._find_or_create_pool(td, pools, 'default', 'A', values)
+        miss = provider._find_or_create_geo_pool(td, pools, 'default', 'A',
+                                                 values)
         self.assertNotEquals(pool, miss)
         mock.assert_called_once_with(td)
 
@@ -1290,19 +1290,19 @@ class TestDynProviderGeo(TestCase):
     @patch('dyn.tm.services.DSFRuleset.create')
     # just lets us ignore the pool.create calls
     @patch('dyn.tm.services.DSFResponsePool.create')
-    def test_mod_rulesets_create(self, _, ruleset_create_mock,
-                                 add_response_pool_mock):
+    def test_mod_geo_rulesets_create(self, _, ruleset_create_mock,
+                                     add_response_pool_mock):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
         td_mock = MagicMock()
         td_mock._rulesets = []
         provider._traffic_director_monitor = MagicMock()
-        provider._find_or_create_pool = MagicMock()
+        provider._find_or_create_geo_pool = MagicMock()
 
         td_mock.all_response_pools = []
 
-        provider._find_or_create_pool.side_effect = [
+        provider._find_or_create_geo_pool.side_effect = [
             _DummyPool('default'),
             _DummyPool(1),
             _DummyPool(2),
@@ -1311,7 +1311,7 @@ class TestDynProviderGeo(TestCase):
         ]
 
         change = Create(self.geo_record)
-        provider._mod_rulesets(td_mock, change)
+        provider._mod_geo_rulesets(td_mock, change)
         ruleset_create_mock.assert_has_calls((
             call(td_mock, index=0),
             call(td_mock, index=0),
@@ -1343,9 +1343,9 @@ class TestDynProviderGeo(TestCase):
     @patch('dyn.tm.services.DSFRuleset.create')
     # just lets us ignore the pool.create calls
     @patch('dyn.tm.services.DSFResponsePool.create')
-    def test_mod_rulesets_existing(self, _, ruleset_create_mock,
-                                   add_response_pool_mock,
-                                   get_response_pool_mock):
+    def test_mod_geo_rulesets_existing(self, _, ruleset_create_mock,
+                                       add_response_pool_mock,
+                                       get_response_pool_mock):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
@@ -1357,14 +1357,14 @@ class TestDynProviderGeo(TestCase):
             ruleset_mock,
         ]
         provider._traffic_director_monitor = MagicMock()
-        provider._find_or_create_pool = MagicMock()
+        provider._find_or_create_geo_pool = MagicMock()
 
         unused_pool = _DummyPool('unused')
         td_mock.all_response_pools = \
             ruleset_mock.response_pools + [unused_pool]
         get_response_pool_mock.return_value = unused_pool
 
-        provider._find_or_create_pool.side_effect = [
+        provider._find_or_create_geo_pool.side_effect = [
             _DummyPool('default'),
             _DummyPool(1),
             _DummyPool(2),
@@ -1373,7 +1373,7 @@ class TestDynProviderGeo(TestCase):
         ]
 
         change = Create(self.geo_record)
-        provider._mod_rulesets(td_mock, change)
+        provider._mod_geo_rulesets(td_mock, change)
         ruleset_create_mock.assert_has_calls((
             call(td_mock, index=2),
             call(td_mock, index=2),

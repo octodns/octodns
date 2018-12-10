@@ -398,10 +398,10 @@ class DynProvider(BaseProvider):
             for td in get_all_dsf_services():
                 try:
                     _, fqdn, _type = td.label.split(':', 2)
-                except ValueError as e:
+                except ValueError:
                     try:
                         fqdn, _type = td.label.split(':', 1)
-                    except ValueError as e:
+                    except ValueError:
                         self.log.warn("Unsupported TrafficDirector '%s'",
                                       td.label)
                         continue
@@ -451,7 +451,8 @@ class DynProvider(BaseProvider):
 
         return record
 
-    def _populate_dynamic_traffic_director(self, zone, fqdn, _type, td, lenient):
+    def _populate_dynamic_traffic_director(self, zone, fqdn, _type, td,
+                                           lenient):
         # critical to call rulesets once, each call loads them :-(
         rulesets = td.rulesets
 
@@ -488,8 +489,6 @@ class DynProvider(BaseProvider):
                 'ruleset.label': ruleset.label,
                 'ruleset.criteria_type': ruleset.criteria_type,
                 'ruleset.criterial': ruleset.criteria,
-
-#                'records': [r.__dict__  for r in record_set.records],
             })
 
             if ruleset.label.startswith('default:'):
@@ -550,7 +549,6 @@ class DynProvider(BaseProvider):
         zone.add_record(record, lenient=lenient)
 
         return record
-
 
     def _populate_traffic_directors(self, zone, lenient):
         self.log.debug('_populate_traffic_directors: zone=%s, lenient=%s',
@@ -779,8 +777,31 @@ class DynProvider(BaseProvider):
             self._traffic_director_monitors[label] = monitor
             return monitor
 
-    def _find_or_create_pool(self, td, pools, label, _type, values=[],
-                             monitor_id=None, record_extras={}):
+    def _find_or_create_geo_pool(self, td, pools, label, _type, values,
+                                 monitor_id=None):
+        for pool in pools:
+            if pool.label != label:
+                continue
+            records = pool.rs_chains[0].record_sets[0].records
+            record_values = sorted([r.address for r in records])
+            if record_values == values:
+                # it's a match
+                return pool
+        # we need to create the pool
+        _class = {
+            'A': DSFARecord,
+            'AAAA': DSFAAAARecord
+        }[_type]
+        records = [_class(v) for v in values]
+        record_set = DSFRecordSet(_type, label, serve_count=len(records),
+                                  records=records, dsf_monitor_id=monitor_id)
+        chain = DSFFailoverChain(label, record_sets=[record_set])
+        pool = DSFResponsePool(label, rs_chains=[chain])
+        pool.create(td)
+        return pool
+
+    def _find_or_create_dynamic_pool(self, td, pools, label, _type, values,
+                                     monitor_id=None, record_extras={}):
 
         # TODO: move this somewhere better
         def weighted_keyer(d):
@@ -884,8 +905,8 @@ class DynProvider(BaseProvider):
         label = 'default:{}'.format(uuid4().hex)
         ruleset = DSFRuleset(label, 'always', [])
         ruleset.create(td, index=insert_at)
-        pool = self._find_or_create_pool(td, pools, 'default', new._type,
-                                         new.values)
+        pool = self._find_or_create_geo_pool(td, pools, 'default', new._type,
+                                             new.values)
         # There's no way in the client lib to create a ruleset with an existing
         # pool (ref'd by id) so we have to do this round-a-bout.
         active_pools = {
@@ -919,8 +940,8 @@ class DynProvider(BaseProvider):
             ruleset.create(td, index=insert_at)
 
             first = geo.values[0]
-            pool = self._find_or_create_pool(td, pools, first, new._type,
-                                             geo.values, monitor_id)
+            pool = self._find_or_create_geo_pool(td, pools, first, new._type,
+                                                 geo.values, monitor_id)
             active_pools[geo.code] = pool.response_pool_id
             ruleset.add_response_pool(pool.response_pool_id)
 
@@ -1051,11 +1072,12 @@ class DynProvider(BaseProvider):
         } for v in new.values]
         # For these defaults we need to set them to always be served and to
         # ignore any health checking (since they won't have one)
-        pool = self._find_or_create_pool(td, pools, 'default', new._type,
-                                         values, record_extras={
-                                             'automation': 'manual',
-                                             'eligible': True,
-                                         })
+        pool = self._find_or_create_dynamic_pool(td, pools, 'default',
+                                                 new._type, values,
+                                                 record_extras={
+                                                     'automation': 'manual',
+                                                     'eligible': True,
+                                                 })
         # There's no way in the client lib to create a ruleset with an existing
         # pool (ref'd by id) so we have to do this round-a-bout.
         active_pools = {
@@ -1076,8 +1098,9 @@ class DynProvider(BaseProvider):
                 'weight': v.get('weight', 1),
                 'value': v['value'],
             } for v in pool.data['values']]
-            pool = self._find_or_create_pool(td, pools, _id, new._type, values,
-                                             monitor_id)
+            pool = self._find_or_create_dynamic_pool(td, pools, _id,
+                                                     new._type, values,
+                                                     monitor_id)
             active_pools[_id] = pool.response_pool_id
 
         # Run through and configure our rules
@@ -1093,7 +1116,8 @@ class DynProvider(BaseProvider):
                         criteria['geoip']['province'] \
                             .append(geo['subdivision_code'].lower())
                     elif geo['country_code']:
-                        criteria['geoip']['country'].append(geo['country_code'])
+                        criteria['geoip']['country'] \
+                            .append(geo['country_code'])
                     else:
                         criteria['geoip']['region'] \
                             .append(self.REGION_CODES[geo['continent_code']])
@@ -1117,7 +1141,8 @@ class DynProvider(BaseProvider):
             while fallback:
                 # looking at client lib code, index > exists appends
                 ruleset.add_response_pool(active_pools[fallback], index=999)
-                fallback = new.dynamic.pools[fallback].data.get('fallback', None)
+                fallback = new.dynamic.pools[fallback].data.get('fallback',
+                                                                None)
 
             # and always add default as the last
             ruleset.add_response_pool(active_pools['default'], index=999)
@@ -1205,7 +1230,8 @@ class DynProvider(BaseProvider):
             # we only mess with changes that have geo info somewhere
             if getattr(c.new, 'dynamic', False) or getattr(c.existing,
                                                            'dynamic', False):
-                mod = getattr(self, '_mod_dynamic_{}'.format(c.__class__.__name__))
+                mod = getattr(self, '_mod_dynamic_{}'
+                              .format(c.__class__.__name__))
                 mod(dyn_zone, c)
             elif getattr(c.new, 'geo', False) or getattr(c.existing, 'geo',
                                                          False):
