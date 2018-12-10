@@ -152,7 +152,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [AzureProvider](/octodns/provider/azuredns.py) | azure-mgmt-dns | A, AAAA, CNAME, MX, NS, PTR, SRV, TXT | No | |
 | [CloudflareProvider](/octodns/provider/cloudflare.py) | | A, AAAA, ALIAS, CAA, CNAME, MX, NS, SPF, SRV, TXT | No | CAA tags restricted |
 | [DigitalOceanProvider](/octodns/provider/digitalocean.py) | | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
-| [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
+| [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
 | [DnsimpleProvider](/octodns/provider/dnsimple.py) | | All | No | CAA tags restricted |
 | [DynProvider](/octodns/provider/dyn.py) | dyn | All | Yes | |
 | [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | A, AAAA, ALIAS, CNAME | No | |
