@@ -632,7 +632,7 @@ class _DynamicMixin(object):
         return super(_DynamicMixin, self).__repr__()
 
 
-class Ipv4List(object):
+class _IpList(object):
 
     @classmethod
     def validate(cls, data, _type):
@@ -648,9 +648,10 @@ class Ipv4List(object):
                 reasons.append('missing value(s)')
             else:
                 try:
-                    IPv4Address(unicode(value))
+                    cls._address_type(unicode(value))
                 except Exception:
-                    reasons.append('invalid IPv4 address "{}"'.format(value))
+                    reasons.append('invalid {} address "{}"'
+                                   .format(cls._address_name, value))
         return reasons
 
     @classmethod
@@ -658,30 +659,14 @@ class Ipv4List(object):
         return values
 
 
-class Ipv6List(object):
+class Ipv4List(_IpList):
+    _address_name = 'IPv4'
+    _address_type = IPv4Address
 
-    @classmethod
-    def validate(cls, data, _type):
-        if not isinstance(data, (list, tuple)):
-            data = (data,)
-        if len(data) == 0:
-            return ['missing value(s)']
-        reasons = []
-        for value in data:
-            if value is '':
-                reasons.append('empty value')
-            elif value is None:
-                reasons.append('missing value(s)')
-            else:
-                try:
-                    IPv6Address(unicode(value))
-                except Exception:
-                    reasons.append('invalid IPv6 address "{}"'.format(value))
-        return reasons
 
-    @classmethod
-    def process(cls, values):
-        return values
+class Ipv6List(_IpList):
+    _address_name = 'IPv6'
+    _address_type = IPv6Address
 
 
 class _TargetValue(object):
