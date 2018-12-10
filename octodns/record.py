@@ -515,9 +515,9 @@ class _DynamicMixin(object):
                     # See if there's a next fallback
                     fallback = pools.get(fallback, {}).get('fallback', None)
                     if fallback in seen:
-                        seen = ' -> '.join(seen)
+                        loop = ' -> '.join(seen)
                         reasons.append('loop in pool fallbacks: {}'
-                                       .format(seen))
+                                       .format(loop))
                         # exit the loop
                         break
                     seen.append(fallback)
