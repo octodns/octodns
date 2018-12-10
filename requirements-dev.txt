@@ -2,6 +2,8 @@ coverage
 mock
 nose
 pycodestyle==2.4.0
+pycountry>=18.12.8
+pycountry_convert>=0.7.2
 pyflakes==1.6.0
 requests_mock
 twine==1.11.0
