@@ -479,8 +479,8 @@ class _DynamicMixin(object):
                     reasons.append('pool "{}" is missing values'.format(_id))
                     continue
 
-                for value_num, value in enumerate(values):
-                    value_num += 1
+                for i, value in enumerate(values):
+                    value_num = i + 1
                     try:
                         weight = value['weight']
                         weight = int(weight)
@@ -534,8 +534,8 @@ class _DynamicMixin(object):
         else:
             seen_default = False
 
-            for rule_num, rule in enumerate(rules):
-                rule_num += 1
+            for i, rule in enumerate(rules):
+                rule_num = i + 1
                 try:
                     pool = rule['pool']
                 except KeyError:

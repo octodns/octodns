@@ -525,9 +525,12 @@ class CloudflareProvider(BaseProvider):
     def _apply_Delete(self, change):
         existing = change.existing
         existing_name = existing.fqdn[:-1]
+        # Make sure to map ALIAS to CNAME when looking for the target to delete
+        existing_type = 'CNAME' if existing._type == 'ALIAS' \
+            else existing._type
         for record in self.zone_records(existing.zone):
             if existing_name == record['name'] and \
-               existing._type == record['type']:
+               existing_type == record['type']:
                 path = '/zones/{}/dns_records/{}'.format(record['zone_id'],
                                                          record['id'])
                 self._request('DELETE', path)
