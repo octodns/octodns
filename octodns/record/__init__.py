@@ -322,8 +322,6 @@ class _GeoMixin(_ValuesMixin):
         super(_GeoMixin, self).__init__(zone, name, data, *args, **kwargs)
         try:
             self.geo = dict(data['geo'])
-            self.log.warn("'geo' support has been deprecated, "
-                          "transition %s to use 'dynamic'", name)
         except KeyError:
             self.geo = {}
         for code, values in self.geo.items():
