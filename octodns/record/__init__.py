@@ -310,7 +310,6 @@ class _GeoMixin(_ValuesMixin):
         reasons = super(_GeoMixin, cls).validate(name, data)
         try:
             geo = dict(data['geo'])
-            # TODO: validate legal codes
             for code, values in geo.items():
                 reasons.extend(GeoValue._validate_geo(code))
                 reasons.extend(cls._value_type.validate(values, cls._type))
