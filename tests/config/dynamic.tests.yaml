@@ -1,0 +1,197 @@
+---
+a:
+  dynamic:
+    pools:
+      ams:
+        # TODO: make value possible
+        values:
+          - value: 1.1.1.1
+      iad:
+        values:
+          # TODO: make value optional
+          - value: 2.2.2.2
+          - value: 3.3.3.3
+      lax:
+        values:
+          - value: 4.4.4.4
+      sea:
+        values:
+          - value: 6.6.6.6
+            weight: 10
+          - value: 5.5.5.5
+            weight: 25
+    rules:
+      - geos:
+        - EU-GB
+        pool: iad
+      - geos:
+        - EU
+        pool: ams
+      - geos:
+          - NA-US-CA
+          - NA-US-OR
+          - NA-US-WA
+        pool: sea
+      - pool: iad
+  type: A
+  values:
+    - 2.2.2.2
+    - 3.3.3.3
+aaaa:
+  dynamic:
+    pools:
+      ams:
+        values:
+          - value: 2601:642:500:e210:62f8:1dff:feb8:9471
+      iad:
+        values:
+          - value: 2601:642:500:e210:62f8:1dff:feb8:9472
+          - value: 2601:642:500:e210:62f8:1dff:feb8:9473
+      lax:
+        values:
+          - value: 2601:642:500:e210:62f8:1dff:feb8:9474
+      sea:
+        values:
+          - value: 2601:642:500:e210:62f8:1dff:feb8:9475
+            weight: 1
+          - value: 2601:642:500:e210:62f8:1dff:feb8:9476
+            weight: 2
+    rules:
+      - geos:
+        - EU-GB
+        pool: iad
+      - geos:
+        - EU
+        pool: ams
+      - geos:
+          - NA-US-CA
+          - NA-US-OR
+          - NA-US-WA
+        pool: sea
+      - pool: iad
+  type: AAAA
+  values:
+    - 2601:642:500:e210:62f8:1dff:feb8:947a
+    - 2601:644:500:e210:62f8:1dff:feb8:947a
+cname:
+  dynamic:
+    pools:
+      ams:
+        values:
+          - value: target-ams.unit.tests.
+      iad:
+        values:
+          - value: target-iad.unit.tests.
+      lax:
+        values:
+          - value: target-lax.unit.tests.
+      sea:
+        values:
+          - value: target-sea-1.unit.tests.
+            weight: 100
+          - value: target-sea-2.unit.tests.
+            weight: 175
+    rules:
+      - geos:
+        - EU-GB
+        pool: iad
+      - geos:
+        - EU
+        pool: ams
+      - geos:
+          - NA-US-CA
+          - NA-US-OR
+          - NA-US-WA
+        pool: sea
+      - pool: iad
+  type: CNAME
+  value: target.unit.tests.
+real-ish-a:
+  dynamic:
+    pools:
+      ap-southeast-1:
+        values:
+          # ap-southeast-1a
+          - value: 1.4.1.1
+            weight: 2
+          - value: 1.4.1.2
+            weight: 2
+          # ap-southeast-1b
+          - value: 1.4.2.1
+          - value: 1.4.2.2
+          # ap-southeast-1c
+          - value: 1.4.3.1
+          - value: 1.4.3.2
+      eu-central-1:
+        values:
+          # eu-central-1a
+          - value: 1.3.1.1
+          - value: 1.3.1.2
+          # eu-central-1b
+          - value: 1.3.2.1
+          - value: 1.3.2.2
+          # eu-central-1c
+          - value: 1.3.3.1
+          - value: 1.3.3.2
+      us-east-1:
+        values:
+          # us-east-1a
+          - value: 1.1.1.1
+          - value: 1.1.1.2
+          # us-east-1b
+          - value: 1.1.2.1
+          - value: 1.1.2.2
+          # us-east-1c
+          - value: 1.1.3.1
+          - value: 1.1.3.2
+      us-west-2:
+        values:
+          # us-west-2a
+          - value: 1.2.1.1
+          - value: 1.2.1.2
+          # us-west-2b
+          - value: 1.2.2.1
+          - value: 1.2.2.2
+          # us-west-2c
+          - value: 1.2.3.1
+          - value: 1.2.3.2
+    rules:
+      - geos:
+        # TODO: require sorted
+        - NA-US-CA
+        - NA-US-OR
+        - NA-US-WA
+        pool: us-west-2
+      - geos:
+        - AS-CN
+        pool: ap-southeast-1
+      - geos:
+        - AF
+        - EU
+        pool: eu-central-1
+      - pool: us-east-1
+  type: A
+  values:
+    # Generally these should match the values of your "default" rule's pools as
+    # if everything fails healthchecks they'll fallback to this
+    - 1.1.1.1
+    - 1.1.1.2
+    - 1.1.2.1
+    - 1.1.2.2
+    - 1.1.3.1
+    - 1.1.3.2
+simple-weighted:
+  dynamic:
+    pools:
+      default:
+        values:
+          - value: one.unit.tests.
+            weight: 3
+          - value: two.unit.tests.
+            weight: 2
+    rules:
+      - pool: default
+  type: CNAME
+  # CNAMEs don't support health checks (currently) so these will never be used
+  # on providers with dynamic support
+  value: default.unit.tests.

@@ -116,6 +116,7 @@ class DigitalOceanProvider(BaseProvider):
         token: foo
     '''
     SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'TXT', 'SRV'))
 
     def __init__(self, id, token, *args, **kwargs):

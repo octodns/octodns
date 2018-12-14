@@ -40,6 +40,7 @@ class GoogleCloudProvider(BaseProvider):
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NAPTR',
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
     SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
 
     CHANGE_LOOP_WAIT = 5
 

@@ -13,7 +13,7 @@ from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
     TxtRecord, Update, ValidationError
 from octodns.zone import Zone
 
-from helpers import GeoProvider, SimpleProvider
+from helpers import DynamicProvider, GeoProvider, SimpleProvider
 
 
 class TestRecord(TestCase):
@@ -934,17 +934,17 @@ class TestRecordValidation(TestCase):
         self.assertEquals(['missing ttl', 'missing value(s)'],
                           ctx.exception.reasons)
 
-        # invalid ip address
+        # invalid ipv4 address
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'A',
                 'ttl': 600,
                 'value': 'hello'
             })
-        self.assertEquals(['invalid ip address "hello"'],
+        self.assertEquals(['invalid IPv4 address "hello"'],
                           ctx.exception.reasons)
 
-        # invalid ip addresses
+        # invalid ipv4 addresses
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'A',
@@ -952,11 +952,11 @@ class TestRecordValidation(TestCase):
                 'values': ['hello', 'goodbye']
             })
         self.assertEquals([
-            'invalid ip address "hello"',
-            'invalid ip address "goodbye"'
+            'invalid IPv4 address "hello"',
+            'invalid IPv4 address "goodbye"'
         ], ctx.exception.reasons)
 
-        # invalid & valid ip addresses, no ttl
+        # invalid & valid ipv4 addresses, no ttl
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'A',
@@ -964,7 +964,129 @@ class TestRecordValidation(TestCase):
             })
         self.assertEquals([
             'missing ttl',
-            'invalid ip address "hello"',
+            'invalid IPv4 address "hello"',
+        ], ctx.exception.reasons)
+
+    def test_AAAA_validation(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'AAAA',
+            'ttl': 600,
+            'value': '2601:644:500:e210:62f8:1dff:feb8:947a',
+        })
+        Record.new(self.zone, '', {
+            'type': 'AAAA',
+            'ttl': 600,
+            'values': [
+                '2601:644:500:e210:62f8:1dff:feb8:947a',
+            ]
+        })
+        Record.new(self.zone, '', {
+            'type': 'AAAA',
+            'ttl': 600,
+            'values': [
+                '2601:644:500:e210:62f8:1dff:feb8:947a',
+                '2601:642:500:e210:62f8:1dff:feb8:947a',
+            ]
+        })
+
+        # missing value(s), no value or value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'AAAA',
+                'ttl': 600,
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # missing value(s), empty values
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'values': []
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # missing value(s), None values
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'values': None
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # missing value(s) and empty value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'values': [None, '']
+            })
+        self.assertEquals(['missing value(s)',
+                           'empty value'], ctx.exception.reasons)
+
+        # missing value(s), None value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'value': None
+            })
+        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+
+        # empty value, empty string value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'value': ''
+            })
+        self.assertEquals(['empty value'], ctx.exception.reasons)
+
+        # missing value(s) & ttl
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'AAAA',
+            })
+        self.assertEquals(['missing ttl', 'missing value(s)'],
+                          ctx.exception.reasons)
+
+        # invalid IPv6 address
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'value': 'hello'
+            })
+        self.assertEquals(['invalid IPv6 address "hello"'],
+                          ctx.exception.reasons)
+
+        # invalid IPv6 addresses
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'AAAA',
+                'ttl': 600,
+                'values': ['hello', 'goodbye']
+            })
+        self.assertEquals([
+            'invalid IPv6 address "hello"',
+            'invalid IPv6 address "goodbye"'
+        ], ctx.exception.reasons)
+
+        # invalid & valid IPv6 addresses, no ttl
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'AAAA',
+                'values': [
+                    '2601:644:500:e210:62f8:1dff:feb8:947a',
+                    'hello',
+                    '2601:642:500:e210:62f8:1dff:feb8:947a'
+                ]
+            })
+        self.assertEquals([
+            'missing ttl',
+            'invalid IPv6 address "hello"',
         ], ctx.exception.reasons)
 
     def test_geo(self):
@@ -989,7 +1111,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': '1.2.3.4',
             })
-        self.assertEquals(['invalid ip address "hello"'],
+        self.assertEquals(['invalid IPv4 address "hello"'],
                           ctx.exception.reasons)
 
         # invalid geo code
@@ -1016,8 +1138,8 @@ class TestRecordValidation(TestCase):
                 'value': '1.2.3.4',
             })
         self.assertEquals([
-            'invalid ip address "hello"',
-            'invalid ip address "goodbye"'
+            'invalid IPv4 address "hello"',
+            'invalid IPv4 address "goodbye"'
         ], ctx.exception.reasons)
 
         # invalid healthcheck protocol
@@ -1062,16 +1184,21 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'hello'
             })
-        self.assertEquals(['invalid ip address "hello"'],
+        self.assertEquals(['invalid IPv6 address "hello"'],
                           ctx.exception.reasons)
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'AAAA',
                 'ttl': 600,
-                'value': '1.2.3.4'
+                'values': [
+                    '1.2.3.4',
+                    '2.3.4.5',
+                ],
             })
-        self.assertEquals(['invalid ip address "1.2.3.4"'],
-                          ctx.exception.reasons)
+        self.assertEquals([
+            'invalid IPv6 address "1.2.3.4"',
+            'invalid IPv6 address "2.3.4.5"',
+        ], ctx.exception.reasons)
 
         # invalid ip addresses
         with self.assertRaises(ValidationError) as ctx:
@@ -1081,8 +1208,8 @@ class TestRecordValidation(TestCase):
                 'values': ['hello', 'goodbye']
             })
         self.assertEquals([
-            'invalid ip address "hello"',
-            'invalid ip address "goodbye"'
+            'invalid IPv6 address "hello"',
+            'invalid IPv6 address "goodbye"'
         ], ctx.exception.reasons)
 
     def test_ALIAS_and_value_mixin(self):
@@ -1126,7 +1253,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar.com',
             })
-        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+        self.assertEquals(['ALIAS value "foo.bar.com" missing trailing .'],
+                          ctx.exception.reasons)
 
     def test_CAA(self):
         # doesn't blow up
@@ -1221,7 +1349,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar.com',
             })
-        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+        self.assertEquals(['CNAME value "foo.bar.com" missing trailing .'],
+                          ctx.exception.reasons)
 
     def test_MX(self):
         # doesn't blow up
@@ -1278,7 +1407,8 @@ class TestRecordValidation(TestCase):
                     'exchange': 'foo.bar.com'
                 }
             })
-        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+        self.assertEquals(['MX value "foo.bar.com" missing trailing .'],
+                          ctx.exception.reasons)
 
     def test_NXPTR(self):
         # doesn't blow up
@@ -1375,7 +1505,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar',
             })
-        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+        self.assertEquals(['NS value "foo.bar" missing trailing .'],
+                          ctx.exception.reasons)
 
     def test_PTR(self):
         # doesn't blow up (name & zone here don't make any sense, but not
@@ -1401,7 +1532,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar',
             })
-        self.assertEquals(['missing trailing .'], ctx.exception.reasons)
+        self.assertEquals(['PTR value "foo.bar" missing trailing .'],
+                          ctx.exception.reasons)
 
     def test_SSHFP(self):
         # doesn't blow up
@@ -1534,7 +1666,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'this has some; semi-colons\\; in it',
             })
-        self.assertEquals(['unescaped ;'], ctx.exception.reasons)
+        self.assertEquals(['unescaped ; in "this has some; '
+                           'semi-colons\\; in it"'], ctx.exception.reasons)
 
     def test_SRV(self):
         # doesn't blow up
@@ -1666,7 +1799,7 @@ class TestRecordValidation(TestCase):
                     'target': 'foo.bar.baz'
                 }
             })
-        self.assertEquals(['missing trailing .'],
+        self.assertEquals(['SRV value "foo.bar.baz" missing trailing .'],
                           ctx.exception.reasons)
 
     def test_TXT(self):
@@ -1696,7 +1829,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'this has some; semi-colons\\; in it',
             })
-        self.assertEquals(['unescaped ;'], ctx.exception.reasons)
+        self.assertEquals(['unescaped ; in "this has some; semi-colons\\; '
+                           'in it"'], ctx.exception.reasons)
 
     def test_TXT_long_value_chunking(self):
         expected = '"Lorem ipsum dolor sit amet, consectetur adipiscing ' \
@@ -1757,3 +1891,1164 @@ class TestRecordValidation(TestCase):
         self.assertEquals(single.values, chunked.values)
         # should be chunked values, with quoting
         self.assertEquals(single.chunked_values, chunked.chunked_values)
+
+
+class TestDynamicRecords(TestCase):
+    zone = Zone('unit.tests.', [])
+
+    def test_simple_a_weighted(self):
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }],
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }],
+                    },
+                    'three': {
+                        'values': [{
+                            'weight': 10,
+                            'value': '4.4.4.4',
+                        }, {
+                            'weight': 12,
+                            'value': '5.5.5.5',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        a = ARecord(self.zone, 'weighted', a_data)
+        self.assertEquals('A', a._type)
+        self.assertEquals(a_data['ttl'], a.ttl)
+        self.assertEquals(a_data['values'], a.values)
+
+        dynamic = a.dynamic
+        self.assertTrue(dynamic)
+
+        pools = dynamic.pools
+        self.assertTrue(pools)
+        self.assertEquals(a_data['dynamic']['pools']['one'], pools['one'].data)
+        self.assertEquals(a_data['dynamic']['pools']['two'], pools['two'].data)
+        self.assertEquals(a_data['dynamic']['pools']['three'],
+                          pools['three'].data)
+
+        rules = dynamic.rules
+        self.assertTrue(rules)
+        self.assertEquals(a_data['dynamic']['rules'][0], rules[0].data)
+
+    def test_simple_aaaa_weighted(self):
+        aaaa_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '2601:642:500:e210:62f8:1dff:feb8:9473',
+                    'two': [
+                        '2601:642:500:e210:62f8:1dff:feb8:9474',
+                        '2601:642:500:e210:62f8:1dff:feb8:9475',
+                    ],
+                    'three': {
+                        1: '2601:642:500:e210:62f8:1dff:feb8:9476',
+                        2: '2601:642:500:e210:62f8:1dff:feb8:9477',
+                    },
+                },
+                'rules': [{
+                    'pools': [
+                        'three',
+                        'two',
+                        'one',
+                    ],
+                }],
+            },
+            'ttl': 60,
+            'values': [
+                '2601:642:500:e210:62f8:1dff:feb8:9471',
+                '2601:642:500:e210:62f8:1dff:feb8:9472',
+            ],
+        }
+        aaaa_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '2601:642:500:e210:62f8:1dff:feb8:9473',
+                        }],
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '2601:642:500:e210:62f8:1dff:feb8:9474',
+                        }, {
+                            'value': '2601:642:500:e210:62f8:1dff:feb8:9475',
+                        }],
+                    },
+                    'three': {
+                        'values': [{
+                            'weight': 10,
+                            'value': '2601:642:500:e210:62f8:1dff:feb8:9476',
+                        }, {
+                            'weight': 12,
+                            'value': '2601:642:500:e210:62f8:1dff:feb8:9477',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'values': [
+                '2601:642:500:e210:62f8:1dff:feb8:9471',
+                '2601:642:500:e210:62f8:1dff:feb8:9472',
+            ],
+        }
+        aaaa = AaaaRecord(self.zone, 'weighted', aaaa_data)
+        self.assertEquals('AAAA', aaaa._type)
+        self.assertEquals(aaaa_data['ttl'], aaaa.ttl)
+        self.assertEquals(aaaa_data['values'], aaaa.values)
+
+        dynamic = aaaa.dynamic
+        self.assertTrue(dynamic)
+
+        pools = dynamic.pools
+        self.assertTrue(pools)
+        self.assertEquals(aaaa_data['dynamic']['pools']['one'],
+                          pools['one'].data)
+        self.assertEquals(aaaa_data['dynamic']['pools']['two'],
+                          pools['two'].data)
+        self.assertEquals(aaaa_data['dynamic']['pools']['three'],
+                          pools['three'].data)
+
+        rules = dynamic.rules
+        self.assertTrue(rules)
+        self.assertEquals(aaaa_data['dynamic']['rules'][0], rules[0].data)
+
+    def test_simple_cname_weighted(self):
+        cname_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': 'one.cname.target.',
+                        }],
+                    },
+                    'two': {
+                        'values': [{
+                            'value': 'two.cname.target.',
+                        }],
+                    },
+                    'three': {
+                        'values': [{
+                            'weight': 12,
+                            'value': 'three-1.cname.target.',
+                        }, {
+                            'weight': 32,
+                            'value': 'three-2.cname.target.',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'value': 'cname.target.',
+        }
+        cname = CnameRecord(self.zone, 'weighted', cname_data)
+        self.assertEquals('CNAME', cname._type)
+        self.assertEquals(cname_data['ttl'], cname.ttl)
+        self.assertEquals(cname_data['value'], cname.value)
+
+        dynamic = cname.dynamic
+        self.assertTrue(dynamic)
+
+        pools = dynamic.pools
+        self.assertTrue(pools)
+        self.assertEquals(cname_data['dynamic']['pools']['one'],
+                          pools['one'].data)
+        self.assertEquals(cname_data['dynamic']['pools']['two'],
+                          pools['two'].data)
+        self.assertEquals(cname_data['dynamic']['pools']['three'],
+                          pools['three'].data)
+
+        rules = dynamic.rules
+        self.assertTrue(rules)
+        self.assertEquals(cname_data['dynamic']['rules'][0], rules[0].data)
+
+    def test_dynamic_validation(self):
+        # Missing pools
+        a_data = {
+            'dynamic': {
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['missing pools', 'rule 1 undefined pool "one"'],
+                          ctx.exception.reasons)
+
+        # Empty pools
+        a_data = {
+            'dynamic': {
+                'pools': {
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['missing pools', 'rule 1 undefined pool "one"'],
+                          ctx.exception.reasons)
+
+        # pools not a dict
+        a_data = {
+            'dynamic': {
+                'pools': [],
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['pools must be a dict',
+                           'rule 1 undefined pool "one"'],
+                          ctx.exception.reasons)
+
+        # Invalid addresses
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': 'this-aint-right',
+                        }],
+                    },
+                    'two': {
+                        'fallback': 'one',
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': 'nor-is-this',
+                        }]
+                    },
+                    'three': {
+                        'fallback': 'two',
+                        'values': [{
+                            'weight': 1,
+                            'value': '5.5.5.5',
+                        }, {
+                            'weight': 2,
+                            'value': 'yet-another-bad-one',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals([
+            'invalid IPv4 address "this-aint-right"',
+            'invalid IPv4 address "yet-another-bad-one"',
+            'invalid IPv4 address "nor-is-this"',
+        ], ctx.exception.reasons)
+
+        # missing value(s)
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {},
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                    'three': {
+                        'values': [{
+                            'weight': 1,
+                            'value': '6.6.6.6',
+                        }, {
+                            'weight': 2,
+                            'value': '7.7.7.7',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['pool "one" is missing values'],
+                          ctx.exception.reasons)
+
+        # pool valu not a dict
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '',
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                    'three': {
+                        'values': [{
+                            'weight': 1,
+                            'value': '6.6.6.6',
+                        }, {
+                            'weight': 2,
+                            'value': '7.7.7.7',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['pool "one" must be a dict'],
+                          ctx.exception.reasons)
+
+        # empty pool value
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {},
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                    'three': {
+                        'values': [{
+                            'weight': 1,
+                            'value': '6.6.6.6',
+                        }, {
+                            'weight': 2,
+                            'value': '7.7.7.7',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['pool "one" is missing values'],
+                          ctx.exception.reasons)
+
+        # invalid int weight
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                    'three': {
+                        'values': [{
+                            'weight': 1,
+                            'value': '6.6.6.6',
+                        }, {
+                            'weight': 256,
+                            'value': '7.7.7.7',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['invalid weight "256" in pool "three" value 2'],
+                          ctx.exception.reasons)
+
+        # invalid non-int weight
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                    'three': {
+                        'values': [{
+                            'weight': 1,
+                            'value': '6.6.6.6',
+                        }, {
+                            'weight': 'foo',
+                            'value': '7.7.7.7',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['invalid weight "foo" in pool "three" value 2'],
+                          ctx.exception.reasons)
+
+        # invalid fallback
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }],
+                    },
+                    'two': {
+                        'fallback': 'invalid',
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                    'three': {
+                        'fallback': 'two',
+                        'values': [{
+                            'weight': 1,
+                            'value': '6.6.6.6',
+                        }, {
+                            'weight': 5,
+                            'value': '7.7.7.7',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['undefined fallback "invalid" for pool "two"'],
+                          ctx.exception.reasons)
+
+        # fallback loop
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'fallback': 'three',
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }],
+                    },
+                    'two': {
+                        'fallback': 'one',
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                    'three': {
+                        'fallback': 'two',
+                        'values': [{
+                            'weight': 1,
+                            'value': '6.6.6.6',
+                        }, {
+                            'weight': 5,
+                            'value': '7.7.7.7',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals([
+            'loop in pool fallbacks: one -> three -> two',
+            'loop in pool fallbacks: three -> two -> one',
+            'loop in pool fallbacks: two -> one -> three'
+        ], ctx.exception.reasons)
+
+        # multiple pool problems
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '',
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': 'blip',
+                        }]
+                    },
+                    'three': {
+                        'values': [{
+                            'weight': 1,
+                        }, {
+                            'weight': 5000,
+                            'value': '7.7.7.7',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals([
+            'pool "one" must be a dict',
+            'missing value in pool "three" value 1',
+            'invalid weight "5000" in pool "three" value 2',
+            'invalid IPv4 address "blip"',
+        ], ctx.exception.reasons)
+
+        # missing rules
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['missing rules'], ctx.exception.reasons)
+
+        # empty rules
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['missing rules'], ctx.exception.reasons)
+
+        # rules not a list/tuple
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': {},
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['rules must be a list'], ctx.exception.reasons)
+
+        # rule without pool
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }],
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': ['NA-US-CA'],
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['rule 1 missing pool'], ctx.exception.reasons)
+
+        # rule with non-string pools
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': ['NA-US-CA'],
+                    'pool': [],
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['rule 1 invalid pool "[]"'],
+                          ctx.exception.reasons)
+
+        # rule references non-existant pool
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': ['NA-US-CA'],
+                    'pool': 'non-existant',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(["rule 1 undefined pool \"non-existant\""],
+                          ctx.exception.reasons)
+
+        # rule with invalid geos
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': 'NA-US-CA',
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['rule 1 geos must be a list'],
+                          ctx.exception.reasons)
+
+        # rule with invalid geo
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': ['invalid'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['rule 1 unknown continent code "invalid"'],
+                          ctx.exception.reasons)
+
+        # multiple default rules
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['rule 2 duplicate default'],
+                          ctx.exception.reasons)
+
+    def test_dynamic_lenient(self):
+        # Missing pools
+        a_data = {
+            'dynamic': {
+                'rules': [{
+                    'pools': {
+                        1: 'one',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        a = Record.new(self.zone, 'bad', a_data, lenient=True)
+        self.assertEquals({
+            'pools': {},
+            'rules': a_data['dynamic']['rules'],
+        }, a._data()['dynamic'])
+
+        # Missing rule
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '1.1.1.1',
+                },
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        a = Record.new(self.zone, 'bad', a_data, lenient=True)
+        self.assertEquals({
+            'pools': {
+                'one': '1.1.1.1',
+            },
+            'rules': [],
+        }, a._data()['dynamic'])
+
+    def test_dynamic_changes(self):
+        simple = SimpleProvider()
+        dynamic = DynamicProvider()
+
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '3.3.3.3',
+                    'two': [
+                        '4.4.4.4',
+                        '5.5.5.5',
+                    ],
+                },
+                'rules': [{
+                    'pools': {
+                        100: 'one',
+                        200: 'two',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        a = ARecord(self.zone, 'weighted', a_data)
+        dup = ARecord(self.zone, 'weighted', a_data)
+
+        b_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '3.3.3.5',
+                    'two': [
+                        '4.4.4.4',
+                        '5.5.5.5',
+                    ],
+                },
+                'rules': [{
+                    'pools': {
+                        100: 'one',
+                        200: 'two',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        b = ARecord(self.zone, 'weighted', b_data)
+
+        c_data = {
+            'dynamic': {
+                'pools': {
+                    'one': '3.3.3.3',
+                    'two': [
+                        '4.4.4.4',
+                        '5.5.5.5',
+                    ],
+                },
+                'rules': [{
+                    'pools': {
+                        100: 'one',
+                        300: 'two',
+                    }
+                }],
+            },
+            'ttl': 60,
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        c = ARecord(self.zone, 'weighted', c_data)
+
+        # a changes a (identical dup) is never true
+        self.assertFalse(a.changes(dup, simple))
+        self.assertFalse(a.changes(dup, dynamic))
+
+        # a changes b is not true for simple
+        self.assertFalse(a.changes(b, simple))
+        # but is true for dynamic
+        update = a.changes(b, dynamic)
+        self.assertEquals(a, update.existing)
+        self.assertEquals(b, update.new)
+        # transitive
+        self.assertFalse(b.changes(a, simple))
+        update = b.changes(a, dynamic)
+        self.assertEquals(a, update.existing)
+        self.assertEquals(b, update.new)
+
+        # same for a change c
+        self.assertFalse(a.changes(c, simple))
+        self.assertTrue(a.changes(c, dynamic))
+        self.assertFalse(c.changes(a, simple))
+        self.assertTrue(c.changes(a, dynamic))
+
+        # smoke test some of the equiality bits
+        self.assertEquals(a.dynamic.pools, a.dynamic.pools)
+        self.assertEquals(a.dynamic.pools['one'], a.dynamic.pools['one'])
+        self.assertNotEquals(a.dynamic.pools['one'], a.dynamic.pools['two'])
+        self.assertEquals(a.dynamic.rules, a.dynamic.rules)
+        self.assertEquals(a.dynamic.rules[0], a.dynamic.rules[0])
+        self.assertNotEquals(a.dynamic.rules[0], c.dynamic.rules[0])

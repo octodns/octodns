@@ -91,6 +91,7 @@ class DnsimpleProvider(BaseProvider):
         account: 42
     '''
     SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
                     'PTR', 'SPF', 'SRV', 'SSHFP', 'TXT'))
 

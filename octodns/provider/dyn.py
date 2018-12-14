@@ -259,6 +259,11 @@ class DynProvider(BaseProvider):
     def SUPPORTS_GEO(self):
         return self.traffic_directors_enabled
 
+    @property
+    def SUPPORTS_DYNAMIC(self):
+        # TODO: dynamic
+        return False
+
     def _check_dyn_sess(self):
         # We don't have to worry about locking for the check since the
         # underlying pieces are pre-thread. We can check to see if this thread

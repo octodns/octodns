@@ -14,8 +14,8 @@ from octodns.manager import _AggregateTarget, MainThreadExecutor, Manager
 from octodns.yaml import safe_load
 from octodns.zone import Zone
 
-from helpers import GeoProvider, NoSshFpProvider, SimpleProvider, \
-    TemporaryDirectory
+from helpers import DynamicProvider, GeoProvider, NoSshFpProvider, \
+    SimpleProvider, TemporaryDirectory
 
 config_dir = join(dirname(__file__), 'config')
 
@@ -187,12 +187,18 @@ class TestManager(TestCase):
     def test_aggregate_target(self):
         simple = SimpleProvider()
         geo = GeoProvider()
+        dynamic = DynamicProvider()
         nosshfp = NoSshFpProvider()
 
         self.assertFalse(_AggregateTarget([simple, simple]).SUPPORTS_GEO)
         self.assertFalse(_AggregateTarget([simple, geo]).SUPPORTS_GEO)
         self.assertFalse(_AggregateTarget([geo, simple]).SUPPORTS_GEO)
         self.assertTrue(_AggregateTarget([geo, geo]).SUPPORTS_GEO)
+
+        self.assertFalse(_AggregateTarget([simple, simple]).SUPPORTS_DYNAMIC)
+        self.assertFalse(_AggregateTarget([simple, dynamic]).SUPPORTS_DYNAMIC)
+        self.assertFalse(_AggregateTarget([dynamic, simple]).SUPPORTS_DYNAMIC)
+        self.assertTrue(_AggregateTarget([dynamic, dynamic]).SUPPORTS_DYNAMIC)
 
         zone = Zone('unit.tests.', [])
         record = Record.new(zone, 'sshfp', {
