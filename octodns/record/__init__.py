@@ -5,6 +5,7 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from StringIO import StringIO
 from ipaddress import IPv4Address, IPv6Address
 from logging import getLogger
 import re
@@ -31,7 +32,10 @@ class Create(Change):
 
     def __repr__(self, leader=''):
         source = self.new.source.id if self.new.source else ''
-        return 'Create {} ({})'.format(self.new, source)
+        leader = '{}    '.format(leader)
+        new = self.new.__repr__(leader)
+        return 'Create: (source={source})\n{leader}{new}' \
+            .format(source=source, leader=leader, new=new)
 
 
 class Update(Change):
@@ -42,9 +46,11 @@ class Update(Change):
     # do nothing
     def __repr__(self, leader=''):
         source = self.new.source.id if self.new.source else ''
-        return 'Update\n{leader}    {existing} ->\n{leader}    {new} ({src})' \
-            .format(existing=self.existing, new=self.new, leader=leader,
-                    src=source)
+        leader = '{}    '.format(leader)
+        existing = self.existing.__repr__(leader)
+        new = self.new.__repr__(leader)
+        return 'Update (source={source})\n{leader}{existing}\n{leader}{new}' \
+            .format(existing=existing, new=new, leader=leader, source=source)
 
 
 class Delete(Change):
@@ -53,7 +59,9 @@ class Delete(Change):
         super(Delete, self).__init__(existing, None)
 
     def __repr__(self, leader=''):
-        return 'Delete {}'.format(self.existing)
+        leader = '{}    '.format(leader)
+        existing = self.existing.__repr__(leader)
+        return 'Delete\n{leader}{existing}'.format(leader=leader, existing=existing)
 
 
 class ValidationError(Exception):
@@ -206,9 +214,8 @@ class Record(object):
         b = '{}:{}'.format(other.name, other._type)
         return cmp(a, b)
 
-    def __repr__(self):
-        # Make sure this is always overridden
-        raise NotImplementedError('Abstract base class, __repr__ required')
+    def __repr__(self, leader=''):
+        return '{:<5s} {:6d} {}'.format(self._type, self.ttl, self.fqdn)
 
 
 class GeoValue(object):
@@ -244,10 +251,8 @@ class GeoValue(object):
                      self.subdivision_code == other.subdivision_code and
                      self.values == other.values) else 1
 
-    def __repr__(self):
-        return "'Geo {} {} {} {}'".format(self.continent_code,
-                                          self.country_code,
-                                          self.subdivision_code, self.values)
+    def __repr__(self, leader=''):
+        return ', '.join(self.values)
 
 
 class _ValuesMixin(object):
@@ -290,12 +295,13 @@ class _ValuesMixin(object):
 
         return ret
 
-    def __repr__(self):
-        values = "['{}']".format("', '".join([unicode(v)
-                                              for v in self.values]))
-        return '<{} {} {}, {}, {}>'.format(self.__class__.__name__,
-                                           self._type, self.ttl,
-                                           self.fqdn, values)
+    def __repr__(self, leader=''):
+        base = super(_ValuesMixin, self).__repr__(leader)
+        leader = '{}  '.format(leader)
+        values = '\n{}'.format(leader).join([
+            v.__repr__(leader) for v in self.values
+        ])
+        return '{}\n{}{}'.format(base, leader, values)
 
 
 class _GeoMixin(_ValuesMixin):
@@ -341,13 +347,23 @@ class _GeoMixin(_ValuesMixin):
                 return Update(self, other)
         return super(_GeoMixin, self).changes(other, target)
 
-    def __repr__(self):
+    def __repr__(self, leader=''):
+        buf = StringIO()
+        buf.write(super(_GeoMixin, self).__repr__(leader))
         if self.geo:
-            return '<{} {} {}, {}, {}, {}>'.format(self.__class__.__name__,
-                                                   self._type, self.ttl,
-                                                   self.fqdn, self.values,
-                                                   self.geo)
-        return super(_GeoMixin, self).__repr__()
+            leader = '{}  '.format(leader)
+            buf.write('\n')
+            buf.write(leader)
+            buf.write('geo:')
+            leader = '{}  '.format(leader)
+            for code, geo in sorted(self.geo.items()):
+                buf.write('\n')
+                buf.write(leader)
+                buf.write('{:8}'.format(code))
+                buf.write(' ')
+                buf.write(geo)
+
+        return buf.getvalue()
 
 
 class _ValueMixin(object):
@@ -374,11 +390,9 @@ class _ValueMixin(object):
             ret['value'] = getattr(self.value, 'data', self.value)
         return ret
 
-    def __repr__(self):
-        return '<{} {} {}, {}, {}>'.format(self.__class__.__name__,
-                                           self._type, self.ttl,
-                                           self.fqdn, self.value)
-
+    def __repr__(self, leader=''):
+        base = super(_ValueMixin, self).__repr__(leader)
+        return '{}\n{}  {}'.format(base, leader, self.value)
 
 class _DynamicPool(object):
 
@@ -395,8 +409,18 @@ class _DynamicPool(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def __repr__(self):
-        return '{}'.format(self.data)
+    def __repr__(self, leader=''):
+        buf = StringIO()
+
+        buf.write(self._id)
+        buf.write('  fallback=')
+        buf.write(self.data.get('fallback', ''))
+        buf.write('\n{}  '.format(leader))
+        values = ['{:3}  {}'.format(v.get('weight', 1), v['value'])
+                  for v in self.data['values']]
+        buf.write('\n{}  '.format(leader).join(values))
+
+        return buf.getvalue()
 
 
 class _DynamicRule(object):
@@ -414,8 +438,25 @@ class _DynamicRule(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def __repr__(self):
-        return '{}'.format(self.data)
+    def __repr__(self, leader=''):
+        buf = StringIO()
+
+        buf.write(str(self.i))
+        buf.write(' pool=')
+        buf.write(self.data['pool'])
+
+        try:
+            geos = self.data['geos']
+            buf.write('\n')
+            buf.write(leader)
+            buf.write('  geos:\n')
+            buf.write(leader)
+            buf.write('    ')
+            buf.write('\n{}    '.format(leader).join(sorted(geos)))
+        except KeyError:
+            pass
+
+        return buf.getvalue()
 
 
 class _Dynamic(object):
@@ -443,7 +484,7 @@ class _Dynamic(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def __repr__(self):
+    def __repr__(self, leader=''):
         return '{}, {}'.format(self.pools, self.rules)
 
 
@@ -610,25 +651,39 @@ class _DynamicMixin(object):
                 return Update(self, other)
         return super(_DynamicMixin, self).changes(other, target)
 
-    def __repr__(self):
-        # TODO: improve this whole thing, we need multi-line...
+    def __repr__(self, leader=''):
+        buf = StringIO()
+        buf.write(super(_DynamicMixin, self).__repr__(leader))
         if self.dynamic:
-            # TODO: this hack can't going to cut it, as part of said
-            # improvements the value types should deal with serializing their
-            # value
-            try:
-                values = self.values
-            except AttributeError:
-                values = self.value
+            leader = '{}  '.format(leader)
+            buf.write('\n')
+            buf.write(leader)
+            buf.write('dynamic:')
+            leader = '{}  '.format(leader)
+            buf.write('\n')
+            buf.write(leader)
+            buf.write('pools:')
 
-            return '<{} {} {}, {}, {}, {}>'.format(self.__class__.__name__,
-                                                   self._type, self.ttl,
-                                                   self.fqdn, values,
-                                                   self.dynamic)
-        return super(_DynamicMixin, self).__repr__()
+            for _id, pool in sorted(self.dynamic.pools.items()):
+                buf.write('\n')
+                buf.write(leader)
+                buf.write('  ')
+                buf.write(pool.__repr__('{} '.format(leader)))
+
+            buf.write('\n')
+            buf.write(leader)
+            buf.write('rules:')
+
+            for rule in self.dynamic.rules:
+                buf.write('\n')
+                buf.write(leader)
+                buf.write('  ')
+                buf.write(rule.__repr__('{}  '.format(leader)))
+
+        return buf.getvalue()
 
 
-class _IpList(object):
+class _IpValue(object):
 
     @classmethod
     def validate(cls, data, _type):
@@ -652,15 +707,33 @@ class _IpList(object):
 
     @classmethod
     def process(cls, values):
-        return values
+        return [cls(v) for v in filter(lambda v: v, values)]
+
+    def __init__(self, value):
+        self.value = value
+
+    def __cmp__(self, other):
+        return 0 if self.value == other.value \
+            else self.value.__lt__(other.value)
+
+    def __eq__(self, other):
+        if isinstance(other, _IpValue):
+            return self.value == other.value
+        return self.value == other
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __repr__(self, leader=''):
+        return '{}'.format(self.value)
 
 
-class Ipv4List(_IpList):
+class Ipv4Value(_IpValue):
     _address_name = 'IPv4'
     _address_type = IPv4Address
 
 
-class Ipv6List(_IpList):
+class Ipv6Value(_IpValue):
     _address_name = 'IPv6'
     _address_type = IPv6Address
 
@@ -680,8 +753,27 @@ class _TargetValue(object):
         return reasons
 
     @classmethod
-    def process(self, value):
-        return value
+    def process(cls, value):
+        if value:
+            return cls(value)
+
+    def __init__(self, value):
+        self.value = value
+
+    def __eq__(self, other):
+        if isinstance(other, _TargetValue):
+            return self.value == other.value
+        return self.value == other
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __cmp__(self, other):
+        return 0 if self.value == other.value \
+            else self.value.__lt__(other.value)
+
+    def __repr__(self, leader=''):
+        return self.value
 
 
 class CnameValue(_TargetValue):
@@ -690,12 +782,12 @@ class CnameValue(_TargetValue):
 
 class ARecord(_DynamicMixin, _GeoMixin, Record):
     _type = 'A'
-    _value_type = Ipv4List
+    _value_type = Ipv4Value
 
 
 class AaaaRecord(_DynamicMixin, _GeoMixin, Record):
     _type = 'AAAA'
-    _value_type = Ipv6List
+    _value_type = Ipv6Value
 
 
 class AliasValue(_TargetValue):
@@ -753,7 +845,7 @@ class CaaValue(object):
             return cmp(self.tag, other.tag)
         return cmp(self.flags, other.flags)
 
-    def __repr__(self):
+    def __repr__(self, leader=''):
         return '{} {} "{}"'.format(self.flags, self.tag, self.value)
 
 
@@ -833,8 +925,8 @@ class MxValue(object):
             return cmp(self.exchange, other.exchange)
         return cmp(self.preference, other.preference)
 
-    def __repr__(self):
-        return "'{} {}'".format(self.preference, self.exchange)
+    def __repr__(self, leader=''):
+        return "{:<6d} {}".format(self.preference, self.exchange)
 
 
 class MxRecord(_ValuesMixin, Record):
@@ -914,7 +1006,7 @@ class NaptrValue(object):
             return cmp(self.regexp, other.regexp)
         return cmp(self.replacement, other.replacement)
 
-    def __repr__(self):
+    def __repr__(self, leader=''):
         flags = self.flags if self.flags is not None else ''
         service = self.service if self.service is not None else ''
         regexp = self.regexp if self.regexp is not None else ''
@@ -1020,7 +1112,7 @@ class SshfpValue(object):
             return cmp(self.fingerprint_type, other.fingerprint_type)
         return cmp(self.fingerprint, other.fingerprint)
 
-    def __repr__(self):
+    def __repr__(self, leader=''):
         return "'{} {} {}'".format(self.algorithm, self.fingerprint_type,
                                    self.fingerprint)
 
@@ -1140,7 +1232,7 @@ class SrvValue(object):
             return cmp(self.port, other.port)
         return cmp(self.target, other.target)
 
-    def __repr__(self):
+    def __repr__(self, leader=''):
         return "'{} {} {} {}'".format(self.priority, self.weight, self.port,
                                       self.target)
 
