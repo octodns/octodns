@@ -270,7 +270,10 @@ class _ValuesMixin(object):
         try:
             values = data['values']
         except KeyError:
-            values = [data['value']]
+            try:
+                values = [data['value']]
+            except KeyError:
+                values = []
         self.values = sorted(self._value_type.process(values))
 
     def changes(self, other, target):
@@ -364,7 +367,10 @@ class _ValueMixin(object):
 
     def __init__(self, zone, name, data, source=None):
         super(_ValueMixin, self).__init__(zone, name, data, source=source)
-        self.value = self._value_type.process(data['value'])
+        if 'value' in data:
+            self.value = self._value_type.process(data['value'])
+        else:
+            self.value = None
 
     def changes(self, other, target):
         if self.value != other.value:
@@ -571,6 +577,7 @@ class _DynamicMixin(object):
         else:
             seen_default = False
 
+            # TODO: don't allow 'default' as a pool name, reserved
             # TODO: warn or error on unused pools?
             for i, rule in enumerate(rules):
                 rule_num = i + 1

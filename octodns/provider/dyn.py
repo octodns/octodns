@@ -452,10 +452,32 @@ class DynProvider(BaseProvider):
 
         return record
 
+    def _value_for_single(self, _type, record):
+        return {
+            'value': record.address,
+            'weight': record.weight,
+        }
+
+    _value_for_A = _value_for_single
+    _value_for_AAAA = _value_for_single
+
+    def _value_for_CNAME(self, _type, record):
+        return {
+            'value': record.cname,
+            'weight': record.weight,
+        }
+
     def _populate_dynamic_traffic_director(self, zone, fqdn, _type, td,
                                            lenient):
         # critical to call rulesets once, each call loads them :-(
         rulesets = td.rulesets
+        # We'll go ahead and grab pools too, using all will include unref'd
+        # pools
+        response_pools = td.all_response_pools
+        pprint({
+            'rulesets': rulesets,
+            'response_pools': response_pools,
+        })
 
         # We start out with something that will always change show
         # change in case this is a busted TD. This will prevent us from
@@ -471,79 +493,107 @@ class DynProvider(BaseProvider):
             },
             'type': _type,
             'ttl': td.ttl,
-            'values': values,
         }
-        for ruleset in rulesets:
+
+
+        data_for = getattr(self, '_data_for_{}'.format(_type))
+        value_for = getattr(self, '_value_for_{}'.format(_type))
+
+        # Build the list of pools, we can't just read them off of rules b/c we
+        # won't see unused pools there. If/when we dis-allow unused pools we
+        # could probably change that and avoid the refresh
+        for response_pool in response_pools:
+            # We have to refresh the response pool to have access to its
+            # rs_chains and thus records, yeah... :-(
+            response_pool.refresh()
+            pprint({
+                'reponse_pool': response_pool,
+                'response_pool.label': response_pool.label,
+                'rs_chains': response_pool.rs_chains,
+            })
             try:
-                record_set = ruleset.response_pools[0].rs_chains[0] \
+                record_set = response_pool.rs_chains[0] \
                     .record_sets[0]
             except IndexError:
                 # problems indicate a malformed ruleset, ignore it
                 self.log.warn('_populate_dynamic_traffic_director: '
-                              'malformed ruleset "{}" ignoring',
-                              ruleset.label)
+                              'malformed response_pool "{}" ignoring',
+                              response_pool.label)
                 continue
 
+            label = response_pool.label
+            pprint(label)
+
+            if label == 'default':
+                data.update(data_for(_type, record_set.records))
+            else:
+                if label not in pools:
+                    # First time we've seen it get its data
+                    # Note we'll have to set fallbacks as we go through rules
+                    # b/c we can't determine them here
+                    pools[label] = {
+                        'values': [value_for(_type, r)
+                                   for r in record_set.records]
+                    }
+
+        for ruleset in rulesets:
             pprint({
                 'ruleset': ruleset,
-                'ruleset.reponse_pools': ruleset.response_pools,
                 'ruleset.label': ruleset.label,
                 'ruleset.criteria_type': ruleset.criteria_type,
                 'ruleset.criterial': ruleset.criteria,
             })
 
             if ruleset.label.startswith('default:'):
-                data_for = getattr(self, '_data_for_{}'.format(_type))
-                data.update(data_for(_type, record_set.records))
+                continue
+
+            num_pools = len(ruleset.response_pools)
+            if num_pools > 1:
+                pool = ruleset.response_pools[0].label
+                # We have a fallback, record it in the approrpriate pool
+                fallback = ruleset.response_pools[1].label
+                if fallback != 'default':
+                    pools[pool]['fallback'] = fallback
+            elif num_pools > 0:
+                pool = ruleset.response_pools[0].label
             else:
-                response_pool = ruleset.response_pools[0]
-                rule = {
-                    'pool': response_pool.label,
-                }
+                self.log.warn('_populate_dynamic_traffic_director: '
+                              'ruleset "{}" has no response_pools',
+                              ruleset.label)
+                continue
 
-                label = response_pool.label
-                if label not in pools:
-                    # First time we've seen it get its data
-                    pool = {
-                        'values': [{
-                            'value': r.address,
-                            'weight': r.weight,
-                        } for r in record_set.records]
-                    }
+            rule = {
+                'pool': pool,
+            }
 
-                    try:
-                        pool['fallback'] = ruleset.response_pools[1].label
-                    except IndexError:
-                        pass
+            criteria_type = ruleset.criteria_type
+            if criteria_type == 'geoip':
+                # Geo
+                geo = ruleset.criteria['geoip']
+                geos = []
+                # Dyn uses the same 2-letter codes as octoDNS (except for
+                # continents) but it doesn't have the hierary, e.g. US is
+                # just US, not NA-US. We'll have to map these things back
+                for code in geo['country']:
+                    geos.append(GeoCodes.country_to_code(code))
+                for code in geo['province']:
+                    geos.append(GeoCodes.province_to_code(code.upper()))
+                for code in geo['region']:
+                    geos.append(self.REGION_CODES_LOOKUP[int(code)])
+                rule['geos'] = geos
+            elif criteria_type == 'always':
+                pass
+            else:
+                self.log.warn('_populate_dynamic_traffic_director: '
+                              'unsupported criteria_type "{}", ignoring',
+                              criteria_type)
+                continue
 
-                    pools[label] = pool
+            rules.append(rule)
 
-                criteria_type = ruleset.criteria_type
-                if criteria_type == 'geoip':
-                    # Geo
-                    geo = ruleset.criteria['geoip']
-                    geos = []
-                    # Dyn uses the same 2-letter codes as octoDNS (except for
-                    # continents) but it doesn't have the hierary, e.g. US is
-                    # just US, not NA-US. We'll have to map these things back
-                    for code in geo['country']:
-                        geos.append(GeoCodes.country_to_code(code))
-                    for code in geo['province']:
-                        geos.append(GeoCodes.province_to_code(code.upper()))
-                    for code in geo['region']:
-                        geos.append(self.REGION_CODES_LOOKUP[int(code)])
-                    rule['geos'] = geos
-                elif criteria_type == 'always':
-                    pass
-                else:
-                    self.log.warn('_populate_dynamic_traffic_director: '
-                                  'unsupported criteria_type "{}", ignoring',
-                                  criteria_type)
-                    continue
-
-                rules.append(rule)
-
-        pprint(data)
+        pprint({
+            'record data': data
+        })
 
         name = zone.hostname_from_fqdn(fqdn)
         record = Record.new(zone, name, data, source=self, lenient=lenient)
@@ -801,6 +851,21 @@ class DynProvider(BaseProvider):
         pool.create(td)
         return pool
 
+    def _records_for_A(self, values, record_extras):
+        return [DSFARecord(v['value'], weight=v.get('weight', 1),
+                           **record_extras)
+                for v in values]
+
+    def _records_for_AAAA(self, values, record_extras):
+        return [DSFAAAARecord(v['value'], weight=v.get('weight', 1),
+                              **record_extras)
+                for v in values]
+
+    def _records_for_CNAME(self, record, record_extras):
+        return [DSFCNAMERecord(v['value'], weight=v.get('weight', 1),
+                               **record_extras)
+                for v in values]
+
     def _find_or_create_dynamic_pool(self, td, pools, label, _type, values,
                                      monitor_id=None, record_extras={}):
 
@@ -821,11 +886,8 @@ class DynProvider(BaseProvider):
             except IndexError:
                 # No values, can't match
                 continue
-            record_values = [{
-                'weight': r.weight,
-                'value': r.address,
-            } for r in records]
-            record_values.sort(key=weighted_keyer)
+            value_for = getattr(self, '_value_for_{}'.format(_type))
+            record_values = [value_for(_type, r) for r in records]
             pprint(record_values)
             if record_values == values:
                 print('   match {} == {}'.format(record_values, values))
@@ -834,14 +896,8 @@ class DynProvider(BaseProvider):
             print('   not match {} != {}'.format(record_values, values))
 
         # we need to create the pool
-        _class = {
-            'A': DSFARecord,
-            'AAAA': DSFAAAARecord,
-            'CNAME': DSFCNAMERecord,
-        }[_type]
-        records = [_class(v['value'], weight=v.get('weight', 1),
-                          **record_extras)
-                   for v in values]
+        records_for = getattr(self, '_records_for_{}'.format(_type))
+        records = records_for(values, record_extras)
         record_set = DSFRecordSet(_type, label,
                                   serve_count=min(len(records), 2),
                                   records=records, dsf_monitor_id=monitor_id)
@@ -1010,6 +1066,7 @@ class DynProvider(BaseProvider):
         del fqdn_tds[_type]
 
     def _mod_dynamic_rulesets(self, td, change):
+        print('\n\n*****\n\n')
         new = change.new
 
         # TODO: make sure we can update TTLs
@@ -1071,10 +1128,17 @@ class DynProvider(BaseProvider):
         label = 'default:{}'.format(uuid4().hex)
         ruleset = DSFRuleset(label, 'always', [])
         ruleset.create(td, index=insert_at)
+        # TODO: if/when we go beyond A, AAAA, and CNAME this will have to get
+        # more intelligent, probably a weighted_values method on Record objects
+        # or something like that?
+        try:
+            values = new.values
+        except AttributeError:
+            values = [new.value]
         values = [{
             'value': v,
             'weight': 1,
-        } for v in new.values]
+        } for v in values]
         # For these defaults we need to set them to always be served and to
         # ignore any health checking (since they won't have one)
         pool = self._find_or_create_dynamic_pool(td, pools, 'default',
@@ -1097,7 +1161,7 @@ class DynProvider(BaseProvider):
         # Make sure we have all the pools we're going to need
         for _id, pool in sorted(new.dynamic.pools.items()):
             pprint({
-                'pool': pool,
+                _id, pool,
             })
             values = [{
                 'weight': v.get('weight', 1),
@@ -1113,23 +1177,33 @@ class DynProvider(BaseProvider):
             criteria = defaultdict(lambda: defaultdict(list))
             criteria_type = 'always'
             try:
-                for geo in rule.data['geos']:
-                    geo = GeoCodes.geo_parse(geo)
-                    pprint(geo)
-                    criteria_type = 'geoip'
-                    if geo['subdivision_code']:
-                        criteria['geoip']['province'] \
-                            .append(geo['subdivision_code'].lower())
-                    elif geo['country_code']:
-                        criteria['geoip']['country'] \
-                            .append(geo['country_code'])
-                    else:
-                        criteria['geoip']['region'] \
-                            .append(self.REGION_CODES[geo['continent_code']])
+                geos = rule.data['geos']
+                pprint({
+                    'geos': geos
+                })
+                criteria_type = 'geoip'
             except KeyError:
-                pass
+                geos = []
 
-            pprint(criteria)
+            for geo in geos:
+                geo = GeoCodes.parse(geo)
+                pprint({
+                    'geo': geo
+                })
+                if geo['province_code']:
+                    criteria['geoip']['province'] \
+                        .append(geo['province_code'].lower())
+                elif geo['country_code']:
+                    criteria['geoip']['country'] \
+                        .append(geo['country_code'])
+                else:
+                    criteria['geoip']['region'] \
+                        .append(self.REGION_CODES[geo['continent_code']])
+
+            pprint({
+                'type': criteria_type,
+                'criteria': criteria
+            })
 
             label = '{}:{}'.format(rule_num, uuid4().hex)
             ruleset = DSFRuleset(label, criteria_type, [], criteria)
@@ -1183,28 +1257,35 @@ class DynProvider(BaseProvider):
         if not new.dynamic:
             if new.geo:
                 # New record is a geo record
+                self.log.info('_mod_dynamic_Update: %s to geo', new.fqdn)
                 self._mod_geo_Create(dyn_zone, change)
             else:
                 # New record doesn't have dynamic, we're going from a TD to a
                 # regular record
+                self.log.info('_mod_dynamic_Update: %s to plain', new.fqdn)
                 self._mod_Create(dyn_zone, change)
             self._mod_dynamic_Delete(dyn_zone, change)
             return
         try:
             td = self.traffic_directors[new.fqdn][new._type]
+            self.log.debug('_mod_dynamic_Update: %s existing', new.fqdn)
         except KeyError:
             # There's no td, this is actually a create, we must be going from a
             # non-dynamic to dynamic record
             # First create the dynamic record
-            self._mode_dynamic_Create(dyn_zone, change)
-            # Make sure the details are correct
-            self._mod_dynamic_rulesets(td, change)
+            self._mod_dynamic_Create(dyn_zone, change)
             if change.old.geo:
                 # From a geo, so remove the old geo
+                self.log.info('_mod_dynamic_Update: %s from geo', new.fqdn)
                 self._mod_geo_Delete(dyn_zone, change)
             else:
                 # From a generic so remove the old generic
+                self.log.info('_mod_dynamic_Update: %s from plain', new.fqdn)
                 self._mod_Delete(dyn_zone, change)
+            return
+
+        # IF we're here it's actually an update, sync up rules
+        self._mod_dynamic_rulesets(td, change)
 
     def _mod_Create(self, dyn_zone, change):
         new = change.new
