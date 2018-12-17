@@ -12,9 +12,6 @@ import re
 from .geo import GeoCodes
 
 
-from pprint import pprint
-
-
 class Change(object):
 
     def __init__(self, existing, new):
@@ -270,10 +267,7 @@ class _ValuesMixin(object):
         try:
             values = data['values']
         except KeyError:
-            try:
-                values = [data['value']]
-            except KeyError:
-                values = []
+            values = [data['value']]
         self.values = sorted(self._value_type.process(values))
 
     def changes(self, other, target):
@@ -367,10 +361,7 @@ class _ValueMixin(object):
 
     def __init__(self, zone, name, data, source=None):
         super(_ValueMixin, self).__init__(zone, name, data, source=source)
-        if 'value' in data:
-            self.value = self._value_type.process(data['value'])
-        else:
-            self.value = None
+        self.value = self._value_type.process(data['value'])
 
     def changes(self, other, target):
         if self.value != other.value:
@@ -394,8 +385,6 @@ class _DynamicPool(object):
     def __init__(self, _id, data):
         self._id = _id
 
-        pprint(['before', data])
-
         values = [
             {
                 'value': d['value'],
@@ -409,8 +398,6 @@ class _DynamicPool(object):
             'fallback': fallback if fallback != 'default' else None,
             'values': values,
         }
-
-        pprint(['after', self.data])
 
     def _data(self):
         return self.data
@@ -430,8 +417,6 @@ class _DynamicRule(object):
     def __init__(self, i, data):
         self.i = i
 
-        pprint(['before', data])
-
         self.data = {}
         try:
             self.data['pool'] = data['pool']
@@ -442,17 +427,10 @@ class _DynamicRule(object):
         except KeyError:
             pass
 
-        pprint(['after', self.data])
-
     def _data(self):
         return self.data
 
     def __eq__(self, other):
-        pprint([
-            self.data,
-            other.data,
-            self.data == other.data,
-        ])
         return self.data == other.data
 
     def __ne__(self, other):

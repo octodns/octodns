@@ -1577,3 +1577,458 @@ class TestDSFMonitorMonkeyPatching(TestCase):
         monitor = DummyDSFMonitor()
         monitor.port = 8080
         self.assertEquals(8080, monitor.port)
+
+
+class DummyRecord(object):
+
+    def __init__(self, address, weight, ttl):
+        self.address = address
+        self.weight = weight
+        self.ttl = ttl
+
+
+class DummyRecordSets(object):
+
+    def __init__(self, records):
+        self.records = records
+
+
+class DummyRsChains(object):
+
+    def __init__(self, records):
+        self.record_sets = [DummyRecordSets(records)]
+
+
+class DummyResponsePool(object):
+
+    def __init__(self, label, records=[]):
+        self.label = label
+        if records:
+            self.rs_chains = [DummyRsChains(records)]
+        else:
+            self.rs_chains = []
+
+    def refresh(self):
+        pass
+
+
+class DummyRuleset(object):
+
+    def __init__(self, label, response_pools=[],
+                 criteria_type='always', criteria={}):
+        self.label = label
+        self.response_pools = response_pools
+        self.criteria_type = criteria_type
+        self.criteria = criteria
+
+
+class DummyTrafficDirector(object):
+
+    def __init__(self, rulesets=[], response_pools=[], ttl=42):
+        self.label = 'dynamic:dummy'
+        self.rulesets = rulesets
+        self.all_response_pools = response_pools
+        self.ttl = ttl
+
+
+class TestDynProviderDynamic(TestCase):
+
+    def test_value_for_address(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        class DummyRecord(object):
+
+            def __init__(self, address, weight):
+                self.address = address
+                self.weight = weight
+
+        record = DummyRecord('1.2.3.4', 32)
+        self.assertEquals({
+            'value': record.address,
+            'weight': record.weight,
+        }, provider._value_for_A('A', record))
+
+        record = DummyRecord('2601:644:500:e210:62f8:1dff:feb8:947a', 32)
+        self.assertEquals({
+            'value': record.address,
+            'weight': record.weight,
+        }, provider._value_for_AAAA('AAAA', record))
+
+    def test_value_for_CNAME(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        class DummyRecord(object):
+
+            def __init__(self, cname, weight):
+                self.cname = cname
+                self.weight = weight
+
+        record = DummyRecord('foo.unit.tests.', 32)
+        self.assertEquals({
+            'value': record.cname,
+            'weight': record.weight,
+        }, provider._value_for_CNAME('CNAME', record))
+
+    def test_populate_dynamic_pools(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        # Empty data, empty returns
+        default, pools = provider._populate_dynamic_pools('A', [], [])
+        self.assertEquals({}, default)
+        self.assertEquals({}, pools)
+
+        records_a = [DummyRecord('1.2.3.4', 32, 60)]
+        default_a = DummyResponsePool('default', records_a)
+
+        # Just a default A
+        response_pools = [default_a]
+        default, pools = provider._populate_dynamic_pools('A', [],
+                                                          response_pools)
+        self.assertEquals({
+            'ttl': 60,
+            'type': 'A',
+            'values': ['1.2.3.4'],
+        }, default)
+        self.assertEquals({}, pools)
+
+        multi_a = [
+            DummyRecord('1.2.3.5', 42, 90),
+            DummyRecord('1.2.3.6', 43, 90),
+            DummyRecord('1.2.3.7', 44, 90),
+        ]
+        example_a = DummyResponsePool('example', multi_a)
+
+        # Just a named pool
+        response_pools = [example_a]
+        default, pools = provider._populate_dynamic_pools('A', [],
+                                                          response_pools)
+        self.assertEquals({}, default)
+        self.assertEquals({
+            'example': {
+                'values': [{
+                    'value': '1.2.3.5',
+                    'weight': 42,
+                }, {
+                    'value': '1.2.3.6',
+                    'weight': 43,
+                }, {
+                    'value': '1.2.3.7',
+                    'weight': 44,
+                }],
+            },
+        }, pools)
+
+        # Named pool that shows up twice
+        response_pools = [example_a, example_a]
+        default, pools = provider._populate_dynamic_pools('A', [],
+                                                          response_pools)
+        self.assertEquals({}, default)
+        self.assertEquals({
+            'example': {
+                'values': [{
+                    'value': '1.2.3.5',
+                    'weight': 42,
+                }, {
+                    'value': '1.2.3.6',
+                    'weight': 43,
+                }, {
+                    'value': '1.2.3.7',
+                    'weight': 44,
+                }],
+            },
+        }, pools)
+
+        # Default & named
+        response_pools = [example_a, default_a, example_a]
+        default, pools = provider._populate_dynamic_pools('A', [],
+                                                          response_pools)
+        self.assertEquals({
+            'ttl': 60,
+            'type': 'A',
+            'values': ['1.2.3.4'],
+        }, default)
+        self.assertEquals({
+            'example': {
+                'values': [{
+                    'value': '1.2.3.5',
+                    'weight': 42,
+                }, {
+                    'value': '1.2.3.6',
+                    'weight': 43,
+                }, {
+                    'value': '1.2.3.7',
+                    'weight': 44,
+                }],
+            },
+        }, pools)
+
+        # empty rs_chains doesn't cause an example, just ignores
+        empty_a = DummyResponsePool('empty')
+        response_pools = [empty_a]
+        default, pools = provider._populate_dynamic_pools('A', [],
+                                                          response_pools)
+        self.assertEquals({}, default)
+        self.assertEquals({}, pools)
+
+    def test_populate_dynamic_rules(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        # Empty
+        rulesets = []
+        pools = {}
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([], rules)
+
+        # default: is ignored
+        rulesets = [DummyRuleset('default:')]
+        pools = {}
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([], rules)
+
+        # No ResponsePools in RuleSet, ignored
+        rulesets = [DummyRuleset('0:abcdefg')]
+        pools = {}
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([], rules)
+
+        # ResponsePool, no fallback
+        rulesets = [DummyRuleset('0:abcdefg', [
+            DummyResponsePool('some-pool')
+        ])]
+        pools = {}
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([{
+            'pool': 'some-pool',
+        }], rules)
+
+        # ResponsePool, with dfault fallback (ignored)
+        rulesets = [DummyRuleset('0:abcdefg', [
+            DummyResponsePool('some-pool'),
+            DummyResponsePool('default'),
+        ])]
+        pools = {}
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([{
+            'pool': 'some-pool',
+        }], rules)
+
+        # ResponsePool, with fallback
+        rulesets = [DummyRuleset('0:abcdefg', [
+            DummyResponsePool('some-pool'),
+            DummyResponsePool('some-fallback'),
+        ])]
+        pools = {
+            'some-pool': {},
+        }
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([{
+            'pool': 'some-pool',
+        }], rules)
+        # fallback has been installed
+        self.assertEquals({
+            'some-pool': {
+                'fallback': 'some-fallback',
+            }
+        }, pools)
+
+        # Unsupported criteria_type (ignored)
+        rulesets = [DummyRuleset('0:abcdefg', [
+            DummyResponsePool('some-pool')
+        ], 'unsupported')]
+        pools = {}
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([], rules)
+
+        # Geo Continent/Region
+        response_pools = [DummyResponsePool('some-pool')]
+        criteria = {
+            'geoip': {
+                'country': ['US'],
+                'province': ['or'],
+                'region': [14],
+            },
+        }
+        ruleset = DummyRuleset('0:abcdefg', response_pools,
+                               'geoip', criteria)
+        rulesets = [ruleset]
+        pools = {}
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([{
+            'geos': ['AF', 'NA-US', 'NA-US-OR'],
+            'pool': 'some-pool',
+        }], rules)
+
+    def test_populate_dynamic_traffic_director(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+        fqdn = 'dynamic.unit.tests.'
+
+        multi_a = [
+            DummyRecord('1.2.3.5', 1, 90),
+            DummyRecord('1.2.3.6', 1, 90),
+            DummyRecord('1.2.3.7', 1, 90),
+        ]
+        default_response_pool = DummyResponsePool('default', multi_a)
+        pool1_response_pool = DummyResponsePool('pool1', multi_a)
+        rulesets = [
+            DummyRuleset('default', [default_response_pool]),
+            DummyRuleset('0:abcdef', [pool1_response_pool], 'geoip', {
+                'geoip': {
+                    'country': ['US'],
+                    'province': ['or'],
+                    'region': [14],
+                },
+            }),
+        ]
+        td = DummyTrafficDirector(rulesets, [default_response_pool,
+                                             pool1_response_pool])
+        zone = Zone('unit.tests.', [])
+        record = provider._populate_dynamic_traffic_director(zone, fqdn, 'A',
+                                                             td, True)
+        self.assertTrue(record)
+        self.assertEquals('A', record._type)
+        self.assertEquals(90, record.ttl)
+        self.assertEquals([
+            '1.2.3.5',
+            '1.2.3.6',
+            '1.2.3.7',
+        ], record.values)
+        self.assertTrue('pool1' in record.dynamic.pools)
+        self.assertEquals({
+            'fallback': None,
+            'values': [{
+                'value': '1.2.3.5',
+                'weight': 1,
+            }, {
+                'value': '1.2.3.6',
+                'weight': 1,
+            }, {
+                'value': '1.2.3.7',
+                'weight': 1,
+            }]
+        }, record.dynamic.pools['pool1'].data)
+        self.assertEquals(2, len(record.dynamic.rules))
+        self.assertEquals({
+            'pool': 'default',
+        }, record.dynamic.rules[0].data)
+        self.assertEquals({
+            'pool': 'pool1',
+            'geos': ['AF', 'NA-US', 'NA-US-OR'],
+        }, record.dynamic.rules[1].data)
+
+        # Hack into the provider and create a fake list of traffic directors
+        provider._traffic_directors = {
+            'dynamic.unit.tests.': {
+                'A': td,
+            }
+        }
+        zone = Zone('unit.tests.', [])
+        records = provider._populate_traffic_directors(zone, lenient=True)
+        self.assertEquals(1, len(records))
+
+    def test_dynamic_records_for_A(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        # Empty
+        records = provider._dynamic_records_for_A([], {})
+        self.assertEquals([], records)
+
+        # Basic
+        values = [{
+            'value': '1.2.3.4',
+        }, {
+            'value': '1.2.3.5',
+            'weight': 42,
+        }]
+        records = provider._dynamic_records_for_A(values, {})
+        self.assertEquals(2, len(records))
+        record = records[0]
+        self.assertEquals('1.2.3.4', record.address)
+        self.assertEquals(1, record.weight)
+        record = records[1]
+        self.assertEquals('1.2.3.5', record.address)
+        self.assertEquals(42, record.weight)
+
+        # With extras
+        records = provider._dynamic_records_for_A(values, {
+            'automation': 'manual',
+            'eligible': True,
+        })
+        self.assertEquals(2, len(records))
+        record = records[0]
+        self.assertEquals('1.2.3.4', record.address)
+        self.assertEquals(1, record.weight)
+        self.assertEquals('manual', record._automation)
+        self.assertTrue(record.eligible)
+
+    def test_dynamic_records_for_AAAA(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        # Empty
+        records = provider._dynamic_records_for_AAAA([], {})
+        self.assertEquals([], records)
+
+        # Basic
+        values = [{
+            'value': '2601:644:500:e210:62f8:1dff:feb8:947a',
+        }, {
+            'value': '2601:644:500:e210:62f8:1dff:feb8:947b',
+            'weight': 42,
+        }]
+        records = provider._dynamic_records_for_AAAA(values, {})
+        self.assertEquals(2, len(records))
+        record = records[0]
+        self.assertEquals('2601:644:500:e210:62f8:1dff:feb8:947a',
+                          record.address)
+        self.assertEquals(1, record.weight)
+        record = records[1]
+        self.assertEquals('2601:644:500:e210:62f8:1dff:feb8:947b',
+                          record.address)
+        self.assertEquals(42, record.weight)
+
+        # With extras
+        records = provider._dynamic_records_for_AAAA(values, {
+            'automation': 'manual',
+            'eligible': True,
+        })
+        self.assertEquals(2, len(records))
+        record = records[0]
+        self.assertEquals('2601:644:500:e210:62f8:1dff:feb8:947a',
+                          record.address)
+        self.assertEquals(1, record.weight)
+        self.assertEquals('manual', record._automation)
+        self.assertTrue(record.eligible)
+
+    def test_dynamic_records_for_CNAME(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        # Empty
+        records = provider._dynamic_records_for_CNAME([], {})
+        self.assertEquals([], records)
+
+        # Basic
+        values = [{
+            'value': 'target-1.unit.tests.',
+        }, {
+            'value': 'target-2.unit.tests.',
+            'weight': 42,
+        }]
+        records = provider._dynamic_records_for_CNAME(values, {})
+        self.assertEquals(2, len(records))
+        record = records[0]
+        self.assertEquals('target-1.unit.tests.', record.cname)
+        self.assertEquals(1, record.weight)
+        record = records[1]
+        self.assertEquals('target-2.unit.tests.', record.cname)
+        self.assertEquals(42, record.weight)
+
+        # With extras
+        records = provider._dynamic_records_for_CNAME(values, {
+            'automation': 'manual',
+            'eligible': True,
+        })
+        self.assertEquals(2, len(records))
+        record = records[0]
+        self.assertEquals('target-1.unit.tests.', record.cname)
+        self.assertEquals(1, record.weight)
+        self.assertEquals('manual', record._automation)
+        self.assertTrue(record.eligible)
