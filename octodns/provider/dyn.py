@@ -179,6 +179,10 @@ class _CachingDynZone(DynZone):
         self.flush_cache()
 
 
+def _dynamic_value_sort_key(value):
+    return value['value']
+
+
 class DynProvider(BaseProvider):
     '''
     Dynect Managed DNS provider
@@ -497,9 +501,10 @@ class DynProvider(BaseProvider):
                     # First time we've seen it get its data
                     # Note we'll have to set fallbacks as we go through rules
                     # b/c we can't determine them here
+                    values = [value_for(_type, r) for r in record_set.records]
+                    values.sort(key=_dynamic_value_sort_key)
                     pools[label] = {
-                        'values': [value_for(_type, r)
-                                   for r in record_set.records]
+                        'values': values,
                     }
 
         return default, pools
@@ -863,11 +868,11 @@ class DynProvider(BaseProvider):
     def _find_or_create_dynamic_pool(self, td, pools, label, _type, values,
                                      monitor_id=None, record_extras={}):
 
-        # TODO: move this somewhere better
-        def weighted_keyer(d):
-            return d['value']
-
-        values.sort(key=weighted_keyer)
+        values = sorted(values, key=_dynamic_value_sort_key)
+        values = map(lambda v: {
+            'value': v['value'],
+            'weight': v.get('weight', 1),
+        }, values)
 
         for pool in pools:
             if pool.label != label:

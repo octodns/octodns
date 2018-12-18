@@ -13,7 +13,8 @@ from unittest import TestCase
 
 from octodns.record import Create, Delete, Record, Update
 from octodns.provider.base import Plan
-from octodns.provider.dyn import DynProvider, _CachingDynZone, DSFMonitor
+from octodns.provider.dyn import DynProvider, _CachingDynZone, DSFMonitor, \
+    _dynamic_value_sort_key
 from octodns.zone import Zone
 
 from helpers import SimpleProvider
@@ -1278,7 +1279,7 @@ class TestDynProviderGeo(TestCase):
         self.assertEquals('NA-US-CA', miss.label)
         mock.assert_called_once_with(td)
 
-        # cache miss, non-matching label
+        # cache miss, matching label, mis-matching values
         mock.reset_mock()
         values = ['2.2.3.4.', '2.2.3.5']
         miss = provider._find_or_create_geo_pool(td, pools, 'default', 'A',
@@ -2032,3 +2033,97 @@ class TestDynProviderDynamic(TestCase):
         self.assertEquals(1, record.weight)
         self.assertEquals('manual', record._automation)
         self.assertTrue(record.eligible)
+
+    def test_dynamic_value_sort_key(self):
+        values = [{
+            'value': '1.2.3.1',
+        }, {
+            'value': '1.2.3.27',
+        }, {
+            'value': '1.2.3.127',
+        }, {
+            'value': '1.2.3.2',
+        }]
+
+        self.assertEquals([{
+            'value': '1.2.3.1',
+        }, {
+            'value': '1.2.3.127',
+        }, {
+            'value': '1.2.3.2',
+        }, {
+            'value': '1.2.3.27',
+        }], sorted(values, key=_dynamic_value_sort_key))
+
+    @patch('dyn.tm.services.DSFResponsePool.create')
+    def test_find_or_create_dynamic_pools(self, mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        td = 42
+        label = 'foo'
+        values = [{
+            'value': '1.2.3.1',
+        }, {
+            'value': '1.2.3.127',
+        }, {
+            'value': '1.2.3.2',
+        }, {
+            'value': '1.2.3.27',
+        }]
+
+        # A Pool with no existing pools, will create
+        pools = []
+        pool = provider._find_or_create_dynamic_pool(td, pools, label, 'A',
+                                                     values)
+        self.assertIsInstance(pool, DSFResponsePool)
+        self.assertEquals(1, len(pool.rs_chains))
+        self.assertEquals(1, len(pool.rs_chains[0].record_sets))
+        records = pool.rs_chains[0].record_sets[0].records
+        self.assertEquals(4, len(records))
+        self.assertEquals([v['value'] for v in values],
+                          [r.address for r in records])
+        self.assertEquals([1 for r in records], [r.weight for r in records])
+        mock.assert_called_once_with(td)
+
+        # Ask for the pool we created above and include it in the canidate list
+        mock.reset_mock()
+        pools = [pool]
+        cached = provider._find_or_create_dynamic_pool(td, pools, label, 'A',
+                                                       values)
+        self.assertEquals(pool, cached)
+        mock.assert_not_called()
+
+        # Invalid candidate pool, still finds the valid one that's there too
+        mock.reset_mock()
+        invalid = DSFResponsePool(label, rs_chains=[])
+        pools = [invalid, pool]
+        cached = provider._find_or_create_dynamic_pool(td, pools, label, 'A',
+                                                       values)
+        self.assertEquals(pool, cached)
+        mock.assert_not_called()
+
+        # Ask for a pool with a different label, should create a new one
+        mock.reset_mock()
+        pools = [pool]
+        other = provider._find_or_create_dynamic_pool(td, pools, 'other', 'A',
+                                                      values)
+        self.assertEquals('other', other.label)
+        mock.assert_called_once_with(td)
+
+        # Ask for a pool that matches label-wise, but has different values
+        values = [{
+            'value': '1.2.3.44',
+        }]
+        mock.reset_mock()
+        pools = [pool]
+        new = provider._find_or_create_dynamic_pool(td, pools, label, 'A',
+                                                    values)
+        self.assertEquals(label, new.label)
+        self.assertEquals(1, len(new.rs_chains))
+        self.assertEquals(1, len(new.rs_chains[0].record_sets))
+        records = new.rs_chains[0].record_sets[0].records
+        self.assertEquals(1, len(records))
+        self.assertEquals([v['value'] for v in values],
+                          [r.address for r in records])
+        self.assertEquals([1 for r in records], [r.weight for r in records])
+        mock.assert_called_once_with(td)

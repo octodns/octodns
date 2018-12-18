@@ -268,6 +268,7 @@ class _ValuesMixin(object):
             values = data['values']
         except KeyError:
             values = [data['value']]
+        # TODO: should we natsort values?
         self.values = sorted(self._value_type.process(values))
 
     def changes(self, other, target):
