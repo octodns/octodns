@@ -10,7 +10,7 @@ from unittest import TestCase
 from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
     CnameRecord, Create, Delete, GeoValue, MxRecord, NaptrRecord, \
     NaptrValue, NsRecord, Record, SshfpRecord, SpfRecord, SrvRecord, \
-    TxtRecord, Update, ValidationError
+    TxtRecord, Update, ValidationError, _Dynamic, _DynamicPool, _DynamicRule
 from octodns.zone import Zone
 
 from helpers import DynamicProvider, GeoProvider, SimpleProvider
@@ -3195,3 +3195,43 @@ class TestDynamicRecords(TestCase):
         self.assertEquals(a.dynamic.rules, a.dynamic.rules)
         self.assertEquals(a.dynamic.rules[0], a.dynamic.rules[0])
         self.assertNotEquals(a.dynamic.rules[0], c.dynamic.rules[0])
+
+    def test_dynamic_eqs(self):
+
+        pool_one = _DynamicPool('one', {
+            'values': [{
+                'value': '1.2.3.4',
+            }],
+        })
+        pool_two = _DynamicPool('two', {
+            'values': [{
+                'value': '1.2.3.5',
+            }],
+        })
+        self.assertEquals(pool_one, pool_one)
+        self.assertNotEquals(pool_one, pool_two)
+        self.assertNotEquals(pool_one, 42)
+
+        pools = {
+            'one': pool_one,
+            'two': pool_two,
+        }
+        rule_one = _DynamicRule(0, {
+            'pool': 'one',
+        })
+        rule_two = _DynamicRule(1, {
+            'pool': 'two',
+        })
+        self.assertEquals(rule_one, rule_one)
+        self.assertNotEquals(rule_one, rule_two)
+        self.assertNotEquals(rule_one, 42)
+        rules = [
+            rule_one,
+            rule_two,
+        ]
+
+        dynamic = _Dynamic(pools, rules)
+        other = _Dynamic({}, [])
+        self.assertEquals(dynamic, dynamic)
+        self.assertNotEquals(dynamic, other)
+        self.assertNotEquals(dynamic, 42)

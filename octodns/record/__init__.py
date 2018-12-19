@@ -404,6 +404,8 @@ class _DynamicPool(object):
         return self.data
 
     def __eq__(self, other):
+        if not isinstance(other, _DynamicPool):
+            return False
         return self.data == other.data
 
     def __ne__(self, other):
@@ -432,6 +434,8 @@ class _DynamicRule(object):
         return self.data
 
     def __eq__(self, other):
+        if not isinstance(other, _DynamicRule):
+            return False
         return self.data == other.data
 
     def __ne__(self, other):
@@ -460,6 +464,8 @@ class _Dynamic(object):
         }
 
     def __eq__(self, other):
+        if not isinstance(other, _Dynamic):
+            return False
         ret = self.pools == other.pools and self.rules == other.rules
         return ret
 
