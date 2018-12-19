@@ -2127,3 +2127,390 @@ class TestDynProviderDynamic(TestCase):
                           [r.address for r in records])
         self.assertEquals([1 for r in records], [r.weight for r in records])
         mock.assert_called_once_with(td)
+
+    zone = Zone('unit.tests.', [])
+    dynamic_a_record = Record.new(zone, '', {
+        'dynamic': {
+            'pools': {
+                'one': {
+                    'values': [{
+                        'value': '3.3.3.3',
+                    }],
+                },
+                'two': {
+                    # Testing out of order value sorting here
+                    'values': [{
+                        'value': '5.5.5.5',
+                    }, {
+                        'value': '4.4.4.4',
+                    }],
+                },
+                'three': {
+                    'fallback': 'two',
+                    'values': [{
+                        'weight': 10,
+                        'value': '4.4.4.4',
+                    }, {
+                        'weight': 12,
+                        'value': '5.5.5.5',
+                    }],
+                },
+            },
+            'rules': [{
+                'geos': ['AF', 'EU', 'AS-JP'],
+                'pool': 'three',
+            }, {
+                'geos': ['NA-US-CA'],
+                'pool': 'two',
+            }, {
+                'pool': 'one',
+            }],
+        },
+        'type': 'A',
+        'ttl': 60,
+        'values': [
+            '1.1.1.1',
+            '2.2.2.2',
+        ],
+    })
+    geo_a_record = Record.new(zone, '', {
+        'geo': {
+            'AF': ['2.2.3.4', '2.2.3.5'],
+            'AS-JP': ['3.2.3.4', '3.2.3.5'],
+            'NA-US': ['4.2.3.4', '4.2.3.5'],
+            'NA-US-CA': ['5.2.3.4', '5.2.3.5']
+        },
+        'ttl': 300,
+        'type': 'A',
+        'values': ['1.2.3.4', '1.2.3.5'],
+    })
+    regular_a_record = Record.new(zone, '', {
+        'ttl': 301,
+        'type': 'A',
+        'value': '1.2.3.4',
+    })
+    dynamic_cname_record = Record.new(zone, 'www', {
+        'dynamic': {
+            'pools': {
+                'one': {
+                    'values': [{
+                        'value': 'target-0.unit.tests.',
+                    }],
+                },
+                'two': {
+                    # Testing out of order value sorting here
+                    'values': [{
+                        'value': 'target-1.unit.tests.',
+                    }, {
+                        'value': 'target-2.unit.tests.',
+                    }],
+                },
+                'three': {
+                    'values': [{
+                        'weight': 10,
+                        'value': 'target-3.unit.tests.',
+                    }, {
+                        'weight': 12,
+                        'value': 'target-4.unit.tests.',
+                    }],
+                },
+            },
+            'rules': [{
+                'geos': ['AF', 'EU', 'AS-JP'],
+                'pool': 'three',
+            }, {
+                'geos': ['NA-US-CA'],
+                'pool': 'two',
+            }, {
+                'pool': 'one',
+            }],
+        },
+        'type': 'CNAME',
+        'ttl': 60,
+        'value': 'target.unit.tests.',
+    })
+
+    @patch('dyn.tm.services.DSFRuleset.add_response_pool')
+    @patch('dyn.tm.services.DSFRuleset.create')
+    # just lets us ignore the pool.create calls
+    @patch('dyn.tm.services.DSFResponsePool.create')
+    def test_mod_dynamic_rulesets_create_CNAME(self, _, ruleset_create_mock,
+                                               add_response_pool_mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        td_mock = MagicMock()
+        td_mock._rulesets = []
+        provider._traffic_director_monitor = MagicMock()
+        provider._find_or_create_dynamic_pool = MagicMock()
+
+        td_mock.all_response_pools = []
+
+        provider._find_or_create_dynamic_pool.side_effect = [
+            _DummyPool('default'),
+            _DummyPool('one'),
+            _DummyPool('two'),
+            _DummyPool('three'),
+        ]
+
+        change = Create(self.dynamic_cname_record)
+        provider._mod_dynamic_rulesets(td_mock, change)
+        add_response_pool_mock.assert_has_calls((
+            # default
+            call('default'),
+            # first dynamic and it's fallback
+            call('one'),
+            call('default', index=999),
+            # 2nd dynamic and it's fallback
+            call('three'),
+            call('default', index=999),
+            # 3nd dynamic and it's fallback
+            call('two'),
+            call('default', index=999),
+        ))
+        ruleset_create_mock.assert_has_calls((
+            call(td_mock, index=0),
+            call(td_mock, index=0),
+            call(td_mock, index=0),
+            call(td_mock, index=0),
+        ))
+
+    # have to patch the place it's imported into, not where it lives
+    @patch('octodns.provider.dyn.get_response_pool')
+    @patch('dyn.tm.services.DSFRuleset.add_response_pool')
+    @patch('dyn.tm.services.DSFRuleset.create')
+    # just lets us ignore the pool.create calls
+    @patch('dyn.tm.services.DSFResponsePool.create')
+    def test_mod_dynamic_rulesets_existing(self, _, ruleset_create_mock,
+                                           add_response_pool_mock,
+                                           get_response_pool_mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        ruleset_mock = MagicMock()
+        ruleset_mock.response_pools = [_DummyPool('three')]
+
+        td_mock = MagicMock()
+        td_mock._rulesets = [
+            ruleset_mock,
+        ]
+        provider._traffic_director_monitor = MagicMock()
+        provider._find_or_create_dynamic_pool = MagicMock()
+        # Matching ttl
+        td_mock.ttl = self.dynamic_a_record.ttl
+
+        unused_pool = _DummyPool('unused')
+        td_mock.all_response_pools = \
+            ruleset_mock.response_pools + [unused_pool]
+        get_response_pool_mock.return_value = unused_pool
+
+        provider._find_or_create_dynamic_pool.side_effect = [
+            _DummyPool('default'),
+            _DummyPool('one'),
+            _DummyPool('two'),
+            ruleset_mock.response_pools[0],
+        ]
+
+        change = Create(self.dynamic_a_record)
+        provider._mod_dynamic_rulesets(td_mock, change)
+        add_response_pool_mock.assert_has_calls((
+            # default
+            call('default'),
+            # first dynamic and it's fallback
+            call('one'),
+            call('default', index=999),
+            # 2nd dynamic and it's fallback
+            call('three'),
+            call('default', index=999),
+            # 3nd dynamic, from existing, and it's fallback
+            call('two'),
+            call('three', index=999),
+            call('default', index=999),
+        ))
+        ruleset_create_mock.assert_has_calls((
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+        ))
+        # unused poll should have been deleted
+        self.assertTrue(unused_pool.deleted)
+        # old ruleset ruleset should be deleted, it's pool will have been
+        # reused
+        ruleset_mock.delete.assert_called_once()
+
+    with open('./tests/fixtures/dyn-traffic-director-get.json') as fh:
+        traffic_director_response = loads(fh.read())
+
+    @property
+    def traffic_directors_response(self):
+        return {
+            'data': [{
+                'active': 'Y',
+                'label': 'unit.tests.:A',
+                'nodes': [],
+                'notifiers': [],
+                'pending_change': '',
+                'rulesets': [],
+                'service_id': '2ERWXQNsb_IKG2YZgYqkPvk0PBM',
+                'ttl': '300'
+            }, {
+                'active': 'Y',
+                'label': 'some.other.:A',
+                'nodes': [],
+                'notifiers': [],
+                'pending_change': '',
+                'rulesets': [],
+                'service_id': '3ERWXQNsb_IKG2YZgYqkPvk0PBM',
+                'ttl': '300'
+            }, {
+                'active': 'Y',
+                'label': 'other format',
+                'nodes': [],
+                'notifiers': [],
+                'pending_change': '',
+                'rulesets': [],
+                'service_id': '4ERWXQNsb_IKG2YZgYqkPvk0PBM',
+                'ttl': '300'
+            }]
+        }
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_mod_dynamic_create(self, mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        # will be tested separately
+        provider._mod_dynamic_rulesets = MagicMock()
+
+        mock.side_effect = [
+            # create traffic director
+            self.traffic_director_response,
+            # get traffic directors
+            self.traffic_directors_response
+        ]
+        provider._mod_dynamic_Create(None, Create(self.dynamic_a_record))
+        # td now lives in cache
+        self.assertTrue('A' in provider.traffic_directors['unit.tests.'])
+        # should have seen 1 gen call
+        provider._mod_dynamic_rulesets.assert_called_once()
+
+    def test_mod_dynamic_update_dynamic_dynamic(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        # update of an existing td
+
+        # pre-populate the cache with our mock td
+        provider._traffic_directors = {
+            'unit.tests.': {
+                'A': 42,
+            }
+        }
+        # mock _mod_dynamic_rulesets
+        provider._mod_dynamic_rulesets = MagicMock()
+
+        geo = self.dynamic_a_record
+        change = Update(geo, geo)
+        provider._mod_dynamic_Update(None, change)
+        # still in cache
+        self.assertTrue('A' in provider.traffic_directors['unit.tests.'])
+        # should have seen 1 gen call
+        provider._mod_dynamic_rulesets.assert_called_once_with(42, change)
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_mod_dynamic_update_dynamic_geo(self, _):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        # convert a td to a geo record
+
+        provider._mod_geo_Create = MagicMock()
+        provider._mod_dynamic_Delete = MagicMock()
+
+        change = Update(self.dynamic_a_record, self.geo_a_record)
+        provider._mod_dynamic_Update(42, change)
+        # should have seen a call to create the new geo record
+        provider._mod_geo_Create.assert_called_once_with(42, change)
+        # should have seen a call to delete the old td record
+        provider._mod_dynamic_Delete.assert_called_once_with(42, change)
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_mod_dynamic_update_dynamic_regular(self, _):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        # convert a td to a regular record
+
+        provider._mod_Create = MagicMock()
+        provider._mod_dynamic_Delete = MagicMock()
+
+        change = Update(self.dynamic_a_record, self.regular_a_record)
+        provider._mod_dynamic_Update(42, change)
+        # should have seen a call to create the new regular record
+        provider._mod_Create.assert_called_once_with(42, change)
+        # should have seen a call to delete the old td record
+        provider._mod_dynamic_Delete.assert_called_once_with(42, change)
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_mod_dynamic_update_geo_dynamic(self, _):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        # convert a geo record to a td
+
+        provider._mod_dynamic_Create = MagicMock()
+        provider._mod_geo_Delete = MagicMock()
+
+        change = Update(self.geo_a_record, self.dynamic_a_record)
+        provider._mod_dynamic_Update(42, change)
+        # should have seen a call to create the new geo record
+        provider._mod_dynamic_Create.assert_called_once_with(42, change)
+        # should have seen a call to delete the old geo record
+        provider._mod_geo_Delete.assert_called_once_with(42, change)
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_mod_dynamic_update_regular_dynamic(self, _):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        # convert a regular record to a td
+
+        provider._mod_dynamic_Create = MagicMock()
+        provider._mod_Delete = MagicMock()
+
+        change = Update(self.regular_a_record, self.dynamic_a_record)
+        provider._mod_dynamic_Update(42, change)
+        # should have seen a call to create the new geo record
+        provider._mod_dynamic_Create.assert_called_once_with(42, change)
+        # should have seen a call to delete the old regular record
+        provider._mod_Delete.assert_called_once_with(42, change)
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_mod_dynamic_delete(self, mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        td_mock = MagicMock()
+        provider._traffic_directors = {
+            'unit.tests.': {
+                'A': td_mock,
+            }
+        }
+        provider._mod_dynamic_Delete(None, Delete(self.dynamic_a_record))
+        # delete called
+        td_mock.delete.assert_called_once()
+        # removed from cache
+        self.assertFalse('A' in provider.traffic_directors['unit.tests.'])
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_apply_traffic_directors_dynamic(self, mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        # will be tested separately
+        provider._mod_dynamic_Create = MagicMock()
+
+        changes = [Create(self.dynamic_a_record)]
+        provider._apply_traffic_directors(self.zone, changes, None)
+        provider._mod_dynamic_Create.assert_called_once()

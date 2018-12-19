@@ -1117,7 +1117,7 @@ class DynProvider(BaseProvider):
         label = 'default:{}'.format(uuid4().hex)
         ruleset = DSFRuleset(label, 'always', [])
         ruleset.create(td, index=insert_at)
-        # TODO: if/when we go beyond A, AAAA, and CNAME this will have to get
+        # If/when we go beyond A, AAAA, and CNAME this will have to get
         # more intelligent, probably a weighted_values method on Record objects
         # or something like that?
         try:
@@ -1249,7 +1249,7 @@ class DynProvider(BaseProvider):
             # non-dynamic to dynamic record
             # First create the dynamic record
             self._mod_dynamic_Create(dyn_zone, change)
-            if change.old.geo:
+            if change.existing.geo:
                 # From a geo, so remove the old geo
                 self.log.info('_mod_dynamic_Update: %s from geo', new.fqdn)
                 self._mod_geo_Delete(dyn_zone, change)
@@ -1261,6 +1261,13 @@ class DynProvider(BaseProvider):
 
         # IF we're here it's actually an update, sync up rules
         self._mod_dynamic_rulesets(td, change)
+
+    def _mod_dynamic_Delete(self, dyn_zone, change):
+        existing = change.existing
+        fqdn_tds = self.traffic_directors[existing.fqdn]
+        _type = existing._type
+        fqdn_tds[_type].delete()
+        del fqdn_tds[_type]
 
     def _mod_Create(self, dyn_zone, change):
         new = change.new
