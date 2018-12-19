@@ -3196,6 +3196,59 @@ class TestDynamicRecords(TestCase):
         self.assertEquals(a.dynamic.rules[0], a.dynamic.rules[0])
         self.assertNotEquals(a.dynamic.rules[0], c.dynamic.rules[0])
 
+    def test_dynamic_and_geo_validation(self):
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }],
+                    },
+                    'two': {
+                        # Testing out of order value sorting here
+                        'values': [{
+                            'value': '5.5.5.5',
+                        }, {
+                            'value': '4.4.4.4',
+                        }],
+                    },
+                    'three': {
+                        'values': [{
+                            'weight': 10,
+                            'value': '4.4.4.4',
+                        }, {
+                            'weight': 12,
+                            'value': '5.5.5.5',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'geo': {
+                'NA': ['1.2.3.5'],
+                'NA-US': ['1.2.3.5', '1.2.3.6']
+            },
+            'type': 'A',
+            'ttl': 60,
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['"dynamic" record with "geo" content'],
+                          ctx.exception.reasons)
+
     def test_dynamic_eqs(self):
 
         pool_one = _DynamicPool('one', {

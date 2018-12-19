@@ -486,6 +486,8 @@ class _DynamicMixin(object):
 
         if 'dynamic' not in data:
             return reasons
+        elif 'geo' in data:
+            reasons.append('"dynamic" record with "geo" content')
 
         try:
             pools = data['dynamic']['pools']
