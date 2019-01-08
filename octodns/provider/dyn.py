@@ -412,10 +412,8 @@ class DynProvider(BaseProvider):
 
         return self._traffic_directors
 
-    def _populate_geo_traffic_director(self, zone, fqdn, _type, td, lenient):
-        # critical to call rulesets once, each call loads them :-(
-        rulesets = td.rulesets
-
+    def _populate_geo_traffic_director(self, zone, fqdn, _type, td, rulesets,
+                                       lenient):
         # We start out with something that will always change show
         # change in case this is a busted TD. This will prevent us from
         # creating a duplicate td. We'll overwrite this with real data
@@ -565,9 +563,7 @@ class DynProvider(BaseProvider):
         return rules
 
     def _populate_dynamic_traffic_director(self, zone, fqdn, _type, td,
-                                           lenient):
-        # critical to call rulesets once, each call loads them :-(
-        rulesets = td.rulesets
+                                           rulesets, lenient):
         # We'll go ahead and grab pools too, using all will include unref'd
         # pools
         response_pools = td.all_response_pools
@@ -600,6 +596,21 @@ class DynProvider(BaseProvider):
 
         return record
 
+    def _is_traffic_director_dyanmic(self, td, rulesets):
+        for ruleset in rulesets:
+            try:
+                pieces = ruleset.label.split(':')
+                if len(pieces) == 2:
+                    # It matches octoDNS's format
+                    int(pieces[0])
+                    # It's an integer, so probably rule_num, thus dynamic
+                    return True
+            except (IndexError, ValueError):
+                pass
+        # We didn't see any rulesets that look like a dynamic record so maybe
+        # geo...
+        return False
+
     def _populate_traffic_directors(self, zone, lenient):
         self.log.debug('_populate_traffic_directors: zone=%s, lenient=%s',
                        zone.name, lenient)
@@ -609,15 +620,19 @@ class DynProvider(BaseProvider):
             if not fqdn.endswith(zone.name):
                 continue
             for _type, td in types.items():
-                if td.label.startswith('dynamic:'):
+                # critical to call rulesets once, each call loads them :-(
+                rulesets = td.rulesets
+                if self._is_traffic_director_dyanmic(td, rulesets):
                     record = \
                         self._populate_dynamic_traffic_director(zone, fqdn,
                                                                 _type, td,
+                                                                rulesets,
                                                                 lenient)
                 else:
                     record = \
                         self._populate_geo_traffic_director(zone, fqdn, _type,
-                                                            td, lenient)
+                                                            td, rulesets,
+                                                            lenient)
                 td_records.add(record)
 
         return td_records
@@ -1218,7 +1233,7 @@ class DynProvider(BaseProvider):
         new = change.new
         fqdn = new.fqdn
         _type = new._type
-        label = 'dynamic:{}:{}'.format(fqdn, _type)
+        label = '{}:{}'.format(fqdn, _type)
         node = DSFNode(new.zone.name, fqdn)
         td = TrafficDirector(label, ttl=new.ttl, nodes=[node], publish='Y')
         self.log.debug('_mod_dynamic_Create: td=%s', td.service_id)

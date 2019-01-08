@@ -1884,7 +1884,8 @@ class TestDynProviderDynamic(TestCase):
                                              pool1_response_pool])
         zone = Zone('unit.tests.', [])
         record = provider._populate_dynamic_traffic_director(zone, fqdn, 'A',
-                                                             td, True)
+                                                             td, rulesets,
+                                                             True)
         self.assertTrue(record)
         self.assertEquals('A', record._type)
         self.assertEquals(90, record.ttl)
