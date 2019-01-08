@@ -485,7 +485,7 @@ class DynProvider(BaseProvider):
                     .record_sets[0]
             except IndexError:
                 # problems indicate a malformed ruleset, ignore it
-                self.log.warn('_populate_dynamic_traffic_director: '
+                self.log.warn('_populate_dynamic_pools: '
                               'malformed response_pool "%s" ignoring',
                               response_pool.label)
                 continue
@@ -525,7 +525,7 @@ class DynProvider(BaseProvider):
                     if fallback != 'default':
                         pools[pool]['fallback'] = fallback
             else:
-                self.log.warn('_populate_dynamic_traffic_director: '
+                self.log.warn('_populate_dynamic_pools: '
                               'ruleset "%s" has no response_pools',
                               ruleset.label)
                 continue
@@ -553,7 +553,7 @@ class DynProvider(BaseProvider):
             elif criteria_type == 'always':
                 pass
             else:
-                self.log.warn('_populate_dynamic_traffic_director: '
+                self.log.warn('_populate_dynamic_rules: '
                               'unsupported criteria_type "%s", ignoring',
                               criteria_type)
                 continue
