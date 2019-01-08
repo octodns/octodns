@@ -29,7 +29,7 @@ setup(
         'console_scripts': console_scripts,
     },
     install_requires=[
-        'PyYaml>=3.12',
+        'PyYaml>=4.2b1',
         'dnspython>=1.15.0',
         'futures>=3.2.0',
         'incf.countryutils>=1.0',
