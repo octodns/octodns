@@ -1248,13 +1248,14 @@ class DynProvider(BaseProvider):
             if new.geo:
                 # New record is a geo record
                 self.log.info('_mod_dynamic_Update: %s to geo', new.fqdn)
-                self._mod_geo_Create(dyn_zone, change)
+                # Convert the TD over to a geo
+                self._mod_geo_Update(dyn_zone, change)
             else:
                 # New record doesn't have dynamic, we're going from a TD to a
                 # regular record
                 self.log.info('_mod_dynamic_Update: %s to plain', new.fqdn)
                 self._mod_Create(dyn_zone, change)
-            self._mod_dynamic_Delete(dyn_zone, change)
+                self._mod_dynamic_Delete(dyn_zone, change)
             return
         try:
             td = self.traffic_directors[new.fqdn][new._type]

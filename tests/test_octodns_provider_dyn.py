@@ -2400,7 +2400,7 @@ class TestDynProviderDynamic(TestCase):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
-        # update of an existing td
+        # update of an existing dynamic td
 
         # pre-populate the cache with our mock td
         provider._traffic_directors = {
@@ -2424,24 +2424,21 @@ class TestDynProviderDynamic(TestCase):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
-        # convert a td to a geo record
+        # convert a dynamic td to a geo record
 
-        provider._mod_geo_Create = MagicMock()
-        provider._mod_dynamic_Delete = MagicMock()
+        provider._mod_geo_Update = MagicMock()
 
         change = Update(self.dynamic_a_record, self.geo_a_record)
         provider._mod_dynamic_Update(42, change)
         # should have seen a call to create the new geo record
-        provider._mod_geo_Create.assert_called_once_with(42, change)
-        # should have seen a call to delete the old td record
-        provider._mod_dynamic_Delete.assert_called_once_with(42, change)
+        provider._mod_geo_Update.assert_called_once_with(42, change)
 
     @patch('dyn.core.SessionEngine.execute')
     def test_mod_dynamic_update_dynamic_regular(self, _):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
-        # convert a td to a regular record
+        # convert a dynamic td to a regular record
 
         provider._mod_Create = MagicMock()
         provider._mod_dynamic_Delete = MagicMock()
@@ -2458,7 +2455,7 @@ class TestDynProviderDynamic(TestCase):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
-        # convert a geo record to a td
+        # convert a geo record to a dynamic td
 
         provider._mod_dynamic_Create = MagicMock()
         provider._mod_geo_Delete = MagicMock()
@@ -2475,7 +2472,7 @@ class TestDynProviderDynamic(TestCase):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
-        # convert a regular record to a td
+        # convert a regular record to a dynamic td
 
         provider._mod_dynamic_Create = MagicMock()
         provider._mod_Delete = MagicMock()
