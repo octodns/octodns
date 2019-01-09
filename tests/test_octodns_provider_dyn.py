@@ -2411,8 +2411,8 @@ class TestDynProviderDynamic(TestCase):
         # mock _mod_dynamic_rulesets
         provider._mod_dynamic_rulesets = MagicMock()
 
-        geo = self.dynamic_a_record
-        change = Update(geo, geo)
+        dyn = self.dynamic_a_record
+        change = Update(dyn, dyn)
         provider._mod_dynamic_Update(None, change)
         # still in cache
         self.assertTrue('A' in provider.traffic_directors['unit.tests.'])
@@ -2457,15 +2457,21 @@ class TestDynProviderDynamic(TestCase):
 
         # convert a geo record to a dynamic td
 
-        provider._mod_dynamic_Create = MagicMock()
-        provider._mod_geo_Delete = MagicMock()
+        # pre-populate the cache with our mock td
+        provider._traffic_directors = {
+            'unit.tests.': {
+                'A': 42,
+            }
+        }
+        # mock _mod_dynamic_rulesets
+        provider._mod_dynamic_rulesets = MagicMock()
 
         change = Update(self.geo_a_record, self.dynamic_a_record)
-        provider._mod_dynamic_Update(42, change)
-        # should have seen a call to create the new geo record
-        provider._mod_dynamic_Create.assert_called_once_with(42, change)
-        # should have seen a call to delete the old geo record
-        provider._mod_geo_Delete.assert_called_once_with(42, change)
+        provider._mod_dynamic_Update(None, change)
+        # still in cache
+        self.assertTrue('A' in provider.traffic_directors['unit.tests.'])
+        # should have seen 1 gen call
+        provider._mod_dynamic_rulesets.assert_called_once_with(42, change)
 
     @patch('dyn.core.SessionEngine.execute')
     def test_mod_dynamic_update_regular_dynamic(self, _):

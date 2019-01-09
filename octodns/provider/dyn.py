@@ -1258,31 +1258,33 @@ class DynProvider(BaseProvider):
             if new.geo:
                 # New record is a geo record
                 self.log.info('_mod_dynamic_Update: %s to geo', new.fqdn)
-                # Convert the TD over to a geo
+                # Convert the TD over to a geo and we're done
                 self._mod_geo_Update(dyn_zone, change)
             else:
                 # New record doesn't have dynamic, we're going from a TD to a
                 # regular record
                 self.log.info('_mod_dynamic_Update: %s to plain', new.fqdn)
+                # Create the regular record
                 self._mod_Create(dyn_zone, change)
+                # Delete the dynamic
                 self._mod_dynamic_Delete(dyn_zone, change)
             return
         try:
+            # We'll be dynamic going forward, see if we have one already
             td = self.traffic_directors[new.fqdn][new._type]
-            self.log.debug('_mod_dynamic_Update: %s existing', new.fqdn)
+            if change.existing.geo:
+                self.log.info('_mod_dynamic_Update: %s from geo', new.fqdn)
+            else:
+                self.log.debug('_mod_dynamic_Update: %s existing', new.fqdn)
+            # If we're here we do, we'll just update it down below
         except KeyError:
             # There's no td, this is actually a create, we must be going from a
             # non-dynamic to dynamic record
             # First create the dynamic record
+            self.log.info('_mod_dynamic_Update: %s from regular', new.fqdn)
             self._mod_dynamic_Create(dyn_zone, change)
-            if change.existing.geo:
-                # From a geo, so remove the old geo
-                self.log.info('_mod_dynamic_Update: %s from geo', new.fqdn)
-                self._mod_geo_Delete(dyn_zone, change)
-            else:
-                # From a generic so remove the old generic
-                self.log.info('_mod_dynamic_Update: %s from plain', new.fqdn)
-                self._mod_Delete(dyn_zone, change)
+            # From a generic so remove the old generic
+            self._mod_Delete(dyn_zone, change)
             return
 
         # IF we're here it's actually an update, sync up rules
