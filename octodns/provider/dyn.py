@@ -399,14 +399,10 @@ class DynProvider(BaseProvider):
             tds = defaultdict(dict)
             for td in get_all_dsf_services():
                 try:
-                    _, fqdn, _type = td.label.split(':', 2)
+                    fqdn, _type = td.label.split(':', 1)
                 except ValueError:
-                    try:
-                        fqdn, _type = td.label.split(':', 1)
-                    except ValueError:
-                        self.log.warn("Unsupported TrafficDirector '%s'",
-                                      td.label)
-                        continue
+                    self.log.warn("Unsupported TrafficDirector '%s'", td.label)
+                    continue
                 tds[fqdn][_type] = td
             self._traffic_directors = dict(tds)
 

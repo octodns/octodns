@@ -1626,7 +1626,7 @@ class DummyRuleset(object):
 class DummyTrafficDirector(object):
 
     def __init__(self, rulesets=[], response_pools=[], ttl=42):
-        self.label = 'dynamic:dummy'
+        self.label = 'dummy:abcdef1234567890'
         self.rulesets = rulesets
         self.all_response_pools = response_pools
         self.ttl = ttl
