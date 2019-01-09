@@ -237,6 +237,7 @@ class DynProvider(BaseProvider):
         'OC': 16,  # Continental Australia/Oceania
         'AN': 17,  # Continental Antarctica
     }
+    # Reverse of ^
     REGION_CODES_LOOKUP = {code: geo for geo, code in REGION_CODES.items()}
 
     MONITOR_HEADER = 'User-Agent: Dyn Monitor'
@@ -410,10 +411,9 @@ class DynProvider(BaseProvider):
 
     def _populate_geo_traffic_director(self, zone, fqdn, _type, td, rulesets,
                                        lenient):
-        # We start out with something that will always change show
-        # change in case this is a busted TD. This will prevent us from
-        # creating a duplicate td. We'll overwrite this with real data
-        # provide we have it
+        # We start out with something that will always show change in case this
+        # is a busted TD. This will prevent us from creating a duplicate td.
+        # We'll overwrite this with real data provided we have it
         geo = {}
         data = {
             'geo': geo,
@@ -489,6 +489,7 @@ class DynProvider(BaseProvider):
             label = response_pool.label
 
             if label == 'default':
+                # The default pool has the base record values
                 default = data_for(_type, record_set.records)
             else:
                 if label not in pools:
@@ -496,6 +497,7 @@ class DynProvider(BaseProvider):
                     # Note we'll have to set fallbacks as we go through rules
                     # b/c we can't determine them here
                     values = [value_for(_type, r) for r in record_set.records]
+                    # Sort to ensure consistent ordering so we can compare them
                     values.sort(key=_dynamic_value_sort_key)
                     pools[label] = {
                         'values': values,
@@ -506,16 +508,24 @@ class DynProvider(BaseProvider):
     def _populate_dynamic_rules(self, rulesets, pools):
         rules = []
 
+        # Build the list of rules based on the rulesets
         for ruleset in rulesets:
             if ruleset.label.startswith('default:'):
+                # Ignore the default, it's implicit in our model
                 continue
 
             num_pools = len(ruleset.response_pools)
             if num_pools > 0:
+                # Find the primary pool for this rule
                 pool = ruleset.response_pools[0].label
                 # TODO: verify pool exists
                 if num_pools > 1:
-                    # We have a fallback, record it in the approrpriate pool
+                    # We have a fallback, record it in the approrpriate pool.
+                    # Note we didn't have fallback info when we populated the
+                    # pools above so we're filling that info in here. It's
+                    # possible that rules will have disagreeing values for the
+                    # fallbacks. That's annoying but a sync should fix it and
+                    # match stuff up with the config.
                     fallback = ruleset.response_pools[1].label
                     # TODO: verify fallback exists
                     if fallback != 'default':
@@ -526,6 +536,8 @@ class DynProvider(BaseProvider):
                               ruleset.label)
                 continue
 
+            # OK we have the rule's pool info, record it and work on the rule's
+            # matching criteria
             rule = {
                 'pool': pool,
             }
@@ -886,13 +898,17 @@ class DynProvider(BaseProvider):
     def _find_or_create_dynamic_pool(self, td, pools, label, _type, values,
                                      monitor_id=None, record_extras={}):
 
+        # Sort the values for consistent ordering so that we can compare
         values = sorted(values, key=_dynamic_value_sort_key)
+        # Ensure that weight is included and if not use the default
         values = map(lambda v: {
             'value': v['value'],
             'weight': v.get('weight', 1),
         }, values)
 
+        # Walk through our existing pools looking for a match we can use
         for pool in pools:
+            # It must have the same label
             if pool.label != label:
                 continue
             try:
@@ -900,13 +916,15 @@ class DynProvider(BaseProvider):
             except IndexError:
                 # No values, can't match
                 continue
+            # And the (sorted) values must match once converted for comparison
+            # purposes
             value_for = getattr(self, '_value_for_{}'.format(_type))
             record_values = [value_for(_type, r) for r in records]
             if record_values == values:
                 # it's a match
                 return pool
 
-        # we need to create the pool
+        # We don't have this pool and thus need to create it
         records_for = getattr(self, '_dynamic_records_for_{}'.format(_type))
         records = records_for(values, record_extras)
         record_set = DSFRecordSet(_type, label,
@@ -1243,11 +1261,14 @@ class DynProvider(BaseProvider):
         new = change.new
         fqdn = new.fqdn
         _type = new._type
+        # Create a new traffic director
         label = '{}:{}'.format(fqdn, _type)
         node = DSFNode(new.zone.name, fqdn)
         td = TrafficDirector(label, ttl=new.ttl, nodes=[node], publish='Y')
         self.log.debug('_mod_dynamic_Create: td=%s', td.service_id)
+        # Sync up it's pools & rules
         self._mod_dynamic_rulesets(td, change)
+        # Store it for future reference
         self.traffic_directors[fqdn] = {
             _type: td
         }
