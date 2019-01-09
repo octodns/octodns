@@ -859,6 +859,13 @@ class DynProvider(BaseProvider):
         chain = DSFFailoverChain(label, record_sets=[record_set])
         pool = DSFResponsePool(label, rs_chains=[chain])
         pool.create(td)
+
+        # We need to store the newly created pool in the pools list since the
+        # caller won't know if it was newly created or not. This will allow us
+        # to find this pool again if another rule references it and avoid
+        # creating duplicates
+        pools.append(pool)
+
         return pool
 
     def _dynamic_records_for_A(self, values, record_extras):
@@ -908,6 +915,13 @@ class DynProvider(BaseProvider):
         chain = DSFFailoverChain(label, record_sets=[record_set])
         pool = DSFResponsePool(label, rs_chains=[chain])
         pool.create(td)
+
+        # We need to store the newly created pool in the pools list since the
+        # caller won't know if it was newly created or not. This will allow us
+        # to find this pool again if another rule references it and avoid
+        # creating duplicates
+        pools.append(pool)
+
         return pool
 
     def _mod_geo_rulesets(self, td, change):
