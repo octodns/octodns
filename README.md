@@ -58,10 +58,6 @@ zones:
 
 `class` is a special key that tells OctoDNS what python class should be loaded. Any other keys will be passed as configuration values to that provider. In general any sensitive or frequently rotated values should come from environmental variables. When OctoDNS sees a value that starts with `env/` it will look for that value in the process's environment and pass the result along.
 
-`enforce_order` is a special key that tells OctoDNS to enforce sorting order on the yaml config. By default it is set to True.
-
-If you don't want to set same TTL each time for your records, you can optionally use `default_ttl` key - it will be used in records when not specified in the data. By default it is set to 3600 seconds.
-
 Further information can be found in the `docstring` of each source and provider class.
 
 Now that we have something to tell OctoDNS about our providers & zones we need to tell it about or records. We'll keep it simple for now and just create a single `A` record at the top-level of the domain.
