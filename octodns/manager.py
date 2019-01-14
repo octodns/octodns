@@ -217,7 +217,8 @@ class Manager(object):
 
     def _populate_and_plan(self, zone_name, sources, targets, lenient=False):
 
-        self.log.debug('sync:   populating, zone=%s, lenient=%s', zone_name, lenient)
+        self.log.debug('sync:   populating, zone=%s, lenient=%s',
+                       zone_name, lenient)
         zone = Zone(zone_name,
                     sub_zones=self.configured_sub_zones(zone_name))
         for source in sources:
@@ -243,8 +244,8 @@ class Manager(object):
     def sync(self, eligible_zones=[], eligible_targets=[], dry_run=True,
              force=False, lenient=False):
         self.log.info('sync: eligible_zones=%s, eligible_targets=%s, '
-                      'dry_run=%s, force=%s, lenient=%s', eligible_zones, eligible_targets,
-                      dry_run, force, lenient)
+                      'dry_run=%s, force=%s, lenient=%s', eligible_zones,
+                      eligible_targets, dry_run, force, lenient)
 
         zones = self.config['zones'].items()
         if eligible_zones:
@@ -294,7 +295,8 @@ class Manager(object):
                                                                      target))
 
             futures.append(self._executor.submit(self._populate_and_plan,
-                                                 zone_name, sources, targets, lenient))
+                                                 zone_name, sources,
+                                                 targets, lenient))
 
         # Wait on all results and unpack/flatten them in to a list of target &
         # plan pairs.
