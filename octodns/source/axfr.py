@@ -98,7 +98,7 @@ class AxfrBaseSource(BaseSource):
                        target, lenient)
 
         values = defaultdict(lambda: defaultdict(list))
-        for record in self.zone_records(zone):
+        for record in self.zone_records(zone, lenient=lenient):
             _type = record['type']
             if _type not in self.SUPPORTS:
                 continue
@@ -110,7 +110,8 @@ class AxfrBaseSource(BaseSource):
             for _type, records in types.items():
                 data_for = getattr(self, '_data_for_{}'.format(_type))
                 record = Record.new(zone, name, data_for(_type, records),
-                                    source=self, lenient=lenient)
+                                    source=self, lenient=lenient
+                                    )
                 zone.add_record(record, lenient=lenient)
 
         self.log.info('populate:   found %s records',
@@ -143,10 +144,14 @@ class AxfrSource(AxfrBaseSource):
         super(AxfrSource, self).__init__(id)
         self.master = master
 
-    def zone_records(self, zone):
+    def zone_records(self, zone, lenient=False):
+        check_origin = True
+        if lenient:
+            check_origin = False
         try:
             z = dns.zone.from_xfr(dns.query.xfr(self.master, zone.name,
                                                 relativize=False),
+                                  check_origin=check_origin,
                                   relativize=False)
         except DNSException:
             raise AxfrSourceZoneTransferFailed()

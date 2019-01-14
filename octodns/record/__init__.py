@@ -1154,7 +1154,7 @@ class SrvRecord(_ValuesMixin, Record):
     def validate(cls, name, data):
         reasons = []
         if not cls._name_re.match(name):
-            reasons.append('invalid name')
+            reasons.append('invalid name for SRV record')
         reasons.extend(super(SrvRecord, cls).validate(name, data))
         return reasons
 

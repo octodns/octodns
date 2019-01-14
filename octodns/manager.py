@@ -215,13 +215,13 @@ class Manager(object):
         self.log.debug('configured_sub_zones: subs=%s', sub_zone_names)
         return set(sub_zone_names)
 
-    def _populate_and_plan(self, zone_name, sources, targets):
+    def _populate_and_plan(self, zone_name, sources, targets, lenient=False):
 
-        self.log.debug('sync:   populating, zone=%s', zone_name)
+        self.log.debug('sync:   populating, zone=%s, lenient=%s', zone_name, lenient)
         zone = Zone(zone_name,
                     sub_zones=self.configured_sub_zones(zone_name))
         for source in sources:
-            source.populate(zone)
+            source.populate(zone, lenient=lenient)
 
         self.log.debug('sync:   planning, zone=%s', zone_name)
         plans = []
@@ -232,7 +232,7 @@ class Manager(object):
                     'type': 'TXT',
                     'ttl': 60,
                     'value': 'provider={}'.format(target.id)
-                })
+                }, lenient=lenient)
                 zone.add_record(meta, replace=True)
             plan = target.plan(zone)
             if plan:
@@ -241,10 +241,10 @@ class Manager(object):
         return plans
 
     def sync(self, eligible_zones=[], eligible_targets=[], dry_run=True,
-             force=False):
+             force=False, lenient=False):
         self.log.info('sync: eligible_zones=%s, eligible_targets=%s, '
-                      'dry_run=%s, force=%s', eligible_zones, eligible_targets,
-                      dry_run, force)
+                      'dry_run=%s, force=%s, lenient=%s', eligible_zones, eligible_targets,
+                      dry_run, force, lenient)
 
         zones = self.config['zones'].items()
         if eligible_zones:
@@ -294,7 +294,7 @@ class Manager(object):
                                                                      target))
 
             futures.append(self._executor.submit(self._populate_and_plan,
-                                                 zone_name, sources, targets))
+                                                 zone_name, sources, targets, lenient))
 
         # Wait on all results and unpack/flatten them in to a list of target &
         # plan pairs.
