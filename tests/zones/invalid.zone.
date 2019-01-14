@@ -6,3 +6,7 @@ $ORIGIN invalid.zone.
                         604800  ; Expire (1 week)
                         3600    ; NXDOMAIN ttl (1 hour)
                     )
+
+; SRV Records
+srv   600   IN  SRV 10 20 30 foo-1.invalid.zone.
+srv   600   IN  SRV 10 20 30 foo-2.invalid.zone.
