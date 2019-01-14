@@ -206,12 +206,16 @@ class ZoneFileSource(AxfrBaseSource):
 
         self._zone_records = {}
 
-    def _load_zone_file(self, zone_name):
+    def _load_zone_file(self, zone_name, lenient=False):
         zonefiles = listdir(self.directory)
+        check_origin = True
+        if lenient:
+            check_origin = False
         if zone_name in zonefiles:
             try:
                 z = dns.zone.from_file(join(self.directory, zone_name),
-                                       zone_name, relativize=False)
+                                       zone_name, check_origin=check_origin,
+                                       relativize=False)
             except DNSException as error:
                 raise ZoneFileSourceLoadFailure(error)
         else:
@@ -219,10 +223,10 @@ class ZoneFileSource(AxfrBaseSource):
 
         return z
 
-    def zone_records(self, zone):
+    def zone_records(self, zone, lenient=False):
         if zone.name not in self._zone_records:
             try:
-                z = self._load_zone_file(zone.name)
+                z = self._load_zone_file(zone.name, lenient=lenient)
                 records = []
                 for (name, ttl, rdata) in z.iterate_rdatas():
                     rdtype = dns.rdatatype.to_text(rdata.rdtype)
