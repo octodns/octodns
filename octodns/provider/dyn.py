@@ -1156,7 +1156,7 @@ class DynProvider(BaseProvider):
         ] + [-1]) + 1
         self.log.debug('_mod_dynamic_rulesets: insert_at=%d', insert_at)
 
-        # Add the base record values as the ultimiate/unhealthchecked default
+        # Add the base record values as the ultimate/unhealthchecked default
         label = 'default:{}'.format(uuid4().hex)
         ruleset = DSFRuleset(label, 'always', [])
         ruleset.create(td, index=insert_at)
