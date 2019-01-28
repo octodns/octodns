@@ -1,13 +1,11 @@
-## v0.9.4 - ....-..-.. - Dynamic Records Beta
+## v0.9.4 - 2019-01-28 - The one with a bunch of stuff, before the big one
 
-* Dynamic Records (more powerful/flexible replacement for geo)
-   * Will support A, AAAA, and CNAME out the gate and include the ability to
-     weight records. It should provide a foundation for further suppport
-     if/when needed.
-   * Major refactoring and improvements to validation of the Record hierarchy,
-     things are much more consisntely implemented now and error messages should
-     be more actionable/clear. Both the base values and dynamic values use the
-     same validatio logic.
+* A bunch of "dynamic" stuff that'll be detailed in the next release when
+  providers actually support it :grin:
+* Route53Provider adds support for using session tokens
+* Added support for proxying Cloudflare ALIAS records
+* Dyn CAA TTL fix
+* Documentation fixes and improvements
 * natsort version bump to address setup issues
 * DNSSimple TXT record handling fixes, ; it's always ;
 * Route53Provider support for sessiom tokens
