@@ -583,7 +583,7 @@ class DynProvider(BaseProvider):
         # Populate rules
         rules = self._populate_dynamic_rules(rulesets, pools)
 
-        # We start out with something that will always change show
+        # We start out with something that will always show
         # change in case this is a busted TD. This will prevent us from
         # creating a duplicate td. We'll overwrite this with real data
         # provide we have it
