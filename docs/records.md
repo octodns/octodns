@@ -120,10 +120,10 @@ In the above example each name had a single record, but there are cases where a 
       - 1.2.3.5
   - type: MX
     values:
-      - priority: 10
-        value: mx1.example.com.
-      - priority: 10
-        value: mx2.example.com.
+      - exchange: mx1.example.com.
+        preference: 10
+      - exchange: mx2.example.com.
+        preference: 10
 ```
 
 ### Record data
