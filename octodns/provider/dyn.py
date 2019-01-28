@@ -1235,11 +1235,25 @@ class DynProvider(BaseProvider):
             # OK, we have the rule and its primary pool setup, now look to see
             # if there's a fallback chain that needs to be configured
             fallback = new.dynamic.pools[rule_pool].data.get('fallback', None)
-            while fallback:
+            seen = set([rule_pool])
+            while fallback and fallback not in seen:
+                seen.add(fallback)
                 # looking at client lib code, index > exists appends
                 ruleset.add_response_pool(active_pools[fallback], index=999)
                 fallback = new.dynamic.pools[fallback].data.get('fallback',
                                                                 None)
+            if fallback is not None:
+                # If we're out of the while and fallback is not None that means
+                # there was a loop. This generally shouldn't happen since
+                # Record validations test for it, but this is a
+                # belt-and-suspenders setup. Excepting here would put things
+                # into a partially configured state which would be bad. We'll
+                # just break at the point where the loop was going to happen
+                # and log about it. Note that any time we hit this we're likely
+                # to hit it multiple times as we configure the other pools
+                self.log.warn('_mod_dynamic_rulesets: loop detected in '
+                              'fallback chain, fallback=%s, seen=%s', fallback,
+                              seen)
 
             # and always add default as the last
             ruleset.add_response_pool(active_pools['default'], index=999)

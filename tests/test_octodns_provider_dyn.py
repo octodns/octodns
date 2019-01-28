@@ -2231,6 +2231,52 @@ class TestDynProviderDynamic(TestCase):
         'value': 'target.unit.tests.',
     })
 
+    dynamic_fallback_loop = Record.new(zone, '', {
+        'dynamic': {
+            'pools': {
+                'one': {
+                    'values': [{
+                        'value': '3.3.3.3',
+                    }],
+                },
+                'two': {
+                    # Testing out of order value sorting here
+                    'fallback': 'three',
+                    'values': [{
+                        'value': '5.5.5.5',
+                    }, {
+                        'value': '4.4.4.4',
+                    }],
+                },
+                'three': {
+                    'fallback': 'two',
+                    'values': [{
+                        'weight': 10,
+                        'value': '4.4.4.4',
+                    }, {
+                        'weight': 12,
+                        'value': '5.5.5.5',
+                    }],
+                },
+            },
+            'rules': [{
+                'geos': ['AF', 'EU', 'AS-JP'],
+                'pool': 'three',
+            }, {
+                'geos': ['NA-US-CA'],
+                'pool': 'two',
+            }, {
+                'pool': 'one',
+            }],
+        },
+        'type': 'A',
+        'ttl': 60,
+        'values': [
+            '1.1.1.1',
+            '2.2.2.2',
+        ],
+    }, lenient=True)
+
     @patch('dyn.tm.services.DSFRuleset.add_response_pool')
     @patch('dyn.tm.services.DSFRuleset.create')
     # just lets us ignore the pool.create calls
@@ -2324,6 +2370,71 @@ class TestDynProviderDynamic(TestCase):
             call('three'),
             call('default', index=999),
             # 3nd dynamic, from existing, and it's fallback
+            call('two'),
+            call('three', index=999),
+            call('default', index=999),
+        ))
+        ruleset_create_mock.assert_has_calls((
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+        ))
+        # unused poll should have been deleted
+        self.assertTrue(unused_pool.deleted)
+        # old ruleset ruleset should be deleted, it's pool will have been
+        # reused
+        ruleset_mock.delete.assert_called_once()
+
+    # have to patch the place it's imported into, not where it lives
+    @patch('octodns.provider.dyn.get_response_pool')
+    @patch('dyn.tm.services.DSFRuleset.add_response_pool')
+    @patch('dyn.tm.services.DSFRuleset.create')
+    # just lets us ignore the pool.create calls
+    @patch('dyn.tm.services.DSFResponsePool.create')
+    def test_mod_dynamic_rulesets_fallback_loop(self, _, ruleset_create_mock,
+                                                add_response_pool_mock,
+                                                get_response_pool_mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        ruleset_mock = MagicMock()
+        ruleset_mock.response_pools = [_DummyPool('three')]
+
+        td_mock = MagicMock()
+        td_mock._rulesets = [
+            ruleset_mock,
+        ]
+        provider._traffic_director_monitor = MagicMock()
+        provider._find_or_create_dynamic_pool = MagicMock()
+        # Matching ttl
+        td_mock.ttl = self.dynamic_fallback_loop.ttl
+
+        unused_pool = _DummyPool('unused')
+        td_mock.all_response_pools = \
+            ruleset_mock.response_pools + [unused_pool]
+        get_response_pool_mock.return_value = unused_pool
+
+        provider._find_or_create_dynamic_pool.side_effect = [
+            _DummyPool('default'),
+            _DummyPool('one'),
+            _DummyPool('two'),
+            ruleset_mock.response_pools[0],
+        ]
+
+        change = Create(self.dynamic_fallback_loop)
+        provider._mod_dynamic_rulesets(td_mock, change)
+        add_response_pool_mock.assert_has_calls((
+            # default
+            call('default'),
+            # first dynamic and it's fallback
+            call('one'),
+            call('default', index=999),
+            # 2nd dynamic and it's fallback (no loop)
+            call('three'),
+            call('two', index=999),
+            call('default', index=999),
+            # 3nd dynamic and it's fallback (no loop)
             call('two'),
             call('three', index=999),
             call('default', index=999),
