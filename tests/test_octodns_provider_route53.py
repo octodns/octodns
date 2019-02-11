@@ -105,6 +105,7 @@ class TestRoute53Provider(TestCase):
             'ResourcePath': '/_dns',
             'Type': 'HTTPS',
             'Port': 443,
+            'MeasureLatency': True,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -117,6 +118,7 @@ class TestRoute53Provider(TestCase):
             'ResourcePath': '/_dns',
             'Type': 'HTTPS',
             'Port': 443,
+            'MeasureLatency': True,
         },
         'HealthCheckVersion': 42,
     }, {
@@ -129,6 +131,7 @@ class TestRoute53Provider(TestCase):
             'ResourcePath': '/_dns',
             'Type': 'HTTPS',
             'Port': 443,
+            'MeasureLatency': True,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -141,6 +144,7 @@ class TestRoute53Provider(TestCase):
             'ResourcePath': '/_dns',
             'Type': 'HTTPS',
             'Port': 443,
+            'MeasureLatency': True,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -154,6 +158,7 @@ class TestRoute53Provider(TestCase):
             'ResourcePath': '/_dns',
             'Type': 'HTTPS',
             'Port': 443,
+            'MeasureLatency': True,
         },
         'HealthCheckVersion': 2,
     }]
@@ -704,6 +709,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -716,6 +722,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }]
@@ -738,6 +745,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }]
@@ -785,6 +793,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -797,6 +806,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }]
@@ -947,6 +957,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -959,6 +970,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -971,6 +983,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }]
@@ -1147,6 +1160,7 @@ class TestRoute53Provider(TestCase):
                     'ResourcePath': '/_dns',
                     'Type': 'HTTPS',
                     'Port': 443,
+                    'MeasureLatency': True,
                 },
                 'HealthCheckVersion': 2,
             }],
@@ -1250,6 +1264,7 @@ class TestRoute53Provider(TestCase):
                     'ResourcePath': '/_dns',
                     'Type': 'HTTPS',
                     'Port': 443,
+                    'MeasureLatency': True
                 },
                 'HealthCheckVersion': 2,
             }],

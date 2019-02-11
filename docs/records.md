@@ -72,8 +72,36 @@ So the example is saying:
 - Europe: gets an "A" record of 111.111.111.4
 - Everyone else gets an "A" record of 111.111.111.5
 
+### Health Checks
 
-Octodns will automatically set up a monitor and check for **https://<ip_address>/_dns** and check for a 200 response.
+Octodns will automatically set up monitors for each IP and check for a 200 response for **https://<ip_address>/_dns**.
+
+These checks can be configured by adding a `healthcheck` configuration to the record:
+
+```yaml
+---
+test:
+  geo:
+    AS:
+      - 1.2.3.4
+    EU:
+      - 2.3.4.5
+  octodns:
+    healthcheck:
+      host: my-host-name
+      measure_latency: 0
+      path: /dns-health-check
+      port: 443
+      protocol: HTTPS
+```
+
+| Key  | Description | Default |
+|--|--|--|
+| host | FQDN for host header and SNI | - |
+| path | path to check | _dns |
+| port | port to check | 443 |
+| protocol | HTTP/HTTPS | HTTPS |
+| measure_latency | Route53 only: Show latency in AWS console | true |
 
 ## Config (`YamlProvider`)
 
@@ -83,7 +111,7 @@ OctoDNS records and `YamlProvider`'s schema is essentially a 1:1 match. Properti
 
 Each top-level key in the yaml file is a record name. Two common special cases are the root record `''`, and a wildcard `'*'`.
 
-```
+```yaml
 ---
 '':
   type: A
@@ -111,7 +139,7 @@ The above config lays out 4 records, `A`s for `example.com.`, `www.example.com.`
 
 In the above example each name had a single record, but there are cases where a name will need to have multiple records associated with it. This can be accomplished by using a list.
 
-```
+```yaml
 ---
 '':
   - type: A
