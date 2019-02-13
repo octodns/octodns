@@ -61,26 +61,28 @@ class TestBaseProvider(TestCase):
         class HasSupportsGeo(HasLog):
             SUPPORTS_GEO = False
 
-        with self.assertRaises(NotImplementedError) as ctx:
-            HasSupportsGeo('hassupportsgeo')
-        self.assertEquals('Abstract base class, SUPPORTS_DYNAMIC '
-                          'property missing', ctx.exception.message)
-
-        class HasSupportsDyanmic(HasSupportsGeo):
-            SUPPORTS_DYNAMIC = False
-
         zone = Zone('unit.tests.', ['sub'])
         with self.assertRaises(NotImplementedError) as ctx:
-            HasSupportsDyanmic('hassupportsdynamic').populate(zone)
+            HasSupportsGeo('hassupportsgeo').populate(zone)
         self.assertEquals('Abstract base class, SUPPORTS property missing',
                           ctx.exception.message)
 
-        class HasSupports(HasSupportsDyanmic):
+        class HasSupports(HasSupportsGeo):
             SUPPORTS = set(('A',))
         with self.assertRaises(NotImplementedError) as ctx:
             HasSupports('hassupports').populate(zone)
         self.assertEquals('Abstract base class, populate method missing',
                           ctx.exception.message)
+
+        # SUPPORTS_DYNAMIC has a default/fallback
+        self.assertFalse(HasSupports('hassupports').SUPPORTS_DYNAMIC)
+
+        # But can be overridden
+        class HasSupportsDyanmic(HasSupports):
+            SUPPORTS_DYNAMIC = True
+
+        self.assertTrue(HasSupportsDyanmic('hassupportsdynamic')
+                        .SUPPORTS_DYNAMIC)
 
         class HasPopulate(HasSupports):
 

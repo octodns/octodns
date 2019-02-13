@@ -268,6 +268,7 @@ class _ValuesMixin(object):
             values = data['values']
         except KeyError:
             values = [data['value']]
+        # TODO: should we natsort values?
         self.values = sorted(self._value_type.process(values))
 
     def changes(self, other, target):
@@ -384,12 +385,27 @@ class _DynamicPool(object):
 
     def __init__(self, _id, data):
         self._id = _id
-        self.data = data
+
+        values = [
+            {
+                'value': d['value'],
+                'weight': d.get('weight', 1),
+            } for d in data['values']
+        ]
+        values.sort(key=lambda d: d['value'])
+
+        fallback = data.get('fallback', None)
+        self.data = {
+            'fallback': fallback if fallback != 'default' else None,
+            'values': values,
+        }
 
     def _data(self):
         return self.data
 
     def __eq__(self, other):
+        if not isinstance(other, _DynamicPool):
+            return False
         return self.data == other.data
 
     def __ne__(self, other):
@@ -403,12 +419,23 @@ class _DynamicRule(object):
 
     def __init__(self, i, data):
         self.i = i
-        self.data = data
+
+        self.data = {}
+        try:
+            self.data['pool'] = data['pool']
+        except KeyError:
+            pass
+        try:
+            self.data['geos'] = sorted(data['geos'])
+        except KeyError:
+            pass
 
     def _data(self):
         return self.data
 
     def __eq__(self, other):
+        if not isinstance(other, _DynamicRule):
+            return False
         return self.data == other.data
 
     def __ne__(self, other):
@@ -437,6 +464,8 @@ class _Dynamic(object):
         }
 
     def __eq__(self, other):
+        if not isinstance(other, _Dynamic):
+            return False
         ret = self.pools == other.pools and self.rules == other.rules
         return ret
 
@@ -457,6 +486,8 @@ class _DynamicMixin(object):
 
         if 'dynamic' not in data:
             return reasons
+        elif 'geo' in data:
+            reasons.append('"dynamic" record with "geo" content')
 
         try:
             pools = data['dynamic']['pools']
@@ -533,6 +564,8 @@ class _DynamicMixin(object):
         else:
             seen_default = False
 
+            # TODO: don't allow 'default' as a pool name, reserved
+            # TODO: warn or error on unused pools?
             for i, rule in enumerate(rules):
                 rule_num = i + 1
                 try:

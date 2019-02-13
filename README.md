@@ -35,6 +35,8 @@ providers:
   config:
     class: octodns.provider.yaml.YamlProvider
     directory: ./config
+    default_ttl: 3600
+    enforce_order: True
   dyn:
     class: octodns.provider.dyn.DynProvider
     customer: 1234
