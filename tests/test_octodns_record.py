@@ -757,7 +757,6 @@ class TestRecord(TestCase):
                     'host': 'bleep.bloop',
                     'protocol': 'HTTP',
                     'port': 8080,
-                    'measure_latency': False
                 }
             }
         })
@@ -765,7 +764,6 @@ class TestRecord(TestCase):
         self.assertEquals('bleep.bloop', new.healthcheck_host)
         self.assertEquals('HTTP', new.healthcheck_protocol)
         self.assertEquals(8080, new.healthcheck_port)
-        self.assertEquals(False, new.healthcheck_measure_latency)
 
         new = Record.new(self.zone, 'a', {
             'ttl': 44,
@@ -776,7 +774,6 @@ class TestRecord(TestCase):
         self.assertEquals('a.unit.tests', new.healthcheck_host)
         self.assertEquals('HTTPS', new.healthcheck_protocol)
         self.assertEquals(443, new.healthcheck_port)
-        self.assertEquals(True, new.healthcheck_measure_latency)
 
     def test_inored(self):
         new = Record.new(self.zone, 'txt', {

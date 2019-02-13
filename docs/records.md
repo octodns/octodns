@@ -89,7 +89,6 @@ test:
   octodns:
     healthcheck:
       host: my-host-name
-      measure_latency: 0
       path: /dns-health-check
       port: 443
       protocol: HTTPS
@@ -101,7 +100,26 @@ test:
 | path | path to check | _dns |
 | port | port to check | 443 |
 | protocol | HTTP/HTTPS | HTTPS |
-| measure_latency | Route53 only: Show latency in AWS console | true |
+
+#### Route53 Healtch Check Options
+
+| Key  | Description | Default |
+|--|--|--|
+| measure_latency | Show latency in AWS console | true |
+
+```yaml
+---
+  octodns:
+    healthcheck:
+      host: my-host-name
+      path: /dns-health-check
+      port: 443
+      protocol: HTTPS
+    route53:
+      healthcheck:
+        measure_latency: false
+```
+
 
 ## Config (`YamlProvider`)
 

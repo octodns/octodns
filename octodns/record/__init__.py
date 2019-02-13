@@ -189,13 +189,6 @@ class Record(object):
         except KeyError:
             return 443
 
-    @property
-    def healthcheck_measure_latency(self):
-        try:
-            return bool(self._octodns['healthcheck']['measure_latency'])
-        except KeyError:
-            return True
-
     def changes(self, other, target):
         # We're assuming we have the same name and type if we're being compared
         if self.ttl != other.ttl:

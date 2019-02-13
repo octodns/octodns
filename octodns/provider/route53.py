@@ -545,6 +545,13 @@ class Route53Provider(BaseProvider):
         # We've got a cached version use it
         return self._health_checks
 
+    def _healthcheck_measure_latency(self, record):
+        return (
+            record._octodns.get('route53', {})
+            .get('healthcheck', {})
+            .get('measure_latency', True)
+        )
+
     def _health_check_equivilent(self, host, path, protocol, port,
                                  measure_latency, health_check,
                                  first_value=None):
@@ -570,7 +577,7 @@ class Route53Provider(BaseProvider):
         healthcheck_path = record.healthcheck_path
         healthcheck_protocol = record.healthcheck_protocol
         healthcheck_port = record.healthcheck_port
-        healthcheck_measure_latency = record.healthcheck_measure_latency
+        healthcheck_latency = self._healthcheck_measure_latency(record)
 
         # we're looking for a healthcheck with the current version & our record
         # type, we'll ignore anything else
@@ -584,7 +591,7 @@ class Route53Provider(BaseProvider):
                                              healthcheck_path,
                                              healthcheck_protocol,
                                              healthcheck_port,
-                                             healthcheck_measure_latency,
+                                             healthcheck_latency,
                                              health_check,
                                              first_value=first_value):
                 # this is the health check we're looking for
@@ -602,7 +609,7 @@ class Route53Provider(BaseProvider):
             'FailureThreshold': 6,
             'FullyQualifiedDomainName': healthcheck_host,
             'IPAddress': first_value,
-            'MeasureLatency': healthcheck_measure_latency,
+            'MeasureLatency': healthcheck_latency,
             'Port': healthcheck_port,
             'RequestInterval': 10,
             'ResourcePath': healthcheck_path,
@@ -622,7 +629,7 @@ class Route53Provider(BaseProvider):
                       'first_value=%s',
                       id, healthcheck_host, healthcheck_path,
                       healthcheck_protocol, healthcheck_port,
-                      healthcheck_measure_latency, first_value)
+                      healthcheck_latency, first_value)
         return id
 
     def _gc_health_checks(self, record, new):
@@ -735,7 +742,7 @@ class Route53Provider(BaseProvider):
             healthcheck_path = record.healthcheck_path
             healthcheck_protocol = record.healthcheck_protocol
             healthcheck_port = record.healthcheck_port
-            healthcheck_latency = record.healthcheck_measure_latency
+            healthcheck_latency = self._healthcheck_measure_latency(record)
             fqdn = record.fqdn
 
             # loop through all the r53 rrsets
