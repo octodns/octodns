@@ -105,6 +105,7 @@ class TestRoute53Provider(TestCase):
             'ResourcePath': '/_dns',
             'Type': 'HTTPS',
             'Port': 443,
+            'MeasureLatency': True,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -117,6 +118,7 @@ class TestRoute53Provider(TestCase):
             'ResourcePath': '/_dns',
             'Type': 'HTTPS',
             'Port': 443,
+            'MeasureLatency': True,
         },
         'HealthCheckVersion': 42,
     }, {
@@ -129,6 +131,7 @@ class TestRoute53Provider(TestCase):
             'ResourcePath': '/_dns',
             'Type': 'HTTPS',
             'Port': 443,
+            'MeasureLatency': True,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -141,6 +144,7 @@ class TestRoute53Provider(TestCase):
             'ResourcePath': '/_dns',
             'Type': 'HTTPS',
             'Port': 443,
+            'MeasureLatency': True,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -154,6 +158,7 @@ class TestRoute53Provider(TestCase):
             'ResourcePath': '/_dns',
             'Type': 'HTTPS',
             'Port': 443,
+            'MeasureLatency': True,
         },
         'HealthCheckVersion': 2,
     }]
@@ -704,6 +709,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -716,6 +722,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }]
@@ -738,6 +745,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }]
@@ -785,6 +793,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -797,6 +806,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }]
@@ -857,6 +867,107 @@ class TestRoute53Provider(TestCase):
         id = provider.get_health_check_id(record, 'AF', record.geo['AF'], True)
         self.assertEquals('42', id)
         stubber.assert_no_pending_responses()
+
+    def test_health_check_measure_latency(self):
+        provider, stubber = self._get_stubbed_provider()
+        record_true = Record.new(self.expected, 'a', {
+            'ttl': 61,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                },
+                'route53': {
+                    'healthcheck': {
+                        'measure_latency': True
+                    }
+                }
+            }
+        })
+        measure_latency = provider._healthcheck_measure_latency(record_true)
+        self.assertTrue(measure_latency)
+
+        record_default = Record.new(self.expected, 'a', {
+            'ttl': 61,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        measure_latency = provider._healthcheck_measure_latency(record_default)
+        self.assertTrue(measure_latency)
+
+        record_false = Record.new(self.expected, 'a', {
+            'ttl': 61,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                },
+                'route53': {
+                    'healthcheck': {
+                        'measure_latency': False
+                    }
+                }
+            }
+        })
+        measure_latency = provider._healthcheck_measure_latency(record_false)
+        self.assertFalse(measure_latency)
+
+    def test_create_health_checks_measure_latency(self):
+        provider, stubber = self._get_stubbed_provider()
+
+        health_check_config = {
+            'EnableSNI': True,
+            'FailureThreshold': 6,
+            'FullyQualifiedDomainName': 'a.unit.tests',
+            'IPAddress': '1.2.3.4',
+            'MeasureLatency': False,
+            'Port': 443,
+            'RequestInterval': 10,
+            'ResourcePath': '/_dns',
+            'Type': 'HTTPS'
+        }
+
+        stubber.add_response('list_health_checks', {
+            'HealthChecks': [],
+            'IsTruncated': False,
+            'MaxItems': '100',
+            'Marker': '',
+        })
+
+        stubber.add_response('create_health_check', {
+            'HealthCheck': {
+                'Id': '42',
+                'CallerReference': self.caller_ref,
+                'HealthCheckConfig': health_check_config,
+                'HealthCheckVersion': 1,
+            },
+            'Location': 'http://url',
+        }, {
+            'CallerReference': ANY,
+            'HealthCheckConfig': health_check_config,
+        })
+
+        record = Record.new(self.expected, 'a', {
+            'ttl': 61,
+            'type': 'A',
+            'value': '2.2.3.4',
+            'geo': {
+                'AF': ['1.2.3.4'],
+            },
+            'octodns': {
+                'healthcheck': {
+                },
+                'route53': {
+                    'healthcheck': {
+                        'measure_latency': False
+                    }
+                }
+            }
+        })
+
+        id = provider.get_health_check_id(record, 'AF', record.geo['AF'], True)
+        ml = provider.health_checks[id]['HealthCheckConfig']['MeasureLatency']
+        self.assertEqual(False, ml)
 
     def test_health_check_gc(self):
         provider, stubber = self._get_stubbed_provider()
@@ -947,6 +1058,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -959,6 +1071,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -971,6 +1084,7 @@ class TestRoute53Provider(TestCase):
                 'ResourcePath': '/_dns',
                 'Type': 'HTTPS',
                 'Port': 443,
+                'MeasureLatency': True,
             },
             'HealthCheckVersion': 2,
         }]
@@ -1147,6 +1261,7 @@ class TestRoute53Provider(TestCase):
                     'ResourcePath': '/_dns',
                     'Type': 'HTTPS',
                     'Port': 443,
+                    'MeasureLatency': True,
                 },
                 'HealthCheckVersion': 2,
             }],
@@ -1250,6 +1365,7 @@ class TestRoute53Provider(TestCase):
                     'ResourcePath': '/_dns',
                     'Type': 'HTTPS',
                     'Port': 443,
+                    'MeasureLatency': True
                 },
                 'HealthCheckVersion': 2,
             }],
