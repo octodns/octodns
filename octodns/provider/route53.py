@@ -546,11 +546,9 @@ class Route53Provider(BaseProvider):
         return self._health_checks
 
     def _healthcheck_measure_latency(self, record):
-        return (
-            record._octodns.get('route53', {})
-            .get('healthcheck', {})
+        return record._octodns.get('route53', {}) \
+            .get('healthcheck', {}) \
             .get('measure_latency', True)
-        )
 
     def _health_check_equivilent(self, host, path, protocol, port,
                                  measure_latency, health_check,

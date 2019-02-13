@@ -885,7 +885,7 @@ class TestRoute53Provider(TestCase):
             }
         })
         measure_latency = provider._healthcheck_measure_latency(record_true)
-        self.assertEquals(True, measure_latency)
+        self.assertTrue(measure_latency)
 
         record_default = Record.new(self.expected, 'a', {
             'ttl': 61,
@@ -893,7 +893,7 @@ class TestRoute53Provider(TestCase):
             'value': '1.2.3.4',
         })
         measure_latency = provider._healthcheck_measure_latency(record_default)
-        self.assertEquals(True, measure_latency)
+        self.assertTrue(measure_latency)
 
         record_false = Record.new(self.expected, 'a', {
             'ttl': 61,
@@ -910,7 +910,7 @@ class TestRoute53Provider(TestCase):
             }
         })
         measure_latency = provider._healthcheck_measure_latency(record_false)
-        self.assertEquals(False, measure_latency)
+        self.assertFalse(measure_latency)
 
     def test_create_health_checks_measure_latency(self):
         provider, stubber = self._get_stubbed_provider()
