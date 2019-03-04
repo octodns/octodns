@@ -553,8 +553,12 @@ class Route53Provider(BaseProvider):
     def _healthcheck_request_interval(self, record):
         interval = record._octodns.get('route53', {}) \
             .get('healthcheck', {}) \
-            .get('request_interval')
-        return interval if (interval in [10, 30]) else 10
+            .get('request_interval', 10)
+        if (interval in [10, 30]):
+            return interval
+        else:
+            raise Exception('route53.healthcheck.request_interval '
+                            'parameter must be either 10 or 30.')
 
     def _health_check_equivilent(self, host, path, protocol, port,
                                  measure_latency, request_interval,

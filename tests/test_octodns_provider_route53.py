@@ -930,6 +930,23 @@ class TestRoute53Provider(TestCase):
         self.assertFalse(latency)
         self.assertEquals(30, interval)
 
+        record_invalid = Record.new(self.expected, 'a', {
+            'ttl': 61,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                },
+                'route53': {
+                    'healthcheck': {
+                        'request_interval': 20,
+                    }
+                }
+            }
+        })
+        with self.assertRaises(Exception):
+            interval = provider._healthcheck_request_interval(record_invalid)
+
     def test_create_health_checks_provider_options(self):
         provider, stubber = self._get_stubbed_provider()
 
