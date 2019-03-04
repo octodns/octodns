@@ -509,6 +509,64 @@ class TestCloudflareProvider(TestCase):
                  'fc12ab34cd5611334422ab3322997653')
         ])
 
+    def test_srv(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+
+        zone = Zone('unit.tests.', [])
+        # SRV record not under a sub-domain
+        srv_record = Record.new(zone, '_example._tcp', {
+            'ttl': 300,
+            'type': 'SRV',
+            'value': {
+                'port': 1234,
+                'priority': 0,
+                'target': 'nc.unit.tests.',
+                'weight': 5
+            }
+        })
+        # SRV record under a sub-domain
+        srv_record_with_sub = Record.new(zone, '_example._tcp.sub', {
+            'ttl': 300,
+            'type': 'SRV',
+            'value': {
+                'port': 1234,
+                'priority': 0,
+                'target': 'nc.unit.tests.',
+                'weight': 5
+            }
+        })
+
+        srv_record_contents = provider._gen_data(srv_record)
+        srv_record_with_sub_contents = provider._gen_data(srv_record_with_sub)
+        self.assertEquals({
+            'name': '_example._tcp.unit.tests',
+            'ttl': 300,
+            'type': 'SRV',
+            'data': {
+                'service': '_example',
+                'proto': '_tcp',
+                'name': 'unit.tests.',
+                'priority': 0,
+                'weight': 5,
+                'port': 1234,
+                'target': 'nc.unit.tests'
+            }
+        }, list(srv_record_contents)[0])
+        self.assertEquals({
+            'name': '_example._tcp.sub.unit.tests',
+            'ttl': 300,
+            'type': 'SRV',
+            'data': {
+                'service': '_example',
+                'proto': '_tcp',
+                'name': 'sub',
+                'priority': 0,
+                'weight': 5,
+                'port': 1234,
+                'target': 'nc.unit.tests'
+            }
+        }, list(srv_record_with_sub_contents)[0])
+
     def test_alias(self):
         provider = CloudflareProvider('test', 'email', 'token')
 

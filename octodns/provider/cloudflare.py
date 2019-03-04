@@ -340,13 +340,24 @@ class CloudflareProvider(BaseProvider):
             }
 
     def _contents_for_SRV(self, record):
-        service, proto = record.name.split('.', 2)
+        try:
+            service, proto, subdomain = record.name.split('.', 2)
+            # We have a SRV in a sub-zone
+        except ValueError:
+            # We have a SRV in the zone
+            service, proto = record.name.split('.', 1)
+            subdomain = None
+
+        name = record.zone.name
+        if subdomain:
+            name = subdomain
+
         for value in record.values:
             yield {
                 'data': {
                     'service': service,
                     'proto': proto,
-                    'name': record.zone.name,
+                    'name': name,
                     'priority': value.priority,
                     'weight': value.weight,
                     'port': value.port,
