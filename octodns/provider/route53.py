@@ -550,14 +550,21 @@ class Route53Provider(BaseProvider):
             .get('healthcheck', {}) \
             .get('measure_latency', True)
 
+    def _healthcheck_request_interval(self, record):
+        interval = record._octodns.get('route53', {}) \
+            .get('healthcheck', {}) \
+            .get('request_interval')
+        return interval if (interval in [10, 30]) else 10
+
     def _health_check_equivilent(self, host, path, protocol, port,
-                                 measure_latency, health_check,
-                                 first_value=None):
+                                 measure_latency, request_interval,
+                                 health_check, first_value=None):
         config = health_check['HealthCheckConfig']
         return host == config['FullyQualifiedDomainName'] and \
             path == config['ResourcePath'] and protocol == config['Type'] \
             and port == config['Port'] and \
             measure_latency == config['MeasureLatency'] and \
+            request_interval == config['RequestInterval'] and \
             (first_value is None or first_value == config['IPAddress'])
 
     def get_health_check_id(self, record, ident, geo, create):
@@ -576,6 +583,7 @@ class Route53Provider(BaseProvider):
         healthcheck_protocol = record.healthcheck_protocol
         healthcheck_port = record.healthcheck_port
         healthcheck_latency = self._healthcheck_measure_latency(record)
+        healthcheck_interval = self._healthcheck_request_interval(record)
 
         # we're looking for a healthcheck with the current version & our record
         # type, we'll ignore anything else
@@ -590,6 +598,7 @@ class Route53Provider(BaseProvider):
                                              healthcheck_protocol,
                                              healthcheck_port,
                                              healthcheck_latency,
+                                             healthcheck_interval,
                                              health_check,
                                              first_value=first_value):
                 # this is the health check we're looking for
@@ -609,7 +618,7 @@ class Route53Provider(BaseProvider):
             'IPAddress': first_value,
             'MeasureLatency': healthcheck_latency,
             'Port': healthcheck_port,
-            'RequestInterval': 10,
+            'RequestInterval': healthcheck_interval,
             'ResourcePath': healthcheck_path,
             'Type': healthcheck_protocol,
         }
@@ -624,10 +633,11 @@ class Route53Provider(BaseProvider):
         self._health_checks[id] = health_check
         self.log.info('get_health_check_id: created id=%s, host=%s, '
                       'path=%s, protocol=%s, port=%d, measure_latency=%r, '
-                      'first_value=%s',
+                      'request_interval=%d, first_value=%s',
                       id, healthcheck_host, healthcheck_path,
                       healthcheck_protocol, healthcheck_port,
-                      healthcheck_latency, first_value)
+                      healthcheck_latency, healthcheck_interval,
+                      first_value)
         return id
 
     def _gc_health_checks(self, record, new):
@@ -741,6 +751,7 @@ class Route53Provider(BaseProvider):
             healthcheck_protocol = record.healthcheck_protocol
             healthcheck_port = record.healthcheck_port
             healthcheck_latency = self._healthcheck_measure_latency(record)
+            healthcheck_interval = self._healthcheck_request_interval(record)
             fqdn = record.fqdn
 
             # loop through all the r53 rrsets
@@ -763,6 +774,7 @@ class Route53Provider(BaseProvider):
                                                          healthcheck_protocol,
                                                          healthcheck_port,
                                                          healthcheck_latency,
+                                                         healthcheck_interval,
                                                          health_check):
                             # it has the right health check
                             continue
