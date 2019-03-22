@@ -211,6 +211,10 @@ class _Route53GeoRecord(_Route53Record):
                                                           self.values)
 
 
+class Route53ProviderException(Exception):
+    pass
+
+
 class Route53Provider(BaseProvider):
     '''
     AWS Route53 Provider
@@ -557,8 +561,9 @@ class Route53Provider(BaseProvider):
         if (interval in [10, 30]):
             return interval
         else:
-            raise Exception('route53.healthcheck.request_interval '
-                            'parameter must be either 10 or 30.')
+            raise Route53ProviderException(
+                'route53.healthcheck.request_interval '
+                'parameter must be either 10 or 30.')
 
     def _health_check_equivilent(self, host, path, protocol, port,
                                  measure_latency, request_interval,

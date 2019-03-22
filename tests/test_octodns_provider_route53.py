@@ -12,7 +12,7 @@ from mock import patch
 
 from octodns.record import Create, Delete, Record, Update
 from octodns.provider.route53 import Route53Provider, _Route53GeoDefault, \
-    _Route53GeoRecord, _Route53Record, _octal_replace
+    _Route53GeoRecord, _Route53Record, _octal_replace, Route53ProviderException
 from octodns.zone import Zone
 
 from helpers import GeoProvider
@@ -944,7 +944,7 @@ class TestRoute53Provider(TestCase):
                 }
             }
         })
-        with self.assertRaises(Exception):
+        with self.assertRaises(Route53ProviderException):
             interval = provider._healthcheck_request_interval(record_invalid)
 
     def test_create_health_checks_provider_options(self):
