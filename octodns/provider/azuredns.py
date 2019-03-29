@@ -9,8 +9,8 @@ from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.dns import DnsManagementClient
 from msrestazure.azure_exceptions import CloudError
 
-from azure.mgmt.dns.models import ARecord, AaaaRecord, CnameRecord, MxRecord, \
-    SrvRecord, NsRecord, PtrRecord, TxtRecord, Zone
+from azure.mgmt.dns.models import ARecord, AaaaRecord, CaaRecord, \
+    CnameRecord, MxRecord, SrvRecord, NsRecord, PtrRecord, TxtRecord, Zone
 
 import logging
 from functools import reduce
@@ -40,6 +40,7 @@ class _AzureRecord(object):
     TYPE_MAP = {
         'A': ARecord,
         'AAAA': AaaaRecord,
+        'CAA': CaaRecord,
         'CNAME': CnameRecord,
         'MX': MxRecord,
         'SRV': SrvRecord,
@@ -90,53 +91,82 @@ class _AzureRecord(object):
         self.params = self.params(record.data, key_name, azure_class)
         self.params['ttl'] = record.ttl
 
-    def _params(self, data, key_name, azure_class):
+    def _params_for_A(self, data, key_name, azure_class):
         try:
             values = data['values']
         except KeyError:
             values = [data['value']]
-        return {key_name: [azure_class(v) for v in values]}
+        return {key_name: [azure_class(ipv4_address=v) for v in values]}
 
-    _params_for_A = _params
-    _params_for_AAAA = _params
-    _params_for_NS = _params
-    _params_for_PTR = _params
+    def _params_for_AAAA(self, data, key_name, azure_class):
+        try:
+            values = data['values']
+        except KeyError:
+            values = [data['value']]
+        return {key_name: [azure_class(ipv6_address=v) for v in values]}
+
+    def _params_for_CAA(self, data, key_name, azure_class):
+        params = []
+        if 'values' in data:
+            for vals in data['values']:
+                params.append(azure_class(flags=vals['flags'],
+                                          tag=vals['tag'],
+                                          value=vals['value']))
+        else:  # Else there is a singular data point keyed by 'value'.
+            params.append(azure_class(flags=data['value']['flags'],
+                                      tag=data['value']['tag'],
+                                      value=data['value']['value']))
+        return {key_name: params}
 
     def _params_for_CNAME(self, data, key_name, azure_class):
-        return {key_name: azure_class(data['value'])}
+        return {key_name: azure_class(cname=data['value'])}
 
     def _params_for_MX(self, data, key_name, azure_class):
         params = []
         if 'values' in data:
             for vals in data['values']:
-                params.append(azure_class(vals['preference'],
-                                          vals['exchange']))
+                params.append(azure_class(preference=vals['preference'],
+                                          exchange=vals['exchange']))
         else:  # Else there is a singular data point keyed by 'value'.
-            params.append(azure_class(data['value']['preference'],
-                                      data['value']['exchange']))
+            params.append(azure_class(preference=data['value']['preference'],
+                                      exchange=data['value']['exchange']))
         return {key_name: params}
 
     def _params_for_SRV(self, data, key_name, azure_class):
         params = []
         if 'values' in data:
             for vals in data['values']:
-                params.append(azure_class(vals['priority'],
-                                          vals['weight'],
-                                          vals['port'],
-                                          vals['target']))
+                params.append(azure_class(priority=vals['priority'],
+                                          weight=vals['weight'],
+                                          port=vals['port'],
+                                          target=vals['target']))
         else:  # Else there is a singular data point keyed by 'value'.
-            params.append(azure_class(data['value']['priority'],
-                                      data['value']['weight'],
-                                      data['value']['port'],
-                                      data['value']['target']))
+            params.append(azure_class(priority=data['value']['priority'],
+                                      weight=data['value']['weight'],
+                                      port=data['value']['port'],
+                                      target=data['value']['target']))
         return {key_name: params}
+
+    def _params_for_NS(self, data, key_name, azure_class):
+        try:
+            values = data['values']
+        except KeyError:
+            values = [data['value']]
+        return {key_name: [azure_class(nsdname=v) for v in values]}
+
+    def _params_for_PTR(self, data, key_name, azure_class):
+        try:
+            values = data['values']
+        except KeyError:
+            values = [data['value']]
+        return {key_name: [azure_class(ptrdname=v) for v in values]}
 
     def _params_for_TXT(self, data, key_name, azure_class):
         try:  # API for TxtRecord has list of str, even for singleton
             values = [unescape_semicolon(v) for v in data['values']]
         except KeyError:
             values = [unescape_semicolon(data['value'])]
-        return {key_name: [azure_class([v]) for v in values]}
+        return {key_name: [azure_class(value=[v]) for v in values]}
 
     def _equals(self, b):
         '''Checks whether two records are equal by comparing all fields.
@@ -250,7 +280,8 @@ class AzureProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NS', 'PTR', 'SRV', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR', 'SRV',
+                    'TXT'))
 
     def __init__(self, id, client_id, key, directory_id, sub_id,
                  resource_group, *args, **kwargs):
@@ -302,7 +333,8 @@ class AzureProvider(BaseProvider):
                     self.log.debug('_check_zone:no matching zone; creating %s',
                                    name)
                     create_zone = self._dns_client.zones.create_or_update
-                    create_zone(self._resource_group, name, Zone('global'))
+                    create_zone(self._resource_group, name,
+                                Zone(location='global'))
                     return name
                 else:
                     return
@@ -367,6 +399,12 @@ class AzureProvider(BaseProvider):
 
     def _data_for_AAAA(self, azrecord):
         return {'values': [ar.ipv6_address for ar in azrecord.aaaa_records]}
+
+    def _data_for_CAA(self, azrecord):
+        return {'values': [{'flags': ar.flags,
+                            'tag': ar.tag,
+                            'value': ar.value}
+                           for ar in azrecord.caa_records]}
 
     def _data_for_CNAME(self, azrecord):
         '''Parsing data from Azure DNS Client record call
