@@ -29,7 +29,7 @@ def _octal_replace(s):
 class _Route53Record(object):
 
     @classmethod
-    def new(self, provider, record, creating):
+    def new(self, provider, record, hosted_zone_id, creating):
         ret = set()
         if getattr(record, 'geo', False):
             ret.add(_Route53GeoDefault(provider, record, creating))
@@ -698,25 +698,26 @@ class Route53Provider(BaseProvider):
                                   id)
                     self._conn.delete_health_check(HealthCheckId=id)
 
-    def _gen_records(self, record, creating=False):
+    def _gen_records(self, record, zone_id, creating=False):
         '''
         Turns an octodns.Record into one or more `_Route53*`s
         '''
-        return _Route53Record.new(self, record, creating)
+        return _Route53Record.new(self, record, zone_id, creating)
 
-    def _mod_Create(self, change):
+    def _mod_Create(self, change, zone_id):
         # New is the stuff that needs to be created
-        new_records = self._gen_records(change.new, creating=True)
+        new_records = self._gen_records(change.new, zone_id, creating=True)
         # Now is a good time to clear out any unused health checks since we
         # know what we'll be using going forward
         self._gc_health_checks(change.new, new_records)
         return self._gen_mods('CREATE', new_records)
 
-    def _mod_Update(self, change):
+    def _mod_Update(self, change, zone_id):
         # See comments in _Route53Record for how the set math is made to do our
         # bidding here.
-        existing_records = self._gen_records(change.existing, creating=False)
-        new_records = self._gen_records(change.new, creating=True)
+        existing_records = self._gen_records(change.existing, zone_id,
+                                             creating=False)
+        new_records = self._gen_records(change.new, zone_id, creating=True)
         # Now is a good time to clear out any unused health checks since we
         # know what we'll be using going forward
         self._gc_health_checks(change.new, new_records)
@@ -738,9 +739,10 @@ class Route53Provider(BaseProvider):
             self._gen_mods('CREATE', creates) + \
             self._gen_mods('UPSERT', upserts)
 
-    def _mod_Delete(self, change):
+    def _mod_Delete(self, change, zone_id):
         # Existing is the thing that needs to be deleted
-        existing_records = self._gen_records(change.existing, creating=False)
+        existing_records = self._gen_records(change.existing, zone_id,
+                                             creating=False)
         # Now is a good time to clear out all the health checks since we know
         # we're done with them
         self._gc_health_checks(change.existing, [])
@@ -822,7 +824,9 @@ class Route53Provider(BaseProvider):
         batch_rs_count = 0
         zone_id = self._get_zone_id(desired.name, True)
         for c in changes:
-            mods = getattr(self, '_mod_{}'.format(c.__class__.__name__))(c)
+            # Generate the mods for this change
+            mod_type = getattr(self, '_mod_{}'.format(c.__class__.__name__))
+            mods = mod_type(c, zone_id)
             mods_rs_count = sum(
                 [len(m['ResourceRecordSet']['ResourceRecords']) for m in mods]
             )

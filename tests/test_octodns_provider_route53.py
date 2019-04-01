@@ -1010,7 +1010,7 @@ class TestRoute53Provider(TestCase):
             'HealthCheckId': '44',
         })
         change = Create(record)
-        provider._mod_Create(change)
+        provider._mod_Create(change, 'z43')
         stubber.assert_no_pending_responses()
 
         # gc through _mod_Update
@@ -1019,7 +1019,7 @@ class TestRoute53Provider(TestCase):
         })
         # first record is ignored for our purposes, we have to pass something
         change = Update(record, record)
-        provider._mod_Create(change)
+        provider._mod_Create(change, 'z43')
         stubber.assert_no_pending_responses()
 
         # gc through _mod_Delete, expect 3 to go away, can't check order
@@ -1034,7 +1034,7 @@ class TestRoute53Provider(TestCase):
             'HealthCheckId': ANY,
         })
         change = Delete(record)
-        provider._mod_Delete(change)
+        provider._mod_Delete(change, 'z43')
         stubber.assert_no_pending_responses()
 
         # gc only AAAA, leave the A's alone
