@@ -235,6 +235,35 @@ class _Route53GeoRecord(_Route53Record):
                                                           self.values)
 
 
+_mod_keyer_action_order = {
+    'DELETE': '0',  # Delete things first
+    'CREATE': '1',  # Then Create things
+    'UPSERT': '2',  # Upsert things last
+}
+
+
+def _mod_keyer(mod):
+    rrset = mod['ResourceRecordSet']
+    action_order = _mod_keyer_action_order[mod['Action']]
+
+    # We're sorting by 3 "columns", the action, the rrset type, and finally the
+    # name/id of the rrset
+
+    if rrset.get('GeoLocation', False):
+        return '{}3{}'.format(action_order, rrset['SetIdentifier'])
+    elif rrset.get('AliasTarget', False):
+        # We use an alias
+        if rrset.get('Failover', False) == 'SECONDARY':
+            # We're a secondary we'll ref primaries
+            return '{}2{}'.format(action_order, rrset['Name'])
+        else:
+            # We're a primary we'll ref values
+            return '{}1{}'.format(action_order, rrset['Name'])
+
+    # We're just a plain value, these come first
+    return '{}0{}'.format(action_order, rrset['Name'])
+
+
 class Route53Provider(BaseProvider):
     '''
     AWS Route53 Provider
@@ -827,6 +856,11 @@ class Route53Provider(BaseProvider):
             # Generate the mods for this change
             mod_type = getattr(self, '_mod_{}'.format(c.__class__.__name__))
             mods = mod_type(c, zone_id)
+
+            # Order our mods to make sure targets exist before alises point to
+            # them and we CRUD in the desired order
+            mods.sort(key=_mod_keyer)
+
             mods_rs_count = sum(
                 [len(m['ResourceRecordSet']['ResourceRecords']) for m in mods]
             )

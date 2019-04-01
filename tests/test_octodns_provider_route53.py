@@ -12,7 +12,7 @@ from mock import patch
 
 from octodns.record import Create, Delete, Record, Update
 from octodns.provider.route53 import Route53Provider, _Route53GeoDefault, \
-    _Route53GeoRecord, _Route53Record, _octal_replace
+    _Route53GeoRecord, _Route53Record, _mod_keyer, _octal_replace
 from octodns.zone import Zone
 
 from helpers import GeoProvider
@@ -529,23 +529,23 @@ class TestRoute53Provider(TestCase):
                 }, {
                     'Action': 'UPSERT',
                     'ResourceRecordSet': {
-                        'GeoLocation': {'CountryCode': '*'},
-                        'Name': 'unit.tests.',
-                        'ResourceRecords': [{'Value': '2.2.3.4'},
-                                            {'Value': '3.2.3.4'}],
-                        'SetIdentifier': 'default',
-                        'TTL': 61,
-                        'Type': 'A'
-                    }
-                }, {
-                    'Action': 'UPSERT',
-                    'ResourceRecordSet': {
                         'GeoLocation': {'CountryCode': 'US'},
                         'HealthCheckId': u'43',
                         'Name': 'unit.tests.',
                         'ResourceRecords': [{'Value': '5.2.3.4'},
                                             {'Value': '6.2.3.4'}],
                         'SetIdentifier': 'NA-US',
+                        'TTL': 61,
+                        'Type': 'A'
+                    }
+                }, {
+                    'Action': 'UPSERT',
+                    'ResourceRecordSet': {
+                        'GeoLocation': {'CountryCode': '*'},
+                        'Name': 'unit.tests.',
+                        'ResourceRecords': [{'Value': '2.2.3.4'},
+                                            {'Value': '3.2.3.4'}],
+                        'SetIdentifier': 'default',
                         'TTL': 61,
                         'Type': 'A'
                     }
@@ -588,21 +588,21 @@ class TestRoute53Provider(TestCase):
                 'Changes': [{
                     'Action': 'DELETE',
                     'ResourceRecordSet': {
-                        'GeoLocation': {'CountryCode': '*'},
-                        'Name': 'simple.unit.tests.',
-                        'ResourceRecords': [{'Value': '1.2.3.4'},
-                                            {'Value': '2.2.3.4'}],
-                        'SetIdentifier': 'default',
-                        'TTL': 61,
-                        'Type': 'A'}
-                }, {
-                    'Action': 'DELETE',
-                    'ResourceRecordSet': {
                         'GeoLocation': {'ContinentCode': 'OC'},
                         'Name': 'simple.unit.tests.',
                         'ResourceRecords': [{'Value': '3.2.3.4'},
                                             {'Value': '4.2.3.4'}],
                         'SetIdentifier': 'OC',
+                        'TTL': 61,
+                        'Type': 'A'}
+                }, {
+                    'Action': 'DELETE',
+                    'ResourceRecordSet': {
+                        'GeoLocation': {'CountryCode': '*'},
+                        'Name': 'simple.unit.tests.',
+                        'ResourceRecords': [{'Value': '1.2.3.4'},
+                                            {'Value': '2.2.3.4'}],
+                        'SetIdentifier': 'default',
                         'TTL': 61,
                         'Type': 'A'}
                 }, {
@@ -1623,3 +1623,67 @@ class TestRoute53Records(TestCase):
         a.__repr__()
         e.__repr__()
         f.__repr__()
+
+
+class TestModKeyer(TestCase):
+
+    def test_mod_keyer(self):
+
+        # First "column"
+
+        # Deletes come first
+        self.assertEquals('00something', _mod_keyer({
+            'Action': 'DELETE',
+            'ResourceRecordSet': {
+                'Name': 'something',
+            }
+        }))
+
+        # Creates come next
+        self.assertEquals('10another', _mod_keyer({
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'Name': 'another',
+            }
+        }))
+
+        # Then upserts
+        self.assertEquals('20last', _mod_keyer({
+            'Action': 'UPSERT',
+            'ResourceRecordSet': {
+                'Name': 'last',
+            }
+        }))
+
+        # Second "column" value records tested above
+
+        # AliasTarget primary second (to value)
+        self.assertEquals('01thing', _mod_keyer({
+            'Action': 'DELETE',
+            'ResourceRecordSet': {
+                'AliasTarget': 'some-target',
+                'Failover': 'PRIMARY',
+                'Name': 'thing',
+            }
+        }))
+
+        # AliasTarget secondary third
+        self.assertEquals('02thing', _mod_keyer({
+            'Action': 'DELETE',
+            'ResourceRecordSet': {
+                'AliasTarget': 'some-target',
+                'Failover': 'SECONDARY',
+                'Name': 'thing',
+            }
+        }))
+
+        # GeoLocation fourth
+        self.assertEquals('03some-id', _mod_keyer({
+            'Action': 'DELETE',
+            'ResourceRecordSet': {
+                'GeoLocation': 'some-target',
+                'SetIdentifier': 'some-id',
+            }
+        }))
+
+        # The third "column" has already been tested above, Name/SetIdentifier
