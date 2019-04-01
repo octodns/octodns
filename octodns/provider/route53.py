@@ -14,6 +14,7 @@ import logging
 import re
 
 from ..record import Record, Update
+from ..record.geo import GeoCodes
 from .base import BaseProvider
 
 
@@ -29,19 +30,84 @@ def _octal_replace(s):
 class _Route53Record(object):
 
     @classmethod
-    def new(self, provider, record, hosted_zone_id, creating):
+    def _new_dynamic(cls, provider, record, hosted_zone_id, creating):
         ret = set()
-        if getattr(record, 'geo', False):
-            ret.add(_Route53GeoDefault(provider, record, creating))
-            for ident, geo in record.geo.items():
-                ret.add(_Route53GeoRecord(provider, record, ident, geo,
-                                          creating))
-        else:
-            ret.add(_Route53Record(provider, record, creating))
+
+        # HostedZoneId wants just the last bit, but the place we're getting
+        # this from looks like /hostedzone/Z424CArX3BB224
+        hosted_zone_id = hosted_zone_id.split('/', 2)[-1]
+
+        # Create the default pool
+        fqdn = record.fqdn
+        ret.add(_Route53Record(provider, record, creating,
+                               '_octodns-default-pool.{}'.format(fqdn)))
+
+        # Pools
+        for pool_name, pool in record.dynamic.pools.items():
+
+            # Create the primary
+            ret.add(_Route53DynamicPool(provider, hosted_zone_id, record,
+                                        pool_name, creating))
+
+            # Create the fallback
+            fallback = pool.data.get('fallback', False)
+            if fallback:
+                # We have an explicitly configured fallback
+                ret.add(_Route53DynamicPool(provider, hosted_zone_id, record,
+                                            pool_name, creating,
+                                            target_name=fallback))
+            else:
+                # We fallback on the default
+                ret.add(_Route53DynamicPool(provider, hosted_zone_id, record,
+                                            pool_name, creating,
+                                            target_name='default'))
+
+            # Create the values
+            for i, value in enumerate(pool.data['values']):
+                weight = value['weight']
+                value = value['value']
+                ret.add(_Route53DynamicValue(provider, record, pool_name,
+                                             value, weight, i, creating))
+
+        # Rules
+        for i, rule in enumerate(record.dynamic.rules):
+            pool_name = rule.data['pool']
+            geos = rule.data.get('geos', [])
+            if geos:
+                for geo in geos:
+                    ret.add(_Route53DynamicRule(provider, hosted_zone_id,
+                                                record, pool_name, i,
+                                                creating, geo=geo))
+            else:
+                ret.add(_Route53DynamicRule(provider, hosted_zone_id, record,
+                                            pool_name, i, creating))
+
         return ret
 
-    def __init__(self, provider, record, creating):
-        self.fqdn = record.fqdn
+    @classmethod
+    def _new_geo(cls, provider, record, creating):
+        ret = set()
+
+        ret.add(_Route53GeoDefault(provider, record, creating))
+        for ident, geo in record.geo.items():
+            ret.add(_Route53GeoRecord(provider, record, ident, geo,
+                                      creating))
+
+        return ret
+
+    @classmethod
+    def new(cls, provider, record, hosted_zone_id, creating):
+
+        if getattr(record, 'dynamic', False):
+            ret = cls._new_dynamic(provider, record, hosted_zone_id, creating)
+            return ret
+        elif getattr(record, 'geo', False):
+            return cls._new_geo(provider, record, creating)
+
+        return set((_Route53Record(provider, record, creating),))
+
+    def __init__(self, provider, record, creating, fqdn_override=None):
+        self.fqdn = fqdn_override or record.fqdn
         self._type = record._type
         self.ttl = record.ttl
 
@@ -146,6 +212,172 @@ class _Route53Record(object):
 
     def _values_for_SRV(self, record):
         return [self._value_for_SRV(v, record) for v in record.values]
+
+
+class _Route53DynamicPool(_Route53Record):
+
+    def __init__(self, provider, hosted_zone_id, record, pool_name, creating,
+                 target_name=None):
+        fqdn_override = '_octodns-{}-pool.{}'.format(pool_name, record.fqdn)
+        super(_Route53DynamicPool, self) \
+            .__init__(provider, record, creating, fqdn_override=fqdn_override)
+
+        self.hosted_zone_id = hosted_zone_id
+        self.pool_name = pool_name
+
+        self.target_name = target_name
+        if target_name:
+            # We're pointing down the chain
+            self.target_dns_name = '_octodns-{}-pool.{}'.format(target_name,
+                                                                record.fqdn)
+        else:
+            # We're a paimary, point at our values
+            self.target_dns_name = '_octodns-{}-value.{}'.format(pool_name,
+                                                                 record.fqdn)
+
+    @property
+    def mode(self):
+        return 'Secondary' if self.target_name else 'Primary'
+
+    @property
+    def identifer(self):
+        if self.target_name:
+            return '{}-{}-{}'.format(self.pool_name, self.mode,
+                                     self.target_name)
+        return '{}-{}'.format(self.pool_name, self.mode)
+
+    def mod(self, action):
+        return {
+            'Action': action,
+            'ResourceRecordSet': {
+                'AliasTarget': {
+                    'DNSName': self.target_dns_name,
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': self.hosted_zone_id,
+                },
+                'Failover': 'SECONDARY' if self.target_name else 'PRIMARY',
+                'Name': self.fqdn,
+                'SetIdentifier': self.identifer,
+                'Type': self._type,
+            }
+        }
+
+    def __hash__(self):
+        return '{}:{}:{}'.format(self.fqdn, self._type,
+                                 self.identifer).__hash__()
+
+    def __repr__(self):
+        return '_Route53DynamicPool<{} {} {} {}>' \
+            .format(self.fqdn, self._type, self.mode, self.target_dns_name)
+
+
+class _Route53DynamicRule(_Route53Record):
+
+    def __init__(self, provider, hosted_zone_id, record, pool_name, index,
+                 creating, geo=None):
+        super(_Route53DynamicRule, self).__init__(provider, record, creating)
+
+        self.hosted_zone_id = hosted_zone_id
+        self.geo = geo
+        self.pool_name = pool_name
+        self.index = index
+
+        self.target_dns_name = '_octodns-{}-pool.{}'.format(pool_name,
+                                                            record.fqdn)
+
+    @property
+    def identifer(self):
+        return '{}-{}-{}'.format(self.index, self.pool_name, self.geo)
+
+    def mod(self, action):
+        rrset = {
+            'AliasTarget': {
+                'DNSName': self.target_dns_name,
+                'EvaluateTargetHealth': True,
+                'HostedZoneId': self.hosted_zone_id,
+            },
+            'GeoLocation': {
+                'CountryCode': '*'
+            },
+            'Name': self.fqdn,
+            'SetIdentifier': self.identifer,
+            'Type': self._type,
+        }
+
+        if self.geo:
+            geo = GeoCodes.parse(self.geo)
+
+            if geo['province_code']:
+                rrset['GeoLocation'] = {
+                    'CountryCode': geo['country_code'],
+                    'SubdivisionCode': geo['province_code'],
+                }
+            elif geo['country_code']:
+                rrset['GeoLocation'] = {
+                    'CountryCode': geo['country_code']
+                }
+            else:
+                rrset['GeoLocation'] = {
+                    'ContinentCode': geo['continent_code'],
+                }
+
+        return {
+            'Action': action,
+            'ResourceRecordSet': rrset,
+        }
+
+    def __hash__(self):
+        return '{}:{}:{}'.format(self.fqdn, self._type,
+                                 self.identifer).__hash__()
+
+    def __repr__(self):
+        return '_Route53DynamicRule<{} {} {} {} {}>' \
+            .format(self.fqdn, self._type, self.index, self.geo,
+                    self.target_dns_name)
+
+
+class _Route53DynamicValue(_Route53Record):
+
+    def __init__(self, provider, record, pool_name, value, weight, index,
+                 creating):
+        fqdn_override = '_octodns-{}-value.{}'.format(pool_name, record.fqdn)
+        super(_Route53DynamicValue, self).__init__(provider, record, creating,
+                                                   fqdn_override=fqdn_override)
+
+        self.pool_name = pool_name
+        self.index = index
+        value_convert = getattr(self, '_value_convert_{}'.format(record._type))
+        self.value = value_convert(value, record)
+        self.weight = weight
+
+        self.health_check_id = provider.get_health_check_id(record, self.value,
+                                                            creating)
+
+    @property
+    def identifer(self):
+        return '{}-{:03d}'.format(self.pool_name, self.index)
+
+    def mod(self, action):
+        return {
+            'Action': action,
+            'ResourceRecordSet': {
+                'HealthCheckId': self.health_check_id,
+                'Name': self.fqdn,
+                'ResourceRecords': [{'Value': self.value}],
+                'SetIdentifier': self.identifer,
+                'TTL': self.ttl,
+                'Type': self._type,
+                'Weight': self.weight,
+            }
+        }
+
+    def __hash__(self):
+        return '{}:{}:{}'.format(self.fqdn, self._type,
+                                 self.identifer).__hash__()
+
+    def __repr__(self):
+        return '_Route53DynamicValue<{} {} {} {}>' \
+            .format(self.fqdn, self._type, self.identifer, self.value)
 
 
 class _Route53GeoDefault(_Route53Record):
@@ -285,8 +517,7 @@ class Route53Provider(BaseProvider):
     In general the account used will need full permissions on Route53.
     '''
     SUPPORTS_GEO = True
-    # TODO: dynamic
-    SUPPORTS_DYNAMIC = False
+    SUPPORTS_DYNAMIC = True
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
                     'SPF', 'SRV', 'TXT'))
 
@@ -518,6 +749,76 @@ class Route53Provider(BaseProvider):
 
         return self._r53_rrsets[zone_id]
 
+    def _data_for_dynamic(self, name, _type, rrsets):
+        pools = defaultdict(lambda: {'values': []})
+        # Data to build our rules will be collected here and "converted" into
+        # their final form below
+        rules = defaultdict(lambda: {'pool': None, 'geos': []})
+        # Base/empty data
+        data = {
+            'dynamic': {
+                'pools': pools,
+                'rules': [],
+            }
+        }
+
+        # For all the rrsets that comprise this dynamic record
+        for rrset in rrsets:
+            name = rrset['Name']
+            if '-pool.' in name:
+                # This is a pool rrset
+                pool_name = name.split('.', 1)[0][9:-5]
+                if pool_name == 'default':
+                    # default becomes the base for the record and its
+                    # value(s) will fill the non-dynamic values
+                    data_for = getattr(self, '_data_for_{}'.format(_type))
+                    data.update(data_for(rrset))
+                elif rrset['Failover'] == 'SECONDARY':
+                    # This is a failover record, we'll ignore PRIMARY, but
+                    # SECONDARY will tell us what the pool's fallback is
+                    fallback_name = rrset['AliasTarget']['DNSName'] \
+                        .split('.', 1)[0][9:-5]
+                    # Don't care about default fallbacks, anything else
+                    # we'll record
+                    if fallback_name != 'default':
+                        pools[pool_name]['fallback'] = fallback_name
+            elif 'GeoLocation' in rrset:
+                # These are rules
+                _id = rrset['SetIdentifier']
+                # We record rule index as the first part of set-id, the 2nd
+                # part just ensures uniqueness across geos and is ignored
+                i = int(_id.split('-', 1)[0])
+                # Parse the pool name out of _octodns-<pool-name>-pool.
+                pool = rrset['AliasTarget']['DNSName'].split('.', 1)[0][9:-5]
+                # Record the pool
+                rules[i]['pool'] = pool
+                # Record geo if we have one
+                geo = self._parse_geo(rrset)
+                if geo:
+                    rules[i]['geos'].append(geo)
+            else:
+                # These are the pool value(s)
+                pool_name = rrset['SetIdentifier'][:-4]
+                # TODO: handle different value types
+                value = rrset['ResourceRecords'][0]['Value']
+                pools[pool_name]['values'].append({
+                    'value': value,
+                    'weight': rrset['Weight'],
+                })
+
+        # Convert our map of rules into an ordered list now that we have all
+        # the data
+        for _, rule in sorted(rules.items()):
+            r = {
+                'pool': rule['pool'],
+            }
+            geos = sorted(rule['geos'])
+            if geos:
+                r['geos'] = geos
+            data['dynamic']['rules'].append(r)
+
+        return data
+
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
@@ -529,21 +830,46 @@ class Route53Provider(BaseProvider):
         if zone_id:
             exists = True
             records = defaultdict(lambda: defaultdict(list))
+            dynamic = defaultdict(lambda: defaultdict(list))
+
             for rrset in self._load_records(zone_id):
                 record_name = zone.hostname_from_fqdn(rrset['Name'])
                 record_name = _octal_replace(record_name)
                 record_type = rrset['Type']
                 if record_type not in self.SUPPORTS:
+                    # Skip stuff we don't support
                     continue
-                if 'AliasTarget' in rrset:
-                    # Alias records are Route53 specific and are not
-                    # portable, so we need to skip them
-                    self.log.warning("%s is an Alias record. Skipping..."
-                                     % rrset['Name'])
+                if record_name.startswith('_octodns-'):
+                    # Part of a dynamic record
+                    try:
+                        record_name = record_name.split('.', 1)[1]
+                    except IndexError:
+                        record_name = ''
+                    dynamic[record_name][record_type].append(rrset)
                     continue
+                elif 'AliasTarget' in rrset:
+                    if rrset['AliasTarget']['DNSName'].startswith('_octodns-'):
+                        # Part of a dynamic record
+                        dynamic[record_name][record_type].append(rrset)
+                    else:
+                        # Alias records are Route53 specific and are not
+                        # portable, so we need to skip them
+                        self.log.warning("%s is an Alias record. Skipping..."
+                                         % rrset['Name'])
+                    continue
+                # A basic record (potentially including geo)
                 data = getattr(self, '_data_for_{}'.format(record_type))(rrset)
                 records[record_name][record_type].append(data)
 
+            # Convert the dynamic rrsets to Records
+            for name, types in dynamic.items():
+                for _type, rrsets in types.items():
+                    data = self._data_for_dynamic(name, _type, rrsets)
+                    record = Record.new(zone, name, data, source=self,
+                                        lenient=lenient)
+                    zone.add_record(record, lenient=lenient)
+
+            # Convert the basic (potentially with geo) rrsets to records
             for name, types in records.items():
                 for _type, data in types.items():
                     if len(data) > 1:
@@ -590,6 +916,7 @@ class Route53Provider(BaseProvider):
                         # ignore anything else
                         continue
                     checks[health_check['Id']] = health_check
+
                 more = resp['IsTruncated']
                 start['Marker'] = resp.get('NextMarker', None)
 
@@ -778,6 +1105,7 @@ class Route53Provider(BaseProvider):
         return self._gen_mods('DELETE', existing_records)
 
     def _extra_changes(self, desired, changes, **kwargs):
+        # TODO: dynamic records extra changes...
         self.log.debug('_extra_changes: desired=%s', desired.name)
         zone_id = self._get_zone_id(desired.name)
         if not zone_id:
@@ -862,7 +1190,8 @@ class Route53Provider(BaseProvider):
             mods.sort(key=_mod_keyer)
 
             mods_rs_count = sum(
-                [len(m['ResourceRecordSet']['ResourceRecords']) for m in mods]
+                [len(m['ResourceRecordSet'].get('ResourceRecords', ''))
+                 for m in mods]
             )
 
             if mods_rs_count > self.max_changes:

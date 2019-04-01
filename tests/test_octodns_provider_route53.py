@@ -42,6 +42,202 @@ class TestOctalReplace(TestCase):
             self.assertEquals(expected, _octal_replace(s))
 
 
+dynamic_rrsets = [{
+    'Name': '_octodns-default-pool.unit.tests.',
+    'ResourceRecords': [{'Value': '1.1.2.1'},
+                        {'Value': '1.1.2.2'}],
+    'TTL': 60,
+    'Type': 'A',
+}, {
+    'HealthCheckId': '76',
+    'Name': '_octodns-ap-southeast-1-value.unit.tests.',
+    'ResourceRecords': [{'Value': '1.4.1.1'}],
+    'SetIdentifier': 'ap-southeast-1-000',
+    'TTL': 60,
+    'Type': 'A',
+    'Weight': 2
+}, {
+    'HealthCheckId': '09',
+    'Name': '_octodns-ap-southeast-1-value.unit.tests.',
+    'ResourceRecords': [{'Value': '1.4.1.2'}],
+    'SetIdentifier': 'ap-southeast-1-001',
+    'TTL': 60,
+    'Type': 'A',
+    'Weight': 2
+}, {
+    'HealthCheckId': 'ab',
+    'Name': '_octodns-eu-central-1-value.unit.tests.',
+    'ResourceRecords': [{'Value': '1.3.1.1'}],
+    'SetIdentifier': 'eu-central-1-000',
+    'TTL': 60,
+    'Type': 'A',
+    'Weight': 1
+}, {
+    'HealthCheckId': '1e',
+    'Name': '_octodns-eu-central-1-value.unit.tests.',
+    'ResourceRecords': [{'Value': '1.3.1.2'}],
+    'SetIdentifier': 'eu-central-1-001',
+    'TTL': 60,
+    'Type': 'A',
+    'Weight': 1
+}, {
+    'HealthCheckId': '2a',
+    'Name': '_octodns-us-east-1-value.unit.tests.',
+    'ResourceRecords': [{'Value': '1.5.1.1'}],
+    'SetIdentifier': 'us-east-1-000',
+    'TTL': 60,
+    'Type': 'A',
+    'Weight': 1
+}, {
+    'HealthCheckId': '61',
+    'Name': '_octodns-us-east-1-value.unit.tests.',
+    'ResourceRecords': [{'Value': '1.5.1.2'}],
+    'SetIdentifier': 'us-east-1-001',
+    'TTL': 60,
+    'Type': 'A',
+    'Weight': 1,
+}, {
+    'AliasTarget': {'DNSName': '_octodns-default-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'Z2'},
+    'Failover': 'SECONDARY',
+    'Name': '_octodns-us-east-1-pool.unit.tests.',
+    'SetIdentifier': 'us-east-1-Secondary-default',
+    'Type': 'A'
+}, {
+    'AliasTarget': {
+        'DNSName': '_octodns-us-east-1-value.unit.tests.',
+        'EvaluateTargetHealth': True,
+        'HostedZoneId': 'Z2'
+    },
+    'Failover': 'PRIMARY',
+    'Name': '_octodns-us-east-1-pool.unit.tests.',
+    'SetIdentifier': 'us-east-1-Primary',
+    'Type': 'A',
+}, {
+    'AliasTarget': {'DNSName': '_octodns-us-east-1-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'Z2'},
+    'Failover': 'SECONDARY',
+    'Name': '_octodns-eu-central-1-pool.unit.tests.',
+    'SetIdentifier': 'eu-central-1-Secondary-default',
+    'Type': 'A'
+}, {
+    'AliasTarget': {
+        'DNSName': '_octodns-eu-central-1-value.unit.tests.',
+        'EvaluateTargetHealth': True,
+        'HostedZoneId': 'Z2'
+    },
+    'Failover': 'PRIMARY',
+    'Name': '_octodns-eu-central-1-pool.unit.tests.',
+    'SetIdentifier': 'eu-central-1-Primary',
+    'Type': 'A',
+}, {
+    'AliasTarget': {'DNSName': '_octodns-us-east-1-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'Z2'},
+    'Failover': 'SECONDARY',
+    'Name': '_octodns-ap-southeast-1-pool.unit.tests.',
+    'SetIdentifier': 'ap-southeast-1-Secondary-default',
+    'Type': 'A'
+}, {
+    'AliasTarget': {
+        'DNSName': '_octodns-ap-southeast-1-value.unit.tests.',
+        'EvaluateTargetHealth': True,
+        'HostedZoneId': 'Z2'
+    },
+    'Failover': 'PRIMARY',
+    'Name': '_octodns-ap-southeast-1-pool.unit.tests.',
+    'SetIdentifier': 'ap-southeast-1-Primary',
+    'Type': 'A',
+}, {
+    'AliasTarget': {'DNSName': '_octodns-ap-southeast-1-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'Z2'},
+    'GeoLocation': {'CountryCode': 'JP'},
+    'Name': 'unit.tests.',
+    'SetIdentifier': '1-ap-southeast-1-AS-JP',
+    'Type': 'A',
+}, {
+    'AliasTarget': {'DNSName': '_octodns-ap-southeast-1-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'Z2'},
+    'GeoLocation': {'CountryCode': 'CN'},
+    'Name': 'unit.tests.',
+    'SetIdentifier': '1-ap-southeast-1-AS-CN',
+    'Type': 'A',
+}, {
+    'AliasTarget': {'DNSName': '_octodns-eu-central-1-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'Z2'},
+    'GeoLocation': {'ContinentCode': 'NA-US-FL'},
+    'Name': 'unit.tests.',
+    'SetIdentifier': '2-eu-central-1-NA-US-FL',
+    'Type': 'A',
+}, {
+    'AliasTarget': {'DNSName': '_octodns-eu-central-1-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'Z2'},
+    'GeoLocation': {'ContinentCode': 'EU'},
+    'Name': 'unit.tests.',
+    'SetIdentifier': '2-eu-central-1-EU',
+    'Type': 'A',
+}, {
+    'AliasTarget': {'DNSName': '_octodns-us-east-1-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'Z2'},
+    'GeoLocation': {'CountryCode': '*'},
+    'Name': 'unit.tests.',
+    'SetIdentifier': '3-us-east-1-None',
+    'Type': 'A',
+}]
+
+dynamic_record_data = {
+    'dynamic': {
+        'pools': {
+            'ap-southeast-1': {
+                'fallback': 'us-east-1',
+                'values': [{
+                    'weight': 2, 'value': '1.4.1.1'
+                }, {
+                    'weight': 2, 'value': '1.4.1.2'
+                }]
+            },
+            'eu-central-1': {
+                'fallback': 'us-east-1',
+                'values': [{
+                    'weight': 1, 'value': '1.3.1.1'
+                }, {
+                    'weight': 1, 'value': '1.3.1.2'
+                }],
+            },
+            'us-east-1': {
+                'values': [{
+                    'weight': 1, 'value': '1.5.1.1'
+                }, {
+                    'weight': 1, 'value': '1.5.1.2'
+                }],
+            }
+        },
+        'rules': [{
+            'geos': ['AS-CN', 'AS-JP'],
+            'pool': 'ap-southeast-1',
+        }, {
+            'geos': ['EU', 'NA-US-FL'],
+            'pool': 'eu-central-1',
+        }, {
+            'pool': 'us-east-1',
+        }],
+    },
+    'ttl': 60,
+    'type': 'A',
+    'values': [
+        '1.1.2.1',
+        '1.1.2.2',
+    ],
+}
+
+
 class TestRoute53Provider(TestCase):
     expected = Zone('unit.tests.', [])
     for name, data in (
@@ -1534,6 +1730,71 @@ class TestRoute53Provider(TestCase):
                           ._unique_id_handlers['retry-config-route53']
                           ['handler']._checker.__dict__['_max_attempts'])
 
+    def test_data_for_dynamic(self):
+        provider = Route53Provider('test', 'abc', '123')
+
+        data = provider._data_for_dynamic('', 'A', dynamic_rrsets)
+        self.assertEquals(dynamic_record_data, data)
+
+    @patch('octodns.provider.route53.Route53Provider._get_zone_id')
+    @patch('octodns.provider.route53.Route53Provider._load_records')
+    def test_dynamic_populate(self, load_records_mock, get_zone_id_mock):
+        provider = Route53Provider('test', 'abc', '123')
+
+        get_zone_id_mock.side_effect = ['z44']
+        load_records_mock.side_effect = [dynamic_rrsets]
+
+        got = Zone('unit.tests.', [])
+        provider.populate(got)
+
+        self.assertEquals(1, len(got.records))
+        record = list(got.records)[0]
+        self.assertEquals('', record.name)
+        self.assertEquals('A', record._type)
+        self.assertEquals([
+            '1.1.2.1',
+            '1.1.2.2',
+        ], record.values)
+        self.assertTrue(record.dynamic)
+
+        self.assertEquals({
+            'ap-southeast-1': {
+                'fallback': 'us-east-1',
+                'values': [{
+                    'weight': 2, 'value': '1.4.1.1'
+                }, {
+                    'weight': 2, 'value': '1.4.1.2'
+                }]
+            },
+            'eu-central-1': {
+                'fallback': 'us-east-1',
+                'values': [{
+                    'weight': 1, 'value': '1.3.1.1'
+                }, {
+                    'weight': 1, 'value': '1.3.1.2'
+                }],
+            },
+            'us-east-1': {
+                'fallback': None,
+                'values': [{
+                    'weight': 1, 'value': '1.5.1.1'
+                }, {
+                    'weight': 1, 'value': '1.5.1.2'
+                }],
+            }
+        }, {k: v.data for k, v in record.dynamic.pools.items()})
+
+        self.assertEquals([
+            {
+                'geos': ['AS-CN', 'AS-JP'],
+                'pool': 'ap-southeast-1',
+            }, {
+                'geos': ['EU', 'NA-US-FL'],
+                'pool': 'eu-central-1',
+            }, {
+                'pool': 'us-east-1',
+            }], [r.data for r in record.dynamic.rules])
+
 
 class TestRoute53Records(TestCase):
     existing = Zone('unit.tests.', [])
@@ -1551,8 +1812,9 @@ class TestRoute53Records(TestCase):
         route53_record = _Route53Record(None, self.record_a, False)
 
         for value in (None, '', 'foo', 'bar', '1.2.3.4'):
-            self.assertEquals(value, route53_record
-                              ._value_convert_value(value, self.record_a))
+            converted = route53_record._value_convert_value(value,
+                                                            self.record_a)
+            self.assertEquals(value, converted)
 
         record_txt = Record.new(self.existing, 'txt', {
             'ttl': 98,
@@ -1623,6 +1885,242 @@ class TestRoute53Records(TestCase):
         a.__repr__()
         e.__repr__()
         f.__repr__()
+
+    def test_new_dynamic(self):
+        provider = Route53Provider('test', 'abc', '123')
+
+        # Just so boto won't try and make any calls
+        stubber = Stubber(provider._conn)
+        stubber.activate()
+
+        # We'll assume we create all healthchecks here, this functionality is
+        # thoroughly tested elsewhere
+        provider._health_checks = {}
+        # When asked for a healthcheck return dummy info
+        provider.get_health_check_id = lambda r, v, c: 'hc42'
+
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, '', dynamic_record_data)
+
+        # Convert a record into _Route53Records
+        route53_records = _Route53Record.new(provider, record, 'z45',
+                                             creating=True)
+        self.assertEquals(18, len(route53_records))
+
+        # Convert the route53_records into mods
+        self.assertEquals([{
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'HealthCheckId': 'hc42',
+                'Name': '_octodns-ap-southeast-1-value.unit.tests.',
+                'ResourceRecords': [{
+                    'Value': '1.4.1.2'}],
+                'SetIdentifier': 'ap-southeast-1-001',
+                'TTL': 60,
+                'Type': 'A',
+                'Weight': 2
+            }
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'HealthCheckId': 'hc42',
+                'Name': '_octodns-ap-southeast-1-value.unit.tests.',
+                'ResourceRecords': [{
+                    'Value': '1.4.1.1'}],
+                'SetIdentifier': 'ap-southeast-1-000',
+                'TTL': 60,
+                'Type': 'A',
+                'Weight': 2
+            }
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'AliasTarget': {
+                    'DNSName': '_octodns-ap-southeast-1-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'z45'
+                },
+                'GeoLocation': {
+                    'CountryCode': 'JP'},
+                'Name': 'unit.tests.',
+                'SetIdentifier': '0-ap-southeast-1-AS-JP',
+                'Type': 'A'
+            }
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'AliasTarget': {
+                    'DNSName': '_octodns-eu-central-1-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'z45'},
+                'GeoLocation': {
+                    'CountryCode': 'US',
+                    'SubdivisionCode': 'FL',
+                },
+                'Name': 'unit.tests.',
+                'SetIdentifier': '1-eu-central-1-NA-US-FL',
+                'Type': 'A'}
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'AliasTarget': {
+                    'DNSName': '_octodns-us-east-1-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'z45'},
+                'GeoLocation': {
+                    'CountryCode': '*'},
+                'Name': 'unit.tests.',
+                'SetIdentifier': '2-us-east-1-None',
+                'Type': 'A'}
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'AliasTarget': {
+                    'DNSName': '_octodns-us-east-1-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'z45'},
+                'Failover': 'SECONDARY',
+                'Name': '_octodns-ap-southeast-1-pool.unit.tests.',
+                'SetIdentifier': 'ap-southeast-1-Secondary-us-east-1',
+                'Type': 'A'}
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'AliasTarget': {
+                    'DNSName': '_octodns-ap-southeast-1-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'z45'},
+                'GeoLocation': {
+                    'CountryCode': 'CN'},
+                'Name': 'unit.tests.',
+                'SetIdentifier': '0-ap-southeast-1-AS-CN',
+                'Type': 'A'}
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'AliasTarget': {
+                    'DNSName': '_octodns-us-east-1-value.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'z45'},
+                'Failover': 'PRIMARY',
+                'Name': '_octodns-us-east-1-pool.unit.tests.',
+                'SetIdentifier': 'us-east-1-Primary',
+                'Type': 'A'}
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'AliasTarget': {
+                    'DNSName': '_octodns-eu-central-1-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'z45'},
+                'GeoLocation': {
+                    'ContinentCode': 'EU'},
+                'Name': 'unit.tests.',
+                'SetIdentifier': '1-eu-central-1-EU',
+                'Type': 'A'}
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'AliasTarget': {
+                    'DNSName': '_octodns-eu-central-1-value.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'z45'},
+                'Failover': 'PRIMARY',
+                'Name': '_octodns-eu-central-1-pool.unit.tests.',
+                'SetIdentifier': 'eu-central-1-Primary',
+                'Type': 'A'}
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'Name': '_octodns-default-pool.unit.tests.',
+                'ResourceRecords': [{
+                    'Value': '1.1.2.1'},
+                    {
+                        'Value': '1.1.2.2'}],
+                'TTL': 60,
+                'Type': 'A'}
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'HealthCheckId': 'hc42',
+                'Name': '_octodns-eu-central-1-value.unit.tests.',
+                'ResourceRecords': [{
+                    'Value': '1.3.1.2'}],
+                'SetIdentifier': 'eu-central-1-001',
+                'TTL': 60,
+                'Type': 'A',
+                'Weight': 1}
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'HealthCheckId': 'hc42',
+                'Name': '_octodns-eu-central-1-value.unit.tests.',
+                'ResourceRecords': [{
+                    'Value': '1.3.1.1'}],
+                'SetIdentifier': 'eu-central-1-000',
+                'TTL': 60,
+                'Type': 'A',
+                'Weight': 1}
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'AliasTarget': {
+                    'DNSName': '_octodns-default-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'z45'},
+                'Failover': 'SECONDARY',
+                'Name': '_octodns-us-east-1-pool.unit.tests.',
+                'SetIdentifier': 'us-east-1-Secondary-default',
+                'Type': 'A'}
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'HealthCheckId': 'hc42',
+                'Name': '_octodns-us-east-1-value.unit.tests.',
+                'ResourceRecords': [{
+                    'Value': '1.5.1.2'}],
+                'SetIdentifier': 'us-east-1-001',
+                'TTL': 60,
+                'Type': 'A',
+                'Weight': 1}
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'HealthCheckId': 'hc42',
+                'Name': '_octodns-us-east-1-value.unit.tests.',
+                'ResourceRecords': [{
+                    'Value': '1.5.1.1'}],
+                'SetIdentifier': 'us-east-1-000',
+                'TTL': 60,
+                'Type': 'A',
+                'Weight': 1}
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'AliasTarget': {
+                    'DNSName': '_octodns-ap-southeast-1-value.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'z45'},
+                'Failover': 'PRIMARY',
+                'Name': '_octodns-ap-southeast-1-pool.unit.tests.',
+                'SetIdentifier': 'ap-southeast-1-Primary',
+                'Type': 'A'}
+        }, {
+            'Action': 'CREATE',
+            'ResourceRecordSet': {
+                'AliasTarget': {
+                    'DNSName': '_octodns-us-east-1-pool.unit.tests.',
+                    'EvaluateTargetHealth': True,
+                    'HostedZoneId': 'z45'},
+                'Failover': 'SECONDARY',
+                'Name': '_octodns-eu-central-1-pool.unit.tests.',
+                'SetIdentifier': 'eu-central-1-Secondary-us-east-1',
+                'Type': 'A'}
+        }], [r.mod('CREATE') for r in route53_records])
+
+        for route53_record in route53_records:
+            # Smoke test stringification
+            route53_record.__repr__()
 
 
 class TestModKeyer(TestCase):
