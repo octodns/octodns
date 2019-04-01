@@ -83,6 +83,15 @@ class _Route53Record(object):
         return '_Route53Record<{} {} {} {}>'.format(self.fqdn, self._type,
                                                     self.ttl, self.values)
 
+    def _value_convert_value(self, value, record):
+        return value
+
+    _value_convert_A = _value_convert_value
+    _value_convert_AAAA = _value_convert_value
+    _value_convert_NS = _value_convert_value
+    _value_convert_CNAME = _value_convert_value
+    _value_convert_PTR = _value_convert_value
+
     def _values_for_values(self, record):
         return record.values
 
@@ -90,9 +99,11 @@ class _Route53Record(object):
     _values_for_AAAA = _values_for_values
     _values_for_NS = _values_for_values
 
+    def _value_convert_CAA(self, value, record):
+        return '{} {} "{}"'.format(value.flags, value.tag, value.value)
+
     def _values_for_CAA(self, record):
-        return ['{} {} "{}"'.format(v.flags, v.tag, v.value)
-                for v in record.values]
+        return [self._value_convert_CAA(v, record) for v in record.values]
 
     def _values_for_value(self, record):
         return [record.value]
@@ -100,18 +111,28 @@ class _Route53Record(object):
     _values_for_CNAME = _values_for_value
     _values_for_PTR = _values_for_value
 
+    def _value_convert_MX(self, value, record):
+        return '{} {}'.format(value.preference, value.exchange)
+
     def _values_for_MX(self, record):
-        return ['{} {}'.format(v.preference, v.exchange)
-                for v in record.values]
+        return [self._value_convert_MX(v, record) for v in record.values]
+
+    def _value_convert_NAPTR(self, value, record):
+        return '{} {} "{}" "{}" "{}" {}' \
+            .format(value.order, value.preference,
+                    value.flags if value.flags else '',
+                    value.service if value.service else '',
+                    value.regexp if value.regexp else '',
+                    value.replacement)
 
     def _values_for_NAPTR(self, record):
-        return ['{} {} "{}" "{}" "{}" {}'
-                .format(v.order, v.preference,
-                        v.flags if v.flags else '',
-                        v.service if v.service else '',
-                        v.regexp if v.regexp else '',
-                        v.replacement)
-                for v in record.values]
+        return [self._value_convert_NAPTR(v, record) for v in record.values]
+
+    def _value_convert_quoted(self, value, record):
+        return record.chunked_value(value)
+
+    _value_convert_SPF = _value_convert_quoted
+    _value_convert_TXT = _value_convert_quoted
 
     def _values_for_quoted(self, record):
         return record.chunked_values
@@ -119,10 +140,12 @@ class _Route53Record(object):
     _values_for_SPF = _values_for_quoted
     _values_for_TXT = _values_for_quoted
 
+    def _value_for_SRV(self, value, record):
+        return '{} {} {} {}'.format(value.priority, value.weight,
+                                    value.port, value.target)
+
     def _values_for_SRV(self, record):
-        return ['{} {} {} {}'.format(v.priority, v.weight, v.port,
-                                     v.target)
-                for v in record.values]
+        return [self._value_for_SRV(v, record) for v in record.values]
 
 
 class _Route53GeoDefault(_Route53Record):

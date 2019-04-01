@@ -1531,32 +1531,52 @@ class TestRoute53Provider(TestCase):
 
 
 class TestRoute53Records(TestCase):
+    existing = Zone('unit.tests.', [])
+    record_a = Record.new(existing, '', {
+        'geo': {
+            'NA-US': ['2.2.2.2', '3.3.3.3'],
+            'OC': ['4.4.4.4', '5.5.5.5']
+        },
+        'ttl': 99,
+        'type': 'A',
+        'values': ['9.9.9.9']
+    })
+
+    def test_value_fors(self):
+        route53_record = _Route53Record(None, self.record_a, False)
+
+        for value in (None, '', 'foo', 'bar', '1.2.3.4'):
+            self.assertEquals(value, route53_record
+                              ._value_convert_value(value, self.record_a))
+
+        record_txt = Record.new(self.existing, 'txt', {
+            'ttl': 98,
+            'type': 'TXT',
+            'value': 'Not Important',
+        })
+
+        # We don't really have to test the details fo chunked_value as that's
+        # tested elsewhere, we just need to make sure that it's plumbed up and
+        # working
+        self.assertEquals('"Not Important"', route53_record
+                          ._value_convert_quoted(record_txt.values[0],
+                                                 record_txt))
 
     def test_route53_record(self):
-        existing = Zone('unit.tests.', [])
-        record_a = Record.new(existing, '', {
-            'geo': {
-                'NA-US': ['2.2.2.2', '3.3.3.3'],
-                'OC': ['4.4.4.4', '5.5.5.5']
-            },
-            'ttl': 99,
-            'type': 'A',
-            'values': ['9.9.9.9']
-        })
-        a = _Route53Record(None, record_a, False)
+        a = _Route53Record(None, self.record_a, False)
         self.assertEquals(a, a)
-        b = _Route53Record(None, Record.new(existing, '',
+        b = _Route53Record(None, Record.new(self.existing, '',
                                             {'ttl': 32, 'type': 'A',
                                              'values': ['8.8.8.8',
                                                         '1.1.1.1']}),
                            False)
         self.assertEquals(b, b)
-        c = _Route53Record(None, Record.new(existing, 'other',
+        c = _Route53Record(None, Record.new(self.existing, 'other',
                                             {'ttl': 99, 'type': 'A',
                                              'values': ['9.9.9.9']}),
                            False)
         self.assertEquals(c, c)
-        d = _Route53Record(None, Record.new(existing, '',
+        d = _Route53Record(None, Record.new(self.existing, '',
                                             {'ttl': 42, 'type': 'MX',
                                              'value': {
                                                  'preference': 10,
@@ -1572,7 +1592,7 @@ class TestRoute53Records(TestCase):
         self.assertNotEquals(a, c)
 
         # Same everything, different class is not the same
-        e = _Route53GeoDefault(None, record_a, False)
+        e = _Route53GeoDefault(None, self.record_a, False)
         self.assertNotEquals(a, e)
 
         class DummyProvider(object):
@@ -1581,11 +1601,11 @@ class TestRoute53Records(TestCase):
                 return None
 
         provider = DummyProvider()
-        f = _Route53GeoRecord(provider, record_a, 'NA-US',
-                              record_a.geo['NA-US'], False)
+        f = _Route53GeoRecord(provider, self.record_a, 'NA-US',
+                              self.record_a.geo['NA-US'], False)
         self.assertEquals(f, f)
-        g = _Route53GeoRecord(provider, record_a, 'OC',
-                              record_a.geo['OC'], False)
+        g = _Route53GeoRecord(provider, self.record_a, 'OC',
+                              self.record_a.geo['OC'], False)
         self.assertEquals(g, g)
 
         # Geo and non-geo are not the same, using Geo as primary to get it's
