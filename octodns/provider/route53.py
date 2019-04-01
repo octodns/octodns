@@ -179,8 +179,9 @@ class _Route53GeoRecord(_Route53Record):
         super(_Route53GeoRecord, self).__init__(provider, record, creating)
         self.geo = geo
 
-        self.health_check_id = provider.get_health_check_id(record, ident,
-                                                            geo, creating)
+        value = geo.values[0]
+        self.health_check_id = provider.get_health_check_id(record, value,
+                                                            creating)
 
     def mod(self, action):
         geo = self.geo
@@ -574,25 +575,22 @@ class Route53Provider(BaseProvider):
             .get('measure_latency', True)
 
     def _health_check_equivilent(self, host, path, protocol, port,
-                                 measure_latency, health_check,
-                                 first_value=None):
+                                 measure_latency, health_check, value=None):
         config = health_check['HealthCheckConfig']
         return host == config['FullyQualifiedDomainName'] and \
             path == config['ResourcePath'] and protocol == config['Type'] \
             and port == config['Port'] and \
             measure_latency == config['MeasureLatency'] and \
-            (first_value is None or first_value == config['IPAddress'])
+            (value is None or value == config['IPAddress'])
 
-    def get_health_check_id(self, record, ident, geo, create):
+    def get_health_check_id(self, record, value, create):
         # fqdn & the first value are special, we use them to match up health
         # checks to their records. Route53 health checks check a single ip and
         # we're going to assume that ips are interchangeable to avoid
         # health-checking each one independently
         fqdn = record.fqdn
-        first_value = geo.values[0]
-        self.log.debug('get_health_check_id: fqdn=%s, type=%s, geo=%s, '
-                       'first_value=%s', fqdn, record._type, ident,
-                       first_value)
+        self.log.debug('get_health_check_id: fqdn=%s, type=%s, value=%s',
+                       fqdn, record._type, value)
 
         healthcheck_host = record.healthcheck_host
         healthcheck_path = record.healthcheck_path
@@ -614,7 +612,7 @@ class Route53Provider(BaseProvider):
                                              healthcheck_port,
                                              healthcheck_latency,
                                              health_check,
-                                             first_value=first_value):
+                                             value=value):
                 # this is the health check we're looking for
                 self.log.debug('get_health_check_id:   found match id=%s', id)
                 return id
@@ -629,7 +627,7 @@ class Route53Provider(BaseProvider):
             'EnableSNI': healthcheck_protocol == 'HTTPS',
             'FailureThreshold': 6,
             'FullyQualifiedDomainName': healthcheck_host,
-            'IPAddress': first_value,
+            'IPAddress': value,
             'MeasureLatency': healthcheck_latency,
             'Port': healthcheck_port,
             'RequestInterval': 10,
@@ -647,10 +645,9 @@ class Route53Provider(BaseProvider):
         self._health_checks[id] = health_check
         self.log.info('get_health_check_id: created id=%s, host=%s, '
                       'path=%s, protocol=%s, port=%d, measure_latency=%r, '
-                      'first_value=%s',
-                      id, healthcheck_host, healthcheck_path,
+                      'value=%s', id, healthcheck_host, healthcheck_path,
                       healthcheck_protocol, healthcheck_port,
-                      healthcheck_latency, first_value)
+                      healthcheck_latency, value)
         return id
 
     def _gc_health_checks(self, record, new):

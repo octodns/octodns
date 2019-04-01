@@ -773,7 +773,8 @@ class TestRoute53Provider(TestCase):
                 'AF': ['4.2.3.4'],
             }
         })
-        id = provider.get_health_check_id(record, 'AF', record.geo['AF'], True)
+        value = record.geo['AF'].values[0]
+        id = provider.get_health_check_id(record, value, True)
         self.assertEquals('42', id)
 
     def test_health_check_create(self):
@@ -859,12 +860,12 @@ class TestRoute53Provider(TestCase):
         })
 
         # if not allowed to create returns none
-        id = provider.get_health_check_id(record, 'AF', record.geo['AF'],
-                                          False)
+        value = record.geo['AF'].values[0]
+        id = provider.get_health_check_id(record, value, False)
         self.assertFalse(id)
 
         # when allowed to create we do
-        id = provider.get_health_check_id(record, 'AF', record.geo['AF'], True)
+        id = provider.get_health_check_id(record, value, True)
         self.assertEquals('42', id)
         stubber.assert_no_pending_responses()
 
@@ -965,7 +966,8 @@ class TestRoute53Provider(TestCase):
             }
         })
 
-        id = provider.get_health_check_id(record, 'AF', record.geo['AF'], True)
+        value = record.geo['AF'].values[0]
+        id = provider.get_health_check_id(record, value, True)
         ml = provider.health_checks[id]['HealthCheckConfig']['MeasureLatency']
         self.assertEqual(False, ml)
 
