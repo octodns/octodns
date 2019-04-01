@@ -640,6 +640,20 @@ class Route53Provider(BaseProvider):
                                               HealthCheckConfig=config)
         health_check = resp['HealthCheck']
         id = health_check['Id']
+
+        # Set a Name for the benefit of the UI
+        name = '{}:{} - {}'.format(record.fqdn, record._type, value)
+        self._conn.change_tags_for_resource(ResourceType='healthcheck',
+                                            ResourceId=id,
+                                            AddTags=[{
+                                                'Key': 'Name',
+                                                'Value': name,
+                                            }])
+        # Manually add it to our cache
+        health_check['Tags'] = {
+            'Name': name
+        }
+
         # store the new health check so that we'll be able to find it in the
         # future
         self._health_checks[id] = health_check

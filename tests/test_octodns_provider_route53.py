@@ -841,6 +841,7 @@ class TestRoute53Provider(TestCase):
             'CallerReference': ANY,
             'HealthCheckConfig': health_check_config,
         })
+        stubber.add_response('change_tags_for_resource', {})
 
         record = Record.new(self.expected, '', {
             'ttl': 61,
@@ -947,6 +948,8 @@ class TestRoute53Provider(TestCase):
             'CallerReference': ANY,
             'HealthCheckConfig': health_check_config,
         })
+        stubber.add_response('change_tags_for_resource', {})
+        stubber.add_response('change_tags_for_resource', {})
 
         record = Record.new(self.expected, 'a', {
             'ttl': 61,
