@@ -934,11 +934,23 @@ class Route53Provider(BaseProvider):
     def _health_check_equivilent(self, host, path, protocol, port,
                                  measure_latency, health_check, value=None):
         config = health_check['HealthCheckConfig']
+
+        # So interestingly Route53 normalizes IPAddress which will cause us to
+        # fail to find see things as equivalent. To work around this we'll
+        # ip_address's returned object for equivalence
+        # E.g 2001:4860:4860::8842 -> 2001:4860:4860:0:0:0:0:8842
+        if value:
+            value = ip_address(unicode(value))
+            config_ip_address = ip_address(unicode(config['IPAddress']))
+        else:
+            # No value so give this a None to match value's
+            config_ip_address = None
+
         return host == config['FullyQualifiedDomainName'] and \
             path == config['ResourcePath'] and protocol == config['Type'] \
             and port == config['Port'] and \
             measure_latency == config['MeasureLatency'] and \
-            (value is None or value == config['IPAddress'])
+            value == config_ip_address
 
     def get_health_check_id(self, record, value, create):
         # fqdn & the first value are special, we use them to match up health
