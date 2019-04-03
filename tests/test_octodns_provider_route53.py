@@ -1616,6 +1616,119 @@ class TestRoute53Provider(TestCase):
         self.assertEquals(1, len(extra))
         stubber.assert_no_pending_responses()
 
+    def test_extra_change_dynamic_has_health_check(self):
+        provider, stubber = self._get_stubbed_provider()
+
+        list_hosted_zones_resp = {
+            'HostedZones': [{
+                'Name': 'unit.tests.',
+                'Id': 'z42',
+                'CallerReference': 'abc',
+            }],
+            'Marker': 'm',
+            'IsTruncated': False,
+            'MaxItems': '100',
+        }
+        stubber.add_response('list_hosted_zones', list_hosted_zones_resp, {})
+
+        # record with geo and no health check returns change
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '2.2.3.4',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+        })
+        desired.add_record(record)
+        list_resource_record_sets_resp = {
+            'ResourceRecordSets': [{
+                # other name
+                'Name': 'unit.tests.',
+                'Type': 'A',
+                'GeoLocation': {
+                    'CountryCode': '*',
+                },
+                'ResourceRecords': [{
+                    'Value': '1.2.3.4',
+                }],
+                'TTL': 61,
+            }, {
+                # matching name, other type
+                'Name': 'a.unit.tests.',
+                'Type': 'AAAA',
+                'ResourceRecords': [{
+                    'Value': '2001:0db8:3c4d:0015:0000:0000:1a2f:1a4b'
+                }],
+                'TTL': 61,
+            }, {
+                # default value pool
+                'Name': '_octodns-default-pool.a.unit.tests.',
+                'Type': 'A',
+                'GeoLocation': {
+                    'CountryCode': '*',
+                },
+                'ResourceRecords': [{
+                    'Value': '1.2.3.4',
+                }],
+                'TTL': 61,
+            }, {
+                # match
+                'Name': '_octodns-one-value.a.unit.tests.',
+                'Type': 'A',
+                'ResourceRecords': [{
+                    'Value': '2.2.3.4',
+                }],
+                'TTL': 61,
+                'HealthCheckId': '42',
+            }],
+            'IsTruncated': False,
+            'MaxItems': '100',
+        }
+        stubber.add_response('list_resource_record_sets',
+                             list_resource_record_sets_resp,
+                             {'HostedZoneId': 'z42'})
+        stubber.add_response('list_health_checks', {
+            'HealthChecks': [{
+                'Id': '42',
+                'CallerReference': self.caller_ref,
+                'HealthCheckConfig': {
+                    'Type': 'HTTPS',
+                    'FullyQualifiedDomainName': 'a.unit.tests',
+                    'IPAddress': '2.2.3.4',
+                    'ResourcePath': '/_dns',
+                    'Type': 'HTTPS',
+                    'Port': 443,
+                    'MeasureLatency': True
+                },
+                'HealthCheckVersion': 2,
+            }],
+            'IsTruncated': False,
+            'MaxItems': '100',
+            'Marker': '',
+        })
+        extra = provider._extra_changes(desired=desired, changes=[])
+        self.assertEquals(0, len(extra))
+        stubber.assert_no_pending_responses()
+
+        # change b/c of healthcheck path
+        record._octodns['healthcheck'] = {
+            'path': '/_ready'
+        }
+        extra = provider._extra_changes(desired=desired, changes=[])
+        self.assertEquals(1, len(extra))
+        stubber.assert_no_pending_responses()
+
         # change b/c of healthcheck host
         record._octodns['healthcheck'] = {
             'host': 'foo.bar.io'

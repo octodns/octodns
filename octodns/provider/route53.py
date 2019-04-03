@@ -1127,8 +1127,83 @@ class Route53Provider(BaseProvider):
         self._gc_health_checks(change.existing, [])
         return self._gen_mods('DELETE', existing_records)
 
+    def _extra_changes_update_needed(self, record, rrset):
+        healthcheck_host = record.healthcheck_host
+        healthcheck_path = record.healthcheck_path
+        healthcheck_protocol = record.healthcheck_protocol
+        healthcheck_port = record.healthcheck_port
+        healthcheck_latency = self._healthcheck_measure_latency(record)
+
+        try:
+            health_check_id = rrset['HealthCheckId']
+            health_check = self.health_checks[health_check_id]
+            caller_ref = health_check['CallerReference']
+            if caller_ref.startswith(self.HEALTH_CHECK_VERSION):
+                if self._health_check_equivilent(healthcheck_host,
+                                                 healthcheck_path,
+                                                 healthcheck_protocol,
+                                                 healthcheck_port,
+                                                 healthcheck_latency,
+                                                 health_check):
+                    # it has the right health check
+                    return False
+        except (IndexError, KeyError):
+            # no health check id or one that isn't the right version
+            pass
+
+        # no good, doesn't have the right health check, needs an update
+        self.log.info('_extra_changes_update_needed: health-check caused '
+                      'update of %s:%s', record.fqdn, record._type)
+        return True
+
+    def _extra_changes_geo_needs_update(self, zone_id, record):
+        # OK this is a record we don't have change for that does have geo
+        # information. We need to look and see if it needs to be updated b/c of
+        # a health check version bump or other mismatch
+        self.log.debug('_extra_changes_geo_needs_update: inspecting=%s, %s',
+                       record.fqdn, record._type)
+
+        fqdn = record.fqdn
+
+        # loop through all the r53 rrsets
+        for rrset in self._load_records(zone_id):
+            if fqdn == rrset['Name'] and record._type == rrset['Type'] and \
+               rrset.get('GeoLocation', {}).get('CountryCode', False) != '*' \
+               and self._extra_changes_update_needed(record, rrset):
+                # no good, doesn't have the right health check, needs an update
+                self.log.info('_extra_changes_geo_needs_update: health-check '
+                              'caused update of %s:%s', record.fqdn,
+                              record._type)
+                return True
+
+        return False
+
+    def _extra_changes_dynamic_needs_update(self, zone_id, record):
+        # OK this is a record we don't have change for that does have dynamic
+        # information. We need to look and see if it needs to be updated b/c of
+        # a health check version bump or other mismatch
+        self.log.debug('_extra_changes_dynamic_needs_update: inspecting=%s, '
+                       '%s', record.fqdn, record._type)
+
+        fqdn = record.fqdn
+
+        # loop through all the r53 rrsets
+        for rrset in self._load_records(zone_id):
+            name = rrset['Name']
+
+            if record._type == rrset['Type'] and name.endswith(fqdn) and \
+               name.startswith('_octodns-') and '-value.' in name and \
+               '-default-' not in name and \
+               self._extra_changes_update_needed(record, rrset):
+                # no good, doesn't have the right health check, needs an update
+                self.log.info('_extra_changes_dynamic_needs_update: '
+                              'health-check caused update of %s:%s',
+                              record.fqdn, record._type)
+                return True
+
+        return False
+
     def _extra_changes(self, desired, changes, **kwargs):
-        # TODO: dynamic records extra changes...
         self.log.debug('_extra_changes: desired=%s', desired.name)
         zone_id = self._get_zone_id(desired.name)
         if not zone_id:
@@ -1138,61 +1213,20 @@ class Route53Provider(BaseProvider):
         changed = set([c.record for c in changes])
         # ok, now it's time for the reason we're here, we need to go over all
         # the desired records
-        extra = []
+        extras = []
         for record in desired.records:
             if record in changed:
                 # already have a change for it, skipping
                 continue
-            if not getattr(record, 'geo', False):
-                # record doesn't support geo, we don't need to inspect it
-                continue
-            # OK this is a record we don't have change for that does have geo
-            # information. We need to look and see if it needs to be updated
-            # b/c of a health check version bump
-            self.log.debug('_extra_changes:   inspecting=%s, %s', record.fqdn,
-                           record._type)
 
-            healthcheck_host = record.healthcheck_host
-            healthcheck_path = record.healthcheck_path
-            healthcheck_protocol = record.healthcheck_protocol
-            healthcheck_port = record.healthcheck_port
-            healthcheck_latency = self._healthcheck_measure_latency(record)
-            fqdn = record.fqdn
+            if getattr(record, 'geo', False):
+                if self._extra_changes_geo_needs_update(zone_id, record):
+                    extras.append(Update(record, record))
+            elif getattr(record, 'dynamic', False):
+                if self._extra_changes_dynamic_needs_update(zone_id, record):
+                    extras.append(Update(record, record))
 
-            # loop through all the r53 rrsets
-            for rrset in self._load_records(zone_id):
-                if fqdn != rrset['Name'] or record._type != rrset['Type']:
-                    # not a name and type match
-                    continue
-                if rrset.get('GeoLocation', {}) \
-                   .get('CountryCode', False) == '*':
-                    # it's a default record
-                    continue
-                # we expect a healthcheck now
-                try:
-                    health_check_id = rrset['HealthCheckId']
-                    health_check = self.health_checks[health_check_id]
-                    caller_ref = health_check['CallerReference']
-                    if caller_ref.startswith(self.HEALTH_CHECK_VERSION):
-                        if self._health_check_equivilent(healthcheck_host,
-                                                         healthcheck_path,
-                                                         healthcheck_protocol,
-                                                         healthcheck_port,
-                                                         healthcheck_latency,
-                                                         health_check):
-                            # it has the right health check
-                            continue
-                except (IndexError, KeyError):
-                    # no health check id or one that isn't the right version
-                    pass
-                # no good, doesn't have the right health check, needs an update
-                self.log.info('_extra_changes:     health-check caused '
-                              'update of %s:%s', record.fqdn, record._type)
-                extra.append(Update(record, record))
-                # We don't need to process this record any longer
-                break
-
-        return extra
+        return extras
 
     def _apply(self, plan):
         desired = plan.desired
