@@ -9,6 +9,7 @@ from boto3 import client
 from botocore.config import Config
 from collections import defaultdict
 from incf.countryutils.transformations import cca_to_ctca2
+from ipaddress import AddressValueError, ip_address
 from uuid import uuid4
 import logging
 import re
@@ -948,7 +949,15 @@ class Route53Provider(BaseProvider):
         self.log.debug('get_health_check_id: fqdn=%s, type=%s, value=%s',
                        fqdn, record._type, value)
 
-        healthcheck_host = record.healthcheck_host
+        try:
+            ip_address(unicode(value))
+            # We're working with an IP, host is the Host header
+            healthcheck_host = record.healthcheck_host
+        except (AddressValueError, ValueError):
+            # This isn't an IP, host is the value, value should be None
+            healthcheck_host = value
+            value = None
+
         healthcheck_path = record.healthcheck_path
         healthcheck_protocol = record.healthcheck_protocol
         healthcheck_port = record.healthcheck_port
@@ -983,13 +992,15 @@ class Route53Provider(BaseProvider):
             'EnableSNI': healthcheck_protocol == 'HTTPS',
             'FailureThreshold': 6,
             'FullyQualifiedDomainName': healthcheck_host,
-            'IPAddress': value,
             'MeasureLatency': healthcheck_latency,
             'Port': healthcheck_port,
             'RequestInterval': 10,
             'ResourcePath': healthcheck_path,
             'Type': healthcheck_protocol,
         }
+        if value:
+            config['IPAddress'] = value
+
         ref = '{}:{}:{}:{}'.format(self.HEALTH_CHECK_VERSION, record._type,
                                    record.fqdn, uuid4().hex[:12])
         resp = self._conn.create_health_check(CallerReference=ref,
@@ -998,7 +1009,8 @@ class Route53Provider(BaseProvider):
         id = health_check['Id']
 
         # Set a Name for the benefit of the UI
-        name = '{}:{} - {}'.format(record.fqdn, record._type, value)
+        name = '{}:{} - {}'.format(record.fqdn, record._type,
+                                   value or healthcheck_host)
         self._conn.change_tags_for_resource(ResourceType='healthcheck',
                                             ResourceId=id,
                                             AddTags=[{

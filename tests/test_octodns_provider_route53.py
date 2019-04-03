@@ -1066,6 +1066,36 @@ class TestRoute53Provider(TestCase):
         self.assertEquals('42', id)
         stubber.assert_no_pending_responses()
 
+        # A CNAME style healthcheck, without a value
+
+        health_check_config = {
+            'EnableSNI': False,
+            'FailureThreshold': 6,
+            'FullyQualifiedDomainName': 'target-1.unit.tests.',
+            'MeasureLatency': True,
+            'Port': 8080,
+            'RequestInterval': 10,
+            'ResourcePath': '/_status',
+            'Type': 'HTTP'
+        }
+        stubber.add_response('create_health_check', {
+            'HealthCheck': {
+                'Id': '42',
+                'CallerReference': self.caller_ref,
+                'HealthCheckConfig': health_check_config,
+                'HealthCheckVersion': 1,
+            },
+            'Location': 'http://url',
+        }, {
+            'CallerReference': ANY,
+            'HealthCheckConfig': health_check_config,
+        })
+        stubber.add_response('change_tags_for_resource', {})
+
+        id = provider.get_health_check_id(record, 'target-1.unit.tests.', True)
+        self.assertEquals('42', id)
+        stubber.assert_no_pending_responses()
+
     def test_health_check_measure_latency(self):
         provider, stubber = self._get_stubbed_provider()
         record_true = Record.new(self.expected, 'a', {
