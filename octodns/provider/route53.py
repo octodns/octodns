@@ -800,7 +800,6 @@ class Route53Provider(BaseProvider):
             else:
                 # These are the pool value(s)
                 pool_name = rrset['SetIdentifier'][:-4]
-                # TODO: handle different value types
                 value = rrset['ResourceRecords'][0]['Value']
                 pools[pool_name]['values'].append({
                     'value': value,
