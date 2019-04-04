@@ -6,8 +6,8 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from collections import defaultdict
-from os import makedirs
-from os.path import isdir, join
+from os import listdir, makedirs
+from os.path import isdir, isfile, join
 import logging
 
 from ..record import Record
@@ -46,17 +46,7 @@ class YamlProvider(BaseProvider):
         self.default_ttl = default_ttl
         self.enforce_order = enforce_order
 
-    def populate(self, zone, target=False, lenient=False):
-        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
-                       target, lenient)
-
-        if target:
-            # When acting as a target we ignore any existing records so that we
-            # create a completely new copy
-            return False
-
-        before = len(zone.records)
-        filename = join(self.directory, '{}yaml'.format(zone.name))
+    def _populate_from_file(self, filename, zone, lenient):
         with open(filename, 'r') as fh:
             yaml_data = safe_load(fh, enforce_order=self.enforce_order)
             if yaml_data:
@@ -69,6 +59,21 @@ class YamlProvider(BaseProvider):
                         record = Record.new(zone, name, d, source=self,
                                             lenient=lenient)
                         zone.add_record(record, lenient=lenient)
+            self.log.info(
+                '_populate_from_file: successfully loaded "%s"', filename)
+
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
+
+        if target:
+            # When acting as a target we ignore any existing records so that we
+            # create a completely new copy
+            return False
+
+        before = len(zone.records)
+        filename = join(self.directory, '{}yaml'.format(zone.name))
+        self._populate_from_file(filename, zone, lenient)
 
         self.log.info('populate:   found %s records, exists=False',
                       len(zone.records) - before)
@@ -102,7 +107,93 @@ class YamlProvider(BaseProvider):
         if not isdir(self.directory):
             makedirs(self.directory)
 
+        self._do_apply(desired, data)
+
+    def _do_apply(self, desired, data):
         filename = join(self.directory, '{}yaml'.format(desired.name))
         self.log.debug('_apply:   writing filename=%s', filename)
         with open(filename, 'w') as fh:
             safe_dump(dict(data), fh)
+
+
+# Any record name added to this set will be included in the catch-all file,
+# instead of a file matching the record name.
+_CATCHALL_RECORD_NAMES = ('*', '')
+
+
+def list_all_yaml_files(directory):
+    yaml_files = set()
+    for f in listdir(directory):
+        filename = join(directory, '{}'.format(f))
+        if f.endswith('.yaml') and isfile(filename):
+            yaml_files.add(filename)
+    return list(yaml_files)
+
+
+class SplitYamlProvider(YamlProvider):
+    '''
+    Core provider for records configured in multiple YAML files on disk.
+
+    Behaves mostly similarly to YamlConfig, but interacts with multiple YAML
+    files, instead of a single monolitic one. The files are named RECORD.yaml,
+    except for any record which cannot be represented easily as a file; these
+    are stored in the catchall file, which is a YAML file the zone name,
+    prepended with a '$'. For example, a zone, 'github.com.' would have a
+    catch-all file named '$github.com.yaml'.
+
+    config:
+        class: octodns.provider.yaml.SplitYamlProvider
+        # The location of yaml config files (required)
+        directory: ./config
+        # The ttl to use for records when not specified in the data
+        # (optional, default 3600)
+        default_ttl: 3600
+        # Whether or not to enforce sorting order on the yaml config
+        # (optional, default True)
+        enforce_order: True
+    '''
+
+    def __init__(self, id, directory, *args, **kwargs):
+        super(SplitYamlProvider, self).__init__(id, directory, *args, **kwargs)
+        self.log = logging.getLogger('SplitYamlProvider[{}]'.format(id))
+
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
+
+        if target:
+            # When acting as a target we ignore any existing records so that we
+            # create a completely new copy
+            return False
+
+        before = len(zone.records)
+        yaml_filenames = list_all_yaml_files(self.directory)
+        self.log.info('populate:   found %s YAML files', len(yaml_filenames))
+        for yaml_filename in yaml_filenames:
+            self._populate_from_file(yaml_filename, zone, lenient)
+
+        self.log.info('populate:   found %s records, exists=False',
+                      len(zone.records) - before)
+        return False
+
+    def _do_apply(self, desired, data):
+        catchall = dict()
+        for record, config in data.items():
+            if record in _CATCHALL_RECORD_NAMES:
+                catchall[record] = config
+                continue
+            filename = join(self.directory, '{}.yaml'.format(record))
+            self.log.debug('_apply:   writing filename=%s', filename)
+            with open(filename, 'w') as fh:
+                record_data = {record: config}
+                safe_dump(record_data, fh)
+        if catchall:
+            dname = desired.name
+            # Scrub the trailing . to make filenames more sane.
+            if dname.endswith('.'):
+                dname = dname[:-1]
+            filename = join(
+                self.directory, '${}.yaml'.format(dname))
+            self.log.debug('_apply:   writing catchall filename=%s', filename)
+            with open(filename, 'w') as fh:
+                safe_dump(catchall, fh)
