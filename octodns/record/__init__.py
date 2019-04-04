@@ -852,7 +852,7 @@ class MxValue(object):
             exchange = value['exchange']
         except KeyError:
             exchange = value['value']
-        self.exchange = exchange
+        self.exchange = exchange.lower()
 
     @property
     def data(self):

@@ -354,6 +354,17 @@ class TestRecord(TestCase):
         self.assertEquals(b_value['exchange'], b.values[0].exchange)
         self.assertEquals(b_data, b.data)
 
+        a_upper_values = [{
+            'preference': 10,
+            'exchange': 'SMTP1.'
+        }, {
+            'priority': 20,
+            'value': 'SMTP2.'
+        }]
+        a_upper_data = {'ttl': 30, 'values': a_upper_values}
+        a_upper = MxRecord(self.zone, 'a', a_upper_data)
+        self.assertEquals(a_upper.data, a.data)
+
         target = SimpleProvider()
         # No changes with self
         self.assertFalse(a.changes(a, target))
