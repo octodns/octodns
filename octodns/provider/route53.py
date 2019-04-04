@@ -32,13 +32,16 @@ class _Route53Record(object):
 
     @classmethod
     def _new_dynamic(cls, provider, record, hosted_zone_id, creating):
+        # Creates the RRSets that correspond to the given dynamic record
         ret = set()
 
         # HostedZoneId wants just the last bit, but the place we're getting
         # this from looks like /hostedzone/Z424CArX3BB224
         hosted_zone_id = hosted_zone_id.split('/', 2)[-1]
 
-        # Create the default pool
+        # Create the default pool which comes from the base `values` of the
+        # record object. Its only used if all other values fail their
+        # healthchecks, which hopefully never happens.
         fqdn = record.fqdn
         ret.add(_Route53Record(provider, record, creating,
                                '_octodns-default-pool.{}'.format(fqdn)))
@@ -46,24 +49,34 @@ class _Route53Record(object):
         # Pools
         for pool_name, pool in record.dynamic.pools.items():
 
-            # Create the primary
+            # Create the primary, this will be the rrset that geo targeted
+            # rrsets will point to when they want to use a pool of values. It's
+            # a primary and observes target health so if all the values for
+            # this pool go red, we'll use the fallback/SECONDARY just below
             ret.add(_Route53DynamicPool(provider, hosted_zone_id, record,
                                         pool_name, creating))
 
-            # Create the fallback
+            # Create the fallback for this pool
             fallback = pool.data.get('fallback', False)
             if fallback:
-                # We have an explicitly configured fallback
+                # We have an explicitly configured fallback, another pool to
+                # use if all our values go red. This RRSet configures that pool
+                # as the next best option
                 ret.add(_Route53DynamicPool(provider, hosted_zone_id, record,
                                             pool_name, creating,
                                             target_name=fallback))
             else:
-                # We fallback on the default
+                # We fallback on the default, no explicit fallback so if all of
+                # this pool's values go red we'll fallback to the base
+                # (non-health-checked) default pool of values
                 ret.add(_Route53DynamicPool(provider, hosted_zone_id, record,
                                             pool_name, creating,
                                             target_name='default'))
 
-            # Create the values
+            # Create the values for this pool. These are health checked and in
+            # general each unique value will have an associated healthcheck.
+            # The PRIMARY pool up above will point to these RRSets which will
+            # be served out according to their weights
             for i, value in enumerate(pool.data['values']):
                 weight = value['weight']
                 value = value['value']
@@ -76,10 +89,15 @@ class _Route53Record(object):
             geos = rule.data.get('geos', [])
             if geos:
                 for geo in geos:
+                    # Create a RRSet for each geo in each rule that uses the
+                    # desired target pool
                     ret.add(_Route53DynamicRule(provider, hosted_zone_id,
                                                 record, pool_name, i,
                                                 creating, geo=geo))
             else:
+                # There's no geo's for this rule so it's the catchall that will
+                # just point things that don't match any geo rules to the
+                # specified pool
                 ret.add(_Route53DynamicRule(provider, hosted_zone_id, record,
                                             pool_name, i, creating))
 
@@ -87,6 +105,7 @@ class _Route53Record(object):
 
     @classmethod
     def _new_geo(cls, provider, record, creating):
+        # Creates the RRSets that correspond to the given geo record
         ret = set()
 
         ret.add(_Route53GeoDefault(provider, record, creating))
@@ -98,6 +117,7 @@ class _Route53Record(object):
 
     @classmethod
     def new(cls, provider, record, hosted_zone_id, creating):
+        # Creates the RRSets that correspond to the given record
 
         if getattr(record, 'dynamic', False):
             ret = cls._new_dynamic(provider, record, hosted_zone_id, creating)
@@ -105,6 +125,7 @@ class _Route53Record(object):
         elif getattr(record, 'geo', False):
             return cls._new_geo(provider, record, creating)
 
+        # Its a simple record that translates into a single RRSet
         return set((_Route53Record(provider, record, creating),))
 
     def __init__(self, provider, record, creating, fqdn_override=None):
@@ -480,7 +501,11 @@ def _mod_keyer(mod):
     action_order = _mod_keyer_action_order[mod['Action']]
 
     # We're sorting by 3 "columns", the action, the rrset type, and finally the
-    # name/id of the rrset
+    # name/id of the rrset. This ensures that Route53 won't see a RRSet that
+    # targets another that hasn't been seen yet. I.e. targets must come before
+    # things that target them. We sort on types of things rather than
+    # explicitly looking for targeting relationships since that's sufficent and
+    # easier to grok/do.
 
     if rrset.get('GeoLocation', False):
         return (action_order, 3, rrset['SetIdentifier'])
@@ -756,6 +781,8 @@ class Route53Provider(BaseProvider):
         return self._r53_rrsets[zone_id]
 
     def _data_for_dynamic(self, name, _type, rrsets):
+        # This converts a bunch of RRSets into their corresponding dynamic
+        # Record. It's used by populate.
         pools = defaultdict(lambda: {'values': []})
         # Data to build our rules will be collected here and "converted" into
         # their final form below
