@@ -497,6 +497,11 @@ def _mod_keyer(mod):
     return (action_order, 0, rrset['Name'])
 
 
+def _parse_pool_name(n):
+    # Parse the pool name out of _octodns-<pool-name>-pool...
+    return n.split('.', 1)[0][9:-5]
+
+
 class Route53Provider(BaseProvider):
     '''
     AWS Route53 Provider
@@ -768,7 +773,7 @@ class Route53Provider(BaseProvider):
             name = rrset['Name']
             if '-pool.' in name:
                 # This is a pool rrset
-                pool_name = name.split('.', 1)[0][9:-5]
+                pool_name = _parse_pool_name(name)
                 if pool_name == 'default':
                     # default becomes the base for the record and its
                     # value(s) will fill the non-dynamic values
@@ -777,8 +782,8 @@ class Route53Provider(BaseProvider):
                 elif rrset['Failover'] == 'SECONDARY':
                     # This is a failover record, we'll ignore PRIMARY, but
                     # SECONDARY will tell us what the pool's fallback is
-                    fallback_name = rrset['AliasTarget']['DNSName'] \
-                        .split('.', 1)[0][9:-5]
+                    fallback_name = \
+                        _parse_pool_name(rrset['AliasTarget']['DNSName'])
                     # Don't care about default fallbacks, anything else
                     # we'll record
                     if fallback_name != 'default':
@@ -789,16 +794,18 @@ class Route53Provider(BaseProvider):
                 # We record rule index as the first part of set-id, the 2nd
                 # part just ensures uniqueness across geos and is ignored
                 i = int(_id.split('-', 1)[0])
-                # Parse the pool name out of _octodns-<pool-name>-pool.
-                pool = rrset['AliasTarget']['DNSName'].split('.', 1)[0][9:-5]
+                target_pool = _parse_pool_name(rrset['AliasTarget']['DNSName'])
                 # Record the pool
-                rules[i]['pool'] = pool
+                rules[i]['pool'] = target_pool
                 # Record geo if we have one
                 geo = self._parse_geo(rrset)
                 if geo:
                     rules[i]['geos'].append(geo)
             else:
                 # These are the pool value(s)
+                # Grab the pool name out of the SetIdentifier, format looks
+                # like ...-000 where 000 is a zero-padded index for the value
+                # it's ignored only used to make sure the value is unique
                 pool_name = rrset['SetIdentifier'][:-4]
                 value = rrset['ResourceRecords'][0]['Value']
                 pools[pool_name]['values'].append({
