@@ -59,7 +59,7 @@ class YamlProvider(BaseProvider):
                         record = Record.new(zone, name, d, source=self,
                                             lenient=lenient)
                         zone.add_record(record, lenient=lenient)
-            self.log.info(
+            self.log.debug(
                 '_populate_from_file: successfully loaded "%s"', filename)
 
     def populate(self, zone, target=False, lenient=False):
