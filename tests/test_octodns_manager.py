@@ -222,7 +222,7 @@ class TestManager(TestCase):
 
             with self.assertRaises(Exception) as ctx:
                 manager.dump('unit.tests.', tmpdir.dirname, False, False,
-                    'nope')
+                             'nope')
             self.assertEquals('Unknown source: nope', ctx.exception.message)
 
             manager.dump('unit.tests.', tmpdir.dirname, False, False, 'in')
@@ -231,7 +231,7 @@ class TestManager(TestCase):
             # tyring to find sub zones
             with self.assertRaises(IOError):
                 manager.dump('unknown.zone.', tmpdir.dirname, False, False,
-                    'in')
+                             'in')
 
     def test_dump_empty(self):
         with TemporaryDirectory() as tmpdir:
