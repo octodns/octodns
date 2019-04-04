@@ -12,7 +12,7 @@ import logging
 
 from .provider.base import BaseProvider
 from .provider.plan import Plan
-from .provider.yaml import YamlProvider
+from .provider.yaml import SplitYamlProvider, YamlProvider
 from .record import Record
 from .yaml import safe_load
 from .zone import Zone
@@ -357,7 +357,7 @@ class Manager(object):
 
         return zb.changes(za, _AggregateTarget(a + b))
 
-    def dump(self, zone, output_dir, lenient, source, *sources):
+    def dump(self, zone, output_dir, lenient, split, source, *sources):
         '''
         Dump zone data from the specified source
         '''
@@ -372,7 +372,10 @@ class Manager(object):
         except KeyError as e:
             raise Exception('Unknown source: {}'.format(e.args[0]))
 
-        target = YamlProvider('dump', output_dir)
+        clz = YamlProvider
+        if split:
+            clz = SplitYamlProvider
+        target = clz('dump', output_dir)
 
         zone = Zone(zone, self.configured_sub_zones(zone))
         for source in sources:
