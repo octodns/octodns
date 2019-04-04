@@ -469,9 +469,9 @@ class _Route53GeoRecord(_Route53Record):
 
 
 _mod_keyer_action_order = {
-    'DELETE': '0',  # Delete things first
-    'CREATE': '1',  # Then Create things
-    'UPSERT': '2',  # Upsert things last
+    'DELETE': 0,  # Delete things first
+    'CREATE': 1,  # Then Create things
+    'UPSERT': 2,  # Upsert things last
 }
 
 
@@ -483,18 +483,18 @@ def _mod_keyer(mod):
     # name/id of the rrset
 
     if rrset.get('GeoLocation', False):
-        return '{}3{}'.format(action_order, rrset['SetIdentifier'])
+        return (action_order, 3, rrset['SetIdentifier'])
     elif rrset.get('AliasTarget', False):
         # We use an alias
         if rrset.get('Failover', False) == 'SECONDARY':
             # We're a secondary we'll ref primaries
-            return '{}2{}'.format(action_order, rrset['Name'])
+            return (action_order, 2, rrset['Name'])
         else:
             # We're a primary we'll ref values
-            return '{}1{}'.format(action_order, rrset['Name'])
+            return (action_order, 1, rrset['Name'])
 
     # We're just a plain value, these come first
-    return '{}0{}'.format(action_order, rrset['Name'])
+    return (action_order, 0, rrset['Name'])
 
 
 class Route53Provider(BaseProvider):

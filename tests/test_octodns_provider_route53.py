@@ -2273,7 +2273,7 @@ class TestModKeyer(TestCase):
         # First "column"
 
         # Deletes come first
-        self.assertEquals('00something', _mod_keyer({
+        self.assertEquals((0, 0, 'something'), _mod_keyer({
             'Action': 'DELETE',
             'ResourceRecordSet': {
                 'Name': 'something',
@@ -2281,7 +2281,7 @@ class TestModKeyer(TestCase):
         }))
 
         # Creates come next
-        self.assertEquals('10another', _mod_keyer({
+        self.assertEquals((1, 0, 'another'), _mod_keyer({
             'Action': 'CREATE',
             'ResourceRecordSet': {
                 'Name': 'another',
@@ -2289,7 +2289,7 @@ class TestModKeyer(TestCase):
         }))
 
         # Then upserts
-        self.assertEquals('20last', _mod_keyer({
+        self.assertEquals((2, 0, 'last'), _mod_keyer({
             'Action': 'UPSERT',
             'ResourceRecordSet': {
                 'Name': 'last',
@@ -2299,7 +2299,7 @@ class TestModKeyer(TestCase):
         # Second "column" value records tested above
 
         # AliasTarget primary second (to value)
-        self.assertEquals('01thing', _mod_keyer({
+        self.assertEquals((0, 1, 'thing'), _mod_keyer({
             'Action': 'DELETE',
             'ResourceRecordSet': {
                 'AliasTarget': 'some-target',
@@ -2309,7 +2309,7 @@ class TestModKeyer(TestCase):
         }))
 
         # AliasTarget secondary third
-        self.assertEquals('02thing', _mod_keyer({
+        self.assertEquals((0, 2, 'thing'), _mod_keyer({
             'Action': 'DELETE',
             'ResourceRecordSet': {
                 'AliasTarget': 'some-target',
@@ -2319,7 +2319,7 @@ class TestModKeyer(TestCase):
         }))
 
         # GeoLocation fourth
-        self.assertEquals('03some-id', _mod_keyer({
+        self.assertEquals((0, 3, 'some-id'), _mod_keyer({
             'Action': 'DELETE',
             'ResourceRecordSet': {
                 'GeoLocation': 'some-target',
