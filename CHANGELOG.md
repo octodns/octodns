@@ -1,3 +1,15 @@
+## v0.9.5 - 2019-??-?? - The big one, with all the dynamic stuff
+
+* dynamic record support, essentially a v2 version of geo records with a lot
+  more flexibility and power. Also support dynamic CNAME records.
+* Route53Provider dynamic record support
+* DynProvider dynamic record support
+* SUPPORTS_DYNAMIC is an optional property, defaults to False
+* Route53Provider health checks support disabling latency measurement
+* CloudflareProvider SRV record unpacking fix
+* DNSMadeEasy provider uses supports to avoid blowing up on unknown record
+  types
+
 ## v0.9.4 - 2019-01-28 - The one with a bunch of stuff, before the big one
 
 * A bunch of "dynamic" stuff that'll be detailed in the next release when
