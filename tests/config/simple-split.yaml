@@ -3,7 +3,7 @@ manager:
 providers:
   in:
     class: octodns.provider.yaml.SplitYamlProvider
-    directory: tests/config
+    directory: tests/config/split
   dump:
     class: octodns.provider.yaml.SplitYamlProvider
     directory: env/YAML_TMP_DIR

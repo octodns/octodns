@@ -1,0 +1,15 @@
+---
+simple-weighted:
+  dynamic:
+    pools:
+      default:
+        fallback: null
+        values:
+        - value: one.unit.tests.
+          weight: 3
+        - value: two.unit.tests.
+          weight: 2
+    rules:
+    - pool: default
+  type: CNAME
+  value: default.unit.tests.

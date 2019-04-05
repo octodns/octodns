@@ -256,9 +256,9 @@ class TestManager(TestCase):
 
             manager.dump('unit.tests.', tmpdir.dirname, False, True, 'in')
 
-            # make sure this fails with an IOError and not a KeyError when
+            # make sure this fails with an OSError and not a KeyError when
             # tyring to find sub zones
-            with self.assertRaises(IOError):
+            with self.assertRaises(OSError):
                 manager.dump('unknown.zone.', tmpdir.dirname, False, True,
                              'in')
 

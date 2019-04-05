@@ -29,6 +29,7 @@ a:
         pool: ams
       - geos:
           - NA-US-CA
+          - NA-US-NC
           - NA-US-OR
           - NA-US-WA
         pool: sea
@@ -65,6 +66,7 @@ aaaa:
         pool: ams
       - geos:
           - NA-US-CA
+          - NA-US-NC
           - NA-US-OR
           - NA-US-WA
         pool: sea
@@ -100,6 +102,7 @@ cname:
         pool: ams
       - geos:
           - NA-US-CA
+          - NA-US-NC
           - NA-US-OR
           - NA-US-WA
         pool: sea
@@ -159,6 +162,7 @@ real-ish-a:
       - geos:
         # TODO: require sorted
         - NA-US-CA
+        - NA-US-NC
         - NA-US-OR
         - NA-US-WA
         pool: us-west-2

@@ -157,6 +157,9 @@ class SplitYamlProvider(YamlProvider):
         super(SplitYamlProvider, self).__init__(id, directory, *args, **kwargs)
         self.log = logging.getLogger('SplitYamlProvider[{}]'.format(id))
 
+    def _zone_directory(self, zone):
+        return join(self.directory, zone.name)
+
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
@@ -167,7 +170,7 @@ class SplitYamlProvider(YamlProvider):
             return False
 
         before = len(zone.records)
-        yaml_filenames = list_all_yaml_files(self.directory)
+        yaml_filenames = list_all_yaml_files(self._zone_directory(zone))
         self.log.info('populate:   found %s YAML files', len(yaml_filenames))
         for yaml_filename in yaml_filenames:
             self._populate_from_file(yaml_filename, zone, lenient)
@@ -177,23 +180,24 @@ class SplitYamlProvider(YamlProvider):
         return False
 
     def _do_apply(self, desired, data):
+        zone_dir = self._zone_directory(desired)
+        if not isdir(zone_dir):
+            makedirs(zone_dir)
+
         catchall = dict()
         for record, config in data.items():
             if record in _CATCHALL_RECORD_NAMES:
                 catchall[record] = config
                 continue
-            filename = join(self.directory, '{}.yaml'.format(record))
+            filename = join(zone_dir, '{}.yaml'.format(record))
             self.log.debug('_apply:   writing filename=%s', filename)
             with open(filename, 'w') as fh:
                 record_data = {record: config}
                 safe_dump(record_data, fh)
         if catchall:
-            dname = desired.name
             # Scrub the trailing . to make filenames more sane.
-            if dname.endswith('.'):
-                dname = dname[:-1]
-            filename = join(
-                self.directory, '${}.yaml'.format(dname))
+            dname = desired.name[:-1]
+            filename = join(zone_dir, '${}.yaml'.format(dname))
             self.log.debug('_apply:   writing catchall filename=%s', filename)
             with open(filename, 'w') as fh:
                 safe_dump(catchall, fh)

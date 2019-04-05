@@ -1,0 +1,13 @@
+---
+_srv._tcp:
+  ttl: 600
+  type: SRV
+  values:
+  - port: 30
+    priority: 10
+    target: foo-1.unit.tests.
+    weight: 20
+  - port: 30
+    priority: 12
+    target: foo-2.unit.tests.
+    weight: 20
