@@ -81,15 +81,6 @@ class TestSplitYamlProvider(TestCase):
         source.populate(dynamic_zone)
         self.assertEquals(5, len(dynamic_zone.records))
 
-        # Assumption here is that a clean round-trip means that everything
-        # worked as expected, data that went in came back out and could be
-        # pulled in yet again and still match up. That assumes that the input
-        # data completely exercises things. This assumption can be tested by
-        # relatively well by running
-        #   ./script/coverage tests/test_octodns_provider_yaml.py and
-        # looking at the coverage file
-        #   ./htmlcov/octodns_provider_yaml_py.html
-
         with TemporaryDirectory() as td:
             # Add some subdirs to make sure that it can create them
             directory = join(td.dirname, 'sub', 'dir')
