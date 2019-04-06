@@ -1067,15 +1067,18 @@ class _ChunkedValuesMixin(_ValuesMixin):
     CHUNK_SIZE = 255
     _unescaped_semicolon_re = re.compile(r'\w;')
 
+    def chunked_value(self, value):
+        value = value.replace('"', '\\"')
+        vs = [value[i:i + self.CHUNK_SIZE]
+              for i in range(0, len(value), self.CHUNK_SIZE)]
+        vs = '" "'.join(vs)
+        return '"{}"'.format(vs)
+
     @property
     def chunked_values(self):
         values = []
         for v in self.values:
-            v = v.replace('"', '\\"')
-            vs = [v[i:i + self.CHUNK_SIZE]
-                  for i in range(0, len(v), self.CHUNK_SIZE)]
-            vs = '" "'.join(vs)
-            values.append('"{}"'.format(vs))
+            values.append(self.chunked_value(v))
         return values
 
 
