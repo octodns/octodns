@@ -268,7 +268,7 @@ class DynProvider(BaseProvider):
 
     @property
     def SUPPORTS_DYNAMIC(self):
-        return True
+        return self.traffic_directors_enabled
 
     def _check_dyn_sess(self):
         # We don't have to worry about locking for the check since the

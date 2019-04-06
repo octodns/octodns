@@ -8,4 +8,4 @@ ROOT=`dirname $GIT`
 
 . $ROOT/env/bin/activate
 $ROOT/script/lint
-$ROOT/script/test
+$ROOT/script/coverage
