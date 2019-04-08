@@ -624,10 +624,12 @@ class DynProvider(BaseProvider):
                        zone.name, lenient)
         td_records = set()
         for fqdn, types in self.traffic_directors.items():
-            # TODO: skip subzones
-            if not fqdn.endswith(zone.name):
-                continue
             for _type, td in types.items():
+                # Does this TD belong to the current zone
+                td_zone = '{}.'.format(td.nodes[0]['zone'])
+                if td_zone != zone.name:
+                    # Doesn't belong to the current zone, skip it
+                    continue
                 # critical to call rulesets once, each call loads them :-(
                 rulesets = td.rulesets
                 if self._is_traffic_director_dyanmic(td, rulesets):
