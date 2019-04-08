@@ -37,7 +37,8 @@ class YamlProvider(BaseProvider):
 
     def __init__(self, id, directory, default_ttl=3600, enforce_order=True,
                  *args, **kwargs):
-        self.log = logging.getLogger('YamlProvider[{}]'.format(id))
+        self.log = logging.getLogger('{}[{}]'.format(
+            self.__class__.__name__, id))
         self.log.debug('__init__: id=%s, directory=%s, default_ttl=%d, '
                        'enforce_order=%d', id, directory, default_ttl,
                        enforce_order)
@@ -154,7 +155,6 @@ class SplitYamlProvider(YamlProvider):
 
     def __init__(self, id, directory, *args, **kwargs):
         super(SplitYamlProvider, self).__init__(id, directory, *args, **kwargs)
-        self.log = logging.getLogger('SplitYamlProvider[{}]'.format(id))
 
     def _zone_directory(self, zone):
         return join(self.directory, zone.name)
