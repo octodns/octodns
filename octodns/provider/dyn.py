@@ -929,9 +929,8 @@ class DynProvider(BaseProvider):
         # We don't have this pool and thus need to create it
         records_for = getattr(self, '_dynamic_records_for_{}'.format(_type))
         records = records_for(values, record_extras)
-        record_set = DSFRecordSet(_type, label,
-                                  serve_count=min(len(records), 2),
-                                  records=records, dsf_monitor_id=monitor_id)
+        record_set = DSFRecordSet(_type, label, serve_count=1, records=records,
+                                  dsf_monitor_id=monitor_id)
         chain = DSFFailoverChain(label, record_sets=[record_set])
         pool = DSFResponsePool(label, rs_chains=[chain])
         pool.create(td)
