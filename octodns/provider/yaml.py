@@ -131,11 +131,22 @@ class SplitYamlProvider(YamlProvider):
     Core provider for records configured in multiple YAML files on disk.
 
     Behaves mostly similarly to YamlConfig, but interacts with multiple YAML
-    files, instead of a single monolitic one. The files are named RECORD.yaml,
-    except for any record which cannot be represented easily as a file; these
-    are stored in the catchall file, which is a YAML file the zone name,
-    prepended with a '$'. For example, a zone, 'github.com.' would have a
-    catch-all file named '$github.com.yaml'.
+    files, instead of a single monolitic one. All files are stored in a
+    subdirectory matching the name of the zone (including the trailing .) of
+    the directory config. The files are named RECORD.yaml, except for any
+    record which cannot be represented easily as a file; these are stored in
+    the catchall file, which is a YAML file the zone name, prepended with '$'.
+    For example, a zone, 'github.com.' would have a catch-all file named
+    '$github.com.yaml'.
+
+    A full directory structure for the zone github.com. managed under directory
+    "zones/" would be:
+
+    zones/
+      github.com./
+        $github.com.yaml
+        www.yaml
+        ...
 
     config:
         class: octodns.provider.yaml.SplitYamlProvider
