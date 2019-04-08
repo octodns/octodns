@@ -13,7 +13,8 @@ from yaml.constructor import ConstructorError
 
 from octodns.record import Create
 from octodns.provider.base import Plan
-from octodns.provider.yaml import SplitYamlProvider, YamlProvider
+from octodns.provider.yaml import _list_all_yaml_files, \
+    SplitYamlProvider, YamlProvider
 from octodns.zone import SubzoneRecordException, Zone
 
 from helpers import TemporaryDirectory
@@ -200,9 +201,9 @@ class TestSplitYamlProvider(TestCase):
 
             # This isn't great, but given the variable nature of the temp dir
             # names, it's necessary.
-            got = (basename(f)
-                   for f in SplitYamlProvider.list_all_yaml_files(directory))
-            self.assertItemsEqual(yaml_files, got)
+            self.assertItemsEqual(
+                yaml_files,
+                (basename(f) for f in _list_all_yaml_files(directory)))
 
     def test_zone_directory(self):
         source = SplitYamlProvider(
