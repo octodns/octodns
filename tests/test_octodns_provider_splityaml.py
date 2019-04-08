@@ -191,6 +191,8 @@ class TestSplitYamlProvider(TestCase):
         with self.assertRaises(ConstructorError):
             source.populate(zone)
 
+        zone = Zone('unordered.', [])
+
         source = SplitYamlProvider(
             'test', join(dirname(__file__), 'config/split'),
             enforce_order=False)
