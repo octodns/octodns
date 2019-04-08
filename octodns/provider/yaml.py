@@ -116,20 +116,6 @@ class YamlProvider(BaseProvider):
             safe_dump(dict(data), fh)
 
 
-# Any record name added to this set will be included in the catch-all file,
-# instead of a file matching the record name.
-_CATCHALL_RECORD_NAMES = ('*', '')
-
-
-def list_all_yaml_files(directory):
-    yaml_files = set()
-    for f in listdir(directory):
-        filename = join(directory, '{}'.format(f))
-        if f.endswith('.yaml') and isfile(filename):
-            yaml_files.add(filename)
-    return list(yaml_files)
-
-
 class SplitYamlProvider(YamlProvider):
     '''
     Core provider for records configured in multiple YAML files on disk.
@@ -153,6 +139,19 @@ class SplitYamlProvider(YamlProvider):
         enforce_order: True
     '''
 
+    # Any record name added to this set will be included in the catch-all file,
+    # instead of a file matching the record name.
+    CATCHALL_RECORD_NAMES = ('*', '')
+
+    @classmethod
+    def list_all_yaml_files(_, directory):
+        yaml_files = set()
+        for f in listdir(directory):
+            filename = join(directory, '{}'.format(f))
+            if f.endswith('.yaml') and isfile(filename):
+                yaml_files.add(filename)
+        return list(yaml_files)
+
     def __init__(self, id, directory, *args, **kwargs):
         super(SplitYamlProvider, self).__init__(id, directory, *args, **kwargs)
         self.log = logging.getLogger('SplitYamlProvider[{}]'.format(id))
@@ -170,7 +169,7 @@ class SplitYamlProvider(YamlProvider):
             return False
 
         before = len(zone.records)
-        yaml_filenames = list_all_yaml_files(self._zone_directory(zone))
+        yaml_filenames = self.list_all_yaml_files(self._zone_directory(zone))
         self.log.info('populate:   found %s YAML files', len(yaml_filenames))
         for yaml_filename in yaml_filenames:
             self._populate_from_file(yaml_filename, zone, lenient)
@@ -186,7 +185,7 @@ class SplitYamlProvider(YamlProvider):
 
         catchall = dict()
         for record, config in data.items():
-            if record in _CATCHALL_RECORD_NAMES:
+            if record in self.CATCHALL_RECORD_NAMES:
                 catchall[record] = config
                 continue
             filename = join(zone_dir, '{}.yaml'.format(record))
