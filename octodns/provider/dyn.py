@@ -624,10 +624,12 @@ class DynProvider(BaseProvider):
                        zone.name, lenient)
         td_records = set()
         for fqdn, types in self.traffic_directors.items():
-            # TODO: skip subzones
-            if not fqdn.endswith(zone.name):
-                continue
             for _type, td in types.items():
+                # Does this TD belong to the current zone
+                td_zone = '{}.'.format(td.nodes[0]['zone'])
+                if td_zone != zone.name:
+                    # Doesn't belong to the current zone, skip it
+                    continue
                 # critical to call rulesets once, each call loads them :-(
                 rulesets = td.rulesets
                 if self._is_traffic_director_dyanmic(td, rulesets):
@@ -927,9 +929,8 @@ class DynProvider(BaseProvider):
         # We don't have this pool and thus need to create it
         records_for = getattr(self, '_dynamic_records_for_{}'.format(_type))
         records = records_for(values, record_extras)
-        record_set = DSFRecordSet(_type, label,
-                                  serve_count=min(len(records), 2),
-                                  records=records, dsf_monitor_id=monitor_id)
+        record_set = DSFRecordSet(_type, label, serve_count=1, records=records,
+                                  dsf_monitor_id=monitor_id)
         chain = DSFFailoverChain(label, record_sets=[record_set])
         pool = DSFResponsePool(label, rs_chains=[chain])
         pool.create(td)

@@ -980,26 +980,34 @@ class TestDynProviderGeo(TestCase):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
+        got = Zone('unit.tests.', [])
+        zone_name = got.name[:-1]
         # only traffic director
         mock.side_effect = [
             # get traffic directors
             self.traffic_directors_response,
-            # get traffic director
+            # get the first td's nodes
+            {'data': [{'fqdn': zone_name, 'zone': zone_name}]},
+            # get traffic director, b/c ^ matches
             self.traffic_director_response,
+            # get the next td's nodes, not a match
+            {'data': [{'fqdn': 'other', 'zone': 'other'}]},
             # get zone
             {'data': {}},
             # get records
             {'data': {}},
         ]
-        got = Zone('unit.tests.', [])
         provider.populate(got)
         self.assertEquals(1, len(got.records))
         self.assertFalse(self.expected_geo.changes(got, provider))
         mock.assert_has_calls([
+            call('/DSF/', 'GET', {'detail': 'Y'}),
+            call('/DSFNode/2ERWXQNsb_IKG2YZgYqkPvk0PBM', 'GET', {}),
             call('/DSF/2ERWXQNsb_IKG2YZgYqkPvk0PBM/', 'GET',
                  {'pending_changes': 'Y'}),
+            call('/DSFNode/3ERWXQNsb_IKG2YZgYqkPvk0PBM', 'GET', {}),
             call('/Zone/unit.tests/', 'GET', {}),
-            call('/AllRecord/unit.tests/unit.tests./', 'GET', {'detail': 'Y'}),
+            call('/AllRecord/unit.tests/unit.tests./', 'GET', {'detail': 'Y'})
         ])
 
     @patch('dyn.core.SessionEngine.execute')
@@ -1035,8 +1043,12 @@ class TestDynProviderGeo(TestCase):
         mock.side_effect = [
             # get traffic directors
             self.traffic_directors_response,
-            # get traffic director
+            # grab its nodes, matches
+            {'data': [{'fqdn': 'unit.tests', 'zone': 'unit.tests'}]},
+            # get traffic director b/c match
             self.traffic_director_response,
+            # grab next td's nodes, not a match
+            {'data': [{'fqdn': 'other', 'zone': 'other'}]},
             # get zone
             {'data': {}},
             # get records
@@ -1047,10 +1059,13 @@ class TestDynProviderGeo(TestCase):
         self.assertEquals(1, len(got.records))
         self.assertFalse(self.expected_geo.changes(got, provider))
         mock.assert_has_calls([
+            call('/DSF/', 'GET', {'detail': 'Y'}),
+            call('/DSFNode/2ERWXQNsb_IKG2YZgYqkPvk0PBM', 'GET', {}),
             call('/DSF/2ERWXQNsb_IKG2YZgYqkPvk0PBM/', 'GET',
                  {'pending_changes': 'Y'}),
+            call('/DSFNode/3ERWXQNsb_IKG2YZgYqkPvk0PBM', 'GET', {}),
             call('/Zone/unit.tests/', 'GET', {}),
-            call('/AllRecord/unit.tests/unit.tests./', 'GET', {'detail': 'Y'}),
+            call('/AllRecord/unit.tests/unit.tests./', 'GET', {'detail': 'Y'})
         ])
 
     @patch('dyn.core.SessionEngine.execute')
@@ -1085,8 +1100,10 @@ class TestDynProviderGeo(TestCase):
         mock.side_effect = [
             # get traffic directors
             self.traffic_directors_response,
+            {'data': [{'fqdn': 'unit.tests', 'zone': 'unit.tests'}]},
             # get traffic director
             busted_traffic_director_response,
+            {'data': [{'fqdn': 'other', 'zone': 'other'}]},
             # get zone
             {'data': {}},
             # get records
@@ -1099,10 +1116,13 @@ class TestDynProviderGeo(TestCase):
         # so just compare set contents (which does name and type)
         self.assertEquals(self.expected_geo.records, got.records)
         mock.assert_has_calls([
+            call('/DSF/', 'GET', {'detail': 'Y'}),
+            call('/DSFNode/2ERWXQNsb_IKG2YZgYqkPvk0PBM', 'GET', {}),
             call('/DSF/2ERWXQNsb_IKG2YZgYqkPvk0PBM/', 'GET',
                  {'pending_changes': 'Y'}),
+            call('/DSFNode/3ERWXQNsb_IKG2YZgYqkPvk0PBM', 'GET', {}),
             call('/Zone/unit.tests/', 'GET', {}),
-            call('/AllRecord/unit.tests/unit.tests./', 'GET', {'detail': 'Y'}),
+            call('/AllRecord/unit.tests/unit.tests./', 'GET', {'detail': 'Y'})
         ])
 
     @patch('dyn.core.SessionEngine.execute')
@@ -1625,11 +1645,12 @@ class DummyRuleset(object):
 
 class DummyTrafficDirector(object):
 
-    def __init__(self, rulesets=[], response_pools=[], ttl=42):
+    def __init__(self, zone_name, rulesets=[], response_pools=[], ttl=42):
         self.label = 'dummy:abcdef1234567890'
         self.rulesets = rulesets
         self.all_response_pools = response_pools
         self.ttl = ttl
+        self.nodes = [{'zone': zone_name[:-1]}]
 
 
 class TestDynProviderDynamic(TestCase):
@@ -1880,9 +1901,9 @@ class TestDynProviderDynamic(TestCase):
                 },
             }),
         ]
-        td = DummyTrafficDirector(rulesets, [default_response_pool,
-                                             pool1_response_pool])
         zone = Zone('unit.tests.', [])
+        td = DummyTrafficDirector(zone.name, rulesets,
+                                  [default_response_pool, pool1_response_pool])
         record = provider._populate_dynamic_traffic_director(zone, fqdn, 'A',
                                                              td, rulesets,
                                                              True)
