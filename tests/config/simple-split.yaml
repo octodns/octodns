@@ -1,0 +1,37 @@
+manager:
+  max_workers: 2
+providers:
+  in:
+    class: octodns.provider.yaml.SplitYamlProvider
+    directory: tests/config/split
+  dump:
+    class: octodns.provider.yaml.SplitYamlProvider
+    directory: env/YAML_TMP_DIR
+  # This is sort of ugly, but it shouldn't hurt anything. It'll just write out
+  # the target file twice where it and dump are both used
+  dump2:
+    class: octodns.provider.yaml.SplitYamlProvider
+    directory: env/YAML_TMP_DIR
+  simple:
+    class: helpers.SimpleProvider
+  geo:
+    class: helpers.GeoProvider
+  nosshfp:
+    class: helpers.NoSshFpProvider
+zones:
+  unit.tests.:
+    sources:
+    - in
+    targets:
+    - dump
+  subzone.unit.tests.:
+    sources:
+    - in
+    targets:
+    - dump
+    - dump2
+  empty.:
+    sources:
+    - in
+    targets:
+    - dump

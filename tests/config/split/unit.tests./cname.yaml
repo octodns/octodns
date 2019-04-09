@@ -1,0 +1,5 @@
+---
+cname:
+  ttl: 300
+  type: CNAME
+  value: unit.tests.

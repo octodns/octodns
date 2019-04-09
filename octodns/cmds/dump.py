@@ -21,6 +21,9 @@ def main():
     parser.add_argument('--lenient', action='store_true', default=False,
                         help='Ignore record validations and do a best effort '
                         'dump')
+    parser.add_argument('--split', action='store_true', default=False,
+                        help='Split the dumped zone into a YAML file per '
+                        'record')
     parser.add_argument('zone', help='Zone to dump')
     parser.add_argument('source', nargs='+',
                         help='Source(s) to pull data from')
@@ -28,7 +31,8 @@ def main():
     args = parser.parse_args()
 
     manager = Manager(args.config_file)
-    manager.dump(args.zone, args.output_dir, args.lenient, *args.source)
+    manager.dump(args.zone, args.output_dir, args.lenient, args.split,
+                 *args.source)
 
 
 if __name__ == '__main__':
