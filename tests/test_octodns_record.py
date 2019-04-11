@@ -87,14 +87,6 @@ class TestRecord(TestCase):
 
         # __repr__ doesn't blow up
         a.__repr__()
-        # Record.__repr__ does
-        with self.assertRaises(NotImplementedError):
-            class DummyRecord(Record):
-
-                def __init__(self):
-                    pass
-
-            DummyRecord().__repr__()
 
     def test_values_mixin_data(self):
         # no values, no value or values in data
