@@ -50,3 +50,6 @@ Ccname.other.foo:www.other.foo
 'example.com:test TXT:300
 'colon.example.com:test \072 TXT:300
 'nottl.example.com:nottl test TXT
+
+3ipv6-3.example.com:2a021348017cd5d0002419fffef35742:300
+6ipv6-6.example.com:2a021348017cd5d0002419fffef35743
