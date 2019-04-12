@@ -20,7 +20,7 @@ from .base import BaseSource
 class TinyDnsBaseSource(BaseSource):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(('A', 'CNAME', 'MX', 'NS'))
+    SUPPORTS = set(('A', 'CNAME', 'MX', 'NS', 'TXT'))
 
     split_re = re.compile(r':+')
 
@@ -35,6 +35,22 @@ class TinyDnsBaseSource(BaseSource):
                 values.append(record[0])
         if len(values) == 0:
             return
+        try:
+            ttl = records[0][1]
+        except IndexError:
+            ttl = self.default_ttl
+        return {
+            'ttl': ttl,
+            'type': _type,
+            'values': values,
+        }
+
+    def _data_for_TXT(self, _type, records):
+        values = []
+
+        for record in records:
+            values.append(record[0].decode('unicode-escape'))
+
         try:
             ttl = records[0][1]
         except IndexError:
@@ -104,6 +120,7 @@ class TinyDnsBaseSource(BaseSource):
             'C': 'CNAME',
             '+': 'A',
             '@': 'MX',
+            '\'': 'TXT',
         }
         name_re = re.compile(r'((?P<name>.+)\.)?{}$'.format(zone.name[:-1]))
 
