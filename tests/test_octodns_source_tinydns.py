@@ -20,7 +20,7 @@ class TestTinyDnsFileSource(TestCase):
     def test_populate_normal(self):
         got = Zone('example.com.', [])
         self.source.populate(got)
-        self.assertEquals(11, len(got.records))
+        self.assertEquals(14, len(got.records))
 
         expected = Zone('example.com.', [])
         for name, data in (
@@ -85,6 +85,21 @@ class TestTinyDnsFileSource(TestCase):
                     'preference': 40,
                     'exchange': 'smtp-2-host.example.com.',
                 }]
+            }),
+            ('', {
+                'type': 'TXT',
+                'ttl': 300,
+                'value': 'test TXT',
+            }),
+            ('colon', {
+                'type': 'TXT',
+                'ttl': 300,
+                'value': 'test : TXT',
+            }),
+            ('nottl', {
+                'type': 'TXT',
+                'ttl': 3600,
+                'value': 'nottl test TXT',
             }),
         ):
             record = Record.new(expected, name, data)
@@ -173,4 +188,4 @@ class TestTinyDnsFileSource(TestCase):
     def test_ignores_subs(self):
         got = Zone('example.com.', ['sub'])
         self.source.populate(got)
-        self.assertEquals(10, len(got.records))
+        self.assertEquals(13, len(got.records))

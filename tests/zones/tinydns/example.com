@@ -46,3 +46,7 @@ Ccname.other.foo:www.other.foo
 +a1.blah-asdf.subtest.com:10.2.3.5
 +a2.blah-asdf.subtest.com:10.2.3.6
 +a3.asdf.subtest.com:10.2.3.7
+
+'example.com:test TXT:300
+'colon.example.com:test \072 TXT:300
+'nottl.example.com:nottl test TXT
