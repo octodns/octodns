@@ -64,7 +64,8 @@ class TinyDnsBaseSource(BaseSource):
         values = []
 
         for record in records:
-            values.append(record[0].decode('unicode-escape'))
+            new_value = record[0].decode('unicode-escape').replace(";", "\\;")
+            values.append(new_value)
 
         try:
             ttl = records[0][1]
