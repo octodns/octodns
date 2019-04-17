@@ -53,3 +53,5 @@ Ccname.other.foo:www.other.foo
 
 3ipv6-3.example.com:2a021348017cd5d0002419fffef35742:300
 6ipv6-6.example.com:2a021348017cd5d0002419fffef35743
+
+'semicolon.example.com:v=DKIM1; k=rsa; p=blah:300
