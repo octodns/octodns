@@ -4,7 +4,7 @@
 
 set -e
 
-cd "$(dirname $0)"/..
+cd "$(dirname "$0")"/..
 ROOT=$(pwd)
 
 if [ -z "$VENV_NAME" ]; then
@@ -13,9 +13,9 @@ fi
 
 if [ ! -d "$VENV_NAME" ]; then
     if [ -z "$VENV_PYTHON" ]; then
-        VENV_PYTHON=`which python`
+        VENV_PYTHON=$(command -v python)
     fi
-    virtualenv --python=$VENV_PYTHON $VENV_NAME
+    virtualenv --python="$VENV_PYTHON" "$VENV_NAME"
 fi
 . "$VENV_NAME/bin/activate"
 

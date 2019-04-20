@@ -8,8 +8,8 @@ from __future__ import absolute_import, division, print_function, \
 from unittest import TestCase
 
 from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
-    CnameRecord, Create, Delete, GeoValue, MxRecord, NaptrRecord, \
-    NaptrValue, NsRecord, Record, SshfpRecord, SpfRecord, SrvRecord, \
+    CnameRecord, Create, Delete, GeoValue, MxRecord, NaptrRecord, NaptrValue, \
+    NsRecord, PtrRecord, Record, SshfpRecord, SpfRecord, SrvRecord, \
     TxtRecord, Update, ValidationError, _Dynamic, _DynamicPool, _DynamicRule
 from octodns.zone import Zone
 
@@ -26,6 +26,45 @@ class TestRecord(TestCase):
             'value': '1.2.3.4',
         })
         self.assertEquals('mixedcase', record.name)
+
+    def test_alias_lowering_value(self):
+        upper_record = AliasRecord(self.zone, 'aliasUppwerValue', {
+            'ttl': 30,
+            'type': 'ALIAS',
+            'value': 'GITHUB.COM',
+        })
+        lower_record = AliasRecord(self.zone, 'aliasLowerValue', {
+            'ttl': 30,
+            'type': 'ALIAS',
+            'value': 'github.com',
+        })
+        self.assertEquals(upper_record.value, lower_record.value)
+
+    def test_cname_lowering_value(self):
+        upper_record = CnameRecord(self.zone, 'CnameUppwerValue', {
+            'ttl': 30,
+            'type': 'CNAME',
+            'value': 'GITHUB.COM',
+        })
+        lower_record = CnameRecord(self.zone, 'CnameLowerValue', {
+            'ttl': 30,
+            'type': 'CNAME',
+            'value': 'github.com',
+        })
+        self.assertEquals(upper_record.value, lower_record.value)
+
+    def test_ptr_lowering_value(self):
+        upper_record = PtrRecord(self.zone, 'PtrUppwerValue', {
+            'ttl': 30,
+            'type': 'PTR',
+            'value': 'GITHUB.COM',
+        })
+        lower_record = PtrRecord(self.zone, 'PtrLowerValue', {
+            'ttl': 30,
+            'type': 'PTR',
+            'value': 'github.com',
+        })
+        self.assertEquals(upper_record.value, lower_record.value)
 
     def test_a_and_record(self):
         a_values = ['1.2.3.4', '2.2.3.4']
