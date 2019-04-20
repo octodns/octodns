@@ -714,6 +714,8 @@ class _TargetValue(object):
 
     @classmethod
     def process(self, value):
+        if value:
+            return value.lower()
         return value
 
 
