@@ -9,6 +9,26 @@ The architecture is pluggable and the tooling is flexible to make it applicable 
 
 It is similar to [Netflix/denominator](https://github.com/Netflix/denominator).
 
+## Table of Contents
+
+- [Getting started](#getting-started)
+  - [Workspace](#workspace)
+  - [Config](#config)
+  - [Noop](#noop)
+  - [Making changes](#making-changes)
+  - [Workflow](#workflow)
+  - [Bootstrapping config files](#bootstrapping-config-files)
+- [Supported providers](#supported-providers)
+    - [Notes](#notes)
+- [Custom Sources and Providers](#custom-sources-and-providers)
+- [Other Uses](#other-uses)
+  - [Syncing between providers](#syncing-between-providers)
+  - [Dynamic sources](#dynamic-sources)
+- [Contributing](#contributing)
+- [Getting help](#getting-help)
+- [License](#license)
+- [Authors](#authors)
+
 ## Getting started
 
 ### Workspace
