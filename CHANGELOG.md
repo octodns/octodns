@@ -9,6 +9,7 @@
 * CloudflareProvider SRV record unpacking fix
 * DNSMadeEasy provider uses supports to avoid blowing up on unknown record
   types
+* Normalize MX/CNAME/ALIAS/PTR value to lower case
 
 ## v0.9.4 - 2019-01-28 - The one with a bunch of stuff, before the big one
 
