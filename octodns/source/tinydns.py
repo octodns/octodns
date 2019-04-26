@@ -47,14 +47,11 @@ class TinyDnsBaseSource(BaseSource):
         }
 
     def _data_for_AAAA(self, _type, records):
-        '''
-        TinyDNS files have the ipv6 address written in full, but with the
-        colons removed. This inserts a colon every 4th character to make
-        the address correct.
-        '''
-
         values = []
         for record in records:
+            # TinyDNS files have the ipv6 address written in full, but with the
+            # colons removed. This inserts a colon every 4th character to make
+            # the address correct.
             values.append(u":".join(textwrap.wrap(record[0], 4)))
         try:
             ttl = records[0][1]
