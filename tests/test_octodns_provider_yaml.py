@@ -14,7 +14,7 @@ from yaml.constructor import ConstructorError
 from octodns.record import Create
 from octodns.provider.base import Plan
 from octodns.provider.yaml import _list_all_yaml_files, \
-    SplitYamlProvider, YamlProvider
+    OverridingYamlProvider, SplitYamlProvider, YamlProvider
 from octodns.zone import SubzoneRecordException, Zone
 
 from helpers import TemporaryDirectory
@@ -372,3 +372,38 @@ class TestSplitYamlProvider(TestCase):
             source.populate(zone)
         self.assertEquals('Record www.sub.unit.tests. is under a managed '
                           'subzone', ctx.exception.message)
+
+
+class TestOverridingYamlProvider(TestCase):
+
+    def test_provider(self):
+        config = join(dirname(__file__), 'config')
+        override_config = join(dirname(__file__), 'config', 'override')
+        source = OverridingYamlProvider('test', config, override_config)
+
+        zone = Zone('unit.tests.', [])
+        dynamic_zone = Zone('dynamic.tests.', [])
+
+        # With target we don't add anything (same as base)
+        source.populate(zone, target=source)
+        self.assertEquals(0, len(zone.records))
+
+        # without it we see everything
+        source.populate(zone)
+        self.assertEquals(18, len(zone.records))
+
+        # Load the dynamic records
+        source.populate(dynamic_zone)
+
+        got = {r.name: r for r in dynamic_zone.records}
+        # We see both the base and override files, 1 extra record
+        self.assertEquals(6, len(got))
+
+        # 'a' was replaced with a generic record
+        self.assertEquals({
+            'ttl': 3600,
+            'values': ['4.4.4.4', '5.5.5.5']
+        }, got['a'].data)
+
+        # And we have a new override
+        self.assertTrue('added' in got)

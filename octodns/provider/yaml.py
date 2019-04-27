@@ -47,7 +47,7 @@ class YamlProvider(BaseProvider):
         self.default_ttl = default_ttl
         self.enforce_order = enforce_order
 
-    def _populate_from_file(self, filename, zone, lenient):
+    def _populate_from_file(self, filename, zone, lenient, replace=False):
         with open(filename, 'r') as fh:
             yaml_data = safe_load(fh, enforce_order=self.enforce_order)
             if yaml_data:
@@ -59,9 +59,10 @@ class YamlProvider(BaseProvider):
                             d['ttl'] = self.default_ttl
                         record = Record.new(zone, name, d, source=self,
                                             lenient=lenient)
-                        zone.add_record(record, lenient=lenient)
-            self.log.debug(
-                '_populate_from_file: successfully loaded "%s"', filename)
+                        zone.add_record(record, lenient=lenient,
+                                        replace=replace)
+            self.log.debug('_populate_from_file: successfully loaded "%s"',
+                           filename)
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
@@ -211,3 +212,54 @@ class SplitYamlProvider(YamlProvider):
             self.log.debug('_apply:   writing catchall filename=%s', filename)
             with open(filename, 'w') as fh:
                 safe_dump(catchall, fh)
+
+
+class OverridingYamlProvider(YamlProvider):
+    '''
+    Provider that builds on YamlProvider to allow overriding specific records.
+
+    Works identically to YamlProvider with the additional behavior of loading
+    data from a second zonefile in override_directory if it exists. Records in
+    this second file will override (replace) those previously seen in the
+    primary. Records that do not exist in the primary will just be added. There
+    is currently no mechinism to remove records from the primary zone.
+
+    config:
+        class: octodns.provider.yaml.OverridingYamlProvider
+        # The location of yaml config files (required)
+        directory: ./config
+        # The location of overriding yaml config files (required)
+        override_directory: ./config
+        # The ttl to use for records when not specified in the data
+        # (optional, default 3600)
+        default_ttl: 3600
+        # Whether or not to enforce sorting order on the yaml config
+        # (optional, default True)
+        enforce_order: True
+    '''
+
+    def __init__(self, id, directory, override_directory, *args, **kwargs):
+        super(OverridingYamlProvider, self).__init__(id, directory, *args,
+                                                     **kwargs)
+        self.override_directory = override_directory
+
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
+
+        if target:
+            # When acting as a target we ignore any existing records so that we
+            # create a completely new copy
+            return False
+
+        before = len(zone.records)
+        filename = join(self.directory, '{}yaml'.format(zone.name))
+        self._populate_from_file(filename, zone, lenient)
+
+        filename = join(self.override_directory, '{}yaml'.format(zone.name))
+        if isfile(filename):
+            self._populate_from_file(filename, zone, lenient, replace=True)
+
+        self.log.info('populate:   found %s records, exists=False',
+                      len(zone.records) - before)
+        return False
