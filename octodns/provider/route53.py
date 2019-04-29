@@ -136,7 +136,7 @@ class _Route53Record(object):
         values_for = getattr(self, '_values_for_{}'.format(self._type))
         self.values = values_for(record)
 
-    def mod(self, action):
+    def mod(self, action, existing_rrsets):
         return {
             'Action': action,
             'ResourceRecordSet': {
@@ -268,7 +268,7 @@ class _Route53DynamicPool(_Route53Record):
                                      self.target_name)
         return '{}-{}'.format(self.pool_name, self.mode)
 
-    def mod(self, action):
+    def mod(self, action, existing_rrsets):
         return {
             'Action': action,
             'ResourceRecordSet': {
@@ -311,7 +311,7 @@ class _Route53DynamicRule(_Route53Record):
     def identifer(self):
         return '{}-{}-{}'.format(self.index, self.pool_name, self.geo)
 
-    def mod(self, action):
+    def mod(self, action, existing_rrsets):
         rrset = {
             'AliasTarget': {
                 'DNSName': self.target_dns_name,
@@ -379,7 +379,7 @@ class _Route53DynamicValue(_Route53Record):
     def identifer(self):
         return '{}-{:03d}'.format(self.pool_name, self.index)
 
-    def mod(self, action):
+    def mod(self, action, existing_rrsets):
         return {
             'Action': action,
             'ResourceRecordSet': {
@@ -404,7 +404,7 @@ class _Route53DynamicValue(_Route53Record):
 
 class _Route53GeoDefault(_Route53Record):
 
-    def mod(self, action):
+    def mod(self, action, existing_rrsets):
         return {
             'Action': action,
             'ResourceRecordSet': {
@@ -437,15 +437,29 @@ class _Route53GeoRecord(_Route53Record):
         self.health_check_id = provider.get_health_check_id(record, value,
                                                             creating)
 
-    def mod(self, action):
+    def mod(self, action, existing_rrsets):
         geo = self.geo
+        set_identifier = geo.code
+
+        if action == 'DELETE':
+            # We deleting records try and find the original rrset so that we're
+            # 100% sure to have the complete & accurate data (this mostly
+            # ensures we have the right health check id when there's multiple
+            # potential matches)
+            for existing in existing_rrsets:
+                if set_identifier == existing.get('SetIdentifier', None):
+                    return {
+                        'Action': action,
+                        'ResourceRecordSet': existing,
+                    }
+
         rrset = {
             'Name': self.fqdn,
             'GeoLocation': {
                 'CountryCode': '*'
             },
             'ResourceRecords': [{'Value': v} for v in geo.values],
-            'SetIdentifier': geo.code,
+            'SetIdentifier': set_identifier,
             'TTL': self.ttl,
             'Type': self._type,
         }
@@ -927,11 +941,11 @@ class Route53Provider(BaseProvider):
                       len(zone.records) - before, exists)
         return exists
 
-    def _gen_mods(self, action, records):
+    def _gen_mods(self, action, records, existing_rrsets):
         '''
         Turns `_Route53*`s in to `change_resource_record_sets` `Changes`
         '''
-        return [r.mod(action) for r in records]
+        return [r.mod(action, existing_rrsets) for r in records]
 
     @property
     def health_checks(self):
@@ -1117,15 +1131,15 @@ class Route53Provider(BaseProvider):
         '''
         return _Route53Record.new(self, record, zone_id, creating)
 
-    def _mod_Create(self, change, zone_id):
+    def _mod_Create(self, change, zone_id, existing_rrsets):
         # New is the stuff that needs to be created
         new_records = self._gen_records(change.new, zone_id, creating=True)
         # Now is a good time to clear out any unused health checks since we
         # know what we'll be using going forward
         self._gc_health_checks(change.new, new_records)
-        return self._gen_mods('CREATE', new_records)
+        return self._gen_mods('CREATE', new_records, existing_rrsets)
 
-    def _mod_Update(self, change, zone_id):
+    def _mod_Update(self, change, zone_id, existing_rrsets):
         # See comments in _Route53Record for how the set math is made to do our
         # bidding here.
         existing_records = self._gen_records(change.existing, zone_id,
@@ -1148,18 +1162,18 @@ class Route53Provider(BaseProvider):
             if new_record in existing_records:
                 upserts.add(new_record)
 
-        return self._gen_mods('DELETE', deletes) + \
-            self._gen_mods('CREATE', creates) + \
-            self._gen_mods('UPSERT', upserts)
+        return self._gen_mods('DELETE', deletes, existing_rrsets) + \
+            self._gen_mods('CREATE', creates, existing_rrsets) + \
+            self._gen_mods('UPSERT', upserts, existing_rrsets)
 
-    def _mod_Delete(self, change, zone_id):
+    def _mod_Delete(self, change, zone_id, existing_rrsets):
         # Existing is the thing that needs to be deleted
         existing_records = self._gen_records(change.existing, zone_id,
                                              creating=False)
         # Now is a good time to clear out all the health checks since we know
         # we're done with them
         self._gc_health_checks(change.existing, [])
-        return self._gen_mods('DELETE', existing_records)
+        return self._gen_mods('DELETE', existing_records, existing_rrsets)
 
     def _extra_changes_update_needed(self, record, rrset):
         healthcheck_host = record.healthcheck_host
@@ -1271,10 +1285,11 @@ class Route53Provider(BaseProvider):
         batch = []
         batch_rs_count = 0
         zone_id = self._get_zone_id(desired.name, True)
+        existing_rrsets = self._load_records(zone_id)
         for c in changes:
             # Generate the mods for this change
             mod_type = getattr(self, '_mod_{}'.format(c.__class__.__name__))
-            mods = mod_type(c, zone_id)
+            mods = mod_type(c, zone_id, existing_rrsets)
 
             # Order our mods to make sure targets exist before alises point to
             # them and we CRUD in the desired order
