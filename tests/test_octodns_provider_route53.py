@@ -12,7 +12,8 @@ from mock import patch
 
 from octodns.record import Create, Delete, Record, Update
 from octodns.provider.route53 import Route53Provider, _Route53GeoDefault, \
-    _Route53GeoRecord, _Route53Record, _mod_keyer, _octal_replace
+    _Route53DynamicValue, _Route53GeoRecord, _Route53Record, _mod_keyer, \
+    _octal_replace
 from octodns.zone import Zone
 
 from helpers import GeoProvider
@@ -874,6 +875,25 @@ class TestRoute53Provider(TestCase):
                                  'CallerReference': ANY,
                              })
 
+        list_resource_record_sets_resp = {
+            'ResourceRecordSets': [{
+                'Name': 'a.unit.tests.',
+                'Type': 'A',
+                'GeoLocation': {
+                    'ContinentCode': 'NA',
+                },
+                'ResourceRecords': [{
+                    'Value': '2.2.3.4',
+                }],
+                'TTL': 61,
+            }],
+            'IsTruncated': False,
+            'MaxItems': '100',
+        }
+        stubber.add_response('list_resource_record_sets',
+                             list_resource_record_sets_resp,
+                             {'HostedZoneId': 'z42'})
+
         stubber.add_response('list_health_checks',
                              {
                                  'HealthChecks': self.health_checks,
@@ -1236,7 +1256,7 @@ class TestRoute53Provider(TestCase):
             'HealthCheckId': '44',
         })
         change = Create(record)
-        provider._mod_Create(change, 'z43')
+        provider._mod_Create(change, 'z43', [])
         stubber.assert_no_pending_responses()
 
         # gc through _mod_Update
@@ -1245,7 +1265,7 @@ class TestRoute53Provider(TestCase):
         })
         # first record is ignored for our purposes, we have to pass something
         change = Update(record, record)
-        provider._mod_Create(change, 'z43')
+        provider._mod_Create(change, 'z43', [])
         stubber.assert_no_pending_responses()
 
         # gc through _mod_Delete, expect 3 to go away, can't check order
@@ -1260,7 +1280,7 @@ class TestRoute53Provider(TestCase):
             'HealthCheckId': ANY,
         })
         change = Delete(record)
-        provider._mod_Delete(change, 'z43')
+        provider._mod_Delete(change, 'z43', [])
         stubber.assert_no_pending_responses()
 
         # gc only AAAA, leave the A's alone
@@ -1804,40 +1824,45 @@ class TestRoute53Provider(TestCase):
 
     # _get_test_plan() returns a plan with 11 modifications, 17 RRs
 
+    @patch('octodns.provider.route53.Route53Provider._load_records')
     @patch('octodns.provider.route53.Route53Provider._really_apply')
-    def test_apply_1(self, really_apply_mock):
+    def test_apply_1(self, really_apply_mock, _):
 
         # 18 RRs with max of 19 should only get applied in one call
         provider, plan = self._get_test_plan(19)
         provider.apply(plan)
         really_apply_mock.assert_called_once()
 
+    @patch('octodns.provider.route53.Route53Provider._load_records')
     @patch('octodns.provider.route53.Route53Provider._really_apply')
-    def test_apply_2(self, really_apply_mock):
+    def test_apply_2(self, really_apply_mock, _):
 
         # 18 RRs with max of 17 should only get applied in two calls
         provider, plan = self._get_test_plan(18)
         provider.apply(plan)
         self.assertEquals(2, really_apply_mock.call_count)
 
+    @patch('octodns.provider.route53.Route53Provider._load_records')
     @patch('octodns.provider.route53.Route53Provider._really_apply')
-    def test_apply_3(self, really_apply_mock):
+    def test_apply_3(self, really_apply_mock, _):
 
         # with a max of seven modifications, four calls
         provider, plan = self._get_test_plan(7)
         provider.apply(plan)
         self.assertEquals(4, really_apply_mock.call_count)
 
+    @patch('octodns.provider.route53.Route53Provider._load_records')
     @patch('octodns.provider.route53.Route53Provider._really_apply')
-    def test_apply_4(self, really_apply_mock):
+    def test_apply_4(self, really_apply_mock, _):
 
         # with a max of 11 modifications, two calls
         provider, plan = self._get_test_plan(11)
         provider.apply(plan)
         self.assertEquals(2, really_apply_mock.call_count)
 
+    @patch('octodns.provider.route53.Route53Provider._load_records')
     @patch('octodns.provider.route53.Route53Provider._really_apply')
-    def test_apply_bad(self, really_apply_mock):
+    def test_apply_bad(self, really_apply_mock, _):
 
         # with a max of 1 modifications, fail
         provider, plan = self._get_test_plan(1)
@@ -1939,6 +1964,12 @@ class TestRoute53Provider(TestCase):
             }], [r.data for r in record.dynamic.rules])
 
 
+class DummyProvider(object):
+
+    def get_health_check_id(self, *args, **kwargs):
+        return None
+
+
 class TestRoute53Records(TestCase):
     existing = Zone('unit.tests.', [])
     record_a = Record.new(existing, '', {
@@ -2005,11 +2036,6 @@ class TestRoute53Records(TestCase):
         e = _Route53GeoDefault(None, self.record_a, False)
         self.assertNotEquals(a, e)
 
-        class DummyProvider(object):
-
-            def get_health_check_id(self, *args, **kwargs):
-                return None
-
         provider = DummyProvider()
         f = _Route53GeoRecord(provider, self.record_a, 'NA-US',
                               self.record_a.geo['NA-US'], False)
@@ -2028,6 +2054,90 @@ class TestRoute53Records(TestCase):
         a.__repr__()
         e.__repr__()
         f.__repr__()
+
+    def test_dynamic_value_delete(self):
+        provider = DummyProvider()
+        geo = _Route53DynamicValue(provider, self.record_a, 'iad', '2.2.2.2',
+                                   1, 0, False)
+
+        rrset = {
+            'HealthCheckId': 'x12346z',
+            'Name': '_octodns-iad-value.unit.tests.',
+            'ResourceRecords': [{
+                'Value': '2.2.2.2'
+            }],
+            'SetIdentifier': 'iad-000',
+            'TTL': 99,
+            'Type': 'A',
+            'Weight': 1,
+        }
+
+        candidates = [
+            # Empty, will test no SetIdentifier
+            {},
+            {
+                'SetIdentifier': 'not-a-match',
+            },
+            rrset,
+        ]
+
+        # Provide a matching rrset so that we'll just use it for the delete
+        # rathr than building up an almost identical one, note the way we'll
+        # know that we got the one we passed in is that it'll have a
+        # HealthCheckId and one that was created wouldn't since DummyProvider
+        # stubs out the lookup for them
+        mod = geo.mod('DELETE', candidates)
+        self.assertEquals('x12346z', mod['ResourceRecordSet']['HealthCheckId'])
+
+        # If we don't provide the candidate rrsets we get back exactly what we
+        # put in minus the healthcheck
+        rrset['HealthCheckId'] = None
+        mod = geo.mod('DELETE', [])
+        self.assertEquals(rrset, mod['ResourceRecordSet'])
+
+    def test_geo_delete(self):
+        provider = DummyProvider()
+        geo = _Route53GeoRecord(provider, self.record_a, 'NA-US',
+                                self.record_a.geo['NA-US'], False)
+
+        rrset = {
+            'GeoLocation': {
+                'CountryCode': 'US'
+            },
+            'HealthCheckId': 'x12346z',
+            'Name': 'unit.tests.',
+            'ResourceRecords': [{
+                'Value': '2.2.2.2'
+            }, {
+                'Value': '3.3.3.3'
+            }],
+            'SetIdentifier': 'NA-US',
+            'TTL': 99,
+            'Type': 'A'
+        }
+
+        candidates = [
+            # Empty, will test no SetIdentifier
+            {},
+            {
+                'SetIdentifier': 'not-a-match',
+            },
+            rrset,
+        ]
+
+        # Provide a matching rrset so that we'll just use it for the delete
+        # rathr than building up an almost identical one, note the way we'll
+        # know that we got the one we passed in is that it'll have a
+        # HealthCheckId and one that was created wouldn't since DummyProvider
+        # stubs out the lookup for them
+        mod = geo.mod('DELETE', candidates)
+        self.assertEquals('x12346z', mod['ResourceRecordSet']['HealthCheckId'])
+
+        # If we don't provide the candidate rrsets we get back exactly what we
+        # put in minus the healthcheck
+        del rrset['HealthCheckId']
+        mod = geo.mod('DELETE', [])
+        self.assertEquals(rrset, mod['ResourceRecordSet'])
 
     def test_new_dynamic(self):
         provider = Route53Provider('test', 'abc', '123')
@@ -2259,7 +2369,7 @@ class TestRoute53Records(TestCase):
                 'Name': '_octodns-eu-central-1-pool.unit.tests.',
                 'SetIdentifier': 'eu-central-1-Secondary-us-east-1',
                 'Type': 'A'}
-        }], [r.mod('CREATE') for r in route53_records])
+        }], [r.mod('CREATE', []) for r in route53_records])
 
         for route53_record in route53_records:
             # Smoke test stringification
