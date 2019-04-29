@@ -380,6 +380,19 @@ class _Route53DynamicValue(_Route53Record):
         return '{}-{:03d}'.format(self.pool_name, self.index)
 
     def mod(self, action, existing_rrsets):
+
+        if action == 'DELETE':
+            # When deleting records try and find the original rrset so that
+            # we're 100% sure to have the complete & accurate data (this mostly
+            # ensures we have the right health check id when there's multiple
+            # potential matches)
+            for existing in existing_rrsets:
+                if self.identifer == existing.get('SetIdentifier', None):
+                    return {
+                        'Action': action,
+                        'ResourceRecordSet': existing,
+                    }
+
         return {
             'Action': action,
             'ResourceRecordSet': {
@@ -442,8 +455,8 @@ class _Route53GeoRecord(_Route53Record):
         set_identifier = geo.code
 
         if action == 'DELETE':
-            # We deleting records try and find the original rrset so that we're
-            # 100% sure to have the complete & accurate data (this mostly
+            # When deleting records try and find the original rrset so that
+            # we're 100% sure to have the complete & accurate data (this mostly
             # ensures we have the right health check id when there's multiple
             # potential matches)
             for existing in existing_rrsets:

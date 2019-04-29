@@ -12,7 +12,8 @@ from mock import patch
 
 from octodns.record import Create, Delete, Record, Update
 from octodns.provider.route53 import Route53Provider, _Route53GeoDefault, \
-    _Route53GeoRecord, _Route53Record, _mod_keyer, _octal_replace
+    _Route53DynamicValue, _Route53GeoRecord, _Route53Record, _mod_keyer, \
+    _octal_replace
 from octodns.zone import Zone
 
 from helpers import GeoProvider
@@ -2053,6 +2054,46 @@ class TestRoute53Records(TestCase):
         a.__repr__()
         e.__repr__()
         f.__repr__()
+
+    def test_dynamic_value_delete(self):
+        provider = DummyProvider()
+        geo = _Route53DynamicValue(provider, self.record_a, 'iad', '2.2.2.2',
+                                   1, 0, False)
+
+        rrset = {
+            'HealthCheckId': 'x12346z',
+            'Name': '_octodns-iad-value.unit.tests.',
+            'ResourceRecords': [{
+                'Value': '2.2.2.2'
+            }],
+            'SetIdentifier': 'iad-000',
+            'TTL': 99,
+            'Type': 'A',
+            'Weight': 1,
+        }
+
+        candidates = [
+            # Empty, will test no SetIdentifier
+            {},
+            {
+                'SetIdentifier': 'not-a-match',
+            },
+            rrset,
+        ]
+
+        # Provide a matching rrset so that we'll just use it for the delete
+        # rathr than building up an almost identical one, note the way we'll
+        # know that we got the one we passed in is that it'll have a
+        # HealthCheckId and one that was created wouldn't since DummyProvider
+        # stubs out the lookup for them
+        mod = geo.mod('DELETE', candidates)
+        self.assertEquals('x12346z', mod['ResourceRecordSet']['HealthCheckId'])
+
+        # If we don't provide the candidate rrsets we get back exactly what we
+        # put in minus the healthcheck
+        rrset['HealthCheckId'] = None
+        mod = geo.mod('DELETE', [])
+        self.assertEquals(rrset, mod['ResourceRecordSet'])
 
     def test_geo_delete(self):
         provider = DummyProvider()
