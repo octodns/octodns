@@ -387,7 +387,8 @@ class _Route53DynamicValue(_Route53Record):
             # ensures we have the right health check id when there's multiple
             # potential matches)
             for existing in existing_rrsets:
-                if self.identifer == existing.get('SetIdentifier', None):
+                if self.fqdn == existing.get('Name') and \
+                   self.identifer == existing.get('SetIdentifier', None):
                     return {
                         'Action': action,
                         'ResourceRecordSet': existing,
@@ -453,6 +454,7 @@ class _Route53GeoRecord(_Route53Record):
     def mod(self, action, existing_rrsets):
         geo = self.geo
         set_identifier = geo.code
+        fqdn = self.fqdn
 
         if action == 'DELETE':
             # When deleting records try and find the original rrset so that
@@ -460,7 +462,8 @@ class _Route53GeoRecord(_Route53Record):
             # ensures we have the right health check id when there's multiple
             # potential matches)
             for existing in existing_rrsets:
-                if set_identifier == existing.get('SetIdentifier', None):
+                if fqdn == existing.get('Name') and \
+                   set_identifier == existing.get('SetIdentifier', None):
                     return {
                         'Action': action,
                         'ResourceRecordSet': existing,
