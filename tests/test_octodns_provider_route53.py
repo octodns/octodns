@@ -2075,8 +2075,14 @@ class TestRoute53Records(TestCase):
         candidates = [
             # Empty, will test no SetIdentifier
             {},
+            # Non-matching
             {
                 'SetIdentifier': 'not-a-match',
+            },
+            # Same set-id, different name
+            {
+                'Name': 'not-a-match',
+                'SetIdentifier': 'x12346z',
             },
             rrset,
         ]
@@ -2121,6 +2127,11 @@ class TestRoute53Records(TestCase):
             {},
             {
                 'SetIdentifier': 'not-a-match',
+            },
+            # Same set-id, different name
+            {
+                'Name': 'not-a-match',
+                'SetIdentifier': 'x12346z',
             },
             rrset,
         ]
