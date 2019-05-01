@@ -43,7 +43,8 @@ class MythicBeastsProvider(BaseProvider):
     SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NS',
                     'SRV', 'TXT'))
-    BASE = 'https://dnsapi.mythic-beasts.com/'
+    #BASE = 'https://dnsapi.mythic-beasts.com/'
+    BASE = 'https://cwningen.dev.mythic-beasts.com/customer/primarydnsapi'
     TIMEOUT = 15
 
     def __init__(self, id, passwords, *args, **kwargs):
@@ -71,6 +72,7 @@ class MythicBeastsProvider(BaseProvider):
         return self._post({
             'domain': remove_trailing_dot(zone),
             'password': self._passwords[zone],
+            'showall': 0,
             'command': 'LIST',
         })
 
@@ -195,7 +197,7 @@ class MythicBeastsProvider(BaseProvider):
         except HTTPError as e:
             if e.response.status_code == 401:
                 # Nicer error message for auth problems
-                raise Exception('Mythic Beasts authentication problem with %s'.format(zone.name))
+                raise Exception('Mythic Beasts authentication problem with {}'.format(zone.name))
             elif e.response.status_code == 422:
                 # 422 means mythicbeasts doesn't know anything about the requested
                 # domain. We'll just ignore it here and leave the zone
