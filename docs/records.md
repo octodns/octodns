@@ -22,8 +22,8 @@ Adding new record types to OctoDNS is relatively straightforward, but will requi
 
 ## Advanced Record Support (GeoDNS, Weighting)
 
-* [Dynamic Records](/docs/dynamic_records.md)
-* [Geo Records](/docs/geo_records.md)
+* [Dynamic Records](/docs/dynamic_records.md) - the preferred method for configuring geo-location, weights, and healthcheck based fallback between pools of services.
+* [Geo Records](/docs/geo_records.md) - the original implementation of geo-location based records, now superseded by Dynamic Records (above)
 
 ## Config (`YamlProvider`)
 
