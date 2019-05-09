@@ -110,7 +110,7 @@ class MythicBeastsProvider(BaseProvider):
         values = []
 
         for raw_value in \
-            [raw_values['value'] for raw_values in data['raw_values']]:
+                [raw_values['value'] for raw_values in data['raw_values']]:
             match = re.match('^([0-9]+)\\s+(\\S+)$', raw_value, re.IGNORECASE)
 
             if match is not None:
