@@ -2,6 +2,7 @@
 .coverage
 .env
 /config/
+/build/
 coverage.xml
 dist/
 env/
