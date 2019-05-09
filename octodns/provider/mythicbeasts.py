@@ -13,7 +13,6 @@ from .base import BaseProvider
 
 import re
 
-import pprint
 import sys
 
 def add_trailing_dot(s):
@@ -42,9 +41,8 @@ class MythicBeastsProvider(BaseProvider):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NS',
-                    'SRV', 'TXT'))
-    #BASE = 'https://dnsapi.mythic-beasts.com/'
-    BASE = 'https://cwningen.dev.mythic-beasts.com/customer/primarydnsapi'
+                    'SRV', 'SSHFP', 'CAA', 'TXT'))
+    BASE = 'https://dnsapi.mythic-beasts.com/'
     TIMEOUT = 15
 
     def __init__(self, id, passwords, *args, **kwargs):
@@ -61,8 +59,10 @@ class MythicBeastsProvider(BaseProvider):
 
         url = self.BASE
         resp = self._sess.request(method, url, data=data, timeout=self.TIMEOUT)
-        self.log.debug('_request:   status=%d', resp.status_code)
-        resp.raise_for_status()
+        self.log.debug('_request:   status=%d data=%s', resp.status_code, resp.text)
+        if resp.status_code != 200:
+            self.log.info('request failed: %s, response %s', data, resp.text)
+            resp.raise_for_status()
         return resp
 
     def _post(self, data=None):
@@ -164,21 +164,19 @@ class MythicBeastsProvider(BaseProvider):
             return self._data_for_single('SSHFP', {'raw_values': [ {'value': value, 'ttl': ttl} ]})
          
 
-    # TODO fix bug with CAA output from API
-    '''
     def _data_for_CAA(self, _type, data):
         ttl = data['raw_values'][0]['ttl']
+        raw_value = data['raw_values'][0]['value']
 
-        match = re.match('^()$', re.IGNORECASE)
+        match = re.match('^([0-9]+)\s+(issue|issuewild|iodef)\s+(\S+)$', raw_value, re.IGNORECASE)
 
-        value = {
-            'flags':
-            'tag':
-            'value': 
-        }
-        value = data['raw_values'][0]['value']
-        return self._data_for_single('ALIAS', {'raw_values': [ {'value': value, 'ttl': ttl} ]})
-    ''' 
+        if match is not None:
+            value = {
+                'flags': match.group(1),
+                'tag': match.group(2),
+                'value': match.group(3),
+            }
+            return self._data_for_single('CAA', {'raw_values': [ {'value': value, 'ttl': ttl} ]})
 
 
     _data_for_NS = _data_for_multiple
@@ -255,11 +253,13 @@ class MythicBeastsProvider(BaseProvider):
                 for _name in data[_type]:
                     data_for = getattr(self, '_data_for_{}'.format(_type))
 
+                    self.log.debug('record: {},  {}'.format(_type, data[_type][_name]))
+
                     record = Record.new(
                         zone,
                         _name,
                         data_for(_type, data[_type][_name]),
-                        source=self,
+                        source=self
                     )
                     zone.add_record(record, lenient=lenient)
 
@@ -285,8 +285,6 @@ class MythicBeastsProvider(BaseProvider):
         ttl = record.ttl
         _type = record._type
 
-        if hostname == '':
-            hostname = '@'
         if _type == 'ALIAS':
             _type = 'ANAME'
 
@@ -331,21 +329,11 @@ class MythicBeastsProvider(BaseProvider):
         return commands
 
     def _apply_Create(self, change):
-
-        pp = pprint.PrettyPrinter(depth=10, stream=sys.stderr)
-
         zone = change.new.zone
         commands = self._compile_commands('ADD', change)
-        pp.pprint(commands)
 
         for command in commands:
             self._post({
-                'domain': remove_trailing_dot(zone.name),
-                'origin': '.',
-                'password': self._passwords[zone.name],
-                'command': command,
-            })
-            pp.pprint({
                 'domain': remove_trailing_dot(zone.name),
                 'origin': '.',
                 'password': self._passwords[zone.name],
@@ -358,21 +346,11 @@ class MythicBeastsProvider(BaseProvider):
         self._apply_Create(change)
 
     def _apply_Delete(self, change):
-
-        pp = pprint.PrettyPrinter(depth=10, stream=sys.stderr)
-
         zone = change.existing.zone
         commands = self._compile_commands('DELETE', change)
-        pp.pprint(commands)
 
         for command in commands:
             self._post({
-                'domain': remove_trailing_dot(zone.name),
-                'origin': '.',
-                'password': self._passwords[zone.name],
-                'command': command,
-            })
-            pp.pprint({
                 'domain': remove_trailing_dot(zone.name),
                 'origin': '.',
                 'password': self._passwords[zone.name],
