@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 import re
 
-from requests import HTTPError, Session
+from requests import Session
 from logging import getLogger
 
 from ..record import Record
@@ -18,8 +18,8 @@ def add_trailing_dot(value):
     '''
     Add trailing dots to values
     '''
-    assert value
-    assert value[-1] != '.'
+    assert value, 'Missing value'
+    assert value[-1] != '.', 'Value already has trailing dot'
     return value + '.'
 
 
@@ -27,8 +27,8 @@ def remove_trailing_dot(value):
     '''
     Remove trailing dots from values
     '''
-    assert value
-    assert value[-1] == '.'
+    assert value, 'Missing value'
+    assert value[-1] == '.', 'Value already missing trailing dot'
     return value[:-1]
 
 
@@ -44,13 +44,15 @@ class MythicBeastsProvider(BaseProvider):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NS',
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NS',
                     'SRV', 'SSHFP', 'CAA', 'TXT'))
     BASE = 'https://dnsapi.mythic-beasts.com/'
-    TIMEOUT = 15
 
     def __init__(self, identifier, passwords, *args, **kwargs):
         self.log = getLogger('MythicBeastsProvider[{}]'.format(identifier))
+
+        assert isinstance(passwords, dict), 'Missing passwords'
+
         self.log.debug(
             '__init__: id=%s, registered zones; %s',
             identifier,
@@ -62,23 +64,28 @@ class MythicBeastsProvider(BaseProvider):
         self._sess = sess
 
     def _request(self, method, path, data=None):
-        self.log.debug('_request: method=%s, path=%s', method, path)
+        self.log.debug('_request: method=%s, path=%s data=%s',
+                       method, path, data)
 
-        url = self.BASE
-        resp = self._sess.request(method, url, data=data, timeout=self.TIMEOUT)
+        resp = self._sess.request(method, path, data=data)
         self.log.debug(
             '_request:   status=%d data=%s',
             resp.status_code,
-            resp.text)
-        if resp.status_code != 200:
-            self.log.info('request failed: %s, response %s', data, resp.text)
-            resp.raise_for_status()
+            resp.text[:20])
+
+        if resp.status_code == 401:
+            raise Exception('Mythic Beasts unauthorized for domain: {}'
+                            .format(data['domain']))
+        resp.raise_for_status()
         return resp
 
     def _post(self, data=None):
         return self._request('POST', self.BASE, data=data)
 
     def records(self, zone):
+        assert zone in self._passwords, 'Missing password for domain: {}' \
+            .format(remove_trailing_dot(zone))
+
         return self._post({
             'domain': remove_trailing_dot(zone),
             'password': self._passwords[zone],
@@ -113,16 +120,17 @@ class MythicBeastsProvider(BaseProvider):
                 [raw_values['value'] for raw_values in data['raw_values']]:
             match = re.match('^([0-9]+)\\s+(\\S+)$', raw_value, re.IGNORECASE)
 
-            if match is not None:
-                exchange = match.group(2)
+            assert match is not None, 'Unable to parse MX data'
 
-                if not exchange.endswith('.'):
-                    exchange = '{}.{}'.format(exchange, data['zone'])
+            exchange = match.group(2)
 
-                values.append({
-                    'preference': match.group(1),
-                    'exchange': exchange,
-                })
+            if not exchange.endswith('.'):
+                exchange = '{}.{}'.format(exchange, data['zone'])
+
+            values.append({
+                'preference': match.group(1),
+                'exchange': exchange,
+            })
 
         return {
             'type': _type,
@@ -155,54 +163,61 @@ class MythicBeastsProvider(BaseProvider):
 
     @staticmethod
     def _data_for_SRV(_type, data):
-        ttl = data['raw_values'][0]['ttl']
-        raw_value = data['raw_values'][0]['value']
+        ttl = max([raw_values['ttl'] for raw_values in data['raw_values']])
+        values = []
 
-        match = re.match(
-            '^([0-9]+)\\s+([0-9]+)\\s+([0-9]+)\\s+(\\S+)$',
-            raw_value,
-            re.IGNORECASE)
+        for raw_value in \
+                [raw_values['value'] for raw_values in data['raw_values']]:
 
-        if match is not None:
+            match = re.match(
+                '^([0-9]+)\\s+([0-9]+)\\s+([0-9]+)\\s+(\\S+)$',
+                raw_value,
+                re.IGNORECASE)
+
+            assert match is not None, 'Unable to parse SRV data'
+
             target = match.group(4)
             if not target.endswith('.'):
                 target = '{}.{}'.format(target, data['zone'])
 
-            value = {
+            values.append({
                 'priority': match.group(1),
                 'weight': match.group(2),
                 'port': match.group(3),
                 'target': target,
-            }
+            })
 
-            return MythicBeastsProvider._data_for_single(
-                'SRV',
-                {'raw_values': [
-                    {'value': value, 'ttl': ttl}
-                ]})
+        return {
+            'type': _type,
+            'values': values,
+            'ttl': ttl,
+        }
 
     @staticmethod
     def _data_for_SSHFP(_type, data):
-        ttl = data['raw_values'][0]['ttl']
-        raw_value = data['raw_values'][0]['value']
+        ttl = max([raw_values['ttl'] for raw_values in data['raw_values']])
+        values = []
 
-        match = re.match(
-            '^([0-9]+)\\s+([0-9]+)\\s+(\\S+)$',
-            raw_value,
-            re.IGNORECASE)
+        for raw_value in \
+                [raw_values['value'] for raw_values in data['raw_values']]:
+            match = re.match(
+                '^([0-9]+)\\s+([0-9]+)\\s+(\\S+)$',
+                raw_value,
+                re.IGNORECASE)
 
-        if match is not None:
-            value = {
+            assert match is not None, 'Unable to parse SSHFP data'
+
+            values.append({
                 'algorithm': match.group(1),
                 'fingerprint_type': match.group(2),
                 'fingerprint': match.group(3),
-            }
+            })
 
-            return MythicBeastsProvider._data_for_single(
-                'SSHFP',
-                {'raw_values': [
-                    {'value': value, 'ttl': ttl}
-                ]})
+        return {
+            'type': _type,
+            'values': values,
+            'ttl': ttl,
+        }
 
     @staticmethod
     def _data_for_CAA(_type, data):
@@ -214,17 +229,17 @@ class MythicBeastsProvider(BaseProvider):
             raw_value,
             re.IGNORECASE)
 
-        if match is not None:
-            value = {
-                'flags': match.group(1),
-                'tag': match.group(2),
-                'value': match.group(3),
-            }
-            return MythicBeastsProvider._data_for_single(
-                'CAA',
-                {'raw_values': [
-                    {'value': value, 'ttl': ttl}
-                ]})
+        assert match is not None, 'Unable to parse CAA data'
+
+        value = {
+            'flags': match.group(1),
+            'tag': match.group(2),
+            'value': match.group(3),
+        }
+
+        return MythicBeastsProvider._data_for_single(
+            'CAA',
+            {'raw_values': [{'value': value, 'ttl': ttl}]})
 
     _data_for_NS = _data_for_multiple
     _data_for_TXT = _data_for_multiple
@@ -235,84 +250,69 @@ class MythicBeastsProvider(BaseProvider):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
 
-        resp = None
-        try:
-            resp = self.records(zone.name)
-        except HTTPError as err:
-            if err.response.status_code == 401:
-                # Nicer error message for auth problems
-                raise Exception(
-                    'Mythic Beasts authentication problem with {}'.format(
-                        zone.name))
-            else:
-                # just re-throw
-                raise
+        resp = self.records(zone.name)
 
         before = len(zone.records)
         exists = False
         data = dict()
 
-        if resp:
-            exists = True
-            for line in resp.content.splitlines():
-                match = re.match(
-                    '^(\\S+)\\s+(\\S+)\\s+(\\S+)\\s+(.*)$',
-                    line,
-                    re.IGNORECASE)
+        exists = True
+        for line in resp.content.splitlines():
+            match = re.match(
+                '^(\\S+)\\s+(\\d+)\\s+(\\S+)\\s+(.*)$',
+                line,
+                re.IGNORECASE)
 
-                if match is not None:
-                    if match.group(1) == '@':
-                        _name = ''
-                    else:
-                        _name = match.group(1)
+            if match is None:
+                self.log.debug('failed to match line: %s', line)
+                continue
 
-                    _type = match.group(3)
-                    _ttl = int(match.group(2))
-                    _value = match.group(4).strip()
+            if match.group(1) == '@':
+                _name = ''
+            else:
+                _name = match.group(1)
 
-                if _type == 'SOA':
-                    continue
+            _type = match.group(3)
+            _ttl = int(match.group(2))
+            _value = match.group(4).strip()
 
-                try:
-                    if getattr(self, '_data_for_{}'.format(_type)) is not None:
+            if _type == 'TXT':
+                _value = _value.replace(';', '\\;')
 
-                        if _type not in data:
-                            data[_type] = dict()
+            if hasattr(self, '_data_for_{}'.format(_type)):
 
-                        if _name not in data[_type]:
-                            data[_type][_name] = {
-                                'raw_values': [{'value': _value, 'ttl': _ttl}],
-                                'name': _name,
-                                'zone': zone.name,
-                            }
+                if _type not in data:
+                    data[_type] = dict()
 
-                        else:
-                            data[_type][_name].get('raw_values').append(
-                                {'value': _value, 'ttl': _ttl}
-                            )
-                except AttributeError:
-                    self.log.debug('skipping {} as not supported', _type)
-                    continue
+                if _name not in data[_type]:
+                    data[_type][_name] = {
+                        'raw_values': [{'value': _value, 'ttl': _ttl}],
+                        'name': _name,
+                        'zone': zone.name,
+                    }
 
-            for _type in data:
-                for _name in data[_type]:
-                    data_for = getattr(self, '_data_for_{}'.format(_type))
-
-                    self.log.debug(
-                        'record: %s,\t%s',
-                        _type,
-                        data[_type][_name])
-
-                    record = Record.new(
-                        zone,
-                        _name,
-                        data_for(_type, data[_type][_name]),
-                        source=self
+                else:
+                    data[_type][_name].get('raw_values').append(
+                        {'value': _value, 'ttl': _ttl}
                     )
-                    zone.add_record(record, lenient=lenient)
+            else:
+                self.log.debug('skipping %s as not supported', _type)
+
+        for _type in data:
+            for _name in data[_type]:
+                data_for = getattr(self, '_data_for_{}'.format(_type))
+
+                record = Record.new(
+                    zone,
+                    _name,
+                    data_for(_type, data[_type][_name]),
+                    source=self
+                )
+                zone.add_record(record, lenient=lenient)
 
         self.log.debug('populate:   found %s records, exists=%s',
                        len(zone.records) - before, exists)
+
         return exists
 
     def _compile_commands(self, action, change):
@@ -322,8 +322,7 @@ class MythicBeastsProvider(BaseProvider):
 
         if action == 'ADD':
             record = change.new
-
-        elif action == 'DELETE':
+        else:
             record = change.existing
 
         hostname = remove_trailing_dot(record.fqdn)
@@ -354,13 +353,14 @@ class MythicBeastsProvider(BaseProvider):
             ))
 
         elif _type == 'SRV':
-            data = values[0].data
-            commands.append('{} {} {} {} {}'.format(
-                base,
-                data['priority'],
-                data['weight'],
-                data['port'],
-                data['target']))
+            for value in values:
+                data = value.data
+                commands.append('{} {} {} {} {}'.format(
+                    base,
+                    data['priority'],
+                    data['weight'],
+                    data['port'],
+                    data['target']))
 
         elif _type == 'MX':
             for value in values:
@@ -371,13 +371,11 @@ class MythicBeastsProvider(BaseProvider):
                     data['exchange']))
 
         else:
-            try:
-                if getattr(self, '_data_for_{}'.format(_type)) is not None:
-                    commands.append('{} {}'.format(
-                        base, values[0]))
-            except AttributeError:
-                self.log.debug('skipping {} as not supported', _type)
-                pass
+            if hasattr(self, '_data_for_{}'.format(_type)):
+                commands.append('{} {}'.format(
+                    base, values[0]))
+            else:
+                self.log.debug('skipping %s as not supported', _type)
 
         return commands
 
