@@ -211,11 +211,7 @@ class TestMythicBeastsProvider(TestCase):
                 self.ttl = 60
 
             @property
-            def new(self):
-                return self
-
-            @property
-            def existing(self):
+            def record(self):
                 return self
 
             @property
@@ -238,7 +234,8 @@ class TestMythicBeastsProvider(TestCase):
         # Null passwords dict
         with self.assertRaises(AssertionError) as err:
             provider = MythicBeastsProvider('test', None)
-        self.assertEquals('Missing passwords', err.exception.message)
+        self.assertEquals('Passwords must be a dictionary',
+                          err.exception.message)
 
         # Missing password
         with requests_mock() as mock:
@@ -263,7 +260,7 @@ class TestMythicBeastsProvider(TestCase):
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
             self.assertEquals(
-                'Mythic Beasts unauthorized for domain: unit.tests',
+                'Mythic Beasts unauthorized for zone: unit.tests',
                 err.exception.message)
 
         # Check unmatched lines are ignored

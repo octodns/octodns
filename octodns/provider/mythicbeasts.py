@@ -32,15 +32,58 @@ def remove_trailing_dot(value):
     return value[:-1]
 
 
+class MythicBeastsUnauthorizedException(Exception):
+    def __init__(self, zone, *args):
+        self.zone = zone
+        self.message = 'Mythic Beasts unauthorized for zone: {}'.format(
+            self.zone
+        )
+
+        super(MythicBeastsUnauthorizedException, self).__init__(
+            self.message, self.zone, *args)
+
+
 class MythicBeastsProvider(BaseProvider):
     '''
     Mythic Beasts DNS API Provider
 
-    mythicbeasts:
-      class: octodns.provider.mythicbeasts.MythicBeastsProvider
-        zones:
-          my-zone: 'password'
+    Config settings:
+
+    ---
+    providers:
+      config:
+      ...
+      mythicbeasts:
+        class: octodns.provider.mythicbeasts.MythicBeastsProvider
+          passwords:
+            my.domain.: 'password'
+
+    zones:
+      my.domain.:
+        targets:
+          - mythic
     '''
+
+    RE_MX = re.compile(r'^(?P<preference>[0-9]+)\s+(?P<exchange>\S+)$',
+                       re.IGNORECASE)
+
+    RE_SRV = re.compile(r'^(?P<priority>[0-9]+)\s+(?P<weight>[0-9]+)\s+'
+                        r'(?P<port>[0-9]+)\s+(?P<target>\S+)$',
+                        re.IGNORECASE)
+
+    RE_SSHFP = re.compile(r'^(?P<algorithm>[0-9]+)\s+'
+                          r'(?P<fingerprint_type>[0-9]+)\s+'
+                          r'(?P<fingerprint>\S+)$',
+                          re.IGNORECASE)
+
+    RE_CAA = re.compile(r'^(?P<flags>[0-9]+)\s+'
+                        r'(?P<tag>issue|issuewild|iodef)\s+'
+                        r'(?P<value>\S+)$',
+                        re.IGNORECASE)
+
+    RE_POPLINE = re.compile(r'^(?P<name>\S+)\s+(?P<ttl>\d+)\s+'
+                            r'(?P<type>\S+)\s+(?P<value>.*)$',
+                            re.IGNORECASE)
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
@@ -51,7 +94,7 @@ class MythicBeastsProvider(BaseProvider):
     def __init__(self, identifier, passwords, *args, **kwargs):
         self.log = getLogger('MythicBeastsProvider[{}]'.format(identifier))
 
-        assert isinstance(passwords, dict), 'Missing passwords'
+        assert isinstance(passwords, dict), 'Passwords must be a dictionary'
 
         self.log.debug(
             '__init__: id=%s, registered zones; %s',
@@ -74,8 +117,7 @@ class MythicBeastsProvider(BaseProvider):
             resp.text[:20])
 
         if resp.status_code == 401:
-            raise Exception('Mythic Beasts unauthorized for domain: {}'
-                            .format(data['domain']))
+            raise MythicBeastsUnauthorizedException(data['domain'])
         resp.raise_for_status()
         return resp
 
@@ -118,17 +160,17 @@ class MythicBeastsProvider(BaseProvider):
 
         for raw_value in \
                 [raw_values['value'] for raw_values in data['raw_values']]:
-            match = re.match('^([0-9]+)\\s+(\\S+)$', raw_value, re.IGNORECASE)
+            match = MythicBeastsProvider.RE_MX.match(raw_value)
 
             assert match is not None, 'Unable to parse MX data'
 
-            exchange = match.group(2)
+            exchange = match.group('exchange')
 
             if not exchange.endswith('.'):
                 exchange = '{}.{}'.format(exchange, data['zone'])
 
             values.append({
-                'preference': match.group(1),
+                'preference': match.group('preference'),
                 'exchange': exchange,
             })
 
@@ -169,21 +211,18 @@ class MythicBeastsProvider(BaseProvider):
         for raw_value in \
                 [raw_values['value'] for raw_values in data['raw_values']]:
 
-            match = re.match(
-                '^([0-9]+)\\s+([0-9]+)\\s+([0-9]+)\\s+(\\S+)$',
-                raw_value,
-                re.IGNORECASE)
+            match = MythicBeastsProvider.RE_SRV.match(raw_value)
 
             assert match is not None, 'Unable to parse SRV data'
 
-            target = match.group(4)
+            target = match.group('target')
             if not target.endswith('.'):
                 target = '{}.{}'.format(target, data['zone'])
 
             values.append({
-                'priority': match.group(1),
-                'weight': match.group(2),
-                'port': match.group(3),
+                'priority': match.group('priority'),
+                'weight': match.group('weight'),
+                'port': match.group('port'),
                 'target': target,
             })
 
@@ -200,17 +239,14 @@ class MythicBeastsProvider(BaseProvider):
 
         for raw_value in \
                 [raw_values['value'] for raw_values in data['raw_values']]:
-            match = re.match(
-                '^([0-9]+)\\s+([0-9]+)\\s+(\\S+)$',
-                raw_value,
-                re.IGNORECASE)
+            match = MythicBeastsProvider.RE_SSHFP.match(raw_value)
 
             assert match is not None, 'Unable to parse SSHFP data'
 
             values.append({
-                'algorithm': match.group(1),
-                'fingerprint_type': match.group(2),
-                'fingerprint': match.group(3),
+                'algorithm': match.group('algorithm'),
+                'fingerprint_type': match.group('fingerprint_type'),
+                'fingerprint': match.group('fingerprint'),
             })
 
         return {
@@ -224,17 +260,14 @@ class MythicBeastsProvider(BaseProvider):
         ttl = data['raw_values'][0]['ttl']
         raw_value = data['raw_values'][0]['value']
 
-        match = re.match(
-            '^([0-9]+)\\s+(issue|issuewild|iodef)\\s+(\\S+)$',
-            raw_value,
-            re.IGNORECASE)
+        match = MythicBeastsProvider.RE_CAA.match(raw_value)
 
         assert match is not None, 'Unable to parse CAA data'
 
         value = {
-            'flags': match.group(1),
-            'tag': match.group(2),
-            'value': match.group(3),
+            'flags': match.group('flags'),
+            'tag': match.group('tag'),
+            'value': match.group('value'),
         }
 
         return MythicBeastsProvider._data_for_single(
@@ -258,10 +291,7 @@ class MythicBeastsProvider(BaseProvider):
 
         exists = True
         for line in resp.content.splitlines():
-            match = re.match(
-                '^(\\S+)\\s+(\\d+)\\s+(\\S+)\\s+(.*)$',
-                line,
-                re.IGNORECASE)
+            match = MythicBeastsProvider.RE_POPLINE.match(line)
 
             if match is None:
                 self.log.debug('failed to match line: %s', line)
@@ -270,11 +300,11 @@ class MythicBeastsProvider(BaseProvider):
             if match.group(1) == '@':
                 _name = ''
             else:
-                _name = match.group(1)
+                _name = match.group('name')
 
-            _type = match.group(3)
-            _ttl = int(match.group(2))
-            _value = match.group(4).strip()
+            _type = match.group('type')
+            _ttl = int(match.group('ttl'))
+            _value = match.group('value').strip()
 
             if _type == 'TXT':
                 _value = _value.replace(';', '\\;')
@@ -318,13 +348,7 @@ class MythicBeastsProvider(BaseProvider):
     def _compile_commands(self, action, change):
         commands = []
 
-        record = None
-
-        if action == 'ADD':
-            record = change.new
-        else:
-            record = change.existing
-
+        record = change.record
         hostname = remove_trailing_dot(record.fqdn)
         ttl = record.ttl
         _type = record._type
