@@ -339,7 +339,7 @@ class MythicBeastsProvider(BaseProvider):
 
         base = '{} {} {} {}'.format(action, hostname, ttl, _type)
 
-        if re.match('[A]{1,4}', _type) is not None:
+        if _type in ('A', 'AAAA'):
             for value in values:
                 commands.append('{} {}'.format(base, value))
 
