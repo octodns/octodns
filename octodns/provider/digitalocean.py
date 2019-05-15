@@ -223,6 +223,10 @@ class DigitalOceanProvider(BaseProvider):
         values = defaultdict(lambda: defaultdict(list))
         for record in self.zone_records(zone):
             _type = record['type']
+            if _type not in self.SUPPORTS:
+                self.log.warning('populate: skipping unsupported %s record',
+                                 _type)
+                continue
             values[record['name']][record['type']].append(record)
 
         before = len(zone.records)
