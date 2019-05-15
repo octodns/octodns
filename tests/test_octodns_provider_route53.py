@@ -1683,6 +1683,9 @@ class TestRoute53Provider(TestCase):
                     'Value': '1.2.3.4',
                 }],
                 'TTL': 61,
+                # All the non-matches have a different Id so we'll fail if they
+                # match
+                'HealthCheckId': '33',
             }, {
                 # Not dynamic value, matching name, other type
                 'Name': 'a.unit.tests.',
@@ -1691,6 +1694,7 @@ class TestRoute53Provider(TestCase):
                     'Value': '2001:0db8:3c4d:0015:0000:0000:1a2f:1a4b'
                 }],
                 'TTL': 61,
+                'HealthCheckId': '33',
             }, {
                 # default value pool
                 'Name': '_octodns-default-value.a.unit.tests.',
@@ -1702,6 +1706,7 @@ class TestRoute53Provider(TestCase):
                     'Value': '1.2.3.4',
                 }],
                 'TTL': 61,
+                'HealthCheckId': '33',
             }, {
                 # different record
                 'Name': '_octodns-two-value.other.unit.tests.',
@@ -1713,6 +1718,7 @@ class TestRoute53Provider(TestCase):
                     'Value': '1.2.3.4',
                 }],
                 'TTL': 61,
+                'HealthCheckId': '33',
             }, {
                 # same everything, but different type
                 'Name': '_octodns-one-value.a.unit.tests.',
@@ -1721,7 +1727,16 @@ class TestRoute53Provider(TestCase):
                     'Value': '2001:0db8:3c4d:0015:0000:0000:1a2f:1a4b'
                 }],
                 'TTL': 61,
-                'HealthCheckId': '42',
+                'HealthCheckId': '33',
+            }, {
+                # same everything, sub
+                'Name': '_octodns-one-value.sub.a.unit.tests.',
+                'Type': 'A',
+                'ResourceRecords': [{
+                    'Value': '1.2.3.4',
+                }],
+                'TTL': 61,
+                'HealthCheckId': '33',
             }, {
                 # match
                 'Name': '_octodns-one-value.a.unit.tests.',
