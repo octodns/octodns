@@ -1250,15 +1250,27 @@ class Route53Provider(BaseProvider):
                        '%s', record.fqdn, record._type)
 
         fqdn = record.fqdn
+        _type = record._type
 
         # loop through all the r53 rrsets
         for rrset in self._load_records(zone_id):
             name = rrset['Name']
+            # Break off the first piece of the name, it'll let us figure out if
+            # this is an rrset we're interested in.
+            maybe_meta, rest = name.split('.', 1)
 
-            if record._type == rrset['Type'] and name.endswith(fqdn) and \
-               name.startswith('_octodns-') and '-value.' in name and \
-               '-default-' not in name and \
-               self._extra_changes_update_needed(record, rrset):
+            if not maybe_meta.startswith('_octodns-') or \
+               not maybe_meta.endswith('-value') or \
+               '-default-' in name:
+                # We're only interested in non-default dynamic value records,
+                # as that's where healthchecks live
+                continue
+
+            if rest != fqdn or _type != rrset['Type']:
+                # rrset isn't for the current record
+                continue
+
+            if self._extra_changes_update_needed(record, rrset):
                 # no good, doesn't have the right health check, needs an update
                 self.log.info('_extra_changes_dynamic_needs_update: '
                               'health-check caused update of %s:%s',
