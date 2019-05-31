@@ -42,13 +42,13 @@ class AkamaiProvider(BaseProvider):
         credFile.write(str(client_secret))
         credFile.write('\n\n')
 
-        credFile.write('host = %s', str(host))
+        credFile.write('host = ' + str(host))
         credFile.write('\n\n')
 
-        credFile.write('access_token = %s', str(access_token))
+        credFile.write('access_token = ' + str(access_token))
         credFile.write('\n\n')
         
-        credFile.write('client_token = %s', str(client_token))
+        credFile.write('client_token = ' + str(client_token))
 
         credFile.close()
          
