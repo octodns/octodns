@@ -1,0 +1,1 @@
+## Provider file for Akamai Fast DNS
