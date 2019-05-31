@@ -20,8 +20,13 @@ class _AkamaiRecord(object):
 
 
 class AkamaiProvider(BaseProvider):
-    pass
 
+    SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
+    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR', 'SRV',
+                    'TXT'))
+
+                    
     def __init__(self, id, client_secret, host, access_token, client_token, 
                 *args, **kwargs):
         
