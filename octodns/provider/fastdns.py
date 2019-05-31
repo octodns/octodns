@@ -7,8 +7,6 @@ from __future__ import absolute_import, division, print_function, \
 
 ## octodns specfic imports:
 
-import 
-
 import logging
 from functools import reduce
 from ..record import Record
