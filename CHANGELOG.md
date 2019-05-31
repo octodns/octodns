@@ -1,7 +1,7 @@
-## v0.9.5 - 2019-??-?? - The big one, with all the dynamic stuff
+## v0.9.5 - 2019-05-06 - The big one, with all the dynamic stuff
 
 * dynamic record support, essentially a v2 version of geo records with a lot
-  more flexibility and power. Also support dynamic CNAME records.
+  more flexibility and power. Also support dynamic CNAME records (alpha)
 * Route53Provider dynamic record support
 * DynProvider dynamic record support
 * SUPPORTS_DYNAMIC is an optional property, defaults to False
@@ -9,7 +9,13 @@
 * CloudflareProvider SRV record unpacking fix
 * DNSMadeEasy provider uses supports to avoid blowing up on unknown record
   types
+* Updates to AzureProvider lib versions
 * Normalize MX/CNAME/ALIAS/PTR value to lower case
+* SplitYamlProvider support added
+* DynProvider fix for Traffic Directors association to records, explicit rather
+  than "looks close enough"
+* TinyDNS support for TXT and AAAA records and fixes to ; escaping
+* pre-commit hook requires 100% code coverage
 
 ## v0.9.4 - 2019-01-28 - The one with a bunch of stuff, before the big one
 
