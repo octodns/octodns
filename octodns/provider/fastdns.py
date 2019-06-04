@@ -51,6 +51,7 @@ class AkamaiProvider(BaseProvider):
         credFile.write('client_token = ' + str(client_token))
 
         credFile.close()
+        
          
         #### generate edgegrid using tool
 
