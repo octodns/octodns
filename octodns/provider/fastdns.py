@@ -39,7 +39,7 @@ class AkamaiClient(object):
 
     def getZone(self, name):
         path = urljoin(self.base, name)
-        result = self.sess.get(path)
+        result = self._sess.get(path)
         return result.json()
 
 
