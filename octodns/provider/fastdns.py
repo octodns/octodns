@@ -49,10 +49,16 @@ class AkamaiProvider(BaseProvider):
         credFile.write('\n\n')
         
         credFile.write('client_token = ' + str(client_token))
+        credFile.write('\n')
 
         credFile.close()
-        
+
          
         #### generate edgegrid using tool
 
         #### delete temp txt file 
+
+    def populate(self, zone, target=False, lenient=False):
+        pass
+
+
