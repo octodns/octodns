@@ -59,10 +59,11 @@ class AkamaiProvider(BaseProvider):
             credFile.close()
 
     def populate(self, zone, target=False, lenient=False):
-         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
-                       target, lenient)
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name, target, lenient)
 
         print ("populate(%s)", zone.name)
+
+        return 
 
 
 
