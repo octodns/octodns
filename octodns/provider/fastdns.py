@@ -39,7 +39,7 @@ class AkamaiProvider(BaseProvider):
         self.log.debug('__init__: id=%s, ')
         super(AkamaiProvider, self).__init__(id, *args, **kwargs)
 
-        self._authenticate(self, client_secret, host, access_token, client_token)
+        self._authenticate(client_secret, host, access_token, client_token)
 
 
     def _authenticate(self, client_secret, host, access_token, client_token):
