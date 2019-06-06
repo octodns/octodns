@@ -22,6 +22,29 @@ class _AkamaiRecord(object):
     pass
 
 
+class AkamaiClient(object):
+
+    def __init__(self, _client_secret, _host, _access_token, _client_token):
+
+        self.base = "https://" + _host + "/config-dns/v1/zones/"
+
+        sess = requests.Session()
+        sess.auth = EdgeGridAuth(
+            client_token=_client_token,
+            client_secret=_client_secret,
+            access_token=_access_token
+        )
+        self._sess = sess
+        
+
+    def getZone(self, name):
+        path = urljoin(self.base, name)
+        result = self.sess.get(path)
+        return result.json()
+
+
+    # def _get(self, method, path, params=None, data=None): 
+    #     url = '{}{}{}'.format(self.)
 
 
 class AkamaiProvider(BaseProvider):
@@ -39,7 +62,12 @@ class AkamaiProvider(BaseProvider):
         self.log.debug('__init__: id=%s, ')
         super(AkamaiProvider, self).__init__(id, *args, **kwargs)
 
-        self._authenticate(client_secret, host, access_token, client_token)
+
+        self._dns_client = AkamaiClient(client_secret, host, access_token, client_token)
+        
+
+
+        #self._authenticate(client_secret, host, access_token, client_token)
         self._zone_records = {}
 
 
@@ -61,9 +89,14 @@ class AkamaiProvider(BaseProvider):
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name, target, lenient)
 
-        print ("populate(%s)", zone.name)
+        print ("populate()", zone.name)
 
-        return 
+        result = self._dns_client.getZone()
+        
+        print(result)
+
+        return
+        
 
 
 
