@@ -97,9 +97,9 @@ class AkamaiProvider(BaseProvider):
         result = self._dns_client.getZone(zone_name)
         
 
-        print "\n\n"
-        print json.dumps(result, indent=4, separators=(',', ': '))
-        print "\n\n"
+        print ("\n\n")
+        print (json.dumps(result, indent=4, separators=(',', ': ')))
+        print ("\n\n")
 
 
         return
