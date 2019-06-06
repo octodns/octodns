@@ -7,9 +7,9 @@ from __future__ import absolute_import, division, print_function, \
 
 ## octodns specfic imports:
 from os.path import expanduser
-import ConfigParser
-
-# import os ## command line workaround
+import requests
+from akamai.edgegrid import EdgeGridAuth
+from urlparse import urljoin
 
 
 import logging
@@ -40,53 +40,12 @@ class AkamaiProvider(BaseProvider):
         super(AkamaiProvider, self).__init__(id, *args, **kwargs)
 
         self._authenticate(client_secret, host, access_token, client_token)
+        self._zone_records = {}
 
 
     def _authenticate(self, client_secret, host, access_token, client_token):
 
-        # ## generate edgegrid
-        # section_name = "dns"
-        # home = expanduser("~")
-        # index = 0 
-        # fields = {}
-
-        # ## process original .edgerc file
-        # origConfig = ConfigParser.ConfigParser()
-        # filename = "%s/.edgerc" % home
-        
-        # # If this is a new file, create it
-        # if not os.path.isfile(filename):
-        #     open(filename, 'a+').close()
-            
-        # origConfig.read(filename)
-
-        # ## credential type already exists, prompt to overwrite
-        # if section_name in origConfig.sections():
-        #     print (">>> Replacing section: %s" % section_name)
-        #     sys.stdout.write ("*** OK TO REPLACE section %s? *** [Y|n]:" % section_name)
-        #     real_raw_input = vars(__builtins__).get('raw_input',input)
-        #     choice = real_raw_input().lower()
-        #     if choice == "n":
-        #         print ("Not replacing section.")
-        #         return
-        #     replace_section = True
-        # else:
-        #     print ("+++ Creating section: %s" % section_name)
-        #     replace_section = False
-
-        # ## open the ~/.edgerc file for writing
-        # Config = ConfigParser.ConfigParser()
-        # Config.read(filename)
-        # confile = open(filename, 'w')
-
-
-        # ## add  the new section
-        
-
-
-        #### create credential file, and write credentials to it
-
-
+        ## generate edgegrid
         home = expanduser("~")
         filename = "%s/.edgerc" % home
         with open(filename, 'a') as credFile:
@@ -100,6 +59,10 @@ class AkamaiProvider(BaseProvider):
             credFile.close()
 
     def populate(self, zone, target=False, lenient=False):
-        pass
+         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
+
+        print ("populate(%s)", zone.name)
+
 
 
