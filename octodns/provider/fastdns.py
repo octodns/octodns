@@ -86,7 +86,10 @@ class AkamaiProvider(BaseProvider):
 
         #### create credential file, and write credentials to it
 
-        with open('~/.edgerc', 'a') as credFile:
+
+        home = expanduser("~")
+        filename = "%s/.edgerc" % home
+        with open(filename, 'a') as credFile:
 
             credFile.write('[dns]\n')
 
