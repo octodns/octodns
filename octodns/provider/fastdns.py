@@ -90,13 +90,14 @@ class AkamaiProvider(BaseProvider):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name, target, lenient)
 
         print ("populate()", zone.name)
+        
 
-        result = self._dns_client.getZone()
+        result = self._dns_client.getZone(zone.name)
         
         print(result)
 
         return
-        
+
 
 
 
