@@ -42,7 +42,7 @@ class AkamaiProvider(BaseProvider):
         self._authenticate(self, client_secret, host, access_token, client_token)
 
 
-    def _authenticate(self, client_secret, host, access_token, client_token)
+    def _authenticate(self, client_secret, host, access_token, client_token):
 
         # ## generate edgegrid
         # section_name = "dns"
