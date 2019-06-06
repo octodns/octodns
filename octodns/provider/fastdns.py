@@ -92,7 +92,8 @@ class AkamaiProvider(BaseProvider):
         print ("populate()", zone.name)
         
         zone_name = zone.name[:len(zone.name)-1]
-        result = self._dns_client.getZone(zone.name)
+        
+        result = self._dns_client.getZone(zone_name)
         
         print(result)
 
