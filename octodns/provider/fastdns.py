@@ -6,10 +6,10 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 ## octodns specfic imports:
-from os.path import expanduser
 import requests
 from akamai.edgegrid import EdgeGridAuth
 from urlparse import urljoin
+import json
 
 
 import logging
@@ -65,10 +65,11 @@ class AkamaiProvider(BaseProvider):
 
         self._dns_client = AkamaiClient(client_secret, host, access_token, client_token)
         
-
-
         #self._authenticate(client_secret, host, access_token, client_token)
         self._zone_records = {}
+
+
+
 
 
     def _authenticate(self, client_secret, host, access_token, client_token):
@@ -95,7 +96,11 @@ class AkamaiProvider(BaseProvider):
         
         result = self._dns_client.getZone(zone_name)
         
-        print(result)
+
+        print "\n\n"
+        print json.dumps(result, indent=4, separators=(',', ': '))
+        print "\n\n"
+
 
         return
 
