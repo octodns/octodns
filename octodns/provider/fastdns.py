@@ -43,8 +43,6 @@ class AkamaiClient(object):
         return result.json()
 
 
-    # def _get(self, method, path, params=None, data=None): 
-    #     url = '{}{}{}'.format(self.)
 
 
 class AkamaiProvider(BaseProvider):
@@ -90,17 +88,14 @@ class AkamaiProvider(BaseProvider):
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name, target, lenient)
 
-        print ("populate()", zone.name)
-        
+
         zone_name = zone.name[:len(zone.name)-1]
-        
         result = self._dns_client.getZone(zone_name)
         
 
         print ("\n\n")
         print (json.dumps(result, indent=4, separators=(',', ': ')))
         print ("\n\n")
-
 
         return
 
