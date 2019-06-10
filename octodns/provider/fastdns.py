@@ -40,8 +40,9 @@ class AkamaiClient(object):
     def getZone(self, name):
         path = urljoin(self.base, name)
         result = self._sess.get(path)
-        return result.json()
 
+        return result.json()
+        # return result
 
 
 
@@ -91,9 +92,14 @@ class AkamaiProvider(BaseProvider):
 
         zone_name = zone.name[:len(zone.name)-1]
         result = self._dns_client.getZone(zone_name)
-        
 
-        print ("\n\n")
+        
+        print()
+        print()
+
+        print(type(result))
+        #print(result.text)
+
         print (json.dumps(result, indent=4, separators=(',', ': ')))
         print ("\n\n")
 
