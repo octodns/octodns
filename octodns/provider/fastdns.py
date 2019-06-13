@@ -10,14 +10,14 @@ import requests
 from akamai.edgegrid import EdgeGridAuth
 from urlparse import urljoin
 import json
-
+from collections import defaultdict
 
 import logging
 from functools import reduce
 from ..record import Record
 from .base import BaseProvider   
 
-TESTING = False
+TESTING = True
 
 class AkamaiClientException(Exception):
     
@@ -37,28 +37,6 @@ class AkamaiClientException(Exception):
         message = self._errorMessages.get(code)
         super(AkamaiClientException, self).__init__(message)
 
-
-'''    
-class AkamaiClientBadRequest(AkamaiClientException): #400
-    def __init__(self):
-        super(AkamaiClientBadRequest, self).__init__('Bad request')
-
-class AkamaiClientNotAuthorized(AkamaiClientException): #403
-    def __init__(self):
-        super(AkamaiClientNotAuthorized, self).__init__('Forbidden')
-
-class AkamaiClientNotFound(AkamaiClientException): #404
-    def __init__(self):
-        super(AkamaiClientNotFound, self).__init__('Not found')
-
-class AkamaiClientNotAcceptable(AkamaiClientException): #406
-    def __init__(self):
-        super(AkamaiClientNotAcceptable, self).__init__('Not acceptable')
-
-class AkamaiClientGenericExcp(AkamaiClientException):
-    def __init__(self, num):
-        super(AkamaiClientGenericExcp, self).__init__('HTTP Error: ' + str(num)) 
-'''
 
 class _AkamaiRecord(object):
     pass
@@ -95,10 +73,12 @@ class AkamaiClient(object):
         
         f.close()
 
-    def _request(self, method, path, params=None, data=None):
+    def _request(self, method, path, params=None, data=None, v1=False):
         
         url = urljoin(self.base, path)
-        
+        if v1: 
+            url = urljoin(self.basev1, path)
+
         if (TESTING):  
             print("testing mode")
             print(method, url)
@@ -111,15 +91,7 @@ class AkamaiClient(object):
         
         if resp.status_code > 299:
             raise AkamaiClientException(resp.status_code)
-        
-        # if resp.status_code == 400:
-        #     raise AkamaiClientBadRequest()
-        # if resp.status_code == 403:
-        #     raise AkamaiClientNotAuthorized()
-        # if resp.status_code == 404:
-        #     raise AkamaiClientNotFound()
-        # if resp.status_code == 406:
-        #     raise AkamaiClientNotAcceptable()
+
         resp.raise_for_status()
 
 
@@ -154,47 +126,64 @@ class AkamaiClient(object):
 
         return result
 
-
     def zones_get(self, contractIds=None, page=None, pageSize=None, search=None,
                      showAll="true", sortBy="zone", types=None):
         path = 'zones'
 
         params = {
-            "contracIds": contractIds,
-            "page": page, 
-            "pageSize": pageSize,
-            "search": search,
-            "showAll": showAll,
-            "sortBy": sortBy,
-            "types": types
+            'contractIds': contractIds,
+            'page': page, 
+            'pageSize': pageSize,
+            'search': search,
+            'showAll': showAll,
+            'sortBy': sortBy,
+            'types': types
         }
 
         result = self._request('GET', path, params=params)
 
         return result
 
-    
-    def zone_create(self):
-        pass
+    def zone_recordset_get(self, zone, page=None, pageSize=30, search=None,
+                     showAll="true", sortBy="name", types=None):
 
 
-    def zone_recordset_get(self, zone, params=None):
+        params = {
+            'page': page, 
+            'pageSize': pageSize,
+            'search': search,
+            'showAll': showAll,
+            'sortBy': sortBy,
+            'types': types
+        }
+
         path = 'zones/{}/recordsets'.format(zone)
         result = self._request('GET', path, params=params)
 
         return result
 
-    def zone_recordset_create(self, zone):
-        pass
+    def records(self, zone_name):
+        
+        recordset = self.zone_recordset_get(zone_name, showAll="true").json().get("recordsets")
 
-    def zone_recordset_replace(self, zone):
-        pass
-
+        # print (type(recordset))
+        print(recordset)
+        return recordset
 
     def master_zone_file_get(self, zone):
+        
         path = 'zones/{}/zone-file'.format(zone)
-        result = self._request('GET', path)
-    
+
+        try:
+            result = self._request('GET', path)
+
+        except AkamaiClientException as e:
+            # not working with API v2, API v1 fallback
+            path = 'zones/{}'.format(zone)
+            result = self._request('GET', path, v1=True)
+            print("Using API v1 fallback")
+            print("(Probably Ignore)", e.message)
+
         return result
 
 
@@ -220,10 +209,26 @@ class AkamaiProvider(BaseProvider):
         self._zone_records = {}
 
 
+    def zone_records(self, zone):
+        if zone.name not in self._zone_records:
+            try:
+                self._zone_records[zone.name] = self._dns_client.records(zone.name[:-1])
+
+            except AkamaiClientException:
+                return []
+
+        return self._zone_records[zone.name]
+
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name, target, lenient)
-        self._test(zone)
+        
+        # self._test(zone)
+
+        values = defaultdict(lambda: defaultdict(list))
+
+        for record in self.zone_records(zone):
+            pass
 
 
 
@@ -254,20 +259,23 @@ class AkamaiProvider(BaseProvider):
         }
 
 
-        print("\n\nRunning test: record get..........\n")
-        self._test_record_get(zone_name, "test.basir-test.com", record_type)
-        print("\n\nRunning test: record create..........\n")
-        self._test_record_create(zone_name, record_name, record_type, params)
-        print("\n\nRunning test: record replace..........\n")
-        self._test_record_replace(zone_name, record_name, record_type, repl_params)
-        print("\n\nRunning test: record delete..........\n")
-        self._test_record_delete(zone_name, record_name, record_type)
+        # print("\n\nRunning test: record get..........\n")
+        # self._test_record_get(zone_name, "test.basir-test.com", record_type)
+        # print("\n\nRunning test: record create..........\n")
+        # self._test_record_create(zone_name, record_name, record_type, params)
+        # print("\n\nRunning test: record replace..........\n")
+        # self._test_record_replace(zone_name, record_name, record_type, repl_params)
+        # print("\n\nRunning test: record delete..........\n")
+        # self._test_record_delete(zone_name, record_name, record_type)
 
         # print("\n\nRunning test: zones get..........\n")
         # self._test_zones_get()
-        # print("\n\nRunning test: zone recordset get..........\n")
-        # self._test_zones_recordset_get(zone_name)
 
+        print("\n\nRunning test: zone recordset get..........\n")
+        self._test_zones_recordset_get(zone_name)
+
+        # print("\n\nRunning test: Master Zone File get..........\n")
+        # self._test_master_zone_file_get(zone_name)
 
         return
 
@@ -388,3 +396,17 @@ class AkamaiProvider(BaseProvider):
             print("zone recordset: ")
             print(json.dumps(zoneRecordset.json(), indent=4, separators=(',', ': ')))
         return
+
+    def _test_master_zone_file_get(self, zone_name):
+        try:
+            mzf = self._dns_client.master_zone_file_get(zone_name)
+
+        except AkamaiClientException as e:
+            print("MZF retrieval test failed")
+            print (e.message)
+
+        else:
+            print("Master Zone File:")
+            print(json.dumps(mzf.json(), indent=4, separators=(',', ': ')))
+
+        return 
