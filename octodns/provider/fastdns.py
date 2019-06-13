@@ -17,10 +17,28 @@ from functools import reduce
 from ..record import Record
 from .base import BaseProvider   
 
+TESTING = False
 
 class AkamaiClientException(Exception):
-    pass
+    
+    _errorMessages = {
+        400: "400: Bad request", 
+        403: "403: Access is forbidden",
+        404: "404: Resource not found",
+        405: "405: Method not supported",
+        406: "406: Not Acceptable",
+        409: "409: Request not allowed due to conflict with current state of resource",
+        415: "415: Unsupported media type",
+        422: "422: Request body contains an error preventing processing",
+        500: "500: Internal server error"
+    }
 
+    def __init__(self, code):
+        message = self._errorMessages.get(code)
+        super(AkamaiClientException, self).__init__(message)
+
+
+'''    
 class AkamaiClientBadRequest(AkamaiClientException): #400
     def __init__(self):
         super(AkamaiClientBadRequest, self).__init__('Bad request')
@@ -39,8 +57,8 @@ class AkamaiClientNotAcceptable(AkamaiClientException): #406
 
 class AkamaiClientGenericExcp(AkamaiClientException):
     def __init__(self, num):
-        super(AkamaiClientGenericExcp, self).__init__('HTTP Error: ' + str(num))         
-
+        super(AkamaiClientGenericExcp, self).__init__('HTTP Error: ' + str(num)) 
+'''
 
 class _AkamaiRecord(object):
     pass
@@ -50,8 +68,8 @@ class AkamaiClient(object):
 
     def __init__(self, _client_secret, _host, _access_token, _client_token):
 
-        self.base = "https://" + _host + "/config-dns/v2/zones/"
-        self.basev1 = "https://" + _host + "/config-dns/v1/zones/"
+        self.base = "https://" + _host + "/config-dns/v2/"
+        self.basev1 = "https://" + _host + "/config-dns/v1/"
 
         sess = requests.Session()
         sess.auth = EdgeGridAuth(
@@ -60,84 +78,125 @@ class AkamaiClient(object):
             access_token=_access_token
         )
         self._sess = sess
-        
-    def _request(self, method, path, params=None, data=None):
-        # url = '{}{}'.format(self.base, path)
-        url = urljoin(self.base, path)
-        print(method, url)
 
-        req = requests.Request(method, url, params=params, json=data)
-        prepped = req.prepare()
 
-        filename = str(method)  + ".json"
+    def _writePrepped(self, prepped):
+        filename = str(prepped.method)  + ".json"
         f = open(filename, 'w')
-        # f.write(json.dumps(prepped, indent=4, separators=(',', ': ')))
-        f.write(method + " " + url + "\n")
+
         f.write("headers: \n")
         f.write(str(prepped.headers))
         f.write("\nbody: \n")
         f.write(str(prepped.body))
+        f.write("\nhooks:\n")
+        f.write(str(prepped.hooks))
+        f.write("\nmethod: " + str(prepped.method))
+        f.write("\nurl: " + str(prepped.url) + "\n")
+        
         f.close()
 
+    def _request(self, method, path, params=None, data=None):
+        
+        url = urljoin(self.base, path)
+        
+        if (TESTING):  
+            print("testing mode")
+            print(method, url)
+            req = requests.Request(method, url, params=params, json=data)
+            prepped = req.prepare()
+            self._writePrepped(prepped)
 
-        '''
         resp = self._sess.request(method, url, params=params, json=data)
 
-        if resp.status_code == 400:
-            raise AkamaiClientBadRequest()
-        if resp.status_code == 403:
-            raise AkamaiClientNotAuthorized()
-        if resp.status_code == 404:
-            raise AkamaiClientNotFound()
-        if resp.status_code == 406:
-            raise AkamaiClientNotAcceptable()
+        
+        if resp.status_code > 299:
+            raise AkamaiClientException(resp.status_code)
+        
+        # if resp.status_code == 400:
+        #     raise AkamaiClientBadRequest()
+        # if resp.status_code == 403:
+        #     raise AkamaiClientNotAuthorized()
+        # if resp.status_code == 404:
+        #     raise AkamaiClientNotFound()
+        # if resp.status_code == 406:
+        #     raise AkamaiClientNotAcceptable()
         resp.raise_for_status()
 
+
         return resp    
-        '''
-        return prepped
 
-    '''
-    def getZone(self, name):
-        path = name + "/recordsets/"        
-        result = self._request('GET', path, "sortBy=type&types=A")
-
-        return result.json()
-
-    def getNames(self, name):
-        path = name + "/names/"
-        result = self._request('GET', path)
-
-        return result.json()
-    '''
-
-
+ 
     def record_get(self, zone, name, record_type):
         
-        path = '/zones/{}/names/{}/types/'.format(zone, name, record_type)
+        path = 'zones/{}/names/{}/types/{}'.format(zone, name, record_type)
         result = self._request('GET', path)
         
-        return
-        return result.json()
+        return result
 
     def record_create(self, zone, name, record_type, params):
-        path = '/zones/{}/names/{}/types/'.format(zone, name, record_type)
+        path = 'zones/{}/names/{}/types/{}'.format(zone, name, record_type)
         result = self._request('POST', path, data=params)
 
         return result
 
-
     def record_delete(self, zone, name, record_type):
-        path = '/zones/{}/names/{}/types/'.format(zone, name, record_type)
+        path = 'zones/{}/names/{}/types/{}'.format(zone, name, record_type)
         result = self._request('DELETE', path)
         
+        if result.status_code == 204:
+            print ("successfully deleted ", path)
+
         return result
 
     def record_replace(self, zone, name, record_type, params):
-        path = '/zones/{}/names/{}/types/'.format(zone, name, record_type)
+        path = 'zones/{}/names/{}/types/{}'.format(zone, name, record_type)
         result = self._request('PUT', path, data=params)
 
         return result
+
+
+    def zones_get(self, contractIds=None, page=None, pageSize=None, search=None,
+                     showAll="true", sortBy="zone", types=None):
+        path = 'zones'
+
+        params = {
+            "contracIds": contractIds,
+            "page": page, 
+            "pageSize": pageSize,
+            "search": search,
+            "showAll": showAll,
+            "sortBy": sortBy,
+            "types": types
+        }
+
+        result = self._request('GET', path, params=params)
+
+        return result
+
+    
+    def zone_create(self):
+        pass
+
+
+    def zone_recordset_get(self, zone, params=None):
+        path = 'zones/{}/recordsets'.format(zone)
+        result = self._request('GET', path, params=params)
+
+        return result
+
+    def zone_recordset_create(self, zone):
+        pass
+
+    def zone_recordset_replace(self, zone):
+        pass
+
+
+    def master_zone_file_get(self, zone):
+        path = 'zones/{}/zone-file'.format(zone)
+        result = self._request('GET', path)
+    
+        return result
+
 
 class AkamaiProvider(BaseProvider):
 
@@ -172,28 +231,160 @@ class AkamaiProvider(BaseProvider):
 
         zone_name = zone.name[:len(zone.name)-1]
 
-
-        record_name = "www.exampleRecordName.com"
-        record_type = "AAAA"
+        record_name = "octo.basir-test.com"
+        record_type = "A"
         params = {
-            "name": "www.example.com",
-            "type": "AAAA",
+            "name": "octo.basir-test.com",
+            "type": "A",
             "ttl": 300,
             "rdata": [
                 "10.0.0.2",
                 "10.0.0.3"
             ]
         }
-       
-        self._dns_client.record_get(zone_name, record_name, record_type)
-        self._dns_client.record_create(zone_name, record_name, record_type, params)
-        self._dns_client.record_delete(zone_name, record_name, record_type)
-        self._dns_client.record_replace(zone_name, record_name, record_type, params)
+        repl_params = {
+            "name": "octo.basir-test.com",
+            "type": "A",
+            "ttl": 300,
+            "rdata": [
+                "99.99.99.99",
+                "10.0.0.3",
+                "1.2.3.4"
+            ]
+        }
 
 
-        # domainRequest = self._dns_client.getZone(zone_name)
-        # names = self._dns_client.getNames(zone_name)
+        print("\n\nRunning test: record get..........\n")
+        self._test_record_get(zone_name, "test.basir-test.com", record_type)
+        print("\n\nRunning test: record create..........\n")
+        self._test_record_create(zone_name, record_name, record_type, params)
+        print("\n\nRunning test: record replace..........\n")
+        self._test_record_replace(zone_name, record_name, record_type, repl_params)
+        print("\n\nRunning test: record delete..........\n")
+        self._test_record_delete(zone_name, record_name, record_type)
+
+        # print("\n\nRunning test: zones get..........\n")
+        # self._test_zones_get()
+        # print("\n\nRunning test: zone recordset get..........\n")
+        # self._test_zones_recordset_get(zone_name)
 
 
         return
 
+    def _test_record_get(self, zone_name, record_name, record_type):
+        try:
+            get = self._dns_client.record_get(zone_name, record_name, record_type)
+        except AkamaiClientException as e:
+            print ("record get test failed")
+            print (e.message)
+
+        else:
+            print("record get test result: ")
+            print(json.dumps(get.json(), indent=4, separators=(',', ': ')))
+
+        return
+
+    def _test_record_delete(self, zone_name, record_name, record_type):
+
+        try:
+            delete = self._dns_client.record_delete(zone_name, record_name, record_type)
+        except AkamaiClientException as e:
+            print("delete failed")
+            print(e.message)
+            return
+
+
+        try:
+            self._dns_client.record_get(zone_name, record_name, record_type)
+        except AkamaiClientException as e:
+            print("get on record failed as expected, since record was succesfully deleted")
+            print ("(Probably Ignore):", e.message)
+            print ("delete status:", delete.status_code)
+        else:
+            print("unexpected condition in test delete")
+
+        return
+
+    def _test_record_create(self, zone_name, record_name, record_type, params):
+
+        try:
+            create  = self._dns_client.record_create(zone_name, record_name, record_type, params)
+        except AkamaiClientException as e:
+            print ("create unsuccessful, presumably because it already exists")
+            print ("(Probably Ignore)", e.message)
+        else:
+            print("initial create of", create.json().get("name"), "succesful: ", create.status_code)
+
+        return
+
+    def _test_record_replace(self, zone_name, record_name, record_type, params):
+
+        ## create record to be replaced, if it doesn't already exist
+        try:
+            old_params = {
+                "name": record_name,
+                "type": record_type,
+                "ttl": 300,
+                "rdata": [
+                    "10.0.0.2",
+                    "10.0.0.3"
+                ]
+            }
+            create = self._dns_client.record_create(zone_name, record_name, record_type, old_params)
+        except AkamaiClientException as e:
+            print ("initial create unsuccessful, presumably because it already exists")
+            print ("(Probably Ignore)", e.message)
+        else:
+            print("initial create of record to be replaced", create.json().get("name"), "succesful: ", create.status_code)
+
+        
+        ## test replace
+        try:
+            replace = self._dns_client.record_replace(zone_name, record_name, record_type, params)
+        except AkamaiClientException as e:
+            print("replace failed")
+            print(e.message)
+            return
+        else:
+            try:
+                record = self._dns_client.record_get(zone_name, record_name, record_type)
+            except AkamaiClientException as e:
+                print("retrieval in replacement failed")
+                print(e.message)
+            else:
+                new_data = record.json()
+
+                if (new_data != params):
+                    print("replace failed, records don't match")
+                    print("current data:")
+                    print(new_data)
+                    print("expected data:")
+                    print(params)
+                
+                else:
+                    print("replace succesful")
+                    print("replace status:", replace.status_code)
+
+    def _test_zones_get(self):
+        try:
+            zonesList = self._dns_client.zones_get()
+        except AkamaiClientException as e:
+            print ("zones get test failed") 
+            print (e.message)
+
+        else:
+            print("zones list: ")
+            print(json.dumps(zonesList.json(), indent=4, separators=(',', ': ')))
+
+        return
+
+    def _test_zones_recordset_get(self, zone_name):
+        try:
+            zoneRecordset = self._dns_client.zone_recordset_get(zone_name)
+        except AkamaiClientException as e:
+            print("zone recordset retrieval test failed")
+            print (e.message)
+        else:
+            print("zone recordset: ")
+            print(json.dumps(zoneRecordset.json(), indent=4, separators=(',', ': ')))
+        return
