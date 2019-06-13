@@ -64,7 +64,23 @@ class AkamaiClient(object):
     def _request(self, method, path, params=None, data=None):
         # url = '{}{}'.format(self.base, path)
         url = urljoin(self.base, path)
-        print(url)
+        print(method, url)
+
+        req = requests.Request(method, url, params=params, json=data)
+        prepped = req.prepare()
+
+        filename = str(method)  + ".json"
+        f = open(filename, 'w')
+        # f.write(json.dumps(prepped, indent=4, separators=(',', ': ')))
+        f.write(method + " " + url + "\n")
+        f.write("headers: \n")
+        f.write(str(prepped.headers))
+        f.write("\nbody: \n")
+        f.write(str(prepped.body))
+        f.close()
+
+
+        '''
         resp = self._sess.request(method, url, params=params, json=data)
 
         if resp.status_code == 400:
@@ -78,20 +94,22 @@ class AkamaiClient(object):
         resp.raise_for_status()
 
         return resp    
+        '''
+        return prepped
 
+    '''
+    def getZone(self, name):
+        path = name + "/recordsets/"        
+        result = self._request('GET', path, "sortBy=type&types=A")
 
-    # def getZone(self, name):
-    #     path = name + "/recordsets/"        
-    #     result = self._request('GET', path, "sortBy=type&types=A")
+        return result.json()
 
-    #     return result.json()
+    def getNames(self, name):
+        path = name + "/names/"
+        result = self._request('GET', path)
 
-    # def getNames(self, name):
-    #     path = name + "/names/"
-    #     result = self._request('GET', path)
-
-    #     return result.json()
-
+        return result.json()
+    '''
 
 
     def record_get(self, zone, name, record_type):
@@ -99,6 +117,7 @@ class AkamaiClient(object):
         path = '/zones/{}/names/{}/types/'.format(zone, name, record_type)
         result = self._request('GET', path)
         
+        return
         return result.json()
 
     def record_create(self, zone, name, record_type, params):
@@ -145,29 +164,36 @@ class AkamaiProvider(BaseProvider):
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name, target, lenient)
+        self._test(zone)
 
+
+
+    def _test(self, zone) :
 
         zone_name = zone.name[:len(zone.name)-1]
-        zone = self._dns_client.getZone(zone_name)
-        names = self._dns_client.getNames(zone_name)
 
 
-        #  print(type(result))
-        #print(result.text)
+        record_name = "www.exampleRecordName.com"
+        record_type = "AAAA"
+        params = {
+            "name": "www.example.com",
+            "type": "AAAA",
+            "ttl": 300,
+            "rdata": [
+                "10.0.0.2",
+                "10.0.0.3"
+            ]
+        }
+       
+        self._dns_client.record_get(zone_name, record_name, record_type)
+        self._dns_client.record_create(zone_name, record_name, record_type, params)
+        self._dns_client.record_delete(zone_name, record_name, record_type)
+        self._dns_client.record_replace(zone_name, record_name, record_type, params)
 
-        zoneFile = open('zoneFile.json', 'w')
-        namesFile = open('namesFile.json', 'w')
-        zoneFile.write(json.dumps(zone, indent=4, separators=(',', ': ')))
-        namesFile.write(json.dumps(names, indent=4, separators=(',', ': ')))
-        zoneFile.close()
-        namesFile.close()
 
+        # domainRequest = self._dns_client.getZone(zone_name)
+        # names = self._dns_client.getNames(zone_name)
 
-
-        #print (json.dumps(result, indent=4, separators=(',', ': ')))
 
         return
-
-
-
 
