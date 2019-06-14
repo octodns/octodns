@@ -166,8 +166,6 @@ class AkamaiClient(object):
         
         recordset = self.zone_recordset_get(zone_name, showAll="true").json().get("recordsets")
 
-        # print (type(recordset))
-        print(recordset)
         return recordset
 
     def master_zone_file_get(self, zone):
@@ -228,7 +226,14 @@ class AkamaiProvider(BaseProvider):
         values = defaultdict(lambda: defaultdict(list))
 
         for record in self.zone_records(zone):
-            pass
+            _type=record['type']
+            if _type not in self.SUPPORTS:
+                continue
+            elif _type == 'TXT' and record['content'].startswith('ALIAS for'):
+                # ALIAS has a "ride along" TXT record with 'ALIAS for XXXX',
+                # we're ignoring it
+                continue
+            values[record['name']][record['type']].append(record)
 
 
 
