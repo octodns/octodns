@@ -318,6 +318,27 @@ class TestMythicBeastsProvider(TestCase):
 
         self.assertEquals(0, len(zone.records))
 
+        # Record change failed
+        with requests_mock() as mock:
+            mock.post(ANY, status_code=200, text='')
+            provider.populate(zone)
+            zone.add_record(Record.new(zone, 'prawf', {
+                'ttl': 300,
+                'type': 'TXT',
+                'value': 'prawf',
+            }))
+            plan = provider.plan(zone)
+
+        with requests_mock() as mock:
+            mock.post(ANY, status_code=400, text='NADD 300 TXT prawf')
+
+            with self.assertRaises(Exception) as err:
+                provider.apply(plan)
+            self.assertEquals(
+                'Mythic Beasts could not action command: unit.tests '
+                'ADD prawf.unit.tests 300 TXT prawf',
+                err.exception.message)
+
         # Check deleting and adding/changing test record
         existing = 'prawf 300 TXT prawf prawf prawf\ndileu 300 TXT dileu'
 

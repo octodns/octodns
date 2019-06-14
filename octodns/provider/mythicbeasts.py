@@ -13,6 +13,8 @@ from logging import getLogger
 from ..record import Record
 from .base import BaseProvider
 
+from collections import defaultdict
+
 
 def add_trailing_dot(value):
     '''
@@ -41,6 +43,19 @@ class MythicBeastsUnauthorizedException(Exception):
 
         super(MythicBeastsUnauthorizedException, self).__init__(
             self.message, self.zone, *args)
+
+
+class MythicBeastsRecordException(Exception):
+    def __init__(self, zone, command, *args):
+        self.zone = zone
+        self.command = command
+        self.message = 'Mythic Beasts could not action command: {} {}'.format(
+            self.zone,
+            self.command,
+        )
+
+        super(MythicBeastsRecordException, self).__init__(
+            self.message, self.zone, self.command, *args)
 
 
 class MythicBeastsProvider(BaseProvider):
@@ -118,6 +133,12 @@ class MythicBeastsProvider(BaseProvider):
 
         if resp.status_code == 401:
             raise MythicBeastsUnauthorizedException(data['domain'])
+
+        if resp.status_code == 400:
+            raise MythicBeastsRecordException(
+                data['domain'],
+                data['command']
+            )
         resp.raise_for_status()
         return resp
 
@@ -287,7 +308,11 @@ class MythicBeastsProvider(BaseProvider):
 
         before = len(zone.records)
         exists = False
-        data = dict()
+        data = defaultdict(lambda: defaultdict(lambda: {
+            'raw_values': [],
+            'name': None,
+            'zone': None,
+        }))
 
         exists = True
         for line in resp.content.splitlines():
@@ -310,10 +335,6 @@ class MythicBeastsProvider(BaseProvider):
                 _value = _value.replace(';', '\\;')
 
             if hasattr(self, '_data_for_{}'.format(_type)):
-
-                if _type not in data:
-                    data[_type] = dict()
-
                 if _name not in data[_type]:
                     data[_type][_name] = {
                         'raw_values': [{'value': _value, 'ttl': _ttl}],
