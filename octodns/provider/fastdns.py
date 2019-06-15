@@ -13,7 +13,6 @@ import json
 from collections import defaultdict
 
 import logging
-from functools import reduce
 from ..record import Record
 from .base import BaseProvider   
 
@@ -160,11 +159,13 @@ class AkamaiClient(object):
         path = 'zones/{}/recordsets'.format(zone)
         result = self._request('GET', path, params=params)
 
+
         return result
 
     def records(self, zone_name):
         
-        recordset = self.zone_recordset_get(zone_name, showAll="true").json().get("recordsets")
+        resp = self.zone_recordset_get(zone_name, showAll="true")
+        recordset = resp.json().get("recordsets")
 
         return recordset
 
@@ -189,9 +190,10 @@ class AkamaiProvider(BaseProvider):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
+
     SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR', 'SPF', 
                     'SRV', 'SSHFP', 'TXT'))
-
+    # SUPPORTS = set(('NAPTR', 'MX'))
                     
     def __init__(self, id, client_secret, host, access_token, client_token, 
                 *args, **kwargs):
@@ -200,41 +202,204 @@ class AkamaiProvider(BaseProvider):
         self.log.debug('__init__: id=%s, ')
         super(AkamaiProvider, self).__init__(id, *args, **kwargs)
 
-
-        self._dns_client = AkamaiClient(client_secret, host, access_token, client_token)
+        self._dns_client = AkamaiClient(client_secret, host, access_token, 
+                    client_token)
         
-
         self._zone_records = {}
 
 
     def zone_records(self, zone):
+        """ returns records for a zone, finds it if not present, or 
+            returns empty if doesnt exist
+        """
         if zone.name not in self._zone_records:
             try:
-                self._zone_records[zone.name] = self._dns_client.records(zone.name[:-1])
+                name = zone.name[:-1]
+                self._zone_records[zone.name] = self._dns_client.records(name)
 
             except AkamaiClientException:
                 return []
+
+
+        # fileName = "zone_records_for_" + zone.name +".json"
+        # path = "/mnt/c/Users/bajamil/Desktop/" + fileName
+        # f = open(path, 'w')
+        # f.write(json.dumps(self._zone_records[zone.name], indent=4, separators=(',', ': ')))
+        # f.close()
 
         return self._zone_records[zone.name]
 
 
     def populate(self, zone, target=False, lenient=False):
-        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name, target, lenient)
-        
+        self.log.debug('populate: name=%s', zone.name)
         # self._test(zone)
 
         values = defaultdict(lambda: defaultdict(list))
-
         for record in self.zone_records(zone):
-            _type=record['type']
+
+            _type =record.get('type')
+            _name = record.get('name')
+
             if _type not in self.SUPPORTS:
                 continue
-            elif _type == 'TXT' and record['content'].startswith('ALIAS for'):
-                # ALIAS has a "ride along" TXT record with 'ALIAS for XXXX',
-                # we're ignoring it
-                continue
-            values[record['name']][record['type']].append(record)
 
+            values[_name][_type].append(record)
+        
+
+        
+        fileName = "values_for_" + zone.name +".json"
+        path = "/mnt/c/Users/bajamil/Desktop/" + fileName
+        f = open(path, 'w')
+        f.write(json.dumps(values, indent=4, separators=(',', ': ')))
+        f.close()
+
+        return ### 
+        before = len(zone.records)
+        for name, types in values.items():
+            for _type, records in types.items():
+                data_for = getattr(self, '_data_for_{}'.format(_type))
+                
+                data = data_for(_type, records)
+
+                print()
+                print ("data processed for", name, ":")
+                print (json.dumps(data, indent=4, separators=(',', ': ')))
+                print()
+
+                record = Record.new(zone, name, data_for(_type, records), source=self, lenient=lenient)
+
+
+        exists = zone.name in self._zone_records
+        self.log.info('populate:    found %s records, exists=%s', 
+                        len(zone.records) - before, exists)
+        
+        return exists
+
+
+    def _data_for_multiple(self, _type, records):
+        
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': [r['rdata'][0] for r in records]
+    } 
+
+    _data_for_A = _data_for_multiple
+    _data_for_AAAA = _data_for_multiple
+    _data_for_SPF = _data_for_multiple
+
+    def _data_for_CNAME(self, _type, records):
+        record = records[0]
+        value = record['rdata'][0]
+        if (value[-1] != "."):
+            value = '{}.'.format(value)
+        
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'value': value
+        }
+
+    def _data_for_MX(self, _type, records):
+        values = []
+        for record in records:
+            print ("MX record: ", record)
+            values.append({
+                'preference': record['priority'],
+                'exchange': '{}.'.format(record['rdata'][0])
+            })
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values
+        }
+
+    def _data_for_NAPTR(self, _type, records):
+        print ("NAPTR Record")
+        print(json.dumps(records, indent=4, separators=(',', ': ')))
+        values = []
+        for record in records:
+            order, preference, flags, service, regexp, replacement = \
+                record['rdata'][0].split(' ', 5)
+        
+            values.append({
+                'flags': flags[1:-1],
+                'order': order,
+                'preference': preference,
+                'regexp': regexp[1:-1],
+                'replacement': replacement, 
+                'service': service[1:-1]
+            })
+        return {
+            'type': _type,
+            'ttl': records[0]['ttl'],
+            'values': values
+        }
+
+    def _data_for_NS(self, _type, records):
+        values = []
+        for record in records:
+            rdata = record['rdata']
+            for content in rdata:
+                if content[-1] != '.':
+                    content = '{}.'.format(content)
+                values.append(content)
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'value': values
+        }
+
+    def _data_for_PTR(self, _type, records):
+        return self._data_for_multiple(_type, records[0])
+    
+    # rdata[0]?
+    def _data_for_SRV(self, _type, records):
+        values = []
+        for record in records:
+            weight, port, target = record['rdata'].split(', ', 2)
+            values.append({
+                'port': port,
+                'priority': record['priority'],
+                'target': '{}.'.format(target),
+                'weight': weight
+            })
+        return {
+            'type': _type,
+            'ttl': records[0]['ttl'],
+            'values': values
+        }
+
+    # rdata[0]?
+    def _data_for_SSHFP(self, _type, records):
+        values = []
+        algorithm, fp_type, fingerprint = record['rdata'].split(' ', 2)
+        values.append({
+            'algorithm': algorithm,
+            'fingerprint': fingerprint,
+            'fingerprint_type': fp_type
+        })
+
+        return {
+            'type': _type,
+            'ttl': records[0]['ttl'],
+            'values': values 
+        }
+
+    def _data_for_TXT(self, _type, records):
+        values = []
+        for r in records:
+            for content in r['rdata']:
+                values.append(content.replace(';', '\\;'))
+
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values
+            # 'values': [r['rdata'][0].replace(';', '\\;') for r in records]
+        }
+    
+    
 
 
     def _test(self, zone) :
