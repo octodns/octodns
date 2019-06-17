@@ -247,26 +247,24 @@ class AkamaiProvider(BaseProvider):
         
 
         
-        fileName = "values_for_" + zone.name +".json"
-        path = "/mnt/c/Users/bajamil/Desktop/" + fileName
-        f = open(path, 'w')
-        f.write(json.dumps(values, indent=4, separators=(',', ': ')))
-        f.close()
 
-        return ### 
         before = len(zone.records)
         for name, types in values.items():
-            for _type, records in types.items():
-                data_for = getattr(self, '_data_for_{}'.format(_type))
-                
-                data = data_for(_type, records)
+            # for _type, records in types.items():
+            for _type in types.items():                
+                for rdata in _type['rdata']:
 
-                print()
-                print ("data processed for", name, ":")
-                print (json.dumps(data, indent=4, separators=(',', ': ')))
-                print()
 
-                record = Record.new(zone, name, data_for(_type, records), source=self, lenient=lenient)
+                    data_for = getattr(self, '_data_for_{}'.format(_type))
+                    
+                    data = data_for(_type, records, rdata)
+
+                    print()
+                    print ("data processed for", name, ":")
+                    print (json.dumps(data, indent=4, separators=(',', ': ')))
+                    print()
+
+                    record = Record.new(zone, name, data_for(_type, records), source=self, lenient=lenient)
 
 
         exists = zone.name in self._zone_records
