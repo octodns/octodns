@@ -229,6 +229,36 @@ class TestMythicBeastsProvider(TestCase):
                 expected_commands
             )
 
+            # Now test deletion
+            existing = 'prawf-txt 300 TXT prawf prawf dyma prawf\n' \
+                'prawf-a 60 A 1.2.3.4'
+
+            with requests_mock() as mock:
+                mock.post(ANY, status_code=200, text=existing)
+                wanted = Zone('unit.tests.', [])
+
+                plan = provider.plan(wanted)
+                changes = plan.changes
+                generated_commands = []
+
+                for change in changes:
+                    generated_commands.extend(
+                        provider._compile_commands('DELETE', change.existing)
+                    )
+
+            expected_commands = [
+                'DELETE prawf-a.unit.tests 60 A 1.2.3.4',
+                'DELETE prawf-txt.unit.tests 300 TXT prawf prawf dyma prawf',
+            ]
+
+            generated_commands.sort()
+            expected_commands.sort()
+
+            self.assertEquals(
+                generated_commands,
+                expected_commands
+            )
+
     def test_fake_command_generation(self):
         class FakeChangeRecord(object):
             def __init__(self):
