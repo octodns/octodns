@@ -366,10 +366,9 @@ class MythicBeastsProvider(BaseProvider):
 
         return exists
 
-    def _compile_commands(self, action, change):
+    def _compile_commands(self, action, record):
         commands = []
 
-        record = change.record
         hostname = remove_trailing_dot(record.fqdn)
         ttl = record.ttl
         _type = record._type
@@ -384,11 +383,7 @@ class MythicBeastsProvider(BaseProvider):
 
         base = '{} {} {} {}'.format(action, hostname, ttl, _type)
 
-        if _type in ('A', 'AAAA'):
-            for value in values:
-                commands.append('{} {}'.format(base, value))
-
-        elif _type == 'SSHFP':
+        if _type == 'SSHFP':
             data = values[0].data
             commands.append('{} {} {} {}'.format(
                 base,
@@ -417,8 +412,8 @@ class MythicBeastsProvider(BaseProvider):
 
         else:
             if hasattr(self, '_data_for_{}'.format(_type)):
-                commands.append('{} {}'.format(
-                    base, values[0]))
+                for value in values:
+                    commands.append('{} {}'.format(base, value))
             else:
                 self.log.debug('skipping %s as not supported', _type)
 
@@ -426,7 +421,7 @@ class MythicBeastsProvider(BaseProvider):
 
     def _apply_Create(self, change):
         zone = change.new.zone
-        commands = self._compile_commands('ADD', change)
+        commands = self._compile_commands('ADD', change.new)
 
         for command in commands:
             self._post({
@@ -443,7 +438,7 @@ class MythicBeastsProvider(BaseProvider):
 
     def _apply_Delete(self, change):
         zone = change.existing.zone
-        commands = self._compile_commands('DELETE', change)
+        commands = self._compile_commands('DELETE', change.existing)
 
         for command in commands:
             self._post({

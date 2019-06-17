@@ -156,32 +156,39 @@ class TestMythicBeastsProvider(TestCase):
         self.assertEquals('Unable to parse CAA data',
                           err.exception.message)
 
-    def test_alias_command_generation(self):
+    def test_command_generation(self):
         zone = Zone('unit.tests.', [])
-        zone.add_record(Record.new(zone, 'prawf', {
+        zone.add_record(Record.new(zone, 'prawf-alias', {
             'ttl': 60,
             'type': 'ALIAS',
             'value': 'alias.unit.tests.',
         }))
-        with requests_mock() as mock:
-            mock.post(ANY, status_code=200, text='')
-
-            provider = MythicBeastsProvider('test', {
-                'unit.tests.': 'mypassword'
-            })
-
-            plan = provider.plan(zone)
-            change = plan.changes[0]
-
-            command = provider._compile_commands('ADD', change)
-            self.assertEquals(
-                ['ADD prawf.unit.tests 60 ANAME alias.unit.tests.'],
-                command
-            )
-
-    def test_txt_command_generation(self):
-        zone = Zone('unit.tests.', [])
-        zone.add_record(Record.new(zone, 'prawf', {
+        zone.add_record(Record.new(zone, 'prawf-ns', {
+            'ttl': 300,
+            'type': 'NS',
+            'values': [
+                'alias.unit.tests.',
+                'alias2.unit.tests.',
+            ],
+        }))
+        zone.add_record(Record.new(zone, 'prawf-a', {
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.2.3.4',
+                '5.6.7.8',
+            ],
+        }))
+        zone.add_record(Record.new(zone, 'prawf-aaaa', {
+            'ttl': 60,
+            'type': 'AAAA',
+            'values': [
+                'a:a::a',
+                'b:b::b',
+                'c:c::c:c',
+            ],
+        }))
+        zone.add_record(Record.new(zone, 'prawf-txt', {
             'ttl': 60,
             'type': 'TXT',
             'value': 'prawf prawf dyma prawf',
@@ -194,15 +201,35 @@ class TestMythicBeastsProvider(TestCase):
             })
 
             plan = provider.plan(zone)
-            change = plan.changes[0]
+            changes = plan.changes
+            generated_commands = []
 
-            command = provider._compile_commands('ADD', change)
+            for change in changes:
+                generated_commands.extend(
+                    provider._compile_commands('ADD', change.new)
+                )
+
+            expected_commands = [
+                'ADD prawf-alias.unit.tests 60 ANAME alias.unit.tests.',
+                'ADD prawf-ns.unit.tests 300 NS alias.unit.tests.',
+                'ADD prawf-ns.unit.tests 300 NS alias2.unit.tests.',
+                'ADD prawf-a.unit.tests 60 A 1.2.3.4',
+                'ADD prawf-a.unit.tests 60 A 5.6.7.8',
+                'ADD prawf-aaaa.unit.tests 60 AAAA a:a::a',
+                'ADD prawf-aaaa.unit.tests 60 AAAA b:b::b',
+                'ADD prawf-aaaa.unit.tests 60 AAAA c:c::c:c',
+                'ADD prawf-txt.unit.tests 60 TXT prawf prawf dyma prawf',
+            ]
+
+            generated_commands.sort()
+            expected_commands.sort()
+
             self.assertEquals(
-                ['ADD prawf.unit.tests 60 TXT prawf prawf dyma prawf'],
-                command
+                generated_commands,
+                expected_commands
             )
 
-    def test_command_generation(self):
+    def test_fake_command_generation(self):
         class FakeChangeRecord(object):
             def __init__(self):
                 self.__fqdn = 'prawf.unit.tests.'
