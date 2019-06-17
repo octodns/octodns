@@ -235,7 +235,6 @@ class AkamaiProvider(BaseProvider):
         # self._test(zone)
 
         values = defaultdict(lambda: defaultdict(list))
-        for record in self.zone_records(zone):
 
             _type =record.get('type')
             _name = record.get('name')
