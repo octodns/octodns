@@ -16,7 +16,6 @@ import logging
 from ..record import Record
 from .base import BaseProvider   
 
-TESTING = True
 
 class AkamaiClientException(Exception):
     
@@ -37,10 +36,6 @@ class AkamaiClientException(Exception):
         super(AkamaiClientException, self).__init__(message)
 
 
-class _AkamaiRecord(object):
-    pass
-
-
 class AkamaiClient(object):
 
     def __init__(self, _client_secret, _host, _access_token, _client_token):
@@ -57,45 +52,20 @@ class AkamaiClient(object):
         self._sess = sess
 
 
-    def _writePrepped(self, prepped):
-        filename = str(prepped.method)  + ".json"
-        f = open(filename, 'w')
-
-        f.write("headers: \n")
-        f.write(str(prepped.headers))
-        f.write("\nbody: \n")
-        f.write(str(prepped.body))
-        f.write("\nhooks:\n")
-        f.write(str(prepped.hooks))
-        f.write("\nmethod: " + str(prepped.method))
-        f.write("\nurl: " + str(prepped.url) + "\n")
-        
-        f.close()
-
     def _request(self, method, path, params=None, data=None, v1=False):
         
         url = urljoin(self.base, path)
         if v1: 
             url = urljoin(self.basev1, path)
 
-        if (TESTING):  
-            print("testing mode")
-            print(method, url)
-            req = requests.Request(method, url, params=params, json=data)
-            prepped = req.prepare()
-            self._writePrepped(prepped)
-
         resp = self._sess.request(method, url, params=params, json=data)
 
-        
         if resp.status_code > 299:
             raise AkamaiClientException(resp.status_code)
-
         resp.raise_for_status()
 
 
-        return resp    
-
+        return resp
  
     def record_get(self, zone, name, record_type):
         
@@ -146,7 +116,6 @@ class AkamaiClient(object):
     def zone_recordset_get(self, zone, page=None, pageSize=30, search=None,
                      showAll="true", sortBy="name", types=None):
 
-
         params = {
             'page': page, 
             'pageSize': pageSize,
@@ -193,8 +162,7 @@ class AkamaiProvider(BaseProvider):
 
     SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR', 'SPF', 
                     'SRV', 'SSHFP', 'TXT'))
-    # SUPPORTS = set(('NAPTR', 'MX'))
-                    
+
     def __init__(self, id, client_secret, host, access_token, client_token, 
                 *args, **kwargs):
         
@@ -210,7 +178,7 @@ class AkamaiProvider(BaseProvider):
 
     def zone_records(self, zone):
         """ returns records for a zone, finds it if not present, or 
-            returns empty if doesnt exist
+            returns empty if can't find a match
         """
         if zone.name not in self._zone_records:
             try:
@@ -220,184 +188,145 @@ class AkamaiProvider(BaseProvider):
             except AkamaiClientException:
                 return []
 
-
-        # fileName = "zone_records_for_" + zone.name +".json"
-        # path = "/mnt/c/Users/bajamil/Desktop/" + fileName
-        # f = open(path, 'w')
-        # f.write(json.dumps(self._zone_records[zone.name], indent=4, separators=(',', ': ')))
-        # f.close()
-
         return self._zone_records[zone.name]
-
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s', zone.name)
-        # self._test(zone)
 
         values = defaultdict(lambda: defaultdict(list))
-
+        for record in self.zone_records(zone):
+            
             _type =record.get('type')
-            _name = record.get('name')
+            ## Akamai sends down prefix.zonename., while OctoDNS only expects prefix
+            _name = record.get('name').split("." + zone.name[:-1], 1)[0] 
+            if _name == zone.name[:-1] :
+                _name = ''  ## root / @
 
             if _type not in self.SUPPORTS:
                 continue
-
             values[_name][_type].append(record)
-        
-
-        
 
         before = len(zone.records)
         for name, types in values.items():
-            # for _type, records in types.items():
-            for _type in types.items():                
-                for rdata in _type['rdata']:
-
-
-                    data_for = getattr(self, '_data_for_{}'.format(_type))
-                    
-                    data = data_for(_type, records, rdata)
-
-                    print()
-                    print ("data processed for", name, ":")
-                    print (json.dumps(data, indent=4, separators=(',', ': ')))
-                    print()
-
-                    record = Record.new(zone, name, data_for(_type, records), source=self, lenient=lenient)
-
-
-        exists = zone.name in self._zone_records
-        self.log.info('populate:    found %s records, exists=%s', 
-                        len(zone.records) - before, exists)
+            for _type, records in types.items():
+                data_for = getattr(self, '_data_for_{}'.format(_type))
+                record = Record.new(zone, name, data_for(_type, records[0]), 
+                                source=self, lenient=lenient)
+                zone.add_record(record, lenient=lenient)
         
-        return exists
+        exists = zone.name in self._zone_records
+        found = len(zone.records) - before
+        self.log.info('populate:    found %s records, exists=%s', found, exists)
 
 
-    def _data_for_multiple(self, _type, records):
+    def _data_for_multiple(self, _type, _records):
         
         return {
-            'ttl': records[0]['ttl'],
-            'type': _type,
-            'values': [r['rdata'][0] for r in records]
-    } 
+            'ttl': _records['ttl'],
+            'type': _type, 
+            'values': [r for r in _records['rdata']]
+        } 
 
     _data_for_A = _data_for_multiple
     _data_for_AAAA = _data_for_multiple
+    _data_for_NS = _data_for_multiple
     _data_for_SPF = _data_for_multiple
 
-    def _data_for_CNAME(self, _type, records):
-        record = records[0]
-        value = record['rdata'][0]
-        if (value[-1] != "."):
+    def _data_for_CNAME(self, _type, _records): 
+        value = _records['rdata'][0]
+        if (value[-1] != '.') :
             value = '{}.'.format(value)
-        
+
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': _records['ttl'],
             'type': _type,
             'value': value
         }
 
-    def _data_for_MX(self, _type, records):
+    def _data_for_MX(self, _type, _records):
         values = []
-        for record in records:
-            print ("MX record: ", record)
+        for r in _records['rdata']:
+            preference, exchange = r.split(" ", 1)
             values.append({
-                'preference': record['priority'],
-                'exchange': '{}.'.format(record['rdata'][0])
-            })
+                'preference': preference,
+                'exchange' : exchange
+            }) 
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': _records['ttl'],
             'type': _type,
             'values': values
         }
 
-    def _data_for_NAPTR(self, _type, records):
-        print ("NAPTR Record")
-        print(json.dumps(records, indent=4, separators=(',', ': ')))
+    def _data_for_NAPTR(self, _type, _records):
         values = []
-        for record in records:
-            order, preference, flags, service, regexp, replacement = \
-                record['rdata'][0].split(' ', 5)
-        
+        for r in _records['rdata']:
+            order, preference, flags, service, regexp, repl = r.split(' ', 5)
+            
             values.append({
                 'flags': flags[1:-1],
                 'order': order,
                 'preference': preference,
                 'regexp': regexp[1:-1],
-                'replacement': replacement, 
+                'replacement': repl, 
                 'service': service[1:-1]
             })
         return {
             'type': _type,
-            'ttl': records[0]['ttl'],
+            'ttl': _records['ttl'],
             'values': values
         }
-
-    def _data_for_NS(self, _type, records):
-        values = []
-        for record in records:
-            rdata = record['rdata']
-            for content in rdata:
-                if content[-1] != '.':
-                    content = '{}.'.format(content)
-                values.append(content)
-        return {
-            'ttl': records[0]['ttl'],
-            'type': _type,
-            'value': values
-        }
-
-    def _data_for_PTR(self, _type, records):
-        return self._data_for_multiple(_type, records[0])
     
-    # rdata[0]?
-    def _data_for_SRV(self, _type, records):
+    def _data_for_PTR(self, _type, _records):
+
+        return {
+            'ttl': _records['ttl'],
+            'type': _type,
+            'value' : _records['rdata'][0]
+        } 
+    
+    def _data_for_SRV(self, _type, _records):
         values = []
-        for record in records:
-            weight, port, target = record['rdata'].split(', ', 2)
+        for r in _records['rdata']:
+            priority, weight, port, target = r.split(' ', 3)
             values.append({
                 'port': port,
-                'priority': record['priority'],
-                'target': '{}.'.format(target),
+                'priority': priority,
+                'target': target,
                 'weight': weight
             })
         return {
             'type': _type,
-            'ttl': records[0]['ttl'],
+            'ttl': _records['ttl'],
             'values': values
         }
 
-    # rdata[0]?
-    def _data_for_SSHFP(self, _type, records):
+    def _data_for_SSHFP(self, _type, _records):
         values = []
-        algorithm, fp_type, fingerprint = record['rdata'].split(' ', 2)
-        values.append({
-            'algorithm': algorithm,
-            'fingerprint': fingerprint,
-            'fingerprint_type': fp_type
-        })
-
+        for r in _records['rdata']:
+            algorithm, fp_type, fingerprint = r.split(' ', 2)
+            values.append({
+                'algorithm': algorithm,
+                'fingerprint': fingerprint,
+                'fingerprint_type': fp_type
+            })
         return {
             'type': _type,
-            'ttl': records[0]['ttl'],
+            'ttl': _records['ttl'],
             'values': values 
         }
 
-    def _data_for_TXT(self, _type, records):
+    def _data_for_TXT(self, _type, _records):
         values = []
-        for r in records:
-            for content in r['rdata']:
-                values.append(content.replace(';', '\\;'))
+        for r in _records['rdata']:
+            r = r[1:-1]
+            values.append(r.replace(';', '\\;'))
 
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': _records['ttl'],
             'type': _type,
             'values': values
-            # 'values': [r['rdata'][0].replace(';', '\\;') for r in records]
         }
     
-    
-
 
     def _test(self, zone) :
 
@@ -426,23 +355,23 @@ class AkamaiProvider(BaseProvider):
         }
 
 
-        # print("\n\nRunning test: record get..........\n")
-        # self._test_record_get(zone_name, "test.basir-test.com", record_type)
-        # print("\n\nRunning test: record create..........\n")
-        # self._test_record_create(zone_name, record_name, record_type, params)
-        # print("\n\nRunning test: record replace..........\n")
-        # self._test_record_replace(zone_name, record_name, record_type, repl_params)
-        # print("\n\nRunning test: record delete..........\n")
-        # self._test_record_delete(zone_name, record_name, record_type)
+        print("\n\nRunning test: record get..........\n")
+        self._test_record_get(zone_name, "test.basir-test.com", record_type)
+        print("\n\nRunning test: record create..........\n")
+        self._test_record_create(zone_name, record_name, record_type, params)
+        print("\n\nRunning test: record replace..........\n")
+        self._test_record_replace(zone_name, record_name, record_type, repl_params)
+        print("\n\nRunning test: record delete..........\n")
+        self._test_record_delete(zone_name, record_name, record_type)
 
-        # print("\n\nRunning test: zones get..........\n")
-        # self._test_zones_get()
+        print("\n\nRunning test: zones get..........\n")
+        self._test_zones_get()
 
         print("\n\nRunning test: zone recordset get..........\n")
         self._test_zones_recordset_get(zone_name)
 
-        # print("\n\nRunning test: Master Zone File get..........\n")
-        # self._test_master_zone_file_get(zone_name)
+        print("\n\nRunning test: Master Zone File get..........\n")
+        self._test_master_zone_file_get(zone_name)
 
         return
 
