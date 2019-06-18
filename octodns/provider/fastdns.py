@@ -95,6 +95,23 @@ class AkamaiClient(object):
 
         return result
 
+    def zone_get(self, zone):
+        path = 'zones/{}'.format(zone)
+        result = self._request('GET', path)
+
+        return result
+
+    def zone_create(self, contractId, params, gid=None):
+        path = 'zones?contractId={}'.format(contractId)
+
+        if gid is not None:
+            path += '&gid={}'.format(gid)
+        
+        result = self._request('POST', path, data=params)
+        
+        return result
+
+
     def zones_get(self, contractIds=None, page=None, pageSize=None, search=None,
                      showAll="true", sortBy="zone", types=None):
         path = 'zones'
@@ -164,7 +181,7 @@ class AkamaiProvider(BaseProvider):
                     'SRV', 'SSHFP', 'TXT'))
 
     def __init__(self, id, client_secret, host, access_token, client_token, 
-                *args, **kwargs):
+                contractId=None, gid=None, *args, **kwargs):
         
         self.log = logging.getLogger('AkamaiProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, ')
@@ -174,7 +191,8 @@ class AkamaiProvider(BaseProvider):
                     client_token)
         
         self._zone_records = {}
-
+        self._contractId = contractId
+        self._gid = gid
 
     def zone_records(self, zone):
         """ returns records for a zone, finds it if not present, or 
@@ -218,6 +236,7 @@ class AkamaiProvider(BaseProvider):
         found = len(zone.records) - before
         self.log.info('populate:    found %s records, exists=%s', found, exists)
 
+        return exists
 
     def _data_for_multiple(self, _type, _records):
         
@@ -327,6 +346,27 @@ class AkamaiProvider(BaseProvider):
             'values': values
         }
     
+
+    def _apply(self, plan):
+        desired = plan.desired
+        changes = plan.changes
+        self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
+                        len(changes))
+
+        domain_name = desired.name[:-1]
+
+
+        try:
+            self._dns_client.zone_get(domain_name)
+        except AkamaiClientException:
+            self.log.debug('_apply:   no matching zone, creating domain')
+
+            params = self._build_zone_config(domain_name)
+
+            self._dns_client.zone_create(self._contractId, params, self._gid)
+
+        
+    def _build_zone_config(self, zone, type="primary", comment=None, 
 
     def _test(self, zone) :
 
