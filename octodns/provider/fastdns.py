@@ -21,6 +21,7 @@ class AkamaiClientException(Exception):
     
     _errorMessages = {
         400: "400: Bad request", 
+        401: "401: Unauthorized",
         403: "403: Access is forbidden",
         404: "404: Resource not found",
         405: "405: Method not supported",
@@ -42,6 +43,7 @@ class AkamaiClient(object):
 
         self.base = "https://" + _host + "/config-dns/v2/"
         self.basev1 = "https://" + _host + "/config-dns/v1/"
+        self.basehost = "https://" + _host
 
         sess = requests.Session()
         sess.auth = EdgeGridAuth(
@@ -61,12 +63,14 @@ class AkamaiClient(object):
         resp = self._sess.request(method, url, params=params, json=data)
 
         if resp.status_code > 299:
+            # print(resp.status_code)
             raise AkamaiClientException(resp.status_code)
         resp.raise_for_status()
 
 
         return resp
  
+
     def record_get(self, zone, name, record_type):
         
         path = 'zones/{}/names/{}/types/{}'.format(zone, name, record_type)
@@ -82,6 +86,7 @@ class AkamaiClient(object):
 
     def record_delete(self, zone, name, record_type):
         path = 'zones/{}/names/{}/types/{}'.format(zone, name, record_type)
+        print(path)
         result = self._request('DELETE', path)
         
         if result.status_code == 204:
@@ -94,6 +99,7 @@ class AkamaiClient(object):
         result = self._request('PUT', path, data=params)
 
         return result
+
 
     def zone_get(self, zone):
         path = 'zones/{}'.format(zone)
@@ -148,7 +154,19 @@ class AkamaiClient(object):
 
         return result
 
-    def records(self, zone_name):
+
+    def contracts_get(self, gid=None):
+        path = 'data/contracts'
+        if gid is not None:
+            path += '?gid={}'.format(gid)
+
+        # result = self._sess.request('GET', path)
+
+        result = self._request('GET', path)
+
+        return result
+
+    def recordsets_get(self, zone_name):
         
         resp = self.zone_recordset_get(zone_name, showAll="true")
         recordset = resp.json().get("recordsets")
@@ -181,7 +199,7 @@ class AkamaiProvider(BaseProvider):
                     'SRV', 'SSHFP', 'TXT'))
 
     def __init__(self, id, client_secret, host, access_token, client_token, 
-                contractId=None, gid=None, *args, **kwargs):
+                contract_id=None, gid=None, *args, **kwargs):
         
         self.log = logging.getLogger('AkamaiProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, ')
@@ -191,7 +209,7 @@ class AkamaiProvider(BaseProvider):
                     client_token)
         
         self._zone_records = {}
-        self._contractId = contractId
+        self._contractId = contract_id
         self._gid = gid
 
     def zone_records(self, zone):
@@ -201,7 +219,7 @@ class AkamaiProvider(BaseProvider):
         if zone.name not in self._zone_records:
             try:
                 name = zone.name[:-1]
-                self._zone_records[zone.name] = self._dns_client.records(name)
+                self._zone_records[zone.name] = self._dns_client.recordsets_get(name)
 
             except AkamaiClientException:
                 return []
@@ -238,12 +256,12 @@ class AkamaiProvider(BaseProvider):
 
         return exists
 
-    def _data_for_multiple(self, _type, _records):
+    def _data_for_multiple(self, _type, records):
         
         return {
-            'ttl': _records['ttl'],
+            'ttl':records['ttl'],
             'type': _type, 
-            'values': [r for r in _records['rdata']]
+            'values': [r for r in records['rdata']]
         } 
 
     _data_for_A = _data_for_multiple
@@ -251,34 +269,34 @@ class AkamaiProvider(BaseProvider):
     _data_for_NS = _data_for_multiple
     _data_for_SPF = _data_for_multiple
 
-    def _data_for_CNAME(self, _type, _records): 
-        value = _records['rdata'][0]
+    def _data_for_CNAME(self, _type, records): 
+        value =records['rdata'][0]
         if (value[-1] != '.') :
             value = '{}.'.format(value)
 
         return {
-            'ttl': _records['ttl'],
+            'ttl':records['ttl'],
             'type': _type,
             'value': value
         }
 
-    def _data_for_MX(self, _type, _records):
+    def _data_for_MX(self, _type, records):
         values = []
-        for r in _records['rdata']:
+        for r in records['rdata']:
             preference, exchange = r.split(" ", 1)
             values.append({
                 'preference': preference,
                 'exchange' : exchange
             }) 
         return {
-            'ttl': _records['ttl'],
+            'ttl':records['ttl'],
             'type': _type,
             'values': values
         }
 
-    def _data_for_NAPTR(self, _type, _records):
+    def _data_for_NAPTR(self, _type, records):
         values = []
-        for r in _records['rdata']:
+        for r in records['rdata']:
             order, preference, flags, service, regexp, repl = r.split(' ', 5)
             
             values.append({
@@ -291,21 +309,21 @@ class AkamaiProvider(BaseProvider):
             })
         return {
             'type': _type,
-            'ttl': _records['ttl'],
+            'ttl':records['ttl'],
             'values': values
         }
     
-    def _data_for_PTR(self, _type, _records):
+    def _data_for_PTR(self, _type, records):
 
         return {
-            'ttl': _records['ttl'],
+            'ttl':records['ttl'],
             'type': _type,
-            'value' : _records['rdata'][0]
+            'value' :records['rdata'][0]
         } 
     
-    def _data_for_SRV(self, _type, _records):
+    def _data_for_SRV(self, _type, records):
         values = []
-        for r in _records['rdata']:
+        for r in records['rdata']:
             priority, weight, port, target = r.split(' ', 3)
             values.append({
                 'port': port,
@@ -315,13 +333,13 @@ class AkamaiProvider(BaseProvider):
             })
         return {
             'type': _type,
-            'ttl': _records['ttl'],
+            'ttl':records['ttl'],
             'values': values
         }
 
-    def _data_for_SSHFP(self, _type, _records):
+    def _data_for_SSHFP(self, _type, records):
         values = []
-        for r in _records['rdata']:
+        for r in records['rdata']:
             algorithm, fp_type, fingerprint = r.split(' ', 2)
             values.append({
                 'algorithm': algorithm,
@@ -330,18 +348,18 @@ class AkamaiProvider(BaseProvider):
             })
         return {
             'type': _type,
-            'ttl': _records['ttl'],
+            'ttl': records['ttl'],
             'values': values 
         }
 
-    def _data_for_TXT(self, _type, _records):
+    def _data_for_TXT(self, _type, records):
         values = []
-        for r in _records['rdata']:
+        for r in records['rdata']:
             r = r[1:-1]
             values.append(r.replace(';', '\\;'))
 
         return {
-            'ttl': _records['ttl'],
+            'ttl': records['ttl'],
             'type': _type,
             'values': values
         }
@@ -353,20 +371,108 @@ class AkamaiProvider(BaseProvider):
         self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
                         len(changes))
 
-        domain_name = desired.name[:-1]
+        zone_name = desired.name[:-1]
+        print(zone_name)
 
 
         try:
-            self._dns_client.zone_get(domain_name)
-        except AkamaiClientException:
-            self.log.debug('_apply:   no matching zone, creating domain')
+            self._dns_client.zone_get(zone_name)
 
-            params = self._build_zone_config(domain_name)
-
+        except AkamaiClientException as e:
+            
+            print("zone not found, creating zone")
+            self.log.debug('_apply:   no matching zone, creating zone')
+            params = self._build_zone_config(zone_name)
             self._dns_client.zone_create(self._contractId, params, self._gid)
 
+        for change in changes:
+            class_name = change.__class__.__name__
+            print()
+            print(class_name)
+            if (class_name == "Delete" ):
+                print(change.existing.name)
+                print(change.existing._type)
+                print(change.existing.data)
+            elif class_name == "Update":
+                print(change.existing.name)
+                print(change.existing._type)
+                print(change.existing.data)
+                print("----------------->")
+                print(change.new.name)
+                print(change.new._type)
+                print(change.new.data)
+            else:
+                print(change.new.name)
+                print(change.new._type)
+                print(change.new.data)
+            print()
+            print(change)
+            print()
+            getattr(self, '_apply_{}'.format(class_name))(change)
+
+        # Clear out the cache if any
+        self._zone_records.pop(desired.name, None)
+
+    def _apply_Create(self, change):
+        new = change.new
+        params_for = getattr(self, '_params_for_{}'.format(new._type))
+        for params in params_for(new):
+            pass
+            # self._dns_client.record_create(new.zone.name[:-1], params)
+
+    def _apply_Delete(self, change):
+        existing = change.existing
+        zone = existing.zone.name[:-1]
+        name = existing.name + '.' + zone
+        record_type = existing._type
+
+        result = self._dns_client.record_delete(zone, name, record_type)
+
+        return result
+
+    def _build_zone_config(self, zone, _type=None, comment=None, masters=[]):
+
+        if _type is None: 
+            _type="primary"
         
-    def _build_zone_config(self, zone, type="primary", comment=None, 
+        if self._contractId is None:
+            self._set_default_contractId()
+
+        return {
+            "zone": zone,
+            "type": _type,
+            "comment": comment,
+            "masters": masters
+        }
+
+    def _set_default_contractId(self):
+        ''' if no contractId is set, but one is required to create a new zone, 
+            this function will try to retrieve any contracts available to the
+            user, and use the first one it finds
+        '''
+        
+        try:
+
+            request = self._dns_client.zones_get(self._gid)
+            response = request.json()
+            zones = response['zones']
+
+            contractId = zones[0]['contractId']
+
+
+            self._contractId = contractId
+            self.log.info("contractId not specified, using contractId=%s", contractId)
+        
+        except KeyError:
+            self.log.debug("_get_default_contractId: key error")
+            raise
+
+        except:
+            self.log.debug("_get_default_contractId: unable to find a contractId")
+            raise 
+
+        return
+
 
     def _test(self, zone) :
 
