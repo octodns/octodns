@@ -78,9 +78,9 @@ class AkamaiClient(object):
         
         return result
 
-    def record_create(self, zone, name, record_type, params):
+    def record_create(self, zone, name, record_type, content):
         path = 'zones/{}/names/{}/types/{}'.format(zone, name, record_type)
-        result = self._request('POST', path, data=params)
+        result = self._request('POST', path, data=content)
 
         return result
 
@@ -94,9 +94,9 @@ class AkamaiClient(object):
 
         return result
 
-    def record_replace(self, zone, name, record_type, params):
+    def record_replace(self, zone, name, record_type, content):
         path = 'zones/{}/names/{}/types/{}'.format(zone, name, record_type)
-        result = self._request('PUT', path, data=params)
+        result = self._request('PUT', path, data=content)
 
         return result
 
@@ -368,67 +368,122 @@ class AkamaiProvider(BaseProvider):
     def _apply(self, plan):
         desired = plan.desired
         changes = plan.changes
-        self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
-                        len(changes))
+        self.log.debug('_apply: zone=%s, changes=%d', desired.name, len(changes))
 
         zone_name = desired.name[:-1]
-        print(zone_name)
-
-
         try:
             self._dns_client.zone_get(zone_name)
 
-        except AkamaiClientException as e:
-            
-            print("zone not found, creating zone")
-            self.log.debug('_apply:   no matching zone, creating zone')
+        except AkamaiClientException:
+            self.log.info("zone not found, creating zone")
             params = self._build_zone_config(zone_name)
             self._dns_client.zone_create(self._contractId, params, self._gid)
 
         for change in changes:
             class_name = change.__class__.__name__
-            print()
-            print(class_name)
-            if (class_name == "Delete" ):
-                print(change.existing.name)
-                print(change.existing._type)
-                print(change.existing.data)
-            elif class_name == "Update":
-                print(change.existing.name)
-                print(change.existing._type)
-                print(change.existing.data)
-                print("----------------->")
-                print(change.new.name)
-                print(change.new._type)
-                print(change.new.data)
-            else:
-                print(change.new.name)
-                print(change.new._type)
-                print(change.new.data)
-            print()
-            print(change)
-            print()
             getattr(self, '_apply_{}'.format(class_name))(change)
 
         # Clear out the cache if any
         self._zone_records.pop(desired.name, None)
 
     def _apply_Create(self, change):
+
         new = change.new
-        params_for = getattr(self, '_params_for_{}'.format(new._type))
-        for params in params_for(new):
-            pass
-            # self._dns_client.record_create(new.zone.name[:-1], params)
+        record_type = new._type
+
+        params_for = getattr(self, '_params_for_{}'.format(record_type))
+        values = self._get_values(new.data)
+        rdata = params_for(values)
+
+        zone = new.zone.name[:-1]
+
+        name = self._set_full_name(new.name, zone)
+
+        content = {
+            "name": name,
+            "type": record_type,
+            "ttl" : new.ttl,
+            "rdata" : rdata
+        }
+
+        print()
+        print ("mock create")
+        print ("zone=", zone, "name=", name , "record_type=", record_type)
+        print("content:")
+        print(json.dumps(content, indent=4, separators=(',', ': ')))
+        print()
+
+        return 
+        self._dns_client.record_create(zone, name, record_type, content)
+
+        return 
 
     def _apply_Delete(self, change):
-        existing = change.existing
-        zone = existing.zone.name[:-1]
-        name = existing.name + '.' + zone
-        record_type = existing._type
 
-        result = self._dns_client.record_delete(zone, name, record_type)
+        zone = change.existing.zone.name[:-1]
+        name = self._set_full_name(change.existing.name, zone)
+        record_type = change.existing._type
 
-        return result
+        self._dns_client.record_delete(zone, name, record_type)
+
+        return 
+
+    def _apply_Update(self, change):
+        
+        new = change.new
+        record_type = new._type
+
+        params_for = getattr(self, '_params_for_{}'.format(record_type))
+        rdata = params_for(new.data)
+
+        zone = new.zone.name[:-1]
+        name = self._set_full_name(new.name, zone)
+
+        content = {
+            "name": name,
+            "type": record_type,
+            "ttl" : new.ttl,
+            "rdata" : rdata
+        }
+
+        self._dns_client.record_create(zone, name, record_type, content)
+
+        return 
+        
+
+    def _params_for_multiple(self, values):
+        
+        rdata = [r for r in values]
+
+        return rdata
+
+
+    _params_for_A = _params_for_multiple
+    _params_for_AAAA = _params_for_multiple
+    _params_for_NS = _params_for_multiple
+    _params_for_SPF = _params_for_multiple
+
+    def _params_for_CNAME(self, values):
+        pass
+    
+    def _params_for_MX(self, values):
+        pass
+    
+    def _params_for_NAPTR(self, values):
+        pass
+
+    def _params_for_PTR(self, values):
+        pass
+
+    def _params_for_SRV(self, values):
+        pass
+
+    def _params_for_SSHFP(self, values):
+        pass
+
+    def _params_for_TXT(self, values):
+        pass
+
 
     def _build_zone_config(self, zone, _type=None, comment=None, masters=[]):
 
@@ -472,6 +527,22 @@ class AkamaiProvider(BaseProvider):
             raise 
 
         return
+
+    def _get_values(self, data):
+
+        try:
+            vals = data['values']
+        except KeyError:
+            vals = data['value']
+        
+        return vals
+
+    def _set_full_name(self, name, zone):
+        name = name + '.' + zone
+        if (name[0] == '.'): ## octodns's name for root is ''
+            name = name[1:]
+
+        return name
 
 
     def _test(self, zone) :
