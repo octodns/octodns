@@ -12,13 +12,13 @@ from collections import defaultdict
 
 import logging
 from ..record import Record
-from .base import BaseProvider   
+from .base import BaseProvider
 
 
 class AkamaiClientException(Exception):
-    
+
     _errorMessages = {
-        400: "400: Bad request", 
+        400: "400: Bad request",
         401: "401: Unauthorized",
         403: "403: Access is forbidden",
         404: "404: Resource not found",
@@ -35,15 +35,15 @@ class AkamaiClientException(Exception):
             message = self._errorMessages.get(resp.status_code)
             super(AkamaiClientException, self).__init__(message)
 
-        except: 
+        except:
             resp.raise_for_status()
 
 
 class AkamaiClient(object):
-    ''' 
+    '''
     Client for making calls to Akamai Fast DNS API using Python Requests
 
-    Fast DNS Zone Management API V2, found here:  
+    Fast DNS Zone Management API V2, found here:
     developer.akamai.com/api/web_performance/fast_dns_zone_management/v2.html
 
     Info on Python Requests library:
@@ -63,9 +63,8 @@ class AkamaiClient(object):
         )
         self._sess = sess
 
-
     def _request(self, method, path, params=None, data=None, v1=False):
-        
+
         url = urljoin(self.base, path)
         resp = self._sess.request(method, url, params=params, json=data)
 
@@ -73,7 +72,6 @@ class AkamaiClient(object):
             raise AkamaiClientException(resp)
 
         return resp
- 
 
     def record_create(self, zone, name, record_type, content):
         path = 'zones/{}/names/{}/types/{}'.format(zone, name, record_type)
@@ -84,7 +82,7 @@ class AkamaiClient(object):
     def record_delete(self, zone, name, record_type):
         path = 'zones/{}/names/{}/types/{}'.format(zone, name, record_type)
         result = self._request('DELETE', path)
-        
+
         return result
 
     def record_replace(self, zone, name, record_type, content):
@@ -92,7 +90,6 @@ class AkamaiClient(object):
         result = self._request('PUT', path, data=content)
 
         return result
-
 
     def zone_get(self, zone):
         path = 'zones/{}'.format(zone)
@@ -105,17 +102,16 @@ class AkamaiClient(object):
 
         if gid is not None:
             path += '&gid={}'.format(gid)
-        
+
         result = self._request('POST', path, data=params)
-        
+
         return result
 
-
     def zone_recordset_get(self, zone, page=None, pageSize=30, search=None,
-                     showAll="true", sortBy="name", types=None):
+                           showAll="true", sortBy="name", types=None):
 
         params = {
-            'page': page, 
+            'page': page,
             'pageSize': pageSize,
             'search': search,
             'showAll': showAll,
@@ -126,11 +122,10 @@ class AkamaiClient(object):
         path = 'zones/{}/recordsets'.format(zone)
         result = self._request('GET', path, params=params)
 
-
         return result
 
     def recordsets_get(self, zone_name):
-        
+
         resp = self.zone_recordset_get(zone_name, showAll="true")
         recordset = resp.json().get("recordsets")
 
@@ -170,8 +165,8 @@ class AkamaiProvider(BaseProvider):
         The first four variables above can be hidden in environment variables
         and octoDNS will automatically search for them in the shell. It is
         possible to also hard-code into the config file: eg, contract_id.
-    
-        The first four values can be found by generating credentials: 
+
+        The first four values can be found by generating credentials:
         https://control.akamai.com/
         Configure > Organization > Manage APIs > New API Client for me
         Select appropriate group, and fill relevant fields.
@@ -179,41 +174,41 @@ class AkamaiProvider(BaseProvider):
         and then set appropriate Access level (Read-Write to make changes).
         Then select the "New Credential" button to generate values for above
 
-        The contract_id paramater is optional, and only required for creating 
-        a new zone. If the zone being managed already exists in Akamai for the 
-        user in question, then this paramater is not needed. 
+        The contract_id paramater is optional, and only required for creating
+        a new zone. If the zone being managed already exists in Akamai for the
+        user in question, then this paramater is not needed.
 
     '''
-
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
 
-    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR', 'SPF', 
+    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR', 'SPF',
                     'SRV', 'SSHFP', 'TXT'))
 
-    def __init__(self, id, client_secret, host, access_token, client_token, 
-                contract_id=None, gid=None, *args, **kwargs):
-        
+    def __init__(self, id, client_secret, host, access_token, client_token,
+                 contract_id=None, gid=None, *args, **kwargs):
+
         self.log = logging.getLogger('AkamaiProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, ')
         super(AkamaiProvider, self).__init__(id, *args, **kwargs)
 
-        self._dns_client = AkamaiClient(client_secret, host, access_token, 
-                    client_token)
-        
+        self._dns_client = AkamaiClient(client_secret, host, access_token,
+                                        client_token)
+
         self._zone_records = {}
         self._contractId = contract_id
         self._gid = gid
 
     def zone_records(self, zone):
-        """ returns records for a zone, looks for it if not present, or 
+        """ returns records for a zone, looks for it if not present, or
             returns empty [] if can't find a match
         """
         if zone.name not in self._zone_records:
             try:
                 name = zone.name[:-1]
-                self._zone_records[zone.name] = self._dns_client.recordsets_get(name)
+                self._zone_records[zone.name] = \
+                    self._dns_client.recordsets_get(name)
 
             except AkamaiClientException:
                 return []
@@ -225,12 +220,12 @@ class AkamaiProvider(BaseProvider):
 
         values = defaultdict(lambda: defaultdict(list))
         for record in self.zone_records(zone):
-            
-            _type =record.get('type')
-            ## Akamai sends down prefix.zonename., while octodns expects prefix
-            _name = record.get('name').split("." + zone.name[:-1], 1)[0] 
-            if _name == zone.name[:-1] :
-                _name = ''  ## root / @
+
+            _type = record.get('type')
+            # Akamai sends down prefix.zonename., while octodns expects prefix
+            _name = record.get('name').split("." + zone.name[:-1], 1)[0]
+            if _name == zone.name[:-1]:
+                _name = ''  # root / @
 
             if _type not in self.SUPPORTS:
                 continue
@@ -240,21 +235,20 @@ class AkamaiProvider(BaseProvider):
         for name, types in values.items():
             for _type, records in types.items():
                 data_for = getattr(self, '_data_for_{}'.format(_type))
-                record = Record.new(zone, name, data_for(_type, records[0]), 
-                                source=self, lenient=lenient)
+                record = Record.new(zone, name, data_for(_type, records[0]),
+                                    source=self, lenient=lenient)
                 zone.add_record(record, lenient=lenient)
-        
+
         exists = zone.name in self._zone_records
         found = len(zone.records) - before
-        self.log.info('populate:    found %s records, exists=%s', found, exists)
+        self.log.info('populate:   found %s records, exists=%s', found, exists)
 
         return exists
-
 
     def _apply(self, plan):
         desired = plan.desired
         changes = plan.changes
-        self.log.debug('apply: zone=%s, changes=%d', desired.name, len(changes))
+        self.log.debug('apply: zone=%s, chnges=%d', desired.name, len(changes))
 
         zone_name = desired.name[:-1]
         try:
@@ -287,13 +281,13 @@ class AkamaiProvider(BaseProvider):
         content = {
             "name": name,
             "type": record_type,
-            "ttl" : new.ttl,
-            "rdata" : rdata
+            "ttl": new.ttl,
+            "rdata": rdata
         }
 
         self._dns_client.record_create(zone, name, record_type, content)
 
-        return 
+        return
 
     def _apply_Delete(self, change):
 
@@ -303,10 +297,10 @@ class AkamaiProvider(BaseProvider):
 
         self._dns_client.record_delete(zone, name, record_type)
 
-        return 
+        return
 
     def _apply_Update(self, change):
-        
+
         new = change.new
         record_type = new._type
 
@@ -320,35 +314,34 @@ class AkamaiProvider(BaseProvider):
         content = {
             "name": name,
             "type": record_type,
-            "ttl" : new.ttl,
-            "rdata" : rdata
+            "ttl": new.ttl,
+            "rdata": rdata
         }
 
         self._dns_client.record_replace(zone, name, record_type, content)
 
-        return 
-      
+        return
 
     def _data_for_multiple(self, _type, records):
-        
+
         return {
-            'ttl':records['ttl'],
-            'type': _type, 
+            'ttl': records['ttl'],
+            'type': _type,
             'values': [r for r in records['rdata']]
-        } 
+        }
 
     _data_for_A = _data_for_multiple
     _data_for_AAAA = _data_for_multiple
     _data_for_NS = _data_for_multiple
     _data_for_SPF = _data_for_multiple
 
-    def _data_for_CNAME(self, _type, records): 
-        value =records['rdata'][0]
-        if (value[-1] != '.') :
+    def _data_for_CNAME(self, _type, records):
+        value = records['rdata'][0]
+        if (value[-1] != '.'):
             value = '{}.'.format(value)
 
         return {
-            'ttl':records['ttl'],
+            'ttl': records['ttl'],
             'type': _type,
             'value': value
         }
@@ -359,10 +352,10 @@ class AkamaiProvider(BaseProvider):
             preference, exchange = r.split(" ", 1)
             values.append({
                 'preference': preference,
-                'exchange' : exchange
-            }) 
+                'exchange': exchange
+            })
         return {
-            'ttl':records['ttl'],
+            'ttl': records['ttl'],
             'type': _type,
             'values': values
         }
@@ -371,29 +364,29 @@ class AkamaiProvider(BaseProvider):
         values = []
         for r in records['rdata']:
             order, preference, flags, service, regexp, repl = r.split(' ', 5)
-            
+
             values.append({
                 'flags': flags[1:-1],
                 'order': order,
                 'preference': preference,
                 'regexp': regexp[1:-1],
-                'replacement': repl, 
+                'replacement': repl,
                 'service': service[1:-1]
             })
         return {
             'type': _type,
-            'ttl':records['ttl'],
+            'ttl': records['ttl'],
             'values': values
         }
-    
+
     def _data_for_PTR(self, _type, records):
 
         return {
-            'ttl':records['ttl'],
+            'ttl': records['ttl'],
             'type': _type,
-            'value' :records['rdata'][0]
-        } 
-    
+            'value': records['rdata'][0]
+        }
+
     def _data_for_SRV(self, _type, records):
         values = []
         for r in records['rdata']:
@@ -407,7 +400,7 @@ class AkamaiProvider(BaseProvider):
 
         return {
             'type': _type,
-            'ttl':records['ttl'],
+            'ttl': records['ttl'],
             'values': values
         }
 
@@ -420,11 +413,11 @@ class AkamaiProvider(BaseProvider):
                 'fingerprint': fingerprint,
                 'fingerprint_type': fp_type
             })
-            
+
         return {
             'type': _type,
             'ttl': records['ttl'],
-            'values': values 
+            'values': values
         }
 
     def _data_for_TXT(self, _type, records):
@@ -438,8 +431,7 @@ class AkamaiProvider(BaseProvider):
             'type': _type,
             'values': values
         }
-      
-      
+
     def _params_for_multiple(self, values):
         return [r for r in values]
 
@@ -453,7 +445,7 @@ class AkamaiProvider(BaseProvider):
 
     _params_for_CNAME = _params_for_single
     _params_for_PTR = _params_for_single
-    
+
     def _params_for_MX(self, values):
         rdata = []
 
@@ -471,15 +463,15 @@ class AkamaiProvider(BaseProvider):
 
         for r in values:
             ordr = r['order']
-            pref = r['preference']
+            prf = r['preference']
             flg = "\"" + r['flags'] + "\""
             srvc = "\"" + r['service'] + "\""
             rgx = "\"" + r['regexp'] + "\""
             rpl = r['replacement']
-            
-            record = '{} {} {} {} {} {}'.format(ordr, pref, flg, srvc, rgx, rpl)
+
+            record = '{} {} {} {} {} {}'.format(ordr, prf, flg, srvc, rgx, rpl)
             rdata.append(record)
-        
+
         return rdata
 
     def _params_for_SRV(self, values):
@@ -494,7 +486,7 @@ class AkamaiProvider(BaseProvider):
             rdata.append(record)
 
         return rdata
-        
+
     def _params_for_SSHFP(self, values):
         rdata = []
         for r in values:
@@ -506,10 +498,10 @@ class AkamaiProvider(BaseProvider):
             rdata.append(record)
 
         return rdata
-    
+
     def _params_for_TXT(self, values):
         rdata = []
-        
+
         for r in values:
             txt = "\"" + r.replace('\\;', ';') + "\""
             rdata.append(txt)
@@ -518,11 +510,11 @@ class AkamaiProvider(BaseProvider):
 
     def _build_zone_config(self, zone, _type=None, comment=None, masters=[]):
 
-        if _type is None: 
-            _type="primary"
-        
+        if _type is None:
+            _type = "primary"
+
         if self._contractId is None:
-            raise NameError("contractId not specified to create zone") 
+            raise NameError("contractId not specified to create zone")
 
         return {
             "zone": zone,
@@ -537,14 +529,14 @@ class AkamaiProvider(BaseProvider):
             vals = data['values']
         except KeyError:
             vals = [data['value']]
-        
+
         return vals
 
     def _set_full_name(self, name, zone):
         name = name + '.' + zone
 
-        ## octodns's name for root is ''
-        if (name[0] == '.'): 
+        # octodns's name for root is ''
+        if (name[0] == '.'):
             name = name[1:]
 
         return name
