@@ -396,7 +396,6 @@ class AkamaiProvider(BaseProvider):
         rdata = params_for(values)
 
         zone = new.zone.name[:-1]
-
         name = self._set_full_name(new.name, zone)
 
         content = {
@@ -434,7 +433,8 @@ class AkamaiProvider(BaseProvider):
         record_type = new._type
 
         params_for = getattr(self, '_params_for_{}'.format(record_type))
-        rdata = params_for(new.data)
+        values = self._get_values(new.data)
+        rdata = params_for(values)
 
         zone = new.zone.name[:-1]
         name = self._set_full_name(new.name, zone)
@@ -446,34 +446,58 @@ class AkamaiProvider(BaseProvider):
             "rdata" : rdata
         }
 
-        self._dns_client.record_create(zone, name, record_type, content)
+        self._dns_client.record_replace(zone, name, record_type, content)
 
         return 
         
 
     def _params_for_multiple(self, values):
-        
-        rdata = [r for r in values]
+        return [r for r in values]
 
-        return rdata
-
+    def _params_for_single(self, values):
+        return values[0]
 
     _params_for_A = _params_for_multiple
     _params_for_AAAA = _params_for_multiple
     _params_for_NS = _params_for_multiple
     _params_for_SPF = _params_for_multiple
 
-    def _params_for_CNAME(self, values):
-        pass
     
-    def _params_for_MX(self, values):
-        pass
+    _params_for_CNAME = _params_for_single
+    _params_for_PTR = _params_for_single
     
-    def _params_for_NAPTR(self, values):
-        pass
 
-    def _params_for_PTR(self, values):
-        pass
+    def _params_for_MX(self, values):
+        rdata = []
+
+        for r in values:
+            preference = r.preference
+            exchange = r.exchange
+
+            record = '{} {}'.format(preference, exchange)
+
+            rdata.append(record)
+
+        return rdata
+
+    def _params_for_NAPTR(self, values):
+        rdata = []
+
+        for r in values:
+            order = r.order
+            preference = r.preference
+            flags = "\"" + r.flags + "\""
+            service = "\"" + r.service + "\""
+            regexp = "\"" + r.regexp + "\""
+            repl = r.replacement
+            
+            record = '{} {} {} {} {}'.format(order, preference, flags, service, 
+                                            regexp, repl)
+            # record = ' '.join([order, preference, flags, service, regexp, repl])
+            rdata.append(record)
+        
+        return rdata
+
 
     def _params_for_SRV(self, values):
         pass
@@ -483,6 +507,7 @@ class AkamaiProvider(BaseProvider):
 
     def _params_for_TXT(self, values):
         pass
+
 
 
     def _build_zone_config(self, zone, _type=None, comment=None, masters=[]):
@@ -543,6 +568,9 @@ class AkamaiProvider(BaseProvider):
             name = name[1:]
 
         return name
+
+
+
 
 
     def _test(self, zone) :
