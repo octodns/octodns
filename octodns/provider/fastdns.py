@@ -26,7 +26,7 @@ class AkamaiClientException(Exception):
         404: "404: Resource not found",
         405: "405: Method not supported",
         406: "406: Not Acceptable",
-        409: "409: Request not allowed due to conflict with current state of resource",
+        409: "409: Request not allowed due to conflict with current state",
         415: "415: Unsupported media type",
         422: "422: Request body contains an error preventing processing",
         500: "500: Internal server error"
@@ -43,7 +43,6 @@ class AkamaiClient(object):
 
         self.base = "https://" + _host + "/config-dns/v2/"
         self.basev1 = "https://" + _host + "/config-dns/v1/"
-        self.basehost = "https://" + _host
 
         sess = requests.Session()
         sess.auth = EdgeGridAuth(
@@ -63,10 +62,8 @@ class AkamaiClient(object):
         resp = self._sess.request(method, url, params=params, json=data)
 
         if resp.status_code > 299:
-            # print(resp.status_code)
             raise AkamaiClientException(resp.status_code)
         resp.raise_for_status()
-
 
         return resp
  
@@ -159,8 +156,6 @@ class AkamaiClient(object):
         path = 'data/contracts'
         if gid is not None:
             path += '?gid={}'.format(gid)
-
-        # result = self._sess.request('GET', path)
 
         result = self._request('GET', path)
 
@@ -405,14 +400,6 @@ class AkamaiProvider(BaseProvider):
             "rdata" : rdata
         }
 
-        print()
-        print ("mock create")
-        print ("zone=", zone, "name=", name , "record_type=", record_type)
-        print("content:")
-        print(json.dumps(content, indent=4, separators=(',', ': ')))
-        print()
-
-        return 
         self._dns_client.record_create(zone, name, record_type, content)
 
         return 
@@ -455,24 +442,23 @@ class AkamaiProvider(BaseProvider):
         return [r for r in values]
 
     def _params_for_single(self, values):
-        return values[0]
+        return values
 
     _params_for_A = _params_for_multiple
     _params_for_AAAA = _params_for_multiple
     _params_for_NS = _params_for_multiple
     _params_for_SPF = _params_for_multiple
 
-    
     _params_for_CNAME = _params_for_single
     _params_for_PTR = _params_for_single
     
-
     def _params_for_MX(self, values):
         rdata = []
 
         for r in values:
-            preference = r.preference
-            exchange = r.exchange
+            print(json.dumps(r, indent=4, separators=(',', ': ')))
+            preference = r['preference']
+            exchange = r['exchange']
 
             record = '{} {}'.format(preference, exchange)
 
@@ -484,29 +470,53 @@ class AkamaiProvider(BaseProvider):
         rdata = []
 
         for r in values:
-            order = r.order
-            preference = r.preference
-            flags = "\"" + r.flags + "\""
-            service = "\"" + r.service + "\""
-            regexp = "\"" + r.regexp + "\""
-            repl = r.replacement
+            order = r['order']
+            preference = r['preference']
+            flags = "\"" + r['flags'] + "\""
+            service = "\"" + r['service'] + "\""
+            regexp = "\"" + r['regexp'] + "\""
+            repl = r['replacement']
             
-            record = '{} {} {} {} {}'.format(order, preference, flags, service, 
+            record = '{} {} {} {} {} {}'.format(order, preference, flags, service, 
                                             regexp, repl)
             # record = ' '.join([order, preference, flags, service, regexp, repl])
             rdata.append(record)
         
         return rdata
 
-
     def _params_for_SRV(self, values):
-        pass
+        rdata = []
+        for r in values:
+            priority = r['priority']
+            weight = r['weight']
+            port = r['port']
+            target = r['target']
 
+            record = '{} {} {} {}'.format(priority, weight, port, target)
+            rdata.append(record)
+
+        return rdata
+        
     def _params_for_SSHFP(self, values):
-        pass
+        rdata = []
+        for r in values:
+            algorithm = r['algorithm']
+            fp_type = r['fingerprint_type']
+            fp = r['fingerprint']
 
+            record = '{} {} {}'.format(algorithm, fp_type, fp)
+            rdata.append(record)
+
+        return rdata
+    
     def _params_for_TXT(self, values):
-        pass
+        rdata = []
+        
+        for r in values:
+            txt = "\"" + r.replace('\\;', ';') + "\""
+            rdata.append(txt)
+
+        return rdata
 
 
 
@@ -558,7 +568,7 @@ class AkamaiProvider(BaseProvider):
         try:
             vals = data['values']
         except KeyError:
-            vals = data['value']
+            vals = [data['value']]
         
         return vals
 
