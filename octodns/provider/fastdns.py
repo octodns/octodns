@@ -5,11 +5,9 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-## octodns specfic imports:
 import requests
 from akamai.edgegrid import EdgeGridAuth
 from urlparse import urljoin
-import json
 from collections import defaultdict
 
 import logging
@@ -32,17 +30,30 @@ class AkamaiClientException(Exception):
         500: "500: Internal server error"
     }
 
-    def __init__(self, code):
-        message = self._errorMessages.get(code)
-        super(AkamaiClientException, self).__init__(message)
+    def __init__(self, resp):
+        try:
+            message = self._errorMessages.get(resp.status_code)
+            super(AkamaiClientException, self).__init__(message)
+
+        except: 
+            resp.raise_for_status()
 
 
 class AkamaiClient(object):
+    ''' 
+    Client for making calls to Akamai Fast DNS API using Python Requests
+
+    Fast DNS Zone Management API V2, found here:  
+    developer.akamai.com/api/web_performance/fast_dns_zone_management/v2.html
+
+    Info on Python Requests library:
+    https://2.python-requests.org/en/master/
+
+    '''
 
     def __init__(self, _client_secret, _host, _access_token, _client_token):
 
         self.base = "https://" + _host + "/config-dns/v2/"
-        self.basev1 = "https://" + _host + "/config-dns/v1/"
 
         sess = requests.Session()
         sess.auth = EdgeGridAuth(
@@ -56,24 +67,13 @@ class AkamaiClient(object):
     def _request(self, method, path, params=None, data=None, v1=False):
         
         url = urljoin(self.base, path)
-        if v1: 
-            url = urljoin(self.basev1, path)
-
         resp = self._sess.request(method, url, params=params, json=data)
 
         if resp.status_code > 299:
-            raise AkamaiClientException(resp.status_code)
-        resp.raise_for_status()
+            raise AkamaiClientException(resp)
 
         return resp
  
-
-    def record_get(self, zone, name, record_type):
-        
-        path = 'zones/{}/names/{}/types/{}'.format(zone, name, record_type)
-        result = self._request('GET', path)
-        
-        return result
 
     def record_create(self, zone, name, record_type, content):
         path = 'zones/{}/names/{}/types/{}'.format(zone, name, record_type)
@@ -83,12 +83,8 @@ class AkamaiClient(object):
 
     def record_delete(self, zone, name, record_type):
         path = 'zones/{}/names/{}/types/{}'.format(zone, name, record_type)
-        print(path)
         result = self._request('DELETE', path)
         
-        if result.status_code == 204:
-            print ("successfully deleted ", path)
-
         return result
 
     def record_replace(self, zone, name, record_type, content):
@@ -115,24 +111,6 @@ class AkamaiClient(object):
         return result
 
 
-    def zones_get(self, contractIds=None, page=None, pageSize=None, search=None,
-                     showAll="true", sortBy="zone", types=None):
-        path = 'zones'
-
-        params = {
-            'contractIds': contractIds,
-            'page': page, 
-            'pageSize': pageSize,
-            'search': search,
-            'showAll': showAll,
-            'sortBy': sortBy,
-            'types': types
-        }
-
-        result = self._request('GET', path, params=params)
-
-        return result
-
     def zone_recordset_get(self, zone, page=None, pageSize=30, search=None,
                      showAll="true", sortBy="name", types=None):
 
@@ -151,16 +129,6 @@ class AkamaiClient(object):
 
         return result
 
-
-    def contracts_get(self, gid=None):
-        path = 'data/contracts'
-        if gid is not None:
-            path += '?gid={}'.format(gid)
-
-        result = self._request('GET', path)
-
-        return result
-
     def recordsets_get(self, zone_name):
         
         resp = self.zone_recordset_get(zone_name, showAll="true")
@@ -168,24 +136,55 @@ class AkamaiClient(object):
 
         return recordset
 
-    def master_zone_file_get(self, zone):
-        
-        path = 'zones/{}/zone-file'.format(zone)
-
-        try:
-            result = self._request('GET', path)
-
-        except AkamaiClientException as e:
-            # not working with API v2, API v1 fallback
-            path = 'zones/{}'.format(zone)
-            result = self._request('GET', path, v1=True)
-            print("Using API v1 fallback")
-            print("(Probably Ignore)", e.message)
-
-        return result
-
 
 class AkamaiProvider(BaseProvider):
+
+    '''
+    Akamai Fast DNS Provider
+
+    fastdns.py:
+
+        Example config file with variables:
+            "
+            ---
+            providers:
+              config:
+                class: octodns.provider.yaml.YamlProvider
+                directory: ./config (example path to directory of zone files)
+              fastdns:
+                class: octodns.provider.fastdns.AkamaiProvider
+                client_secret: env/AKAMAI_CLIENT_SECRET
+                host: env/AKAMAI_HOST
+                access_token: env/AKAMAI_ACCESS_TOKEN
+                client_token: env/AKAMAI_CLIENT_TOKEN
+                contract_id: env/AKAMAI_CONTRACT_ID (optional)
+
+            zones:
+              example.com.:
+                sources:
+                  - config
+                targets:
+                  - fastdns
+            "
+
+        The first four variables above can be hidden in environment variables
+        and octoDNS will automatically search for them in the shell. It is
+        possible to also hard-code into the config file: eg, contract_id.
+    
+        The first four values can be found by generating credentials: 
+        https://control.akamai.com/
+        Configure > Organization > Manage APIs > New API Client for me
+        Select appropriate group, and fill relevant fields.
+        For "API Service Name", select "DNS—Zone Record Management"
+        and then set appropriate Access level (Read-Write to make changes).
+        Then select the "New Credential" button to generate values for above
+
+        The contract_id paramater is optional, and only required for creating 
+        a new zone. If the zone being managed already exists in Akamai for the 
+        user in question, then this paramater is not needed. 
+
+    '''
+
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
@@ -208,8 +207,8 @@ class AkamaiProvider(BaseProvider):
         self._gid = gid
 
     def zone_records(self, zone):
-        """ returns records for a zone, finds it if not present, or 
-            returns empty if can't find a match
+        """ returns records for a zone, looks for it if not present, or 
+            returns empty [] if can't find a match
         """
         if zone.name not in self._zone_records:
             try:
@@ -228,7 +227,7 @@ class AkamaiProvider(BaseProvider):
         for record in self.zone_records(zone):
             
             _type =record.get('type')
-            ## Akamai sends down prefix.zonename., while OctoDNS only expects prefix
+            ## Akamai sends down prefix.zonename., while octodns expects prefix
             _name = record.get('name').split("." + zone.name[:-1], 1)[0] 
             if _name == zone.name[:-1] :
                 _name = ''  ## root / @
@@ -250,6 +249,85 @@ class AkamaiProvider(BaseProvider):
         self.log.info('populate:    found %s records, exists=%s', found, exists)
 
         return exists
+
+
+    def _apply(self, plan):
+        desired = plan.desired
+        changes = plan.changes
+        self.log.debug('apply: zone=%s, changes=%d', desired.name, len(changes))
+
+        zone_name = desired.name[:-1]
+        try:
+            self._dns_client.zone_get(zone_name)
+
+        except AkamaiClientException:
+            self.log.info("zone not found, creating zone")
+            params = self._build_zone_config(zone_name)
+            self._dns_client.zone_create(self._contractId, params, self._gid)
+
+        for change in changes:
+            class_name = change.__class__.__name__
+            getattr(self, '_apply_{}'.format(class_name))(change)
+
+        # Clear out the cache if any
+        self._zone_records.pop(desired.name, None)
+
+    def _apply_Create(self, change):
+
+        new = change.new
+        record_type = new._type
+
+        params_for = getattr(self, '_params_for_{}'.format(record_type))
+        values = self._get_values(new.data)
+        rdata = params_for(values)
+
+        zone = new.zone.name[:-1]
+        name = self._set_full_name(new.name, zone)
+
+        content = {
+            "name": name,
+            "type": record_type,
+            "ttl" : new.ttl,
+            "rdata" : rdata
+        }
+
+        self._dns_client.record_create(zone, name, record_type, content)
+
+        return 
+
+    def _apply_Delete(self, change):
+
+        zone = change.existing.zone.name[:-1]
+        name = self._set_full_name(change.existing.name, zone)
+        record_type = change.existing._type
+
+        self._dns_client.record_delete(zone, name, record_type)
+
+        return 
+
+    def _apply_Update(self, change):
+        
+        new = change.new
+        record_type = new._type
+
+        params_for = getattr(self, '_params_for_{}'.format(record_type))
+        values = self._get_values(new.data)
+        rdata = params_for(values)
+
+        zone = new.zone.name[:-1]
+        name = self._set_full_name(new.name, zone)
+
+        content = {
+            "name": name,
+            "type": record_type,
+            "ttl" : new.ttl,
+            "rdata" : rdata
+        }
+
+        self._dns_client.record_replace(zone, name, record_type, content)
+
+        return 
+      
 
     def _data_for_multiple(self, _type, records):
         
@@ -326,6 +404,7 @@ class AkamaiProvider(BaseProvider):
                 'target': target,
                 'weight': weight
             })
+
         return {
             'type': _type,
             'ttl':records['ttl'],
@@ -341,6 +420,7 @@ class AkamaiProvider(BaseProvider):
                 'fingerprint': fingerprint,
                 'fingerprint_type': fp_type
             })
+            
         return {
             'type': _type,
             'ttl': records['ttl'],
@@ -358,86 +438,8 @@ class AkamaiProvider(BaseProvider):
             'type': _type,
             'values': values
         }
-    
-
-    def _apply(self, plan):
-        desired = plan.desired
-        changes = plan.changes
-        self.log.debug('_apply: zone=%s, changes=%d', desired.name, len(changes))
-
-        zone_name = desired.name[:-1]
-        try:
-            self._dns_client.zone_get(zone_name)
-
-        except AkamaiClientException:
-            self.log.info("zone not found, creating zone")
-            params = self._build_zone_config(zone_name)
-            self._dns_client.zone_create(self._contractId, params, self._gid)
-
-        for change in changes:
-            class_name = change.__class__.__name__
-            getattr(self, '_apply_{}'.format(class_name))(change)
-
-        # Clear out the cache if any
-        self._zone_records.pop(desired.name, None)
-
-    def _apply_Create(self, change):
-
-        new = change.new
-        record_type = new._type
-
-        params_for = getattr(self, '_params_for_{}'.format(record_type))
-        values = self._get_values(new.data)
-        rdata = params_for(values)
-
-        zone = new.zone.name[:-1]
-        name = self._set_full_name(new.name, zone)
-
-        content = {
-            "name": name,
-            "type": record_type,
-            "ttl" : new.ttl,
-            "rdata" : rdata
-        }
-
-        self._dns_client.record_create(zone, name, record_type, content)
-
-        return 
-
-    def _apply_Delete(self, change):
-
-        zone = change.existing.zone.name[:-1]
-        name = self._set_full_name(change.existing.name, zone)
-        record_type = change.existing._type
-
-        self._dns_client.record_delete(zone, name, record_type)
-
-        return 
-
-    def _apply_Update(self, change):
-        
-        new = change.new
-        record_type = new._type
-
-        params_for = getattr(self, '_params_for_{}'.format(record_type))
-        values = self._get_values(new.data)
-        rdata = params_for(values)
-
-        zone = new.zone.name[:-1]
-        name = self._set_full_name(new.name, zone)
-
-        content = {
-            "name": name,
-            "type": record_type,
-            "ttl" : new.ttl,
-            "rdata" : rdata
-        }
-
-        self._dns_client.record_replace(zone, name, record_type, content)
-
-        return 
-        
-
+      
+      
     def _params_for_multiple(self, values):
         return [r for r in values]
 
@@ -456,12 +458,10 @@ class AkamaiProvider(BaseProvider):
         rdata = []
 
         for r in values:
-            print(json.dumps(r, indent=4, separators=(',', ': ')))
             preference = r['preference']
             exchange = r['exchange']
 
             record = '{} {}'.format(preference, exchange)
-
             rdata.append(record)
 
         return rdata
@@ -470,16 +470,14 @@ class AkamaiProvider(BaseProvider):
         rdata = []
 
         for r in values:
-            order = r['order']
-            preference = r['preference']
-            flags = "\"" + r['flags'] + "\""
-            service = "\"" + r['service'] + "\""
-            regexp = "\"" + r['regexp'] + "\""
-            repl = r['replacement']
+            ordr = r['order']
+            pref = r['preference']
+            flg = "\"" + r['flags'] + "\""
+            srvc = "\"" + r['service'] + "\""
+            rgx = "\"" + r['regexp'] + "\""
+            rpl = r['replacement']
             
-            record = '{} {} {} {} {} {}'.format(order, preference, flags, service, 
-                                            regexp, repl)
-            # record = ' '.join([order, preference, flags, service, regexp, repl])
+            record = '{} {} {} {} {} {}'.format(ordr, pref, flg, srvc, rgx, rpl)
             rdata.append(record)
         
         return rdata
@@ -518,15 +516,13 @@ class AkamaiProvider(BaseProvider):
 
         return rdata
 
-
-
     def _build_zone_config(self, zone, _type=None, comment=None, masters=[]):
 
         if _type is None: 
             _type="primary"
         
         if self._contractId is None:
-            self._set_default_contractId()
+            raise NameError("contractId not specified to create zone") 
 
         return {
             "zone": zone,
@@ -534,34 +530,6 @@ class AkamaiProvider(BaseProvider):
             "comment": comment,
             "masters": masters
         }
-
-    def _set_default_contractId(self):
-        ''' if no contractId is set, but one is required to create a new zone, 
-            this function will try to retrieve any contracts available to the
-            user, and use the first one it finds
-        '''
-        
-        try:
-
-            request = self._dns_client.zones_get(self._gid)
-            response = request.json()
-            zones = response['zones']
-
-            contractId = zones[0]['contractId']
-
-
-            self._contractId = contractId
-            self.log.info("contractId not specified, using contractId=%s", contractId)
-        
-        except KeyError:
-            self.log.debug("_get_default_contractId: key error")
-            raise
-
-        except:
-            self.log.debug("_get_default_contractId: unable to find a contractId")
-            raise 
-
-        return
 
     def _get_values(self, data):
 
@@ -574,190 +542,9 @@ class AkamaiProvider(BaseProvider):
 
     def _set_full_name(self, name, zone):
         name = name + '.' + zone
-        if (name[0] == '.'): ## octodns's name for root is ''
+
+        ## octodns's name for root is ''
+        if (name[0] == '.'): 
             name = name[1:]
 
         return name
-
-
-
-
-
-    def _test(self, zone) :
-
-        zone_name = zone.name[:len(zone.name)-1]
-
-        record_name = "octo.basir-test.com"
-        record_type = "A"
-        params = {
-            "name": "octo.basir-test.com",
-            "type": "A",
-            "ttl": 300,
-            "rdata": [
-                "10.0.0.2",
-                "10.0.0.3"
-            ]
-        }
-        repl_params = {
-            "name": "octo.basir-test.com",
-            "type": "A",
-            "ttl": 300,
-            "rdata": [
-                "99.99.99.99",
-                "10.0.0.3",
-                "1.2.3.4"
-            ]
-        }
-
-
-        print("\n\nRunning test: record get..........\n")
-        self._test_record_get(zone_name, "test.basir-test.com", record_type)
-        print("\n\nRunning test: record create..........\n")
-        self._test_record_create(zone_name, record_name, record_type, params)
-        print("\n\nRunning test: record replace..........\n")
-        self._test_record_replace(zone_name, record_name, record_type, repl_params)
-        print("\n\nRunning test: record delete..........\n")
-        self._test_record_delete(zone_name, record_name, record_type)
-
-        print("\n\nRunning test: zones get..........\n")
-        self._test_zones_get()
-
-        print("\n\nRunning test: zone recordset get..........\n")
-        self._test_zones_recordset_get(zone_name)
-
-        print("\n\nRunning test: Master Zone File get..........\n")
-        self._test_master_zone_file_get(zone_name)
-
-        return
-
-    def _test_record_get(self, zone_name, record_name, record_type):
-        try:
-            get = self._dns_client.record_get(zone_name, record_name, record_type)
-        except AkamaiClientException as e:
-            print ("record get test failed")
-            print (e.message)
-
-        else:
-            print("record get test result: ")
-            print(json.dumps(get.json(), indent=4, separators=(',', ': ')))
-
-        return
-
-    def _test_record_delete(self, zone_name, record_name, record_type):
-
-        try:
-            delete = self._dns_client.record_delete(zone_name, record_name, record_type)
-        except AkamaiClientException as e:
-            print("delete failed")
-            print(e.message)
-            return
-
-
-        try:
-            self._dns_client.record_get(zone_name, record_name, record_type)
-        except AkamaiClientException as e:
-            print("get on record failed as expected, since record was succesfully deleted")
-            print ("(Probably Ignore):", e.message)
-            print ("delete status:", delete.status_code)
-        else:
-            print("unexpected condition in test delete")
-
-        return
-
-    def _test_record_create(self, zone_name, record_name, record_type, params):
-
-        try:
-            create  = self._dns_client.record_create(zone_name, record_name, record_type, params)
-        except AkamaiClientException as e:
-            print ("create unsuccessful, presumably because it already exists")
-            print ("(Probably Ignore)", e.message)
-        else:
-            print("initial create of", create.json().get("name"), "succesful: ", create.status_code)
-
-        return
-
-    def _test_record_replace(self, zone_name, record_name, record_type, params):
-
-        ## create record to be replaced, if it doesn't already exist
-        try:
-            old_params = {
-                "name": record_name,
-                "type": record_type,
-                "ttl": 300,
-                "rdata": [
-                    "10.0.0.2",
-                    "10.0.0.3"
-                ]
-            }
-            create = self._dns_client.record_create(zone_name, record_name, record_type, old_params)
-        except AkamaiClientException as e:
-            print ("initial create unsuccessful, presumably because it already exists")
-            print ("(Probably Ignore)", e.message)
-        else:
-            print("initial create of record to be replaced", create.json().get("name"), "succesful: ", create.status_code)
-
-        
-        ## test replace
-        try:
-            replace = self._dns_client.record_replace(zone_name, record_name, record_type, params)
-        except AkamaiClientException as e:
-            print("replace failed")
-            print(e.message)
-            return
-        else:
-            try:
-                record = self._dns_client.record_get(zone_name, record_name, record_type)
-            except AkamaiClientException as e:
-                print("retrieval in replacement failed")
-                print(e.message)
-            else:
-                new_data = record.json()
-
-                if (new_data != params):
-                    print("replace failed, records don't match")
-                    print("current data:")
-                    print(new_data)
-                    print("expected data:")
-                    print(params)
-                
-                else:
-                    print("replace succesful")
-                    print("replace status:", replace.status_code)
-
-    def _test_zones_get(self):
-        try:
-            zonesList = self._dns_client.zones_get()
-        except AkamaiClientException as e:
-            print ("zones get test failed") 
-            print (e.message)
-
-        else:
-            print("zones list: ")
-            print(json.dumps(zonesList.json(), indent=4, separators=(',', ': ')))
-
-        return
-
-    def _test_zones_recordset_get(self, zone_name):
-        try:
-            zoneRecordset = self._dns_client.zone_recordset_get(zone_name)
-        except AkamaiClientException as e:
-            print("zone recordset retrieval test failed")
-            print (e.message)
-        else:
-            print("zone recordset: ")
-            print(json.dumps(zoneRecordset.json(), indent=4, separators=(',', ': ')))
-        return
-
-    def _test_master_zone_file_get(self, zone_name):
-        try:
-            mzf = self._dns_client.master_zone_file_get(zone_name)
-
-        except AkamaiClientException as e:
-            print("MZF retrieval test failed")
-            print (e.message)
-
-        else:
-            print("Master Zone File:")
-            print(json.dumps(mzf.json(), indent=4, separators=(',', ': ')))
-
-        return 
