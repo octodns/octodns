@@ -170,7 +170,7 @@ class AkamaiProvider(BaseProvider):
         https://control.akamai.com/
         Configure > Organization > Manage APIs > New API Client for me
         Select appropriate group, and fill relevant fields.
-        For "API Service Name", select "DNS—Zone Record Management"
+        For API Service Name, select DNS—Zone Record Management
         and then set appropriate Access level (Read-Write to make changes).
         Then select the "New Credential" button to generate values for above
 
