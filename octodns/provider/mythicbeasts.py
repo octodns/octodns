@@ -175,6 +175,19 @@ class MythicBeastsProvider(BaseProvider):
         }
 
     @staticmethod
+    def _data_for_TXT(_type, data):
+        return {
+            'type': _type,
+            'values':
+                [
+                    str(raw_values['value']).replace(';', '\\;')
+                    for raw_values in data['raw_values']
+                ],
+            'ttl':
+                max([raw_values['ttl'] for raw_values in data['raw_values']]),
+        }
+
+    @staticmethod
     def _data_for_MX(_type, data):
         ttl = max([raw_values['ttl'] for raw_values in data['raw_values']])
         values = []
@@ -296,7 +309,6 @@ class MythicBeastsProvider(BaseProvider):
             {'raw_values': [{'value': value, 'ttl': ttl}]})
 
     _data_for_NS = _data_for_multiple
-    _data_for_TXT = _data_for_multiple
     _data_for_A = _data_for_multiple
     _data_for_AAAA = _data_for_multiple
 
@@ -330,9 +342,6 @@ class MythicBeastsProvider(BaseProvider):
             _type = match.group('type')
             _ttl = int(match.group('ttl'))
             _value = match.group('value').strip()
-
-            if _type == 'TXT':
-                _value = _value.replace(';', '\\;')
 
             if hasattr(self, '_data_for_{}'.format(_type)):
                 if _name not in data[_type]:
@@ -383,6 +392,11 @@ class MythicBeastsProvider(BaseProvider):
 
         base = '{} {} {} {}'.format(action, hostname, ttl, _type)
 
+        # Unescape TXT records
+        if _type == 'TXT':
+            values = [value.replace('\\;', ';') for value in values]
+
+        # Handle specific types or default
         if _type == 'SSHFP':
             data = values[0].data
             commands.append('{} {} {} {}'.format(

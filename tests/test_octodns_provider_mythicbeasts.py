@@ -61,6 +61,18 @@ class TestMythicBeastsProvider(TestCase):
         self.assertTrue(isinstance(test_multiple, dict))
         self.assertEquals(2, len(test_multiple['values']))
 
+    def test_data_for_txt(self):
+        test_data = {
+            'raw_values': [
+                {'value': 'v=DKIM1; k=rsa; p=prawf', 'ttl': 60},
+                {'value': 'prawf prawf dyma prawf', 'ttl': 300}],
+            'zone': 'unit.tests.',
+        }
+        test_txt = MythicBeastsProvider._data_for_TXT('', test_data)
+        self.assertTrue(isinstance(test_txt, dict))
+        self.assertEquals(2, len(test_txt['values']))
+        self.assertEquals('v=DKIM1\\; k=rsa\\; p=prawf', test_txt['values'][0])
+
     def test_data_for_MX(self):
         test_data = {
             'raw_values': [
@@ -193,6 +205,11 @@ class TestMythicBeastsProvider(TestCase):
             'type': 'TXT',
             'value': 'prawf prawf dyma prawf',
         }))
+        zone.add_record(Record.new(zone, 'prawf-txt2', {
+            'ttl': 60,
+            'type': 'TXT',
+            'value': 'v=DKIM1\\; k=rsa\\; p=prawf',
+        }))
         with requests_mock() as mock:
             mock.post(ANY, status_code=200, text='')
 
@@ -219,6 +236,7 @@ class TestMythicBeastsProvider(TestCase):
                 'ADD prawf-aaaa.unit.tests 60 AAAA b:b::b',
                 'ADD prawf-aaaa.unit.tests 60 AAAA c:c::c:c',
                 'ADD prawf-txt.unit.tests 60 TXT prawf prawf dyma prawf',
+                'ADD prawf-txt2.unit.tests 60 TXT v=DKIM1; k=rsa; p=prawf',
             ]
 
             generated_commands.sort()
@@ -231,6 +249,7 @@ class TestMythicBeastsProvider(TestCase):
 
             # Now test deletion
             existing = 'prawf-txt 300 TXT prawf prawf dyma prawf\n' \
+                'prawf-txt2 300 TXT v=DKIM1; k=rsa; p=prawf\n' \
                 'prawf-a 60 A 1.2.3.4'
 
             with requests_mock() as mock:
@@ -249,6 +268,7 @@ class TestMythicBeastsProvider(TestCase):
             expected_commands = [
                 'DELETE prawf-a.unit.tests 60 A 1.2.3.4',
                 'DELETE prawf-txt.unit.tests 300 TXT prawf prawf dyma prawf',
+                'DELETE prawf-txt2.unit.tests 300 TXT v=DKIM1; k=rsa; p=prawf',
             ]
 
             generated_commands.sort()
