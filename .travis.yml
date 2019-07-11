@@ -1,6 +1,12 @@
 language: python
 python:
   - 2.7
+matrix:
+  include:
+    - python: 3.7
+      dist: xenial
+  allow_failures:
+    - python: 3.7
 script: ./script/cibuild
 notifications:
   email:
