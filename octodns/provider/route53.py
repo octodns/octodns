@@ -14,10 +14,17 @@ from uuid import uuid4
 import logging
 import re
 
+from six import text_type
+
 from ..record import Record, Update
 from ..record.geo import GeoCodes
 from .base import BaseProvider
 
+try:
+    cmp
+except NameError:
+    def cmp(x, y):
+        return (x > y) - (x < y)
 
 octal_re = re.compile(r'\\(\d\d\d)')
 
@@ -1037,8 +1044,8 @@ class Route53Provider(BaseProvider):
         # ip_address's returned object for equivalence
         # E.g 2001:4860:4860::8842 -> 2001:4860:4860:0:0:0:0:8842
         if value:
-            value = ip_address(unicode(value))
-            config_ip_address = ip_address(unicode(config['IPAddress']))
+            value = ip_address(text_type(value))
+            config_ip_address = ip_address(text_type(config['IPAddress']))
         else:
             # No value so give this a None to match value's
             config_ip_address = None
@@ -1059,7 +1066,7 @@ class Route53Provider(BaseProvider):
                        fqdn, record._type, value)
 
         try:
-            ip_address(unicode(value))
+            ip_address(text_type(value))
             # We're working with an IP, host is the Host header
             healthcheck_host = record.healthcheck_host
         except (AddressValueError, ValueError):

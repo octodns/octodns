@@ -194,7 +194,7 @@ class DummyIterator:
         return self
 
     def next(self):
-        return self.iterable.next()
+        return next(self.iterable)
 
 
 class TestGoogleCloudProvider(TestCase):

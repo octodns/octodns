@@ -8,6 +8,8 @@ from __future__ import absolute_import, division, print_function, \
 from logging import getLogger
 from unittest import TestCase
 
+from six import text_type
+
 from octodns.record import Create, Delete, Record, Update
 from octodns.provider.base import BaseProvider
 from octodns.provider.plan import Plan, UnsafePlan
@@ -193,7 +195,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, text_type(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -225,7 +227,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, text_type(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -251,7 +253,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, text_type(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -273,7 +275,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, text_type(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -299,7 +301,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, text_type(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -322,7 +324,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, text_type(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -350,7 +352,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, text_type(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'

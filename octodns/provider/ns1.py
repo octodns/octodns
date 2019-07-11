@@ -13,6 +13,8 @@ from nsone.rest.errors import RateLimitException, ResourceException
 from incf.countryutils import transformations
 from time import sleep
 
+from six import text_type
+
 from ..record import Record
 from .base import BaseProvider
 
@@ -76,9 +78,9 @@ class Ns1Provider(BaseProvider):
             else:
                 values.extend(answer['answer'])
                 codes.append([])
-        values = [unicode(x) for x in values]
+        values = [text_type(x) for x in values]
         geo = OrderedDict(
-            {unicode(k): [unicode(x) for x in v] for k, v in geo.items()}
+            {text_type(k): [text_type(x) for x in v] for k, v in geo.items()}
         )
         data['values'] = values
         data['geo'] = geo

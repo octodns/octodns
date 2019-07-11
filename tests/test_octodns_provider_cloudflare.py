@@ -950,7 +950,7 @@ class TestCloudflareProvider(TestCase):
             'value': 'ns1.unit.tests.'
         })
 
-        data = provider._gen_data(record).next()
+        data = next(provider._gen_data(record))
 
         self.assertFalse('proxied' in data)
 
@@ -965,7 +965,7 @@ class TestCloudflareProvider(TestCase):
             }), False
         )
 
-        data = provider._gen_data(record).next()
+        data = next(provider._gen_data(record))
 
         self.assertFalse(data['proxied'])
 
@@ -980,7 +980,7 @@ class TestCloudflareProvider(TestCase):
             }), True
         )
 
-        data = provider._gen_data(record).next()
+        data = next(provider._gen_data(record))
 
         self.assertTrue(data['proxied'])
 

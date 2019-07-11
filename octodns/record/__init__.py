@@ -9,7 +9,15 @@ from ipaddress import IPv4Address, IPv6Address
 from logging import getLogger
 import re
 
+from six import string_types, text_type
+
 from .geo import GeoCodes
+
+try:
+    cmp
+except NameError:
+    def cmp(x, y):
+        return (x > y) - (x < y)
 
 
 class Change(object):
@@ -130,7 +138,7 @@ class Record(object):
                        self.__class__.__name__, name)
         self.zone = zone
         # force everything lower-case just to be safe
-        self.name = unicode(name).lower() if name else name
+        self.name = text_type(name).lower() if name else name
         self.source = source
         self.ttl = int(data['ttl'])
 
@@ -292,7 +300,7 @@ class _ValuesMixin(object):
         return ret
 
     def __repr__(self):
-        values = "['{}']".format("', '".join([unicode(v)
+        values = "['{}']".format("', '".join([text_type(v)
                                               for v in self.values]))
         return '<{} {} {}, {}, {}>'.format(self.__class__.__name__,
                                            self._type, self.ttl,
@@ -574,7 +582,7 @@ class _DynamicMixin(object):
                     reasons.append('rule {} missing pool'.format(rule_num))
                     continue
 
-                if not isinstance(pool, basestring):
+                if not isinstance(pool, string_types):
                     reasons.append('rule {} invalid pool "{}"'
                                    .format(rule_num, pool))
                 elif pool not in pools:
@@ -671,13 +679,13 @@ class _IpList(object):
             return ['missing value(s)']
         reasons = []
         for value in data:
-            if value is '':
+            if value == '':
                 reasons.append('empty value')
             elif value is None:
                 reasons.append('missing value(s)')
             else:
                 try:
-                    cls._address_type(unicode(value))
+                    cls._address_type(text_type(value))
                 except Exception:
                     reasons.append('invalid {} address "{}"'
                                    .format(cls._address_name, value))
