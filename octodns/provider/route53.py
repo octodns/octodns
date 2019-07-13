@@ -20,6 +20,7 @@ from ..record import Record, Update
 from ..record.geo import GeoCodes
 from .base import BaseProvider
 
+# TODO: remove when Python 2.x is no longer supported
 try:
     cmp
 except NameError:

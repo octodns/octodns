@@ -275,10 +275,13 @@ class Manager(object):
             self.log.info('sync:   sources=%s -> targets=%s', sources, targets)
 
             try:
-                sources = [self.providers[source] for source in sources]
-            except KeyError as e:
+                collected = []
+                for source in sources:
+                    collected.append(self.providers[source])
+                sources = collected
+            except KeyError:
                 raise Exception('Zone {}, unknown source: {}'.format(zone_name,
-                                                                     e))
+                                                                     source))
 
             try:
                 trgs = []
@@ -396,10 +399,13 @@ class Manager(object):
                 raise Exception('Zone {} is missing sources'.format(zone_name))
 
             try:
-                sources = [self.providers[source] for source in sources]
-            except KeyError as e:
+                collected = []
+                for source in sources:
+                    collected.append(self.providers[source])
+                sources = collected
+            except KeyError:
                 raise Exception('Zone {}, unknown source: {}'.format(zone_name,
-                                                                     e))
+                                                                     source))
 
             for source in sources:
                 if isinstance(source, YamlProvider):
