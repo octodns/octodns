@@ -21,9 +21,9 @@ from ..record.geo import GeoCodes
 from .base import BaseProvider
 
 # TODO: remove when Python 2.x is no longer supported
-try:
+try:  # pragma: no cover
     cmp
-except NameError:
+except NameError:  # pragma: no cover
     def cmp(x, y):
         return (x > y) - (x < y)
 
