@@ -2460,7 +2460,7 @@ class TestDynamicRecords(TestCase):
                             'weight': 1,
                             'value': '6.6.6.6',
                         }, {
-                            'weight': 256,
+                            'weight': 16,
                             'value': '7.7.7.7',
                         }],
                     },
@@ -2484,7 +2484,7 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['invalid weight "256" in pool "three" value 2'],
+        self.assertEquals(['invalid weight "16" in pool "three" value 2'],
                           ctx.exception.reasons)
 
         # invalid non-int weight

@@ -41,6 +41,7 @@ setup(
     ],
     license='MIT',
     long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     name='octodns',
     packages=find_packages(),
     url='https://github.com/github/octodns',

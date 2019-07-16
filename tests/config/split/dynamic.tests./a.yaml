@@ -23,7 +23,7 @@ a:
         fallback: null
         values:
         - value: 5.5.5.5
-          weight: 25
+          weight: 15
         - value: 6.6.6.6
           weight: 10
     rules:
