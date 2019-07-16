@@ -124,14 +124,6 @@ class AkamaiClient(object):
 
         return result
 
-    def recordsets_get(self, zone_name):
-
-        resp = self.zone_recordset_get(zone_name, showAll="true")
-        recordset = resp.json().get("recordsets")
-
-        return recordset
-
-
 class AkamaiProvider(BaseProvider):
 
     '''
@@ -207,8 +199,9 @@ class AkamaiProvider(BaseProvider):
         if zone.name not in self._zone_records:
             try:
                 name = zone.name[:-1]
-                self._zone_records[zone.name] = \
-                    self._dns_client.recordsets_get(name)
+                resp = self._dns_client.zone_recordset_get(name, showAll="true")
+                resp = resp.json().get("recordsets")
+                self._zone_records[zone.name] = resp
 
             except AkamaiClientException:
                 return []
