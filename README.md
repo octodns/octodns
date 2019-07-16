@@ -1,4 +1,4 @@
-<img src="/docs/logos/octodns-logo.png?" height=251 width=404>
+<img src="https://raw.githubusercontent.com/github/octodns/master/docs/logos/octodns-logo.png?" height=251 width=404>
 
 ## DNS as code - Tools for managing DNS across multiple providers
 
@@ -275,4 +275,4 @@ GitHub® and its stylized versions and the Invertocat mark are GitHub's Trademar
 
 ## Authors
 
-OctoDNS was designed and authored by [Ross McFarland](https://github.com/ross) and [Joe Williams](https://github.com/joewilliams). It is now maintained, reviewed, and tested by Ross, Joe, and the rest of the Site Reliability Engineering team at GitHub.
+OctoDNS was designed and authored by [Ross McFarland](https://github.com/ross) and [Joe Williams](https://github.com/joewilliams). It is now maintained, reviewed, and tested by Traffic Engineering team at GitHub.
