@@ -22,19 +22,32 @@ class TestFastdnsProvider(TestCase):
     source = YamlProvider('test', join(dirname(__file__), 'config'))
     source.populate(expected)
 
+    # Our test suite differs a bit, add our NS and remove the simple one
+    expected.add_record(Record.new(expected, 'under', {
+        'ttl': 3600,
+        'type': 'NS',
+        'values': [
+            'ns1.unit.tests.',
+            'ns2.unit.tests.',
+        ]
+    }))
+    for record in list(expected.records):
+        if record.name == 'sub' and record._type == 'NS':
+            expected._remove_record(record)
+            break
+
     def test_populate(self):
-        provider = AkamaiProvider("test", "client_secret", "host", "access_token", 
-                                  "client_token")
-        
+        provider = AkamaiProvider("test", "secret", "akam.com", "atok", "ctok")
+
         # Bad Auth
         with requests_mock() as mock:
-            mock.get(ANY, status_code=401,
-                     text='{"message": "Authentication failed"}')
+            mock.get(ANY, status_code=401, text='{"message": "Unauthorized"}')
 
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            self.assertEquals("401: Unauthorized", ctx.exception.message)
+
+            self.assertEquals(401, ctx.exception.response.status_code)
 
         # general error
         with requests_mock() as mock:
@@ -45,7 +58,7 @@ class TestFastdnsProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals(502, ctx.exception.response.status_code)
 
-         # Non-existant zone doesn't populate anything
+        # Non-existant zone doesn't populate anything
         with requests_mock() as mock:
             mock.get(ANY, status_code=404,
                      text='{"message": "Domain `foo.bar` not found"}')
@@ -54,17 +67,22 @@ class TestFastdnsProvider(TestCase):
             provider.populate(zone)
             self.assertEquals(set(), zone.records)
 
-        # # No diffs == no changes
-        # with requests_mock() as mock:
-        #     base = 'https://api.dnsimple.com/v2/42/zones/unit.tests/' \
-        #         'records?page='
-        #     with open('tests/fixtures/dnsimple-page-1.json') as fh:
-        #         mock.get('{}{}'.format(base, 1), text=fh.read())
-        #     with open('tests/fixtures/dnsimple-page-2.json') as fh:
-        #         mock.get('{}{}'.format(base, 2), text=fh.read())
+        # No diffs == no changes
+        with requests_mock() as mock:
 
-        #     zone = Zone('unit.tests.', [])
-        #     provider.populate(zone)
-        #     self.assertEquals(16, len(zone.records))
-        #     changes = self.expected.changes(zone, provider)
-        #     self.assertEquals(0, len(changes))
+            with open('tests/fixtures/fastdns-records.json') as fh:
+                mock.get(ANY, text=fh.read())
+
+            zone = Zone('unit.tests.', [])
+            provider.populate(zone)
+            self.assertEquals(16, len(zone.records))
+            changes = self.expected.changes(zone, provider)
+            self.assertEquals(0, len(changes))
+
+        # 2nd populate makes no network calls/all from cache
+        again = Zone('unit.tests.', [])
+        provider.populate(again)
+        self.assertEquals(16, len(again.records))
+
+        # bust the cache
+        del provider._zone_records[zone.name]
