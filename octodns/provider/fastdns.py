@@ -19,7 +19,6 @@ class AkamaiClientException(Exception):
 
     _errorMessages = {
         400: "400: Bad request",
-        401: "401: Unauthorized",
         403: "403: Access is forbidden",
         404: "404: Resource not found",
         405: "405: Method not supported",
@@ -32,7 +31,7 @@ class AkamaiClientException(Exception):
 
     def __init__(self, resp):
         try:
-            message = self._errorMessages.get(resp.status_code)
+            message = self._errorMessages[resp.status_code]
             super(AkamaiClientException, self).__init__(message)
 
         except:
@@ -107,7 +106,7 @@ class AkamaiClient(object):
 
         return result
 
-    def zone_recordset_get(self, zone, page=None, pageSize=30, search=None,
+    def zone_recordset_get(self, zone, page=None, pageSize=None, search=None,
                            showAll="true", sortBy="name", types=None):
 
         params = {
@@ -123,6 +122,7 @@ class AkamaiClient(object):
         result = self._request('GET', path, params=params)
 
         return result
+
 
 class AkamaiProvider(BaseProvider):
 
@@ -162,7 +162,7 @@ class AkamaiProvider(BaseProvider):
         https://control.akamai.com/
         Configure > Organization > Manage APIs > New API Client for me
         Select appropriate group, and fill relevant fields.
-        For API Service Name, select DNS—Zone Record Management
+        For API Service Name, select DNS-Zone Record Management
         and then set appropriate Access level (Read-Write to make changes).
         Then select the "New Credential" button to generate values for above
 
@@ -199,9 +199,11 @@ class AkamaiProvider(BaseProvider):
         if zone.name not in self._zone_records:
             try:
                 name = zone.name[:-1]
-                resp = self._dns_client.zone_recordset_get(name, showAll="true")
-                resp = resp.json().get("recordsets")
-                self._zone_records[zone.name] = resp
+                response = self._dns_client.zone_recordset_get(name)
+                self._zone_records[zone.name] = response.json()["recordsets"]
+
+            except KeyError:
+                return []
 
             except AkamaiClientException:
                 return []
@@ -501,10 +503,8 @@ class AkamaiProvider(BaseProvider):
 
         return rdata
 
-    def _build_zone_config(self, zone, _type=None, comment=None, masters=[]):
-
-        if _type is None:
-            _type = "primary"
+    def _build_zone_config(self, zone, _type="primary", comment=None,
+                           masters=[]):
 
         if self._contractId is None:
             raise NameError("contractId not specified to create zone")
