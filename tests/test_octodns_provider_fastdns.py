@@ -88,8 +88,10 @@ class TestFastdnsProvider(TestCase):
         del provider._zone_records[zone.name]
 
     def test_apply(self):
-        provider = AkamaiProvider("test", "secret", "akam.com", "atok", "ctok")
+        provider = AkamaiProvider("test", "s", "akam.com", "atok", "ctok",
+                                  "cid", "gid")
 
+        # tests create update delete through previous state config json
         with requests_mock() as mock:
 
             with open('tests/fixtures/fastdns-records-prev.json') as fh:
@@ -102,3 +104,47 @@ class TestFastdnsProvider(TestCase):
 
             changes = provider.apply(plan)
             self.assertEquals(29, changes)
+
+        # Test against a zone that doesn't exist yet
+        with requests_mock() as mock:
+            with open('tests/fixtures/fastdns-records-prev-other.json') as fh:
+                mock.get(ANY, status_code=404)
+
+            plan = provider.plan(self.expected)
+            mock.post(ANY, status_code=201)
+            mock.put(ANY, status_code=200)
+            mock.delete(ANY, status_code=204)
+
+            changes = provider.apply(plan)
+            self.assertEquals(14, changes)
+
+        # Test against a zone that doesn't exist yet, but gid not provided
+        with requests_mock() as mock:
+            with open('tests/fixtures/fastdns-records-prev-other.json') as fh:
+                mock.get(ANY, status_code=404)
+            provider = AkamaiProvider("test", "s", "akam.com", "atok", "ctok",
+                                      "cid")
+            plan = provider.plan(self.expected)
+            mock.post(ANY, status_code=201)
+            mock.put(ANY, status_code=200)
+            mock.delete(ANY, status_code=204)
+
+            changes = provider.apply(plan)
+            self.assertEquals(14, changes)
+
+        # Test against a zone that doesn't exist, but cid not provided
+
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=404)
+
+            provider = AkamaiProvider("test", "s", "akam.com", "atok", "ctok")
+            plan = provider.plan(self.expected)
+            mock.post(ANY, status_code=201)
+            mock.put(ANY, status_code=200)
+            mock.delete(ANY, status_code=204)
+
+            try:
+                changes = provider.apply(plan)
+            except NameError as e:
+                expected = "contractId not specified to create zone"
+                self.assertEquals(e.message, expected)
