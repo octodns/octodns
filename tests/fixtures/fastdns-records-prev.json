@@ -65,7 +65,7 @@
         },
         {
             "rdata": [
-                "unit.tests."
+                "unit.tests"
             ],
             "type": "CNAME",
             "name": "old.cname.unit.tests",
