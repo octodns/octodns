@@ -202,10 +202,7 @@ class AkamaiProvider(BaseProvider):
                 response = self._dns_client.zone_recordset_get(name)
                 self._zone_records[zone.name] = response.json()["recordsets"]
 
-            except KeyError:
-                return []
-
-            except AkamaiClientException:
+            except (AkamaiClientException, KeyError):
                 return []
 
         return self._zone_records[zone.name]
@@ -405,7 +402,7 @@ class AkamaiProvider(BaseProvider):
             algorithm, fp_type, fingerprint = r.split(' ', 2)
             values.append({
                 'algorithm': algorithm,
-                'fingerprint': fingerprint,
+                'fingerprint': fingerprint.lower(),
                 'fingerprint_type': fp_type
             })
 
