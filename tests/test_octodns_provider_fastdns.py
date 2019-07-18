@@ -5,14 +5,14 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from mock import Mock, call
+# from mock import Mock, call
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
 from unittest import TestCase
 
 from octodns.record import Record
-from octodns.provider.fastdns import AkamaiProvider, AkamaiClientException
+from octodns.provider.fastdns import AkamaiProvider
 from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
 
@@ -86,3 +86,19 @@ class TestFastdnsProvider(TestCase):
 
         # bust the cache
         del provider._zone_records[zone.name]
+
+    def test_apply(self):
+        provider = AkamaiProvider("test", "secret", "akam.com", "atok", "ctok")
+
+        with requests_mock() as mock:
+
+            with open('tests/fixtures/fastdns-records-prev.json') as fh:
+                mock.get(ANY, text=fh.read())
+
+            plan = provider.plan(self.expected)
+            mock.post(ANY, status_code=201)
+            mock.put(ANY, status_code=200)
+            mock.delete(ANY, status_code=204)
+
+            changes = provider.apply(plan)
+            self.assertEquals(29, changes)
