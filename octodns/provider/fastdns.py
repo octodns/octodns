@@ -433,7 +433,6 @@ class AkamaiProvider(BaseProvider):
     _params_for_A = _params_for_multiple
     _params_for_AAAA = _params_for_multiple
     _params_for_NS = _params_for_multiple
-    _params_for_SPF = _params_for_multiple
 
     _params_for_CNAME = _params_for_single
     _params_for_PTR = _params_for_single
@@ -463,6 +462,15 @@ class AkamaiProvider(BaseProvider):
 
             record = '{} {} {} {} {} {}'.format(ordr, prf, flg, srvc, rgx, rpl)
             rdata.append(record)
+
+        return rdata
+
+    def _params_for_SPF(self, values):
+        rdata = []
+
+        for r in values:
+            txt = "\"" + r.replace('\\;', ';') + "\""
+            rdata.append(txt)
 
         return rdata
 
