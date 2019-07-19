@@ -5,7 +5,7 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-import requests
+from requests import Session
 from akamai.edgegrid import EdgeGridAuth
 from urlparse import urljoin
 from collections import defaultdict
