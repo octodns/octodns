@@ -10,7 +10,7 @@ from akamai.edgegrid import EdgeGridAuth
 from urlparse import urljoin
 from collections import defaultdict
 
-import logging
+from logging import getLogger
 from ..record import Record
 from .base import BaseProvider
 
