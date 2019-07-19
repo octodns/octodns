@@ -1,0 +1,25 @@
+@ 3600 NS 6.2.3.4.
+@ 3600 NS 7.2.3.4.
+@ 300 A 1.2.3.4
+@ 300 A 1.2.3.5
+@ 3600 SSHFP 1 1 bf6b6825d2977c511a475bbefb88aad54a92ac73
+@ 3600 SSHFP 1 1 7491973e5f8b39d5327cd4e08bc81b05f7710b49
+@ 3600 CAA 0 issue ca.unit.tests
+_srv._tcp 600 SRV 10 20 30 foo-1.unit.tests.
+_srv._tcp 600 SRV 12 20 30 foo-2.unit.tests.
+aaaa 600 AAAA 2601:644:500:e210:62f8:1dff:feb8:947a
+cname 300 CNAME unit.tests.
+excluded 300 CNAME unit.tests.
+ignored 300 A 9.9.9.9
+included 3600 CNAME unit.tests.
+mx 300 MX 10 smtp-4.unit.tests.
+mx 300 MX 20 smtp-2.unit.tests.
+mx 300 MX 30 smtp-3.unit.tests.
+mx 300 MX 40 smtp-1.unit.tests.
+sub 3600 NS 6.2.3.4.
+sub 3600 NS 7.2.3.4.
+txt 600 TXT "Bah bah black sheep"
+txt 600 TXT "have you any wool."
+txt 600 TXT "v=DKIM1;k=rsa;s=email;h=sha256;p=A/kinda+of/long/string+with+numb3rs"
+www 300 A 2.2.3.6
+www.sub 300 A 2.2.3.6
