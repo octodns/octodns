@@ -181,7 +181,7 @@ class AkamaiProvider(BaseProvider):
     def __init__(self, id, client_secret, host, access_token, client_token,
                  contract_id=None, gid=None, *args, **kwargs):
 
-        self.log = logging.getLogger('AkamaiProvider[{}]'.format(id))
+        self.log = getLogger('AkamaiProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, ')
         super(AkamaiProvider, self).__init__(id, *args, **kwargs)
 
