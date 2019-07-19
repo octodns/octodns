@@ -701,18 +701,6 @@ class TestRoute53Provider(TestCase):
                         'Type': 'A'
                     }
                 }, {
-                    'Action': 'CREATE',
-                    'ResourceRecordSet': {
-                        'GeoLocation': {'CountryCode': 'US',
-                                        'SubdivisionCode': 'CA'},
-                        'HealthCheckId': u'44',
-                        'Name': 'unit.tests.',
-                        'ResourceRecords': [{'Value': '7.2.3.4'}],
-                        'SetIdentifier': 'NA-US-CA',
-                        'TTL': 61,
-                        'Type': 'A'
-                    }
-                }, {
                     'Action': 'UPSERT',
                     'ResourceRecordSet': {
                         'GeoLocation': {'ContinentCode': 'AF'},
@@ -732,6 +720,18 @@ class TestRoute53Provider(TestCase):
                         'ResourceRecords': [{'Value': '5.2.3.4'},
                                             {'Value': '6.2.3.4'}],
                         'SetIdentifier': 'NA-US',
+                        'TTL': 61,
+                        'Type': 'A'
+                    }
+                }, {
+                    'Action': 'CREATE',
+                    'ResourceRecordSet': {
+                        'GeoLocation': {'CountryCode': 'US',
+                                        'SubdivisionCode': 'CA'},
+                        'HealthCheckId': u'44',
+                        'Name': 'unit.tests.',
+                        'ResourceRecords': [{'Value': '7.2.3.4'}],
+                        'SetIdentifier': 'NA-US-CA',
                         'TTL': 61,
                         'Type': 'A'
                     }
@@ -1673,7 +1673,7 @@ class TestRoute53Provider(TestCase):
         desired.add_record(record)
         list_resource_record_sets_resp = {
             'ResourceRecordSets': [{
-                # other name
+                # Not dynamic value and other name
                 'Name': 'unit.tests.',
                 'Type': 'A',
                 'GeoLocation': {
@@ -1683,17 +1683,21 @@ class TestRoute53Provider(TestCase):
                     'Value': '1.2.3.4',
                 }],
                 'TTL': 61,
+                # All the non-matches have a different Id so we'll fail if they
+                # match
+                'HealthCheckId': '33',
             }, {
-                # matching name, other type
+                # Not dynamic value, matching name, other type
                 'Name': 'a.unit.tests.',
                 'Type': 'AAAA',
                 'ResourceRecords': [{
                     'Value': '2001:0db8:3c4d:0015:0000:0000:1a2f:1a4b'
                 }],
                 'TTL': 61,
+                'HealthCheckId': '33',
             }, {
                 # default value pool
-                'Name': '_octodns-default-pool.a.unit.tests.',
+                'Name': '_octodns-default-value.a.unit.tests.',
                 'Type': 'A',
                 'GeoLocation': {
                     'CountryCode': '*',
@@ -1702,6 +1706,37 @@ class TestRoute53Provider(TestCase):
                     'Value': '1.2.3.4',
                 }],
                 'TTL': 61,
+                'HealthCheckId': '33',
+            }, {
+                # different record
+                'Name': '_octodns-two-value.other.unit.tests.',
+                'Type': 'A',
+                'GeoLocation': {
+                    'CountryCode': '*',
+                },
+                'ResourceRecords': [{
+                    'Value': '1.2.3.4',
+                }],
+                'TTL': 61,
+                'HealthCheckId': '33',
+            }, {
+                # same everything, but different type
+                'Name': '_octodns-one-value.a.unit.tests.',
+                'Type': 'AAAA',
+                'ResourceRecords': [{
+                    'Value': '2001:0db8:3c4d:0015:0000:0000:1a2f:1a4b'
+                }],
+                'TTL': 61,
+                'HealthCheckId': '33',
+            }, {
+                # same everything, sub
+                'Name': '_octodns-one-value.sub.a.unit.tests.',
+                'Type': 'A',
+                'ResourceRecords': [{
+                    'Value': '1.2.3.4',
+                }],
+                'TTL': 61,
+                'HealthCheckId': '33',
             }, {
                 # match
                 'Name': '_octodns-one-value.a.unit.tests.',
@@ -2391,7 +2426,7 @@ class TestModKeyer(TestCase):
 
     def test_mod_keyer(self):
 
-        # First "column"
+        # First "column" is the action priority for C/R/U
 
         # Deletes come first
         self.assertEquals((0, 0, 'something'), _mod_keyer({
@@ -2409,8 +2444,8 @@ class TestModKeyer(TestCase):
             }
         }))
 
-        # Then upserts
-        self.assertEquals((2, 0, 'last'), _mod_keyer({
+        # Upserts are the same as creates
+        self.assertEquals((1, 0, 'last'), _mod_keyer({
             'Action': 'UPSERT',
             'ResourceRecordSet': {
                 'Name': 'last',
@@ -2420,7 +2455,7 @@ class TestModKeyer(TestCase):
         # Second "column" value records tested above
 
         # AliasTarget primary second (to value)
-        self.assertEquals((0, 1, 'thing'), _mod_keyer({
+        self.assertEquals((0, -1, 'thing'), _mod_keyer({
             'Action': 'DELETE',
             'ResourceRecordSet': {
                 'AliasTarget': 'some-target',
@@ -2429,8 +2464,17 @@ class TestModKeyer(TestCase):
             }
         }))
 
+        self.assertEquals((1, 1, 'thing'), _mod_keyer({
+            'Action': 'UPSERT',
+            'ResourceRecordSet': {
+                'AliasTarget': 'some-target',
+                'Failover': 'PRIMARY',
+                'Name': 'thing',
+            }
+        }))
+
         # AliasTarget secondary third
-        self.assertEquals((0, 2, 'thing'), _mod_keyer({
+        self.assertEquals((0, -2, 'thing'), _mod_keyer({
             'Action': 'DELETE',
             'ResourceRecordSet': {
                 'AliasTarget': 'some-target',
@@ -2439,9 +2483,26 @@ class TestModKeyer(TestCase):
             }
         }))
 
+        self.assertEquals((1, 2, 'thing'), _mod_keyer({
+            'Action': 'UPSERT',
+            'ResourceRecordSet': {
+                'AliasTarget': 'some-target',
+                'Failover': 'SECONDARY',
+                'Name': 'thing',
+            }
+        }))
+
         # GeoLocation fourth
-        self.assertEquals((0, 3, 'some-id'), _mod_keyer({
+        self.assertEquals((0, -3, 'some-id'), _mod_keyer({
             'Action': 'DELETE',
+            'ResourceRecordSet': {
+                'GeoLocation': 'some-target',
+                'SetIdentifier': 'some-id',
+            }
+        }))
+
+        self.assertEquals((1, 3, 'some-id'), _mod_keyer({
+            'Action': 'UPSERT',
             'ResourceRecordSet': {
                 'GeoLocation': 'some-target',
                 'SetIdentifier': 'some-id',

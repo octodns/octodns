@@ -1,3 +1,12 @@
+## v0.9.6 - 2019-07-16 - The little one that fixes stuff from the big one
+
+* Reduced dynamic record value weight range to 0-15 so that Dyn and Route53
+  match up behaviors. Dyn is limited to 0-15 and scaling that up would lose
+  resolution that couldn't be recovered during populate.
+* Addressed issues with Route53 change set ordering for dynamic records
+* Ignore unsupported record types in DigitalOceanProvider
+* Fix bugs in Route53 extra changes handling and health check managagement
+
 ## v0.9.5 - 2019-05-06 - The big one, with all the dynamic stuff
 
 * dynamic record support, essentially a v2 version of geo records with a lot
