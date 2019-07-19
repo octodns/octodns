@@ -18,24 +18,17 @@ from .base import BaseProvider
 class AkamaiClientException(Exception):
 
     _errorMessages = {
-        400: "400: Bad request",
-        403: "403: Access is forbidden",
-        404: "404: Resource not found",
-        405: "405: Method not supported",
-        406: "406: Not Acceptable",
-        409: "409: Request not allowed due to conflict with current state",
-        415: "415: Unsupported media type",
-        422: "422: Request body contains an error preventing processing",
-        500: "500: Internal server error"
+        404: "404: Resource not found"
     }
 
     def __init__(self, resp):
         try:
             message = self._errorMessages[resp.status_code]
-            super(AkamaiClientException, self).__init__(message)
 
-        except:
+        except KeyError:
             resp.raise_for_status()
+
+        super(AkamaiClientException, self).__init__(message)
 
 
 class AkamaiClient(object):
@@ -54,7 +47,7 @@ class AkamaiClient(object):
 
         self.base = "https://" + _host + "/config-dns/v2/"
 
-        sess = requests.Session()
+        sess = Session()
         sess.auth = EdgeGridAuth(
             client_token=_client_token,
             client_secret=_client_secret,
