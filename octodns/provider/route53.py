@@ -519,37 +519,71 @@ class _Route53GeoRecord(_Route53Record):
                                                           self.values)
 
 
-_mod_keyer_action_order = {
-    'DELETE': 0,  # Delete things first
-    'CREATE': 1,  # Then Create things
-    'UPSERT': 2,  # Upsert things last
-}
-
-
 def _mod_keyer(mod):
     rrset = mod['ResourceRecordSet']
-    action_order = _mod_keyer_action_order[mod['Action']]
 
-    # We're sorting by 3 "columns", the action, the rrset type, and finally the
-    # name/id of the rrset. This ensures that Route53 won't see a RRSet that
-    # targets another that hasn't been seen yet. I.e. targets must come before
-    # things that target them. We sort on types of things rather than
-    # explicitly looking for targeting relationships since that's sufficent and
-    # easier to grok/do.
+    # Route53 requires that changes are ordered such that a target of an
+    # AliasTarget is created or upserted prior to the record that targets it.
+    # This is complicated by "UPSERT" appearing to be implemented as "DELETE"
+    # before all changes, followed by a "CREATE", internally in the AWS API.
+    # Because of this, we order changes as follows:
+    #   - Delete any records that we wish to delete that are GEOS
+    #      (because they are never targetted by anything)
+    #   - Delete any records that we wish to delete that are SECONDARY
+    #      (because they are no longer targetted by GEOS)
+    #   - Delete any records that we wish to delete that are PRIMARY
+    #      (because they are no longer targetted by SECONDARY)
+    #   - Delete any records that we wish to delete that are VALUES
+    #      (because they are no longer targetted by PRIMARY)
+    #   - CREATE/UPSERT any records that are VALUES
+    #      (because they don't depend on other records)
+    #   - CREATE/UPSERT any records that are PRIMARY
+    #      (because they always point to VALUES which now exist)
+    #   - CREATE/UPSERT any records that are SECONDARY
+    #      (because they now have PRIMARY records to target)
+    #   - CREATE/UPSERT any records that are GEOS
+    #      (because they now have all their PRIMARY pools to target)
+    #   - :tada:
+    #
+    # In theory we could also do this based on actual target reference
+    # checking, but that's more complex. Since our rules have a known
+    # dependency order, we just rely on that.
 
+    # Get the unique ID from the name/id to get a consistent ordering.
     if rrset.get('GeoLocation', False):
-        return (action_order, 3, rrset['SetIdentifier'])
+        unique_id = rrset['SetIdentifier']
+    else:
+        unique_id = rrset['Name']
+
+    # Prioritise within the action_priority, ensuring targets come first.
+    if rrset.get('GeoLocation', False):
+        # Geos reference pools, so they come last.
+        record_priority = 3
     elif rrset.get('AliasTarget', False):
         # We use an alias
         if rrset.get('Failover', False) == 'SECONDARY':
-            # We're a secondary we'll ref primaries
-            return (action_order, 2, rrset['Name'])
+            # We're a secondary, which reference the primary (failover, P1).
+            record_priority = 2
         else:
-            # We're a primary we'll ref values
-            return (action_order, 1, rrset['Name'])
+            # We're a primary, we reference values (P0).
+            record_priority = 1
+    else:
+        # We're just a plain value, has no dependencies so first.
+        record_priority = 0
 
-    # We're just a plain value, these come first
-    return (action_order, 0, rrset['Name'])
+    if mod['Action'] == 'DELETE':
+        # Delete things first, so we can never trounce our own additions
+        action_priority = 0
+        # Delete in the reverse order of priority, e.g. start with the deepest
+        # reference and work back to the values, rather than starting at the
+        # values (still ref'd).
+        record_priority = -record_priority
+    else:
+        # For CREATE and UPSERT, Route53 seems to treat them the same, so
+        # interleave these, keeping the reference order described above.
+        action_priority = 1
+
+    return (action_priority, record_priority, unique_id)
 
 
 def _parse_pool_name(n):

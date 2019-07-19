@@ -514,7 +514,7 @@ class _DynamicMixin(object):
                     try:
                         weight = value['weight']
                         weight = int(weight)
-                        if weight < 1 or weight > 255:
+                        if weight < 1 or weight > 15:
                             reasons.append('invalid weight "{}" in pool "{}" '
                                            'value {}'.format(weight, _id,
                                                              value_num))
