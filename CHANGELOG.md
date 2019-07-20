@@ -112,7 +112,7 @@ Adds an OVH provider.
 
 ## v0.8.6 - 2017-09-06 - CAA record type,
 
-Misc fixes and improvments.
+Misc fixes and improvements.
 
 * Azure TXT record fix
 * PowerDNS api support for https
