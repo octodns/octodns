@@ -5,11 +5,11 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from StringIO import StringIO
 from logging import getLogger
 from six import text_type
 from unittest import TestCase
 
+from octodns.compat import StringIO
 from octodns.provider.plan import Plan, PlanHtml, PlanLogger, PlanMarkdown
 from octodns.record import Create, Delete, Record, Update
 from octodns.zone import Zone

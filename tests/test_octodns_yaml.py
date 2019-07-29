@@ -5,10 +5,10 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from StringIO import StringIO
 from unittest import TestCase
 from yaml.constructor import ConstructorError
 
+from octodns.compat import StringIO
 from octodns.yaml import safe_dump, safe_load
 
 
