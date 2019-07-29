@@ -9,7 +9,10 @@ import json
 import re
 from six import text_type
 from unittest import TestCase
-from urlparse import urlparse
+try:
+    from urlparse import urlparse
+except ImportError:
+    from urllib.parse import urlparse
 
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
