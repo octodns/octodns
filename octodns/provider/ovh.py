@@ -325,7 +325,8 @@ class OvhProvider(BaseProvider):
         splitted = value.split('\\;')
         found_key = False
         for splitted_value in splitted:
-            sub_split = map(lambda x: x.strip(), splitted_value.split("=", 1))
+            sub_split = list(map(lambda x: x.strip(),
+                                 splitted_value.split("=", 1)))
             if len(sub_split) < 2:
                 return False
             key, value = sub_split[0], sub_split[1]

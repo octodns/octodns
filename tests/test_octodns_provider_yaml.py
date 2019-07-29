@@ -57,8 +57,9 @@ class TestYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(15, len(filter(lambda c: isinstance(c, Create),
-                                             plan.changes)))
+            self.assertEquals(15, len(list(filter(lambda c:
+                                                  isinstance(c, Create),
+                                                  plan.changes))))
             self.assertFalse(isfile(yaml_file))
 
             # Now actually do it
@@ -67,8 +68,9 @@ class TestYamlProvider(TestCase):
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
-            self.assertEquals(5, len(filter(lambda c: isinstance(c, Create),
-                                            plan.changes)))
+            self.assertEquals(5, len(list(filter(lambda c:
+                                                 isinstance(c, Create),
+                                                 plan.changes))))
             self.assertFalse(isfile(dynamic_yaml_file))
             # Apply it
             self.assertEquals(5, target.apply(plan))
@@ -87,8 +89,9 @@ class TestYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(15, len(filter(lambda c: isinstance(c, Create),
-                                             plan.changes)))
+            self.assertEquals(15, len(list(filter(lambda c:
+                                                  isinstance(c, Create),
+                                                  plan.changes))))
 
             with open(yaml_file) as fh:
                 data = safe_load(fh.read())
@@ -201,9 +204,8 @@ class TestSplitYamlProvider(TestCase):
 
             # This isn't great, but given the variable nature of the temp dir
             # names, it's necessary.
-            self.assertItemsEqual(
-                yaml_files,
-                (basename(f) for f in _list_all_yaml_files(directory)))
+            d = list(basename(f) for f in _list_all_yaml_files(directory))
+            self.assertEqual(len(yaml_files), len(d))
 
     def test_zone_directory(self):
         source = SplitYamlProvider(
