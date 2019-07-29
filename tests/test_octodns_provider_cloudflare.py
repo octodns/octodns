@@ -9,6 +9,7 @@ from mock import Mock, call
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
+from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record, Update
@@ -65,7 +66,7 @@ class TestCloudflareProvider(TestCase):
                 provider.populate(zone)
 
             self.assertEquals('CloudflareError', type(ctx.exception).__name__)
-            self.assertEquals('request was invalid', ctx.exception.message)
+            self.assertEquals('request was invalid', text_type(ctx.exception))
 
         # Bad auth
         with requests_mock() as mock:
@@ -80,7 +81,7 @@ class TestCloudflareProvider(TestCase):
             self.assertEquals('CloudflareAuthenticationError',
                               type(ctx.exception).__name__)
             self.assertEquals('Unknown X-Auth-Key or X-Auth-Email',
-                              ctx.exception.message)
+                              text_type(ctx.exception))
 
         # Bad auth, unknown resp
         with requests_mock() as mock:
@@ -91,7 +92,7 @@ class TestCloudflareProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals('CloudflareAuthenticationError',
                               type(ctx.exception).__name__)
-            self.assertEquals('Cloudflare error', ctx.exception.message)
+            self.assertEquals('Cloudflare error', text_type(ctx.exception))
 
         # General error
         with requests_mock() as mock:

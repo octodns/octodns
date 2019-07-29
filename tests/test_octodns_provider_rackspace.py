@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 import json
 import re
+from six import text_type
 from unittest import TestCase
 from urlparse import urlparse
 
@@ -53,7 +54,7 @@ class TestRackspaceProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 self.provider.populate(zone)
-            self.assertTrue('unauthorized' in ctx.exception.message)
+            self.assertTrue('unauthorized' in text_type(ctx.exception))
             self.assertTrue(mock.called_once)
 
     def test_server_error(self):

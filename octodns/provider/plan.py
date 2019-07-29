@@ -124,7 +124,7 @@ class PlanLogger(_PlanOutput):
                 buf.write('* ')
                 buf.write(target.id)
                 buf.write(' (')
-                buf.write(target)
+                buf.write(text_type(target))
                 buf.write(')\n*   ')
 
                 if plan.exists is False:
@@ -137,7 +137,7 @@ class PlanLogger(_PlanOutput):
                     buf.write('\n*   ')
 
                 buf.write('Summary: ')
-                buf.write(plan)
+                buf.write(text_type(plan))
                 buf.write('\n')
         else:
             buf.write(hr)

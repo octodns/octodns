@@ -6,6 +6,7 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from unittest import TestCase
+from six import text_type
 
 from octodns.record import ARecord, AaaaRecord, Create, Delete, Record, Update
 from octodns.zone import DuplicateRecordException, InvalidNodeException, \
@@ -47,7 +48,7 @@ class TestZone(TestCase):
         with self.assertRaises(DuplicateRecordException) as ctx:
             zone.add_record(a)
         self.assertEquals('Duplicate record a.unit.tests., type A',
-                          ctx.exception.message)
+                          text_type(ctx.exception))
         self.assertEquals(zone.records, set([a]))
 
         # can add duplicate with replace=True
@@ -137,7 +138,7 @@ class TestZone(TestCase):
     def test_missing_dot(self):
         with self.assertRaises(Exception) as ctx:
             Zone('not.allowed', [])
-        self.assertTrue('missing ending dot' in ctx.exception.message)
+        self.assertTrue('missing ending dot' in text_type(ctx.exception))
 
     def test_sub_zones(self):
 
@@ -160,7 +161,7 @@ class TestZone(TestCase):
         })
         with self.assertRaises(SubzoneRecordException) as ctx:
             zone.add_record(record)
-        self.assertTrue('not of type NS', ctx.exception.message)
+        self.assertTrue('not of type NS', text_type(ctx.exception))
         # Can add it w/lenient
         zone.add_record(record, lenient=True)
         self.assertEquals(set([record]), zone.records)
@@ -174,7 +175,7 @@ class TestZone(TestCase):
         })
         with self.assertRaises(SubzoneRecordException) as ctx:
             zone.add_record(record)
-        self.assertTrue('under a managed sub-zone', ctx.exception.message)
+        self.assertTrue('under a managed sub-zone', text_type(ctx.exception))
         # Can add it w/lenient
         zone.add_record(record, lenient=True)
         self.assertEquals(set([record]), zone.records)
@@ -188,7 +189,7 @@ class TestZone(TestCase):
         })
         with self.assertRaises(SubzoneRecordException) as ctx:
             zone.add_record(record)
-        self.assertTrue('under a managed sub-zone', ctx.exception.message)
+        self.assertTrue('under a managed sub-zone', text_type(ctx.exception))
         # Can add it w/lenient
         zone.add_record(record, lenient=True)
         self.assertEquals(set([record]), zone.records)

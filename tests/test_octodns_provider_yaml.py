@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 from os import makedirs
 from os.path import basename, dirname, isdir, isfile, join
 from unittest import TestCase
+from six import text_type
 from yaml import safe_load
 from yaml.constructor import ConstructorError
 
@@ -181,7 +182,7 @@ class TestYamlProvider(TestCase):
         with self.assertRaises(SubzoneRecordException) as ctx:
             source.populate(zone)
         self.assertEquals('Record www.sub.unit.tests. is under a managed '
-                          'subzone', ctx.exception.message)
+                          'subzone', text_type(ctx.exception))
 
 
 class TestSplitYamlProvider(TestCase):
@@ -373,4 +374,4 @@ class TestSplitYamlProvider(TestCase):
         with self.assertRaises(SubzoneRecordException) as ctx:
             source.populate(zone)
         self.assertEquals('Record www.sub.unit.tests. is under a managed '
-                          'subzone', ctx.exception.message)
+                          'subzone', text_type(ctx.exception))

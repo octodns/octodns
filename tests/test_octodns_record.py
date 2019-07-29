@@ -758,14 +758,14 @@ class TestRecord(TestCase):
         # Missing type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {})
-        self.assertTrue('missing type' in ctx.exception.message)
+        self.assertTrue('missing type' in text_type(ctx.exception))
 
         # Unknown type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {
                 'type': 'XXX',
             })
-        self.assertTrue('Unknown record type' in ctx.exception.message)
+        self.assertTrue('Unknown record type' in text_type(ctx.exception))
 
     def test_change(self):
         existing = Record.new(self.zone, 'txt', {

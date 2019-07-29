@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 from os.path import dirname, join
 
 from requests_mock import ANY, mock as requests_mock
+from six import text_type
 from unittest import TestCase
 
 from octodns.provider.mythicbeasts import MythicBeastsProvider, \
@@ -31,12 +32,12 @@ class TestMythicBeastsProvider(TestCase):
         with self.assertRaises(AssertionError) as err:
             add_trailing_dot('unit.tests.')
         self.assertEquals('Value already has trailing dot',
-                          err.exception.message)
+                          text_type(err.exception))
 
         with self.assertRaises(AssertionError) as err:
             remove_trailing_dot('unit.tests')
         self.assertEquals('Value already missing trailing dot',
-                          err.exception.message)
+                          text_type(err.exception))
 
         self.assertEquals(add_trailing_dot('unit.tests'), 'unit.tests.')
         self.assertEquals(remove_trailing_dot('unit.tests.'), 'unit.tests')
@@ -91,7 +92,7 @@ class TestMythicBeastsProvider(TestCase):
                 {'raw_values': [{'value': '', 'ttl': 0}]}
             )
         self.assertEquals('Unable to parse MX data',
-                          err.exception.message)
+                          text_type(err.exception))
 
     def test_data_for_CNAME(self):
         test_data = {
@@ -129,7 +130,7 @@ class TestMythicBeastsProvider(TestCase):
                 {'raw_values': [{'value': '', 'ttl': 0}]}
             )
         self.assertEquals('Unable to parse SRV data',
-                          err.exception.message)
+                          text_type(err.exception))
 
     def test_data_for_SSHFP(self):
         test_data = {
@@ -149,7 +150,7 @@ class TestMythicBeastsProvider(TestCase):
                 {'raw_values': [{'value': '', 'ttl': 0}]}
             )
         self.assertEquals('Unable to parse SSHFP data',
-                          err.exception.message)
+                          text_type(err.exception))
 
     def test_data_for_CAA(self):
         test_data = {
@@ -166,7 +167,7 @@ class TestMythicBeastsProvider(TestCase):
                 {'raw_values': [{'value': '', 'ttl': 0}]}
             )
         self.assertEquals('Unable to parse CAA data',
-                          err.exception.message)
+                          text_type(err.exception))
 
     def test_command_generation(self):
         zone = Zone('unit.tests.', [])
@@ -312,7 +313,7 @@ class TestMythicBeastsProvider(TestCase):
         with self.assertRaises(AssertionError) as err:
             provider = MythicBeastsProvider('test', None)
         self.assertEquals('Passwords must be a dictionary',
-                          err.exception.message)
+                          text_type(err.exception))
 
         # Missing password
         with requests_mock() as mock:
@@ -324,7 +325,7 @@ class TestMythicBeastsProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals(
                 'Missing password for domain: unit.tests',
-                err.exception.message)
+                text_type(err.exception))
 
         # Failed authentication
         with requests_mock() as mock:
@@ -413,8 +414,7 @@ class TestMythicBeastsProvider(TestCase):
                 provider.apply(plan)
             self.assertEquals(
                 'Mythic Beasts could not action command: unit.tests '
-                'ADD prawf.unit.tests 300 TXT prawf',
-                err.exception.message)
+                'ADD prawf.unit.tests 300 TXT prawf', err.exception.message)
 
         # Check deleting and adding/changing test record
         existing = 'prawf 300 TXT prawf prawf prawf\ndileu 300 TXT dileu'

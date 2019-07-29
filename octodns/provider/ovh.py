@@ -9,6 +9,7 @@ import base64
 import binascii
 import logging
 from collections import defaultdict
+from six import text_type
 
 import ovh
 from ovh import ResourceNotFoundError
@@ -64,7 +65,7 @@ class OvhProvider(BaseProvider):
             records = self.get_records(zone_name=zone_name)
             exists = True
         except ResourceNotFoundError as e:
-            if e.message != self.ZONE_NOT_FOUND_MESSAGE:
+            if text_type(e) != self.ZONE_NOT_FOUND_MESSAGE:
                 raise
             exists = False
             records = []
