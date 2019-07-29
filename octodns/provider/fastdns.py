@@ -15,19 +15,10 @@ from ..record import Record
 from .base import BaseProvider
 
 
-class AkamaiClientException(Exception):
-
-    _errorMessages = {
-        404: "404: Resource not found"
-    }
+class AkamaiClientNotFound(Exception):
 
     def __init__(self, resp):
-        try:
-            message = self._errorMessages[resp.status_code]
-
-        except KeyError:
-            resp.raise_for_status()
-
+        message = "404: Resource not found"
         super(AkamaiClientException, self).__init__(message)
 
 
