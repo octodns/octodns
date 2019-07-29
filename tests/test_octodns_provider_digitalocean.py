@@ -61,7 +61,7 @@ class TestDigitalOceanProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals(502, ctx.exception.response.status_code)
 
-        # Non-existant zone doesn't populate anything
+        # Non-existent zone doesn't populate anything
         with requests_mock() as mock:
             mock.get(ANY, status_code=404,
                      text='{"id":"not_found","message":"The resource you '
@@ -153,7 +153,7 @@ class TestDigitalOceanProvider(TestCase):
             }
         }
 
-        # non-existant domain, create everything
+        # non-existent domain, create everything
         resp.json.side_effect = [
             DigitalOceanClientNotFound,  # no zone in populate
             DigitalOceanClientNotFound,  # no domain during apply

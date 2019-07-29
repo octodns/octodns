@@ -58,7 +58,7 @@ class TestDnsimpleProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals(502, ctx.exception.response.status_code)
 
-        # Non-existant zone doesn't populate anything
+        # Non-existent zone doesn't populate anything
         with requests_mock() as mock:
             mock.get(ANY, status_code=404,
                      text='{"message": "Domain `foo.bar` not found"}')
@@ -122,7 +122,7 @@ class TestDnsimpleProvider(TestCase):
         resp.json = Mock()
         provider._client._request = Mock(return_value=resp)
 
-        # non-existant domain, create everything
+        # non-existent domain, create everything
         resp.json.side_effect = [
             DnsimpleClientNotFound,  # no zone in populate
             DnsimpleClientNotFound,  # no domain during apply

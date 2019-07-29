@@ -191,7 +191,7 @@ class TestNs1Provider(TestCase):
         self.assertEquals(load_mock.side_effect, ctx.exception)
         self.assertEquals(('unit.tests',), load_mock.call_args[0])
 
-        # Non-existant zone doesn't populate anything
+        # Non-existent zone doesn't populate anything
         load_mock.reset_mock()
         load_mock.side_effect = \
             ResourceException('server error: zone not found')
@@ -323,7 +323,7 @@ class TestNs1Provider(TestCase):
             provider.apply(plan)
         self.assertEquals(create_mock.side_effect, ctx.exception)
 
-        # non-existant zone, create
+        # non-existent zone, create
         load_mock.reset_mock()
         create_mock.reset_mock()
         load_mock.side_effect = \
