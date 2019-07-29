@@ -24,6 +24,7 @@ from .base import BaseSource
 class AxfrBaseSource(BaseSource):
 
     SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NS', 'PTR', 'SPF',
                     'SRV', 'TXT'))
 

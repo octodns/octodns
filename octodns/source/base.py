@@ -20,6 +20,10 @@ class BaseSource(object):
             raise NotImplementedError('Abstract base class, SUPPORTS '
                                       'property missing')
 
+    @property
+    def SUPPORTS_DYNAMIC(self):
+        return False
+
     def populate(self, zone, target=False, lenient=False):
         '''
         Loads all records the provider knows about for the provided zone

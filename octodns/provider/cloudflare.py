@@ -6,6 +6,7 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from collections import defaultdict
+from copy import deepcopy
 from logging import getLogger
 from requests import Session
 
@@ -27,6 +28,9 @@ class CloudflareAuthenticationError(CloudflareError):
         CloudflareError.__init__(self, data)
 
 
+_PROXIABLE_RECORD_TYPES = {'A', 'AAAA', 'ALIAS', 'CNAME'}
+
+
 class CloudflareProvider(BaseProvider):
     '''
     Cloudflare DNS provider
@@ -43,8 +47,19 @@ class CloudflareProvider(BaseProvider):
         #
         # See: https://support.cloudflare.com/hc/en-us/articles/115000830351
         cdn: false
+
+    Note: The "proxied" flag of "A", "AAAA" and "CNAME" records can be managed
+          via the YAML provider like so:
+              name:
+                octodns:
+                  cloudflare:
+                    proxied: true
+                ttl: 120
+                type: A
+                value: 1.2.3.4
     '''
     SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SRV',
                     'SPF', 'TXT'))
 
@@ -221,7 +236,14 @@ class CloudflareProvider(BaseProvider):
             data_for = getattr(self, '_data_for_{}'.format(_type))
             data = data_for(_type, records)
 
-        return Record.new(zone, name, data, source=self, lenient=lenient)
+        record = Record.new(zone, name, data, source=self, lenient=lenient)
+
+        if _type in _PROXIABLE_RECORD_TYPES:
+            record._octodns['cloudflare'] = {
+                'proxied': records[0].get('proxied', False)
+            }
+
+        return record
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
@@ -260,8 +282,18 @@ class CloudflareProvider(BaseProvider):
 
     def _include_change(self, change):
         if isinstance(change, Update):
-            existing = change.existing.data
             new = change.new.data
+
+            # Cloudflare manages TTL of proxied records, so we should exclude
+            # TTL from the comparison (to prevent false-positives).
+            if self._record_is_proxied(change.existing):
+                existing = deepcopy(change.existing.data)
+                existing.update({
+                    'ttl': new['ttl']
+                })
+            else:
+                existing = change.existing.data
+
             new['ttl'] = max(self.MIN_TTL, new['ttl'])
             if new == existing:
                 return False
@@ -308,19 +340,36 @@ class CloudflareProvider(BaseProvider):
             }
 
     def _contents_for_SRV(self, record):
-        service, proto = record.name.split('.', 2)
+        try:
+            service, proto, subdomain = record.name.split('.', 2)
+            # We have a SRV in a sub-zone
+        except ValueError:
+            # We have a SRV in the zone
+            service, proto = record.name.split('.', 1)
+            subdomain = None
+
+        name = record.zone.name
+        if subdomain:
+            name = subdomain
+
         for value in record.values:
             yield {
                 'data': {
                     'service': service,
                     'proto': proto,
-                    'name': record.zone.name,
+                    'name': name,
                     'priority': value.priority,
                     'weight': value.weight,
                     'port': value.port,
                     'target': value.target[:-1],
                 }
             }
+
+    def _record_is_proxied(self, record):
+        return (
+            not self.cdn and
+            record._octodns.get('cloudflare', {}).get('proxied', False)
+        )
 
     def _gen_data(self, record):
         name = record.fqdn[:-1]
@@ -338,6 +387,12 @@ class CloudflareProvider(BaseProvider):
                 'type': _type,
                 'ttl': ttl,
             })
+
+            if _type in _PROXIABLE_RECORD_TYPES:
+                content.update({
+                    'proxied': self._record_is_proxied(record)
+                })
+
             yield content
 
     def _gen_key(self, data):
@@ -481,9 +536,12 @@ class CloudflareProvider(BaseProvider):
     def _apply_Delete(self, change):
         existing = change.existing
         existing_name = existing.fqdn[:-1]
+        # Make sure to map ALIAS to CNAME when looking for the target to delete
+        existing_type = 'CNAME' if existing._type == 'ALIAS' \
+            else existing._type
         for record in self.zone_records(existing.zone):
             if existing_name == record['name'] and \
-               existing._type == record['type']:
+               existing_type == record['type']:
                 path = '/zones/{}/dns_records/{}'.format(record['zone_id'],
                                                          record['id'])
                 self._request('DELETE', path)
@@ -512,3 +570,23 @@ class CloudflareProvider(BaseProvider):
 
         # clear the cache
         self._zone_records.pop(name, None)
+
+    def _extra_changes(self, existing, desired, changes):
+        extra_changes = []
+
+        existing_records = {r: r for r in existing.records}
+        changed_records = {c.record for c in changes}
+
+        for desired_record in desired.records:
+            if desired_record not in existing.records:  # Will be created
+                continue
+            elif desired_record in changed_records:  # Already being updated
+                continue
+
+            existing_record = existing_records[desired_record]
+
+            if (self._record_is_proxied(existing_record) !=
+                    self._record_is_proxied(desired_record)):
+                extra_changes.append(Update(existing_record, desired_record))
+
+        return extra_changes

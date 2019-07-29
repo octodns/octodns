@@ -111,6 +111,7 @@ class TestZone(TestCase):
         class NoAaaaProvider(object):
             id = 'no-aaaa'
             SUPPORTS_GEO = False
+            SUPPORTS_DYNAMIC = False
 
             def supports(self, record):
                 return record._type != 'AAAA'

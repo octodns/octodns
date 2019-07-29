@@ -14,8 +14,8 @@ from octodns.manager import _AggregateTarget, MainThreadExecutor, Manager
 from octodns.yaml import safe_load
 from octodns.zone import Zone
 
-from helpers import GeoProvider, NoSshFpProvider, SimpleProvider, \
-    TemporaryDirectory
+from helpers import DynamicProvider, GeoProvider, NoSshFpProvider, \
+    SimpleProvider, TemporaryDirectory
 
 config_dir = join(dirname(__file__), 'config')
 
@@ -187,12 +187,18 @@ class TestManager(TestCase):
     def test_aggregate_target(self):
         simple = SimpleProvider()
         geo = GeoProvider()
+        dynamic = DynamicProvider()
         nosshfp = NoSshFpProvider()
 
         self.assertFalse(_AggregateTarget([simple, simple]).SUPPORTS_GEO)
         self.assertFalse(_AggregateTarget([simple, geo]).SUPPORTS_GEO)
         self.assertFalse(_AggregateTarget([geo, simple]).SUPPORTS_GEO)
         self.assertTrue(_AggregateTarget([geo, geo]).SUPPORTS_GEO)
+
+        self.assertFalse(_AggregateTarget([simple, simple]).SUPPORTS_DYNAMIC)
+        self.assertFalse(_AggregateTarget([simple, dynamic]).SUPPORTS_DYNAMIC)
+        self.assertFalse(_AggregateTarget([dynamic, simple]).SUPPORTS_DYNAMIC)
+        self.assertTrue(_AggregateTarget([dynamic, dynamic]).SUPPORTS_DYNAMIC)
 
         zone = Zone('unit.tests.', [])
         record = Record.new(zone, 'sshfp', {
@@ -215,26 +221,46 @@ class TestManager(TestCase):
             manager = Manager(get_config_filename('simple.yaml'))
 
             with self.assertRaises(Exception) as ctx:
-                manager.dump('unit.tests.', tmpdir.dirname, False, 'nope')
+                manager.dump('unit.tests.', tmpdir.dirname, False, False,
+                             'nope')
             self.assertEquals('Unknown source: nope', ctx.exception.message)
 
-            manager.dump('unit.tests.', tmpdir.dirname, False, 'in')
+            manager.dump('unit.tests.', tmpdir.dirname, False, False, 'in')
 
             # make sure this fails with an IOError and not a KeyError when
             # tyring to find sub zones
             with self.assertRaises(IOError):
-                manager.dump('unknown.zone.', tmpdir.dirname, False, 'in')
+                manager.dump('unknown.zone.', tmpdir.dirname, False, False,
+                             'in')
 
     def test_dump_empty(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             manager = Manager(get_config_filename('simple.yaml'))
 
-            manager.dump('empty.', tmpdir.dirname, False, 'in')
+            manager.dump('empty.', tmpdir.dirname, False, False, 'in')
 
             with open(join(tmpdir.dirname, 'empty.yaml')) as fh:
                 data = safe_load(fh, False)
                 self.assertFalse(data)
+
+    def test_dump_split(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            manager = Manager(get_config_filename('simple-split.yaml'))
+
+            with self.assertRaises(Exception) as ctx:
+                manager.dump('unit.tests.', tmpdir.dirname, False, True,
+                             'nope')
+            self.assertEquals('Unknown source: nope', ctx.exception.message)
+
+            manager.dump('unit.tests.', tmpdir.dirname, False, True, 'in')
+
+            # make sure this fails with an OSError and not a KeyError when
+            # tyring to find sub zones
+            with self.assertRaises(OSError):
+                manager.dump('unknown.zone.', tmpdir.dirname, False, True,
+                             'in')
 
     def test_validate_configs(self):
         Manager(get_config_filename('simple-validate.yaml')).validate_configs()

@@ -170,7 +170,6 @@ class TestEtcHostsProvider(TestCase):
 
             with open(hosts_file) as fh:
                 data = fh.read()
-                print(data)
                 self.assertTrue('# loop.unit.tests -> start.unit.tests '
                                 '**loop**' in data)
                 self.assertTrue('# middle.unit.tests -> loop.unit.tests '

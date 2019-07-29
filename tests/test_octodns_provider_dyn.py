@@ -13,7 +13,8 @@ from unittest import TestCase
 
 from octodns.record import Create, Delete, Record, Update
 from octodns.provider.base import Plan
-from octodns.provider.dyn import DynProvider, _CachingDynZone, DSFMonitor
+from octodns.provider.dyn import DynProvider, _CachingDynZone, DSFMonitor, \
+    _dynamic_value_sort_key
 from octodns.zone import Zone
 
 from helpers import SimpleProvider
@@ -671,10 +672,8 @@ class TestDynProviderGeo(TestCase):
                           set(tds.keys()))
         self.assertEquals(['A'], tds['unit.tests.'].keys())
         self.assertEquals(['A'], tds['geo.unit.tests.'].keys())
-        provider.log.warn.assert_called_with("Failed to load TrafficDirector "
-                                             "'%s': %s", 'something else',
-                                             'need more than 1 value to '
-                                             'unpack')
+        provider.log.warn.assert_called_with("Unsupported TrafficDirector "
+                                             "'%s'", 'something else')
 
     @patch('dyn.core.SessionEngine.execute')
     def test_traffic_director_monitor(self, mock):
@@ -981,26 +980,34 @@ class TestDynProviderGeo(TestCase):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
+        got = Zone('unit.tests.', [])
+        zone_name = got.name[:-1]
         # only traffic director
         mock.side_effect = [
             # get traffic directors
             self.traffic_directors_response,
-            # get traffic director
+            # get the first td's nodes
+            {'data': [{'fqdn': zone_name, 'zone': zone_name}]},
+            # get traffic director, b/c ^ matches
             self.traffic_director_response,
+            # get the next td's nodes, not a match
+            {'data': [{'fqdn': 'other', 'zone': 'other'}]},
             # get zone
             {'data': {}},
             # get records
             {'data': {}},
         ]
-        got = Zone('unit.tests.', [])
         provider.populate(got)
         self.assertEquals(1, len(got.records))
         self.assertFalse(self.expected_geo.changes(got, provider))
         mock.assert_has_calls([
+            call('/DSF/', 'GET', {'detail': 'Y'}),
+            call('/DSFNode/2ERWXQNsb_IKG2YZgYqkPvk0PBM', 'GET', {}),
             call('/DSF/2ERWXQNsb_IKG2YZgYqkPvk0PBM/', 'GET',
                  {'pending_changes': 'Y'}),
+            call('/DSFNode/3ERWXQNsb_IKG2YZgYqkPvk0PBM', 'GET', {}),
             call('/Zone/unit.tests/', 'GET', {}),
-            call('/AllRecord/unit.tests/unit.tests./', 'GET', {'detail': 'Y'}),
+            call('/AllRecord/unit.tests/unit.tests./', 'GET', {'detail': 'Y'})
         ])
 
     @patch('dyn.core.SessionEngine.execute')
@@ -1036,8 +1043,12 @@ class TestDynProviderGeo(TestCase):
         mock.side_effect = [
             # get traffic directors
             self.traffic_directors_response,
-            # get traffic director
+            # grab its nodes, matches
+            {'data': [{'fqdn': 'unit.tests', 'zone': 'unit.tests'}]},
+            # get traffic director b/c match
             self.traffic_director_response,
+            # grab next td's nodes, not a match
+            {'data': [{'fqdn': 'other', 'zone': 'other'}]},
             # get zone
             {'data': {}},
             # get records
@@ -1048,10 +1059,13 @@ class TestDynProviderGeo(TestCase):
         self.assertEquals(1, len(got.records))
         self.assertFalse(self.expected_geo.changes(got, provider))
         mock.assert_has_calls([
+            call('/DSF/', 'GET', {'detail': 'Y'}),
+            call('/DSFNode/2ERWXQNsb_IKG2YZgYqkPvk0PBM', 'GET', {}),
             call('/DSF/2ERWXQNsb_IKG2YZgYqkPvk0PBM/', 'GET',
                  {'pending_changes': 'Y'}),
+            call('/DSFNode/3ERWXQNsb_IKG2YZgYqkPvk0PBM', 'GET', {}),
             call('/Zone/unit.tests/', 'GET', {}),
-            call('/AllRecord/unit.tests/unit.tests./', 'GET', {'detail': 'Y'}),
+            call('/AllRecord/unit.tests/unit.tests./', 'GET', {'detail': 'Y'})
         ])
 
     @patch('dyn.core.SessionEngine.execute')
@@ -1086,8 +1100,10 @@ class TestDynProviderGeo(TestCase):
         mock.side_effect = [
             # get traffic directors
             self.traffic_directors_response,
+            {'data': [{'fqdn': 'unit.tests', 'zone': 'unit.tests'}]},
             # get traffic director
             busted_traffic_director_response,
+            {'data': [{'fqdn': 'other', 'zone': 'other'}]},
             # get zone
             {'data': {}},
             # get records
@@ -1100,10 +1116,13 @@ class TestDynProviderGeo(TestCase):
         # so just compare set contents (which does name and type)
         self.assertEquals(self.expected_geo.records, got.records)
         mock.assert_has_calls([
+            call('/DSF/', 'GET', {'detail': 'Y'}),
+            call('/DSFNode/2ERWXQNsb_IKG2YZgYqkPvk0PBM', 'GET', {}),
             call('/DSF/2ERWXQNsb_IKG2YZgYqkPvk0PBM/', 'GET',
                  {'pending_changes': 'Y'}),
+            call('/DSFNode/3ERWXQNsb_IKG2YZgYqkPvk0PBM', 'GET', {}),
             call('/Zone/unit.tests/', 'GET', {}),
-            call('/AllRecord/unit.tests/unit.tests./', 'GET', {'detail': 'Y'}),
+            call('/AllRecord/unit.tests/unit.tests./', 'GET', {'detail': 'Y'})
         ])
 
     @patch('dyn.core.SessionEngine.execute')
@@ -1159,7 +1178,7 @@ class TestDynProviderGeo(TestCase):
                                traffic_directors_enabled=True)
 
         # will be tested separately
-        provider._mod_rulesets = MagicMock()
+        provider._mod_geo_rulesets = MagicMock()
 
         mock.side_effect = [
             # create traffic director
@@ -1171,7 +1190,7 @@ class TestDynProviderGeo(TestCase):
         # td now lives in cache
         self.assertTrue('A' in provider.traffic_directors['unit.tests.'])
         # should have seen 1 gen call
-        provider._mod_rulesets.assert_called_once()
+        provider._mod_geo_rulesets.assert_called_once()
 
     def test_mod_geo_update_geo_geo(self):
         provider = DynProvider('test', 'cust', 'user', 'pass',
@@ -1185,8 +1204,8 @@ class TestDynProviderGeo(TestCase):
                 'A': 42,
             }
         }
-        # mock _mod_rulesets
-        provider._mod_rulesets = MagicMock()
+        # mock _mod_geo_rulesets
+        provider._mod_geo_rulesets = MagicMock()
 
         geo = self.geo_record
         change = Update(geo, geo)
@@ -1194,7 +1213,7 @@ class TestDynProviderGeo(TestCase):
         # still in cache
         self.assertTrue('A' in provider.traffic_directors['unit.tests.'])
         # should have seen 1 gen call
-        provider._mod_rulesets.assert_called_once_with(42, change)
+        provider._mod_geo_rulesets.assert_called_once_with(42, change)
 
     @patch('dyn.core.SessionEngine.execute')
     def test_mod_geo_update_geo_regular(self, _):
@@ -1248,7 +1267,7 @@ class TestDynProviderGeo(TestCase):
         self.assertFalse('A' in provider.traffic_directors['unit.tests.'])
 
     @patch('dyn.tm.services.DSFResponsePool.create')
-    def test_find_or_create_pool(self, mock):
+    def test_find_or_create_geo_pool(self, mock):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
@@ -1256,7 +1275,8 @@ class TestDynProviderGeo(TestCase):
 
         # no candidates cache miss, so create
         values = ['1.2.3.4', '1.2.3.5']
-        pool = provider._find_or_create_pool(td, [], 'default', 'A', values)
+        pool = provider._find_or_create_geo_pool(td, [], 'default', 'A',
+                                                 values)
         self.assertIsInstance(pool, DSFResponsePool)
         self.assertEquals(1, len(pool.rs_chains))
         records = pool.rs_chains[0].record_sets[0].records
@@ -1266,23 +1286,24 @@ class TestDynProviderGeo(TestCase):
         # cache hit, use the one we just created
         mock.reset_mock()
         pools = [pool]
-        cached = provider._find_or_create_pool(td, pools, 'default', 'A',
-                                               values)
+        cached = provider._find_or_create_geo_pool(td, pools, 'default', 'A',
+                                                   values)
         self.assertEquals(pool, cached)
         mock.assert_not_called()
 
         # cache miss, non-matching label
         mock.reset_mock()
-        miss = provider._find_or_create_pool(td, pools, 'NA-US-CA', 'A',
-                                             values)
+        miss = provider._find_or_create_geo_pool(td, pools, 'NA-US-CA', 'A',
+                                                 values)
         self.assertNotEquals(pool, miss)
         self.assertEquals('NA-US-CA', miss.label)
         mock.assert_called_once_with(td)
 
-        # cache miss, non-matching label
+        # cache miss, matching label, mis-matching values
         mock.reset_mock()
         values = ['2.2.3.4.', '2.2.3.5']
-        miss = provider._find_or_create_pool(td, pools, 'default', 'A', values)
+        miss = provider._find_or_create_geo_pool(td, pools, 'default', 'A',
+                                                 values)
         self.assertNotEquals(pool, miss)
         mock.assert_called_once_with(td)
 
@@ -1290,19 +1311,19 @@ class TestDynProviderGeo(TestCase):
     @patch('dyn.tm.services.DSFRuleset.create')
     # just lets us ignore the pool.create calls
     @patch('dyn.tm.services.DSFResponsePool.create')
-    def test_mod_rulesets_create(self, _, ruleset_create_mock,
-                                 add_response_pool_mock):
+    def test_mod_geo_rulesets_create(self, _, ruleset_create_mock,
+                                     add_response_pool_mock):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
         td_mock = MagicMock()
         td_mock._rulesets = []
         provider._traffic_director_monitor = MagicMock()
-        provider._find_or_create_pool = MagicMock()
+        provider._find_or_create_geo_pool = MagicMock()
 
         td_mock.all_response_pools = []
 
-        provider._find_or_create_pool.side_effect = [
+        provider._find_or_create_geo_pool.side_effect = [
             _DummyPool('default'),
             _DummyPool(1),
             _DummyPool(2),
@@ -1311,7 +1332,7 @@ class TestDynProviderGeo(TestCase):
         ]
 
         change = Create(self.geo_record)
-        provider._mod_rulesets(td_mock, change)
+        provider._mod_geo_rulesets(td_mock, change)
         ruleset_create_mock.assert_has_calls((
             call(td_mock, index=0),
             call(td_mock, index=0),
@@ -1343,9 +1364,9 @@ class TestDynProviderGeo(TestCase):
     @patch('dyn.tm.services.DSFRuleset.create')
     # just lets us ignore the pool.create calls
     @patch('dyn.tm.services.DSFResponsePool.create')
-    def test_mod_rulesets_existing(self, _, ruleset_create_mock,
-                                   add_response_pool_mock,
-                                   get_response_pool_mock):
+    def test_mod_geo_rulesets_existing(self, _, ruleset_create_mock,
+                                       add_response_pool_mock,
+                                       get_response_pool_mock):
         provider = DynProvider('test', 'cust', 'user', 'pass',
                                traffic_directors_enabled=True)
 
@@ -1357,14 +1378,14 @@ class TestDynProviderGeo(TestCase):
             ruleset_mock,
         ]
         provider._traffic_director_monitor = MagicMock()
-        provider._find_or_create_pool = MagicMock()
+        provider._find_or_create_geo_pool = MagicMock()
 
         unused_pool = _DummyPool('unused')
         td_mock.all_response_pools = \
             ruleset_mock.response_pools + [unused_pool]
         get_response_pool_mock.return_value = unused_pool
 
-        provider._find_or_create_pool.side_effect = [
+        provider._find_or_create_geo_pool.side_effect = [
             _DummyPool('default'),
             _DummyPool(1),
             _DummyPool(2),
@@ -1373,7 +1394,7 @@ class TestDynProviderGeo(TestCase):
         ]
 
         change = Create(self.geo_record)
-        provider._mod_rulesets(td_mock, change)
+        provider._mod_geo_rulesets(td_mock, change)
         ruleset_create_mock.assert_has_calls((
             call(td_mock, index=2),
             call(td_mock, index=2),
@@ -1577,3 +1598,1055 @@ class TestDSFMonitorMonkeyPatching(TestCase):
         monitor = DummyDSFMonitor()
         monitor.port = 8080
         self.assertEquals(8080, monitor.port)
+
+
+class DummyRecord(object):
+
+    def __init__(self, address, weight, ttl):
+        self.address = address
+        self.weight = weight
+        self.ttl = ttl
+
+
+class DummyRecordSets(object):
+
+    def __init__(self, records):
+        self.records = records
+
+
+class DummyRsChains(object):
+
+    def __init__(self, records):
+        self.record_sets = [DummyRecordSets(records)]
+
+
+class DummyResponsePool(object):
+
+    def __init__(self, label, records=[]):
+        self.label = label
+        if records:
+            self.rs_chains = [DummyRsChains(records)]
+        else:
+            self.rs_chains = []
+
+    def refresh(self):
+        pass
+
+
+class DummyRuleset(object):
+
+    def __init__(self, label, response_pools=[],
+                 criteria_type='always', criteria={}):
+        self.label = label
+        self.response_pools = response_pools
+        self.criteria_type = criteria_type
+        self.criteria = criteria
+
+
+class DummyTrafficDirector(object):
+
+    def __init__(self, zone_name, rulesets=[], response_pools=[], ttl=42):
+        self.label = 'dummy:abcdef1234567890'
+        self.rulesets = rulesets
+        self.all_response_pools = response_pools
+        self.ttl = ttl
+        self.nodes = [{'zone': zone_name[:-1]}]
+
+
+class TestDynProviderDynamic(TestCase):
+
+    def test_value_for_address(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        class DummyRecord(object):
+
+            def __init__(self, address, weight):
+                self.address = address
+                self.weight = weight
+
+        record = DummyRecord('1.2.3.4', 32)
+        self.assertEquals({
+            'value': record.address,
+            'weight': record.weight,
+        }, provider._value_for_A('A', record))
+
+        record = DummyRecord('2601:644:500:e210:62f8:1dff:feb8:947a', 32)
+        self.assertEquals({
+            'value': record.address,
+            'weight': record.weight,
+        }, provider._value_for_AAAA('AAAA', record))
+
+    def test_value_for_CNAME(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        class DummyRecord(object):
+
+            def __init__(self, cname, weight):
+                self.cname = cname
+                self.weight = weight
+
+        record = DummyRecord('foo.unit.tests.', 32)
+        self.assertEquals({
+            'value': record.cname,
+            'weight': record.weight,
+        }, provider._value_for_CNAME('CNAME', record))
+
+    def test_populate_dynamic_pools(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        # Empty data, empty returns
+        default, pools = provider._populate_dynamic_pools('A', [], [])
+        self.assertEquals({}, default)
+        self.assertEquals({}, pools)
+
+        records_a = [DummyRecord('1.2.3.4', 32, 60)]
+        default_a = DummyResponsePool('default', records_a)
+
+        # Just a default A
+        response_pools = [default_a]
+        default, pools = provider._populate_dynamic_pools('A', [],
+                                                          response_pools)
+        self.assertEquals({
+            'ttl': 60,
+            'type': 'A',
+            'values': ['1.2.3.4'],
+        }, default)
+        self.assertEquals({}, pools)
+
+        multi_a = [
+            DummyRecord('1.2.3.5', 42, 90),
+            DummyRecord('1.2.3.6', 43, 90),
+            DummyRecord('1.2.3.7', 44, 90),
+        ]
+        example_a = DummyResponsePool('example', multi_a)
+
+        # Just a named pool
+        response_pools = [example_a]
+        default, pools = provider._populate_dynamic_pools('A', [],
+                                                          response_pools)
+        self.assertEquals({}, default)
+        self.assertEquals({
+            'example': {
+                'values': [{
+                    'value': '1.2.3.5',
+                    'weight': 42,
+                }, {
+                    'value': '1.2.3.6',
+                    'weight': 43,
+                }, {
+                    'value': '1.2.3.7',
+                    'weight': 44,
+                }],
+            },
+        }, pools)
+
+        # Named pool that shows up twice
+        response_pools = [example_a, example_a]
+        default, pools = provider._populate_dynamic_pools('A', [],
+                                                          response_pools)
+        self.assertEquals({}, default)
+        self.assertEquals({
+            'example': {
+                'values': [{
+                    'value': '1.2.3.5',
+                    'weight': 42,
+                }, {
+                    'value': '1.2.3.6',
+                    'weight': 43,
+                }, {
+                    'value': '1.2.3.7',
+                    'weight': 44,
+                }],
+            },
+        }, pools)
+
+        # Default & named
+        response_pools = [example_a, default_a, example_a]
+        default, pools = provider._populate_dynamic_pools('A', [],
+                                                          response_pools)
+        self.assertEquals({
+            'ttl': 60,
+            'type': 'A',
+            'values': ['1.2.3.4'],
+        }, default)
+        self.assertEquals({
+            'example': {
+                'values': [{
+                    'value': '1.2.3.5',
+                    'weight': 42,
+                }, {
+                    'value': '1.2.3.6',
+                    'weight': 43,
+                }, {
+                    'value': '1.2.3.7',
+                    'weight': 44,
+                }],
+            },
+        }, pools)
+
+        # empty rs_chains doesn't cause an example, just ignores
+        empty_a = DummyResponsePool('empty')
+        response_pools = [empty_a]
+        default, pools = provider._populate_dynamic_pools('A', [],
+                                                          response_pools)
+        self.assertEquals({}, default)
+        self.assertEquals({}, pools)
+
+    def test_populate_dynamic_rules(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        # Empty
+        rulesets = []
+        pools = {}
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([], rules)
+
+        # default: is ignored
+        rulesets = [DummyRuleset('default:')]
+        pools = {}
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([], rules)
+
+        # No ResponsePools in RuleSet, ignored
+        rulesets = [DummyRuleset('0:abcdefg')]
+        pools = {}
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([], rules)
+
+        # ResponsePool, no fallback
+        rulesets = [DummyRuleset('0:abcdefg', [
+            DummyResponsePool('some-pool')
+        ])]
+        pools = {}
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([{
+            'pool': 'some-pool',
+        }], rules)
+
+        # ResponsePool, with dfault fallback (ignored)
+        rulesets = [DummyRuleset('0:abcdefg', [
+            DummyResponsePool('some-pool'),
+            DummyResponsePool('default'),
+        ])]
+        pools = {}
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([{
+            'pool': 'some-pool',
+        }], rules)
+
+        # ResponsePool, with fallback
+        rulesets = [DummyRuleset('0:abcdefg', [
+            DummyResponsePool('some-pool'),
+            DummyResponsePool('some-fallback'),
+        ])]
+        pools = {
+            'some-pool': {},
+        }
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([{
+            'pool': 'some-pool',
+        }], rules)
+        # fallback has been installed
+        self.assertEquals({
+            'some-pool': {
+                'fallback': 'some-fallback',
+            }
+        }, pools)
+
+        # Unsupported criteria_type (ignored)
+        rulesets = [DummyRuleset('0:abcdefg', [
+            DummyResponsePool('some-pool')
+        ], 'unsupported')]
+        pools = {}
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([], rules)
+
+        # Geo Continent/Region
+        response_pools = [DummyResponsePool('some-pool')]
+        criteria = {
+            'geoip': {
+                'country': ['US'],
+                'province': ['or'],
+                'region': [14],
+            },
+        }
+        ruleset = DummyRuleset('0:abcdefg', response_pools,
+                               'geoip', criteria)
+        rulesets = [ruleset]
+        pools = {}
+        rules = provider._populate_dynamic_rules(rulesets, pools)
+        self.assertEquals([{
+            'geos': ['AF', 'NA-US', 'NA-US-OR'],
+            'pool': 'some-pool',
+        }], rules)
+
+    def test_populate_dynamic_traffic_director(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+        fqdn = 'dynamic.unit.tests.'
+
+        multi_a = [
+            DummyRecord('1.2.3.5', 1, 90),
+            DummyRecord('1.2.3.6', 1, 90),
+            DummyRecord('1.2.3.7', 1, 90),
+        ]
+        default_response_pool = DummyResponsePool('default', multi_a)
+        pool1_response_pool = DummyResponsePool('pool1', multi_a)
+        rulesets = [
+            DummyRuleset('default', [default_response_pool]),
+            DummyRuleset('0:abcdef', [pool1_response_pool], 'geoip', {
+                'geoip': {
+                    'country': ['US'],
+                    'province': ['or'],
+                    'region': [14],
+                },
+            }),
+        ]
+        zone = Zone('unit.tests.', [])
+        td = DummyTrafficDirector(zone.name, rulesets,
+                                  [default_response_pool, pool1_response_pool])
+        record = provider._populate_dynamic_traffic_director(zone, fqdn, 'A',
+                                                             td, rulesets,
+                                                             True)
+        self.assertTrue(record)
+        self.assertEquals('A', record._type)
+        self.assertEquals(90, record.ttl)
+        self.assertEquals([
+            '1.2.3.5',
+            '1.2.3.6',
+            '1.2.3.7',
+        ], record.values)
+        self.assertTrue('pool1' in record.dynamic.pools)
+        self.assertEquals({
+            'fallback': None,
+            'values': [{
+                'value': '1.2.3.5',
+                'weight': 1,
+            }, {
+                'value': '1.2.3.6',
+                'weight': 1,
+            }, {
+                'value': '1.2.3.7',
+                'weight': 1,
+            }]
+        }, record.dynamic.pools['pool1'].data)
+        self.assertEquals(2, len(record.dynamic.rules))
+        self.assertEquals({
+            'pool': 'default',
+        }, record.dynamic.rules[0].data)
+        self.assertEquals({
+            'pool': 'pool1',
+            'geos': ['AF', 'NA-US', 'NA-US-OR'],
+        }, record.dynamic.rules[1].data)
+
+        # Hack into the provider and create a fake list of traffic directors
+        provider._traffic_directors = {
+            'dynamic.unit.tests.': {
+                'A': td,
+            }
+        }
+        zone = Zone('unit.tests.', [])
+        records = provider._populate_traffic_directors(zone, lenient=True)
+        self.assertEquals(1, len(records))
+
+    def test_dynamic_records_for_A(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        # Empty
+        records = provider._dynamic_records_for_A([], {})
+        self.assertEquals([], records)
+
+        # Basic
+        values = [{
+            'value': '1.2.3.4',
+        }, {
+            'value': '1.2.3.5',
+            'weight': 42,
+        }]
+        records = provider._dynamic_records_for_A(values, {})
+        self.assertEquals(2, len(records))
+        record = records[0]
+        self.assertEquals('1.2.3.4', record.address)
+        self.assertEquals(1, record.weight)
+        record = records[1]
+        self.assertEquals('1.2.3.5', record.address)
+        self.assertEquals(42, record.weight)
+
+        # With extras
+        records = provider._dynamic_records_for_A(values, {
+            'automation': 'manual',
+            'eligible': True,
+        })
+        self.assertEquals(2, len(records))
+        record = records[0]
+        self.assertEquals('1.2.3.4', record.address)
+        self.assertEquals(1, record.weight)
+        self.assertEquals('manual', record._automation)
+        self.assertTrue(record.eligible)
+
+    def test_dynamic_records_for_AAAA(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        # Empty
+        records = provider._dynamic_records_for_AAAA([], {})
+        self.assertEquals([], records)
+
+        # Basic
+        values = [{
+            'value': '2601:644:500:e210:62f8:1dff:feb8:947a',
+        }, {
+            'value': '2601:644:500:e210:62f8:1dff:feb8:947b',
+            'weight': 42,
+        }]
+        records = provider._dynamic_records_for_AAAA(values, {})
+        self.assertEquals(2, len(records))
+        record = records[0]
+        self.assertEquals('2601:644:500:e210:62f8:1dff:feb8:947a',
+                          record.address)
+        self.assertEquals(1, record.weight)
+        record = records[1]
+        self.assertEquals('2601:644:500:e210:62f8:1dff:feb8:947b',
+                          record.address)
+        self.assertEquals(42, record.weight)
+
+        # With extras
+        records = provider._dynamic_records_for_AAAA(values, {
+            'automation': 'manual',
+            'eligible': True,
+        })
+        self.assertEquals(2, len(records))
+        record = records[0]
+        self.assertEquals('2601:644:500:e210:62f8:1dff:feb8:947a',
+                          record.address)
+        self.assertEquals(1, record.weight)
+        self.assertEquals('manual', record._automation)
+        self.assertTrue(record.eligible)
+
+    def test_dynamic_records_for_CNAME(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        # Empty
+        records = provider._dynamic_records_for_CNAME([], {})
+        self.assertEquals([], records)
+
+        # Basic
+        values = [{
+            'value': 'target-1.unit.tests.',
+        }, {
+            'value': 'target-2.unit.tests.',
+            'weight': 42,
+        }]
+        records = provider._dynamic_records_for_CNAME(values, {})
+        self.assertEquals(2, len(records))
+        record = records[0]
+        self.assertEquals('target-1.unit.tests.', record.cname)
+        self.assertEquals(1, record.weight)
+        record = records[1]
+        self.assertEquals('target-2.unit.tests.', record.cname)
+        self.assertEquals(42, record.weight)
+
+        # With extras
+        records = provider._dynamic_records_for_CNAME(values, {
+            'automation': 'manual',
+            'eligible': True,
+        })
+        self.assertEquals(2, len(records))
+        record = records[0]
+        self.assertEquals('target-1.unit.tests.', record.cname)
+        self.assertEquals(1, record.weight)
+        self.assertEquals('manual', record._automation)
+        self.assertTrue(record.eligible)
+
+    def test_dynamic_value_sort_key(self):
+        values = [{
+            'value': '1.2.3.1',
+        }, {
+            'value': '1.2.3.27',
+        }, {
+            'value': '1.2.3.127',
+        }, {
+            'value': '1.2.3.2',
+        }]
+
+        self.assertEquals([{
+            'value': '1.2.3.1',
+        }, {
+            'value': '1.2.3.127',
+        }, {
+            'value': '1.2.3.2',
+        }, {
+            'value': '1.2.3.27',
+        }], sorted(values, key=_dynamic_value_sort_key))
+
+    @patch('dyn.tm.services.DSFResponsePool.create')
+    def test_find_or_create_dynamic_pools(self, mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass')
+
+        td = 42
+        label = 'foo'
+        values = [{
+            'value': '1.2.3.1',
+        }, {
+            'value': '1.2.3.127',
+        }, {
+            'value': '1.2.3.2',
+        }, {
+            'value': '1.2.3.27',
+        }]
+
+        # A Pool with no existing pools, will create
+        pools = []
+        pool = provider._find_or_create_dynamic_pool(td, pools, label, 'A',
+                                                     values)
+        self.assertIsInstance(pool, DSFResponsePool)
+        self.assertEquals(1, len(pool.rs_chains))
+        self.assertEquals(1, len(pool.rs_chains[0].record_sets))
+        records = pool.rs_chains[0].record_sets[0].records
+        self.assertEquals(4, len(records))
+        self.assertEquals([v['value'] for v in values],
+                          [r.address for r in records])
+        self.assertEquals([1 for r in records], [r.weight for r in records])
+        mock.assert_called_once_with(td)
+
+        # Ask for the pool we created above and include it in the canidate list
+        mock.reset_mock()
+        pools = [pool]
+        cached = provider._find_or_create_dynamic_pool(td, pools, label, 'A',
+                                                       values)
+        self.assertEquals(pool, cached)
+        mock.assert_not_called()
+
+        # Invalid candidate pool, still finds the valid one that's there too
+        mock.reset_mock()
+        invalid = DSFResponsePool(label, rs_chains=[])
+        pools = [invalid, pool]
+        cached = provider._find_or_create_dynamic_pool(td, pools, label, 'A',
+                                                       values)
+        self.assertEquals(pool, cached)
+        mock.assert_not_called()
+
+        # Ask for a pool with a different label, should create a new one
+        mock.reset_mock()
+        pools = [pool]
+        other = provider._find_or_create_dynamic_pool(td, pools, 'other', 'A',
+                                                      values)
+        self.assertEquals('other', other.label)
+        mock.assert_called_once_with(td)
+
+        # Ask for a pool that matches label-wise, but has different values
+        values = [{
+            'value': '1.2.3.44',
+        }]
+        mock.reset_mock()
+        pools = [pool]
+        new = provider._find_or_create_dynamic_pool(td, pools, label, 'A',
+                                                    values)
+        self.assertEquals(label, new.label)
+        self.assertEquals(1, len(new.rs_chains))
+        self.assertEquals(1, len(new.rs_chains[0].record_sets))
+        records = new.rs_chains[0].record_sets[0].records
+        self.assertEquals(1, len(records))
+        self.assertEquals([v['value'] for v in values],
+                          [r.address for r in records])
+        self.assertEquals([1 for r in records], [r.weight for r in records])
+        mock.assert_called_once_with(td)
+
+    zone = Zone('unit.tests.', [])
+    dynamic_a_record = Record.new(zone, '', {
+        'dynamic': {
+            'pools': {
+                'one': {
+                    'values': [{
+                        'value': '3.3.3.3',
+                    }],
+                },
+                'two': {
+                    # Testing out of order value sorting here
+                    'values': [{
+                        'value': '5.5.5.5',
+                    }, {
+                        'value': '4.4.4.4',
+                    }],
+                },
+                'three': {
+                    'fallback': 'two',
+                    'values': [{
+                        'weight': 10,
+                        'value': '4.4.4.4',
+                    }, {
+                        'weight': 12,
+                        'value': '5.5.5.5',
+                    }],
+                },
+            },
+            'rules': [{
+                'geos': ['AF', 'EU', 'AS-JP'],
+                'pool': 'three',
+            }, {
+                'geos': ['NA-US-CA'],
+                'pool': 'two',
+            }, {
+                'pool': 'one',
+            }],
+        },
+        'type': 'A',
+        'ttl': 60,
+        'values': [
+            '1.1.1.1',
+            '2.2.2.2',
+        ],
+    })
+    geo_a_record = Record.new(zone, '', {
+        'geo': {
+            'AF': ['2.2.3.4', '2.2.3.5'],
+            'AS-JP': ['3.2.3.4', '3.2.3.5'],
+            'NA-US': ['4.2.3.4', '4.2.3.5'],
+            'NA-US-CA': ['5.2.3.4', '5.2.3.5']
+        },
+        'ttl': 300,
+        'type': 'A',
+        'values': ['1.2.3.4', '1.2.3.5'],
+    })
+    regular_a_record = Record.new(zone, '', {
+        'ttl': 301,
+        'type': 'A',
+        'value': '1.2.3.4',
+    })
+    dynamic_cname_record = Record.new(zone, 'www', {
+        'dynamic': {
+            'pools': {
+                'one': {
+                    'values': [{
+                        'value': 'target-0.unit.tests.',
+                    }],
+                },
+                'two': {
+                    # Testing out of order value sorting here
+                    'values': [{
+                        'value': 'target-1.unit.tests.',
+                    }, {
+                        'value': 'target-2.unit.tests.',
+                    }],
+                },
+                'three': {
+                    'values': [{
+                        'weight': 10,
+                        'value': 'target-3.unit.tests.',
+                    }, {
+                        'weight': 12,
+                        'value': 'target-4.unit.tests.',
+                    }],
+                },
+            },
+            'rules': [{
+                'geos': ['AF', 'EU', 'AS-JP'],
+                'pool': 'three',
+            }, {
+                'geos': ['NA-US-CA'],
+                'pool': 'two',
+            }, {
+                'pool': 'one',
+            }],
+        },
+        'type': 'CNAME',
+        'ttl': 60,
+        'value': 'target.unit.tests.',
+    })
+
+    dynamic_fallback_loop = Record.new(zone, '', {
+        'dynamic': {
+            'pools': {
+                'one': {
+                    'values': [{
+                        'value': '3.3.3.3',
+                    }],
+                },
+                'two': {
+                    # Testing out of order value sorting here
+                    'fallback': 'three',
+                    'values': [{
+                        'value': '5.5.5.5',
+                    }, {
+                        'value': '4.4.4.4',
+                    }],
+                },
+                'three': {
+                    'fallback': 'two',
+                    'values': [{
+                        'weight': 10,
+                        'value': '4.4.4.4',
+                    }, {
+                        'weight': 12,
+                        'value': '5.5.5.5',
+                    }],
+                },
+            },
+            'rules': [{
+                'geos': ['AF', 'EU', 'AS-JP'],
+                'pool': 'three',
+            }, {
+                'geos': ['NA-US-CA'],
+                'pool': 'two',
+            }, {
+                'pool': 'one',
+            }],
+        },
+        'type': 'A',
+        'ttl': 60,
+        'values': [
+            '1.1.1.1',
+            '2.2.2.2',
+        ],
+    }, lenient=True)
+
+    @patch('dyn.tm.services.DSFRuleset.add_response_pool')
+    @patch('dyn.tm.services.DSFRuleset.create')
+    # just lets us ignore the pool.create calls
+    @patch('dyn.tm.services.DSFResponsePool.create')
+    def test_mod_dynamic_rulesets_create_CNAME(self, _, ruleset_create_mock,
+                                               add_response_pool_mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        td_mock = MagicMock()
+        td_mock._rulesets = []
+        provider._traffic_director_monitor = MagicMock()
+        provider._find_or_create_dynamic_pool = MagicMock()
+
+        td_mock.all_response_pools = []
+
+        provider._find_or_create_dynamic_pool.side_effect = [
+            _DummyPool('default'),
+            _DummyPool('one'),
+            _DummyPool('two'),
+            _DummyPool('three'),
+        ]
+
+        change = Create(self.dynamic_cname_record)
+        provider._mod_dynamic_rulesets(td_mock, change)
+        add_response_pool_mock.assert_has_calls((
+            # default
+            call('default'),
+            # first dynamic and it's fallback
+            call('one'),
+            call('default', index=999),
+            # 2nd dynamic and it's fallback
+            call('three'),
+            call('default', index=999),
+            # 3nd dynamic and it's fallback
+            call('two'),
+            call('default', index=999),
+        ))
+        ruleset_create_mock.assert_has_calls((
+            call(td_mock, index=0),
+            call(td_mock, index=0),
+            call(td_mock, index=0),
+            call(td_mock, index=0),
+        ))
+
+    # have to patch the place it's imported into, not where it lives
+    @patch('octodns.provider.dyn.get_response_pool')
+    @patch('dyn.tm.services.DSFRuleset.add_response_pool')
+    @patch('dyn.tm.services.DSFRuleset.create')
+    # just lets us ignore the pool.create calls
+    @patch('dyn.tm.services.DSFResponsePool.create')
+    def test_mod_dynamic_rulesets_existing(self, _, ruleset_create_mock,
+                                           add_response_pool_mock,
+                                           get_response_pool_mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        ruleset_mock = MagicMock()
+        ruleset_mock.response_pools = [_DummyPool('three')]
+
+        td_mock = MagicMock()
+        td_mock._rulesets = [
+            ruleset_mock,
+        ]
+        provider._traffic_director_monitor = MagicMock()
+        provider._find_or_create_dynamic_pool = MagicMock()
+        # Matching ttl
+        td_mock.ttl = self.dynamic_a_record.ttl
+
+        unused_pool = _DummyPool('unused')
+        td_mock.all_response_pools = \
+            ruleset_mock.response_pools + [unused_pool]
+        get_response_pool_mock.return_value = unused_pool
+
+        provider._find_or_create_dynamic_pool.side_effect = [
+            _DummyPool('default'),
+            _DummyPool('one'),
+            _DummyPool('two'),
+            ruleset_mock.response_pools[0],
+        ]
+
+        change = Create(self.dynamic_a_record)
+        provider._mod_dynamic_rulesets(td_mock, change)
+        add_response_pool_mock.assert_has_calls((
+            # default
+            call('default'),
+            # first dynamic and it's fallback
+            call('one'),
+            call('default', index=999),
+            # 2nd dynamic and it's fallback
+            call('three'),
+            call('default', index=999),
+            # 3nd dynamic, from existing, and it's fallback
+            call('two'),
+            call('three', index=999),
+            call('default', index=999),
+        ))
+        ruleset_create_mock.assert_has_calls((
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+        ))
+        # unused poll should have been deleted
+        self.assertTrue(unused_pool.deleted)
+        # old ruleset ruleset should be deleted, it's pool will have been
+        # reused
+        ruleset_mock.delete.assert_called_once()
+
+    # have to patch the place it's imported into, not where it lives
+    @patch('octodns.provider.dyn.get_response_pool')
+    @patch('dyn.tm.services.DSFRuleset.add_response_pool')
+    @patch('dyn.tm.services.DSFRuleset.create')
+    # just lets us ignore the pool.create calls
+    @patch('dyn.tm.services.DSFResponsePool.create')
+    def test_mod_dynamic_rulesets_fallback_loop(self, _, ruleset_create_mock,
+                                                add_response_pool_mock,
+                                                get_response_pool_mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        ruleset_mock = MagicMock()
+        ruleset_mock.response_pools = [_DummyPool('three')]
+
+        td_mock = MagicMock()
+        td_mock._rulesets = [
+            ruleset_mock,
+        ]
+        provider._traffic_director_monitor = MagicMock()
+        provider._find_or_create_dynamic_pool = MagicMock()
+        # Matching ttl
+        td_mock.ttl = self.dynamic_fallback_loop.ttl
+
+        unused_pool = _DummyPool('unused')
+        td_mock.all_response_pools = \
+            ruleset_mock.response_pools + [unused_pool]
+        get_response_pool_mock.return_value = unused_pool
+
+        provider._find_or_create_dynamic_pool.side_effect = [
+            _DummyPool('default'),
+            _DummyPool('one'),
+            _DummyPool('two'),
+            ruleset_mock.response_pools[0],
+        ]
+
+        change = Create(self.dynamic_fallback_loop)
+        provider._mod_dynamic_rulesets(td_mock, change)
+        add_response_pool_mock.assert_has_calls((
+            # default
+            call('default'),
+            # first dynamic and it's fallback
+            call('one'),
+            call('default', index=999),
+            # 2nd dynamic and it's fallback (no loop)
+            call('three'),
+            call('two', index=999),
+            call('default', index=999),
+            # 3nd dynamic and it's fallback (no loop)
+            call('two'),
+            call('three', index=999),
+            call('default', index=999),
+        ))
+        ruleset_create_mock.assert_has_calls((
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+            call(td_mock, index=2),
+        ))
+        # unused poll should have been deleted
+        self.assertTrue(unused_pool.deleted)
+        # old ruleset ruleset should be deleted, it's pool will have been
+        # reused
+        ruleset_mock.delete.assert_called_once()
+
+    with open('./tests/fixtures/dyn-traffic-director-get.json') as fh:
+        traffic_director_response = loads(fh.read())
+
+    @property
+    def traffic_directors_response(self):
+        return {
+            'data': [{
+                'active': 'Y',
+                'label': 'unit.tests.:A',
+                'nodes': [],
+                'notifiers': [],
+                'pending_change': '',
+                'rulesets': [],
+                'service_id': '2ERWXQNsb_IKG2YZgYqkPvk0PBM',
+                'ttl': '300'
+            }, {
+                'active': 'Y',
+                'label': 'some.other.:A',
+                'nodes': [],
+                'notifiers': [],
+                'pending_change': '',
+                'rulesets': [],
+                'service_id': '3ERWXQNsb_IKG2YZgYqkPvk0PBM',
+                'ttl': '300'
+            }, {
+                'active': 'Y',
+                'label': 'other format',
+                'nodes': [],
+                'notifiers': [],
+                'pending_change': '',
+                'rulesets': [],
+                'service_id': '4ERWXQNsb_IKG2YZgYqkPvk0PBM',
+                'ttl': '300'
+            }]
+        }
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_mod_dynamic_create(self, mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        # will be tested separately
+        provider._mod_dynamic_rulesets = MagicMock()
+
+        mock.side_effect = [
+            # create traffic director
+            self.traffic_director_response,
+            # get traffic directors
+            self.traffic_directors_response
+        ]
+        provider._mod_dynamic_Create(None, Create(self.dynamic_a_record))
+        # td now lives in cache
+        self.assertTrue('A' in provider.traffic_directors['unit.tests.'])
+        # should have seen 1 gen call
+        provider._mod_dynamic_rulesets.assert_called_once()
+
+    def test_mod_dynamic_update_dynamic_dynamic(self):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        # update of an existing dynamic td
+
+        # pre-populate the cache with our mock td
+        provider._traffic_directors = {
+            'unit.tests.': {
+                'A': 42,
+            }
+        }
+        # mock _mod_dynamic_rulesets
+        provider._mod_dynamic_rulesets = MagicMock()
+
+        dyn = self.dynamic_a_record
+        change = Update(dyn, dyn)
+        provider._mod_dynamic_Update(None, change)
+        # still in cache
+        self.assertTrue('A' in provider.traffic_directors['unit.tests.'])
+        # should have seen 1 gen call
+        provider._mod_dynamic_rulesets.assert_called_once_with(42, change)
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_mod_dynamic_update_dynamic_geo(self, _):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        # convert a dynamic td to a geo record
+
+        provider._mod_geo_Update = MagicMock()
+
+        change = Update(self.dynamic_a_record, self.geo_a_record)
+        provider._mod_dynamic_Update(42, change)
+        # should have seen a call to create the new geo record
+        provider._mod_geo_Update.assert_called_once_with(42, change)
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_mod_dynamic_update_dynamic_regular(self, _):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        # convert a dynamic td to a regular record
+
+        provider._mod_Create = MagicMock()
+        provider._mod_dynamic_Delete = MagicMock()
+
+        change = Update(self.dynamic_a_record, self.regular_a_record)
+        provider._mod_dynamic_Update(42, change)
+        # should have seen a call to create the new regular record
+        provider._mod_Create.assert_called_once_with(42, change)
+        # should have seen a call to delete the old td record
+        provider._mod_dynamic_Delete.assert_called_once_with(42, change)
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_mod_dynamic_update_geo_dynamic(self, _):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        # convert a geo record to a dynamic td
+
+        # pre-populate the cache with our mock td
+        provider._traffic_directors = {
+            'unit.tests.': {
+                'A': 42,
+            }
+        }
+        # mock _mod_dynamic_rulesets
+        provider._mod_dynamic_rulesets = MagicMock()
+
+        change = Update(self.geo_a_record, self.dynamic_a_record)
+        provider._mod_dynamic_Update(None, change)
+        # still in cache
+        self.assertTrue('A' in provider.traffic_directors['unit.tests.'])
+        # should have seen 1 gen call
+        provider._mod_dynamic_rulesets.assert_called_once_with(42, change)
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_mod_dynamic_update_regular_dynamic(self, _):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        # convert a regular record to a dynamic td
+
+        provider._mod_dynamic_Create = MagicMock()
+        provider._mod_Delete = MagicMock()
+
+        change = Update(self.regular_a_record, self.dynamic_a_record)
+        provider._mod_dynamic_Update(42, change)
+        # should have seen a call to create the new geo record
+        provider._mod_dynamic_Create.assert_called_once_with(42, change)
+        # should have seen a call to delete the old regular record
+        provider._mod_Delete.assert_called_once_with(42, change)
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_mod_dynamic_delete(self, mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        td_mock = MagicMock()
+        provider._traffic_directors = {
+            'unit.tests.': {
+                'A': td_mock,
+            }
+        }
+        provider._mod_dynamic_Delete(None, Delete(self.dynamic_a_record))
+        # delete called
+        td_mock.delete.assert_called_once()
+        # removed from cache
+        self.assertFalse('A' in provider.traffic_directors['unit.tests.'])
+
+    @patch('dyn.core.SessionEngine.execute')
+    def test_apply_traffic_directors_dynamic(self, mock):
+        provider = DynProvider('test', 'cust', 'user', 'pass',
+                               traffic_directors_enabled=True)
+
+        # will be tested separately
+        provider._mod_dynamic_Create = MagicMock()
+
+        changes = [Create(self.dynamic_a_record)]
+        provider._apply_traffic_directors(self.zone, changes, None)
+        provider._mod_dynamic_Create.assert_called_once()

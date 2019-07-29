@@ -112,10 +112,14 @@ class DnsMadeEasyClient(object):
         resp = self._request('GET', path).json()
         ret += resp['data']
 
-        # change relative values to absolute
         for record in ret:
+            # change ANAME records to ALIAS
+            if record['type'] == 'ANAME':
+                record['type'] = 'ALIAS'
+
+            # change relative values to absolute
             value = record['value']
-            if record['type'] in ['CNAME', 'MX', 'NS', 'SRV']:
+            if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'SRV']:
                 if value == '':
                     record['value'] = zone_name
                 elif not value.endswith('.'):
@@ -126,6 +130,10 @@ class DnsMadeEasyClient(object):
     def record_create(self, zone_name, params):
         zone_id = self.domains.get(zone_name, False)
         path = '/{}/records'.format(zone_id)
+
+        # change ALIAS records to ANAME
+        if params['type'] == 'ALIAS':
+            params['type'] = 'ANAME'
 
         self._request('POST', path, data=params)
 
@@ -150,7 +158,8 @@ class DnsMadeEasyProvider(BaseProvider):
         sandbox: true
     '''
     SUPPORTS_GEO = False
-    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX',
+    SUPPORTS_DYNAMIC = False
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX',
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 
     def __init__(self, id, api_key, secret_key, sandbox=False,
@@ -222,6 +231,7 @@ class DnsMadeEasyProvider(BaseProvider):
 
     _data_for_CNAME = _data_for_single
     _data_for_PTR = _data_for_single
+    _data_for_ALIAS = _data_for_single
 
     def _data_for_SRV(self, _type, records):
         values = []
@@ -255,6 +265,10 @@ class DnsMadeEasyProvider(BaseProvider):
         values = defaultdict(lambda: defaultdict(list))
         for record in self.zone_records(zone):
             _type = record['type']
+            if _type not in self.SUPPORTS:
+                self.log.warning('populate: skipping unsupported %s record',
+                                 _type)
+                continue
             values[record['name']][record['type']].append(record)
 
         before = len(zone.records)
@@ -297,6 +311,7 @@ class DnsMadeEasyProvider(BaseProvider):
 
     _params_for_CNAME = _params_for_single
     _params_for_PTR = _params_for_single
+    _params_for_ALIAS = _params_for_single
 
     def _params_for_MX(self, record):
         for value in record.values:

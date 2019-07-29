@@ -1,3 +1,56 @@
+## v0.9.6 - 2019-07-16 - The little one that fixes stuff from the big one
+
+* Reduced dynamic record value weight range to 0-15 so that Dyn and Route53
+  match up behaviors. Dyn is limited to 0-15 and scaling that up would lose
+  resolution that couldn't be recovered during populate.
+* Addressed issues with Route53 change set ordering for dynamic records
+* Ignore unsupported record types in DigitalOceanProvider
+* Fix bugs in Route53 extra changes handling and health check managagement
+
+## v0.9.5 - 2019-05-06 - The big one, with all the dynamic stuff
+
+* dynamic record support, essentially a v2 version of geo records with a lot
+  more flexibility and power. Also support dynamic CNAME records (alpha)
+* Route53Provider dynamic record support
+* DynProvider dynamic record support
+* SUPPORTS_DYNAMIC is an optional property, defaults to False
+* Route53Provider health checks support disabling latency measurement
+* CloudflareProvider SRV record unpacking fix
+* DNSMadeEasy provider uses supports to avoid blowing up on unknown record
+  types
+* Updates to AzureProvider lib versions
+* Normalize MX/CNAME/ALIAS/PTR value to lower case
+* SplitYamlProvider support added
+* DynProvider fix for Traffic Directors association to records, explicit rather
+  than "looks close enough"
+* TinyDNS support for TXT and AAAA records and fixes to ; escaping
+* pre-commit hook requires 100% code coverage
+
+## v0.9.4 - 2019-01-28 - The one with a bunch of stuff, before the big one
+
+* A bunch of "dynamic" stuff that'll be detailed in the next release when
+  providers actually support it :grin:
+* Route53Provider adds support for using session tokens
+* Added support for proxying Cloudflare ALIAS records
+* Dyn CAA TTL fix
+* Documentation fixes and improvements
+* natsort version bump to address setup issues
+* DNSSimple TXT record handling fixes, ; it's always ;
+* Route53Provider support for sessiom tokens
+* Add ALIAS to the list of Cloudflare record types that support proxying
+* Fix for TTL bug in Dyn CCA records
+* Records updated so that 'octodns' record metadata is persisted through
+  YamlProvider
+* Added --version support to ArguementParser (thus all commands)
+
+## v0.9.3 - 2018-10-29 - Misc. stuff sort of release
+
+* ZoneFile source added
+* Major rework/improvements to the Cloudflare record update process, fixed bugs
+  and optimized it quite a bit
+* Add ability to manage Cloudflare proxy flag
+* Bump requests version to 2.20.0
+
 ## v0.9.2 - 2018-08-20 - More sources
 
 * EtcHostsProvider implementation to create static/emergency best effort
@@ -59,7 +112,7 @@ Adds an OVH provider.
 
 ## v0.8.6 - 2017-09-06 - CAA record type,
 
-Misc fixes and improvments.
+Misc fixes and improvements.
 
 * Azure TXT record fix
 * PowerDNS api support for https

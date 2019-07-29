@@ -29,18 +29,19 @@ setup(
         'console_scripts': console_scripts,
     },
     install_requires=[
-        'PyYaml>=3.12',
+        'PyYaml>=4.2b1',
         'dnspython>=1.15.0',
         'futures>=3.2.0',
         'incf.countryutils>=1.0',
         'ipaddress>=1.0.22',
-        'natsort>=5.2.0',
+        'natsort>=5.5.0',
         # botocore doesn't like >=2.7.0 for some reason
         'python-dateutil>=2.6.0,<2.7.0',
-        'requests>=2.18.4'
+        'requests>=2.20.0'
     ],
     license='MIT',
     long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     name='octodns',
     packages=find_packages(),
     url='https://github.com/github/octodns',

@@ -1,0 +1,64 @@
+#!/usr/bin/env python
+
+from collections import defaultdict
+from pprint import pformat
+from pycountry import countries, subdivisions
+from pycountry_convert import country_alpha2_to_continent_code
+
+
+subs = defaultdict(dict)
+for subdivision in subdivisions:
+    # Route53 only supports US states, Dyn supports US states and CA provinces, but for now we'll just do US
+    if subdivision.country_code not in ('US'):
+        continue
+    subs[subdivision.country_code][subdivision.code[3:]] = {
+        'name': subdivision.name
+    }
+subs = dict(subs)
+#pprint(subs)
+
+# These are best guesses at things pycountry_convert doesn't map
+continent_backups = {
+    'AQ': 'AN',
+    'EH': 'AF',
+    'PN': 'OC',
+    'SX': 'NA',
+    'TF': 'AN',
+    'TL': 'ID',
+    'UM': 'OC',
+    'VA': 'EU',
+}
+
+geos = defaultdict(dict)
+for country in countries:
+    try:
+        continent_code = country_alpha2_to_continent_code(country.alpha_2)
+    except KeyError:
+        try:
+            continent_code = continent_backups[country.alpha_2]
+        except KeyError:
+            raise
+            print('{} {} {}'.format(country.alpha_2, country.name, getattr(country, 'official_name', '')))
+
+    geos[continent_code][country.alpha_2] = {
+        'name': country.name
+    }
+
+    try:
+        geos[continent_code][country.alpha_2]['provinces'] = subs[country.alpha_2]
+    except KeyError:
+        pass
+
+geos = dict(geos)
+data = pformat(geos).replace('\n', '\n    ')
+
+print('''#
+# -*- coding: utf-8 -*-
+#
+# This file is generated using
+#   ./script/generate-geo-data > octodns/record/geo_data.py
+# do not modify it directly
+#
+
+geo_data = \\
+    {}'''.format(data))

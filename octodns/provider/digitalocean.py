@@ -116,6 +116,7 @@ class DigitalOceanProvider(BaseProvider):
         token: foo
     '''
     SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'TXT', 'SRV'))
 
     def __init__(self, id, token, *args, **kwargs):
@@ -222,6 +223,10 @@ class DigitalOceanProvider(BaseProvider):
         values = defaultdict(lambda: defaultdict(list))
         for record in self.zone_records(zone):
             _type = record['type']
+            if _type not in self.SUPPORTS:
+                self.log.warning('populate: skipping unsupported %s record',
+                                 _type)
+                continue
             values[record['name']][record['type']].append(record)
 
         before = len(zone.records)

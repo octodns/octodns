@@ -74,6 +74,16 @@ class TestBaseProvider(TestCase):
         self.assertEquals('Abstract base class, populate method missing',
                           ctx.exception.message)
 
+        # SUPPORTS_DYNAMIC has a default/fallback
+        self.assertFalse(HasSupports('hassupports').SUPPORTS_DYNAMIC)
+
+        # But can be overridden
+        class HasSupportsDyanmic(HasSupports):
+            SUPPORTS_DYNAMIC = True
+
+        self.assertTrue(HasSupportsDyanmic('hassupportsdynamic')
+                        .SUPPORTS_DYNAMIC)
+
         class HasPopulate(HasSupports):
 
             def populate(self, zone, target=False, lenient=False):

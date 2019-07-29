@@ -11,6 +11,7 @@ from os import listdir
 from os.path import join
 import logging
 import re
+import textwrap
 
 from ..record import Record
 from ..zone import DuplicateRecordException, SubzoneRecordException
@@ -19,7 +20,8 @@ from .base import BaseSource
 
 class TinyDnsBaseSource(BaseSource):
     SUPPORTS_GEO = False
-    SUPPORTS = set(('A', 'CNAME', 'MX', 'NS'))
+    SUPPORTS_DYNAMIC = False
+    SUPPORTS = set(('A', 'CNAME', 'MX', 'NS', 'TXT', 'AAAA'))
 
     split_re = re.compile(r':+')
 
@@ -34,6 +36,40 @@ class TinyDnsBaseSource(BaseSource):
                 values.append(record[0])
         if len(values) == 0:
             return
+        try:
+            ttl = records[0][1]
+        except IndexError:
+            ttl = self.default_ttl
+        return {
+            'ttl': ttl,
+            'type': _type,
+            'values': values,
+        }
+
+    def _data_for_AAAA(self, _type, records):
+        values = []
+        for record in records:
+            # TinyDNS files have the ipv6 address written in full, but with the
+            # colons removed. This inserts a colon every 4th character to make
+            # the address correct.
+            values.append(u":".join(textwrap.wrap(record[0], 4)))
+        try:
+            ttl = records[0][1]
+        except IndexError:
+            ttl = self.default_ttl
+        return {
+            'ttl': ttl,
+            'type': _type,
+            'values': values,
+        }
+
+    def _data_for_TXT(self, _type, records):
+        values = []
+
+        for record in records:
+            new_value = record[0].decode('unicode-escape').replace(";", "\\;")
+            values.append(new_value)
+
         try:
             ttl = records[0][1]
         except IndexError:
@@ -103,6 +139,9 @@ class TinyDnsBaseSource(BaseSource):
             'C': 'CNAME',
             '+': 'A',
             '@': 'MX',
+            '\'': 'TXT',
+            '3': 'AAAA',
+            '6': 'AAAA',
         }
         name_re = re.compile(r'((?P<name>.+)\.)?{}$'.format(zone.name[:-1]))
 

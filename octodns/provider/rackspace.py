@@ -38,6 +38,7 @@ def unescape_semicolon(s):
 
 class RackspaceProvider(BaseProvider):
     SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NS', 'PTR', 'SPF',
                     'TXT'))
     TIMEOUT = 5

@@ -1,0 +1,13 @@
+---
+mx:
+  ttl: 300
+  type: MX
+  values:
+  - exchange: smtp-4.unit.tests.
+    preference: 10
+  - exchange: smtp-2.unit.tests.
+    preference: 20
+  - exchange: smtp-3.unit.tests.
+    preference: 30
+  - exchange: smtp-1.unit.tests.
+    preference: 40

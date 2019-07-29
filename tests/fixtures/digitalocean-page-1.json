@@ -1,5 +1,16 @@
 {
 	"domain_records": [{
+		"id": null,
+		"type": "SOA",
+		"name": "@",
+		"data": null,
+		"priority": null,
+		"port": null,
+		"ttl": null,
+		"weight": null,
+		"flags": null,
+		"tag": null
+	}, {
 		"id": 11189874,
 		"type": "NS",
 		"name": "@",

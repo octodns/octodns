@@ -35,6 +35,20 @@ class TestDnsMadeEasyProvider(TestCase):
             'ns2.unit.tests.',
         ]
     }))
+
+    # Add some ALIAS records
+    expected.add_record(Record.new(expected, '', {
+        'ttl': 1800,
+        'type': 'ALIAS',
+        'value': 'aname.unit.tests.'
+    }))
+
+    expected.add_record(Record.new(expected, 'sub', {
+        'ttl': 1800,
+        'type': 'ALIAS',
+        'value': 'aname.unit.tests.'
+    }))
+
     for record in list(expected.records):
         if record.name == 'sub' and record._type == 'NS':
             expected._remove_record(record)
@@ -73,7 +87,7 @@ class TestDnsMadeEasyProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals(502, ctx.exception.response.status_code)
 
-        # Non-existant zone doesn't populate anything
+        # Non-existent zone doesn't populate anything
         with requests_mock() as mock:
             mock.get(ANY, status_code=404,
                      text='<html><head></head><body></body></html>')
@@ -93,14 +107,14 @@ class TestDnsMadeEasyProvider(TestCase):
 
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-                self.assertEquals(13, len(zone.records))
+                self.assertEquals(15, len(zone.records))
                 changes = self.expected.changes(zone, provider)
                 self.assertEquals(0, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])
         provider.populate(again)
-        self.assertEquals(13, len(again.records))
+        self.assertEquals(15, len(again.records))
 
         # bust the cache
         del provider._zone_records[zone.name]
@@ -116,7 +130,7 @@ class TestDnsMadeEasyProvider(TestCase):
         with open('tests/fixtures/dnsmadeeasy-domains.json') as fh:
             domains = json.load(fh)
 
-        # non-existant domain, create everything
+        # non-existent domain, create everything
         resp.json.side_effect = [
             DnsMadeEasyClientNotFound,  # no zone in populate
             DnsMadeEasyClientNotFound,  # no domain during apply
@@ -145,7 +159,7 @@ class TestDnsMadeEasyProvider(TestCase):
                 'port': 30
             }),
         ])
-        self.assertEquals(25, provider._client._request.call_count)
+        self.assertEquals(27, provider._client._request.call_count)
 
         provider._client._request.reset_mock()
 
