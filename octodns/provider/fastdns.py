@@ -34,15 +34,15 @@ class AkamaiClient(object):
 
     '''
 
-    def __init__(self, _client_secret, _host, _access_token, _client_token):
+    def __init__(self, client_secret, host, access_token, client_token):
 
-        self.base = "https://" + _host + "/config-dns/v2/"
+        self.base = "https://" + host + "/config-dns/v2/"
 
         sess = Session()
         sess.auth = EdgeGridAuth(
-            client_token=_client_token,
-            client_secret=_client_secret,
-            access_token=_access_token
+            client_token=client_token,
+            client_secret=client_secret,
+            access_token=access_token
         )
         self._sess = sess
 
