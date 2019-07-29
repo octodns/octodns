@@ -5,12 +5,14 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from six import text_type
 from unittest import TestCase
 
 from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
-    CnameRecord, Create, Delete, GeoValue, MxRecord, NaptrRecord, NaptrValue, \
-    NsRecord, PtrRecord, Record, SshfpRecord, SpfRecord, SrvRecord, \
-    TxtRecord, Update, ValidationError, _Dynamic, _DynamicPool, _DynamicRule
+    CaaValue, CnameRecord, Create, Delete, GeoValue, MxRecord, MxValue, \
+    NaptrRecord, NaptrValue, NsRecord, PtrRecord, Record, SshfpRecord, \
+    SshfpValue, SpfRecord, SrvRecord, SrvValue, TxtRecord, Update, \
+    ValidationError, _Dynamic, _DynamicPool, _DynamicRule
 from octodns.zone import Zone
 
 from helpers import DynamicProvider, GeoProvider, SimpleProvider
@@ -482,109 +484,112 @@ class TestRecord(TestCase):
         # full sorting
         # equivalent
         b_naptr_value = b.values[0]
-        self.assertEquals(0, b_naptr_value.__cmp__(b_naptr_value))
+        self.assertTrue(b_naptr_value == b_naptr_value)
+        self.assertFalse(b_naptr_value != b_naptr_value)
+        self.assertTrue(b_naptr_value <= b_naptr_value)
+        self.assertTrue(b_naptr_value >= b_naptr_value)
         # by order
-        self.assertEquals(1, b_naptr_value.__cmp__(NaptrValue({
+        self.assertTrue(b_naptr_value > NaptrValue({
             'order': 10,
             'preference': 31,
             'flags': 'M',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'x',
-        })))
-        self.assertEquals(-1, b_naptr_value.__cmp__(NaptrValue({
+        }))
+        self.assertTrue(b_naptr_value < NaptrValue({
             'order': 40,
             'preference': 31,
             'flags': 'M',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'x',
-        })))
+        }))
         # by preference
-        self.assertEquals(1, b_naptr_value.__cmp__(NaptrValue({
+        self.assertTrue(b_naptr_value > NaptrValue({
             'order': 30,
             'preference': 10,
             'flags': 'M',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'x',
-        })))
-        self.assertEquals(-1, b_naptr_value.__cmp__(NaptrValue({
+        }))
+        self.assertTrue(b_naptr_value < NaptrValue({
             'order': 30,
             'preference': 40,
             'flags': 'M',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'x',
-        })))
+        }))
         # by flags
-        self.assertEquals(1, b_naptr_value.__cmp__(NaptrValue({
+        self.assertTrue(b_naptr_value > NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'A',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'x',
-        })))
-        self.assertEquals(-1, b_naptr_value.__cmp__(NaptrValue({
+        }))
+        self.assertTrue(b_naptr_value < NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'Z',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'x',
-        })))
+        }))
         # by service
-        self.assertEquals(1, b_naptr_value.__cmp__(NaptrValue({
+        self.assertTrue(b_naptr_value > NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'M',
             'service': 'A',
             'regexp': 'O',
             'replacement': 'x',
-        })))
-        self.assertEquals(-1, b_naptr_value.__cmp__(NaptrValue({
+        }))
+        self.assertTrue(b_naptr_value < NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'M',
             'service': 'Z',
             'regexp': 'O',
             'replacement': 'x',
-        })))
+        }))
         # by regexp
-        self.assertEquals(1, b_naptr_value.__cmp__(NaptrValue({
+        self.assertTrue(b_naptr_value > NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'M',
             'service': 'N',
             'regexp': 'A',
             'replacement': 'x',
-        })))
-        self.assertEquals(-1, b_naptr_value.__cmp__(NaptrValue({
+        }))
+        self.assertTrue(b_naptr_value < NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'M',
             'service': 'N',
             'regexp': 'Z',
             'replacement': 'x',
-        })))
+        }))
         # by replacement
-        self.assertEquals(1, b_naptr_value.__cmp__(NaptrValue({
+        self.assertTrue(b_naptr_value > NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'M',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'a',
-        })))
-        self.assertEquals(-1, b_naptr_value.__cmp__(NaptrValue({
+        }))
+        self.assertTrue(b_naptr_value < NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'M',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'z',
-        })))
+        }))
 
         # __repr__ doesn't blow up
         a.__repr__()
@@ -796,6 +801,38 @@ class TestRecord(TestCase):
         self.assertEquals(values, geo.values)
         self.assertEquals(['NA-US', 'NA'], list(geo.parents))
 
+        a = GeoValue('NA-US-CA', values)
+        b = GeoValue('AP-JP', values)
+        c = GeoValue('NA-US-CA', ['2.3.4.5'])
+
+        self.assertEqual(a, a)
+        self.assertEqual(b, b)
+        self.assertEqual(c, c)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+
+        self.assertTrue(a > b)
+        self.assertTrue(a < c)
+        self.assertTrue(b < a)
+        self.assertTrue(b < c)
+        self.assertTrue(c > a)
+        self.assertTrue(c > b)
+
+        self.assertTrue(a >= a)
+        self.assertTrue(a >= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(b <= a)
+        self.assertTrue(b <= b)
+        self.assertTrue(b <= c)
+        self.assertTrue(c > a)
+        self.assertTrue(c > b)
+        self.assertTrue(c >= b)
+
     def test_healthcheck(self):
         new = Record.new(self.zone, 'a', {
             'ttl': 44,
@@ -850,6 +887,290 @@ class TestRecord(TestCase):
             'value': 'some change',
         })
         self.assertFalse(new.ignored)
+
+    def test_ordering_functions(self):
+        a = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        b = Record.new(self.zone, 'b', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        c = Record.new(self.zone, 'c', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        aaaa = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'AAAA',
+            'value': '2601:644:500:e210:62f8:1dff:feb8:947a',
+        })
+
+        self.assertEquals(a, a)
+        self.assertEquals(b, b)
+        self.assertEquals(c, c)
+        self.assertEquals(aaaa, aaaa)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(a, aaaa)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(b, aaaa)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+        self.assertNotEqual(c, aaaa)
+        self.assertNotEqual(aaaa, a)
+        self.assertNotEqual(aaaa, b)
+        self.assertNotEqual(aaaa, c)
+
+        self.assertTrue(a < b)
+        self.assertTrue(a < c)
+        self.assertTrue(a < aaaa)
+        self.assertTrue(b > a)
+        self.assertTrue(b < c)
+        self.assertTrue(b > aaaa)
+        self.assertTrue(c > a)
+        self.assertTrue(c > b)
+        self.assertTrue(c > aaaa)
+        self.assertTrue(aaaa > a)
+        self.assertTrue(aaaa < b)
+        self.assertTrue(aaaa < c)
+
+        self.assertTrue(a <= a)
+        self.assertTrue(a <= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(a <= aaaa)
+        self.assertTrue(b >= a)
+        self.assertTrue(b >= b)
+        self.assertTrue(b <= c)
+        self.assertTrue(b >= aaaa)
+        self.assertTrue(c >= a)
+        self.assertTrue(c >= b)
+        self.assertTrue(c >= c)
+        self.assertTrue(c >= aaaa)
+        self.assertTrue(aaaa >= a)
+        self.assertTrue(aaaa <= b)
+        self.assertTrue(aaaa <= c)
+        self.assertTrue(aaaa <= aaaa)
+
+    def test_caa_value(self):
+        a = CaaValue({'flags': 0, 'tag': 'a', 'value': 'v'})
+        b = CaaValue({'flags': 1, 'tag': 'a', 'value': 'v'})
+        c = CaaValue({'flags': 0, 'tag': 'c', 'value': 'v'})
+        d = CaaValue({'flags': 0, 'tag': 'a', 'value': 'z'})
+
+        self.assertEqual(a, a)
+        self.assertEqual(b, b)
+        self.assertEqual(c, c)
+        self.assertEqual(d, d)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(a, d)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(b, d)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+        self.assertNotEqual(c, d)
+
+        self.assertTrue(a < b)
+        self.assertTrue(a < c)
+        self.assertTrue(a < d)
+
+        self.assertTrue(b > a)
+        self.assertTrue(b > c)
+        self.assertTrue(b > d)
+
+        self.assertTrue(c > a)
+        self.assertTrue(c < b)
+        self.assertTrue(c > d)
+
+        self.assertTrue(d > a)
+        self.assertTrue(d < b)
+        self.assertTrue(d < c)
+
+        self.assertTrue(a <= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(a <= d)
+        self.assertTrue(a <= a)
+        self.assertTrue(a >= a)
+
+        self.assertTrue(b >= a)
+        self.assertTrue(b >= c)
+        self.assertTrue(b >= d)
+        self.assertTrue(b >= b)
+        self.assertTrue(b <= b)
+
+        self.assertTrue(c >= a)
+        self.assertTrue(c <= b)
+        self.assertTrue(c >= d)
+        self.assertTrue(c >= c)
+        self.assertTrue(c <= c)
+
+        self.assertTrue(d >= a)
+        self.assertTrue(d <= b)
+        self.assertTrue(d <= c)
+        self.assertTrue(d >= d)
+        self.assertTrue(d <= d)
+
+    def test_mx_value(self):
+        a = MxValue({'preference': 0, 'priority': 'a', 'exchange': 'v',
+                     'value': '1'})
+        b = MxValue({'preference': 10, 'priority': 'a', 'exchange': 'v',
+                     'value': '2'})
+        c = MxValue({'preference': 0, 'priority': 'b', 'exchange': 'z',
+                     'value': '3'})
+
+        self.assertEqual(a, a)
+        self.assertEqual(b, b)
+        self.assertEqual(c, c)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+
+        self.assertTrue(a < b)
+        self.assertTrue(a < c)
+
+        self.assertTrue(b > a)
+        self.assertTrue(b > c)
+
+        self.assertTrue(c > a)
+        self.assertTrue(c < b)
+
+        self.assertTrue(a <= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(a <= a)
+        self.assertTrue(a >= a)
+
+        self.assertTrue(b >= a)
+        self.assertTrue(b >= c)
+        self.assertTrue(b >= b)
+        self.assertTrue(b <= b)
+
+        self.assertTrue(c >= a)
+        self.assertTrue(c <= b)
+        self.assertTrue(c >= c)
+        self.assertTrue(c <= c)
+
+    def test_sshfp_value(self):
+        a = SshfpValue({'algorithm': 0, 'fingerprint_type': 0,
+                        'fingerprint': 'abcd'})
+        b = SshfpValue({'algorithm': 1, 'fingerprint_type': 0,
+                        'fingerprint': 'abcd'})
+        c = SshfpValue({'algorithm': 0, 'fingerprint_type': 1,
+                        'fingerprint': 'abcd'})
+        d = SshfpValue({'algorithm': 0, 'fingerprint_type': 0,
+                        'fingerprint': 'bcde'})
+
+        self.assertEqual(a, a)
+        self.assertEqual(b, b)
+        self.assertEqual(c, c)
+        self.assertEqual(d, d)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(a, d)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(b, d)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+        self.assertNotEqual(c, d)
+        self.assertNotEqual(d, a)
+        self.assertNotEqual(d, b)
+        self.assertNotEqual(d, c)
+
+        self.assertTrue(a < b)
+        self.assertTrue(a < c)
+
+        self.assertTrue(b > a)
+        self.assertTrue(b > c)
+
+        self.assertTrue(c > a)
+        self.assertTrue(c < b)
+
+        self.assertTrue(a <= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(a <= a)
+        self.assertTrue(a >= a)
+
+        self.assertTrue(b >= a)
+        self.assertTrue(b >= c)
+        self.assertTrue(b >= b)
+        self.assertTrue(b <= b)
+
+        self.assertTrue(c >= a)
+        self.assertTrue(c <= b)
+        self.assertTrue(c >= c)
+        self.assertTrue(c <= c)
+
+    def test_srv_value(self):
+        a = SrvValue({'priority': 0, 'weight': 0, 'port': 0, 'target': 'foo.'})
+        b = SrvValue({'priority': 1, 'weight': 0, 'port': 0, 'target': 'foo.'})
+        c = SrvValue({'priority': 0, 'weight': 2, 'port': 0, 'target': 'foo.'})
+        d = SrvValue({'priority': 0, 'weight': 0, 'port': 3, 'target': 'foo.'})
+        e = SrvValue({'priority': 0, 'weight': 0, 'port': 0, 'target': 'mmm.'})
+
+        self.assertEqual(a, a)
+        self.assertEqual(b, b)
+        self.assertEqual(c, c)
+        self.assertEqual(d, d)
+        self.assertEqual(e, e)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(a, d)
+        self.assertNotEqual(a, e)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(b, d)
+        self.assertNotEqual(b, e)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+        self.assertNotEqual(c, d)
+        self.assertNotEqual(c, e)
+        self.assertNotEqual(d, a)
+        self.assertNotEqual(d, b)
+        self.assertNotEqual(d, c)
+        self.assertNotEqual(d, e)
+        self.assertNotEqual(e, a)
+        self.assertNotEqual(e, b)
+        self.assertNotEqual(e, c)
+        self.assertNotEqual(e, d)
+
+        self.assertTrue(a < b)
+        self.assertTrue(a < c)
+
+        self.assertTrue(b > a)
+        self.assertTrue(b > c)
+
+        self.assertTrue(c > a)
+        self.assertTrue(c < b)
+
+        self.assertTrue(a <= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(a <= a)
+        self.assertTrue(a >= a)
+
+        self.assertTrue(b >= a)
+        self.assertTrue(b >= c)
+        self.assertTrue(b >= b)
+        self.assertTrue(b <= b)
+
+        self.assertTrue(c >= a)
+        self.assertTrue(c <= b)
+        self.assertTrue(c >= c)
+        self.assertTrue(c <= c)
 
 
 class TestRecordValidation(TestCase):

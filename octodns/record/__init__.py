@@ -13,13 +13,6 @@ from six import string_types, text_type
 
 from .geo import GeoCodes
 
-# TODO: remove when Python 2.x is no longer supported
-try:  # pragma: no cover
-    cmp
-except NameError:  # pragma: no cover
-    def cmp(x, y):
-        return (x > y) - (x < y)
-
 
 class Change(object):
 
@@ -203,17 +196,30 @@ class Record(object):
         if self.ttl != other.ttl:
             return Update(self, other)
 
-    # NOTE: we're using __hash__ and __cmp__ methods that consider Records
+    # NOTE: we're using __hash__ and ordering methods that consider Records
     # equivalent if they have the same name & _type. Values are ignored. This
     # is useful when computing diffs/changes.
 
     def __hash__(self):
         return '{}:{}'.format(self.name, self._type).__hash__()
 
-    def __cmp__(self, other):
-        a = '{}:{}'.format(self.name, self._type)
-        b = '{}:{}'.format(other.name, other._type)
-        return cmp(a, b)
+    def __eq__(self, other):
+        return ((self.name, self._type) == (other.name, other._type))
+
+    def __ne__(self, other):
+        return ((self.name, self._type) != (other.name, other._type))
+
+    def __lt__(self, other):
+        return ((self.name, self._type) < (other.name, other._type))
+
+    def __le__(self, other):
+        return ((self.name, self._type) <= (other.name, other._type))
+
+    def __gt__(self, other):
+        return ((self.name, self._type) > (other.name, other._type))
+
+    def __ge__(self, other):
+        return ((self.name, self._type) >= (other.name, other._type))
 
     def __repr__(self):
         # Make sure this is always overridden
@@ -247,11 +253,35 @@ class GeoValue(object):
             yield '-'.join(bits)
             bits.pop()
 
-    def __cmp__(self, other):
-        return 0 if (self.continent_code == other.continent_code and
-                     self.country_code == other.country_code and
-                     self.subdivision_code == other.subdivision_code and
-                     self.values == other.values) else 1
+    def __eq__(self, other):
+        return ((self.continent_code, self.country_code, self.subdivision_code,
+                self.values) == (other.continent_code, other.country_code,
+                                 other.subdivision_code, other.values))
+
+    def __ne__(self, other):
+        return ((self.continent_code, self.country_code, self.subdivision_code,
+                self.values) != (other.continent_code, other.country_code,
+                                 other.subdivision_code, other.values))
+
+    def __lt__(self, other):
+        return ((self.continent_code, self.country_code, self.subdivision_code,
+                self.values) < (other.continent_code, other.country_code,
+                                other.subdivision_code, other.values))
+
+    def __le__(self, other):
+        return ((self.continent_code, self.country_code, self.subdivision_code,
+                self.values) <= (other.continent_code, other.country_code,
+                                 other.subdivision_code, other.values))
+
+    def __gt__(self, other):
+        return ((self.continent_code, self.country_code, self.subdivision_code,
+                self.values) > (other.continent_code, other.country_code,
+                                other.subdivision_code, other.values))
+
+    def __ge__(self, other):
+        return ((self.continent_code, self.country_code, self.subdivision_code,
+                self.values) >= (other.continent_code, other.country_code,
+                                 other.subdivision_code, other.values))
 
     def __repr__(self):
         return "'Geo {} {} {} {}'".format(self.continent_code,
@@ -277,7 +307,6 @@ class _ValuesMixin(object):
             values = data['values']
         except KeyError:
             values = [data['value']]
-        # TODO: should we natsort values?
         self.values = sorted(self._value_type.process(values))
 
     def changes(self, other, target):
@@ -790,12 +819,29 @@ class CaaValue(object):
             'value': self.value,
         }
 
-    def __cmp__(self, other):
-        if self.flags == other.flags:
-            if self.tag == other.tag:
-                return cmp(self.value, other.value)
-            return cmp(self.tag, other.tag)
-        return cmp(self.flags, other.flags)
+    def __eq__(self, other):
+        return ((self.flags, self.tag, self.value) ==
+                (other.flags, other.tag, other.value))
+
+    def __ne__(self, other):
+        return ((self.flags, self.tag, self.value) !=
+                (other.flags, other.tag, other.value))
+
+    def __lt__(self, other):
+        return ((self.flags, self.tag, self.value) <
+                (other.flags, other.tag, other.value))
+
+    def __le__(self, other):
+        return ((self.flags, self.tag, self.value) <=
+                (other.flags, other.tag, other.value))
+
+    def __gt__(self, other):
+        return ((self.flags, self.tag, self.value) >
+                (other.flags, other.tag, other.value))
+
+    def __ge__(self, other):
+        return ((self.flags, self.tag, self.value) >=
+                (other.flags, other.tag, other.value))
 
     def __repr__(self):
         return '{} {} "{}"'.format(self.flags, self.tag, self.value)
@@ -872,10 +918,29 @@ class MxValue(object):
             'exchange': self.exchange,
         }
 
-    def __cmp__(self, other):
-        if self.preference == other.preference:
-            return cmp(self.exchange, other.exchange)
-        return cmp(self.preference, other.preference)
+    def __eq__(self, other):
+        return ((self.preference, self.exchange) ==
+                (other.preference, other.exchange))
+
+    def __ne__(self, other):
+        return ((self.preference, self.exchange) !=
+                (other.preference, other.exchange))
+
+    def __lt__(self, other):
+        return ((self.preference, self.exchange) <
+                (other.preference, other.exchange))
+
+    def __le__(self, other):
+        return ((self.preference, self.exchange) <=
+                (other.preference, other.exchange))
+
+    def __gt__(self, other):
+        return ((self.preference, self.exchange) >
+                (other.preference, other.exchange))
+
+    def __ge__(self, other):
+        return ((self.preference, self.exchange) >=
+                (other.preference, other.exchange))
 
     def __repr__(self):
         return "'{} {}'".format(self.preference, self.exchange)
@@ -945,18 +1010,41 @@ class NaptrValue(object):
             'replacement': self.replacement,
         }
 
-    def __cmp__(self, other):
-        if self.order != other.order:
-            return cmp(self.order, other.order)
-        elif self.preference != other.preference:
-            return cmp(self.preference, other.preference)
-        elif self.flags != other.flags:
-            return cmp(self.flags, other.flags)
-        elif self.service != other.service:
-            return cmp(self.service, other.service)
-        elif self.regexp != other.regexp:
-            return cmp(self.regexp, other.regexp)
-        return cmp(self.replacement, other.replacement)
+    def __eq__(self, other):
+        return ((self.order, self.preference, self.flags, self.service,
+                 self.regexp, self.replacement) ==
+                (other.order, other.preference, other.flags, other.service,
+                 other.regexp, other.replacement))
+
+    def __ne__(self, other):
+        return ((self.order, self.preference, self.flags, self.service,
+                 self.regexp, self.replacement) !=
+                (other.order, other.preference, other.flags, other.service,
+                 other.regexp, other.replacement))
+
+    def __lt__(self, other):
+        return ((self.order, self.preference, self.flags, self.service,
+                 self.regexp, self.replacement) <
+                (other.order, other.preference, other.flags, other.service,
+                 other.regexp, other.replacement))
+
+    def __le__(self, other):
+        return ((self.order, self.preference, self.flags, self.service,
+                 self.regexp, self.replacement) <=
+                (other.order, other.preference, other.flags, other.service,
+                 other.regexp, other.replacement))
+
+    def __gt__(self, other):
+        return ((self.order, self.preference, self.flags, self.service,
+                 self.regexp, self.replacement) >
+                (other.order, other.preference, other.flags, other.service,
+                 other.regexp, other.replacement))
+
+    def __ge__(self, other):
+        return ((self.order, self.preference, self.flags, self.service,
+                 self.regexp, self.replacement) >=
+                (other.order, other.preference, other.flags, other.service,
+                 other.regexp, other.replacement))
 
     def __repr__(self):
         flags = self.flags if self.flags is not None else ''
@@ -1057,12 +1145,29 @@ class SshfpValue(object):
             'fingerprint': self.fingerprint,
         }
 
-    def __cmp__(self, other):
-        if self.algorithm != other.algorithm:
-            return cmp(self.algorithm, other.algorithm)
-        elif self.fingerprint_type != other.fingerprint_type:
-            return cmp(self.fingerprint_type, other.fingerprint_type)
-        return cmp(self.fingerprint, other.fingerprint)
+    def __eq__(self, other):
+        return ((self.algorithm, self.fingerprint_type, self.fingerprint) ==
+                (other.algorithm, other.fingerprint_type, other.fingerprint))
+
+    def __ne__(self, other):
+        return ((self.algorithm, self.fingerprint_type, self.fingerprint) !=
+                (other.algorithm, other.fingerprint_type, other.fingerprint))
+
+    def __lt__(self, other):
+        return ((self.algorithm, self.fingerprint_type, self.fingerprint) <
+                (other.algorithm, other.fingerprint_type, other.fingerprint))
+
+    def __le__(self, other):
+        return ((self.algorithm, self.fingerprint_type, self.fingerprint) <=
+                (other.algorithm, other.fingerprint_type, other.fingerprint))
+
+    def __gt__(self, other):
+        return ((self.algorithm, self.fingerprint_type, self.fingerprint) >
+                (other.algorithm, other.fingerprint_type, other.fingerprint))
+
+    def __ge__(self, other):
+        return ((self.algorithm, self.fingerprint_type, self.fingerprint) >=
+                (other.algorithm, other.fingerprint_type, other.fingerprint))
 
     def __repr__(self):
         return "'{} {} {}'".format(self.algorithm, self.fingerprint_type,
@@ -1178,14 +1283,29 @@ class SrvValue(object):
             'target': self.target,
         }
 
-    def __cmp__(self, other):
-        if self.priority != other.priority:
-            return cmp(self.priority, other.priority)
-        elif self.weight != other.weight:
-            return cmp(self.weight, other.weight)
-        elif self.port != other.port:
-            return cmp(self.port, other.port)
-        return cmp(self.target, other.target)
+    def __eq__(self, other):
+        return ((self.priority, self.weight, self.port, self.target) ==
+                (other.priority, other.weight, other.port, other.target))
+
+    def __ne__(self, other):
+        return ((self.priority, self.weight, self.port, self.target) !=
+                (other.priority, other.weight, other.port, other.target))
+
+    def __lt__(self, other):
+        return ((self.priority, self.weight, self.port, self.target) <
+                (other.priority, other.weight, other.port, other.target))
+
+    def __le__(self, other):
+        return ((self.priority, self.weight, self.port, self.target) <=
+                (other.priority, other.weight, other.port, other.target))
+
+    def __gt__(self, other):
+        return ((self.priority, self.weight, self.port, self.target) >
+                (other.priority, other.weight, other.port, other.target))
+
+    def __ge__(self, other):
+        return ((self.priority, self.weight, self.port, self.target) >=
+                (other.priority, other.weight, other.port, other.target))
 
     def __repr__(self):
         return "'{} {} {} {}'".format(self.priority, self.weight, self.port,
