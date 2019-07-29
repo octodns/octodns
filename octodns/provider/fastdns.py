@@ -51,8 +51,9 @@ class AkamaiClient(object):
         url = urljoin(self.base, path)
         resp = self._sess.request(method, url, params=params, json=data)
 
-        if resp.status_code > 299:
-            raise AkamaiClientException(resp)
+        if resp.status_code == 404:
+            raise AkamaiClientNotFound(resp)
+        resp.raise_for_status()
 
         return resp
 
