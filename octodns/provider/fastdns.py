@@ -19,7 +19,7 @@ class AkamaiClientNotFound(Exception):
 
     def __init__(self, resp):
         message = "404: Resource not found"
-        super(AkamaiClientException, self).__init__(message)
+        super(AkamaiClientNotFound, self).__init__(message)
 
 
 class AkamaiClient(object):
@@ -187,7 +187,7 @@ class AkamaiProvider(BaseProvider):
                 response = self._dns_client.zone_recordset_get(name)
                 self._zone_records[zone.name] = response.json()["recordsets"]
 
-            except (AkamaiClientException, KeyError):
+            except (AkamaiClientNotFound, KeyError):
                 return []
 
         return self._zone_records[zone.name]
@@ -231,7 +231,7 @@ class AkamaiProvider(BaseProvider):
         try:
             self._dns_client.zone_get(zone_name)
 
-        except AkamaiClientException:
+        except AkamaiClientNotFound:
             self.log.info("zone not found, creating zone")
             params = self._build_zone_config(zone_name)
             self._dns_client.zone_create(self._contractId, params, self._gid)
