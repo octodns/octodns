@@ -1,0 +1,598 @@
+[{
+	"id": 1808529,
+	"type": "CAA",
+	"recordType": "caa",
+	"name": "",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 3600,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565149569216,
+	"value": [{
+		"flag": 0,
+		"tag": "issue",
+		"data": "ca.unit.tests",
+		"caaProviderId": 1,
+		"disableFlag": false
+	}],
+	"roundRobin": [{
+		"flag": 0,
+		"tag": "issue",
+		"data": "ca.unit.tests",
+		"caaProviderId": 1,
+		"disableFlag": false
+	}]
+}, {
+	"id": 1808516,
+	"type": "A",
+	"recordType": "a",
+	"name": "",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 300,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565149623640,
+	"value": ["1.2.3.4", "1.2.3.5"],
+	"roundRobin": [{
+		"value": "1.2.3.4",
+		"disableFlag": false
+	}, {
+		"value": "1.2.3.5",
+		"disableFlag": false
+	}],
+	"geolocation": null,
+	"recordFailover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": []
+	},
+	"failover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": []
+	},
+	"roundRobinFailover": [],
+	"pools": [],
+	"poolsDetail": []
+}, {
+	"id": 1808527,
+	"type": "SRV",
+	"recordType": "srv",
+	"name": "_srv._tcp",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 600,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565149714387,
+	"value": [{
+		"value": "foo-1.unit.tests.",
+		"priority": 10,
+		"weight": 20,
+		"port": 30,
+		"disableFlag": false
+	}, {
+		"value": "foo-2.unit.tests.",
+		"priority": 12,
+		"weight": 20,
+		"port": 30,
+		"disableFlag": false
+	}],
+	"roundRobin": [{
+		"value": "foo-1.unit.tests.",
+		"priority": 10,
+		"weight": 20,
+		"port": 30,
+		"disableFlag": false
+	}, {
+		"value": "foo-2.unit.tests.",
+		"priority": 12,
+		"weight": 20,
+		"port": 30,
+		"disableFlag": false
+	}]
+}, {
+	"id": 1808515,
+	"type": "AAAA",
+	"recordType": "aaaa",
+	"name": "aaaa",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 600,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565149739464,
+	"value": ["2601:644:500:e210:62f8:1dff:feb8:947a"],
+	"roundRobin": [{
+		"value": "2601:644:500:e210:62f8:1dff:feb8:947a",
+		"disableFlag": false
+	}],
+	"geolocation": null,
+	"recordFailover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": []
+	},
+	"failover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": []
+	},
+	"pools": [],
+	"poolsDetail": [],
+	"roundRobinFailover": []
+}, {
+	"id": 1808530,
+	"type": "ANAME",
+	"recordType": "aname",
+	"name": "",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 1800,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565150251379,
+	"value": [{
+		"value": "aname.unit.tests.",
+		"disableFlag": false
+	}],
+	"roundRobin": [{
+		"value": "aname.unit.tests.",
+		"disableFlag": false
+	}],
+	"geolocation": null,
+	"recordFailover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": []
+	},
+	"failover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": []
+	},
+	"pools": [],
+	"poolsDetail": []
+}, {
+	"id": 1808521,
+	"type": "CNAME",
+	"recordType": "cname",
+	"name": "cname",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 300,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565152113825,
+	"value": "",
+	"roundRobin": [{
+		"value": "",
+		"disableFlag": false
+	}],
+	"recordFailover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": [{
+			"id": null,
+			"value": "",
+			"disableFlag": false,
+			"failedFlag": false,
+			"status": "N/A",
+			"sortOrder": 1,
+			"markedActive": false
+		}, {
+			"id": null,
+			"value": "",
+			"disableFlag": false,
+			"failedFlag": false,
+			"status": "N/A",
+			"sortOrder": 2,
+			"markedActive": false
+		}]
+	},
+	"failover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": [{
+			"id": null,
+			"value": "",
+			"disableFlag": false,
+			"failedFlag": false,
+			"status": "N/A",
+			"sortOrder": 1,
+			"markedActive": false
+		}, {
+			"id": null,
+			"value": "",
+			"disableFlag": false,
+			"failedFlag": false,
+			"status": "N/A",
+			"sortOrder": 2,
+			"markedActive": false
+		}]
+	},
+	"pools": [],
+	"poolsDetail": [],
+	"geolocation": null,
+	"host": ""
+}, {
+	"id": 1808522,
+	"type": "CNAME",
+	"recordType": "cname",
+	"name": "included",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 3600,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565152119137,
+	"value": "",
+	"roundRobin": [{
+		"value": "",
+		"disableFlag": false
+	}],
+	"recordFailover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": [{
+			"id": null,
+			"value": "",
+			"disableFlag": false,
+			"failedFlag": false,
+			"status": "N/A",
+			"sortOrder": 1,
+			"markedActive": false
+		}, {
+			"id": null,
+			"value": "",
+			"disableFlag": false,
+			"failedFlag": false,
+			"status": "N/A",
+			"sortOrder": 2,
+			"markedActive": false
+		}]
+	},
+	"failover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": [{
+			"id": null,
+			"value": "",
+			"disableFlag": false,
+			"failedFlag": false,
+			"status": "N/A",
+			"sortOrder": 1,
+			"markedActive": false
+		}, {
+			"id": null,
+			"value": "",
+			"disableFlag": false,
+			"failedFlag": false,
+			"status": "N/A",
+			"sortOrder": 2,
+			"markedActive": false
+		}]
+	},
+	"pools": [],
+	"poolsDetail": [],
+	"geolocation": null,
+	"host": ""
+}, {
+	"id": 1808523,
+	"type": "MX",
+	"recordType": "mx",
+	"name": "mx",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 300,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565149879856,
+	"value": [{
+		"value": "smtp-3.unit.tests.",
+		"level": 30,
+		"disableFlag": false
+	}, {
+		"value": "smtp-2.unit.tests.",
+		"level": 20,
+		"disableFlag": false
+	}, {
+		"value": "smtp-4.unit.tests.",
+		"level": 10,
+		"disableFlag": false
+	}, {
+		"value": "smtp-1.unit.tests.",
+		"level": 40,
+		"disableFlag": false
+	}],
+	"roundRobin": [{
+		"value": "smtp-3.unit.tests.",
+		"level": 30,
+		"disableFlag": false
+	}, {
+		"value": "smtp-2.unit.tests.",
+		"level": 20,
+		"disableFlag": false
+	}, {
+		"value": "smtp-4.unit.tests.",
+		"level": 10,
+		"disableFlag": false
+	}, {
+		"value": "smtp-1.unit.tests.",
+		"level": 40,
+		"disableFlag": false
+	}]
+}, {
+	"id": 1808525,
+	"type": "PTR",
+	"recordType": "ptr",
+	"name": "ptr",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 300,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565150115139,
+	"value": [{
+		"value": "foo.bar.com.",
+		"disableFlag": false
+	}],
+	"roundRobin": [{
+		"value": "foo.bar.com.",
+		"disableFlag": false
+	}]
+}, {
+	"id": 1808526,
+	"type": "SPF",
+	"recordType": "spf",
+	"name": "spf",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 600,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565149916132,
+	"value": [{
+		"value": "\"v=spf1 ip4:192.168.0.1/16-all\"",
+		"disableFlag": false
+	}],
+	"roundRobin": [{
+		"value": "\"v=spf1 ip4:192.168.0.1/16-all\"",
+		"disableFlag": false
+	}]
+}, {
+	"id": 1808528,
+	"type": "TXT",
+	"recordType": "txt",
+	"name": "txt",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 600,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565149966915,
+	"value": [{
+		"value": "\"Bah bah black sheep\"",
+		"disableFlag": false
+	}, {
+		"value": "\"have you any wool.\"",
+		"disableFlag": false
+	}, {
+		"value": "\"v=DKIM1;k=rsa;s=email;h=sha256;p=A/kinda+of/long/string+with+numb3rs\"",
+		"disableFlag": false
+	}],
+	"roundRobin": [{
+		"value": "\"Bah bah black sheep\"",
+		"disableFlag": false
+	}, {
+		"value": "\"have you any wool.\"",
+		"disableFlag": false
+	}, {
+		"value": "\"v=DKIM1;k=rsa;s=email;h=sha256;p=A/kinda+of/long/string+with+numb3rs\"",
+		"disableFlag": false
+	}]
+}, {
+	"id": 1808524,
+	"type": "NS",
+	"recordType": "ns",
+	"name": "under",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 3600,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565150062850,
+	"value": [{
+		"value": "ns1.unit.tests.",
+		"disableFlag": false
+	}, {
+		"value": "ns2",
+		"disableFlag": false
+	}],
+	"roundRobin": [{
+		"value": "ns1.unit.tests.",
+		"disableFlag": false
+	}, {
+		"value": "ns2",
+		"disableFlag": false
+	}]
+}, {
+	"id": 1808531,
+	"type": "HTTPRedirection",
+	"recordType": "httpredirection",
+	"name": "unsupported",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 300,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565150348154,
+	"value": "https://redirect.unit.tests",
+	"roundRobin": [{
+		"value": "https://redirect.unit.tests"
+	}],
+	"title": "Unsupported Record",
+	"keywords": "unsupported",
+	"description": "unsupported record",
+	"hardlinkFlag": false,
+	"redirectTypeId": 1,
+	"url": "https://redirect.unit.tests"
+}, {
+	"id": 1808519,
+	"type": "A",
+	"recordType": "a",
+	"name": "www",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 300,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565150079027,
+	"value": ["2.2.3.6"],
+	"roundRobin": [{
+		"value": "2.2.3.6",
+		"disableFlag": false
+	}],
+	"geolocation": null,
+	"recordFailover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": []
+	},
+	"failover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": []
+	},
+	"roundRobinFailover": [],
+	"pools": [],
+	"poolsDetail": []
+}, {
+	"id": 1808603,
+	"type": "ANAME",
+	"recordType": "aname",
+	"name": "sub",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 1800,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565153387855,
+	"value": [{
+		"value": "aname.unit.tests.",
+		"disableFlag": false
+	}],
+	"roundRobin": [{
+		"value": "aname.unit.tests.",
+		"disableFlag": false
+	}],
+	"geolocation": null,
+	"recordFailover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": []
+	},
+	"failover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": []
+	},
+	"pools": [],
+	"poolsDetail": []
+}, {
+	"id": 1808520,
+	"type": "A",
+	"recordType": "a",
+	"name": "www.sub",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 300,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565150090588,
+	"value": ["2.2.3.6"],
+	"roundRobin": [{
+		"value": "2.2.3.6",
+		"disableFlag": false
+	}],
+	"geolocation": null,
+	"recordFailover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": []
+	},
+	"failover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": []
+	},
+	"roundRobinFailover": [],
+	"pools": [],
+	"poolsDetail": []
+}]

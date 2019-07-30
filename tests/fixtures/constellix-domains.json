@@ -1,0 +1,28 @@
+[{
+	"id": 123123,
+	"name": "unit.tests",
+	"soa": {
+		"primaryNameserver": "ns11.constellix.com.",
+		"email": "dns.constellix.com.",
+		"ttl": 86400,
+		"serial": 2015010102,
+		"refresh": 43200,
+		"retry": 3600,
+		"expire": 1209600,
+		"negCache": 180
+	},
+	"createdTs": "2019-08-07T03:36:02Z",
+	"modifiedTs": "2019-08-07T03:36:02Z",
+	"typeId": 1,
+	"domainTags": [],
+	"folder": null,
+	"hasGtdRegions": false,
+	"hasGeoIP": false,
+	"nameserverGroup": 1,
+	"nameservers": ["ns11.constellix.com.", "ns21.constellix.com.", "ns31.constellix.com.", "ns41.constellix.net.", "ns51.constellix.net.", "ns61.constellix.net."],
+	"note": "",
+	"version": 0,
+	"status": "ACTIVE",
+	"tags": [],
+	"contactIds": []
+}]
