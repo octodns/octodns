@@ -54,6 +54,10 @@ class TestDnsMadeEasyProvider(TestCase):
             expected._remove_record(record)
             break
 
+    @staticmethod
+    def _fixture(filename):
+        return join(join(dirname(__file__), 'fixtures'), filename)
+
     def test_populate(self):
         provider = DnsMadeEasyProvider('test', 'api', 'secret')
 
@@ -89,8 +93,10 @@ class TestDnsMadeEasyProvider(TestCase):
 
         # Non-existent zone doesn't populate anything
         with requests_mock() as mock:
-            mock.get(ANY, status_code=404,
-                     text='<html><head></head><body></body></html>')
+            mock.get(ANY,
+                     status_code=404,
+                     text='<html><head></head><body></body></html>'
+                     )
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
@@ -99,9 +105,9 @@ class TestDnsMadeEasyProvider(TestCase):
         # No diffs == no changes
         with requests_mock() as mock:
             base = 'https://api.dnsmadeeasy.com/V2.0/dns/managed'
-            with open('tests/fixtures/dnsmadeeasy-domains.json') as fh:
+            with open(self._fixture('dnsmadeeasy-domains.json')) as fh:
                 mock.get('{}{}'.format(base, '/'), text=fh.read())
-            with open('tests/fixtures/dnsmadeeasy-records.json') as fh:
+            with open(self._fixture('dnsmadeeasy-records.json')) as fh:
                 mock.get('{}{}'.format(base, '/123123/records'),
                          text=fh.read())
 
@@ -127,7 +133,7 @@ class TestDnsMadeEasyProvider(TestCase):
         resp.json = Mock()
         provider._client._request = Mock(return_value=resp)
 
-        with open('tests/fixtures/dnsmadeeasy-domains.json') as fh:
+        with open(self._fixture('dnsmadeeasy-domains.json')) as fh:
             domains = json.load(fh)
 
         # non-existent domain, create everything

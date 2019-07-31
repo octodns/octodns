@@ -7,3 +7,4 @@ pycountry_convert>=0.7.2
 pyflakes==1.6.0
 requests_mock
 twine==1.13.0
+requests_mock
