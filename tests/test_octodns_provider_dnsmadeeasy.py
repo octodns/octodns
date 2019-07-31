@@ -63,8 +63,10 @@ class TestDnsMadeEasyProvider(TestCase):
 
         # Bad auth
         with requests_mock() as mock:
-            mock.get(ANY, status_code=401,
-                     text='{"error": ["API key not found"]}')
+            mock.get(ANY,
+                     status_code=401,
+                     text='{"error": ["API key not found"]}'
+                     )
 
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
@@ -73,8 +75,10 @@ class TestDnsMadeEasyProvider(TestCase):
 
         # Bad request
         with requests_mock() as mock:
-            mock.get(ANY, status_code=400,
-                     text='{"error": ["Rate limit exceeded"]}')
+            mock.get(ANY,
+                     status_code=400,
+                     text='{"error": ["Rate limit exceeded"]}'
+                     )
 
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
@@ -84,7 +88,10 @@ class TestDnsMadeEasyProvider(TestCase):
 
         # General error
         with requests_mock() as mock:
-            mock.get(ANY, status_code=502, text='Things caught fire')
+            mock.get(ANY,
+                     status_code=502,
+                     text='Things caught fire'
+                     )
 
             with self.assertRaises(HTTPError) as ctx:
                 zone = Zone('unit.tests.', [])

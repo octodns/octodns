@@ -1,0 +1,779 @@
+[
+  {
+    "id": 1779809,
+    "type": "CAA",
+    "recordType": "caa",
+    "name": "caa-fifi",
+    "recordOption": "roundRobin",
+    "noAnswer": false,
+    "note": "",
+    "ttl": 180,
+    "gtdRegion": 1,
+    "parentId": 92218,
+    "parent": "domain",
+    "source": "Domain",
+    "modifiedTs": 1564670428900,
+    "value": [
+      {
+        "flag": 10,
+        "tag": "issue",
+        "data": "amazon.com",
+        "caaProviderId": 15,
+        "disableFlag": false
+      },
+      {
+        "flag": 12,
+        "tag": "issue",
+        "data": "certum.pl",
+        "caaProviderId": 16,
+        "disableFlag": false
+      }
+    ],
+    "roundRobin": [
+      {
+        "flag": 10,
+        "tag": "issue",
+        "data": "amazon.com",
+        "caaProviderId": 15,
+        "disableFlag": false
+      },
+      {
+        "flag": 12,
+        "tag": "issue",
+        "data": "certum.pl",
+        "caaProviderId": 16,
+        "disableFlag": false
+      }
+    ]
+  },
+  {
+    "failover": false,
+    "monitor": false,
+    "sourceId": 123123,
+    "dynamicDns": false,
+    "failed": false,
+    "gtdLocation": "DEFAULT",
+    "hardLink": false,
+    "ttl": 300,
+    "source": 1,
+    "name": "",
+    "value": "1.2.3.4",
+    "id": 11189875,
+    "type": "A"
+  },
+  {
+    "failover": false,
+    "monitor": false,
+    "sourceId": 123123,
+    "dynamicDns": false,
+    "failed": false,
+    "gtdLocation": "DEFAULT",
+    "hardLink": false,
+    "ttl": 300,
+    "source": 1,
+    "name": "",
+    "value": "1.2.3.5",
+    "id": 11189876,
+    "type": "A"
+  },
+  {
+    "id": 1779826,
+    "type": "SRV",
+    "recordType": "srv",
+    "name": "_honda-srv._tcp",
+    "recordOption": "roundRobin",
+    "noAnswer": false,
+    "note": "",
+    "ttl": 180,
+    "gtdRegion": 1,
+    "parentId": 92218,
+    "parent": "domain",
+    "source": "Domain",
+    "modifiedTs": 1564671055984,
+    "value": [
+      {
+        "value": "electric-cars.com",
+        "priority": 10,
+        "weight": 33,
+        "port": 8080,
+        "disableFlag": false
+      },
+      {
+        "value": "no-electric-cars.com",
+        "priority": 20,
+        "weight": 22,
+        "port": 8181,
+        "disableFlag": false
+      },
+      {
+        "value": "",
+        "priority": 20,
+        "weight": 22,
+        "port": 8182,
+        "disableFlag": false
+      }
+    ],
+    "roundRobin": [
+      {
+        "value": "electric-cars.com",
+        "priority": 10,
+        "weight": 33,
+        "port": 8080,
+        "disableFlag": false
+      },
+      {
+        "value": "no-electric-cars.com",
+        "priority": 20,
+        "weight": 22,
+        "port": 8181,
+        "disableFlag": false
+      }
+    ]
+  },
+  {
+    "id": 1779837,
+    "type": "SRV",
+    "recordType": "srv",
+    "name": "_space-rec-vehicle._tcp",
+    "recordOption": "roundRobin",
+    "noAnswer": false,
+    "note": "",
+    "ttl": 180,
+    "gtdRegion": 1,
+    "parentId": 92218,
+    "parent": "domain",
+    "source": "Domain",
+    "modifiedTs": 1564671529334,
+    "value": [
+      {
+        "value": "explore-space",
+        "priority": 10,
+        "weight": 33,
+        "port": 1111,
+        "disableFlag": false
+      },
+      {
+        "value": "space-vacations",
+        "priority": 20,
+        "weight": 22,
+        "port": 2222,
+        "disableFlag": false
+      }
+    ],
+    "roundRobin": [
+      {
+        "value": "explore-space",
+        "priority": 10,
+        "weight": 33,
+        "port": 1111,
+        "disableFlag": false
+      },
+      {
+        "value": "space-vacations",
+        "priority": 20,
+        "weight": 22,
+        "port": 2222,
+        "disableFlag": false
+      }
+    ]
+  },
+  {
+    "failover": false,
+    "monitor": false,
+    "sourceId": 123123,
+    "dynamicDns": false,
+    "failed": false,
+    "gtdLocation": "DEFAULT",
+    "hardLink": false,
+    "ttl": 600,
+    "source": 1,
+    "name": "aaaa",
+    "value": "2601:644:500:e210:62f8:1dff:feb8:947a",
+    "id": 11189879,
+    "type": "AAAA"
+  },
+  {
+    "id": 1779864,
+    "type": "CNAME",
+    "recordType": "cname",
+    "name": "sea-rise",
+    "recordOption": "roundRobin",
+    "noAnswer": false,
+    "note": "",
+    "ttl": 180,
+    "gtdRegion": 1,
+    "parentId": 92218,
+    "parent": "domain",
+    "source": "Domain",
+    "modifiedTs": 1564672838111,
+    "value": "climate-change.org",
+    "roundRobin": [
+      {
+        "value": "climate-change.org",
+        "disableFlag": false
+      }
+    ],
+    "recordFailover": {
+      "disabled": false,
+      "failoverType": 1,
+      "failoverTypeStr": "Normal (always lowest level)",
+      "values": [
+        {
+          "id": null,
+          "value": "",
+          "disableFlag": false,
+          "failedFlag": false,
+          "status": "N/A",
+          "sortOrder": 1,
+          "markedActive": false
+        },
+        {
+          "id": null,
+          "value": "",
+          "disableFlag": false,
+          "failedFlag": false,
+          "status": "N/A",
+          "sortOrder": 2,
+          "markedActive": false
+        }
+      ]
+    },
+    "failover": {
+      "disabled": false,
+      "failoverType": 1,
+      "failoverTypeStr": "Normal (always lowest level)",
+      "values": [
+        {
+          "id": null,
+          "value": "",
+          "disableFlag": false,
+          "failedFlag": false,
+          "status": "N/A",
+          "sortOrder": 1,
+          "markedActive": false
+        },
+        {
+          "id": null,
+          "value": "",
+          "disableFlag": false,
+          "failedFlag": false,
+          "status": "N/A",
+          "sortOrder": 2,
+          "markedActive": false
+        }
+      ]
+    },
+    "pools": [],
+    "poolsDetail": [],
+    "geolocation": null,
+    "host": "climate-change.org"
+  },
+  {
+    "id": 1779879,
+    "type": "CNAME",
+    "recordType": "cname",
+    "name": "see",
+    "recordOption": "roundRobin",
+    "noAnswer": false,
+    "note": "",
+    "ttl": 180,
+    "gtdRegion": 1,
+    "parentId": 92218,
+    "parent": "domain",
+    "source": "Domain",
+    "modifiedTs": 1564673014241,
+    "value": "me.home.com.",
+    "roundRobin": [
+      {
+        "value": "me.home.com.",
+        "disableFlag": false
+      }
+    ],
+    "recordFailover": {
+      "disabled": false,
+      "failoverType": 1,
+      "failoverTypeStr": "Normal (always lowest level)",
+      "values": [
+        {
+          "id": null,
+          "value": "",
+          "disableFlag": false,
+          "failedFlag": false,
+          "status": "N/A",
+          "sortOrder": 1,
+          "markedActive": false
+        },
+        {
+          "id": null,
+          "value": "",
+          "disableFlag": false,
+          "failedFlag": false,
+          "status": "N/A",
+          "sortOrder": 2,
+          "markedActive": false
+        }
+      ]
+    },
+    "failover": {
+      "disabled": false,
+      "failoverType": 1,
+      "failoverTypeStr": "Normal (always lowest level)",
+      "values": [
+        {
+          "id": null,
+          "value": "",
+          "disableFlag": false,
+          "failedFlag": false,
+          "status": "N/A",
+          "sortOrder": 1,
+          "markedActive": false
+        },
+        {
+          "id": null,
+          "value": "",
+          "disableFlag": false,
+          "failedFlag": false,
+          "status": "N/A",
+          "sortOrder": 2,
+          "markedActive": false
+        }
+      ]
+    },
+    "pools": [],
+    "poolsDetail": [],
+    "geolocation": null,
+    "host": "me.home.com."
+  },
+  {
+    "id": 1779272,
+    "type": "NAPTR",
+    "recordType": "naptr",
+    "name": "naptr-groove",
+    "recordOption": "roundRobin",
+    "noAnswer": false,
+    "note": "",
+    "ttl": 180,
+    "gtdRegion": 1,
+    "parentId": 92218,
+    "parent": "domain",
+    "source": "Domain",
+    "modifiedTs": 1564657923528,
+    "value": [
+      {
+        "order": 10,
+        "preference": 10,
+        "flags": "U",
+        "service": "tcp+rs",
+        "regularExpression": "10",
+        "replacement": "10",
+        "disableFlag": false
+      }
+    ],
+    "roundRobin": [
+      {
+        "order": 10,
+        "preference": 10,
+        "flags": "\"U\"",
+        "service": "tcp+rs",
+        "regularExpression": "10",
+        "replacement": "10",
+        "disableFlag": false
+      }
+    ]
+  },
+  {
+    "id": 1783604,
+    "type": "NAPTR",
+    "recordType": "naptr",
+    "name": "naptr-tea",
+    "recordOption": "roundRobin",
+    "noAnswer": false,
+    "note": "",
+    "ttl": 180,
+    "gtdRegion": 1,
+    "parentId": 92218,
+    "parent": "domain",
+    "source": "Domain",
+    "modifiedTs": 1564746124410,
+    "value": [
+      {
+        "order": 20,
+        "preference": 22,
+        "flags": "A",
+        "service": "tcp+rs",
+        "regularExpression": "10",
+        "replacement": "10",
+        "disableFlag": false
+      }
+    ],
+    "roundRobin": [
+      {
+        "order": 20,
+        "preference": 22,
+        "flags": "A",
+        "service": "tcp+rs",
+        "regularExpression": "10",
+        "replacement": "10",
+        "disableFlag": false
+      }
+    ]
+  },
+  {
+    "id": 1779921,
+    "type": "MX",
+    "recordType": "mx",
+    "name": "",
+    "recordOption": "roundRobin",
+    "noAnswer": false,
+    "note": "",
+    "ttl": 180,
+    "gtdRegion": 1,
+    "parentId": 92218,
+    "parent": "domain",
+    "source": "Domain",
+    "modifiedTs": 1564674532267,
+    "value": [
+      {
+        "value": "paper-mail.us.com",
+        "level": 10,
+        "disableFlag": false
+      },
+      {
+        "value": "paper-mill.uk.org",
+        "level": 20,
+        "disableFlag": false
+      }
+    ],
+    "roundRobin": [
+      {
+        "value": "paper-mail.us.com",
+        "level": 10,
+        "disableFlag": false
+      },
+      {
+        "value": "paper-mill.uk.org",
+        "level": 20,
+        "disableFlag": false
+      }
+    ]
+  },
+  {
+    "id": 1779923,
+    "type": "MX",
+    "recordType": "mx",
+    "name": "more",
+    "recordOption": "roundRobin",
+    "noAnswer": false,
+    "note": "",
+    "ttl": 180,
+    "gtdRegion": 1,
+    "parentId": 92218,
+    "parent": "domain",
+    "source": "Domain",
+    "modifiedTs": 1564674603080,
+    "value": [
+      {
+        "value": "junk-mail.com",
+        "level": 10,
+        "disableFlag": false
+      }
+    ],
+    "roundRobin": [
+      {
+        "value": "junk-mail.com",
+        "level": 10,
+        "disableFlag": false
+      }
+    ]
+  },
+  {
+    "id": 1779923,
+    "type": "MX",
+    "recordType": "mx",
+    "name": "more",
+    "recordOption": "roundRobin",
+    "noAnswer": false,
+    "note": "",
+    "ttl": 180,
+    "gtdRegion": 1,
+    "parentId": 92218,
+    "parent": "domain",
+    "source": "Domain",
+    "modifiedTs": 1564674603080,
+    "value": [
+      {
+        "value": "junk-mail.com",
+        "level": 10,
+        "disableFlag": false
+      }
+    ],
+    "roundRobin": [
+      {
+        "value": "junk-mail.com",
+        "level": 10,
+        "disableFlag": false
+      }
+    ]
+  },
+  {
+    "id": 1779924,
+    "type": "MX",
+    "recordType": "mx",
+    "name": "mxee",
+    "recordOption": "roundRobin",
+    "noAnswer": false,
+    "note": "",
+    "ttl": 180,
+    "gtdRegion": 1,
+    "parentId": 92218,
+    "parent": "domain",
+    "source": "Domain",
+    "modifiedTs": 1564674629939,
+    "value": [
+      {
+        "value": "hexee.com",
+        "level": 10,
+        "disableFlag": false
+      }
+    ],
+    "roundRobin": [
+      {
+        "value": "hexee.com",
+        "level": 10,
+        "disableFlag": false
+      }
+    ]
+  },
+  {
+    "failover": false,
+    "monitor": false,
+    "sourceId": 123123,
+    "dynamicDns": false,
+    "failed": false,
+    "gtdLocation": "DEFAULT",
+    "hardLink": false,
+    "ttl": 600,
+    "source": 1,
+    "name": "spf",
+    "value": "\"v=spf1 ip4:192.168.0.1/16-all\"",
+    "id": 11189886,
+    "type": "SPF"
+  },
+  {
+    "id": 1779915,
+    "type": "TXT",
+    "recordType": "txt",
+    "name": "latex-record",
+    "recordOption": "roundRobin",
+    "noAnswer": false,
+    "note": "",
+    "ttl": 180,
+    "gtdRegion": 1,
+    "parentId": 92218,
+    "parent": "domain",
+    "source": "Domain",
+    "modifiedTs": 1564674324281,
+    "value": [
+      {
+        "value": "\"hemming and hawing\"",
+        "disableFlag": false
+      },
+      {
+        "value": "\"and hawing and hemming\"",
+        "disableFlag": false
+      }
+    ],
+    "roundRobin": [
+      {
+        "value": "\"hemming and hawing\"",
+        "disableFlag": false
+      },
+      {
+        "value": "\"and hawing and hemming\"",
+        "disableFlag": false
+      }
+    ]
+  },
+  {
+    "id": 1779918,
+    "type": "TXT",
+    "recordType": "txt",
+    "name": "trees",
+    "recordOption": "roundRobin",
+    "noAnswer": false,
+    "note": "",
+    "ttl": 180,
+    "gtdRegion": 1,
+    "parentId": 92218,
+    "parent": "domain",
+    "source": "Domain",
+    "modifiedTs": 1564674438215,
+    "value": [
+      {
+        "value": "\"and shrubs and bushes\"",
+        "disableFlag": false
+      }
+    ],
+    "roundRobin": [
+      {
+        "value": "\"and shrubs and bushes\"",
+        "disableFlag": false
+      }
+    ]
+  },
+  {
+    "id": 1779917,
+    "type": "TXT",
+    "recordType": "txt",
+    "name": "well-well",
+    "recordOption": "roundRobin",
+    "noAnswer": false,
+    "note": "",
+    "ttl": 180,
+    "gtdRegion": 1,
+    "parentId": 92218,
+    "parent": "domain",
+    "source": "Domain",
+    "modifiedTs": 1564674397916,
+    "value": [
+      {
+        "value": "\"well, well, well\"",
+        "disableFlag": false
+      }
+    ],
+    "roundRobin": [
+      {
+        "value": "\"well, well, well\"",
+        "disableFlag": false
+      }
+    ]
+  },
+  {
+    "failover": false,
+    "monitor": false,
+    "sourceId": 123123,
+    "dynamicDns": false,
+    "failed": false,
+    "gtdLocation": "DEFAULT",
+    "hardLink": false,
+    "ttl": 3600,
+    "source": 1,
+    "name": "under",
+    "value": "ns1.unit.tests.",
+    "id": 11189890,
+    "type": "NS"
+  },
+  {
+    "failover": false,
+    "monitor": false,
+    "sourceId": 123123,
+    "dynamicDns": false,
+    "failed": false,
+    "gtdLocation": "DEFAULT",
+    "hardLink": false,
+    "ttl": 3600,
+    "source": 1,
+    "name": "under",
+    "value": "ns2",
+    "id": 11189891,
+    "type": "NS"
+  },
+  {
+    "failover": false,
+    "monitor": false,
+    "sourceId": 123123,
+    "dynamicDns": false,
+    "failed": false,
+    "gtdLocation": "DEFAULT",
+    "hardLink": false,
+    "ttl": 300,
+    "source": 1,
+    "name": "www",
+    "value": "2.2.3.6",
+    "id": 11189892,
+    "type": "A"
+  },
+  {
+    "failover": false,
+    "monitor": false,
+    "sourceId": 123123,
+    "dynamicDns": false,
+    "failed": false,
+    "gtdLocation": "DEFAULT",
+    "hardLink": false,
+    "ttl": 300,
+    "source": 1,
+    "name": "www.sub",
+    "value": "2.2.3.6",
+    "id": 11189893,
+    "type": "A"
+  },
+  {
+    "failover": false,
+    "monitor": false,
+    "sourceId": 123123,
+    "dynamicDns": false,
+    "failed": false,
+    "gtdLocation": "DEFAULT",
+    "hardLink": false,
+    "ttl": 300,
+    "source": 1,
+    "name": "ptr",
+    "value": "foo.bar.com.",
+    "id": 11189894,
+    "type": "PTR"
+  },
+  {
+    "failover": false,
+    "monitor": false,
+    "sourceId": 123123,
+    "dynamicDns": false,
+    "failed": false,
+    "gtdLocation": "DEFAULT",
+    "hardLink": false,
+    "ttl": 1800,
+    "source": 1,
+    "name": "",
+    "value": [
+      {"disableFlag": false , "value": "aname.unit.tests."}
+    ],
+    "id": 11189895,
+    "type": "ANAME"
+  },
+  {
+    "failover": false,
+    "monitor": false,
+    "sourceId": 123123,
+    "dynamicDns": false,
+    "failed": false,
+    "gtdLocation": "DEFAULT",
+    "hardLink": false,
+    "ttl": 1800,
+    "source": 1,
+    "name": "sub",
+    "value": [
+      {"disableFlag": false , "value": "aname."}
+    ],
+    "id": 11189896,
+    "type": "ANAME"
+  },
+  {
+    "failover": false,
+    "monitor": false,
+    "sourceId": 123123,
+    "dynamicDns": false,
+    "failed": false,
+    "gtdLocation": "DEFAULT",
+    "hardLink": true,
+    "ttl": 1800,
+    "source": 1,
+    "name": "unsupported",
+    "value": "https://redirect.unit.tests",
+    "id": 11189897,
+    "title": "Unsupported Record",
+    "keywords": "unsupported",
+    "redirectType": "Standard - 302",
+    "description": "unsupported record",
+    "type": "HTTPRED"
+  }
+]

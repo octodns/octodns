@@ -1,0 +1,107 @@
+[
+    {
+        "id": 123123,
+        "name": "unit.tests",
+        "soa": {
+            "primaryNameserver": "ns11.constellix.com.",
+            "email": "dns.constellix.com.",
+            "ttl": 86400,
+            "serial": 2015010118,
+            "refresh": 43200,
+            "retry": 3600,
+            "expire": 1209600,
+            "negCache": 180
+        },
+        "createdTs": "2019-08-02T12:52:10Z",
+        "modifiedTs": "2019-08-13T11:45:59Z",
+        "typeId": 1,
+        "domainTags": [],
+        "folder": null,
+        "hasGtdRegions": false,
+        "hasGeoIP": false,
+        "nameserverGroup": 1,
+        "nameservers": [
+            "ns11.constellix.com.",
+            "ns21.constellix.com.",
+            "ns31.constellix.com.",
+            "ns41.constellix.net.",
+            "ns51.constellix.net.",
+            "ns61.constellix.net."
+        ],
+        "note": "",
+        "version": 17,
+        "status": "ACTIVE",
+        "tags": null,
+        "contactIds": []
+    },
+    {
+        "id": 92218,
+        "name": "test314.domain.hem",
+        "soa": {
+            "primaryNameserver": "ns11.constellix.com.",
+            "email": "dns.constellix.com.",
+            "ttl": 86400,
+            "serial": 2015010121,
+            "refresh": 43200,
+            "retry": 3600,
+            "expire": 1209600,
+            "negCache": 180
+        },
+        "createdTs": "2019-07-16T17:59:55Z",
+        "modifiedTs": "2019-08-02T12:15:29Z",
+        "typeId": 1,
+        "domainTags": [],
+        "folder": null,
+        "hasGtdRegions": false,
+        "hasGeoIP": false,
+        "nameserverGroup": 1,
+        "nameservers": [
+            "ns11.constellix.com.",
+            "ns21.constellix.com.",
+            "ns31.constellix.com.",
+            "ns41.constellix.net.",
+            "ns51.constellix.net.",
+            "ns61.constellix.net."
+        ],
+        "note": "",
+        "version": 20,
+        "status": "ACTIVE",
+        "tags": null,
+        "contactIds": []
+    },
+    {
+        "id": 14374,
+        "name": "testing.domain.info",
+        "soa": {
+            "primaryNameserver": "ns11.constellix.com.",
+            "email": "dns.constellix.com.",
+            "ttl": 86400,
+            "serial": 2015016448,
+            "refresh": 43200,
+            "retry": 3600,
+            "expire": 1209600,
+            "negCache": 180
+        },
+        "createdTs": "2017-12-26T18:32:13Z",
+        "modifiedTs": "2019-07-18T14:13:19Z",
+        "typeId": 1,
+        "domainTags": [],
+        "folder": null,
+        "hasGtdRegions": false,
+        "hasGeoIP": false,
+        "nameserverGroup": 1,
+        "nameservers": [
+            "ns11.constellix.com.",
+            "ns21.constellix.com.",
+            "ns31.constellix.com.",
+            "ns41.constellix.net.",
+            "ns51.constellix.net.",
+            "ns61.constellix.net."
+        ],
+        "note": "",
+        "version": 6345,
+        "status": "ACTIVE",
+        "tags": [],
+        "contactIds": []
+    }
+]
