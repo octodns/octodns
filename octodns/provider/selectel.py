@@ -28,7 +28,7 @@ class SelectelProvider(BaseProvider):
 
     MIN_TTL = 60
 
-    LIMIT = 50
+    PAGINATION_LIMIT = 50
 
     API_URL = 'https://api.selectel.ru/domains/v1'
 
@@ -69,9 +69,9 @@ class SelectelProvider(BaseProvider):
 
     def _request_with_pagination(self, path, total_count):
         result = []
-        for offset in range(0, total_count, self.LIMIT):
+        for offset in range(0, total_count, self.PAGINATION_LIMIT):
             result += self._request('GET', path,
-                                    params={'limit': self.LIMIT,
+                                    params={'limit': self.PAGINATION_LIMIT,
                                             'offset': offset})
         return result
 
