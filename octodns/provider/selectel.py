@@ -81,6 +81,8 @@ class SelectelProvider(BaseProvider):
             new = change.new.data
             new['ttl'] = max(self.MIN_TTL, new['ttl'])
             if new == existing:
+                self.log.debug('_include_changes: new=%s, found existing=%s',
+                               new, existing)
                 return False
         return True
 
