@@ -528,13 +528,13 @@ def _mod_keyer(mod):
     # before all changes, followed by a "CREATE", internally in the AWS API.
     # Because of this, we order changes as follows:
     #   - Delete any records that we wish to delete that are GEOS
-    #      (because they are never targetted by anything)
+    #      (because they are never targeted by anything)
     #   - Delete any records that we wish to delete that are SECONDARY
-    #      (because they are no longer targetted by GEOS)
+    #      (because they are no longer targeted by GEOS)
     #   - Delete any records that we wish to delete that are PRIMARY
-    #      (because they are no longer targetted by SECONDARY)
+    #      (because they are no longer targeted by SECONDARY)
     #   - Delete any records that we wish to delete that are VALUES
-    #      (because they are no longer targetted by PRIMARY)
+    #      (because they are no longer targeted by PRIMARY)
     #   - CREATE/UPSERT any records that are VALUES
     #      (because they don't depend on other records)
     #   - CREATE/UPSERT any records that are PRIMARY
@@ -1028,7 +1028,7 @@ class Route53Provider(BaseProvider):
             .get('healthcheck', {}) \
             .get('measure_latency', True)
 
-    def _health_check_equivilent(self, host, path, protocol, port,
+    def _health_check_equivalent(self, host, path, protocol, port,
                                  measure_latency, health_check, value=None):
         config = health_check['HealthCheckConfig']
 
@@ -1080,7 +1080,7 @@ class Route53Provider(BaseProvider):
             if not health_check['CallerReference'].startswith(expected_ref):
                 # not match, ignore
                 continue
-            if self._health_check_equivilent(healthcheck_host,
+            if self._health_check_equivalent(healthcheck_host,
                                              healthcheck_path,
                                              healthcheck_protocol,
                                              healthcheck_port,
@@ -1237,7 +1237,7 @@ class Route53Provider(BaseProvider):
             health_check = self.health_checks[health_check_id]
             caller_ref = health_check['CallerReference']
             if caller_ref.startswith(self.HEALTH_CHECK_VERSION):
-                if self._health_check_equivilent(healthcheck_host,
+                if self._health_check_equivalent(healthcheck_host,
                                                  healthcheck_path,
                                                  healthcheck_protocol,
                                                  healthcheck_port,
