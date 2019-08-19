@@ -723,7 +723,7 @@ class Route53Provider(BaseProvider):
     def _data_for_CAA(self, rrset):
         values = []
         for rr in rrset['ResourceRecords']:
-            flags, tag, value = rr['Value'].split(' ')
+            flags, tag, value = rr['Value'].split()
             values.append({
                 'flags': flags,
                 'tag': tag,
@@ -761,7 +761,7 @@ class Route53Provider(BaseProvider):
     def _data_for_MX(self, rrset):
         values = []
         for rr in rrset['ResourceRecords']:
-            preference, exchange = rr['Value'].split(' ')
+            preference, exchange = rr['Value'].split()
             values.append({
                 'preference': preference,
                 'exchange': exchange,
@@ -776,7 +776,7 @@ class Route53Provider(BaseProvider):
         values = []
         for rr in rrset['ResourceRecords']:
             order, preference, flags, service, regexp, replacement = \
-                rr['Value'].split(' ')
+                rr['Value'].split()
             flags = flags[1:-1]
             service = service[1:-1]
             regexp = regexp[1:-1]
@@ -804,7 +804,7 @@ class Route53Provider(BaseProvider):
     def _data_for_SRV(self, rrset):
         values = []
         for rr in rrset['ResourceRecords']:
-            priority, weight, port, target = rr['Value'].split(' ')
+            priority, weight, port, target = rr['Value'].split()
             values.append({
                 'priority': priority,
                 'weight': weight,

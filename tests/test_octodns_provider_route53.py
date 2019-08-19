@@ -503,7 +503,7 @@ class TestRoute53Provider(TestCase):
                 'ResourceRecords': [{
                     'Value': '10 smtp-1.unit.tests.',
                 }, {
-                    'Value': '20 smtp-2.unit.tests.',
+                    'Value': '20  smtp-2.unit.tests.',
                 }],
                 'TTL': 64,
             }, {
