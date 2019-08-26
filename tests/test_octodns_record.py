@@ -749,11 +749,11 @@ class TestRecord(TestCase):
         txt = Record.new(self.zone, 'txt', {
             'ttl': 44,
             'type': 'TXT',
-            'value': 'some text',
+            'value': '"some" "text"',
         })
         self.assertIsInstance(txt, TxtRecord)
         self.assertEquals('TXT', txt._type)
-        self.assertEquals(['some text'], txt.values)
+        self.assertEquals(['"some" "text"'], txt.values)
 
         # Missing type
         with self.assertRaises(Exception) as ctx:
