@@ -93,8 +93,11 @@ class CloudflareProvider(BaseProvider):
         self.log.debug('_request: method=%s, path=%s', method, path)
 
         url = 'https://api.cloudflare.com/client/v4{}'.format(path)
-        resp = self._sess.request(method, url, params=params, json=data,
+        req = requests.Request(method, url, params=params, json=data,
                                   timeout=self.TIMEOUT)
+        prepped = req.prepare()
+        self.log.debug('_request: \n %s', prepped)
+        resp = self._sess.send(prepped)
         self.log.debug('_request:   status=%d', resp.status_code)
         if resp.status_code == 400:
             raise CloudflareError(resp.json())
