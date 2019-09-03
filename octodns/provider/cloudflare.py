@@ -37,7 +37,8 @@ class CloudflareProvider(BaseProvider):
 
     cloudflare:
         class: octodns.provider.cloudflare.CloudflareProvider
-        # Your Cloudflare account email address (optional if using Cloudflare API tokens)
+        # Your Cloudflare account email address (optional)
+        # Only required if using Global API keys
         email: dns-manager@example.com
         # The api key (required)
         token: foo
