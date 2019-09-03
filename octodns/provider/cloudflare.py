@@ -37,8 +37,8 @@ class CloudflareProvider(BaseProvider):
 
     cloudflare:
         class: octodns.provider.cloudflare.CloudflareProvider
-        # Your Cloudflare account email address (optional)
-        # Only required if using Global API keys
+        # Your Cloudflare account email address (required)
+        # Use '' if using new scoped API keys
         email: dns-manager@example.com
         # The api key (required)
         token: foo
@@ -67,14 +67,14 @@ class CloudflareProvider(BaseProvider):
     MIN_TTL = 120
     TIMEOUT = 15
 
-    def __init__(self, id, email="", token, cdn=False, *args, **kwargs):
+    def __init__(self, id, email, token, cdn=False, *args, **kwargs):
         self.log = getLogger('CloudflareProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, email=%s, token=***, cdn=%s', id,
                        email, cdn)
         super(CloudflareProvider, self).__init__(id, *args, **kwargs)
 
         sess = Session()
-        if email == "":
+        if type(email) == 'NoneType':
             sess.headers.update({
                 'Authorization': 'Bearer {}'.format(token)
             })
