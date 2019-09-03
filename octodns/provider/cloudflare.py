@@ -93,8 +93,7 @@ class CloudflareProvider(BaseProvider):
         self.log.debug('_request: method=%s, path=%s', method, path)
 
         url = 'https://api.cloudflare.com/client/v4{}'.format(path)
-        req = Request(method, url, params=params, json=data,
-                                  timeout=self.TIMEOUT)
+        req = Request(method, url, params=params, json=data)
         prepped = req.prepare()
         self.log.debug('_request: \n %s', prepped)
         resp = self._sess.send(prepped)
