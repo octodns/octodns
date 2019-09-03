@@ -8,7 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 from collections import defaultdict
 from copy import deepcopy
 from logging import getLogger
-from requests import Session
+from requests import Session, Request
 
 from ..record import Record, Update
 from .base import BaseProvider
@@ -93,7 +93,7 @@ class CloudflareProvider(BaseProvider):
         self.log.debug('_request: method=%s, path=%s', method, path)
 
         url = 'https://api.cloudflare.com/client/v4{}'.format(path)
-        req = requests.Request(method, url, params=params, json=data,
+        req = Request(method, url, params=params, json=data,
                                   timeout=self.TIMEOUT)
         prepped = req.prepare()
         self.log.debug('_request: \n %s', prepped)
