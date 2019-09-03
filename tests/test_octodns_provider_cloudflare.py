@@ -1209,3 +1209,112 @@ class TestCloudflareProvider(TestCase):
         self.assertFalse(
             extra_changes[0].new._octodns['cloudflare']['proxied']
         )
+
+    def test_scoped_populate(self):
+        provider = CloudflareProvider('test', '', 'token')
+
+        # Bad requests
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=400,
+                     text='{"success":false,"errors":[{"code":1101,'
+                     '"message":"request was invalid"}],'
+                     '"messages":[],"result":null}')
+
+            with self.assertRaises(Exception) as ctx:
+                zone = Zone('unit.tests.', [])
+                provider.populate(zone)
+
+            self.assertEquals('CloudflareError', type(ctx.exception).__name__)
+            self.assertEquals('request was invalid', ctx.exception.message)
+
+        # Bad auth
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=403,
+                     text='{"success":false,"errors":[{"code":9103,'
+                     '"message":"Unknown X-Auth-Key or X-Auth-Email"}],'
+                     '"messages":[],"result":null}')
+
+            with self.assertRaises(Exception) as ctx:
+                zone = Zone('unit.tests.', [])
+                provider.populate(zone)
+            self.assertEquals('CloudflareAuthenticationError',
+                              type(ctx.exception).__name__)
+            self.assertEquals('Unknown X-Auth-Key or X-Auth-Email',
+                              ctx.exception.message)
+
+        # Bad auth, unknown resp
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=403, text='{}')
+
+            with self.assertRaises(Exception) as ctx:
+                zone = Zone('unit.tests.', [])
+                provider.populate(zone)
+            self.assertEquals('CloudflareAuthenticationError',
+                              type(ctx.exception).__name__)
+            self.assertEquals('Cloudflare error', ctx.exception.message)
+
+        # General error
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=502, text='Things caught fire')
+
+            with self.assertRaises(HTTPError) as ctx:
+                zone = Zone('unit.tests.', [])
+                provider.populate(zone)
+            self.assertEquals(502, ctx.exception.response.status_code)
+
+        # Non-existent zone doesn't populate anything
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=200, json=self.empty)
+
+            zone = Zone('unit.tests.', [])
+            provider.populate(zone)
+            self.assertEquals(set(), zone.records)
+
+        # re-populating the same non-existent zone uses cache and makes no
+        # calls
+        again = Zone('unit.tests.', [])
+        provider.populate(again)
+        self.assertEquals(set(), again.records)
+
+        # bust zone cache
+        provider._zones = None
+
+        # existing zone with data
+        with requests_mock() as mock:
+            base = 'https://api.cloudflare.com/client/v4/zones'
+
+            # zones
+            with open('tests/fixtures/cloudflare-zones-page-1.json') as fh:
+                mock.get('{}?page=1'.format(base), status_code=200,
+                         text=fh.read())
+            with open('tests/fixtures/cloudflare-zones-page-2.json') as fh:
+                mock.get('{}?page=2'.format(base), status_code=200,
+                         text=fh.read())
+            mock.get('{}?page=3'.format(base), status_code=200,
+                     json={'result': [], 'result_info': {'count': 0,
+                                                         'per_page': 0}})
+
+            # records
+            base = '{}/234234243423aaabb334342aaa343435/dns_records' \
+                .format(base)
+            with open('tests/fixtures/cloudflare-dns_records-'
+                      'page-1.json') as fh:
+                mock.get('{}?page=1'.format(base), status_code=200,
+                         text=fh.read())
+            with open('tests/fixtures/cloudflare-dns_records-'
+                      'page-2.json') as fh:
+                mock.get('{}?page=2'.format(base), status_code=200,
+                         text=fh.read())
+
+            zone = Zone('unit.tests.', [])
+            provider.populate(zone)
+            self.assertEquals(12, len(zone.records))
+
+            changes = self.expected.changes(zone, provider)
+
+            self.assertEquals(0, len(changes))
+
+        # re-populating the same zone/records comes out of cache, no calls
+        again = Zone('unit.tests.', [])
+        provider.populate(again)
+        self.assertEquals(12, len(again.records))
