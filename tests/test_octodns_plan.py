@@ -5,8 +5,8 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from six import StringIO
 from logging import getLogger
+from six import StringIO
 from unittest import TestCase
 
 from octodns.provider.plan import Plan, PlanHtml, PlanLogger, PlanMarkdown
