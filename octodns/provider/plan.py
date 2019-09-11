@@ -5,8 +5,8 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from StringIO import StringIO
 from logging import DEBUG, ERROR, INFO, WARN, getLogger
+from six import StringIO
 from sys import stdout
 
 
