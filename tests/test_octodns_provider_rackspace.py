@@ -7,8 +7,8 @@ from __future__ import absolute_import, division, print_function, \
 
 import json
 import re
+from six.moves.urllib.parse import urlparse
 from unittest import TestCase
-from urlparse import urlparse
 
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
