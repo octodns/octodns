@@ -51,7 +51,7 @@ class TestCloudflareProvider(TestCase):
     empty = {'result': [], 'result_info': {'count': 0, 'per_page': 0}}
 
     def test_populate(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
 
         # Bad requests
         with requests_mock() as mock:
@@ -71,7 +71,7 @@ class TestCloudflareProvider(TestCase):
         with requests_mock() as mock:
             mock.get(ANY, status_code=403,
                      text='{"success":false,"errors":[{"code":9103,'
-                     '"message":"Unknown X-Auth-Key or X-Auth-Email"}],'
+                     '"message":"Unknown Authorization header"}],'
                      '"messages":[],"result":null}')
 
             with self.assertRaises(Exception) as ctx:
@@ -79,7 +79,7 @@ class TestCloudflareProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals('CloudflareAuthenticationError',
                               type(ctx.exception).__name__)
-            self.assertEquals('Unknown X-Auth-Key or X-Auth-Email',
+            self.assertEquals('Unknown Authorization header',
                               ctx.exception.message)
 
         # Bad auth, unknown resp
@@ -160,7 +160,7 @@ class TestCloudflareProvider(TestCase):
         self.assertEquals(12, len(again.records))
 
     def test_apply(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
 
         provider._request = Mock()
 
@@ -315,7 +315,7 @@ class TestCloudflareProvider(TestCase):
         ])
 
     def test_update_add_swap(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
 
         provider.zone_records = Mock(return_value=[
             {
@@ -422,7 +422,7 @@ class TestCloudflareProvider(TestCase):
     def test_update_delete(self):
         # We need another run so that we can delete, we can't both add and
         # delete in one go b/c of swaps
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
 
         provider.zone_records = Mock(return_value=[
             {
@@ -510,7 +510,7 @@ class TestCloudflareProvider(TestCase):
         ])
 
     def test_srv(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
 
         zone = Zone('unit.tests.', [])
         # SRV record not under a sub-domain
@@ -568,7 +568,7 @@ class TestCloudflareProvider(TestCase):
         }, list(srv_record_with_sub_contents)[0])
 
     def test_alias(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
 
         # A CNAME for us to transform to ALIAS
         provider.zone_records = Mock(return_value=[
@@ -611,7 +611,7 @@ class TestCloudflareProvider(TestCase):
         }, list(contents)[0])
 
     def test_gen_key(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
 
         for expected, data in (
             ('foo.bar.com.', {
@@ -644,7 +644,7 @@ class TestCloudflareProvider(TestCase):
             self.assertEqual(expected, provider._gen_key(data))
 
     def test_cdn(self):
-        provider = CloudflareProvider('test', 'email', 'token', True)
+        provider = CloudflareProvider('test', 'token', True)
 
         # A CNAME for us to transform to ALIAS
         provider.zone_records = Mock(return_value=[
@@ -783,7 +783,7 @@ class TestCloudflareProvider(TestCase):
         self.assertEquals(1, len(plan.changes))
 
     def test_cdn_alias(self):
-        provider = CloudflareProvider('test', 'email', 'token', True)
+        provider = CloudflareProvider('test', 'token', True)
 
         # A CNAME for us to transform to ALIAS
         provider.zone_records = Mock(return_value=[
@@ -828,7 +828,7 @@ class TestCloudflareProvider(TestCase):
         self.assertEquals(False, hasattr(plan, 'changes'))
 
     def test_unproxiabletype_recordfor_returnsrecordwithnocloudflare(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
         name = "unit.tests"
         _type = "NS"
         zone_records = [
@@ -859,7 +859,7 @@ class TestCloudflareProvider(TestCase):
         self.assertFalse('cloudflare' in record._octodns)
 
     def test_proxiabletype_recordfor_retrecordwithcloudflareunproxied(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
         name = "multi.unit.tests"
         _type = "AAAA"
         zone_records = [
@@ -890,7 +890,7 @@ class TestCloudflareProvider(TestCase):
         self.assertFalse(record._octodns['cloudflare']['proxied'])
 
     def test_proxiabletype_recordfor_returnsrecordwithcloudflareproxied(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
         name = "multi.unit.tests"
         _type = "AAAA"
         zone_records = [
@@ -921,7 +921,7 @@ class TestCloudflareProvider(TestCase):
         self.assertTrue(record._octodns['cloudflare']['proxied'])
 
     def test_proxiedrecordandnewttl_includechange_returnsfalse(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
         zone = Zone('unit.tests.', [])
         existing = set_record_proxied_flag(
             Record.new(zone, 'a', {
@@ -942,7 +942,7 @@ class TestCloudflareProvider(TestCase):
         self.assertFalse(include_change)
 
     def test_unproxiabletype_gendata_returnsnoproxied(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
         zone = Zone('unit.tests.', [])
         record = Record.new(zone, 'a', {
             'ttl': 3600,
@@ -955,7 +955,7 @@ class TestCloudflareProvider(TestCase):
         self.assertFalse('proxied' in data)
 
     def test_proxiabletype_gendata_returnsunproxied(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
         zone = Zone('unit.tests.', [])
         record = set_record_proxied_flag(
             Record.new(zone, 'a', {
@@ -970,7 +970,7 @@ class TestCloudflareProvider(TestCase):
         self.assertFalse(data['proxied'])
 
     def test_proxiabletype_gendata_returnsproxied(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
         zone = Zone('unit.tests.', [])
         record = set_record_proxied_flag(
             Record.new(zone, 'a', {
@@ -985,7 +985,7 @@ class TestCloudflareProvider(TestCase):
         self.assertTrue(data['proxied'])
 
     def test_createrecord_extrachanges_returnsemptylist(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
         provider.zone_records = Mock(return_value=[])
         existing = Zone('unit.tests.', [])
         provider.populate(existing)
@@ -1017,7 +1017,7 @@ class TestCloudflareProvider(TestCase):
         self.assertFalse(extra_changes)
 
     def test_updaterecord_extrachanges_returnsemptylist(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
         provider.zone_records = Mock(return_value=[
             {
                 "id": "fc12ab34cd5611334422ab3322997642",
@@ -1067,7 +1067,7 @@ class TestCloudflareProvider(TestCase):
         self.assertFalse(extra_changes)
 
     def test_deleterecord_extrachanges_returnsemptylist(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
         provider.zone_records = Mock(return_value=[
             {
                 "id": "fc12ab34cd5611334422ab3322997642",
@@ -1099,7 +1099,7 @@ class TestCloudflareProvider(TestCase):
         self.assertFalse(extra_changes)
 
     def test_proxify_extrachanges_returnsupdatelist(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
         provider.zone_records = Mock(return_value=[
             {
                 "id": "fc12ab34cd5611334422ab3322997642",
@@ -1155,7 +1155,7 @@ class TestCloudflareProvider(TestCase):
         )
 
     def test_unproxify_extrachanges_returnsupdatelist(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'token')
         provider.zone_records = Mock(return_value=[
             {
                 "id": "fc12ab34cd5611334422ab3322997642",

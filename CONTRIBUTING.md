@@ -43,6 +43,7 @@ Here are a few things you can do that will increase the likelihood of your pull 
 ```
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
+python setup.py install
 ```
 
 ## License note
