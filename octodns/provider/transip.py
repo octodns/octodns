@@ -52,9 +52,6 @@ class TransipProvider(BaseProvider):
         self.account = account
         self.key = key
 
-        self._zones = None
-        self._zone_records = {}
-
         self._currentZone = {}
 
     def populate(self, zone, target=False, lenient=False):
@@ -72,7 +69,6 @@ class TransipProvider(BaseProvider):
                 self.log.warning(
                     'populate: (%s) Zone %s not found in account ',
                     e.fault.faultcode, zone.name)
-                exists = False
                 return exists
             elif e.fault.faultcode == '102' and target is True:
                 self.log.warning('populate: Transip can\'t create new zones')
@@ -115,9 +111,6 @@ class TransipProvider(BaseProvider):
         changes = plan.changes
         self.log.debug('apply: zone=%s, changes=%d', desired.name,
                        len(changes))
-        # for change in changes:
-        #    class_name = change.__class__.__name__
-        #    getattr(self, '_apply_{}'.format(class_name))(change)
 
         self._currentZone = plan.desired
         try:
@@ -265,24 +258,24 @@ class TransipProvider(BaseProvider):
         }
 
     def _data_for_MX(self, _type, records):
-        values = []
+        _values = []
         for record in records:
             preference, exchange = record['content'].split(" ", 1)
-            values.append({
+            _values.append({
                 'preference': preference,
                 'exchange': self._parse_to_fqdn(exchange)
             })
         return {
             'ttl': self._get_lowest_ttl(records),
             'type': _type,
-            'values': values
+            'values': _values
         }
 
     def _data_for_SRV(self, _type, records):
-        values = []
+        _values = []
         for record in records:
             priority, weight, port, target = record['content'].split(' ', 3)
-            values.append({
+            _values.append({
                 'port': port,
                 'priority': priority,
                 'target': self._parse_to_fqdn(target),
@@ -292,14 +285,14 @@ class TransipProvider(BaseProvider):
         return {
             'type': _type,
             'ttl': self._get_lowest_ttl(records),
-            'values': values
+            'values': _values
         }
 
     def _data_for_SSHFP(self, _type, records):
-        values = []
+        _values = []
         for record in records:
             algorithm, fp_type, fingerprint = record['content'].split(' ', 2)
-            values.append({
+            _values.append({
                 'algorithm': algorithm,
                 'fingerprint': fingerprint.lower(),
                 'fingerprint_type': fp_type
@@ -308,14 +301,14 @@ class TransipProvider(BaseProvider):
         return {
             'type': _type,
             'ttl': self._get_lowest_ttl(records),
-            'values': values
+            'values': _values
         }
 
     def _data_for_CAA(self, _type, records):
-        values = []
+        _values = []
         for record in records:
             flags, tag, value = record['content'].split(' ', 2)
-            values.append({
+            _values.append({
                 'flags': flags,
                 'tag': tag,
                 'value': value
@@ -324,16 +317,16 @@ class TransipProvider(BaseProvider):
         return {
             'type': _type,
             'ttl': self._get_lowest_ttl(records),
-            'values': values
+            'values': _values
         }
 
     def _data_for_TXT(self, _type, records):
-        values = []
+        _values = []
         for record in records:
-            values.append(record['content'].replace(';', '\\;'))
+            _values.append(record['content'].replace(';', '\\;'))
 
         return {
             'type': _type,
             'ttl': self._get_lowest_ttl(records),
-            'values': values
+            'values': _values
         }
