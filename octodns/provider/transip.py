@@ -218,6 +218,9 @@ class TransipProvider(BaseProvider):
 
     def _parse_to_fqdn(self, value):
 
+        # Enforce switch from suds.sax.text.Text to string
+        value = ''+value
+
         # TransIP allows '@' as value to alias the root record.
         # this provider won't set an '@' value, but can be an existing record
         if value == self.ROOT_RECORD:
@@ -240,7 +243,8 @@ class TransipProvider(BaseProvider):
 
         _values = []
         for record in records:
-            _values.append(record['content'])
+            # Enforce switch from suds.sax.text.Text to string
+            _values.append(''+record['content'])
 
         return {
             'ttl': self._get_lowest_ttl(records),
