@@ -218,7 +218,12 @@ class TransipProvider(BaseProvider):
 
     def _parse_to_fqdn(self, value):
 
-        if (value[-1] != '.'):
+        # TransIP allows '@' as value to alias the root record.
+        # this provider won't set an '@' value, but can be an existing record
+        if value == self.ROOT_RECORD:
+            value = self._currentZone.name
+
+        if value[-1] != '.':
             self.log.debug('parseToFQDN: changed %s to %s', value,
                            '{}.{}'.format(value, self._currentZone.name))
             value = '{}.{}'.format(value, self._currentZone.name)

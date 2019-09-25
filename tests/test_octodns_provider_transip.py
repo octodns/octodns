@@ -188,6 +188,8 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
                           provider._parse_to_fqdn("www.unit.tests."))
         self.assertEquals("www.sub.sub.sub.unit.tests.",
                           provider._parse_to_fqdn("www.sub.sub.sub"))
+        self.assertEquals("unit.tests.",
+                          provider._parse_to_fqdn("@"))
 
         # Happy Plan - Even if the zone has no records the zone should exist
         provider = TransipProvider('test', 'unittest', self.bogus_key)
