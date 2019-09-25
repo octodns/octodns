@@ -10,10 +10,8 @@ from os.path import dirname, join
 
 from suds import WebFault
 
-from requests_mock import ANY, mock as requests_mock
 from unittest import TestCase
 
-from octodns.record import Record
 from octodns.provider.transip import TransipProvider
 from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
@@ -21,22 +19,35 @@ from transip.service.domain import DomainService
 from transip.service.objects import DnsEntry
 
 
+class MockFault(object):
+    faultstring = ""
+    faultcode = ""
+
+    def __init__(self, code, string, *args, **kwargs):
+        self.faultstring = string
+        self.faultcode = code
+
+
+class MockResponse(object):
+    dnsEntries = []
 
 
 class MockDomainService(DomainService):
 
     def __init__(self, *args, **kwargs):
-        super(MockDomainService, self).__init__('MockDomainService', *args, **kwargs)
+        super(MockDomainService, self).__init__('MockDomainService', *args,
+                                                **kwargs)
         self.mockupEntries = []
 
     def mockup(self, records):
 
-        provider = TransipProvider('', '', '');
+        provider = TransipProvider('', '', '')
 
         _dns_entries = []
         for record in records:
             if record._type in provider.SUPPORTS:
-                entries_for = getattr(provider, '_entries_for_{}'.format(record._type))
+                entries_for = getattr(provider,
+                                      '_entries_for_{}'.format(record._type))
 
                 # Root records have '@' as name
                 name = record.name
@@ -45,48 +56,46 @@ class MockDomainService(DomainService):
 
                 _dns_entries.extend(entries_for(name, record))
 
-                _dns_entries.append(DnsEntry('@', '3600', 'NS', 'ns01.transip.nl.'))
-
+                # NS is not supported as a DNS Entry,
+                # so it should cover the if statement
+                _dns_entries.append(
+                    DnsEntry('@', '3600', 'NS', 'ns01.transip.nl.'))
 
         self.mockupEntries = _dns_entries
 
     # Skips authentication layer and returns the entries loaded by "Mockup"
     def get_info(self, domain_name):
 
+        # Special 'domain' to trigger error
         if str(domain_name) == str('notfound.unit.tests'):
             self.raiseZoneNotFound()
 
-        result = lambda: None
-        setattr(result, "dnsEntries", self.mockupEntries)
+        result = MockResponse()
+        result.dnsEntries = self.mockupEntries
         return result
 
     def set_dns_entries(self, domain_name, dns_entries):
+
+        # Special 'domain' to trigger error
         if str(domain_name) == str('failsetdns.unit.tests'):
             self.raiseSaveError()
 
         return True
 
     def raiseZoneNotFound(self):
-        fault = lambda: None
-        setattr(fault, "faultstring", '102 is zone not found')
-        setattr(fault, "faultcode", str('102'))
+        fault = MockFault(str('102'),  '102 is zone not found')
         document = {}
         raise WebFault(fault, document)
 
     def raiseInvalidAuth(self):
-        fault = lambda: None
-        setattr(fault, "faultstring", '200 is invalid auth')
-        setattr(fault, "faultcode", str('200'))
+        fault = MockFault(str('200'),  '200 is invalid auth')
         document = {}
         raise WebFault(fault, document)
 
     def raiseSaveError(self):
-        fault = lambda: None
-        setattr(fault, "faultstring", '202 error while saving')
-        setattr(fault, "faultcode", str('202'))
+        fault = MockFault(str('200'),  '202 random error')
         document = {}
         raise WebFault(fault, document)
-
 
 
 class TestTransipProvider(TestCase):
@@ -118,7 +127,6 @@ fH2BQyTKKzoCLB1k/6HRaMnZdrWyWSZ7JKz3AHJ8+58d0Hr8LTrzDM1L6BbjeDct
 N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
 -----END RSA PRIVATE KEY-----""")
 
-
     def make_expected(self):
         expected = Zone('unit.tests.', [])
         source = YamlProvider('test', join(dirname(__file__), 'config'))
@@ -126,9 +134,10 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         return expected
 
     def test_populate(self):
-
         _expected = self.make_expected()
 
+        # Unhappy Plan - Not authenticated
+        # Live test against API, will fail in an unauthorized error
         with self.assertRaises(WebFault) as ctx:
             provider = TransipProvider('test', 'unittest', self.bogus_key)
             zone = Zone('unit.tests.', [])
@@ -139,6 +148,9 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
 
         self.assertEquals(str('200'), ctx.exception.fault.faultcode)
 
+        # Unhappy Plan - Zone does not exists
+        # Will trigger an exception if provider is used as a target for a
+        # non-existing zone
         with self.assertRaises(Exception) as ctx:
             provider = TransipProvider('test', 'unittest', self.bogus_key)
             provider._client = MockDomainService('unittest', self.bogus_key)
@@ -148,38 +160,48 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         self.assertEquals(str('Exception'),
                           str(ctx.exception.__class__.__name__))
 
-        self.assertEquals('populate: (102) Transip used as target for non-existing zone: notfound.unit.tests.', ctx.exception.message)
+        self.assertEquals(
+            'populate: (102) Transip used as target' +
+            ' for non-existing zone: notfound.unit.tests.',
+            ctx.exception.message)
 
+        # Happy Plan - Zone does not exists
+        # Won't trigger an exception if provider is NOT used as a target for a
+        # non-existing zone.
         provider = TransipProvider('test', 'unittest', self.bogus_key)
         provider._client = MockDomainService('unittest', self.bogus_key)
         zone = Zone('notfound.unit.tests.', [])
         provider.populate(zone, False)
 
+        # Happy Plan - Populate with mockup records
         provider = TransipProvider('test', 'unittest', self.bogus_key)
         provider._client = MockDomainService('unittest', self.bogus_key)
         provider._client.mockup(_expected.records)
         zone = Zone('unit.tests.', [])
         provider.populate(zone, False)
 
+        # Transip allows relative values for types like cname, mx.
+        # Test is these are correctly appended with the domain
         provider._currentZone = zone
         self.assertEquals("www.unit.tests.", provider._parse_to_fqdn("www"))
+        self.assertEquals("www.unit.tests.",
+                          provider._parse_to_fqdn("www.unit.tests."))
+        self.assertEquals("www.sub.sub.sub.unit.tests.",
+                          provider._parse_to_fqdn("www.sub.sub.sub"))
 
-
+        # Happy Plan - Even if the zone has no records the zone should exist
         provider = TransipProvider('test', 'unittest', self.bogus_key)
         provider._client = MockDomainService('unittest', self.bogus_key)
         zone = Zone('unit.tests.', [])
         exists = provider.populate(zone, True)
         self.assertTrue(exists, 'populate should return true')
 
-
         return
 
     def test_plan(self):
-
         _expected = self.make_expected()
 
-        print(_expected.name)
-
+        # Test Happy plan, only create
         provider = TransipProvider('test', 'unittest', self.bogus_key)
         provider._client = MockDomainService('unittest', self.bogus_key)
         plan = provider.plan(_expected)
@@ -191,29 +213,38 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         return
 
     def test_apply(self):
-
         _expected = self.make_expected()
 
+        # Test happy flow. Create all supoorted records
         provider = TransipProvider('test', 'unittest', self.bogus_key)
         provider._client = MockDomainService('unittest', self.bogus_key)
         plan = provider.plan(_expected)
-        #self.assertEqual(11, plan.changes)
+        self.assertEqual(12, len(plan.changes))
         changes = provider.apply(plan)
+        self.assertEqual(changes, len(plan.changes))
 
-
-
+        # Test unhappy flow. Trigger 'not found error' in apply stage
+        # This should normally not happen as populate will capture it first
+        # but just in case.
+        changes = []  # reset changes
         with self.assertRaises(Exception) as ctx:
             provider = TransipProvider('test', 'unittest', self.bogus_key)
             provider._client = MockDomainService('unittest', self.bogus_key)
             plan = provider.plan(_expected)
             plan.desired.name = 'notfound.unit.tests.'
             changes = provider.apply(plan)
-            # self.assertEqual(11, changes)
+
+        # Changes should not be set due to an Exception
+        self.assertEqual([], changes)
 
         self.assertEquals(str('WebFault'),
                           str(ctx.exception.__class__.__name__))
 
-        _expected = self.make_expected()
+        self.assertEquals(str('102'), ctx.exception.fault.faultcode)
+
+        # Test unhappy flow. Trigger a unrecoverable error while saving
+        _expected = self.make_expected()  # reset expected
+        changes = []  # reset changes
 
         with self.assertRaises(Exception) as ctx:
             provider = TransipProvider('test', 'unittest', self.bogus_key)
@@ -221,14 +252,9 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
             plan = provider.plan(_expected)
             plan.desired.name = 'failsetdns.unit.tests.'
             changes = provider.apply(plan)
-            # self.assertEqual(11, changes)
 
+        # Changes should not be set due to an Exception
+        self.assertEqual([], changes)
 
-        #provider = TransipProvider('test', 'unittest', self.bogus_key)
-
-        #plan = provider.plan(_expected)
-
-#        changes = provider.apply(plan)
-#        self.assertEquals(29, changes)
-
-
+        self.assertEquals(str('Exception'),
+                          str(ctx.exception.__class__.__name__))

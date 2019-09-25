@@ -36,7 +36,7 @@ class TransipProvider(BaseProvider):
     SUPPORTS_DYNAMIC = False
     SUPPORTS = set(
         ('A', 'AAAA', 'CNAME', 'MX', 'SRV', 'SPF', 'TXT', 'SSHFP', 'CAA'))
-    # unsupported by OctoDNS: 'TLSA', 'CAA'
+    # unsupported by OctoDNS: 'TLSA'
     MIN_TTL = 120
     TIMEOUT = 15
     ROOT_RECORD = '@'
@@ -68,17 +68,17 @@ class TransipProvider(BaseProvider):
         try:
             zoneInfo = self._client.get_info(zone.name[:-1])
         except WebFault as e:
-            if e.fault.faultcode == '102' and target == False:
+            if e.fault.faultcode == '102' and target is False:
                 self.log.warning(
                     'populate: (%s) Zone %s not found in account ',
                     e.fault.faultcode, zone.name)
                 exists = False
                 return exists
-            elif e.fault.faultcode == '102' and target == True:
+            elif e.fault.faultcode == '102' and target is True:
                 self.log.warning('populate: Transip can\'t create new zones')
                 raise Exception(
                     ('populate: ({}) Transip used ' +
-                    'as target for non-existing zone: {}').format(
+                     'as target for non-existing zone: {}').format(
                         e.fault.faultcode, zone.name))
             else:
                 self.log.error('populate: (%s) %s ', e.fault.faultcode,
@@ -129,7 +129,8 @@ class TransipProvider(BaseProvider):
         _dns_entries = []
         for record in plan.desired.records:
             if record._type in self.SUPPORTS:
-                entries_for = getattr(self, '_entries_for_{}'.format(record._type))
+                entries_for = getattr(self,
+                                      '_entries_for_{}'.format(record._type))
 
                 # Root records have '@' as name
                 name = record.name
@@ -143,7 +144,7 @@ class TransipProvider(BaseProvider):
         except WebFault as e:
             self.log.warning(('_apply: Set DNS returned ' +
                               'one or more errors: {}').format(
-                                  e.fault.faultstring))
+                e.fault.faultstring))
             raise Exception(200, e.fault.faultstring)
 
         self._currentZone = {}
@@ -189,8 +190,9 @@ class TransipProvider(BaseProvider):
         _entries = []
 
         for value in record.values:
-            content = "{} {} {}".format(value.algorithm, value.fingerprint_type,
-                                           value.fingerprint)
+            content = "{} {} {}".format(value.algorithm,
+                                        value.fingerprint_type,
+                                        value.fingerprint)
             _entries.append(DnsEntry(name, record.ttl, record._type, content))
 
         return _entries
@@ -200,7 +202,7 @@ class TransipProvider(BaseProvider):
 
         for value in record.values:
             content = "{} {} {}".format(value.flags, value.tag,
-                                           value.value)
+                                        value.value)
             _entries.append(DnsEntry(name, record.ttl, record._type, content))
 
         return _entries
