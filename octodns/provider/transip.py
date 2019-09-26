@@ -23,13 +23,16 @@ class TransipProvider(BaseProvider):
         class: octodns.provider.transip.TransipProvider
         # Your Transip account name (required)
         account: yourname
-        # The api key (required)
+        # Path to a private key file (required if key is not used)
+        key_file: /path/to/file
+        # The api key as string (required if key_file is not used)
         key: |
             \'''
             -----BEGIN PRIVATE KEY-----
             ...
             -----END PRIVATE KEY-----
             \'''
+        # if both `key_file` and `key` are presented `key_file` is used
 
     '''
     SUPPORTS_GEO = False
@@ -41,13 +44,18 @@ class TransipProvider(BaseProvider):
     TIMEOUT = 15
     ROOT_RECORD = '@'
 
-    def __init__(self, id, account, key, *args, **kwargs):
+    def __init__(self, id, account, key=None, key_file=None,  *args, **kwargs):
         self.log = getLogger('TransipProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, account=%s, token=***', id,
                        account)
         super(TransipProvider, self).__init__(id, *args, **kwargs)
 
-        self._client = DomainService(account, key)
+        if key_file is not None:
+            self._client = DomainService(account, private_key_file=key_file)
+        elif key is not None:
+            self._client = DomainService(account, private_key=key)
+        else:
+            raise Exception('Missing `key` of `key_file` parameter in config')
 
         self.account = account
         self.key = key

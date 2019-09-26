@@ -133,6 +133,19 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         source.populate(expected)
         return expected
 
+    def test_init(self):
+        with self.assertRaises(Exception) as ctx:
+            TransipProvider('test', 'unittest')
+
+        self.assertEquals(
+            str('Missing `key` of `key_file` parameter in config'),
+            str(ctx.exception))
+
+        TransipProvider('test', 'unittest', key=self.bogus_key)
+
+        # Existence and content of the key is tested in the SDK on client call
+        TransipProvider('test', 'unittest', key_file='/fake/path')
+
     def test_populate(self):
         _expected = self.make_expected()
 
