@@ -68,10 +68,8 @@ class ConstellixClient(object):
         Returns:
             string: current UTC time in milliseconds, as a string
         """
-        return str(int(
-            (datetime.utcnow() - datetime(1970, 1, 1)).total_seconds() * 1000
-        ))
-
+        return str(int(round(time.time() * 1000)))
+    print("this is time", current_time())
     @staticmethod
     def hmac_hash(secret_key, current_time):
         """
