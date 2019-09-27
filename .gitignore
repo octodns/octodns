@@ -11,6 +11,3 @@ nosetests.xml
 octodns.egg-info/
 output/
 tmp/
-venv/
-.idea/
-.DS_Store
