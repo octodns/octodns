@@ -66,23 +66,23 @@ class CloudflareProvider(BaseProvider):
     MIN_TTL = 120
     TIMEOUT = 15
 
-    def __init__(self, id, token, email=None, cdn=False, *args, **kwargs):
+    def __init__(self, id, email=None, token=None, cdn=False, *args, **kwargs):
         self.log = getLogger('CloudflareProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, email=%s, token=***, cdn=%s', id,
                        email, cdn)
         super(CloudflareProvider, self).__init__(id, *args, **kwargs)
 
         sess = Session()
-        # https://api.cloudflare.com/#getting-started-requests
-        # https://tools.ietf.org/html/rfc6750#section-2.1
-        if not email:
-            sess.headers.update({
-                'Authorization': 'Bearer %s'.format(token),
-            })
-        else:
+        if email and token:
             sess.headers.update({
                 'X-Auth-Email': email,
                 'X-Auth-Key': token,
+            })
+        else:
+            # https://api.cloudflare.com/#getting-started-requests
+            # https://tools.ietf.org/html/rfc6750#section-2.1
+            sess.headers.update({
+                'Authorization': 'Bearer %s'.format(token),
             })
         self.cdn = cdn
         self._sess = sess
