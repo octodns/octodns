@@ -170,7 +170,7 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
             zone = Zone('notfound.unit.tests.', [])
             provider.populate(zone, True)
 
-        self.assertEquals(str('Exception'),
+        self.assertEquals(str('TransipNewZoneException'),
                           str(ctx.exception.__class__.__name__))
 
         self.assertEquals(
@@ -271,5 +271,5 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         # Changes should not be set due to an Exception
         self.assertEqual([], changes)
 
-        self.assertEquals(str('Exception'),
+        self.assertEquals(str('TransipException'),
                           str(ctx.exception.__class__.__name__))

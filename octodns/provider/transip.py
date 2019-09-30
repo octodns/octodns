@@ -15,6 +15,18 @@ from transip.service.domain import DomainService
 from transip.service.objects import DnsEntry
 
 
+class TransipException(Exception):
+    pass
+
+
+class TransipConfigException(TransipException):
+    pass
+
+
+class TransipNewZoneException(TransipException):
+    pass
+
+
 class TransipProvider(BaseProvider):
     '''
     Transip DNS provider
@@ -55,7 +67,9 @@ class TransipProvider(BaseProvider):
         elif key is not None:
             self._client = DomainService(account, private_key=key)
         else:
-            raise Exception('Missing `key` of `key_file` parameter in config')
+            raise TransipConfigException(
+                'Missing `key` of `key_file` parameter in config'
+            )
 
         self.account = account
         self.key = key
@@ -74,13 +88,12 @@ class TransipProvider(BaseProvider):
             zoneInfo = self._client.get_info(zone.name[:-1])
         except WebFault as e:
             if e.fault.faultcode == '102' and target is False:
-                self.log.warning(
-                    'populate: (%s) Zone %s not found in account ',
-                    e.fault.faultcode, zone.name)
+                # Zone not found in account, and not a target so just
+                # leave an empty zone.
                 return exists
             elif e.fault.faultcode == '102' and target is True:
                 self.log.warning('populate: Transip can\'t create new zones')
-                raise Exception(
+                raise TransipNewZoneException(
                     ('populate: ({}) Transip used ' +
                      'as target for non-existing zone: {}').format(
                         e.fault.faultcode, zone.name))
@@ -146,7 +159,7 @@ class TransipProvider(BaseProvider):
             self.log.warning(('_apply: Set DNS returned ' +
                               'one or more errors: {}').format(
                 e.fault.faultstring))
-            raise Exception(200, e.fault.faultstring)
+            raise TransipException(200, e.fault.faultstring)
 
         self._currentZone = {}
 
@@ -220,7 +233,7 @@ class TransipProvider(BaseProvider):
     def _parse_to_fqdn(self, value):
 
         # Enforce switch from suds.sax.text.Text to string
-        value = '' + value
+        value = str(value)
 
         # TransIP allows '@' as value to alias the root record.
         # this provider won't set an '@' value, but can be an existing record
@@ -245,7 +258,7 @@ class TransipProvider(BaseProvider):
         _values = []
         for record in records:
             # Enforce switch from suds.sax.text.Text to string
-            _values.append('' + record['content'])
+            _values.append(str(record['content']))
 
         return {
             'ttl': self._get_lowest_ttl(records),
