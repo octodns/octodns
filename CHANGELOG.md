@@ -1,3 +1,7 @@
+## v0.9.8 - 2019-09-30 - One with no changes b/c PyPi description problems
+
+* No material changes
+
 ## v0.9.7 - 2019-09-30 - It's about time
 
 * AkamaiProvider, ConstellixProvider, MythicBeastsProvider, SelectelProvider,
