@@ -1,3 +1,11 @@
+## v0.9.7 - 2019-09-30 - It's about time
+
+* AkamaiProvider, ConstellixProvider, MythicBeastsProvider, SelectelProvider,
+  &amp; TransipPovider providers added
+* Route53Provider seperator fix
+* YamlProvider export error around stringification
+* PyPi markdown rendering fix
+
 ## v0.9.6 - 2019-07-16 - The little one that fixes stuff from the big one
 
 * Reduced dynamic record value weight range to 0-15 so that Dyn and Route53
