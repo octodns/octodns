@@ -90,8 +90,8 @@ Now that we have something to tell OctoDNS about our providers & zones we need t
   ttl: 60
   type: A
   values:
-    - 1.2.3.4
-    - 1.2.3.5
+  - 1.2.3.4
+  - 1.2.3.5
 ```
 
 Further information can be found in [Records Documentation](/docs/records.md).
@@ -188,6 +188,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [Rackspace](/octodns/provider/rackspace.py) | | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
 | [Route53](/octodns/provider/route53.py) | boto3 | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Both | CNAME health checks don't support a Host header |
 | [Selectel](/octodns/provider/selectel.py) | | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | |
+| [Transip](/octodns/provider/transip.py) | transip | A, AAAA, CNAME, MX, SRV, SPF, TXT, SSHFP, CAA | No | |
 | [AxfrSource](/octodns/source/axfr.py) | | A, AAAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [ZoneFileSource](/octodns/source/axfr.py) | | A, AAAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [TinyDnsFileSource](/octodns/source/tinydns.py) | | A, CNAME, MX, NS, PTR | No | read-only |

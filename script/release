@@ -22,5 +22,6 @@ git tag -s "v$VERSION" -m "Release $VERSION"
 git push origin "v$VERSION"
 echo "Tagged and pushed v$VERSION"
 python setup.py sdist
+twine check dist/*$VERSION.tar.gz
 twine upload dist/*$VERSION.tar.gz
 echo "Uploaded $VERSION"
