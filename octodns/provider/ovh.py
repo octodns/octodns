@@ -345,7 +345,7 @@ class OvhProvider(BaseProvider):
     @staticmethod
     def _is_valid_dkim_key(key):
         try:
-            base64.decodestring(key)
+            base64.decodestring(bytearray(key, 'utf-8'))
         except binascii.Error:
             return False
         return True
