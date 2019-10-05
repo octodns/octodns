@@ -10,7 +10,7 @@ from itertools import chain
 from collections import OrderedDict, defaultdict
 from nsone import NSONE
 from nsone.rest.errors import RateLimitException, ResourceException
-from incf.countryutils import transformations
+from pycountry_convert import country_alpha2_to_continent_code
 from time import sleep
 
 from six import text_type
@@ -62,8 +62,7 @@ class Ns1Provider(BaseProvider):
                 us_state = meta.get('us_state', [])
                 ca_province = meta.get('ca_province', [])
                 for cntry in country:
-                    cn = transformations.cc_to_cn(cntry)
-                    con = transformations.cn_to_ctca2(cn)
+                    con = country_alpha2_to_continent_code(cntry)
                     key = '{}-{}'.format(con, cntry)
                     geo[key].extend(answer['answer'])
                 for state in us_state:
