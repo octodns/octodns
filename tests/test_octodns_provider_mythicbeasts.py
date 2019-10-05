@@ -441,11 +441,11 @@ class TestMythicBeastsProvider(TestCase):
             plan = provider.plan(wanted)
 
             # Octo ignores NS records (15-1)
-            self.assertEquals(1, len(filter(lambda u: isinstance(u, Update),
-                              plan.changes)))
-            self.assertEquals(1, len(filter(lambda d: isinstance(d, Delete),
-                              plan.changes)))
-            self.assertEquals(14, len(filter(lambda c: isinstance(c, Create),
-                              plan.changes)))
+            self.assertEquals(1, len(list(filter(
+                lambda u: isinstance(u, Update), plan.changes))))
+            self.assertEquals(1, len(list(filter(
+                lambda d: isinstance(d, Delete), plan.changes))))
+            self.assertEquals(14, len(list(filter(
+                lambda c: isinstance(c, Create), plan.changes))))
             self.assertEquals(16, provider.apply(plan))
             self.assertTrue(plan.exists)
