@@ -1,0 +1,35 @@
+{
+    "recordsets": [
+        {
+            "rdata": [
+                "",
+                "12 20 foo-2.unit.tests."
+            ],
+            "type": "SRV",
+            "name": "_srv._tcp.unit.tests",
+            "ttl": 600
+        },
+        {
+            "rdata": [
+                "",
+                "1 1"
+            ],
+            "type": "SSHFP",
+            "name": "unit.tests",
+            "ttl": 3600
+        },
+        {
+            "rdata": [
+                "",
+                "100 \"U\" \"SIP+D2U\" \"!^.*$!sip:info@bar.example.com!\" ."
+            ],
+            "type": "NAPTR",
+            "name": "naptr.unit.tests",
+            "ttl": 600
+        }
+    ],
+    "metadata": {
+        "totalElements": 3,
+        "showAll": true
+    }
+}

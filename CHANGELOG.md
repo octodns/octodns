@@ -1,3 +1,15 @@
+## v0.9.8 - 2019-09-30 - One with no changes b/c PyPi description problems
+
+* No material changes
+
+## v0.9.7 - 2019-09-30 - It's about time
+
+* AkamaiProvider, ConstellixProvider, MythicBeastsProvider, SelectelProvider,
+  &amp; TransipPovider providers added
+* Route53Provider seperator fix
+* YamlProvider export error around stringification
+* PyPi markdown rendering fix
+
 ## v0.9.6 - 2019-07-16 - The little one that fixes stuff from the big one
 
 * Reduced dynamic record value weight range to 0-15 so that Dyn and Route53
@@ -112,7 +124,7 @@ Adds an OVH provider.
 
 ## v0.8.6 - 2017-09-06 - CAA record type,
 
-Misc fixes and improvments.
+Misc fixes and improvements.
 
 * Azure TXT record fix
 * PowerDNS api support for https

@@ -103,7 +103,7 @@ class TestCloudflareProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals(502, ctx.exception.response.status_code)
 
-        # Non-existant zone doesn't populate anything
+        # Non-existent zone doesn't populate anything
         with requests_mock() as mock:
             mock.get(ANY, status_code=200, json=self.empty)
 
@@ -111,7 +111,7 @@ class TestCloudflareProvider(TestCase):
             provider.populate(zone)
             self.assertEquals(set(), zone.records)
 
-        # re-populating the same non-existant zone uses cache and makes no
+        # re-populating the same non-existent zone uses cache and makes no
         # calls
         again = Zone('unit.tests.', [])
         provider.populate(again)
@@ -174,7 +174,7 @@ class TestCloudflareProvider(TestCase):
             },  # zone create
         ] + [None] * 20  # individual record creates
 
-        # non-existant zone, create everything
+        # non-existent zone, create everything
         plan = provider.plan(self.expected)
         self.assertEquals(12, len(plan.changes))
         self.assertEquals(12, provider.apply(plan))

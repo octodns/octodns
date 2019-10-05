@@ -3166,7 +3166,7 @@ class TestDynamicRecords(TestCase):
         self.assertEquals(['rule 1 invalid pool "[]"'],
                           ctx.exception.reasons)
 
-        # rule references non-existant pool
+        # rule references non-existent pool
         a_data = {
             'dynamic': {
                 'pools': {
@@ -3185,7 +3185,7 @@ class TestDynamicRecords(TestCase):
                 },
                 'rules': [{
                     'geos': ['NA-US-CA'],
-                    'pool': 'non-existant',
+                    'pool': 'non-existent',
                 }, {
                     'pool': 'one',
                 }],
@@ -3199,7 +3199,7 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(["rule 1 undefined pool \"non-existant\""],
+        self.assertEquals(["rule 1 undefined pool \"non-existent\""],
                           ctx.exception.reasons)
 
         # rule with invalid geos
