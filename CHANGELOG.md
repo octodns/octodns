@@ -1,3 +1,9 @@
+## v0.9.9 - 2019-??-?? - Python 3.7 Support
+
+* Route53 _mod_keyer ordering wasn't complete/reliable and in python 3 this
+  resulted in randomness. This has been addressed and may result in value
+  reordering on next plan, no actual changes in behavior should occur.
+
 ## v0.9.8 - 2019-09-30 - One with no changes b/c PyPi description problems
 
 * No material changes

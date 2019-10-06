@@ -40,7 +40,6 @@ with open('./tests/fixtures/rackspace-sample-recordset-page2.json') as fh:
 
 class TestRackspaceProvider(TestCase):
     def setUp(self):
-        self.maxDiff = 1000
         with requests_mock() as mock:
             mock.post(ANY, status_code=200, text=AUTH_RESPONSE)
             self.provider = RackspaceProvider('identity', 'test', 'api-key',

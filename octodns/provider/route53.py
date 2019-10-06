@@ -8,8 +8,8 @@ from __future__ import absolute_import, division, print_function, \
 from boto3 import client
 from botocore.config import Config
 from collections import defaultdict
-from incf.countryutils.transformations import cca_to_ctca2
 from ipaddress import AddressValueError, ip_address
+from pycountry_convert import country_alpha2_to_continent_code
 from uuid import uuid4
 import logging
 import re
@@ -19,13 +19,6 @@ from six import text_type
 from ..record import Record, Update
 from ..record.geo import GeoCodes
 from .base import BaseProvider
-
-# TODO: remove when Python 2.x is no longer supported
-try:  # pragma: no cover
-    cmp
-except NameError:  # pragma: no cover
-    def cmp(x, y):
-        return (x > y) - (x < y)
 
 octal_re = re.compile(r'\\(\d\d\d)')
 
@@ -155,7 +148,7 @@ class _Route53Record(object):
             }
         }
 
-    # NOTE: we're using __hash__ and __cmp__ methods that consider
+    # NOTE: we're using __hash__ and ordering methods that consider
     # _Route53Records equivalent if they have the same class, fqdn, and _type.
     # Values are ignored. This is useful when computing diffs/changes.
 
@@ -163,17 +156,34 @@ class _Route53Record(object):
         'sub-classes should never use this method'
         return '{}:{}'.format(self.fqdn, self._type).__hash__()
 
-    def __cmp__(self, other):
-        '''sub-classes should call up to this and return its value if non-zero.
-        When it's zero they should compute their own __cmp__'''
-        if self.__class__ != other.__class__:
-            return cmp(self.__class__, other.__class__)
-        elif self.fqdn != other.fqdn:
-            return cmp(self.fqdn, other.fqdn)
-        elif self._type != other._type:
-            return cmp(self._type, other._type)
-        # We're ignoring ttl, it's not an actual differentiator
-        return 0
+    def __eq__(self, other):
+        '''Sub-classes should call up to this and return its value if true.
+        When it's false they should compute their own __eq__, same for other
+        ordering methods.'''
+        return self.__class__.__name__ == other.__class__.__name__ and \
+            self.fqdn == other.fqdn and \
+            self._type == other._type
+
+    def __ne__(self, other):
+        return self.__class__.__name__ != other.__class__.__name__ or \
+            self.fqdn != other.fqdn or \
+            self._type != other._type
+
+    def __lt__(self, other):
+        return (((self.__class__.__name__, self.fqdn, self._type)) <
+                ((other.__class__.__name__, other.fqdn, other._type)))
+
+    def __le__(self, other):
+        return (((self.__class__.__name__, self.fqdn, self._type)) <=
+                ((other.__class__.__name__, other.fqdn, other._type)))
+
+    def __gt__(self, other):
+        return (((self.__class__.__name__, self.fqdn, self._type)) >
+                ((other.__class__.__name__, other.fqdn, other._type)))
+
+    def __ge__(self, other):
+        return (((self.__class__.__name__, self.fqdn, self._type)) >=
+                ((other.__class__.__name__, other.fqdn, other._type)))
 
     def __repr__(self):
         return '_Route53Record<{} {} {} {}>'.format(self.fqdn, self._type,
@@ -514,11 +524,50 @@ class _Route53GeoRecord(_Route53Record):
         return '{}:{}:{}'.format(self.fqdn, self._type,
                                  self.geo.code).__hash__()
 
-    def __cmp__(self, other):
-        ret = super(_Route53GeoRecord, self).__cmp__(other)
-        if ret != 0:
-            return ret
-        return cmp(self.geo.code, other.geo.code)
+    def __eq__(self, other):
+        return super(_Route53GeoRecord, self).__eq__(other) and \
+            self.geo.code == other.geo.code
+
+    def __ne__(self, other):
+        # super will handle class != class, so if it's true we have 2 geo
+        # objects with the same name and type, so just need to compare codes
+        return super(_Route53GeoRecord, self).__ne__(other) or \
+            self.geo.code != other.geo.code
+
+    def __lt__(self, other):
+        # super eq will check class, name, and type
+        if super(_Route53GeoRecord, self).__eq__(other):
+            # if it's True we're dealing with two geo's with the same name and
+            # type, so we just need to compare codes
+            return self.geo.code < other.geo.code
+        # Super is not equal so we'll just let it decide lt
+        return super(_Route53GeoRecord, self).__lt__(other)
+
+    def __le__(self, other):
+        # super eq will check class, name, and type
+        if super(_Route53GeoRecord, self).__eq__(other):
+            # Just need to compare codes, everything else is equal
+            return self.geo.code <= other.geo.code
+        # Super is not equal so geo.code doesn't matter, let it decide with lt,
+        # can't be eq
+        return super(_Route53GeoRecord, self).__lt__(other)
+
+    def __gt__(self, other):
+        # super eq will check class, name, and type
+        if super(_Route53GeoRecord, self).__eq__(other):
+            # Just need to compare codes, everything else is equal
+            return self.geo.code > other.geo.code
+        # Super is not equal so we'll just let it decide gt
+        return super(_Route53GeoRecord, self).__gt__(other)
+
+    def __ge__(self, other):
+        # super eq will check class, name, and type
+        if super(_Route53GeoRecord, self).__eq__(other):
+            # Just need to compare codes, everything else is equal
+            return self.geo.code >= other.geo.code
+        # Super is not equal so geo.code doesn't matter, let it decide with gt,
+        # can't be eq
+        return super(_Route53GeoRecord, self).__gt__(other)
 
     def __repr__(self):
         return '_Route53GeoRecord<{} {} {} {} {}>'.format(self.fqdn,
@@ -561,7 +610,10 @@ def _mod_keyer(mod):
     if rrset.get('GeoLocation', False):
         unique_id = rrset['SetIdentifier']
     else:
-        unique_id = rrset['Name']
+        try:
+            unique_id = '{}-{}'.format(rrset['Name'], rrset['SetIdentifier'])
+        except KeyError:
+            unique_id = rrset['Name']
 
     # Prioritise within the action_priority, ensuring targets come first.
     if rrset.get('GeoLocation', False):
@@ -708,7 +760,7 @@ class Route53Provider(BaseProvider):
             if cc == '*':
                 # This is the default
                 return
-            cn = cca_to_ctca2(cc)
+            cn = country_alpha2_to_continent_code(cc)
             try:
                 return '{}-{}-{}'.format(cn, cc, loc['SubdivisionCode'])
             except KeyError:
