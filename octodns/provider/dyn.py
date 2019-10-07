@@ -903,10 +903,10 @@ class DynProvider(BaseProvider):
         # Sort the values for consistent ordering so that we can compare
         values = sorted(values, key=_dynamic_value_sort_key)
         # Ensure that weight is included and if not use the default
-        values = map(lambda v: {
+        values = list(map(lambda v: {
             'value': v['value'],
             'weight': v.get('weight', 1),
-        }, values)
+        }, values))
 
         # Walk through our existing pools looking for a match we can use
         for pool in pools:
