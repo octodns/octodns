@@ -1,0 +1,5 @@
+---
+www.sub:
+  ttl: 300
+  type: A
+  value: 2.2.3.6

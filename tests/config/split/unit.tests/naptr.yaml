@@ -1,0 +1,17 @@
+---
+naptr:
+  ttl: 600
+  type: NAPTR
+  values:
+  - flags: S
+    order: 10
+    preference: 100
+    regexp: '!^.*$!sip:info@bar.example.com!'
+    replacement: .
+    service: SIP+D2U
+  - flags: U
+    order: 100
+    preference: 100
+    regexp: '!^.*$!sip:info@bar.example.com!'
+    replacement: .
+    service: SIP+D2U

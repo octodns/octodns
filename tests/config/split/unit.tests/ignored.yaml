@@ -1,0 +1,6 @@
+---
+ignored:
+  octodns:
+    ignored: true
+  type: A
+  value: 9.9.9.9

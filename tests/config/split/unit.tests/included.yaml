@@ -1,0 +1,7 @@
+---
+included:
+  octodns:
+    included:
+    - test
+  type: CNAME
+  value: unit.tests.
