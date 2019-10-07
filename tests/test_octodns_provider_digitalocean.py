@@ -176,7 +176,20 @@ class TestDigitalOceanProvider(TestCase):
             call('GET', '/domains/unit.tests/records', {'page': 1}),
             # delete the initial A record
             call('DELETE', '/domains/unit.tests/records/11189877'),
-            # created at least one of the record with expected data
+            # created at least some of the record with expected data
+            call('POST', '/domains/unit.tests/records', data={
+                'data': '1.2.3.4',
+                'name': '@',
+                'ttl': 300, 'type': 'A'}),
+            call('POST', '/domains/unit.tests/records', data={
+                'data': '1.2.3.5',
+                'name': '@',
+                'ttl': 300, 'type': 'A'}),
+            call('POST', '/domains/unit.tests/records', data={
+                'data': 'ca.unit.tests.',
+                'flags': 0, 'name': '@',
+                'tag': 'issue',
+                'ttl': 3600, 'type': 'CAA'}),
             call('POST', '/domains/unit.tests/records', data={
                 'name': '_srv._tcp',
                 'weight': 20,

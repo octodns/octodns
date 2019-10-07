@@ -28,7 +28,11 @@ class Plan(object):
                  delete_pcent_threshold=MAX_SAFE_DELETE_PCENT):
         self.existing = existing
         self.desired = desired
-        self.changes = changes
+        # Sort changes to ensure we always have a consistent ordering for
+        # things that make assumptions about that. Many providers will do their
+        # own ordering to ensure things happen in a way that makes sense to
+        # them and/or is as safe as possible.
+        self.changes = sorted(changes)
         self.exists = exists
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold

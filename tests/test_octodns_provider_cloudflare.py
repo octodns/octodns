@@ -313,7 +313,7 @@ class TestCloudflareProvider(TestCase):
                  'dns_records/fc12ab34cd5611334422ab3322997653'),
             call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
                  'dns_records/fc12ab34cd5611334422ab3322997654')
-        ], any_order=True)
+        ])
 
     def test_update_add_swap(self):
         provider = CloudflareProvider('test', 'email', 'token')

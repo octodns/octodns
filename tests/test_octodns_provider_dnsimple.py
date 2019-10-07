@@ -139,7 +139,32 @@ class TestDnsimpleProvider(TestCase):
         provider._client._request.assert_has_calls([
             # created the domain
             call('POST', '/domains', data={'name': 'unit.tests'}),
-            # created at least one of the record with expected data
+            # created at least some of the record with expected data
+            call('POST', '/zones/unit.tests/records', data={
+                'content': '1.2.3.4',
+                'type': 'A',
+                'name': '',
+                'ttl': 300}),
+            call('POST', '/zones/unit.tests/records', data={
+                'content': '1.2.3.5',
+                'type': 'A',
+                'name': '',
+                'ttl': 300}),
+            call('POST', '/zones/unit.tests/records', data={
+                'content': '0 issue "ca.unit.tests"',
+                'type': 'CAA',
+                'name': '',
+                'ttl': 3600}),
+            call('POST', '/zones/unit.tests/records', data={
+                'content': '1 1 7491973e5f8b39d5327cd4e08bc81b05f7710b49',
+                'type': 'SSHFP',
+                'name': '',
+                'ttl': 3600}),
+            call('POST', '/zones/unit.tests/records', data={
+                'content': '1 1 bf6b6825d2977c511a475bbefb88aad54a92ac73',
+                'type': 'SSHFP',
+                'name': '',
+                'ttl': 3600}),
             call('POST', '/zones/unit.tests/records', data={
                 'content': '20 30 foo-1.unit.tests.',
                 'priority': 10,

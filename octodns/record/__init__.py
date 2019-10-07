@@ -25,6 +25,12 @@ class Change(object):
         'Returns new if we have one, existing otherwise'
         return self.new or self.existing
 
+    def __lt__(self, other):
+        self_record = self.record
+        other_record = other.record
+        return ((self_record.name, self_record._type) <
+                (other_record.name, other_record._type))
+
 
 class Create(Change):
 

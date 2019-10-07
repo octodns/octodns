@@ -400,9 +400,9 @@ class TestNs1Provider(TestCase):
         self.assertEquals(3, got_n)
         nsone_zone.loadRecord.assert_has_calls([
             call('unit.tests', u'A'),
-            call('geo', u'A'),
             call('delete-me', u'A'),
-        ], any_order=True)
+            call('geo', u'A'),
+        ])
         mock_record.assert_has_calls([
             call.update(answers=[{'answer': [u'1.2.3.4'], 'meta': {}}],
                         filters=[],
@@ -410,6 +410,8 @@ class TestNs1Provider(TestCase):
             call.update(answers=[{u'answer': [u'1.2.3.4'], u'meta': {}}],
                         filters=[],
                         ttl=32),
+            call.delete(),
+            call.delete(),
             call.update(
                 answers=[
                     {u'answer': [u'101.102.103.104'], u'meta': {}},
@@ -427,9 +429,7 @@ class TestNs1Provider(TestCase):
                     {u'filter': u'select_first_n', u'config': {u'N': 1}},
                 ],
                 ttl=34),
-            call.delete(),
-            call.delete()
-        ], any_order=True)
+        ])
 
     def test_escaping(self):
         provider = Ns1Provider('test', 'api-key')

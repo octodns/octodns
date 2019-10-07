@@ -149,7 +149,27 @@ class TestDnsMadeEasyProvider(TestCase):
             call('POST', '/', data={'name': 'unit.tests'}),
             # get all domains to build the cache
             call('GET', '/'),
-            # created at least one of the record with expected data
+            # created at least some of the record with expected data
+            call('POST', '/123123/records', data={
+                'type': 'A',
+                'name': '',
+                'value': '1.2.3.4',
+                'ttl': 300}),
+            call('POST', '/123123/records', data={
+                'type': 'A',
+                'name': '',
+                'value': '1.2.3.5',
+                'ttl': 300}),
+            call('POST', '/123123/records', data={
+                'type': 'ANAME',
+                'name': '',
+                'value': 'aname.unit.tests.',
+                'ttl': 1800}),
+            call('POST', '/123123/records', data={
+                'name': '',
+                'value': 'ca.unit.tests',
+                'issuerCritical': 0, 'caaType': 'issue',
+                'ttl': 3600, 'type': 'CAA'}),
             call('POST', '/123123/records', data={
                 'name': '_srv._tcp',
                 'weight': 20,

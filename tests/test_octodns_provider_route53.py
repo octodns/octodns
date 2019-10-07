@@ -1882,10 +1882,10 @@ class TestRoute53Provider(TestCase):
     @patch('octodns.provider.route53.Route53Provider._really_apply')
     def test_apply_3(self, really_apply_mock, _):
 
-        # with a max of seven modifications, four calls
+        # with a max of seven modifications, three calls
         provider, plan = self._get_test_plan(7)
         provider.apply(plan)
-        self.assertEquals(4, really_apply_mock.call_count)
+        self.assertEquals(3, really_apply_mock.call_count)
 
     @patch('octodns.provider.route53.Route53Provider._load_records')
     @patch('octodns.provider.route53.Route53Provider._really_apply')
