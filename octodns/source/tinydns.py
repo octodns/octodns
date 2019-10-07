@@ -67,7 +67,8 @@ class TinyDnsBaseSource(BaseSource):
         values = []
 
         for record in records:
-            new_value = record[0].decode('unicode-escape').replace(";", "\\;")
+            new_value = record[0].encode('latin1').decode('unicode-escape') \
+                .replace(";", "\\;")
             values.append(new_value)
 
         try:
