@@ -62,25 +62,25 @@ class TestManager(TestCase):
 
     def test_missing_source(self):
         with self.assertRaises(Exception) as ctx:
-            Manager(get_config_filename('unknown-provider.yaml')) \
+            Manager(get_config_filename('provider-problems.yaml')) \
                 .sync(['missing.sources.'])
         self.assertTrue('missing sources' in text_type(ctx.exception))
 
     def test_missing_targets(self):
         with self.assertRaises(Exception) as ctx:
-            Manager(get_config_filename('unknown-provider.yaml')) \
+            Manager(get_config_filename('provider-problems.yaml')) \
                 .sync(['missing.targets.'])
         self.assertTrue('missing targets' in text_type(ctx.exception))
 
     def test_unknown_source(self):
         with self.assertRaises(Exception) as ctx:
-            Manager(get_config_filename('unknown-provider.yaml')) \
+            Manager(get_config_filename('provider-problems.yaml')) \
                 .sync(['unknown.source.'])
         self.assertTrue('unknown source' in text_type(ctx.exception))
 
     def test_unknown_target(self):
         with self.assertRaises(Exception) as ctx:
-            Manager(get_config_filename('unknown-provider.yaml')) \
+            Manager(get_config_filename('provider-problems.yaml')) \
                 .sync(['unknown.target.'])
         self.assertTrue('unknown target' in text_type(ctx.exception))
 
@@ -99,7 +99,7 @@ class TestManager(TestCase):
 
     def test_source_only_as_a_target(self):
         with self.assertRaises(Exception) as ctx:
-            Manager(get_config_filename('unknown-provider.yaml')) \
+            Manager(get_config_filename('provider-problems.yaml')) \
                 .sync(['not.targetable.'])
         self.assertTrue('does not support targeting' in
                         text_type(ctx.exception))
