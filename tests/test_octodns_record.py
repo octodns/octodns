@@ -594,6 +594,30 @@ class TestRecord(TestCase):
         # __repr__ doesn't blow up
         a.__repr__()
 
+        # Hash
+        v = NaptrValue({
+            'order': 30,
+            'preference': 31,
+            'flags': 'M',
+            'service': 'N',
+            'regexp': 'O',
+            'replacement': 'z',
+        })
+        o = NaptrValue({
+            'order': 30,
+            'preference': 32,
+            'flags': 'M',
+            'service': 'N',
+            'regexp': 'O',
+            'replacement': 'z',
+        })
+        values = set()
+        values.add(v)
+        self.assertTrue(v in values)
+        self.assertFalse(o in values)
+        values.add(o)
+        self.assertTrue(o in values)
+
     def test_ns(self):
         a_values = ['5.6.7.8.', '6.7.8.9.', '7.8.9.0.']
         a_data = {'ttl': 30, 'values': a_values}
@@ -1114,6 +1138,14 @@ class TestRecord(TestCase):
         self.assertTrue(c >= c)
         self.assertTrue(c <= c)
 
+        # Hash
+        values = set()
+        values.add(a)
+        self.assertTrue(a in values)
+        self.assertFalse(b in values)
+        values.add(b)
+        self.assertTrue(b in values)
+
     def test_srv_value(self):
         a = SrvValue({'priority': 0, 'weight': 0, 'port': 0, 'target': 'foo.'})
         b = SrvValue({'priority': 1, 'weight': 0, 'port': 0, 'target': 'foo.'})
@@ -1171,6 +1203,14 @@ class TestRecord(TestCase):
         self.assertTrue(c <= b)
         self.assertTrue(c >= c)
         self.assertTrue(c <= c)
+
+        # Hash
+        values = set()
+        values.add(a)
+        self.assertTrue(a in values)
+        self.assertFalse(b in values)
+        values.add(b)
+        self.assertTrue(b in values)
 
 
 class TestRecordValidation(TestCase):

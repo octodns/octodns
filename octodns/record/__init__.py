@@ -723,7 +723,8 @@ class _IpList(object):
 
     @classmethod
     def process(cls, values):
-        return values
+        # Translating None into '' so that the list will be sortable in python3
+        return [v if v is not None else '' for v in values]
 
 
 class Ipv4List(_IpList):
@@ -918,6 +919,9 @@ class MxValue(object):
             'exchange': self.exchange,
         }
 
+    def __hash__(self):
+        return hash('{} {}'.format(self.preference, self.exchange))
+
     def __eq__(self, other):
         return ((self.preference, self.exchange) ==
                 (other.preference, other.exchange))
@@ -1009,6 +1013,9 @@ class NaptrValue(object):
             'regexp': self.regexp,
             'replacement': self.replacement,
         }
+
+    def __hash__(self):
+        return hash(self.__repr__())
 
     def __eq__(self, other):
         return ((self.order, self.preference, self.flags, self.service,
@@ -1144,6 +1151,9 @@ class SshfpValue(object):
             'fingerprint_type': self.fingerprint_type,
             'fingerprint': self.fingerprint,
         }
+
+    def __hash__(self):
+        return hash(self.__repr__())
 
     def __eq__(self, other):
         return ((self.algorithm, self.fingerprint_type, self.fingerprint) ==
@@ -1282,6 +1292,9 @@ class SrvValue(object):
             'port': self.port,
             'target': self.target,
         }
+
+    def __hash__(self):
+        return hash(self.__repr__())
 
     def __eq__(self, other):
         return ((self.priority, self.weight, self.port, self.target) ==

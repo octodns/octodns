@@ -792,13 +792,13 @@ class TestRackspaceProvider(TestCase):
             ExpectedUpdates = {
                 "records": [{
                     "name": "unit.tests",
-                    "id": "A-222222",
-                    "data": "1.2.3.5",
+                    "id": "A-111111",
+                    "data": "1.2.3.4",
                     "ttl": 3600
                 }, {
                     "name": "unit.tests",
-                    "id": "A-111111",
-                    "data": "1.2.3.4",
+                    "id": "A-222222",
+                    "data": "1.2.3.5",
                     "ttl": 3600
                 }, {
                     "name": "unit.tests",
