@@ -263,7 +263,8 @@ class Manager(object):
             except KeyError:
                 raise Exception('Zone {} is missing targets'.format(zone_name))
             if eligible_targets:
-                targets = filter(lambda d: d in eligible_targets, targets)
+                targets = list(filter(lambda d: d in eligible_targets,
+                                      targets))
 
             if not targets:
                 # Don't bother planning (and more importantly populating) zones
