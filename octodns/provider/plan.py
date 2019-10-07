@@ -8,8 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 from logging import DEBUG, ERROR, INFO, WARN, getLogger
 from sys import stdout
 
-from six import text_type
-from ..compat import StringIO
+from six import StringIO, text_type
 
 
 class UnsafePlan(Exception):
