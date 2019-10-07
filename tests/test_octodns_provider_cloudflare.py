@@ -313,7 +313,7 @@ class TestCloudflareProvider(TestCase):
                  'dns_records/fc12ab34cd5611334422ab3322997653'),
             call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
                  'dns_records/fc12ab34cd5611334422ab3322997654')
-        ])
+        ], any_order=True)
 
     def test_update_add_swap(self):
         provider = CloudflareProvider('test', 'email', 'token')
@@ -743,23 +743,25 @@ class TestCloudflareProvider(TestCase):
         # the CDN.
         self.assertEquals(3, len(zone.records))
 
-        record = list(zone.records)[0]
-        self.assertEquals('multi', record.name)
-        self.assertEquals('multi.unit.tests.', record.fqdn)
-        self.assertEquals('CNAME', record._type)
-        self.assertEquals('multi.unit.tests.cdn.cloudflare.net.', record.value)
+        ordered = sorted(zone.records, key=lambda r: r.name)
 
-        record = list(zone.records)[1]
+        record = ordered[0]
+        self.assertEquals('a', record.name)
+        self.assertEquals('a.unit.tests.', record.fqdn)
+        self.assertEquals('CNAME', record._type)
+        self.assertEquals('a.unit.tests.cdn.cloudflare.net.', record.value)
+
+        record = ordered[1]
         self.assertEquals('cname', record.name)
         self.assertEquals('cname.unit.tests.', record.fqdn)
         self.assertEquals('CNAME', record._type)
         self.assertEquals('cname.unit.tests.cdn.cloudflare.net.', record.value)
 
-        record = list(zone.records)[2]
-        self.assertEquals('a', record.name)
-        self.assertEquals('a.unit.tests.', record.fqdn)
+        record = ordered[2]
+        self.assertEquals('multi', record.name)
+        self.assertEquals('multi.unit.tests.', record.fqdn)
         self.assertEquals('CNAME', record._type)
-        self.assertEquals('a.unit.tests.cdn.cloudflare.net.', record.value)
+        self.assertEquals('multi.unit.tests.cdn.cloudflare.net.', record.value)
 
         # CDN enabled records can't be updated, we don't know the real values
         # never point a Cloudflare record to itself.
