@@ -283,7 +283,10 @@ class Manager(object):
             self.log.info('sync:   sources=%s -> targets=%s', sources, targets)
 
             try:
-                sources = [self.providers[source] for source in sources]
+                collected = []
+                for source in sources:
+                    collected.append(self.providers[source])
+                sources = collected
             except KeyError:
                 raise ManagerException('Zone {}, unknown source: {}'
                                        .format(zone_name, source))
@@ -405,7 +408,10 @@ class Manager(object):
                                        .format(zone_name))
 
             try:
-                sources = [self.providers[source] for source in sources]
+                collected = []
+                for source in sources:
+                    collected.append(self.providers[source])
+                sources = collected
             except KeyError:
                 raise ManagerException('Zone {}, unknown source: {}'
                                        .format(zone_name, source))
