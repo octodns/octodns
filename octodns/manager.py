@@ -254,7 +254,7 @@ class Manager(object):
 
         zones = self.config['zones'].items()
         if eligible_zones:
-            zones = filter(lambda d: d[0] in eligible_zones, zones)
+            zones = [z for z in zones if z[0] in eligible_zones]
 
         futures = []
         for zone_name, config in zones:

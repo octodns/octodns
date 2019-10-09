@@ -253,7 +253,7 @@ class TinyDnsFileSource(TinyDnsBaseSource):
                     # Ignore hidden files
                     continue
                 with open(join(self.directory, filename), 'r') as fh:
-                    lines += filter(lambda l: l, fh.read().split('\n'))
+                    lines += [l for l in fh.read().split('\n') if l]
 
             self._cache = lines
 
