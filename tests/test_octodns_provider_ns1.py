@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from mock import Mock, call, patch
-from nsone.rest.errors import AuthException, RateLimitException, \
+from ns1.rest.errors import AuthException, RateLimitException, \
     ResourceException
 from unittest import TestCase
 
@@ -171,7 +171,7 @@ class TestNs1Provider(TestCase):
         'domain': 'unit.tests.',
     }]
 
-    @patch('nsone.NSONE.loadZone')
+    @patch('ns1.NS1.loadZone')
     def test_populate(self, load_mock):
         provider = Ns1Provider('test', 'api-key')
 
@@ -290,8 +290,8 @@ class TestNs1Provider(TestCase):
         self.assertEquals(self.expected, zone.records)
         self.assertEquals(('unit.tests',), load_mock.call_args[0])
 
-    @patch('nsone.NSONE.createZone')
-    @patch('nsone.NSONE.loadZone')
+    @patch('ns1.NS1.createZone')
+    @patch('ns1.NS1.loadZone')
     def test_sync(self, load_mock, create_mock):
         provider = Ns1Provider('test', 'api-key')
 
