@@ -84,8 +84,8 @@ class Zone(object):
             raise DuplicateRecordException('Duplicate record {}, type {}'
                                            .format(record.fqdn,
                                                    record._type))
-        elif not lenient and (((record._type == 'CNAME' and len(node) > 0) or
-                               ('CNAME' in map(lambda r: r._type, node)))):
+        elif not lenient and ((record._type == 'CNAME' and len(node) > 0) or
+                              ('CNAME' in [r._type for r in node])):
             # We're adding a CNAME to existing records or adding to an existing
             # CNAME
             raise InvalidNodeException('Invalid state, CNAME at {} cannot '
