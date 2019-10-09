@@ -271,8 +271,7 @@ class Manager(object):
                 raise ManagerException('Zone {} is missing targets'
                                        .format(zone_name))
             if eligible_targets:
-                targets = list(filter(lambda d: d in eligible_targets,
-                                      targets))
+                targets = [t for t in targets if t in eligible_targets]
 
             if not targets:
                 # Don't bother planning (and more importantly populating) zones

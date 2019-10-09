@@ -58,9 +58,8 @@ class TestYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(15, len(list(filter(lambda c:
-                                                  isinstance(c, Create),
-                                                  plan.changes))))
+            self.assertEquals(15, len([c for c in plan.changes
+                                       if isinstance(c, Create)]))
             self.assertFalse(isfile(yaml_file))
 
             # Now actually do it
@@ -69,9 +68,8 @@ class TestYamlProvider(TestCase):
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
-            self.assertEquals(5, len(list(filter(lambda c:
-                                                 isinstance(c, Create),
-                                                 plan.changes))))
+            self.assertEquals(5, len([c for c in plan.changes
+                                      if isinstance(c, Create)]))
             self.assertFalse(isfile(dynamic_yaml_file))
             # Apply it
             self.assertEquals(5, target.apply(plan))
@@ -82,17 +80,15 @@ class TestYamlProvider(TestCase):
             target.populate(reloaded)
             self.assertDictEqual(
                 {'included': ['test']},
-                list(filter(
-                    lambda x: x.name == 'included', reloaded.records
-                ))[0]._octodns)
+                [x for x in reloaded.records
+                 if x.name == 'included'][0]._octodns)
 
             self.assertFalse(zone.changes(reloaded, target=source))
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(15, len(list(filter(lambda c:
-                                                  isinstance(c, Create),
-                                                  plan.changes))))
+            self.assertEquals(15, len([c for c in plan.changes
+                                       if isinstance(c, Create)]))
 
             with open(yaml_file) as fh:
                 data = safe_load(fh.read())
@@ -255,8 +251,8 @@ class TestSplitYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(15, len(list(filter(
-                lambda c: isinstance(c, Create), plan.changes))))
+            self.assertEquals(15, len([c for c in plan.changes
+                                       if isinstance(c, Create)]))
             self.assertFalse(isdir(zone_dir))
 
             # Now actually do it
@@ -264,8 +260,8 @@ class TestSplitYamlProvider(TestCase):
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
-            self.assertEquals(5, len(list(filter(
-                lambda c: isinstance(c, Create), plan.changes))))
+            self.assertEquals(5, len([c for c in plan.changes
+                                      if isinstance(c, Create)]))
             self.assertFalse(isdir(dynamic_zone_dir))
             # Apply it
             self.assertEquals(5, target.apply(plan))
@@ -276,16 +272,15 @@ class TestSplitYamlProvider(TestCase):
             target.populate(reloaded)
             self.assertDictEqual(
                 {'included': ['test']},
-                list(filter(
-                    lambda x: x.name == 'included', reloaded.records
-                ))[0]._octodns)
+                [x for x in reloaded.records
+                 if x.name == 'included'][0]._octodns)
 
             self.assertFalse(zone.changes(reloaded, target=source))
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(15, len(list(filter(
-                lambda c: isinstance(c, Create), plan.changes))))
+            self.assertEquals(15, len([c for c in plan.changes
+                                       if isinstance(c, Create)]))
 
             yaml_file = join(zone_dir, '$unit.tests.yaml')
             self.assertTrue(isfile(yaml_file))

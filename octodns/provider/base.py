@@ -60,7 +60,7 @@ class BaseProvider(BaseSource):
 
         # allow the provider to filter out false positives
         before = len(changes)
-        changes = list(filter(self._include_change, changes))
+        changes = [c for c in changes if self._include_change(c)]
         after = len(changes)
         if before != after:
             self.log.info('plan:   filtered out %s changes', before - after)
