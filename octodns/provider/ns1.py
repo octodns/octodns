@@ -8,8 +8,8 @@ from __future__ import absolute_import, division, print_function, \
 from logging import getLogger
 from itertools import chain
 from collections import OrderedDict, defaultdict
-from nsone import NSONE
-from nsone.rest.errors import RateLimitException, ResourceException
+from ns1 import NS1
+from ns1.rest.errors import RateLimitException, ResourceException
 from pycountry_convert import country_alpha2_to_continent_code
 from time import sleep
 
@@ -38,7 +38,7 @@ class Ns1Provider(BaseProvider):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, api_key=***', id)
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
-        self._client = NSONE(apiKey=api_key)
+        self._client = NS1(apiKey=api_key)
 
     def _data_for_A(self, _type, record):
         # record meta (which would include geo information is only
