@@ -283,6 +283,8 @@ class Manager(object):
             self.log.info('sync:   sources=%s -> targets=%s', sources, targets)
 
             try:
+                # rather than using a list comprehension, we break this loop out
+                # so that the `except` block below can reference the `source`
                 collected = []
                 for source in sources:
                     collected.append(self.providers[source])
@@ -408,6 +410,8 @@ class Manager(object):
                                        .format(zone_name))
 
             try:
+                # rather than using a list comprehension, we break this loop out
+                # so that the `except` block below can reference the `source`
                 collected = []
                 for source in sources:
                     collected.append(self.providers[source])

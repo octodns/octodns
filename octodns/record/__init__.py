@@ -926,7 +926,7 @@ class MxValue(object):
         }
 
     def __hash__(self):
-        return hash('{} {}'.format(self.preference, self.exchange))
+        return hash((self.preference, self.exchange))
 
     def __eq__(self, other):
         return ((self.preference, self.exchange) ==

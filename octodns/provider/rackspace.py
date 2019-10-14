@@ -14,7 +14,7 @@ from .base import BaseProvider
 
 
 def _value_keyer(v):
-    return '{}-{}-{}'.format(v.get('type', ''), v['name'], v.get('data', ''))
+    return (v.get('type', ''), v['name'], v.get('data', ''))
 
 
 def add_trailing_dot(s):
