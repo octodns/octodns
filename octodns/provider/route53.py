@@ -16,6 +16,7 @@ import re
 
 from six import text_type
 
+from ..equality import EqualityTupleMixin
 from ..record import Record, Update
 from ..record.geo import GeoCodes
 from .base import BaseProvider
@@ -29,7 +30,7 @@ def _octal_replace(s):
     return octal_re.sub(lambda m: chr(int(m.group(1), 8)), s)
 
 
-class _Route53Record(object):
+class _Route53Record(EqualityTupleMixin):
 
     @classmethod
     def _new_dynamic(cls, provider, record, hosted_zone_id, creating):
@@ -157,28 +158,9 @@ class _Route53Record(object):
         return '{}:{}'.format(self.fqdn, self._type).__hash__()
 
     def _equality_tuple(self):
+        '''Sub-classes should call up to this and return its value and add
+        any additional fields they need to hav considered.'''
         return (self.__class__.__name__, self.fqdn, self._type)
-
-    def __eq__(self, other):
-        '''Sub-classes should call up to this and return its value if true.
-        When it's false they should compute their own __eq__, same for other
-        ordering methods.'''
-        return self._equality_tuple() == other._equality_tuple()
-
-    def __ne__(self, other):
-        return self._equality_tuple() != other._equality_tuple()
-
-    def __lt__(self, other):
-        return self._equality_tuple() < other._equality_tuple()
-
-    def __le__(self, other):
-        return self._equality_tuple() <= other._equality_tuple()
-
-    def __gt__(self, other):
-        return self._equality_tuple() > other._equality_tuple()
-
-    def __ge__(self, other):
-        return self._equality_tuple() >= other._equality_tuple()
 
     def __repr__(self):
         return '_Route53Record<{} {} {} {}>'.format(self.fqdn, self._type,
