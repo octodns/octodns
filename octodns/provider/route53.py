@@ -564,9 +564,9 @@ def _mod_keyer(mod):
     if rrset.get('GeoLocation', False):
         unique_id = rrset['SetIdentifier']
     else:
-        try:
+        if 'SetIdentifier' in rrset:
             unique_id = '{}-{}'.format(rrset['Name'], rrset['SetIdentifier'])
-        except KeyError:
+        else:
             unique_id = rrset['Name']
 
     # Prioritise within the action_priority, ensuring targets come first.
