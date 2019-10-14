@@ -156,34 +156,29 @@ class _Route53Record(object):
         'sub-classes should never use this method'
         return '{}:{}'.format(self.fqdn, self._type).__hash__()
 
+    def _equality_tuple(self):
+        return (self.__class__.__name__, self.fqdn, self._type)
+
     def __eq__(self, other):
         '''Sub-classes should call up to this and return its value if true.
         When it's false they should compute their own __eq__, same for other
         ordering methods.'''
-        return self.__class__.__name__ == other.__class__.__name__ and \
-            self.fqdn == other.fqdn and \
-            self._type == other._type
+        return self._equality_tuple() == other._equality_tuple()
 
     def __ne__(self, other):
-        return self.__class__.__name__ != other.__class__.__name__ or \
-            self.fqdn != other.fqdn or \
-            self._type != other._type
+        return self._equality_tuple() != other._equality_tuple()
 
     def __lt__(self, other):
-        return (((self.__class__.__name__, self.fqdn, self._type)) <
-                ((other.__class__.__name__, other.fqdn, other._type)))
+        return self._equality_tuple() < other._equality_tuple()
 
     def __le__(self, other):
-        return (((self.__class__.__name__, self.fqdn, self._type)) <=
-                ((other.__class__.__name__, other.fqdn, other._type)))
+        return self._equality_tuple() <= other._equality_tuple()
 
     def __gt__(self, other):
-        return (((self.__class__.__name__, self.fqdn, self._type)) >
-                ((other.__class__.__name__, other.fqdn, other._type)))
+        return self._equality_tuple() > other._equality_tuple()
 
     def __ge__(self, other):
-        return (((self.__class__.__name__, self.fqdn, self._type)) >=
-                ((other.__class__.__name__, other.fqdn, other._type)))
+        return self._equality_tuple() >= other._equality_tuple()
 
     def __repr__(self):
         return '_Route53Record<{} {} {} {}>'.format(self.fqdn, self._type,
@@ -524,50 +519,9 @@ class _Route53GeoRecord(_Route53Record):
         return '{}:{}:{}'.format(self.fqdn, self._type,
                                  self.geo.code).__hash__()
 
-    def __eq__(self, other):
-        return super(_Route53GeoRecord, self).__eq__(other) and \
-            self.geo.code == other.geo.code
-
-    def __ne__(self, other):
-        # super will handle class != class, so if it's true we have 2 geo
-        # objects with the same name and type, so just need to compare codes
-        return super(_Route53GeoRecord, self).__ne__(other) or \
-            self.geo.code != other.geo.code
-
-    def __lt__(self, other):
-        # super eq will check class, name, and type
-        if super(_Route53GeoRecord, self).__eq__(other):
-            # if it's True we're dealing with two geo's with the same name and
-            # type, so we just need to compare codes
-            return self.geo.code < other.geo.code
-        # Super is not equal so we'll just let it decide lt
-        return super(_Route53GeoRecord, self).__lt__(other)
-
-    def __le__(self, other):
-        # super eq will check class, name, and type
-        if super(_Route53GeoRecord, self).__eq__(other):
-            # Just need to compare codes, everything else is equal
-            return self.geo.code <= other.geo.code
-        # Super is not equal so geo.code doesn't matter, let it decide with lt,
-        # can't be eq
-        return super(_Route53GeoRecord, self).__lt__(other)
-
-    def __gt__(self, other):
-        # super eq will check class, name, and type
-        if super(_Route53GeoRecord, self).__eq__(other):
-            # Just need to compare codes, everything else is equal
-            return self.geo.code > other.geo.code
-        # Super is not equal so we'll just let it decide gt
-        return super(_Route53GeoRecord, self).__gt__(other)
-
-    def __ge__(self, other):
-        # super eq will check class, name, and type
-        if super(_Route53GeoRecord, self).__eq__(other):
-            # Just need to compare codes, everything else is equal
-            return self.geo.code >= other.geo.code
-        # Super is not equal so geo.code doesn't matter, let it decide with gt,
-        # can't be eq
-        return super(_Route53GeoRecord, self).__gt__(other)
+    def _equality_tuple(self):
+        return super(_Route53GeoRecord, self)._equality_tuple() + \
+            (self.geo.code,)
 
     def __repr__(self):
         return '_Route53GeoRecord<{} {} {} {} {}>'.format(self.fqdn,
