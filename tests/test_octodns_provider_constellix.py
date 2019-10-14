@@ -193,6 +193,14 @@ class TestConstellixProvider(TestCase):
                 'value': [
                     '3.2.3.4'
                 ]
+            },  {
+                'id': 11189899,
+                'type': 'ALIAS',
+                'name': 'alias',
+                'ttl': 600,
+                'value': [{
+                    'value': 'aname.unit.tests.'
+                }]
             }
         ])
 
@@ -207,8 +215,8 @@ class TestConstellixProvider(TestCase):
         }))
 
         plan = provider.plan(wanted)
-        self.assertEquals(2, len(plan.changes))
-        self.assertEquals(2, provider.apply(plan))
+        self.assertEquals(3, len(plan.changes))
+        self.assertEquals(3, provider.apply(plan))
 
         # recreate for update, and deletes for the 2 parts of the other
         provider._client._request.assert_has_calls([
@@ -220,5 +228,6 @@ class TestConstellixProvider(TestCase):
                 'ttl': 300
             }),
             call('DELETE', '/123123/records/A/11189897'),
-            call('DELETE', '/123123/records/A/11189898')
+            call('DELETE', '/123123/records/A/11189898'),
+            call('DELETE', '/123123/records/ANAME/11189899')
         ], any_order=True)
