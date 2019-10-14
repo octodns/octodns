@@ -148,6 +148,10 @@ class ConstellixClient(object):
         self._request('POST', path, data=params)
 
     def record_delete(self, zone_name, record_type, record_id):
+        # change ALIAS records to ANAME
+        if record_type == 'ALIAS':
+            record_type = 'ANAME'
+
         zone_id = self.domains.get(zone_name, False)
         path = '/{}/records/{}/{}'.format(zone_id, record_type, record_id)
         self._request('DELETE', path)
