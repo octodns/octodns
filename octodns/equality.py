@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 
-class EqualityTupleMixin:
+class EqualityTupleMixin(object):
 
     def _equality_tuple(self):
         raise NotImplementedError('_equality_tuple method not implemented')
