@@ -13,7 +13,7 @@
      ordering for a number of providers that just convert changes into API
      calls as they come. Python 2 sets ordered consistently, Python 3 they do
      not. https://github.com/github/octodns/pull/384/commits/7958233fccf9ea22d95e2fd06c48d7d0a4529e26
-   * Route53 _mod_keyer ordering wasn't 100% complete and thus unreliable and
+   * Route53 `_mod_keyer` ordering wasn't 100% complete and thus unreliable and
      random in Python 3. This has been addressed and may result in value
      reordering on next plan, no actual changes in behavior should occur.
    * `incf.countryutils` (in pypi) was last released in 2009 is not python 3
