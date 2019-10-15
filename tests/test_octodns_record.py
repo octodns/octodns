@@ -1744,7 +1744,8 @@ class TestRecordValidation(TestCase):
                     'target': 'foo.bar.baz.'
                 }
             })
-        self.assertEquals(['invalid name'], ctx.exception.reasons)
+        self.assertEquals(['invalid name for SRV record'],
+                          ctx.exception.reasons)
 
         # missing priority
         with self.assertRaises(ValidationError) as ctx:

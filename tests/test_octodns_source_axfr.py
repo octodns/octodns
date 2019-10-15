@@ -21,19 +21,29 @@ class TestAxfrSource(TestCase):
 
     forward_zonefile = dns.zone.from_file('./tests/zones/unit.tests.',
                                           'unit.tests', relativize=False)
+    invalid_zonefile = dns.zone.from_file('./tests/zones/invalid.zone.',
+                                          'invalid.zone', check_origin=False,
+                                          relativize=False)
 
     @patch('dns.zone.from_xfr')
     def test_populate(self, from_xfr_mock):
-        got = Zone('unit.tests.', [])
-
         from_xfr_mock.side_effect = [
             self.forward_zonefile,
+            self.invalid_zonefile,
             DNSException
         ]
 
+        # Test valid zone transfer
+        got = Zone('unit.tests.', [])
         self.source.populate(got)
         self.assertEquals(11, len(got.records))
 
+        # Test leniency with invalid zone
+        lenient = Zone('invalid.zone.', [])
+        self.source.populate(lenient, lenient=True)
+        self.assertEquals(1, len(lenient.records))
+
+        # Test DNS exception
         with self.assertRaises(AxfrSourceZoneTransferFailed) as ctx:
             zone = Zone('unit.tests.', [])
             self.source.populate(zone)
@@ -69,3 +79,8 @@ class TestZoneFileSource(TestCase):
             self.source.populate(zone)
         self.assertEquals('The DNS zone has no NS RRset at its origin.',
                           ctx.exception.message)
+
+        # Zone file is not valid but lenient is true
+        lenient = Zone('invalid.zone.', [])
+        self.source.populate(lenient, lenient=True)
+        self.assertEquals(1, len(lenient.records))

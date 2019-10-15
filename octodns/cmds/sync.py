@@ -22,6 +22,9 @@ def main():
                         help='Acknowledge that significant changes are being '
                         'made and do them')
 
+    parser.add_argument('--lenient', action='store_true', default=False,
+                        help='Do not strictly follow DNS standard.')
+
     parser.add_argument('zone', nargs='*', default=[],
                         help='Limit sync to the specified zone(s)')
 
@@ -36,7 +39,7 @@ def main():
 
     manager = Manager(args.config_file)
     manager.sync(eligible_zones=args.zone, eligible_targets=args.target,
-                 dry_run=not args.doit, force=args.force)
+                 dry_run=not args.doit, force=args.force, lenient=args.lenient)
 
 
 if __name__ == '__main__':

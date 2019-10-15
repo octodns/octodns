@@ -98,7 +98,7 @@ class AxfrBaseSource(BaseSource):
                        target, lenient)
 
         values = defaultdict(lambda: defaultdict(list))
-        for record in self.zone_records(zone):
+        for record in self.zone_records(zone, lenient=lenient):
             _type = record['type']
             if _type not in self.SUPPORTS:
                 continue
@@ -110,7 +110,8 @@ class AxfrBaseSource(BaseSource):
             for _type, records in types.items():
                 data_for = getattr(self, '_data_for_{}'.format(_type))
                 record = Record.new(zone, name, data_for(_type, records),
-                                    source=self, lenient=lenient)
+                                    source=self, lenient=lenient
+                                    )
                 zone.add_record(record, lenient=lenient)
 
         self.log.info('populate:   found %s records',
@@ -143,10 +144,14 @@ class AxfrSource(AxfrBaseSource):
         super(AxfrSource, self).__init__(id)
         self.master = master
 
-    def zone_records(self, zone):
+    def zone_records(self, zone, lenient=False):
+        check_origin = True
+        if lenient:
+            check_origin = False
         try:
             z = dns.zone.from_xfr(dns.query.xfr(self.master, zone.name,
                                                 relativize=False),
+                                  check_origin=check_origin,
                                   relativize=False)
         except DNSException:
             raise AxfrSourceZoneTransferFailed()
@@ -201,12 +206,16 @@ class ZoneFileSource(AxfrBaseSource):
 
         self._zone_records = {}
 
-    def _load_zone_file(self, zone_name):
+    def _load_zone_file(self, zone_name, lenient=False):
         zonefiles = listdir(self.directory)
+        check_origin = True
+        if lenient:
+            check_origin = False
         if zone_name in zonefiles:
             try:
                 z = dns.zone.from_file(join(self.directory, zone_name),
-                                       zone_name, relativize=False)
+                                       zone_name, check_origin=check_origin,
+                                       relativize=False)
             except DNSException as error:
                 raise ZoneFileSourceLoadFailure(error)
         else:
@@ -214,10 +223,10 @@ class ZoneFileSource(AxfrBaseSource):
 
         return z
 
-    def zone_records(self, zone):
+    def zone_records(self, zone, lenient=False):
         if zone.name not in self._zone_records:
             try:
-                z = self._load_zone_file(zone.name)
+                z = self._load_zone_file(zone.name, lenient=lenient)
                 records = []
                 for (name, ttl, rdata) in z.iterate_rdatas():
                     rdtype = dns.rdatatype.to_text(rdata.rdtype)
