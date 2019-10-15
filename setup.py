@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 try:
-    from io import StringIO
-except ImportError:
     from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 from os.path import dirname, join
 import octodns
 
