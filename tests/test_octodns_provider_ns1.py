@@ -5,6 +5,7 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from collections import defaultdict
 from mock import Mock, call, patch
 from ns1.rest.errors import AuthException, RateLimitException, \
     ResourceException
@@ -373,8 +374,12 @@ class TestNs1Provider(TestCase):
         load_mock.side_effect = [nsone_zone, nsone_zone]
         plan = provider.plan(desired)
         self.assertEquals(3, len(plan.changes))
-        self.assertIsInstance(plan.changes[0], Update)
-        self.assertIsInstance(plan.changes[2], Delete)
+        # Shouldn't rely on order so just count classes
+        classes = defaultdict(lambda: 0)
+        for change in plan.changes:
+            classes[change.__class__] += 1
+        self.assertEquals(1, classes[Delete])
+        self.assertEquals(2, classes[Update])
         # ugh, we need a mock record that can be returned from loadRecord for
         # the update and delete targets, we can add our side effects to that to
         # trigger rate limit handling
@@ -395,8 +400,8 @@ class TestNs1Provider(TestCase):
         self.assertEquals(3, got_n)
         nsone_zone.loadRecord.assert_has_calls([
             call('unit.tests', u'A'),
-            call('geo', u'A'),
             call('delete-me', u'A'),
+            call('geo', u'A'),
         ])
         mock_record.assert_has_calls([
             call.update(answers=[{'answer': [u'1.2.3.4'], 'meta': {}}],
@@ -405,6 +410,8 @@ class TestNs1Provider(TestCase):
             call.update(answers=[{u'answer': [u'1.2.3.4'], u'meta': {}}],
                         filters=[],
                         ttl=32),
+            call.delete(),
+            call.delete(),
             call.update(
                 answers=[
                     {u'answer': [u'101.102.103.104'], u'meta': {}},
@@ -422,8 +429,6 @@ class TestNs1Provider(TestCase):
                     {u'filter': u'select_first_n', u'config': {u'N': 1}},
                 ],
                 ttl=34),
-            call.delete(),
-            call.delete()
         ])
 
     def test_escaping(self):

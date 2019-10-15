@@ -7,10 +7,12 @@ from __future__ import absolute_import, division, print_function, \
 
 from os import environ
 from os.path import dirname, join
+from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record
-from octodns.manager import _AggregateTarget, MainThreadExecutor, Manager
+from octodns.manager import _AggregateTarget, MainThreadExecutor, Manager, \
+    ManagerException
 from octodns.yaml import safe_load
 from octodns.zone import Zone
 
@@ -27,80 +29,81 @@ def get_config_filename(which):
 class TestManager(TestCase):
 
     def test_missing_provider_class(self):
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('missing-provider-class.yaml')).sync()
-        self.assertTrue('missing class' in ctx.exception.message)
+        self.assertTrue('missing class' in text_type(ctx.exception))
 
     def test_bad_provider_class(self):
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('bad-provider-class.yaml')).sync()
-        self.assertTrue('Unknown provider class' in ctx.exception.message)
+        self.assertTrue('Unknown provider class' in text_type(ctx.exception))
 
     def test_bad_provider_class_module(self):
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('bad-provider-class-module.yaml')) \
                 .sync()
-        self.assertTrue('Unknown provider class' in ctx.exception.message)
+        self.assertTrue('Unknown provider class' in text_type(ctx.exception))
 
     def test_bad_provider_class_no_module(self):
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('bad-provider-class-no-module.yaml')) \
                 .sync()
-        self.assertTrue('Unknown provider class' in ctx.exception.message)
+        self.assertTrue('Unknown provider class' in text_type(ctx.exception))
 
     def test_missing_provider_config(self):
         # Missing provider config
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('missing-provider-config.yaml')).sync()
-        self.assertTrue('provider config' in ctx.exception.message)
+        self.assertTrue('provider config' in text_type(ctx.exception))
 
     def test_missing_env_config(self):
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('missing-provider-env.yaml')).sync()
-        self.assertTrue('missing env var' in ctx.exception.message)
+        self.assertTrue('missing env var' in text_type(ctx.exception))
 
     def test_missing_source(self):
-        with self.assertRaises(Exception) as ctx:
-            Manager(get_config_filename('unknown-provider.yaml')) \
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('provider-problems.yaml')) \
                 .sync(['missing.sources.'])
-        self.assertTrue('missing sources' in ctx.exception.message)
+        self.assertTrue('missing sources' in text_type(ctx.exception))
 
     def test_missing_targets(self):
-        with self.assertRaises(Exception) as ctx:
-            Manager(get_config_filename('unknown-provider.yaml')) \
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('provider-problems.yaml')) \
                 .sync(['missing.targets.'])
-        self.assertTrue('missing targets' in ctx.exception.message)
+        self.assertTrue('missing targets' in text_type(ctx.exception))
 
     def test_unknown_source(self):
-        with self.assertRaises(Exception) as ctx:
-            Manager(get_config_filename('unknown-provider.yaml')) \
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('provider-problems.yaml')) \
                 .sync(['unknown.source.'])
-        self.assertTrue('unknown source' in ctx.exception.message)
+        self.assertTrue('unknown source' in text_type(ctx.exception))
 
     def test_unknown_target(self):
-        with self.assertRaises(Exception) as ctx:
-            Manager(get_config_filename('unknown-provider.yaml')) \
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('provider-problems.yaml')) \
                 .sync(['unknown.target.'])
-        self.assertTrue('unknown target' in ctx.exception.message)
+        self.assertTrue('unknown target' in text_type(ctx.exception))
 
     def test_bad_plan_output_class(self):
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(ManagerException) as ctx:
             name = 'bad-plan-output-missing-class.yaml'
             Manager(get_config_filename(name)).sync()
         self.assertEquals('plan_output bad is missing class',
-                          ctx.exception.message)
+                          text_type(ctx.exception))
 
     def test_bad_plan_output_config(self):
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('bad-plan-output-config.yaml')).sync()
         self.assertEqual('Incorrect plan_output config for bad',
-                         ctx.exception.message)
+                         text_type(ctx.exception))
 
     def test_source_only_as_a_target(self):
-        with self.assertRaises(Exception) as ctx:
-            Manager(get_config_filename('unknown-provider.yaml')) \
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('provider-problems.yaml')) \
                 .sync(['not.targetable.'])
-        self.assertTrue('does not support targeting' in ctx.exception.message)
+        self.assertTrue('does not support targeting' in
+                        text_type(ctx.exception))
 
     def test_always_dry_run(self):
         with TemporaryDirectory() as tmpdir:
@@ -180,9 +183,9 @@ class TestManager(TestCase):
                                       'unit.tests.')
             self.assertEquals(14, len(changes))
 
-            with self.assertRaises(Exception) as ctx:
+            with self.assertRaises(ManagerException) as ctx:
                 manager.compare(['nope'], ['dump'], 'unit.tests.')
-            self.assertEquals('Unknown source: nope', ctx.exception.message)
+            self.assertEquals('Unknown source: nope', text_type(ctx.exception))
 
     def test_aggregate_target(self):
         simple = SimpleProvider()
@@ -220,10 +223,10 @@ class TestManager(TestCase):
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             manager = Manager(get_config_filename('simple.yaml'))
 
-            with self.assertRaises(Exception) as ctx:
+            with self.assertRaises(ManagerException) as ctx:
                 manager.dump('unit.tests.', tmpdir.dirname, False, False,
                              'nope')
-            self.assertEquals('Unknown source: nope', ctx.exception.message)
+            self.assertEquals('Unknown source: nope', text_type(ctx.exception))
 
             manager.dump('unit.tests.', tmpdir.dirname, False, False, 'in')
 
@@ -249,10 +252,10 @@ class TestManager(TestCase):
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             manager = Manager(get_config_filename('simple-split.yaml'))
 
-            with self.assertRaises(Exception) as ctx:
+            with self.assertRaises(ManagerException) as ctx:
                 manager.dump('unit.tests.', tmpdir.dirname, False, True,
                              'nope')
-            self.assertEquals('Unknown source: nope', ctx.exception.message)
+            self.assertEquals('Unknown source: nope', text_type(ctx.exception))
 
             manager.dump('unit.tests.', tmpdir.dirname, False, True, 'in')
 
@@ -265,15 +268,15 @@ class TestManager(TestCase):
     def test_validate_configs(self):
         Manager(get_config_filename('simple-validate.yaml')).validate_configs()
 
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('missing-sources.yaml')) \
                 .validate_configs()
-        self.assertTrue('missing sources' in ctx.exception.message)
+        self.assertTrue('missing sources' in text_type(ctx.exception))
 
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('unknown-provider.yaml')) \
                 .validate_configs()
-        self.assertTrue('unknown source' in ctx.exception.message)
+        self.assertTrue('unknown source' in text_type(ctx.exception))
 
 
 class TestMainThreadExecutor(TestCase):

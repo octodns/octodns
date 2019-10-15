@@ -328,7 +328,7 @@ class MythicBeastsProvider(BaseProvider):
 
         exists = True
         for line in resp.content.splitlines():
-            match = MythicBeastsProvider.RE_POPLINE.match(line)
+            match = MythicBeastsProvider.RE_POPLINE.match(line.decode("utf-8"))
 
             if match is None:
                 self.log.debug('failed to match line: %s', line)

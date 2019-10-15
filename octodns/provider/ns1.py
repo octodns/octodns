@@ -10,8 +10,10 @@ from itertools import chain
 from collections import OrderedDict, defaultdict
 from ns1 import NS1
 from ns1.rest.errors import RateLimitException, ResourceException
-from incf.countryutils import transformations
+from pycountry_convert import country_alpha2_to_continent_code
 from time import sleep
+
+from six import text_type
 
 from ..record import Record
 from .base import BaseProvider
@@ -60,8 +62,7 @@ class Ns1Provider(BaseProvider):
                 us_state = meta.get('us_state', [])
                 ca_province = meta.get('ca_province', [])
                 for cntry in country:
-                    cn = transformations.cc_to_cn(cntry)
-                    con = transformations.cn_to_ctca2(cn)
+                    con = country_alpha2_to_continent_code(cntry)
                     key = '{}-{}'.format(con, cntry)
                     geo[key].extend(answer['answer'])
                 for state in us_state:
@@ -76,9 +77,9 @@ class Ns1Provider(BaseProvider):
             else:
                 values.extend(answer['answer'])
                 codes.append([])
-        values = [unicode(x) for x in values]
+        values = [text_type(x) for x in values]
         geo = OrderedDict(
-            {unicode(k): [unicode(x) for x in v] for k, v in geo.items()}
+            {text_type(k): [text_type(x) for x in v] for k, v in geo.items()}
         )
         data['values'] = values
         data['geo'] = geo

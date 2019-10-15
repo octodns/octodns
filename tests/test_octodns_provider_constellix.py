@@ -10,6 +10,7 @@ from mock import Mock, call
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
+from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record
@@ -65,7 +66,7 @@ class TestConstellixProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            self.assertEquals('Unauthorized', ctx.exception.message)
+            self.assertEquals('Unauthorized', text_type(ctx.exception))
 
         # Bad request
         with requests_mock() as mock:
@@ -77,7 +78,7 @@ class TestConstellixProvider(TestCase):
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
             self.assertEquals('\n  - "unittests" is not a valid domain name',
-                              ctx.exception.message)
+                              text_type(ctx.exception))
 
         # General error
         with requests_mock() as mock:
@@ -148,6 +149,11 @@ class TestConstellixProvider(TestCase):
             call('POST', '/', data={'names': ['unit.tests']}),
             # get all domains to build the cache
             call('GET', '/'),
+        ])
+        # These two checks are broken up so that ordering doesn't break things.
+        # Python3 doesn't make the calls in a consistent order so different
+        # things follow the GET / on different runs
+        provider._client._request.assert_has_calls([
             call('POST', '/123123/records/SRV', data={
                 'roundRobin': [{
                     'priority': 10,

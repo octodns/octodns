@@ -9,6 +9,7 @@ from collections import defaultdict
 from requests import Session
 from base64 import b64encode
 from ipaddress import ip_address
+from six import string_types
 import hashlib
 import hmac
 import logging
@@ -122,7 +123,7 @@ class ConstellixClient(object):
             # change relative values to absolute
             value = record['value']
             if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'SRV']:
-                if isinstance(value, unicode):
+                if isinstance(value, string_types):
                     record['value'] = self._absolutize_value(value,
                                                              zone_name)
                 if isinstance(value, list):

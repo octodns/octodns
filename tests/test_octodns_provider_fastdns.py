@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function, \
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
+from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record
@@ -147,4 +148,4 @@ class TestFastdnsProvider(TestCase):
                 changes = provider.apply(plan)
             except NameError as e:
                 expected = "contractId not specified to create zone"
-                self.assertEquals(e.message, expected)
+                self.assertEquals(text_type(e), expected)

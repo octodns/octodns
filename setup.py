@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
-from StringIO import StringIO
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 from os.path import dirname, join
 import octodns
 
@@ -65,10 +68,11 @@ setup(
     install_requires=[
         'PyYaml>=4.2b1',
         'dnspython>=1.15.0',
-        'futures>=3.2.0',
-        'incf.countryutils>=1.0',
+        'futures>=3.2.0; python_version<"3.2"',
         'ipaddress>=1.0.22',
         'natsort>=5.5.0',
+        'pycountry>=19.8.18',
+        'pycountry-convert>=0.7.2',
         # botocore doesn't like >=2.7.0 for some reason
         'python-dateutil>=2.6.0,<2.7.0',
         'requests>=2.20.0'
