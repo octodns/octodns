@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
-from six import StringIO
+try:
+    from io import StringIO
+except ImportError:
+    from StringIO import StringIO
 from os.path import dirname, join
 import octodns
 
