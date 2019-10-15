@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from StringIO import StringIO
+from six import StringIO
 from os.path import dirname, join
 import octodns
 
