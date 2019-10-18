@@ -82,6 +82,7 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
+        name = text_type(name)
         fqdn = '{}.{}'.format(name, zone.name) if name else zone.name
         try:
             _type = data['type']
@@ -105,7 +106,7 @@ class Record(EqualityTupleMixin):
             }[_type]
         except KeyError:
             raise Exception('Unknown record type: "{}"'.format(_type))
-        reasons = _class.validate(name, data)
+        reasons = _class.validate(name, fqdn, data)
         try:
             lenient |= data['octodns']['lenient']
         except KeyError:
@@ -118,8 +119,16 @@ class Record(EqualityTupleMixin):
         return _class(zone, name, data, source=source)
 
     @classmethod
-    def validate(cls, name, data):
+    def validate(cls, name, fqdn, data):
         reasons = []
+        n = len(fqdn)
+        if n > 253:
+            reasons.append('invalid fqdn, "{}" is too long at {} chars, max '
+                           'is 253'.format(fqdn, n))
+        n = len(name)
+        if n > 63:
+            reasons.append('invalid name, "{}" is too long at {} chars, max '
+                           'is 63'.format(name, n))
         try:
             ttl = int(data['ttl'])
             if ttl < 0:
@@ -258,8 +267,8 @@ class GeoValue(EqualityTupleMixin):
 class _ValuesMixin(object):
 
     @classmethod
-    def validate(cls, name, data):
-        reasons = super(_ValuesMixin, cls).validate(name, data)
+    def validate(cls, name, fqdn, data):
+        reasons = super(_ValuesMixin, cls).validate(name, fqdn, data)
 
         values = data.get('values', data.get('value', []))
 
@@ -311,8 +320,8 @@ class _GeoMixin(_ValuesMixin):
     '''
 
     @classmethod
-    def validate(cls, name, data):
-        reasons = super(_GeoMixin, cls).validate(name, data)
+    def validate(cls, name, fqdn, data):
+        reasons = super(_GeoMixin, cls).validate(name, fqdn, data)
         try:
             geo = dict(data['geo'])
             for code, values in geo.items():
@@ -358,8 +367,8 @@ class _GeoMixin(_ValuesMixin):
 class _ValueMixin(object):
 
     @classmethod
-    def validate(cls, name, data):
-        reasons = super(_ValueMixin, cls).validate(name, data)
+    def validate(cls, name, fqdn, data):
+        reasons = super(_ValueMixin, cls).validate(name, fqdn, data)
         reasons.extend(cls._value_type.validate(data.get('value', None),
                                                 cls._type))
         return reasons
@@ -485,8 +494,8 @@ class _DynamicMixin(object):
                         r'(-(?P<subdivision_code>\w\w))?)?$')
 
     @classmethod
-    def validate(cls, name, data):
-        reasons = super(_DynamicMixin, cls).validate(name, data)
+    def validate(cls, name, fqdn, data):
+        reasons = super(_DynamicMixin, cls).validate(name, fqdn, data)
 
         if 'dynamic' not in data:
             return reasons
@@ -803,11 +812,11 @@ class CnameRecord(_DynamicMixin, _ValueMixin, Record):
     _value_type = CnameValue
 
     @classmethod
-    def validate(cls, name, data):
+    def validate(cls, name, fqdn, data):
         reasons = []
         if name == '':
             reasons.append('root CNAME not allowed')
-        reasons.extend(super(CnameRecord, cls).validate(name, data))
+        reasons.extend(super(CnameRecord, cls).validate(name, fqdn, data))
         return reasons
 
 
@@ -1181,11 +1190,11 @@ class SrvRecord(_ValuesMixin, Record):
     _name_re = re.compile(r'^_[^\.]+\.[^\.]+')
 
     @classmethod
-    def validate(cls, name, data):
+    def validate(cls, name, fqdn, data):
         reasons = []
         if not cls._name_re.match(name):
             reasons.append('invalid name')
-        reasons.extend(super(SrvRecord, cls).validate(name, data))
+        reasons.extend(super(SrvRecord, cls).validate(name, fqdn, data))
         return reasons
 
 

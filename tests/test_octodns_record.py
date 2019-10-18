@@ -1217,6 +1217,34 @@ class TestRecordValidation(TestCase):
     zone = Zone('unit.tests.', [])
 
     def test_base(self):
+        # fqdn length, DNS defins max as 253
+        with self.assertRaises(ValidationError) as ctx:
+            # The . will put this over the edge
+            name = 'x' * (253 - len(self.zone.name))
+            Record.new(self.zone, name, {
+                'ttl': 300,
+                'type': 'A',
+                'value': '1.2.3.4',
+            })
+        reason = ctx.exception.reasons[0]
+        self.assertTrue(reason.startswith('invalid fqdn, "xxxx'))
+        self.assertTrue(reason.endswith('.unit.tests." is too long at 254'
+                                        ' chars, max is 253'))
+
+        # label length, DNS defins max as 63
+        with self.assertRaises(ValidationError) as ctx:
+            # The . will put this over the edge
+            name = 'x' * 64
+            Record.new(self.zone, name, {
+                'ttl': 300,
+                'type': 'A',
+                'value': '1.2.3.4',
+            })
+        reason = ctx.exception.reasons[0]
+        self.assertTrue(reason.startswith('invalid name, "xxxx'))
+        self.assertTrue(reason.endswith('xxx" is too long at 64'
+                                        ' chars, max is 63'))
+
         # no ttl
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
