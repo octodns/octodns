@@ -26,6 +26,11 @@ export DYN_PASSWORD=
 export DYN_USERNAME=
 export GOOGLE_APPLICATION_CREDENTIALS=
 
-coverage run --branch --source=octodns `which nosetests` --with-xunit "$@"
+coverage run --branch --source=octodns --omit=octodns/cmds/* "$(command -v nosetests)" --with-xunit "$@"
 coverage html
 coverage xml
+coverage report --show-missing
+coverage report | grep ^TOTAL | grep -qv 100% && {
+    echo "Incomplete code coverage" >&2
+    exit 1
+} || echo "Code coverage 100%"

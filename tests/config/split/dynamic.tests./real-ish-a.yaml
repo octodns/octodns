@@ -1,0 +1,87 @@
+---
+real-ish-a:
+  dynamic:
+    pools:
+      ap-southeast-1:
+        fallback: null
+        values:
+        - value: 1.4.1.1
+          weight: 2
+        - value: 1.4.1.2
+          weight: 2
+        - value: 1.4.2.1
+          weight: 1
+        - value: 1.4.2.2
+          weight: 1
+        - value: 1.4.3.1
+          weight: 1
+        - value: 1.4.3.2
+          weight: 1
+      eu-central-1:
+        fallback: null
+        values:
+        - value: 1.3.1.1
+          weight: 1
+        - value: 1.3.1.2
+          weight: 1
+        - value: 1.3.2.1
+          weight: 1
+        - value: 1.3.2.2
+          weight: 1
+        - value: 1.3.3.1
+          weight: 1
+        - value: 1.3.3.2
+          weight: 1
+      us-east-1:
+        fallback: null
+        values:
+        - value: 1.1.1.1
+          weight: 1
+        - value: 1.1.1.2
+          weight: 1
+        - value: 1.1.2.1
+          weight: 1
+        - value: 1.1.2.2
+          weight: 1
+        - value: 1.1.3.1
+          weight: 1
+        - value: 1.1.3.2
+          weight: 1
+      us-west-2:
+        fallback: null
+        values:
+        - value: 1.2.1.1
+          weight: 1
+        - value: 1.2.1.2
+          weight: 1
+        - value: 1.2.2.1
+          weight: 1
+        - value: 1.2.2.2
+          weight: 1
+        - value: 1.2.3.1
+          weight: 1
+        - value: 1.2.3.2
+          weight: 1
+    rules:
+    - geos:
+      - NA-US-CA
+      - NA-US-NC
+      - NA-US-OR
+      - NA-US-WA
+      pool: us-west-2
+    - geos:
+      - AS-CN
+      pool: ap-southeast-1
+    - geos:
+      - AF
+      - EU
+      pool: eu-central-1
+    - pool: us-east-1
+  type: A
+  values:
+  - 1.1.1.1
+  - 1.1.1.2
+  - 1.1.2.1
+  - 1.1.2.2
+  - 1.1.3.1
+  - 1.1.3.2

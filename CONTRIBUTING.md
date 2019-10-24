@@ -17,7 +17,7 @@ This project uses the [GitHub Flow](https://guides.github.com/introduction/flow/
 0. Make your change, add tests, and make sure the tests still pass
 0. Make sure that `./script/lint` passes without any warnings
 0. Make sure that coverage is at :100:% `script/coverage` and open `htmlcov/index.html`
-  * You can open PRs for :eyes: & discussion prior to this
+   * You can open PRs for :eyes: & discussion prior to this
 0. Push to your fork and submit a pull request
 
 We will handle updating the version, tagging the release, and releasing the gem. Please don't bump the version or otherwise attempt to take on these administrative internal tasks as part of your pull request.
@@ -38,9 +38,12 @@ Here are a few things you can do that will increase the likelihood of your pull 
 
 - Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
 
-## Development prerequisites
+## Development setup
 
-- setuptools >= 30.3.0
+```
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
 
 ## License note
 

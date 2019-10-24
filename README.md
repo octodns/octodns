@@ -1,4 +1,4 @@
-<img src="/docs/logos/octodns-logo.png?" height=251 width=404>
+<img src="https://raw.githubusercontent.com/github/octodns/master/docs/logos/octodns-logo.png?" height=251 width=404>
 
 ## DNS as code - Tools for managing DNS across multiple providers
 
@@ -9,11 +9,31 @@ The architecture is pluggable and the tooling is flexible to make it applicable 
 
 It is similar to [Netflix/denominator](https://github.com/Netflix/denominator).
 
+## Table of Contents
+
+- [Getting started](#getting-started)
+  - [Workspace](#workspace)
+  - [Config](#config)
+  - [Noop](#noop)
+  - [Making changes](#making-changes)
+  - [Workflow](#workflow)
+  - [Bootstrapping config files](#bootstrapping-config-files)
+- [Supported providers](#supported-providers)
+    - [Notes](#notes)
+- [Custom Sources and Providers](#custom-sources-and-providers)
+- [Other Uses](#other-uses)
+  - [Syncing between providers](#syncing-between-providers)
+  - [Dynamic sources](#dynamic-sources)
+- [Contributing](#contributing)
+- [Getting help](#getting-help)
+- [License](#license)
+- [Authors](#authors)
+
 ## Getting started
 
 ### Workspace
 
-Running through the following commands will install the latest release of OctoDNS and set up a place for your config files to live.
+Running through the following commands will install the latest release of OctoDNS and set up a place for your config files to live. To determine if provider specific requirements are necessary see the [Supported providers table](#supported-providers) below.
 
 ```
 $ mkdir dns
@@ -21,7 +41,7 @@ $ cd dns
 $ virtualenv env
 ...
 $ source env/bin/activate
-$ pip install octodns
+$ pip install octodns <provider-specific-requirements>
 $ mkdir config
 ```
 
@@ -35,6 +55,8 @@ providers:
   config:
     class: octodns.provider.yaml.YamlProvider
     directory: ./zones
+    default_ttl: 3600
+    enforce_order: True
   dyn:
     class: octodns.provider.dyn.DynProvider
     customer: 1234
@@ -68,8 +90,8 @@ Now that we have something to tell OctoDNS about our providers & zones we need t
   ttl: 60
   type: A
   values:
-    - 1.2.3.4
-    - 1.2.3.5
+  - 1.2.3.4
+  - 1.2.3.5
 ```
 
 Further information can be found in [Records Documentation](/docs/records.md).
@@ -98,7 +120,7 @@ There will be other logging information presented on the screen, but successful 
 
 ### Making changes
 
-**WARNING**: OctoDNS assumes ownership of any domain you point it to. When you tell it to act it will do whatever is necessary to try and match up states including deleting any unexpected records. Be careful when playing around with OctoDNS. It's best to experiment with a fake zone or one without any data that matters until your comfortable with the system.
+**WARNING**: OctoDNS assumes ownership of any domain you point it to. When you tell it to act it will do whatever is necessary to try and match up states including deleting any unexpected records. Be careful when playing around with OctoDNS. It's best to experiment with a fake zone or one without any data that matters until you're comfortable with the system.
 
 Now it's time to tell OctoDNS to make things happen. We'll invoke it again with the same options and add a `--doit` on the end to tell it this time we actually want it to try and make the specified changes.
 
@@ -147,22 +169,30 @@ The above command pulled the existing data out of Route53 and placed the results
 
 ## Supported providers
 
-| Provider | Record Support | GeoDNS Support | Notes |
-|--|--|--|--|
-| [AzureProvider](/octodns/provider/azuredns.py) | A, AAAA, CNAME, MX, NS, PTR, SRV, TXT | No | |
-| [CloudflareProvider](/octodns/provider/cloudflare.py) | A, AAAA, ALIAS, CAA, CNAME, MX, NS, SPF, SRV, TXT | No | CAA tags restricted |
-| [DigitalOceanProvider](/octodns/provider/digitalocean.py) | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
-| [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
-| [DnsimpleProvider](/octodns/provider/dnsimple.py) | All | No | CAA tags restricted |
-| [DynProvider](/octodns/provider/dyn.py) | All | Yes | |
-| [GoogleCloudProvider](/octodns/provider/googlecloud.py) | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
-| [Ns1Provider](/octodns/provider/ns1.py) | All | Yes | No health checking for GeoDNS |
-| [OVH](/octodns/provider/ovh.py) | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
-| [PowerDnsProvider](/octodns/provider/powerdns.py) | All | No | |
-| [Rackspace](/octodns/provider/rackspace.py) | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
-| [Route53](/octodns/provider/route53.py) | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Yes | |
-| [TinyDNSSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |
-| [YamlProvider](/octodns/provider/yaml.py) | All | Yes | config |
+| Provider | Requirements | Record Support | Dynamic/Geo Support | Notes |
+|--|--|--|--|--|
+| [AzureProvider](/octodns/provider/azuredns.py) | azure-mgmt-dns | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | No | |
+| [Akamai](/octodns/provider/fastdns.py) | edgegrid-python | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
+| [CloudflareProvider](/octodns/provider/cloudflare.py) | | A, AAAA, ALIAS, CAA, CNAME, MX, NS, SPF, SRV, TXT | No | CAA tags restricted |
+| [ConstellixProvider](/octodns/provider/constellix.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
+| [DigitalOceanProvider](/octodns/provider/digitalocean.py) | | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
+| [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
+| [DnsimpleProvider](/octodns/provider/dnsimple.py) | | All | No | CAA tags restricted |
+| [DynProvider](/octodns/provider/dyn.py) | dyn | All | Both | |
+| [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | A, AAAA, ALIAS, CNAME | No | |
+| [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
+| [MythicBeastsProvider](/octodns/provider/mythicbeasts.py) | Mythic Beasts | A, AAAA, ALIAS, CNAME, MX, NS, SRV, SSHFP, CAA, TXT | No | |
+| [Ns1Provider](/octodns/provider/ns1.py) | ns1-python | All | Partial Geo | No health checking for GeoDNS |
+| [OVH](/octodns/provider/ovh.py) | ovh | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
+| [PowerDnsProvider](/octodns/provider/powerdns.py) | | All | No | |
+| [Rackspace](/octodns/provider/rackspace.py) | | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
+| [Route53](/octodns/provider/route53.py) | boto3 | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Both | CNAME health checks don't support a Host header |
+| [Selectel](/octodns/provider/selectel.py) | | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | |
+| [Transip](/octodns/provider/transip.py) | transip | A, AAAA, CNAME, MX, SRV, SPF, TXT, SSHFP, CAA | No | |
+| [AxfrSource](/octodns/source/axfr.py) | | A, AAAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
+| [ZoneFileSource](/octodns/source/axfr.py) | | A, AAAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
+| [TinyDnsFileSource](/octodns/source/tinydns.py) | | A, CNAME, MX, NS, PTR | No | read-only |
+| [YamlProvider](/octodns/provider/yaml.py) | | All | Yes | config |
 
 #### Notes
 
@@ -173,7 +203,7 @@ The above command pulled the existing data out of Route53 and placed the results
 
 ## Custom Sources and Providers
 
-You can check out the [source](/octodns/source/) and [provider](/octodns/provider/) directory to see what's currently supported. Sources act as a source of record information. TinyDnsProvider is currently the only OSS source, though we have several others internally that are specific to our environment. These include something to pull host data from  [gPanel](https://githubengineering.com/githubs-metal-cloud/) and a similar provider that sources information about our network gear to create both `A` & `PTR` records for their interfaces. Things that might make good OSS sources might include an `ElbSource` that pulls information about [AWS Elastic Load Balancers](https://aws.amazon.com/elasticloadbalancing/) and dynamically creates `CNAME`s for them, or `Ec2Source` that pulls instance information so that records can be created for hosts similar to how our `GPanelProvider` works. An `AxfrSource` could be really interesting as well. Another case where a source may make sense is if you'd like to export data from a legacy service that you have no plans to push changes back into.
+You can check out the [source](/octodns/source/) and [provider](/octodns/provider/) directory to see what's currently supported. Sources act as a source of record information. AxfrSource and TinyDnsFileSource are currently the only OSS sources, though we have several others internally that are specific to our environment. These include something to pull host data from  [gPanel](https://githubengineering.com/githubs-metal-cloud/) and a similar provider that sources information about our network gear to create both `A` & `PTR` records for their interfaces. Things that might make good OSS sources might include an `ElbSource` that pulls information about [AWS Elastic Load Balancers](https://aws.amazon.com/elasticloadbalancing/) and dynamically creates `CNAME`s for them, or `Ec2Source` that pulls instance information so that records can be created for hosts similar to how our `GPanelProvider` works.
 
 Most of the things included in OctoDNS are providers, the obvious difference being that they can serve as both sources and targets of data. We'd really like to see this list grow over time so if you use an unsupported provider then PRs are welcome. The existing providers should serve as reasonable examples. Those that have no GeoDNS support are relatively straightforward. Unfortunately most of the APIs involved to do GeoDNS style traffic management are complex and somewhat inconsistent so adding support for that function would be nice, but is optional and best done in a separate pass.
 
@@ -250,4 +280,4 @@ GitHub® and its stylized versions and the Invertocat mark are GitHub's Trademar
 
 ## Authors
 
-OctoDNS was designed and authored by [Ross McFarland](https://github.com/ross) and [Joe Williams](https://github.com/joewilliams). It is now maintained, reviewed, and tested by Ross, Joe, and the rest of the Site Reliability Engineering team at GitHub.
+OctoDNS was designed and authored by [Ross McFarland](https://github.com/ross) and [Joe Williams](https://github.com/joewilliams). It is now maintained, reviewed, and tested by Traffic Engineering team at GitHub.

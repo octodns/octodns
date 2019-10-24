@@ -5,6 +5,8 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from six import text_type
+
 from ..source.base import BaseSource
 from ..zone import Zone
 from .plan import Plan
@@ -17,7 +19,7 @@ class BaseProvider(BaseSource):
                  delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT):
         super(BaseProvider, self).__init__(id)
         self.log.debug('__init__: id=%s, apply_disabled=%s, '
-                       'update_pcent_threshold=%.2f'
+                       'update_pcent_threshold=%.2f, '
                        'delete_pcent_threshold=%.2f',
                        id,
                        apply_disabled,
@@ -30,14 +32,14 @@ class BaseProvider(BaseSource):
     def _include_change(self, change):
         '''
         An opportunity for providers to filter out false positives due to
-        pecularities in their implementation. E.g. minimum TTLs.
+        peculiarities in their implementation. E.g. minimum TTLs.
         '''
         return True
 
-    def _extra_changes(self, existing, changes):
+    def _extra_changes(self, existing, desired, changes):
         '''
         An opportunity for providers to add extra changes to the plan that are
-        necessary to update ancilary record data or configure the zone. E.g.
+        necessary to update ancillary record data or configure the zone. E.g.
         base NS records.
         '''
         return []
@@ -46,27 +48,33 @@ class BaseProvider(BaseSource):
         self.log.info('plan: desired=%s', desired.name)
 
         existing = Zone(desired.name, desired.sub_zones)
-        self.populate(existing, target=True, lenient=True)
+        exists = self.populate(existing, target=True, lenient=True)
+        if exists is None:
+            # If your code gets this warning see Source.populate for more
+            # information
+            self.log.warn('Provider %s used in target mode did not return '
+                          'exists', self.id)
 
         # compute the changes at the zone/record level
         changes = existing.changes(desired, self)
 
         # allow the provider to filter out false positives
         before = len(changes)
-        changes = filter(self._include_change, changes)
+        changes = [c for c in changes if self._include_change(c)]
         after = len(changes)
         if before != after:
             self.log.info('plan:   filtered out %s changes', before - after)
 
         # allow the provider to add extra changes it needs
-        extra = self._extra_changes(existing, changes)
+        extra = self._extra_changes(existing=existing, desired=desired,
+                                    changes=changes)
         if extra:
             self.log.info('plan:   extra changes\n  %s', '\n  '
-                          .join([unicode(c) for c in extra]))
+                          .join([text_type(c) for c in extra]))
             changes += extra
 
         if changes:
-            plan = Plan(existing, desired, changes,
+            plan = Plan(existing, desired, changes, exists,
                         self.update_pcent_threshold,
                         self.delete_pcent_threshold)
             self.log.info('plan:   %s', plan)

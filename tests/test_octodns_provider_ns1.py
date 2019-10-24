@@ -5,8 +5,9 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from collections import defaultdict
 from mock import Mock, call, patch
-from nsone.rest.errors import AuthException, RateLimitException, \
+from ns1.rest.errors import AuthException, RateLimitException, \
     ResourceException
 from unittest import TestCase
 
@@ -133,12 +134,12 @@ class TestNs1Provider(TestCase):
     }, {
         'type': 'CNAME',
         'ttl': 34,
-        'short_answers': ['foo.unit.tests.'],
+        'short_answers': ['foo.unit.tests'],
         'domain': 'cname.unit.tests.',
     }, {
         'type': 'MX',
         'ttl': 35,
-        'short_answers': ['10 mx1.unit.tests.', '20 mx2.unit.tests.'],
+        'short_answers': ['10 mx1.unit.tests.', '20 mx2.unit.tests'],
         'domain': 'unit.tests.',
     }, {
         'type': 'NAPTR',
@@ -151,18 +152,18 @@ class TestNs1Provider(TestCase):
     }, {
         'type': 'NS',
         'ttl': 37,
-        'short_answers': ['ns1.unit.tests.', 'ns2.unit.tests.'],
+        'short_answers': ['ns1.unit.tests.', 'ns2.unit.tests'],
         'domain': 'unit.tests.',
     }, {
         'type': 'SRV',
         'ttl': 38,
         'short_answers': ['12 30 30 foo-2.unit.tests.',
-                          '10 20 30 foo-1.unit.tests.'],
+                          '10 20 30 foo-1.unit.tests'],
         'domain': '_srv._tcp.unit.tests.',
     }, {
         'type': 'NS',
         'ttl': 39,
-        'short_answers': ['ns3.unit.tests.', 'ns4.unit.tests.'],
+        'short_answers': ['ns3.unit.tests.', 'ns4.unit.tests'],
         'domain': 'sub.unit.tests.',
     }, {
         'type': 'CAA',
@@ -171,7 +172,7 @@ class TestNs1Provider(TestCase):
         'domain': 'unit.tests.',
     }]
 
-    @patch('nsone.NSONE.loadZone')
+    @patch('ns1.NS1.loadZone')
     def test_populate(self, load_mock):
         provider = Ns1Provider('test', 'api-key')
 
@@ -191,14 +192,15 @@ class TestNs1Provider(TestCase):
         self.assertEquals(load_mock.side_effect, ctx.exception)
         self.assertEquals(('unit.tests',), load_mock.call_args[0])
 
-        # Non-existant zone doesn't populate anything
+        # Non-existent zone doesn't populate anything
         load_mock.reset_mock()
         load_mock.side_effect = \
             ResourceException('server error: zone not found')
         zone = Zone('unit.tests.', [])
-        provider.populate(zone)
+        exists = provider.populate(zone)
         self.assertEquals(set(), zone.records)
         self.assertEquals(('unit.tests',), load_mock.call_args[0])
+        self.assertFalse(exists)
 
         # Existing zone w/o records
         load_mock.reset_mock()
@@ -256,8 +258,41 @@ class TestNs1Provider(TestCase):
         self.assertEquals(self.expected, zone.records)
         self.assertEquals(('unit.tests',), load_mock.call_args[0])
 
-    @patch('nsone.NSONE.createZone')
-    @patch('nsone.NSONE.loadZone')
+        # Test skipping unsupported record type
+        load_mock.reset_mock()
+        nsone_zone = DummyZone(self.nsone_records + [{
+            'type': 'UNSUPPORTED',
+            'ttl': 42,
+            'short_answers': ['unsupported'],
+            'domain': 'unsupported.unit.tests.',
+        }])
+        load_mock.side_effect = [nsone_zone]
+        zone_search = Mock()
+        zone_search.return_value = [
+            {
+                "domain": "geo.unit.tests",
+                "zone": "unit.tests",
+                "type": "A",
+                "answers": [
+                    {'answer': ['1.1.1.1'], 'meta': {}},
+                    {'answer': ['1.2.3.4'],
+                     'meta': {'ca_province': ['ON']}},
+                    {'answer': ['2.3.4.5'], 'meta': {'us_state': ['NY']}},
+                    {'answer': ['3.4.5.6'], 'meta': {'country': ['US']}},
+                    {'answer': ['4.5.6.7'],
+                     'meta': {'iso_region_code': ['NA-US-WA']}},
+                ],
+                'ttl': 34,
+            },
+        ]
+        nsone_zone.search = zone_search
+        zone = Zone('unit.tests.', [])
+        provider.populate(zone)
+        self.assertEquals(self.expected, zone.records)
+        self.assertEquals(('unit.tests',), load_mock.call_args[0])
+
+    @patch('ns1.NS1.createZone')
+    @patch('ns1.NS1.loadZone')
     def test_sync(self, load_mock, create_mock):
         provider = Ns1Provider('test', 'api-key')
 
@@ -269,6 +304,7 @@ class TestNs1Provider(TestCase):
         # everything except the root NS
         expected_n = len(self.expected) - 1
         self.assertEquals(expected_n, len(plan.changes))
+        self.assertTrue(plan.exists)
 
         # Fails, general error
         load_mock.reset_mock()
@@ -288,7 +324,7 @@ class TestNs1Provider(TestCase):
             provider.apply(plan)
         self.assertEquals(create_mock.side_effect, ctx.exception)
 
-        # non-existant zone, create
+        # non-existent zone, create
         load_mock.reset_mock()
         create_mock.reset_mock()
         load_mock.side_effect = \
@@ -338,8 +374,12 @@ class TestNs1Provider(TestCase):
         load_mock.side_effect = [nsone_zone, nsone_zone]
         plan = provider.plan(desired)
         self.assertEquals(3, len(plan.changes))
-        self.assertIsInstance(plan.changes[0], Update)
-        self.assertIsInstance(plan.changes[2], Delete)
+        # Shouldn't rely on order so just count classes
+        classes = defaultdict(lambda: 0)
+        for change in plan.changes:
+            classes[change.__class__] += 1
+        self.assertEquals(1, classes[Delete])
+        self.assertEquals(2, classes[Update])
         # ugh, we need a mock record that can be returned from loadRecord for
         # the update and delete targets, we can add our side effects to that to
         # trigger rate limit handling
@@ -360,8 +400,8 @@ class TestNs1Provider(TestCase):
         self.assertEquals(3, got_n)
         nsone_zone.loadRecord.assert_has_calls([
             call('unit.tests', u'A'),
-            call('geo', u'A'),
             call('delete-me', u'A'),
+            call('geo', u'A'),
         ])
         mock_record.assert_has_calls([
             call.update(answers=[{'answer': [u'1.2.3.4'], 'meta': {}}],
@@ -370,6 +410,8 @@ class TestNs1Provider(TestCase):
             call.update(answers=[{u'answer': [u'1.2.3.4'], u'meta': {}}],
                         filters=[],
                         ttl=32),
+            call.delete(),
+            call.delete(),
             call.update(
                 answers=[
                     {u'answer': [u'101.102.103.104'], u'meta': {}},
@@ -387,8 +429,6 @@ class TestNs1Provider(TestCase):
                     {u'filter': u'select_first_n', u'config': {u'N': 1}},
                 ],
                 ttl=34),
-            call.delete(),
-            call.delete()
         ])
 
     def test_escaping(self):
@@ -397,21 +437,21 @@ class TestNs1Provider(TestCase):
             'ttl': 31,
             'short_answers': ['foo; bar baz; blip']
         }
-        self.assertEquals(['foo\; bar baz\; blip'],
+        self.assertEquals(['foo\\; bar baz\\; blip'],
                           provider._data_for_SPF('SPF', record)['values'])
 
         record = {
             'ttl': 31,
             'short_answers': ['no', 'foo; bar baz; blip', 'yes']
         }
-        self.assertEquals(['no', 'foo\; bar baz\; blip', 'yes'],
+        self.assertEquals(['no', 'foo\\; bar baz\\; blip', 'yes'],
                           provider._data_for_TXT('TXT', record)['values'])
 
         zone = Zone('unit.tests.', [])
         record = Record.new(zone, 'spf', {
             'ttl': 34,
             'type': 'SPF',
-            'value': 'foo\; bar baz\; blip'
+            'value': 'foo\\; bar baz\\; blip'
         })
         self.assertEquals(['foo; bar baz; blip'],
                           provider._params_for_SPF(record)['answers'])
@@ -419,7 +459,7 @@ class TestNs1Provider(TestCase):
         record = Record.new(zone, 'txt', {
             'ttl': 35,
             'type': 'TXT',
-            'value': 'foo\; bar baz\; blip'
+            'value': 'foo\\; bar baz\\; blip'
         })
         self.assertEquals(['foo; bar baz; blip'],
                           provider._params_for_TXT(record)['answers'])

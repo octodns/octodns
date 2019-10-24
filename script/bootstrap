@@ -4,7 +4,7 @@
 
 set -e
 
-cd "$(dirname $0)"/..
+cd "$(dirname "$0")"/..
 ROOT=$(pwd)
 
 if [ -z "$VENV_NAME" ]; then
@@ -13,16 +13,17 @@ fi
 
 if [ ! -d "$VENV_NAME" ]; then
     if [ -z "$VENV_PYTHON" ]; then
-        VENV_PYTHON=`which python`
+        VENV_PYTHON=$(command -v python)
     fi
-    virtualenv --python=$VENV_PYTHON $VENV_NAME
+    virtualenv --python="$VENV_PYTHON" "$VENV_NAME"
 fi
 . "$VENV_NAME/bin/activate"
 
-pip install -e .
+pip install -U 'pip>=10.0.1'
+pip install -r requirements.txt
 
 if [ "$ENV" != "production" ]; then
-    pip install -e .[dev,test]
+    pip install -r requirements-dev.txt
 fi
 
 if [ ! -L ".git/hooks/pre-commit" ]; then

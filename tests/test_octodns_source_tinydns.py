@@ -15,12 +15,12 @@ from helpers import SimpleProvider
 
 
 class TestTinyDnsFileSource(TestCase):
-    source = TinyDnsFileSource('test', './tests/zones')
+    source = TinyDnsFileSource('test', './tests/zones/tinydns')
 
     def test_populate_normal(self):
         got = Zone('example.com.', [])
         self.source.populate(got)
-        self.assertEquals(11, len(got.records))
+        self.assertEquals(17, len(got.records))
 
         expected = Zone('example.com.', [])
         for name, data in (
@@ -85,6 +85,36 @@ class TestTinyDnsFileSource(TestCase):
                     'preference': 40,
                     'exchange': 'smtp-2-host.example.com.',
                 }]
+            }),
+            ('', {
+                'type': 'TXT',
+                'ttl': 300,
+                'value': 'test TXT',
+            }),
+            ('colon', {
+                'type': 'TXT',
+                'ttl': 300,
+                'value': 'test : TXT',
+            }),
+            ('nottl', {
+                'type': 'TXT',
+                'ttl': 3600,
+                'value': 'nottl test TXT',
+            }),
+            ('ipv6-3', {
+                'type': 'AAAA',
+                'ttl': 300,
+                'value': '2a02:1348:017c:d5d0:0024:19ff:fef3:5742',
+            }),
+            ('ipv6-6', {
+                'type': 'AAAA',
+                'ttl': 3600,
+                'value': '2a02:1348:017c:d5d0:0024:19ff:fef3:5743',
+            }),
+            ('semicolon', {
+                'type': 'TXT',
+                'ttl': 300,
+                'value': 'v=DKIM1\\; k=rsa\\; p=blah',
             }),
         ):
             record = Record.new(expected, name, data)
@@ -173,4 +203,4 @@ class TestTinyDnsFileSource(TestCase):
     def test_ignores_subs(self):
         got = Zone('example.com.', ['sub'])
         self.source.populate(got)
-        self.assertEquals(10, len(got.records))
+        self.assertEquals(16, len(got.records))

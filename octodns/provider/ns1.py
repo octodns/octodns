@@ -8,10 +8,12 @@ from __future__ import absolute_import, division, print_function, \
 from logging import getLogger
 from itertools import chain
 from collections import OrderedDict, defaultdict
-from nsone import NSONE
-from nsone.rest.errors import RateLimitException, ResourceException
-from incf.countryutils import transformations
+from ns1 import NS1
+from ns1.rest.errors import RateLimitException, ResourceException
+from pycountry_convert import country_alpha2_to_continent_code
 from time import sleep
+
+from six import text_type
 
 from ..record import Record
 from .base import BaseProvider
@@ -26,6 +28,7 @@ class Ns1Provider(BaseProvider):
         api_key: env/NS1_API_KEY
     '''
     SUPPORTS_GEO = True
+    SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR',
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 
@@ -35,7 +38,7 @@ class Ns1Provider(BaseProvider):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, api_key=***', id)
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
-        self._client = NSONE(apiKey=api_key)
+        self._client = NS1(apiKey=api_key)
 
     def _data_for_A(self, _type, record):
         # record meta (which would include geo information is only
@@ -59,8 +62,7 @@ class Ns1Provider(BaseProvider):
                 us_state = meta.get('us_state', [])
                 ca_province = meta.get('ca_province', [])
                 for cntry in country:
-                    cn = transformations.cc_to_cn(cntry)
-                    con = transformations.cn_to_ctca2(cn)
+                    con = country_alpha2_to_continent_code(cntry)
                     key = '{}-{}'.format(con, cntry)
                     geo[key].extend(answer['answer'])
                 for state in us_state:
@@ -75,9 +77,9 @@ class Ns1Provider(BaseProvider):
             else:
                 values.extend(answer['answer'])
                 codes.append([])
-        values = [unicode(x) for x in values]
+        values = [text_type(x) for x in values]
         geo = OrderedDict(
-            {unicode(k): [unicode(x) for x in v] for k, v in geo.items()}
+            {text_type(k): [text_type(x) for x in v] for k, v in geo.items()}
         )
         data['values'] = values
         data['geo'] = geo
@@ -86,7 +88,7 @@ class Ns1Provider(BaseProvider):
     _data_for_AAAA = _data_for_A
 
     def _data_for_SPF(self, _type, record):
-        values = [v.replace(';', '\;') for v in record['short_answers']]
+        values = [v.replace(';', '\\;') for v in record['short_answers']]
         return {
             'ttl': record['ttl'],
             'type': _type,
@@ -189,12 +191,23 @@ class Ns1Provider(BaseProvider):
         try:
             nsone_zone = self._client.loadZone(zone.name[:-1])
             records = nsone_zone.data['records']
+
+            # change answers for certain types to always be absolute
+            for record in records:
+                if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'PTR',
+                                      'SRV']:
+                    for i, a in enumerate(record['short_answers']):
+                        if not a.endswith('.'):
+                            record['short_answers'][i] = '{}.'.format(a)
+
             geo_records = nsone_zone.search(has_geo=True)
+            exists = True
         except ResourceException as e:
             if e.message != self.ZONE_NOT_FOUND_MESSAGE:
                 raise
             records = []
             geo_records = []
+            exists = False
 
         before = len(zone.records)
         # geo information isn't returned from the main endpoint, so we need
@@ -202,14 +215,17 @@ class Ns1Provider(BaseProvider):
         zone_hash = {}
         for record in chain(records, geo_records):
             _type = record['type']
+            if _type not in self.SUPPORTS:
+                continue
             data_for = getattr(self, '_data_for_{}'.format(_type))
             name = zone.hostname_from_fqdn(record['domain'])
             record = Record.new(zone, name, data_for(_type, record),
                                 source=self, lenient=lenient)
             zone_hash[(_type, name)] = record
-        [zone.add_record(r) for r in zone_hash.values()]
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        [zone.add_record(r, lenient=lenient) for r in zone_hash.values()]
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _params_for_A(self, record):
         params = {'answers': record.values, 'ttl': record.ttl}
@@ -254,7 +270,7 @@ class Ns1Provider(BaseProvider):
         # NS1 seems to be the only provider that doesn't want things
         # escaped in values so we have to strip them here and add
         # them when going the other way
-        values = [v.replace('\;', ';') for v in record.values]
+        values = [v.replace('\\;', ';') for v in record.values]
         return {'answers': values, 'ttl': record.ttl}
 
     _params_for_TXT = _params_for_SPF

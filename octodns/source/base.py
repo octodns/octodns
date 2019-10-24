@@ -20,9 +20,13 @@ class BaseSource(object):
             raise NotImplementedError('Abstract base class, SUPPORTS '
                                       'property missing')
 
+    @property
+    def SUPPORTS_DYNAMIC(self):
+        return False
+
     def populate(self, zone, target=False, lenient=False):
         '''
-        Loads all zones the provider knows about
+        Loads all records the provider knows about for the provided zone
 
         When `target` is True the populate call is being made to load the
         current state of the provider.
@@ -31,6 +35,9 @@ class BaseSource(object):
         do a "best effort" load of data. That will allow through some common,
         but not best practices stuff that we otherwise would reject. E.g. no
         trailing . or mising escapes for ;.
+
+        When target is True (loading current state) this method should return
+        True if the zone exists or False if it does not.
         '''
         raise NotImplementedError('Abstract base class, populate method '
                                   'missing')

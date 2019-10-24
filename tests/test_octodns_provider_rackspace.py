@@ -7,8 +7,9 @@ from __future__ import absolute_import, division, print_function, \
 
 import json
 import re
+from six import text_type
+from six.moves.urllib.parse import urlparse
 from unittest import TestCase
-from urlparse import urlparse
 
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
@@ -39,7 +40,6 @@ with open('./tests/fixtures/rackspace-sample-recordset-page2.json') as fh:
 
 class TestRackspaceProvider(TestCase):
     def setUp(self):
-        self.maxDiff = 1000
         with requests_mock() as mock:
             mock.post(ANY, status_code=200, text=AUTH_RESPONSE)
             self.provider = RackspaceProvider('identity', 'test', 'api-key',
@@ -53,7 +53,7 @@ class TestRackspaceProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 self.provider.populate(zone)
-            self.assertTrue('unauthorized' in ctx.exception.message)
+            self.assertTrue('unauthorized' in text_type(ctx.exception))
             self.assertTrue(mock.called_once)
 
     def test_server_error(self):
@@ -73,9 +73,10 @@ class TestRackspaceProvider(TestCase):
                      json={'error': "Could not find domain 'unit.tests.'"})
 
             zone = Zone('unit.tests.', [])
-            self.provider.populate(zone)
+            exists = self.provider.populate(zone)
             self.assertEquals(set(), zone.records)
             self.assertTrue(mock.called_once)
+            self.assertFalse(exists)
 
     def test_multipage_populate(self):
         with requests_mock() as mock:
@@ -109,6 +110,7 @@ class TestRackspaceProvider(TestCase):
 
             plan = self.provider.plan(expected)
             self.assertTrue(mock.called)
+            self.assertTrue(plan.exists)
 
             # OctoDNS does not propagate top-level NS records.
             self.assertEquals(1, len(plan.changes))
@@ -790,13 +792,13 @@ class TestRackspaceProvider(TestCase):
             ExpectedUpdates = {
                 "records": [{
                     "name": "unit.tests",
-                    "id": "A-222222",
-                    "data": "1.2.3.5",
+                    "id": "A-111111",
+                    "data": "1.2.3.4",
                     "ttl": 3600
                 }, {
                     "name": "unit.tests",
-                    "id": "A-111111",
-                    "data": "1.2.3.4",
+                    "id": "A-222222",
+                    "data": "1.2.3.5",
                     "ttl": 3600
                 }, {
                     "name": "unit.tests",

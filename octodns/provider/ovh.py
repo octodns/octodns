@@ -9,8 +9,10 @@ import base64
 import binascii
 import logging
 from collections import defaultdict
+from six import text_type
 
 import ovh
+from ovh import ResourceNotFoundError
 
 from octodns.record import Record
 from .base import BaseProvider
@@ -33,6 +35,8 @@ class OvhProvider(BaseProvider):
     """
 
     SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
+    ZONE_NOT_FOUND_MESSAGE = 'This service does not exist'
 
     # This variable is also used in populate method to filter which OVH record
     # types are supported by octodns
@@ -57,7 +61,14 @@ class OvhProvider(BaseProvider):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
         zone_name = zone.name[:-1]
-        records = self.get_records(zone_name=zone_name)
+        try:
+            records = self.get_records(zone_name=zone_name)
+            exists = True
+        except ResourceNotFoundError as e:
+            if text_type(e) != self.ZONE_NOT_FOUND_MESSAGE:
+                raise
+            exists = False
+            records = []
 
         values = defaultdict(lambda: defaultdict(list))
         for record in records:
@@ -73,10 +84,11 @@ class OvhProvider(BaseProvider):
                 data_for = getattr(self, '_data_for_{}'.format(_type))
                 record = Record.new(zone, name, data_for(_type, records),
                                     source=self, lenient=lenient)
-                zone.add_record(record)
+                zone.add_record(record, lenient=lenient)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
 
     def _apply(self, plan):
         desired = plan.desired
@@ -201,7 +213,7 @@ class OvhProvider(BaseProvider):
         return {
             'ttl': records[0]['ttl'],
             'type': "TXT",
-            'values': [record['target'].replace(';', '\;')
+            'values': [record['target'].replace(';', '\\;')
                        for record in records]
         }
 
@@ -285,7 +297,7 @@ class OvhProvider(BaseProvider):
             field_type = 'TXT'
             if self._is_valid_dkim(value):
                 field_type = 'DKIM'
-                value = value.replace("\;", ";")
+                value = value.replace("\\;", ";")
             yield {
                 'target': value,
                 'subDomain': record.name,
@@ -311,10 +323,10 @@ class OvhProvider(BaseProvider):
                           'n': lambda _: True,
                           'g': lambda _: True}
 
-        splitted = value.split('\;')
+        splitted = value.split('\\;')
         found_key = False
         for splitted_value in splitted:
-            sub_split = map(lambda x: x.strip(), splitted_value.split("=", 1))
+            sub_split = [x.strip() for x in splitted_value.split("=", 1)]
             if len(sub_split) < 2:
                 return False
             key, value = sub_split[0], sub_split[1]
@@ -332,7 +344,7 @@ class OvhProvider(BaseProvider):
     @staticmethod
     def _is_valid_dkim_key(key):
         try:
-            base64.decodestring(key)
+            base64.decodestring(bytearray(key, 'utf-8'))
         except binascii.Error:
             return False
         return True

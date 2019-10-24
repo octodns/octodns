@@ -7,11 +7,14 @@ from __future__ import absolute_import, division, print_function, \
 from requests import HTTPError, Session, post
 from collections import defaultdict
 import logging
-import string
 import time
 
 from ..record import Record
 from .base import BaseProvider
+
+
+def _value_keyer(v):
+    return (v.get('type', ''), v['name'], v.get('data', ''))
 
 
 def add_trailing_dot(s):
@@ -28,16 +31,17 @@ def remove_trailing_dot(s):
 
 def escape_semicolon(s):
     assert s
-    return string.replace(s, ';', '\;')
+    return s.replace(';', '\\;')
 
 
 def unescape_semicolon(s):
     assert s
-    return string.replace(s, '\;', ';')
+    return s.replace('\\;', ';')
 
 
 class RackspaceProvider(BaseProvider):
     SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NS', 'PTR', 'SPF',
                     'TXT'))
     TIMEOUT = 5
@@ -200,7 +204,7 @@ class RackspaceProvider(BaseProvider):
                 raise Exception('Rackspace request unauthorized')
             elif e.response.status_code == 404:
                 # Zone not found leaves the zone empty instead of failing.
-                return
+                return False
             raise
 
         before = len(zone.records)
@@ -215,10 +219,11 @@ class RackspaceProvider(BaseProvider):
                     record = Record.new(zone, record_name,
                                         data_for(record_set),
                                         source=self)
-                    zone.add_record(record)
+                    zone.add_record(record, lenient=lenient)
 
-        self.log.info('populate:   found %s records',
+        self.log.info('populate:   found %s records, exists=True',
                       len(zone.records) - before)
+        return True
 
     def _group_records(self, all_records):
         records = defaultdict(lambda: defaultdict(list))
@@ -365,11 +370,9 @@ class RackspaceProvider(BaseProvider):
             self._delete('domains/{}/records?{}'.format(domain_id, params))
 
         if updates:
-            data = {"records": sorted(updates, key=lambda v: v['name'])}
+            data = {"records": sorted(updates, key=_value_keyer)}
             self._put('domains/{}/records'.format(domain_id), data=data)
 
         if creates:
-            data = {"records": sorted(creates, key=lambda v: v['type'] +
-                                      v['name'] +
-                                      v.get('data', ''))}
+            data = {"records": sorted(creates, key=_value_keyer)}
             self._post('domains/{}/records'.format(domain_id), data=data)

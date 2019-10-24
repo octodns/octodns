@@ -5,8 +5,8 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from StringIO import StringIO
 from logging import getLogger
+from six import StringIO, text_type
 from unittest import TestCase
 
 from octodns.provider.plan import Plan, PlanHtml, PlanLogger, PlanMarkdown
@@ -14,15 +14,6 @@ from octodns.record import Create, Delete, Record, Update
 from octodns.zone import Zone
 
 from helpers import SimpleProvider
-
-
-class TestPlanLogger(TestCase):
-
-    def test_invalid_level(self):
-        with self.assertRaises(Exception) as ctx:
-            PlanLogger('invalid', 'not-a-level')
-        self.assertEquals('Unsupported level: not-a-level',
-                          ctx.exception.message)
 
 
 simple = SimpleProvider()
@@ -48,13 +39,43 @@ create = Create(Record.new(zone, 'b', {
     'type': 'CNAME',
     'value': 'foo.unit.tests.'
 }, simple))
+create2 = Create(Record.new(zone, 'c', {
+    'ttl': 60,
+    'type': 'CNAME',
+    'value': 'foo.unit.tests.'
+}))
 update = Update(existing, new)
 delete = Delete(new)
-changes = [create, delete, update]
+changes = [create, create2, delete, update]
 plans = [
-    (simple, Plan(zone, zone, changes)),
-    (simple, Plan(zone, zone, changes)),
+    (simple, Plan(zone, zone, changes, True)),
+    (simple, Plan(zone, zone, changes, False)),
 ]
+
+
+class TestPlanLogger(TestCase):
+
+    def test_invalid_level(self):
+        with self.assertRaises(Exception) as ctx:
+            PlanLogger('invalid', 'not-a-level')
+        self.assertEquals('Unsupported level: not-a-level',
+                          text_type(ctx.exception))
+
+    def test_create(self):
+
+        class MockLogger(object):
+
+            def __init__(self):
+                self.out = StringIO()
+
+            def log(self, level, msg):
+                self.out.write(msg)
+
+        log = MockLogger()
+        PlanLogger('logger').run(log, plans)
+        out = log.out.getvalue()
+        self.assertTrue('Summary: Creates=2, Updates=1, '
+                        'Deletes=1, Existing Records=0' in out)
 
 
 class TestPlanHtml(TestCase):
@@ -69,7 +90,7 @@ class TestPlanHtml(TestCase):
         out = StringIO()
         PlanHtml('html').run(plans, fh=out)
         out = out.getvalue()
-        self.assertTrue('    <td colspan=6>Summary: Creates=1, Updates=1, '
+        self.assertTrue('    <td colspan=6>Summary: Creates=2, Updates=1, '
                         'Deletes=1, Existing Records=0</td>' in out)
 
 

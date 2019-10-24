@@ -1,0 +1,37 @@
+---
+? ''
+: - geo:
+      AF:
+      - 2.2.3.4
+      - 2.2.3.5
+      AS-JP:
+      - 3.2.3.4
+      - 3.2.3.5
+      NA-US:
+      - 4.2.3.4
+      - 4.2.3.5
+      NA-US-CA:
+      - 5.2.3.4
+      - 5.2.3.5
+    ttl: 300
+    type: A
+    values:
+    - 1.2.3.4
+    - 1.2.3.5
+  - type: CAA
+    value:
+      flags: 0
+      tag: issue
+      value: ca.unit.tests
+  - type: NS
+    values:
+    - 6.2.3.4.
+    - 7.2.3.4.
+  - type: SSHFP
+    values:
+    - algorithm: 1
+      fingerprint: 7491973e5f8b39d5327cd4e08bc81b05f7710b49
+      fingerprint_type: 1
+    - algorithm: 1
+      fingerprint: bf6b6825d2977c511a475bbefb88aad54a92ac73
+      fingerprint_type: 1

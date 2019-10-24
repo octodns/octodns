@@ -9,6 +9,7 @@ from json import loads, dumps
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
+from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record
@@ -41,7 +42,7 @@ with open('./tests/fixtures/powerdns-full-data.json') as fh:
 class TestPowerDnsProvider(TestCase):
 
     def test_provider(self):
-        provider = PowerDnsProvider('test', 'non.existant', 'api-key',
+        provider = PowerDnsProvider('test', 'non.existent', 'api-key',
                                     nameserver_values=['8.8.8.8.',
                                                        '9.9.9.9.'])
 
@@ -52,8 +53,7 @@ class TestPowerDnsProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            print(ctx.exception.message)
-            self.assertTrue('unauthorized' in ctx.exception.message)
+            self.assertTrue('unauthorized' in text_type(ctx.exception))
 
         # General error
         with requests_mock() as mock:
@@ -64,7 +64,7 @@ class TestPowerDnsProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals(502, ctx.exception.response.status_code)
 
-        # Non-existant zone doesn't populate anything
+        # Non-existent zone doesn't populate anything
         with requests_mock() as mock:
             mock.get(ANY, status_code=422,
                      json={'error': "Could not find domain 'unit.tests.'"})
@@ -100,12 +100,13 @@ class TestPowerDnsProvider(TestCase):
         # No existing records -> creates for every record in expected
         with requests_mock() as mock:
             mock.get(ANY, status_code=200, text=EMPTY_TEXT)
-            # post 201, is reponse to the create with data
+            # post 201, is response to the create with data
             mock.patch(ANY, status_code=201, text=assert_rrsets_callback)
 
             plan = provider.plan(expected)
             self.assertEquals(expected_n, len(plan.changes))
             self.assertEquals(expected_n, provider.apply(plan))
+            self.assertTrue(plan.exists)
 
         # Non-existent zone -> creates for every record in expected
         # OMG this is fucking ugly, probably better to ditch requests_mocks and
@@ -118,12 +119,13 @@ class TestPowerDnsProvider(TestCase):
             mock.get(ANY, status_code=422, text='')
             # patch 422's, unknown zone
             mock.patch(ANY, status_code=422, text=dumps(not_found))
-            # post 201, is reponse to the create with data
+            # post 201, is response to the create with data
             mock.post(ANY, status_code=201, text=assert_rrsets_callback)
 
             plan = provider.plan(expected)
             self.assertEquals(expected_n, len(plan.changes))
             self.assertEquals(expected_n, provider.apply(plan))
+            self.assertFalse(plan.exists)
 
         with requests_mock() as mock:
             # get 422's, unknown zone
@@ -162,7 +164,7 @@ class TestPowerDnsProvider(TestCase):
                 provider.apply(plan)
 
     def test_small_change(self):
-        provider = PowerDnsProvider('test', 'non.existant', 'api-key')
+        provider = PowerDnsProvider('test', 'non.existent', 'api-key')
 
         expected = Zone('unit.tests.', [])
         source = YamlProvider('test', join(dirname(__file__), 'config'))
@@ -202,7 +204,7 @@ class TestPowerDnsProvider(TestCase):
 
     def test_existing_nameservers(self):
         ns_values = ['8.8.8.8.', '9.9.9.9.']
-        provider = PowerDnsProvider('test', 'non.existant', 'api-key',
+        provider = PowerDnsProvider('test', 'non.existent', 'api-key',
                                     nameserver_values=ns_values)
 
         expected = Zone('unit.tests.', [])

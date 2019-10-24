@@ -26,7 +26,7 @@ def main():
                         help='Limit sync to the specified zone(s)')
 
     # --sources isn't an option here b/c filtering sources out would be super
-    # dangerous since you could eaily end up with an empty zone and delete
+    # dangerous since you could easily end up with an empty zone and delete
     # everything, or even just part of things when there are multiple sources
 
     parser.add_argument('--target', default=[], action='append',
