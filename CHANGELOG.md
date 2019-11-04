@@ -1,4 +1,4 @@
-## v0.9.9 - 2019-??-?? - Python 3.7 Support
+## v0.9.9 - 2019-11-04 - Python 3.7 Support
 
 * Extensive pass through the whole codebase to support Python 3
    * Tons of updates to replace `def __cmp__` with `__eq__` and friends to
@@ -23,6 +23,7 @@
    * Bunch of additional unit tests and supporting config to exercise new code
      and verify things that were run into during the Python 3 work
    * lots of `six`ing of things
+* Validate Record name & fqdn length
 
 ## v0.9.8 - 2019-09-30 - One with no changes b/c PyPi description problems
 
