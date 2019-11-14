@@ -600,6 +600,8 @@ class Route53Provider(BaseProvider):
         # The AWS session token (optional)
         # Only needed if using temporary security credentials
         session_token:
+        # Only use private hosted zones (optional)
+        private_zones: true
 
     Alternatively, you may leave out access_key_id, secret_access_key
     and session_token.
@@ -618,7 +620,7 @@ class Route53Provider(BaseProvider):
 
     def __init__(self, id, access_key_id=None, secret_access_key=None,
                  max_changes=1000, client_max_attempts=None,
-                 session_token=None, *args, **kwargs):
+                 session_token=None, private_zones=False, *args, **kwargs):
         self.max_changes = max_changes
         _msg = 'access_key_id={}, secret_access_key=***, ' \
                'session_token=***'.format(access_key_id)
@@ -643,7 +645,7 @@ class Route53Provider(BaseProvider):
                                 aws_secret_access_key=secret_access_key,
                                 aws_session_token=session_token,
                                 config=config)
-
+        self._private_zones = private_zones
         self._r53_zones = None
         self._r53_rrsets = {}
         self._health_checks = None
@@ -658,6 +660,11 @@ class Route53Provider(BaseProvider):
             while more:
                 resp = self._conn.list_hosted_zones(**start)
                 for z in resp['HostedZones']:
+                    private_hosted_zone = z['Config']['PrivateZone']
+                    if self._private_zones and not private_hosted_zone:
+                        continue
+                    elif not self._private_zones and private_hosted_zone:
+                        continue
                     zones[z['Name']] = z['Id']
                 more = resp['IsTruncated']
                 start['Marker'] = resp.get('NextMarker', None)
