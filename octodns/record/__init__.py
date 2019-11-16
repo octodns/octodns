@@ -1003,7 +1003,7 @@ class PtrRecord(_ValueMixin, Record):
 
 
 class SshfpValue(EqualityTupleMixin):
-    VALID_ALGORITHMS = (1, 2, 3, 4)
+    VALID_ALGORITHMS = (1, 2, 3, 4, 5)
     VALID_FINGERPRINT_TYPES = (1, 2)
 
     @classmethod
