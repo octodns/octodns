@@ -5,18 +5,25 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from pprint import pprint
+
 from logging import getLogger
 from itertools import chain
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from ns1 import NS1
 from ns1.rest.errors import RateLimitException, ResourceException
 from pycountry_convert import country_alpha2_to_continent_code
+from re import compile as re_compile
 from time import sleep
 
 from six import text_type
 
 from ..record import Record
 from .base import BaseProvider
+
+
+class Ns1Exception(Exception):
+    pass
 
 
 class Ns1Provider(BaseProvider):
@@ -27,12 +34,54 @@ class Ns1Provider(BaseProvider):
         class: octodns.provider.ns1.Ns1Provider
         api_key: env/NS1_API_KEY
     '''
-    SUPPORTS_GEO = True
-    SUPPORTS_DYNAMIC = False
+    SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR',
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
+
+    _FALLBACK_RE = re_compile(r'fallback:(?P<fallback>[\w\-_]+)')
+    _DYNAMIC_FILTERS = [{
+        'config': {},
+        'filter': 'up'
+    }, {
+        'config': {},
+        'filter': u'geotarget_regional'
+    }, {
+        'config': {},
+        'filter': u'select_first_region'
+    }, {
+        'config': {
+            'eliminate': u'1'
+        },
+        'filter': 'priority'
+    }, {
+        'config': {},
+        'filter': u'weighted_shuffle'
+    }, {
+        'config': {
+            'N': u'1'
+        },
+        'filter': u'select_first_n'
+    }]
+    _REGION_TO_CONTINENT = {
+        'AFRICA': 'AF',
+        'ASIAPAC': 'AS',
+        'EUROPE': 'EU',
+        'SOUTH-AMERICA': 'SA',
+        'US-CENTRAL': 'NA',
+        'US-EAST': 'NA',
+        'US-WEST': 'NA',
+    }
+    _CONTINENT_TO_REGION = {
+        'AF': ('AFRICA',),
+        'AS': ('ASIAPAC',),
+        'EU': ('EUROPE',),
+        'SA': ('SOUTH-AMERICA',),
+        # TODO: what about CA, MX, and all the other NA countries?
+        'NA': ('US-CENTRAL', 'US-EAST', 'US-WEST'),
+    }
 
     def __init__(self, id, api_key, *args, **kwargs):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
@@ -40,49 +89,126 @@ class Ns1Provider(BaseProvider):
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
         self._client = NS1(apiKey=api_key)
 
+    def _data_for_geo(self, _type, record):
+        raise Exception('boom')
+
+    def _parse_notes(self, note):
+        notes = {}
+
+        for p in note.split(' '):
+            try:
+                k, v = p.split(':', 1)
+            except ValueError:
+                # Failed to parse, just ignore
+                continue
+            if v == 'true':
+                v = True
+            elif v == 'false':
+                v = False
+            notes[k] = v
+
+        return notes
+
+    def _data_for_dynamic_A(self, _type, record):
+        # First make sure we have the expected filters config
+        if self._DYNAMIC_FILTERS != record['filters']:
+            self.log.error('_data_for_dynamic_A: %s %s has unsupported '
+                           'filters', record['domain'], _type)
+            raise Ns1Exception('Unrecognized advanced record')
+
+        # All regions (pools) will include the list of default values
+        # (eventually) at higher priorities, we'll just add them to this set to
+        # we'll have the complete collection.
+        default = set()
+        # Fill out the pools by walking the answers and looking at their
+        # region.
+        pools = defaultdict(lambda: {'fallback': None, 'values': []})
+        for answer in record['answers']:
+            meta = answer['meta']
+            # region (group name in the UI) is the pool name
+            pool = pools[answer['region']]
+            value = text_type(answer['answer'][0])
+            if meta['priority'] == 1:
+                # priority 1 means this answer is part of the pools own values
+                pool['values'].append({
+                    'value': value,
+                    'weight': int(meta.get('weight', 1)),
+                })
+            else:
+                # It's a fallback, we only care about it if it's a
+                # final/default
+                notes = self._parse_notes(meta.get('note', ''))
+                if notes.get('default', False):
+                    default.add(value)
+
+        # The regions objects map to rules, but it's a bit fuzzy since they're
+        # tied to pools on the NS1 side, e.g. we can only have 1 rule per pool,
+        # that may eventually run into problems, but I don't have any use-cases
+        # examples currently where it would
+        rules = []
+        for pool_name, region in sorted(record['regions'].items()):
+            meta = region['meta']
+            notes = self._parse_notes(meta.get('note', ''))
+
+            # The group notes field in the UI is a `note` on the region here,
+            # that's where we can find our pool's fallback.
+            if 'fallback' in notes:
+                # set the fallback pool name
+                pools[pool_name]['falback'] = notes['fallback']
+
+            geos = set()
+
+            # continents are mapped (imperfectly) to regions, but what about
+            # Canada/North America
+            for georegion in meta.get('georegion', []):
+                geos.add(self._REGION_TO_CONTINENT[georegion])
+
+            # Countries are easy enough to map, we just have ot find their
+            # continent
+            for country in meta.get('country', []):
+                con = country_alpha2_to_continent_code(country)
+                geos.add('{}-{}'.format(con, country))
+
+            # States are easy too, just assume NA-US (CA providences aren't
+            # supported by octoDNS currently)
+            for state in meta.get('us_state', []):
+                geos.add('NA-US-{}'.format(state))
+
+            rules.append({
+                'geos': sorted(geos),
+                'pool': pool_name,
+                '_order': notes['rule-order'],
+            })
+
+        # Order and convert to a list
+        default = sorted(default)
+        # Order
+        rules.sort(key=lambda r: (r['_order'], r['pool']))
+
+        return {
+            'dynamic': {
+                'pools': pools,
+                'rules': rules,
+            },
+            'values': sorted(default),
+        }
+
     def _data_for_A(self, _type, record):
-        # record meta (which would include geo information is only
-        # returned when getting a record's detail, not from zone detail
-        geo = defaultdict(list)
         data = {
             'ttl': record['ttl'],
             'type': _type,
         }
-        values, codes = [], []
-        if 'answers' not in record:
-            values = record['short_answers']
-        for answer in record.get('answers', []):
-            meta = answer.get('meta', {})
-            if meta:
-                # country + state and country + province are allowed
-                # in that case though, supplying a state/province would
-                # be redundant since the country would supercede in when
-                # resolving the record.  it is syntactically valid, however.
-                country = meta.get('country', [])
-                us_state = meta.get('us_state', [])
-                ca_province = meta.get('ca_province', [])
-                for cntry in country:
-                    con = country_alpha2_to_continent_code(cntry)
-                    key = '{}-{}'.format(con, cntry)
-                    geo[key].extend(answer['answer'])
-                for state in us_state:
-                    key = 'NA-US-{}'.format(state)
-                    geo[key].extend(answer['answer'])
-                for province in ca_province:
-                    key = 'NA-CA-{}'.format(province)
-                    geo[key].extend(answer['answer'])
-                for code in meta.get('iso_region_code', []):
-                    key = code
-                    geo[key].extend(answer['answer'])
-            else:
-                values.extend(answer['answer'])
-                codes.append([])
-        values = [text_type(x) for x in values]
-        geo = OrderedDict(
-            {text_type(k): [text_type(x) for x in v] for k, v in geo.items()}
-        )
-        data['values'] = values
-        data['geo'] = geo
+        if 'answers' in record:
+            # This is a dynamic record
+            data.update(self._data_for_dynamic_A(_type, record))
+            pprint(data)
+        else:
+            # This is a simple record
+            values = [text_type(x) for x in record['short_answers']]
+            data['values'] = values
+
+        pprint(data)
+
         return data
 
     _data_for_AAAA = _data_for_A
@@ -189,36 +315,51 @@ class Ns1Provider(BaseProvider):
                        target, lenient)
 
         try:
-            nsone_zone = self._client.loadZone(zone.name[:-1])
-            records = nsone_zone.data['records']
+            nsone_zone_name = zone.name[:-1]
+            nsone_zone = self._client.loadZone(nsone_zone_name)
+
+            records = []
 
             # change answers for certain types to always be absolute
-            for record in records:
-                if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'PTR',
-                                      'SRV']:
-                    for i, a in enumerate(record['short_answers']):
-                        if not a.endswith('.'):
-                            record['short_answers'][i] = '{}.'.format(a)
+            for record in nsone_zone.data['records']:
+                if record['tier'] > 1:
+                    # This is an advanced record so we need to load its full
+                    # details
+                    full = self._client.loadRecord(record['domain'],
+                                                   record['type'])
+                    records.append(full.data)
+                else:
+                    # This is a simple record, the data in the zone is enough
+                    records.append(record)
 
-            geo_records = nsone_zone.search(has_geo=True)
+            if False and record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS',
+                                            'PTR', 'SRV']:
+                for i, a in enumerate(record['short_answers']):
+                    if not a.endswith('.'):
+                        record['short_answers'][i] = '{}.'.format(a)
+
             exists = True
         except ResourceException as e:
             if e.message != self.ZONE_NOT_FOUND_MESSAGE:
                 raise
             records = []
-            geo_records = []
             exists = False
+
+        pprint({
+            'records': records,
+        })
 
         before = len(zone.records)
         # geo information isn't returned from the main endpoint, so we need
         # to query for all records with geo information
         zone_hash = {}
-        for record in chain(records, geo_records):
+        for record in chain(records):
             _type = record['type']
             if _type not in self.SUPPORTS:
                 continue
             data_for = getattr(self, '_data_for_{}'.format(_type))
             name = zone.hostname_from_fqdn(record['domain'])
+            pprint([record, _type, data_for(_type, record)])
             record = Record.new(zone, name, data_for(_type, record),
                                 source=self, lenient=lenient)
             zone_hash[(_type, name)] = record
