@@ -38,7 +38,9 @@ class Ns1Provider(BaseProvider):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, api_key=***', id)
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
-        self._client = NS1(apiKey=api_key)
+        client = NS1(apiKey=api_key)
+        self._records = client.records()
+        self._zones = client.zones()
 
     def _data_for_A(self, _type, record):
         # record meta (which would include geo information is only
@@ -189,18 +191,29 @@ class Ns1Provider(BaseProvider):
                        target, lenient)
 
         try:
-            nsone_zone = self._client.loadZone(zone.name[:-1])
-            records = nsone_zone.data['records']
+            nsone_zone_name = zone.name[:-1]
+            nsone_zone = self._zones.retrieve(nsone_zone_name)
+
+            records = []
+            geo_records = []
 
             # change answers for certain types to always be absolute
-            for record in records:
+            for record in nsone_zone['records']:
                 if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'PTR',
                                       'SRV']:
                     for i, a in enumerate(record['short_answers']):
                         if not a.endswith('.'):
                             record['short_answers'][i] = '{}.'.format(a)
 
-            geo_records = nsone_zone.search(has_geo=True)
+                if record.get('tier', 1) > 1:
+                    # Need to get the full record data for geo records
+                    record = self._records.retrieve(nsone_zone_name,
+                                                    record['domain'],
+                                                    record['type'])
+                    geo_records.append(record)
+                else:
+                    records.append(record)
+
             exists = True
         except ResourceException as e:
             if e.message != self.ZONE_NOT_FOUND_MESSAGE:
@@ -299,53 +312,49 @@ class Ns1Provider(BaseProvider):
                   for v in record.values]
         return {'answers': values, 'ttl': record.ttl}
 
-    def _get_name(self, record):
-        return record.fqdn[:-1] if record.name == '' else record.name
-
     def _apply_Create(self, nsone_zone, change):
         new = change.new
-        name = self._get_name(new)
+        zone = new.zone.name[:-1]
+        domain = new.fqdn[:-1]
         _type = new._type
         params = getattr(self, '_params_for_{}'.format(_type))(new)
-        meth = getattr(nsone_zone, 'add_{}'.format(_type))
         try:
-            meth(name, **params)
+            self._records.create(zone, domain, _type, **params)
         except RateLimitException as e:
             period = float(e.period)
             self.log.warn('_apply_Create: rate limit encountered, pausing '
                           'for %ds and trying again', period)
             sleep(period)
-            meth(name, **params)
+            self._records.create(zone, domain, _type, **params)
 
     def _apply_Update(self, nsone_zone, change):
-        existing = change.existing
-        name = self._get_name(existing)
-        _type = existing._type
-        record = nsone_zone.loadRecord(name, _type)
         new = change.new
+        zone = new.zone.name[:-1]
+        domain = new.fqdn[:-1]
+        _type = new._type
         params = getattr(self, '_params_for_{}'.format(_type))(new)
         try:
-            record.update(**params)
+            self._records.update(zone, domain, _type, **params)
         except RateLimitException as e:
             period = float(e.period)
             self.log.warn('_apply_Update: rate limit encountered, pausing '
                           'for %ds and trying again', period)
             sleep(period)
-            record.update(**params)
+            self._records.update(zone, domain, _type, **params)
 
     def _apply_Delete(self, nsone_zone, change):
         existing = change.existing
-        name = self._get_name(existing)
+        zone = existing.zone.name[:-1]
+        domain = existing.fqdn[:-1]
         _type = existing._type
-        record = nsone_zone.loadRecord(name, _type)
         try:
-            record.delete()
+            self._records.delete(zone, domain, _type)
         except RateLimitException as e:
             period = float(e.period)
             self.log.warn('_apply_Delete: rate limit encountered, pausing '
                           'for %ds and trying again', period)
             sleep(period)
-            record.delete()
+            self._records.delete(zone, domain, _type)
 
     def _apply(self, plan):
         desired = plan.desired
@@ -355,12 +364,12 @@ class Ns1Provider(BaseProvider):
 
         domain_name = desired.name[:-1]
         try:
-            nsone_zone = self._client.loadZone(domain_name)
+            nsone_zone = self._zones.retrieve(domain_name)
         except ResourceException as e:
             if e.message != self.ZONE_NOT_FOUND_MESSAGE:
                 raise
             self.log.debug('_apply:   no matching zone, creating')
-            nsone_zone = self._client.createZone(domain_name)
+            nsone_zone = self._zones.create(domain_name)
 
         for change in changes:
             class_name = change.__class__.__name__
