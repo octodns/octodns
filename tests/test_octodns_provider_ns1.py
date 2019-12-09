@@ -9,10 +9,11 @@ from collections import defaultdict
 from mock import call, patch
 from ns1.rest.errors import AuthException, RateLimitException, \
     ResourceException
+from six import text_type
 from unittest import TestCase
 
 from octodns.record import Delete, Record, Update
-from octodns.provider.ns1 import Ns1Provider
+from octodns.provider.ns1 import Ns1Client, Ns1Provider
 from octodns.zone import Zone
 
 
@@ -497,3 +498,46 @@ class TestNs1Provider(TestCase):
         }
         self.assertEqual(b_expected,
                          provider._data_for_CNAME(b_record['type'], b_record))
+
+
+class TestNs1Client(TestCase):
+
+    @patch('ns1.rest.zones.Zones.retrieve')
+    def test_retry_behavior(self, zone_retrieve_mock):
+        client = Ns1Client('dummy-key')
+
+        # No retry required, just calls and is returned
+        zone_retrieve_mock.reset_mock()
+        zone_retrieve_mock.side_effect = ['foo']
+        self.assertEquals('foo', client.zones_retrieve('unit.tests'))
+        zone_retrieve_mock.assert_has_calls([call('unit.tests')])
+
+        # One retry required
+        zone_retrieve_mock.reset_mock()
+        zone_retrieve_mock.side_effect = [
+            RateLimitException('boo', period=0),
+            'foo'
+        ]
+        self.assertEquals('foo', client.zones_retrieve('unit.tests'))
+        zone_retrieve_mock.assert_has_calls([call('unit.tests')])
+
+        # Two retries required
+        zone_retrieve_mock.reset_mock()
+        zone_retrieve_mock.side_effect = [
+            RateLimitException('boo', period=0),
+            'foo'
+        ]
+        self.assertEquals('foo', client.zones_retrieve('unit.tests'))
+        zone_retrieve_mock.assert_has_calls([call('unit.tests')])
+
+        # Exhaust our retries
+        zone_retrieve_mock.reset_mock()
+        zone_retrieve_mock.side_effect = [
+            RateLimitException('first', period=0),
+            RateLimitException('boo', period=0),
+            RateLimitException('boo', period=0),
+            RateLimitException('last', period=0),
+        ]
+        with self.assertRaises(RateLimitException) as ctx:
+            client.zones_retrieve('unit.tests')
+        self.assertEquals('last', text_type(ctx.exception))
