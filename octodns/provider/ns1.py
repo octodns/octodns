@@ -70,12 +70,53 @@ class Ns1Provider(BaseProvider):
         class: octodns.provider.ns1.Ns1Provider
         api_key: env/NS1_API_KEY
     '''
-    SUPPORTS_GEO = True
-    SUPPORTS_DYNAMIC = False
+    SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR',
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
+
+    _DYNAMIC_FILTERS = [{
+        'config': {},
+        'filter': 'up'
+    }, {
+        'config': {},
+        'filter': u'geotarget_regional'
+    }, {
+        'config': {},
+        'filter': u'select_first_region'
+    }, {
+        'config': {
+            'eliminate': u'1'
+        },
+        'filter': 'priority'
+    }, {
+        'config': {},
+        'filter': u'weighted_shuffle'
+    }, {
+        'config': {
+            'N': u'1'
+        },
+        'filter': u'select_first_n'
+    }]
+    _REGION_TO_CONTINENT = {
+        'AFRICA': 'AF',
+        'ASIAPAC': 'AS',
+        'EUROPE': 'EU',
+        'SOUTH-AMERICA': 'SA',
+        'US-CENTRAL': 'NA',
+        'US-EAST': 'NA',
+        'US-WEST': 'NA',
+    }
+    _CONTINENT_TO_REGIONS = {
+        'AF': ('AFRICA',),
+        'AS': ('ASIAPAC',),
+        'EU': ('EUROPE',),
+        'SA': ('SOUTH-AMERICA',),
+        # TODO: what about CA, MX, and all the other NA countries?
+        'NA': ('US-CENTRAL', 'US-EAST', 'US-WEST'),
+    }
 
     def __init__(self, id, api_key, retry_count=4, *args, **kwargs):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
@@ -282,9 +323,124 @@ class Ns1Provider(BaseProvider):
                       len(zone.records) - before, exists)
         return exists
 
+    def _encode_notes(self, data):
+        return ' '.join(['{}:{}'.format(k, v)
+                         for k, v in sorted(data.items())])
+
     def _params_for_A(self, record):
-        params = {'answers': record.values, 'ttl': record.ttl}
-        if hasattr(record, 'geo'):
+        params = {'ttl': record.ttl}
+
+        if hasattr(record, 'dynamic'):
+
+            pools = record.dynamic.pools
+
+            # Convert rules to regions
+            regions = {}
+            for i, rule in enumerate(record.dynamic.rules):
+                pool_name = rule.data['pool']
+
+                notes = {
+                    'rule-order': i,
+                }
+
+                fallback = pools[pool_name].data.get('fallback', None)
+                if fallback:
+                    notes['fallback'] = fallback
+
+                country = set()
+                georegion = set()
+                us_state = set()
+
+                for geo in rule.data.get('geos', []):
+                    n = len(geo)
+                    if n == 8:
+                        # US state
+                        us_state.add(geo[-2:])
+                    elif n == 5:
+                        # Country
+                        country.add(geo[-2:])
+                    else:
+                        # Continent
+                        georegion.update(self._CONTINENT_TO_REGIONS[geo])
+
+                meta = {
+                    'note': self._encode_notes(notes),
+                }
+                if georegion:
+                    meta['georegion'] = sorted(georegion)
+                if country:
+                    meta['country'] = sorted(country)
+                if us_state:
+                    meta['us_state'] = sorted(us_state)
+
+                regions[pool_name] = {
+                    'meta': meta,
+                }
+
+            # Build a list of primary values for each pool
+            pool_answers = defaultdict(list)
+            for pool_name, pool in sorted(pools.items()):
+                for value in pool.data['values']:
+                    pool_answers[pool_name].append({
+                        'answer': [value['value']],
+                        'weight': value['weight'],
+                    })
+
+            default_answers = [{
+                'answer': [v],
+                'weight': 1,
+            } for v in record.values]
+
+            # Build our list of answers
+            answers = []
+            for pool_name in sorted(pools.keys()):
+                priority = 1
+
+                # Dynamic/health checked
+                current_pool_name = pool_name
+                while current_pool_name:
+                    pool = pools[current_pool_name]
+                    for answer in pool_answers[current_pool_name]:
+                        answer = {
+                            'answer': answer['answer'],
+                            'meta': {
+                                'priority': priority,
+                                'note': self._encode_notes({
+                                    'from': current_pool_name,
+                                }),
+                                'weight': answer['weight'],
+                            },
+                            'region': pool_name,  # the one we're answering
+                        }
+                        answers.append(answer)
+
+                    current_pool_name = pool.data.get('fallback', None)
+                    priority += 1
+
+                # Static/default
+                for answer in default_answers:
+                    answer = {
+                        'answer': answer['answer'],
+                        'meta': {
+                            'priority': priority,
+                            'note': self._encode_notes({
+                                'from': '--default--',
+                            }),
+                            'weight': 1,
+                        },
+                        'region': pool_name,  # the one we're answering
+                    }
+                    answers.append(answer)
+
+            params.update({
+                'answers': answers,
+                'filters': self._DYNAMIC_FILTERS,
+                'regions': regions,
+            })
+
+            return params
+
+        elif hasattr(record, 'geo'):
             # purposefully set non-geo answers to have an empty meta,
             # so that we know we did this on purpose if/when troubleshooting
             params['answers'] = [{"answer": [x], "meta": {}}
@@ -315,6 +471,9 @@ class Ns1Provider(BaseProvider):
                     {"filter": "select_first_n",
                      "config": {"N": 1}}
                 )
+        else:
+            params['answers'] = record.values
+
         self.log.debug("params for A: %s", params)
         return params
 
