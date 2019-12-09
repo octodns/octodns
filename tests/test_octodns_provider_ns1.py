@@ -108,7 +108,7 @@ class TestNs1Provider(TestCase):
         },
     }))
 
-    nsone_records = [{
+    ns1_records = [{
         'type': 'A',
         'ttl': 32,
         'short_answers': ['1.2.3.4'],
@@ -196,7 +196,7 @@ class TestNs1Provider(TestCase):
 
         # Existing zone w/o records
         zone_retrieve_mock.reset_mock()
-        nsone_zone = {
+        ns1_zone = {
             'records': [{
                 "domain": "geo.unit.tests",
                 "zone": "unit.tests",
@@ -213,7 +213,7 @@ class TestNs1Provider(TestCase):
                 'ttl': 34,
             }],
         }
-        zone_retrieve_mock.side_effect = [nsone_zone]
+        zone_retrieve_mock.side_effect = [ns1_zone]
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
         self.assertEquals(1, len(zone.records))
@@ -221,8 +221,8 @@ class TestNs1Provider(TestCase):
 
         # Existing zone w/records
         zone_retrieve_mock.reset_mock()
-        nsone_zone = {
-            'records': self.nsone_records + [{
+        ns1_zone = {
+            'records': self.ns1_records + [{
                 "domain": "geo.unit.tests",
                 "zone": "unit.tests",
                 "type": "A",
@@ -238,7 +238,7 @@ class TestNs1Provider(TestCase):
                 'ttl': 34,
             }],
         }
-        zone_retrieve_mock.side_effect = [nsone_zone]
+        zone_retrieve_mock.side_effect = [ns1_zone]
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
         self.assertEquals(self.expected, zone.records)
@@ -246,8 +246,8 @@ class TestNs1Provider(TestCase):
 
         # Test skipping unsupported record type
         zone_retrieve_mock.reset_mock()
-        nsone_zone = {
-            'records': self.nsone_records + [{
+        ns1_zone = {
+            'records': self.ns1_records + [{
                 'type': 'UNSUPPORTED',
                 'ttl': 42,
                 'short_answers': ['unsupported'],
@@ -268,7 +268,7 @@ class TestNs1Provider(TestCase):
                 'ttl': 34,
             }],
         }
-        zone_retrieve_mock.side_effect = [nsone_zone]
+        zone_retrieve_mock.side_effect = [ns1_zone]
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
         self.assertEquals(self.expected, zone.records)
@@ -347,8 +347,8 @@ class TestNs1Provider(TestCase):
         zone_retrieve_mock.reset_mock()
         zone_create_mock.reset_mock()
 
-        nsone_zone = {
-            'records': self.nsone_records + [{
+        ns1_zone = {
+            'records': self.ns1_records + [{
                 'type': 'A',
                 'ttl': 42,
                 'short_answers': ['9.9.9.9'],
@@ -368,7 +368,7 @@ class TestNs1Provider(TestCase):
                 'ttl': 34,
             }],
         }
-        nsone_zone['records'][0]['short_answers'][0] = '2.2.2.2'
+        ns1_zone['records'][0]['short_answers'][0] = '2.2.2.2'
 
         record_retrieve_mock.side_effect = [{
             "domain": "geo.unit.tests",
@@ -387,7 +387,7 @@ class TestNs1Provider(TestCase):
             'ttl': 34,
         }]
 
-        zone_retrieve_mock.side_effect = [nsone_zone, nsone_zone]
+        zone_retrieve_mock.side_effect = [ns1_zone, ns1_zone]
         plan = provider.plan(desired)
         self.assertEquals(3, len(plan.changes))
         # Shouldn't rely on order so just count classes
@@ -470,7 +470,7 @@ class TestNs1Provider(TestCase):
     def test_data_for_CNAME(self):
         provider = Ns1Provider('test', 'api-key')
 
-        # answers from nsone
+        # answers from ns1
         a_record = {
             'ttl': 31,
             'type': 'CNAME',
@@ -484,7 +484,7 @@ class TestNs1Provider(TestCase):
         self.assertEqual(a_expected,
                          provider._data_for_CNAME(a_record['type'], a_record))
 
-        # no answers from nsone
+        # no answers from ns1
         b_record = {
             'ttl': 32,
             'type': 'CNAME',

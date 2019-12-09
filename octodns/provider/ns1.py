@@ -23,7 +23,7 @@ class Ns1Provider(BaseProvider):
     '''
     Ns1 provider
 
-    nsone:
+    ns1:
         class: octodns.provider.ns1.Ns1Provider
         api_key: env/NS1_API_KEY
     '''
@@ -191,14 +191,14 @@ class Ns1Provider(BaseProvider):
                        target, lenient)
 
         try:
-            nsone_zone_name = zone.name[:-1]
-            nsone_zone = self._zones.retrieve(nsone_zone_name)
+            ns1_zone_name = zone.name[:-1]
+            ns1_zone = self._zones.retrieve(ns1_zone_name)
 
             records = []
             geo_records = []
 
             # change answers for certain types to always be absolute
-            for record in nsone_zone['records']:
+            for record in ns1_zone['records']:
                 if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'PTR',
                                       'SRV']:
                     for i, a in enumerate(record['short_answers']):
@@ -207,7 +207,7 @@ class Ns1Provider(BaseProvider):
 
                 if record.get('tier', 1) > 1:
                     # Need to get the full record data for geo records
-                    record = self._records.retrieve(nsone_zone_name,
+                    record = self._records.retrieve(ns1_zone_name,
                                                     record['domain'],
                                                     record['type'])
                     geo_records.append(record)
@@ -312,7 +312,7 @@ class Ns1Provider(BaseProvider):
                   for v in record.values]
         return {'answers': values, 'ttl': record.ttl}
 
-    def _apply_Create(self, nsone_zone, change):
+    def _apply_Create(self, ns1_zone, change):
         new = change.new
         zone = new.zone.name[:-1]
         domain = new.fqdn[:-1]
@@ -327,7 +327,7 @@ class Ns1Provider(BaseProvider):
             sleep(period)
             self._records.create(zone, domain, _type, **params)
 
-    def _apply_Update(self, nsone_zone, change):
+    def _apply_Update(self, ns1_zone, change):
         new = change.new
         zone = new.zone.name[:-1]
         domain = new.fqdn[:-1]
@@ -342,7 +342,7 @@ class Ns1Provider(BaseProvider):
             sleep(period)
             self._records.update(zone, domain, _type, **params)
 
-    def _apply_Delete(self, nsone_zone, change):
+    def _apply_Delete(self, ns1_zone, change):
         existing = change.existing
         zone = existing.zone.name[:-1]
         domain = existing.fqdn[:-1]
@@ -364,14 +364,14 @@ class Ns1Provider(BaseProvider):
 
         domain_name = desired.name[:-1]
         try:
-            nsone_zone = self._zones.retrieve(domain_name)
+            ns1_zone = self._zones.retrieve(domain_name)
         except ResourceException as e:
             if e.message != self.ZONE_NOT_FOUND_MESSAGE:
                 raise
             self.log.debug('_apply:   no matching zone, creating')
-            nsone_zone = self._zones.create(domain_name)
+            ns1_zone = self._zones.create(domain_name)
 
         for change in changes:
             class_name = change.__class__.__name__
-            getattr(self, '_apply_{}'.format(class_name))(nsone_zone,
+            getattr(self, '_apply_{}'.format(class_name))(ns1_zone,
                                                           change)
