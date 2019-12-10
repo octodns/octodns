@@ -165,8 +165,9 @@ class TestNs1Provider(TestCase):
         'domain': 'unit.tests.',
     }]
 
+    @patch('ns1.rest.records.Records.retrieve')
     @patch('ns1.rest.zones.Zones.retrieve')
-    def test_populate(self, zone_retrieve_mock):
+    def test_populate(self, zone_retrieve_mock, record_retrieve_mock):
         provider = Ns1Provider('test', 'api-key')
 
         # Bad auth
@@ -197,6 +198,7 @@ class TestNs1Provider(TestCase):
 
         # Existing zone w/o records
         zone_retrieve_mock.reset_mock()
+        record_retrieve_mock.reset_mock()
         ns1_zone = {
             'records': [{
                 "domain": "geo.unit.tests",
@@ -211,17 +213,23 @@ class TestNs1Provider(TestCase):
                     {'answer': ['4.5.6.7'],
                      'meta': {'iso_region_code': ['NA-US-WA']}},
                 ],
+                'tier': 3,
                 'ttl': 34,
             }],
         }
         zone_retrieve_mock.side_effect = [ns1_zone]
+        # Its tier 3 so we'll do a full lookup
+        record_retrieve_mock.side_effect = ns1_zone['records']
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
         self.assertEquals(1, len(zone.records))
         self.assertEquals(('unit.tests',), zone_retrieve_mock.call_args[0])
+        record_retrieve_mock.assert_has_calls([call('unit.tests',
+                                                    'geo.unit.tests', 'A')])
 
         # Existing zone w/records
         zone_retrieve_mock.reset_mock()
+        record_retrieve_mock.reset_mock()
         ns1_zone = {
             'records': self.ns1_records + [{
                 "domain": "geo.unit.tests",
@@ -236,17 +244,23 @@ class TestNs1Provider(TestCase):
                     {'answer': ['4.5.6.7'],
                      'meta': {'iso_region_code': ['NA-US-WA']}},
                 ],
+                'tier': 3,
                 'ttl': 34,
             }],
         }
         zone_retrieve_mock.side_effect = [ns1_zone]
+        # Its tier 3 so we'll do a full lookup
+        record_retrieve_mock.side_effect = ns1_zone['records']
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
         self.assertEquals(self.expected, zone.records)
         self.assertEquals(('unit.tests',), zone_retrieve_mock.call_args[0])
+        record_retrieve_mock.assert_has_calls([call('unit.tests',
+                                                    'geo.unit.tests', 'A')])
 
         # Test skipping unsupported record type
         zone_retrieve_mock.reset_mock()
+        record_retrieve_mock.reset_mock()
         ns1_zone = {
             'records': self.ns1_records + [{
                 'type': 'UNSUPPORTED',
@@ -266,6 +280,7 @@ class TestNs1Provider(TestCase):
                     {'answer': ['4.5.6.7'],
                      'meta': {'iso_region_code': ['NA-US-WA']}},
                 ],
+                'tier': 3,
                 'ttl': 34,
             }],
         }
@@ -274,6 +289,8 @@ class TestNs1Provider(TestCase):
         provider.populate(zone)
         self.assertEquals(self.expected, zone.records)
         self.assertEquals(('unit.tests',), zone_retrieve_mock.call_args[0])
+        record_retrieve_mock.assert_has_calls([call('unit.tests',
+                                                    'geo.unit.tests', 'A')])
 
     @patch('ns1.rest.records.Records.delete')
     @patch('ns1.rest.records.Records.update')

@@ -19,6 +19,10 @@ from ..record import Record
 from .base import BaseProvider
 
 
+class Ns1Exception(Exception):
+    pass
+
+
 class Ns1Client(object):
     log = getLogger('NS1Client')
 
@@ -126,7 +130,18 @@ class Ns1Provider(BaseProvider):
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
         self._client = Ns1Client(api_key, retry_count)
 
-    def _data_for_A(self, _type, record):
+    def _encode_notes(self, data):
+        return ' '.join(['{}:{}'.format(k, v)
+                         for k, v in sorted(data.items())])
+
+    def _parse_notes(self, note):
+        data = {}
+        for piece in note.split(' '):
+            k, v = piece.split(':', 1)
+            data[k] = v
+        return data
+
+    def _data_for_geo_A(self, _type, record):
         # record meta (which would include geo information is only
         # returned when getting a record's detail, not from zone detail
         geo = defaultdict(list)
@@ -170,6 +185,116 @@ class Ns1Provider(BaseProvider):
         data['values'] = values
         data['geo'] = geo
         return data
+
+    def _data_for_dynamic_A(self, _type, record):
+        # First make sure we have the expected filters config
+        if self._DYNAMIC_FILTERS != record['filters']:
+            self.log.error('_data_for_dynamic_A: %s %s has unsupported '
+                           'filters', record['domain'], _type)
+            raise Ns1Exception('Unrecognized advanced record')
+
+        # All regions (pools) will include the list of default values
+        # (eventually) at higher priorities, we'll just add them to this set to
+        # we'll have the complete collection.
+        default = set()
+        # Fill out the pools by walking the answers and looking at their
+        # region.
+        pools = defaultdict(lambda: {'fallback': None, 'values': []})
+        for answer in record['answers']:
+            # region (group name in the UI) is the pool name
+            pool_name = answer['region']
+            pool = pools[answer['region']]
+
+            meta = answer['meta']
+            value = text_type(answer['answer'][0])
+            if meta['priority'] == 1:
+                # priority 1 means this answer is part of the pools own values
+                pool['values'].append({
+                    'value': value,
+                    'weight': int(meta.get('weight', 1)),
+                })
+            else:
+                # It's a fallback, we only care about it if it's a
+                # final/default
+                notes = self._parse_notes(meta.get('note', ''))
+                if notes.get('from', False) == '--default--':
+                    default.add(value)
+
+        # The regions objects map to rules, but it's a bit fuzzy since they're
+        # tied to pools on the NS1 side, e.g. we can only have 1 rule per pool,
+        # that may eventually run into problems, but I don't have any use-cases
+        # examples currently where it would
+        rules = []
+        for pool_name, region in sorted(record['regions'].items()):
+            meta = region['meta']
+            notes = self._parse_notes(meta.get('note', ''))
+
+            # The group notes field in the UI is a `note` on the region here,
+            # that's where we can find our pool's fallback.
+            if 'fallback' in notes:
+                # set the fallback pool name
+                pools[pool_name]['fallback'] = notes['fallback']
+
+            geos = set()
+
+            # continents are mapped (imperfectly) to regions, but what about
+            # Canada/North America
+            for georegion in meta.get('georegion', []):
+                geos.add(self._REGION_TO_CONTINENT[georegion])
+
+            # Countries are easy enough to map, we just have ot find their
+            # continent
+            for country in meta.get('country', []):
+                con = country_alpha2_to_continent_code(country)
+                geos.add('{}-{}'.format(con, country))
+
+            # States are easy too, just assume NA-US (CA providences aren't
+            # supported by octoDNS currently)
+            for state in meta.get('us_state', []):
+                geos.add('NA-US-{}'.format(state))
+
+            rule = {
+                'pool': pool_name,
+                '_order': notes['rule-order'],
+            }
+            if geos:
+                rule['geos'] = geos
+            rules.append(rule)
+
+        # Order and convert to a list
+        default = sorted(default)
+        # Order
+        rules.sort(key=lambda r: (r['_order'], r['pool']))
+
+        return {
+            'dynamic': {
+                'pools': pools,
+                'rules': rules,
+            },
+            'ttl': record['ttl'],
+            'type': _type,
+            'values': sorted(default),
+        }
+
+    def _data_for_A(self, _type, record):
+        if record.get('tier', 1) > 1:
+            # Advanced record, see if it's first answer has a note
+            try:
+                first_answer_note = record['answers'][0]['meta']['note']
+            except (IndexError, KeyError):
+                first_answer_note = ''
+            # If that note includes a `from` (pool name) it's a dynamic record
+            if 'from:' in first_answer_note:
+                return self._data_for_dynamic_A(_type, record)
+            # If not it's an old geo record
+            return self._data_for_geo_A(_type, record)
+
+        # This is a basic record, just convert it
+        return {
+            'ttl': record['ttl'],
+            'type': _type,
+            'values': [text_type(x) for x in record['short_answers']]
+        }
 
     _data_for_AAAA = _data_for_A
 
@@ -316,23 +441,18 @@ class Ns1Provider(BaseProvider):
                 continue
             data_for = getattr(self, '_data_for_{}'.format(_type))
             name = zone.hostname_from_fqdn(record['domain'])
-            record = Record.new(zone, name, data_for(_type, record),
-                                source=self, lenient=lenient)
+            data = data_for(_type, record)
+            record = Record.new(zone, name, data, source=self, lenient=lenient)
             zone_hash[(_type, name)] = record
         [zone.add_record(r, lenient=lenient) for r in zone_hash.values()]
         self.log.info('populate:   found %s records, exists=%s',
                       len(zone.records) - before, exists)
         return exists
 
-    def _encode_notes(self, data):
-        return ' '.join(['{}:{}'.format(k, v)
-                         for k, v in sorted(data.items())])
-
     def _params_for_A(self, record):
         params = {'ttl': record.ttl}
 
-        if hasattr(record, 'dynamic'):
-
+        if hasattr(record, 'dynamic') and record.dynamic:
             pools = record.dynamic.pools
 
             # Convert rules to regions
