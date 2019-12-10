@@ -678,9 +678,11 @@ class Route53Provider(BaseProvider):
             self.log.debug('_get_zone_id:   no matching zone, creating, '
                            'ref=%s', ref)
             if self.delegation_set_id:
-            resp = self._conn.create_hosted_zone(Name=name,
+                resp = self._conn.create_hosted_zone(
+                    Name=name,
                                                      CallerReference=ref,
-                                                     DelegationSetId=self.delegation_set_id)
+                    DelegationSetId=self.delegation_set_id
+                )
             else:
                 resp = self._conn.create_hosted_zone(Name=name,
                                                  CallerReference=ref)
