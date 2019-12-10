@@ -675,17 +675,16 @@ class Route53Provider(BaseProvider):
             return id
         if create:
             ref = uuid4().hex
+            del_set = self.delegation_set_id
             self.log.debug('_get_zone_id:   no matching zone, creating, '
                            'ref=%s', ref)
             if self.delegation_set_id:
-                resp = self._conn.create_hosted_zone(
-                    Name=name,
+                resp = self._conn.create_hosted_zone(Name=name,
                                                      CallerReference=ref,
-                    DelegationSetId=self.delegation_set_id
-                )
+                                                     DelegationSetId=del_set)
             else:
                 resp = self._conn.create_hosted_zone(Name=name,
-                                                 CallerReference=ref)
+                                                     CallerReference=ref)
             self.r53_zones[name] = id = resp['HostedZone']['Id']
             return id
         return None
