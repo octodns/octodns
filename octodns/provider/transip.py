@@ -49,6 +49,7 @@ class TransipProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
+    SUPPORTS_ROOT_NS = False
     SUPPORTS = set(
         ('A', 'AAAA', 'CNAME', 'MX', 'SRV', 'SPF', 'TXT', 'SSHFP', 'CAA'))
     # unsupported by OctoDNS: 'TLSA'
