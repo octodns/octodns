@@ -32,6 +32,7 @@ class Ns1Client(object):
         client = NS1(apiKey=api_key)
         self._records = client.records()
         self._zones = client.zones()
+        self._monitors = client.monitors()
 
     def _try(self, method, *args, **kwargs):
         tries = self.retry_count
@@ -65,6 +66,17 @@ class Ns1Client(object):
 
     def records_delete(self, zone, domain, _type):
         return self._try(self._records.delete, zone, domain, _type)
+
+    def monitors_list(self):
+        return self._try(self._monitors.list)
+
+    def monitors_create(self, **params):
+        body = {}  # TODO: not clear what this is supposed to be
+        return self._try(self._monitors.create, body, **params)
+
+    def monitors_update(self, job_id, **params):
+        body = {}  # TODO: not clear what this is supposed to be
+        return self._try(self._monitors.update, job_id, body, **params)
 
 
 class Ns1Provider(BaseProvider):
@@ -136,9 +148,10 @@ class Ns1Provider(BaseProvider):
 
     def _parse_notes(self, note):
         data = {}
-        for piece in note.split(' '):
-            k, v = piece.split(':', 1)
-            data[k] = v
+        if note:
+            for piece in note.split(' '):
+                k, v = piece.split(':', 1)
+                data[k] = v
         return data
 
     def _data_for_geo_A(self, _type, record):
@@ -258,7 +271,7 @@ class Ns1Provider(BaseProvider):
                 '_order': notes['rule-order'],
             }
             if geos:
-                rule['geos'] = geos
+                rule['geos'] = sorted(geos)
             rules.append(rule)
 
         # Order and convert to a list
@@ -449,6 +462,79 @@ class Ns1Provider(BaseProvider):
                       len(zone.records) - before, exists)
         return exists
 
+    def _extra_changes(self, desired, changes, **kwargs):
+        # TODO: check monitors to see if they need updated
+        return []
+
+    def _monitors_for(self, record):
+        # TODO: should this just be a global cache by fqdn, type, and value?
+        expected_host = record.fqdn[:-1]
+        expected_type = record._type
+
+        monitors = {}
+
+        # TODO: cache here or in Ns1Client
+        for monitor in self._client.monitors_list():
+            data = self._parse_notes(monitor['notes'])
+            if expected_host == data['host'] or \
+               expected_type == data['type']:
+                # This monitor does not belong to this record
+                config = monitor['config']
+                value = config['host']
+                monitors[value] = monitor
+
+        return monitors
+
+    def _sync_monitor(self, record, value, existing):
+        host = record.fqdn[:-1]
+        _type = record._type
+
+        request = 'GET {path} HTTP/1.0\\r\\nHost: {host}\\r\\n' \
+            'User-agent: NS1\\r\\n\\r\\n'.format(path=record.healthcheck_path,
+                                                 host=host)
+
+        expected = {
+            'active': True,
+            'config': {
+                'connect_timeout': 2000,
+                'host': value,
+                'port': record.healthcheck_port,
+                'response_timeout': 10000,
+                'send': request,
+                'ssl': record.healthcheck_protocol == 'HTTPS',
+            },
+            'frequency': 60,
+            'job_type': 'tcp',
+            'name': '{} - {} - {}'.format(host, _type, value),
+            'notes': self._encode_notes({
+                'host': host,
+                'type': _type,
+            }),
+            'policy': 'quorum',
+            'rapid_recheck': False,
+            'region_scope': 'fixed',
+            # TODO: what should we do here dal, sjc, lga, sin, ams
+            'regions': ['lga'],
+            'rules': [{
+                'comparison': 'contains',
+                'key': 'output',
+                'value': '200 OK',
+            }],
+        }
+
+        if existing:
+            monitor_id = existing['id']
+            # See if the monitor needs updating
+            for k, v in expected.items():
+                if existing.get(k, '--missing--') != v:
+                    self._client.monitors_update(monitor_id, **expected)
+                    break
+        else:
+            return self._client.monitors_create(**expected)['id']
+
+        # TODO: this needs to return the feed
+        return None
+
     def _params_for_A(self, record):
         params = {'ttl': record.ttl}
 
@@ -498,13 +584,21 @@ class Ns1Provider(BaseProvider):
                     'meta': meta,
                 }
 
-            # Build a list of primary values for each pool
+            existing_monitors = self._monitors_for(record)
+
+            # Build a list of primary values for each pool, including their
+            # monitor
             pool_answers = defaultdict(list)
             for pool_name, pool in sorted(pools.items()):
                 for value in pool.data['values']:
+                    weight = value['weight']
+                    value = value['value']
+                    existing = existing_monitors.get(value)
+                    monitor_id = self._sync_monitor(record, value, existing)
                     pool_answers[pool_name].append({
-                        'answer': [value['value']],
-                        'weight': value['weight'],
+                        'answer': [value],
+                        'weight': weight,
+                        'monitor_id': monitor_id,
                     })
 
             default_answers = [{
@@ -531,6 +625,7 @@ class Ns1Provider(BaseProvider):
                                 }),
                                 'weight': answer['weight'],
                             },
+                            'up': True,  # TODO: this should be a monitor/feed
                             'region': pool_name,  # the one we're answering
                         }
                         answers.append(answer)
@@ -547,6 +642,7 @@ class Ns1Provider(BaseProvider):
                             'note': self._encode_notes({
                                 'from': '--default--',
                             }),
+                            'up': True,
                             'weight': 1,
                         },
                         'region': pool_name,  # the one we're answering
