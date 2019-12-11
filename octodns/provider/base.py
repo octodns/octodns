@@ -29,6 +29,14 @@ class BaseProvider(BaseSource):
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
 
+    def _check_root_ns(self, change):
+        '''
+        Checks ability for provider root NS support.
+        '''
+        return not (self.SUPPORTS_ROOT_NS and
+                    change.record._type == 'NS' and
+                    change.record.name == '')
+
     def _include_change(self, change):
         '''
         An opportunity for providers to filter out false positives due to
@@ -60,7 +68,8 @@ class BaseProvider(BaseSource):
 
         # allow the provider to filter out false positives
         before = len(changes)
-        changes = [c for c in changes if self._include_change(c)]
+        changes = [c for c in changes if self._include_change(c)
+                   and self._check_root_ns]
         after = len(changes)
         if before != after:
             self.log.info('plan:   filtered out %s changes', before - after)

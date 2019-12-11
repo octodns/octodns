@@ -26,12 +26,6 @@ class InvalidNodeException(Exception):
     pass
 
 
-def _is_eligible(record):
-    # Should this record be considered when computing changes
-    # We ignore all top-level NS records
-    return record._type != 'NS' or record.name != ''
-
-
 class Zone(object):
     log = getLogger('Zone')
 
@@ -109,7 +103,7 @@ class Zone(object):
         changes = []
 
         # Find diffs & removes
-        for record in filter(_is_eligible, self.records):
+        for record in self.records:
             if record.ignored:
                 continue
             elif len(record.included) > 0 and \
@@ -159,7 +153,7 @@ class Zone(object):
         # Find additions, things that are in desired, but missing in ourselves.
         # This uses set math and our special __hash__ and __cmp__ functions as
         # well
-        for record in filter(_is_eligible, desired.records - self.records):
+        for record in desired.records - self.records:
             if record.ignored:
                 continue
             elif len(record.included) > 0 and \
