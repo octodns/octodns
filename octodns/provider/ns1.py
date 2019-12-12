@@ -174,7 +174,7 @@ class Ns1Provider(BaseProvider):
         class: octodns.provider.ns1.Ns1Provider
         api_key: env/NS1_API_KEY
     '''
-    SUPPORTS_GEO = False
+    SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR',
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
