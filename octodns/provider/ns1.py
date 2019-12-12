@@ -28,6 +28,7 @@ class Ns1Client(object):
     log = getLogger('NS1Client')
 
     def __init__(self, api_key, retry_count=4):
+        self.log.debug('__init__: retry_count=%d', retry_count)
         self.retry_count = retry_count
 
         client = NS1(apiKey=api_key)
@@ -54,9 +55,11 @@ class Ns1Client(object):
                     break
 
             if source is None:
+                self.log.info('datasource_id: creating datasource %s', name)
                 # We need to create it
                 source = self.datasource_create(name=name,
                                                 sourcetype='nsone_monitoring')
+                self.log.info('datasource_id:   id=%s', source['id'])
 
             self._datasource_id = source['id']
 
@@ -65,6 +68,7 @@ class Ns1Client(object):
     @property
     def feeds_for_monitors(self):
         if self._feeds_for_monitors is None:
+            self.log.debug('feeds_for_monitors: fetching & building')
             self._feeds_for_monitors = {
                 f['config']['jobid']: f['id']
                 for f in self.datafeed_list(self.datasource_id)
@@ -75,6 +79,7 @@ class Ns1Client(object):
     @property
     def monitors(self):
         if self._monitors_cache is None:
+            self.log.debug('monitors: fetching & building')
             self._monitors_cache = \
                 {m['id']: m for m in self.monitors_list()}
         return self._monitors_cache
@@ -602,19 +607,24 @@ class Ns1Provider(BaseProvider):
         return monitors
 
     def _create_feed(self, monitor):
+        monitor_id = monitor['id']
+        self.log.debug('_create_feed: monitor=%s', monitor_id)
         # TODO: looks like length limit is 64 char
         name = '{} - {}'.format(monitor['name'], uuid4().hex[:6])
 
         # Create the data feed
         config = {
-            'jobid': monitor['id'],
+            'jobid': monitor_id,
         }
         feed = self._client.datafeed_create(self._client.datasource_id, name,
                                             config)
+        feed_id = feed['id']
+        self.log.debug('_create_feed:   feed=%s', feed_id)
 
-        return feed['id']
+        return feed_id
 
     def _create_monitor(self, monitor):
+        self.log.debug('_create_monitor: monitor="%s"', monitor['name'])
         # Create the notify list
         notify_list = [{
             'config': {
@@ -624,12 +634,16 @@ class Ns1Provider(BaseProvider):
         }]
         nl = self._client.notifylists_create(name=monitor['name'],
                                              notify_list=notify_list)
+        nl_id = nl['id']
+        self.log.debug('_create_monitor:   notify_list=%s', nl_id)
 
         # Create the monitor
-        monitor['notify_list'] = nl['id']
+        monitor['notify_list'] = nl_id
         monitor = self._client.monitors_create(**monitor)
+        monitor_id = monitor['id']
+        self.log.debug('_create_monitor:   monitor=%s', monitor_id)
 
-        return monitor['id'], self._create_feed(monitor)
+        return monitor_id, self._create_feed(monitor)
 
     def _monitor_gen(self, record, value):
         host = record.fqdn[:-1]
@@ -678,12 +692,16 @@ class Ns1Provider(BaseProvider):
         return True
 
     def _monitor_sync(self, record, value, existing):
+        self.log.debug('_monitor_sync: record=%s, value=%s', record.fqdn,
+                       value)
         expected = self._monitor_gen(record, value)
 
         if existing:
+            self.log.debug('_monitor_sync:   existing=%s', existing['id'])
             monitor_id = existing['id']
 
             if not self._monitor_is_match(expected, existing):
+                self.log.debug('_monitor_sync:   existing needs update')
                 # Update the monitor to match expected, everything else will be
                 # left alone and assumed correct
                 self._client.monitors_update(monitor_id, **expected)
@@ -694,12 +712,15 @@ class Ns1Provider(BaseProvider):
                               existing['name'], monitor_id)
                 feed_id = self._create_feed(existing)
         else:
+            self.log.debug('_monitor_sync:   needs create')
             # We don't have an existing monitor create it (and related bits)
             monitor_id, feed_id = self._create_monitor(expected)
 
         return monitor_id, feed_id
 
     def _gc_monitors(self, record, active_monitor_ids=None):
+        self.log.debug('_gc_monitors: record=%s, active_monitor_ids=%s',
+                       record.fqdn, active_monitor_ids)
 
         if active_monitor_ids is None:
             active_monitor_ids = set()
@@ -708,6 +729,8 @@ class Ns1Provider(BaseProvider):
             monitor_id = monitor['id']
             if monitor_id in active_monitor_ids:
                 continue
+
+            self.log.debug('_gc_monitors:   deleting %s', monitor_id)
 
             feed_id = self._client.feeds_for_monitors.get(monitor_id)
             if feed_id:
