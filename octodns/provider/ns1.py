@@ -38,26 +38,58 @@ class Ns1Client(object):
         self._datasource = client.datasource()
         self._datafeed = client.datafeed()
 
-    def _try(self, method, *args, **kwargs):
-        tries = self.retry_count
-        while True:  # We'll raise to break after our tries expire
-            try:
-                return method(*args, **kwargs)
-            except RateLimitException as e:
-                if tries <= 1:
-                    raise
-                period = float(e.period)
-                self.log.warn('rate limit encountered, pausing '
-                              'for %ds and trying again, %d remaining',
-                              period, tries)
-                sleep(period)
-                tries -= 1
+        self._datasource_id = None
+        self._feeds_for_monitors = None
+        self._monitors_cache = None
+
+    @property
+    def datasource_id(self):
+        if self._datasource_id is None:
+            name = 'octoDNS NS1 Data Source'
+            source = None
+            for candidate in self.datasource_list():
+                if candidate['name'] == name:
+                    # Found it
+                    source = candidate
+                    break
+
+            if source is None:
+                # We need to create it
+                source = self.datasource_create(name=name,
+                                                sourcetype='nsone_monitoring')
+
+            self._datasource_id = source['id']
+
+        return self._datasource_id
+
+    @property
+    def feeds_for_monitors(self):
+        if self._feeds_for_monitors is None:
+            self._feeds_for_monitors = {
+                f['config']['jobid']: f['id']
+                for f in self.datafeed_list(self.datasource_id)
+            }
+
+        return self._feeds_for_monitors
+
+    @property
+    def monitors(self):
+        if self._monitors_cache is None:
+            self._monitors_cache = \
+                {m['id']: m for m in self.monitors_list()}
+        return self._monitors_cache
 
     def datafeed_create(self, sourceid, name, config):
-        return self._try(self._datafeed.create, sourceid, name, config)
+        ret = self._try(self._datafeed.create, sourceid, name, config)
+        self.feeds_for_monitors[config['jobid']] = ret['id']
+        return ret
 
     def datafeed_delete(self, sourceid, feedid):
-        return self._try(self._datafeed.delete, sourceid, feedid)
+        ret = self._try(self._datafeed.delete, sourceid, feedid)
+        self._feeds_for_monitors = {
+            k: v for k, v in self._feeds_for_monitors.items() if v != feedid
+        }
+        return ret
 
     def datafeed_list(self, sourceid):
         return self._try(self._datafeed.list, sourceid)
@@ -70,10 +102,14 @@ class Ns1Client(object):
 
     def monitors_create(self, **params):
         body = {}
-        return self._try(self._monitors.create, body, **params)
+        ret = self._try(self._monitors.create, body, **params)
+        self.monitors[ret['id']] = ret
+        return ret
 
     def monitors_delete(self, jobid):
-        return self._try(self._monitors.delete, jobid)
+        ret = self._try(self._monitors.delete, jobid)
+        self.monitors.pop(jobid)
+        return ret
 
     def monitors_list(self):
         return self._try(self._monitors.list)
@@ -108,6 +144,21 @@ class Ns1Client(object):
 
     def zones_retrieve(self, name):
         return self._try(self._zones.retrieve, name)
+
+    def _try(self, method, *args, **kwargs):
+        tries = self.retry_count
+        while True:  # We'll raise to break after our tries expire
+            try:
+                return method(*args, **kwargs)
+            except RateLimitException as e:
+                if tries <= 1:
+                    raise
+                period = float(e.period)
+                self.log.warn('rate limit encountered, pausing '
+                              'for %ds and trying again, %d remaining',
+                              period, tries)
+                sleep(period)
+                tries -= 1
 
 
 class Ns1Provider(BaseProvider):
@@ -173,9 +224,6 @@ class Ns1Provider(BaseProvider):
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
 
         self._client = Ns1Client(api_key, retry_count)
-        self.__monitors = None
-        self.__datasource_id = None
-        self.__feeds_for_monitors = None
 
     def _encode_notes(self, data):
         return ' '.join(['{}:{}'.format(k, v)
@@ -535,25 +583,14 @@ class Ns1Provider(BaseProvider):
 
         return params, None
 
-    @property
-    def _monitors(self):
-        # TODO: cache in sync, here and for others
-        if self.__monitors is None:
-            self.__monitors = {m['id']: m
-                               for m in self._client.monitors_list()}
-        return self.__monitors
-
     def _monitors_for(self, record):
         monitors = {}
 
         if getattr(record, 'dynamic', False):
-            # TODO: should this just be a global cache by fqdn, type, and
-            # value?
             expected_host = record.fqdn[:-1]
             expected_type = record._type
 
-            # TODO: cache here or in Ns1Client
-            for monitor in self._monitors.values():
+            for monitor in self._client.monitors.values():
                 data = self._parse_notes(monitor['notes'])
                 if expected_host == data['host'] or \
                    expected_type == data['type']:
@@ -564,62 +601,35 @@ class Ns1Provider(BaseProvider):
 
         return monitors
 
-    @property
-    def _datasource_id(self):
-        if self.__datasource_id is None:
-            name = 'octoDNS NS1 Data Source'
-            source = None
-            for candidate in self._client.datasource_list():
-                if candidate['name'] == name:
-                    # Found it
-                    source = candidate
-                    break
-
-            if source is None:
-                # We need to create it
-                source = self._client \
-                    .datasource_create(name=name,
-                                       sourcetype='nsone_monitoring')
-
-            self.__datasource_id = source['id']
-
-        return self.__datasource_id
-
-    def _feed_for_monitor(self, monitor):
-        if self.__feeds_for_monitors is None:
-            self.__feeds_for_monitors = {
-                f['config']['jobid']: f['id']
-                for f in self._client.datafeed_list(self._datasource_id)
-            }
-
-        return self.__feeds_for_monitors.get(monitor['id'])
-
-    def _create_monitor(self, monitor):
+    def _create_feed(self, monitor):
         # TODO: looks like length limit is 64 char
         name = '{} - {}'.format(monitor['name'], uuid4().hex[:6])
 
+        # Create the data feed
+        config = {
+            'jobid': monitor['id'],
+        }
+        feed = self._client.datafeed_create(self._client.datasource_id, name,
+                                            config)
+
+        return feed['id']
+
+    def _create_monitor(self, monitor):
         # Create the notify list
         notify_list = [{
             'config': {
-                'sourceid': self._datasource_id,
+                'sourceid': self._client.datasource_id,
             },
             'type': 'datafeed',
         }]
-        nl = self._client.notifylists_create(name=name,
+        nl = self._client.notifylists_create(name=monitor['name'],
                                              notify_list=notify_list)
 
         # Create the monitor
         monitor['notify_list'] = nl['id']
         monitor = self._client.monitors_create(**monitor)
 
-        # Create the data feed
-        config = {
-            'jobid': monitor['id'],
-        }
-        feed = self._client.datafeed_create(self._datasource_id, name,
-                                            config)
-
-        return monitor['id'], feed['id']
+        return monitor['id'], self._create_feed(monitor)
 
     def _monitor_gen(self, record, value):
         host = record.fqdn[:-1]
@@ -678,11 +688,11 @@ class Ns1Provider(BaseProvider):
                 # left alone and assumed correct
                 self._client.monitors_update(monitor_id, **expected)
 
-            try:
-                feed_id = self._feed_for_monitor(existing)
-            except KeyError:
-                raise Ns1Exception('Failed to find the feed for {} ({})'
-                                   .format(existing['name'], existing['id']))
+            feed_id = self._client.feeds_for_monitors.get(monitor_id)
+            if feed_id is None:
+                self.log.warn('_monitor_sync: %s (%s) missing feed, creating',
+                              existing['name'], monitor_id)
+                feed_id = self._create_feed(existing)
         else:
             # We don't have an existing monitor create it (and related bits)
             monitor_id, feed_id = self._create_monitor(expected)
@@ -699,9 +709,10 @@ class Ns1Provider(BaseProvider):
             if monitor_id in active_monitor_ids:
                 continue
 
-            feed_id = self._feed_for_monitor(monitor)
+            feed_id = self._client.feeds_for_monitors.get(monitor_id)
             if feed_id:
-                self._client.datafeed_delete(self._datasource_id, feed_id)
+                self._client.datafeed_delete(self._client.datasource_id,
+                                             feed_id)
 
             self._client.monitors_delete(monitor_id)
 
@@ -893,14 +904,15 @@ class Ns1Provider(BaseProvider):
             for have in self._monitors_for(record).values():
                 value = have['config']['host']
                 expected = self._monitor_gen(record, value)
-                if not expected:
-                    self.log.info('_extra_changes: monitor missing for %s',
-                                  expected['name'])
-                    extra.append(Update(record, record))
-                    break
+                # TODO: find values which have missing monitors
                 if not self._monitor_is_match(expected, have):
                     self.log.info('_extra_changes: monitor mis-match for %s',
                                   expected['name'])
+                    extra.append(Update(record, record))
+                    break
+                if not have.get('notify_list'):
+                    self.log.info('_extra_changes: broken monitor no notify '
+                                  'list %s (%s)', have['name'], have['id'])
                     extra.append(Update(record, record))
                     break
 
