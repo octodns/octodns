@@ -517,6 +517,24 @@ class TestNs1Provider(TestCase):
                          provider._data_for_CNAME(b_record['type'], b_record))
 
 
+class TestNs1ProviderDynamic(TestCase):
+
+    def test_notes(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        self.assertEquals({}, provider._parse_notes(None))
+        self.assertEquals({}, provider._parse_notes(''))
+        self.assertEquals({}, provider._parse_notes('blah-blah-blah'))
+
+        # Round tripping
+        data = {
+            'key': 'value',
+            'priority': '1',
+        }
+        notes = provider._encode_notes(data)
+        self.assertEquals(data, provider._parse_notes(notes))
+
+
 class TestNs1Client(TestCase):
 
     @patch('ns1.rest.zones.Zones.retrieve')
@@ -558,3 +576,171 @@ class TestNs1Client(TestCase):
         with self.assertRaises(RateLimitException) as ctx:
             client.zones_retrieve('unit.tests')
         self.assertEquals('last', text_type(ctx.exception))
+
+    @patch('ns1.rest.data.Source.list')
+    @patch('ns1.rest.data.Source.create')
+    def test_datasource_id(self, datasource_create_mock, datasource_list_mock):
+        client = Ns1Client('dummy-key')
+
+        # First invocation with an empty list create
+        datasource_list_mock.reset_mock()
+        datasource_create_mock.reset_mock()
+        datasource_list_mock.side_effect = [[]]
+        datasource_create_mock.side_effect = [{
+            'id': 'foo',
+        }]
+        self.assertEquals('foo', client.datasource_id)
+        name = 'octoDNS NS1 Data Source'
+        source_type = 'nsone_monitoring'
+        datasource_create_mock.assert_has_calls([call(name=name,
+                                                      sourcetype=source_type)])
+        datasource_list_mock.assert_called_once()
+
+        # 2nd invocation is cached
+        datasource_list_mock.reset_mock()
+        datasource_create_mock.reset_mock()
+        self.assertEquals('foo', client.datasource_id)
+        datasource_create_mock.assert_not_called()
+        datasource_list_mock.assert_not_called()
+
+        # Reset the client's cache
+        client._datasource_id = None
+
+        # First invocation with a match in the list finds it and doesn't call
+        # create
+        datasource_list_mock.reset_mock()
+        datasource_create_mock.reset_mock()
+        datasource_list_mock.side_effect = [[{
+            'id': 'other',
+            'name': 'not a match',
+        }, {
+            'id': 'bar',
+            'name': name,
+        }]]
+        self.assertEquals('bar', client.datasource_id)
+        datasource_create_mock.assert_not_called()
+        datasource_list_mock.assert_called_once()
+
+    @patch('ns1.rest.data.Feed.delete')
+    @patch('ns1.rest.data.Feed.create')
+    @patch('ns1.rest.data.Feed.list')
+    def test_feeds_for_monitors(self, datafeed_list_mock,
+                                datafeed_create_mock,
+                                datafeed_delete_mock):
+        client = Ns1Client('dummy-key')
+
+        # pre-cache datasource_id
+        client._datasource_id = 'foo'
+
+        # Populate the cache and check the results
+        datafeed_list_mock.reset_mock()
+        datafeed_list_mock.side_effect = [[{
+            'config': {
+                'jobid': 'the-job',
+            },
+            'id': 'the-feed',
+        }, {
+            'config': {
+                'jobid': 'the-other-job',
+            },
+            'id': 'the-other-feed',
+        }]]
+        expected = {
+            'the-job': 'the-feed',
+            'the-other-job': 'the-other-feed',
+        }
+        self.assertEquals(expected, client.feeds_for_monitors)
+        datafeed_list_mock.assert_called_once()
+
+        # 2nd call uses cache
+        datafeed_list_mock.reset_mock()
+        self.assertEquals(expected, client.feeds_for_monitors)
+        datafeed_list_mock.assert_not_called()
+
+        # create a feed and make sure it's in the cache/map
+        datafeed_create_mock.reset_mock()
+        datafeed_create_mock.side_effect = [{
+            'id': 'new-feed',
+        }]
+        client.datafeed_create(client.datasource_id, 'new-name', {
+            'jobid': 'new-job',
+        })
+        datafeed_create_mock.assert_has_calls([call('foo', 'new-name', {
+            'jobid': 'new-job',
+        })])
+        new_expected = expected.copy()
+        new_expected['new-job'] = 'new-feed'
+        self.assertEquals(new_expected, client.feeds_for_monitors)
+        datafeed_create_mock.assert_called_once()
+
+        # Delete a feed and make sure it's out of the cache/map
+        datafeed_delete_mock.reset_mock()
+        client.datafeed_delete(client.datasource_id, 'new-feed')
+        self.assertEquals(expected, client.feeds_for_monitors)
+        datafeed_delete_mock.assert_called_once()
+
+    @patch('ns1.rest.monitoring.Monitors.delete')
+    @patch('ns1.rest.monitoring.Monitors.update')
+    @patch('ns1.rest.monitoring.Monitors.create')
+    @patch('ns1.rest.monitoring.Monitors.list')
+    def test_monitors(self, monitors_list_mock, monitors_create_mock,
+                      monitors_update_mock, monitors_delete_mock):
+        client = Ns1Client('dummy-key')
+
+        one = {
+            'id': 'one',
+            'key': 'value',
+        }
+        two = {
+            'id': 'two',
+            'key': 'other-value',
+        }
+
+        # Populate the cache and check the results
+        monitors_list_mock.reset_mock()
+        monitors_list_mock.side_effect = [[one, two]]
+        expected = {
+            'one': one,
+            'two': two,
+        }
+        self.assertEquals(expected, client.monitors)
+        monitors_list_mock.assert_called_once()
+
+        # 2nd round pulls it from cache
+        monitors_list_mock.reset_mock()
+        self.assertEquals(expected, client.monitors)
+        monitors_list_mock.assert_not_called()
+
+        # Create a monitor, make sure it's in the list
+        monitors_create_mock.reset_mock()
+        monitor = {
+            'id': 'new-id',
+            'key': 'new-value',
+        }
+        monitors_create_mock.side_effect = [monitor]
+        self.assertEquals(monitor, client.monitors_create(param='eter'))
+        monitors_create_mock.assert_has_calls([call({}, param='eter')])
+        new_expected = expected.copy()
+        new_expected['new-id'] = monitor
+        self.assertEquals(new_expected, client.monitors)
+
+        # Update a monitor, make sure it's updated in the cache
+        monitors_update_mock.reset_mock()
+        monitor = {
+            'id': 'new-id',
+            'key': 'changed-value',
+        }
+        monitors_update_mock.side_effect = [monitor]
+        self.assertEquals(monitor, client.monitors_update('new-id',
+                                                          key='changed-value'))
+        monitors_update_mock \
+            .assert_has_calls([call('new-id', {}, key='changed-value')])
+        new_expected['new-id'] = monitor
+        self.assertEquals(new_expected, client.monitors)
+
+        # Delete a monitor, make sure it's out of the list
+        monitors_delete_mock.reset_mock()
+        monitors_delete_mock.side_effect = ['deleted']
+        self.assertEquals('deleted', client.monitors_delete('new-id'))
+        monitors_delete_mock.assert_has_calls([call('new-id')])
+        self.assertEquals(expected, client.monitors)
