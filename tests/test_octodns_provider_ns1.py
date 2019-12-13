@@ -518,6 +518,36 @@ class TestNs1Provider(TestCase):
 
 
 class TestNs1ProviderDynamic(TestCase):
+    zone = Zone('unit.tests.', [])
+
+    record = Record.new(zone, '', {
+        'dynamic': {
+            'pools': {
+                'iad': {
+                    'values': [{
+                        'value': '1.2.3.4',
+                    }, {
+                        'value': '2.3.4.5',
+                    }],
+                },
+            },
+            'rules': [{
+                'pool': 'iad',
+            }],
+        },
+        'octodns': {
+            'healthcheck': {
+                'host': 'send.me',
+                'path': '/_ping',
+                'port': 80,
+                'protocol': 'HTTP',
+            }
+        },
+        'ttl': 32,
+        'type': 'A',
+        'value': '1.2.3.4',
+        'meta': {},
+    })
 
     def test_notes(self):
         provider = Ns1Provider('test', 'api-key')
@@ -533,6 +563,133 @@ class TestNs1ProviderDynamic(TestCase):
         }
         notes = provider._encode_notes(data)
         self.assertEquals(data, provider._parse_notes(notes))
+
+    def test_monitors_for(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-populate the client's monitors cache
+        monitor_one = {
+            'config': {
+                'host': '1.2.3.4',
+            },
+            'notes': 'host:unit.tests type:A',
+        }
+        monitor_four = {
+            'config': {
+                'host': '2.3.4.5',
+            },
+            'notes': 'host:unit.tests type:A',
+        }
+        provider._client._monitors_cache = {
+            'one': monitor_one,
+            'two': {
+                'config': {
+                    'host': '8.8.8.8',
+                },
+                'notes': 'host:unit.tests type:AAAA',
+            },
+            'three': {
+                'config': {
+                    'host': '9.9.9.9',
+                },
+                'notes': 'host:other.unit.tests type:A',
+            },
+            'four': monitor_four,
+        }
+
+        # Would match, but won't get there b/c it's not dynamic
+        record = Record.new(self.zone, '', {
+            'ttl': 32,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'meta': {},
+        })
+        self.assertEquals({}, provider._monitors_for(record))
+
+        # Will match some records
+        self.assertEquals({
+            '1.2.3.4': monitor_one,
+            '2.3.4.5': monitor_four,
+        }, provider._monitors_for(self.record))
+
+    def test_uuid(self):
+        # Just a smoke test/for coverage
+        provider = Ns1Provider('test', 'api-key')
+        self.assertTrue(provider._uuid())
+
+    @patch('octodns.provider.ns1.Ns1Provider._uuid')
+    @patch('ns1.rest.data.Feed.create')
+    def test_create_feed(self, datafeed_create_mock, uuid_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {}
+
+        uuid_mock.reset_mock()
+        datafeed_create_mock.reset_mock()
+        uuid_mock.side_effect = ['xxxxxxxxxxxxxx']
+        feed = {
+            'id': 'feed',
+        }
+        datafeed_create_mock.side_effect = [feed]
+        monitor = {
+            'id': 'one',
+            'name': 'one name',
+            'config': {
+                'host': '1.2.3.4',
+            },
+            'notes': 'host:unit.tests type:A',
+        }
+        self.assertEquals('feed', provider._create_feed(monitor))
+        datafeed_create_mock.assert_has_calls([call('foo', 'one name - xxxxxx',
+                                                    {'jobid': 'one'})])
+
+    @patch('octodns.provider.ns1.Ns1Provider._create_feed')
+    @patch('octodns.provider.ns1.Ns1Client.monitors_create')
+    @patch('octodns.provider.ns1.Ns1Client.notifylists_create')
+    def test_create_monitor(self, notifylists_create_mock,
+                            monitors_create_mock, create_feed_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {}
+
+        notifylists_create_mock.reset_mock()
+        monitors_create_mock.reset_mock()
+        create_feed_mock.reset_mock()
+        notifylists_create_mock.side_effect = [{
+            'id': 'nl-id',
+        }]
+        monitors_create_mock.side_effect = [{
+            'id': 'mon-id',
+        }]
+        create_feed_mock.side_effect = ['feed-id']
+        monitor = {
+            'name': 'test monitor',
+        }
+        monitor_id, feed_id = provider._create_monitor(monitor)
+        self.assertEquals('mon-id', monitor_id)
+        self.assertEquals('feed-id', feed_id)
+        monitors_create_mock.assert_has_calls([call(name='test monitor',
+                                                    notify_list='nl-id')])
+
+    def test_monitor_gen(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        value = '3.4.5.6'
+        monitor = provider._monitor_gen(self.record, value)
+        self.assertEquals(value, monitor['config']['host'])
+        self.assertTrue('\\nHost: send.me\\r' in monitor['config']['send'])
+        self.assertFalse(monitor['config']['ssl'])
+        self.assertEquals('host:unit.tests type:A', monitor['notes'])
+
+        self.record._octodns['healthcheck']['protocol'] = 'HTTPS'
+        monitor = provider._monitor_gen(self.record, value)
+        self.assertTrue(monitor['config']['ssl'])
 
 
 class TestNs1Client(TestCase):
