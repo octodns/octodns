@@ -726,8 +726,8 @@ class Ns1Provider(BaseProvider):
 
         return monitor_id, feed_id
 
-    def _gc_monitors(self, record, active_monitor_ids=None):
-        self.log.debug('_gc_monitors: record=%s, active_monitor_ids=%s',
+    def _monitors_gc(self, record, active_monitor_ids=None):
+        self.log.debug('_monitors_gc: record=%s, active_monitor_ids=%s',
                        record.fqdn, active_monitor_ids)
 
         if active_monitor_ids is None:
@@ -738,7 +738,7 @@ class Ns1Provider(BaseProvider):
             if monitor_id in active_monitor_ids:
                 continue
 
-            self.log.debug('_gc_monitors:   deleting %s', monitor_id)
+            self.log.debug('_monitors_gc:   deleting %s', monitor_id)
 
             feed_id = self._client.feeds_for_monitors.get(monitor_id)
             if feed_id:
@@ -957,7 +957,7 @@ class Ns1Provider(BaseProvider):
         params, active_monitor_ids = \
             getattr(self, '_params_for_{}'.format(_type))(new)
         self._client.records_create(zone, domain, _type, **params)
-        self._gc_monitors(new, active_monitor_ids)
+        self._monitors_gc(new, active_monitor_ids)
 
     def _apply_Update(self, ns1_zone, change):
         new = change.new
@@ -967,7 +967,7 @@ class Ns1Provider(BaseProvider):
         params, active_monitor_ids = \
             getattr(self, '_params_for_{}'.format(_type))(new)
         self._client.records_update(zone, domain, _type, **params)
-        self._gc_monitors(new, active_monitor_ids)
+        self._monitors_gc(new, active_monitor_ids)
 
     def _apply_Delete(self, ns1_zone, change):
         existing = change.existing
@@ -975,7 +975,7 @@ class Ns1Provider(BaseProvider):
         domain = existing.fqdn[:-1]
         _type = existing._type
         self._client.records_delete(zone, domain, _type)
-        self._gc_monitors(existing)
+        self._monitors_gc(existing)
 
     def _apply(self, plan):
         desired = plan.desired

@@ -829,6 +829,89 @@ class TestNs1ProviderDynamic(TestCase):
         monitors_update_mock.assert_has_calls([call('mon-id', other='thing')])
         feed_create_mock.assert_not_called()
 
+    @patch('octodns.provider.ns1.Ns1Client.notifylists_delete')
+    @patch('octodns.provider.ns1.Ns1Client.monitors_delete')
+    @patch('octodns.provider.ns1.Ns1Client.datafeed_delete')
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_monitors_gc(self, monitors_for_mock, datafeed_delete_mock,
+                         monitors_delete_mock, notifylists_delete_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {
+            'mon-id': 'feed-id',
+        }
+
+        # No active monitors and no existing, nothing will happen
+        monitors_for_mock.reset_mock()
+        datafeed_delete_mock.reset_mock()
+        monitors_delete_mock.reset_mock()
+        notifylists_delete_mock.reset_mock()
+        monitors_for_mock.side_effect = [{}]
+        provider._monitors_gc(self.record)
+        monitors_for_mock.assert_has_calls([call(self.record)])
+        datafeed_delete_mock.assert_not_called()
+        monitors_delete_mock.assert_not_called()
+        notifylists_delete_mock.assert_not_called()
+
+        # No active monitors and one existing, delete all the things
+        monitors_for_mock.reset_mock()
+        datafeed_delete_mock.reset_mock()
+        monitors_delete_mock.reset_mock()
+        notifylists_delete_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            'x': {
+                'id': 'mon-id',
+                'notify_list': 'nl-id',
+            }
+        }]
+        provider._monitors_gc(self.record)
+        monitors_for_mock.assert_has_calls([call(self.record)])
+        datafeed_delete_mock.assert_has_calls([call('foo', 'feed-id')])
+        monitors_delete_mock.assert_has_calls([call('mon-id')])
+        notifylists_delete_mock.assert_has_calls([call('nl-id')])
+
+        # Same existing, this time in active list, should be noop
+        monitors_for_mock.reset_mock()
+        datafeed_delete_mock.reset_mock()
+        monitors_delete_mock.reset_mock()
+        notifylists_delete_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            'x': {
+                'id': 'mon-id',
+                'notify_list': 'nl-id',
+            }
+        }]
+        provider._monitors_gc(self.record, {'mon-id'})
+        monitors_for_mock.assert_has_calls([call(self.record)])
+        datafeed_delete_mock.assert_not_called()
+        monitors_delete_mock.assert_not_called()
+        notifylists_delete_mock.assert_not_called()
+
+        # Non-active monitor w/o a feed, and another monitor that's left alone
+        # b/c it's active
+        monitors_for_mock.reset_mock()
+        datafeed_delete_mock.reset_mock()
+        monitors_delete_mock.reset_mock()
+        notifylists_delete_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            'x': {
+                'id': 'mon-id',
+                'notify_list': 'nl-id',
+            },
+            'y': {
+                'id': 'mon-id2',
+                'notify_list': 'nl-id2',
+            },
+        }]
+        provider._monitors_gc(self.record, {'mon-id'})
+        monitors_for_mock.assert_has_calls([call(self.record)])
+        datafeed_delete_mock.assert_not_called()
+        monitors_delete_mock.assert_has_calls([call('mon-id2')])
+        notifylists_delete_mock.assert_has_calls([call('nl-id2')])
+
 
 class TestNs1Client(TestCase):
 
