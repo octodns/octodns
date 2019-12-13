@@ -614,9 +614,9 @@ class Ns1Provider(BaseProvider):
     def _uuid(self):
         return uuid4().hex
 
-    def _create_feed(self, monitor):
+    def _feed_create(self, monitor):
         monitor_id = monitor['id']
-        self.log.debug('_create_feed: monitor=%s', monitor_id)
+        self.log.debug('_feed_create: monitor=%s', monitor_id)
         # TODO: looks like length limit is 64 char
         name = '{} - {}'.format(monitor['name'], self._uuid()[:6])
 
@@ -627,12 +627,12 @@ class Ns1Provider(BaseProvider):
         feed = self._client.datafeed_create(self._client.datasource_id, name,
                                             config)
         feed_id = feed['id']
-        self.log.debug('_create_feed:   feed=%s', feed_id)
+        self.log.debug('_feed_create:   feed=%s', feed_id)
 
         return feed_id
 
-    def _create_monitor(self, monitor):
-        self.log.debug('_create_monitor: monitor="%s"', monitor['name'])
+    def _monitor_create(self, monitor):
+        self.log.debug('_monitor_create: monitor="%s"', monitor['name'])
         # Create the notify list
         notify_list = [{
             'config': {
@@ -643,15 +643,15 @@ class Ns1Provider(BaseProvider):
         nl = self._client.notifylists_create(name=monitor['name'],
                                              notify_list=notify_list)
         nl_id = nl['id']
-        self.log.debug('_create_monitor:   notify_list=%s', nl_id)
+        self.log.debug('_monitor_create:   notify_list=%s', nl_id)
 
         # Create the monitor
         monitor['notify_list'] = nl_id
         monitor = self._client.monitors_create(**monitor)
         monitor_id = monitor['id']
-        self.log.debug('_create_monitor:   monitor=%s', monitor_id)
+        self.log.debug('_monitor_create:   monitor=%s', monitor_id)
 
-        return monitor_id, self._create_feed(monitor)
+        return monitor_id, self._feed_create(monitor)
 
     def _monitor_gen(self, record, value):
         host = record.fqdn[:-1]
@@ -718,11 +718,11 @@ class Ns1Provider(BaseProvider):
             if feed_id is None:
                 self.log.warn('_monitor_sync: %s (%s) missing feed, creating',
                               existing['name'], monitor_id)
-                feed_id = self._create_feed(existing)
+                feed_id = self._feed_create(existing)
         else:
             self.log.debug('_monitor_sync:   needs create')
             # We don't have an existing monitor create it (and related bits)
-            monitor_id, feed_id = self._create_monitor(expected)
+            monitor_id, feed_id = self._monitor_create(expected)
 
         return monitor_id, feed_id
 

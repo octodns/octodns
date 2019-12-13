@@ -619,7 +619,7 @@ class TestNs1ProviderDynamic(TestCase):
 
     @patch('octodns.provider.ns1.Ns1Provider._uuid')
     @patch('ns1.rest.data.Feed.create')
-    def test_create_feed(self, datafeed_create_mock, uuid_mock):
+    def test_feed_create(self, datafeed_create_mock, uuid_mock):
         provider = Ns1Provider('test', 'api-key')
 
         # pre-fill caches to avoid extranious calls (things we're testing
@@ -642,15 +642,15 @@ class TestNs1ProviderDynamic(TestCase):
             },
             'notes': 'host:unit.tests type:A',
         }
-        self.assertEquals('feed', provider._create_feed(monitor))
+        self.assertEquals('feed', provider._feed_create(monitor))
         datafeed_create_mock.assert_has_calls([call('foo', 'one name - xxxxxx',
                                                     {'jobid': 'one'})])
 
-    @patch('octodns.provider.ns1.Ns1Provider._create_feed')
+    @patch('octodns.provider.ns1.Ns1Provider._feed_create')
     @patch('octodns.provider.ns1.Ns1Client.monitors_create')
     @patch('octodns.provider.ns1.Ns1Client.notifylists_create')
-    def test_create_monitor(self, notifylists_create_mock,
-                            monitors_create_mock, create_feed_mock):
+    def test_monitor_create(self, notifylists_create_mock,
+                            monitors_create_mock, feed_create_mock):
         provider = Ns1Provider('test', 'api-key')
 
         # pre-fill caches to avoid extranious calls (things we're testing
@@ -660,18 +660,18 @@ class TestNs1ProviderDynamic(TestCase):
 
         notifylists_create_mock.reset_mock()
         monitors_create_mock.reset_mock()
-        create_feed_mock.reset_mock()
+        feed_create_mock.reset_mock()
         notifylists_create_mock.side_effect = [{
             'id': 'nl-id',
         }]
         monitors_create_mock.side_effect = [{
             'id': 'mon-id',
         }]
-        create_feed_mock.side_effect = ['feed-id']
+        feed_create_mock.side_effect = ['feed-id']
         monitor = {
             'name': 'test monitor',
         }
-        monitor_id, feed_id = provider._create_monitor(monitor)
+        monitor_id, feed_id = provider._monitor_create(monitor)
         self.assertEquals('mon-id', monitor_id)
         self.assertEquals('feed-id', feed_id)
         monitors_create_mock.assert_has_calls([call(name='test monitor',
@@ -690,6 +690,144 @@ class TestNs1ProviderDynamic(TestCase):
         self.record._octodns['healthcheck']['protocol'] = 'HTTPS'
         monitor = provider._monitor_gen(self.record, value)
         self.assertTrue(monitor['config']['ssl'])
+
+    def test_monitor_is_match(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        # Empty matches empty
+        self.assertTrue(provider._monitor_is_match({}, {}))
+
+        # Anything matches empty
+        self.assertTrue(provider._monitor_is_match({}, {
+            'anything': 'goes'
+        }))
+
+        # Missing doesn't match
+        self.assertFalse(provider._monitor_is_match({
+            'exepct': 'this',
+        }, {
+            'anything': 'goes'
+        }))
+
+        # Identical matches
+        self.assertTrue(provider._monitor_is_match({
+            'exepct': 'this',
+        }, {
+            'exepct': 'this',
+        }))
+
+        # Different values don't match
+        self.assertFalse(provider._monitor_is_match({
+            'exepct': 'this',
+        }, {
+            'exepct': 'that',
+        }))
+
+        # Different sub-values don't match
+        self.assertFalse(provider._monitor_is_match({
+            'exepct': {
+                'this': 'to-be',
+            },
+        }, {
+            'exepct': {
+                'this': 'something-else',
+            },
+        }))
+
+    @patch('octodns.provider.ns1.Ns1Provider._feed_create')
+    @patch('octodns.provider.ns1.Ns1Client.monitors_update')
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_create')
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_gen')
+    def test_monitor_sync(self, monitor_gen_mock, monitor_create_mock,
+                          monitors_update_mock, feed_create_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {
+            'mon-id': 'feed-id',
+        }
+
+        # No existing monitor
+        monitor_gen_mock.reset_mock()
+        monitor_create_mock.reset_mock()
+        monitors_update_mock.reset_mock()
+        feed_create_mock.reset_mock()
+        monitor_gen_mock.side_effect = [{'key': 'value'}]
+        monitor_create_mock.side_effect = [('mon-id', 'feed-id')]
+        value = '1.2.3.4'
+        monitor_id, feed_id = provider._monitor_sync(self.record, value, None)
+        self.assertEquals('mon-id', monitor_id)
+        self.assertEquals('feed-id', feed_id)
+        monitor_gen_mock.assert_has_calls([call(self.record, value)])
+        monitor_create_mock.assert_has_calls([call({'key': 'value'})])
+        monitors_update_mock.assert_not_called()
+        feed_create_mock.assert_not_called()
+
+        # Existing monitor that doesn't need updates
+        monitor_gen_mock.reset_mock()
+        monitor_create_mock.reset_mock()
+        monitors_update_mock.reset_mock()
+        feed_create_mock.reset_mock()
+        monitor = {
+            'id': 'mon-id',
+            'key': 'value',
+            'name': 'monitor name',
+        }
+        monitor_gen_mock.side_effect = [monitor]
+        monitor_id, feed_id = provider._monitor_sync(self.record, value,
+                                                     monitor)
+        self.assertEquals('mon-id', monitor_id)
+        self.assertEquals('feed-id', feed_id)
+        monitor_gen_mock.assert_called_once()
+        monitor_create_mock.assert_not_called()
+        monitors_update_mock.assert_not_called()
+        feed_create_mock.assert_not_called()
+
+        # Existing monitor that doesn't need updates, but is missing its feed
+        monitor_gen_mock.reset_mock()
+        monitor_create_mock.reset_mock()
+        monitors_update_mock.reset_mock()
+        feed_create_mock.reset_mock()
+        monitor = {
+            'id': 'mon-id2',
+            'key': 'value',
+            'name': 'monitor name',
+        }
+        monitor_gen_mock.side_effect = [monitor]
+        feed_create_mock.side_effect = ['feed-id2']
+        monitor_id, feed_id = provider._monitor_sync(self.record, value,
+                                                     monitor)
+        self.assertEquals('mon-id2', monitor_id)
+        self.assertEquals('feed-id2', feed_id)
+        monitor_gen_mock.assert_called_once()
+        monitor_create_mock.assert_not_called()
+        monitors_update_mock.assert_not_called()
+        feed_create_mock.assert_has_calls([call(monitor)])
+
+        # Existing monitor that needs updates
+        monitor_gen_mock.reset_mock()
+        monitor_create_mock.reset_mock()
+        monitors_update_mock.reset_mock()
+        feed_create_mock.reset_mock()
+        monitor = {
+            'id': 'mon-id',
+            'key': 'value',
+            'name': 'monitor name',
+        }
+        gened = {
+            'other': 'thing',
+        }
+        monitor_gen_mock.side_effect = [gened]
+        monitor_id, feed_id = provider._monitor_sync(self.record, value,
+                                                     monitor)
+        self.assertEquals('mon-id', monitor_id)
+        self.assertEquals('feed-id', feed_id)
+        monitor_gen_mock.assert_called_once()
+        monitor_create_mock.assert_not_called()
+        monitors_update_mock.assert_has_calls([call('mon-id', other='thing')])
+        feed_create_mock.assert_not_called()
 
 
 class TestNs1Client(TestCase):
