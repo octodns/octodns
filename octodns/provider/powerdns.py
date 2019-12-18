@@ -178,7 +178,7 @@ class PowerDnsBaseProvider(BaseProvider):
                 # Nicer error message for auth problems
                 raise Exception('PowerDNS unauthorized host={}'
                                 .format(self.host))
-            elif e.response.status_code == 422:
+            elif e.response.status_code in (422, 404):
                 # 422 means powerdns doesn't know anything about the requested
                 # domain. We'll just ignore it here and leave the zone
                 # untouched.
@@ -338,8 +338,9 @@ class PowerDnsBaseProvider(BaseProvider):
             self.log.debug('_apply:   patched')
         except HTTPError as e:
             error = self._get_error(e)
-            if e.response.status_code != 422 or \
-               not error.startswith('Could not find domain '):
+            if e.response.status_code != 422 and \
+               not error.startswith('Could not find domain ') and \
+               e.response.status_code != 404:
                 self.log.error('_apply:   status=%d, text=%s',
                                e.response.status_code,
                                e.response.text)
