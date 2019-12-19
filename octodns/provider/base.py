@@ -68,8 +68,8 @@ class BaseProvider(BaseSource):
 
         # allow the provider to filter out false positives
         before = len(changes)
-        changes = [c for c in changes if self._include_change(c)
-                   and self._check_root_ns]
+        changes = [c for c in changes if self._include_change(c) and
+                   self._check_root_ns]
         after = len(changes)
         if before != after:
             self.log.info('plan:   filtered out %s changes', before - after)

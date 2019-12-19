@@ -17,7 +17,7 @@ import re
 from six import text_type
 
 from ..equality import EqualityTupleMixin
-from ..record import Record, Update, NsRecord
+from ..record import Record, Update
 from ..record.geo import GeoCodes
 from .base import BaseProvider
 
@@ -1351,7 +1351,8 @@ class Route53Provider(BaseProvider):
             mods = mod_type(c, zone_id, existing_rrsets)
 
             # Rewrite NS Record to UPSERT because it always exists.
-            if mods[0]['Action'] == "CREATE" and mods[0]['ResourceRecordSet']['Type'] == "NS":
+            if mods[0]['Action'] == "CREATE" and \
+               mods[0]['ResourceRecordSet']['Type'] == "NS":
                 mods[0]['Action'] = "UPSERT"
 
             # Order our mods to make sure targets exist before alises point to
