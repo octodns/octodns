@@ -31,6 +31,13 @@ class _AggregateTarget(object):
         return True
 
     @property
+    def SUPPORTS_ROOT_NS(self):
+        for target in self.targets:
+            if not target.SUPPORTS_ROOT_NS:
+                return False
+        return True
+
+    @property
     def SUPPORTS_GEO(self):
         for target in self.targets:
             if not target.SUPPORTS_GEO:
