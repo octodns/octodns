@@ -33,9 +33,10 @@ class BaseProvider(BaseSource):
         '''
         Checks ability for provider root NS support.
         '''
-        return not (self.SUPPORTS_ROOT_NS and
-                    change.record._type == 'NS' and
-                    change.record.name == '')
+
+        return not (change.record._type == 'NS' and
+                    change.record.name == '' and
+                    not self.SUPPORTS_ROOT_NS)
 
     def _include_change(self, change):
         '''
@@ -69,7 +70,7 @@ class BaseProvider(BaseSource):
         # allow the provider to filter out false positives
         before = len(changes)
         changes = [c for c in changes if self._include_change(c) and
-                   self._check_root_ns]
+                   self._check_root_ns(c)]
         after = len(changes)
         if before != after:
             self.log.info('plan:   filtered out %s changes', before - after)
