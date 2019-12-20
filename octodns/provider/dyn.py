@@ -226,6 +226,7 @@ class DynProvider(BaseProvider):
     }
     TYPE_TO_RECORDS = {v: k for k, v in RECORDS_TO_TYPE.items()}
     SUPPORTS = set(TYPE_TO_RECORDS.keys())
+    SUPPORTS_ROOT_NS = False
 
     # https://help.dyn.com/predefined-geotm-regions-groups/
     REGION_CODES = {
