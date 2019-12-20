@@ -16,6 +16,7 @@ class SimpleSource(object):
 
 
 class SimpleProvider(object):
+    SUPPORTS_ROOT_NS = False
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A',))
@@ -35,6 +36,7 @@ class SimpleProvider(object):
 
 
 class GeoProvider(object):
+    SUPPORTS_ROOT_NS = False
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = False
     id = 'test'
@@ -53,6 +55,7 @@ class GeoProvider(object):
 
 
 class DynamicProvider(object):
+    SUPPORTS_ROOT_NS = False
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = True
     id = 'test'

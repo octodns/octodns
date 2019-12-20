@@ -32,7 +32,7 @@ class YamlProvider(BaseProvider):
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
-    SUPPORTS_ROOT_NS = False
+    SUPPORTS_ROOT_NS = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
                     'PTR', 'SSHFP', 'SPF', 'SRV', 'TXT'))
 
