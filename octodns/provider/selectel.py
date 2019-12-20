@@ -23,6 +23,7 @@ class SelectelAuthenticationRequired(Exception):
 
 class SelectelProvider(BaseProvider):
     SUPPORTS_GEO = False
+    SUPPORTS_ROOT_NS = False
 
     SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NS', 'TXT', 'SPF', 'SRV'))
 
