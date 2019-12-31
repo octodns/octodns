@@ -17,6 +17,6 @@ fi
 
 SOURCES="*.py octodns/*.py octodns/*/*.py tests/*.py"
 
-pycodestyle --ignore=E221,E241,E251,E722,W504 $SOURCES
+pycodestyle --ignore=E117,E221,E241,E251,E722,W504 $SOURCES
 pyflakes $SOURCES
 flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
