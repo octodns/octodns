@@ -670,8 +670,8 @@ class TestDynProviderGeo(TestCase):
         tds = provider.traffic_directors
         self.assertEquals(set(['unit.tests.', 'geo.unit.tests.']),
                           set(tds.keys()))
-        self.assertEquals(['A'], tds['unit.tests.'].keys())
-        self.assertEquals(['A'], tds['geo.unit.tests.'].keys())
+        self.assertEquals(['A'], list(tds['unit.tests.'].keys()))
+        self.assertEquals(['A'], list(tds['geo.unit.tests.'].keys()))
         provider.log.warn.assert_called_with("Unsupported TrafficDirector "
                                              "'%s'", 'something else')
 

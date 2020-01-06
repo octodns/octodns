@@ -5,6 +5,8 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from six import text_type
+
 from ..source.base import BaseSource
 from ..zone import Zone
 from .plan import Plan
@@ -58,7 +60,7 @@ class BaseProvider(BaseSource):
 
         # allow the provider to filter out false positives
         before = len(changes)
-        changes = filter(self._include_change, changes)
+        changes = [c for c in changes if self._include_change(c)]
         after = len(changes)
         if before != after:
             self.log.info('plan:   filtered out %s changes', before - after)
@@ -68,7 +70,7 @@ class BaseProvider(BaseSource):
                                     changes=changes)
         if extra:
             self.log.info('plan:   extra changes\n  %s', '\n  '
-                          .join([unicode(c) for c in extra]))
+                          .join([text_type(c) for c in extra]))
             changes += extra
 
         if changes:

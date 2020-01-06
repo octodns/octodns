@@ -6,6 +6,7 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from logging import getLogger
+from six import text_type
 from unittest import TestCase
 
 from octodns.record import Create, Delete, Record, Update
@@ -48,7 +49,7 @@ class TestBaseProvider(TestCase):
         with self.assertRaises(NotImplementedError) as ctx:
             BaseProvider('base')
         self.assertEquals('Abstract base class, log property missing',
-                          ctx.exception.message)
+                          text_type(ctx.exception))
 
         class HasLog(BaseProvider):
             log = getLogger('HasLog')
@@ -56,7 +57,7 @@ class TestBaseProvider(TestCase):
         with self.assertRaises(NotImplementedError) as ctx:
             HasLog('haslog')
         self.assertEquals('Abstract base class, SUPPORTS_GEO property missing',
-                          ctx.exception.message)
+                          text_type(ctx.exception))
 
         class HasSupportsGeo(HasLog):
             SUPPORTS_GEO = False
@@ -65,14 +66,14 @@ class TestBaseProvider(TestCase):
         with self.assertRaises(NotImplementedError) as ctx:
             HasSupportsGeo('hassupportsgeo').populate(zone)
         self.assertEquals('Abstract base class, SUPPORTS property missing',
-                          ctx.exception.message)
+                          text_type(ctx.exception))
 
         class HasSupports(HasSupportsGeo):
             SUPPORTS = set(('A',))
         with self.assertRaises(NotImplementedError) as ctx:
             HasSupports('hassupports').populate(zone)
         self.assertEquals('Abstract base class, populate method missing',
-                          ctx.exception.message)
+                          text_type(ctx.exception))
 
         # SUPPORTS_DYNAMIC has a default/fallback
         self.assertFalse(HasSupports('hassupports').SUPPORTS_DYNAMIC)
@@ -118,7 +119,7 @@ class TestBaseProvider(TestCase):
         with self.assertRaises(NotImplementedError) as ctx:
             HasPopulate('haspopulate').apply(plan)
         self.assertEquals('Abstract base class, _apply method missing',
-                          ctx.exception.message)
+                          text_type(ctx.exception))
 
     def test_plan(self):
         ignored = Zone('unit.tests.', [])
@@ -193,7 +194,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, text_type(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -225,7 +226,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, text_type(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -238,7 +239,7 @@ class TestBaseProvider(TestCase):
         with self.assertRaises(UnsafePlan) as ctx:
             Plan(zone, zone, changes, True).raise_if_unsafe()
 
-        self.assertTrue('Too many updates' in ctx.exception.message)
+        self.assertTrue('Too many updates' in text_type(ctx.exception))
 
     def test_safe_updates_min_existing_pcent(self):
         # MAX_SAFE_UPDATE_PCENT is safe when more
@@ -251,7 +252,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, text_type(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -273,7 +274,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, text_type(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -286,7 +287,7 @@ class TestBaseProvider(TestCase):
         with self.assertRaises(UnsafePlan) as ctx:
             Plan(zone, zone, changes, True).raise_if_unsafe()
 
-        self.assertTrue('Too many deletes' in ctx.exception.message)
+        self.assertTrue('Too many deletes' in text_type(ctx.exception))
 
     def test_safe_deletes_min_existing_pcent(self):
         # MAX_SAFE_DELETE_PCENT is safe when more
@@ -299,7 +300,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, text_type(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -322,7 +323,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, text_type(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -336,7 +337,7 @@ class TestBaseProvider(TestCase):
             Plan(zone, zone, changes, True,
                  update_pcent_threshold=safe_pcent).raise_if_unsafe()
 
-        self.assertTrue('Too many updates' in ctx.exception.message)
+        self.assertTrue('Too many updates' in text_type(ctx.exception))
 
     def test_safe_deletes_min_existing_override(self):
         safe_pcent = .4
@@ -350,7 +351,7 @@ class TestBaseProvider(TestCase):
         })
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, unicode(i), {
+            zone.add_record(Record.new(zone, text_type(i), {
                             'ttl': 60,
                             'type': 'A',
                             'value': '2.3.4.5'
@@ -364,4 +365,4 @@ class TestBaseProvider(TestCase):
             Plan(zone, zone, changes, True,
                  delete_pcent_threshold=safe_pcent).raise_if_unsafe()
 
-        self.assertTrue('Too many deletes' in ctx.exception.message)
+        self.assertTrue('Too many deletes' in text_type(ctx.exception))

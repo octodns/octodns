@@ -8,20 +8,66 @@ from __future__ import absolute_import, division, print_function, \
 from logging import getLogger
 from itertools import chain
 from collections import OrderedDict, defaultdict
-from nsone import NSONE
-from nsone.rest.errors import RateLimitException, ResourceException
-from incf.countryutils import transformations
+from ns1 import NS1
+from ns1.rest.errors import RateLimitException, ResourceException
+from pycountry_convert import country_alpha2_to_continent_code
 from time import sleep
+
+from six import text_type
 
 from ..record import Record
 from .base import BaseProvider
+
+
+class Ns1Client(object):
+    log = getLogger('NS1Client')
+
+    def __init__(self, api_key, retry_count=4):
+        self.retry_count = retry_count
+
+        client = NS1(apiKey=api_key)
+        self._records = client.records()
+        self._zones = client.zones()
+
+    def _try(self, method, *args, **kwargs):
+        tries = self.retry_count
+        while True:  # We'll raise to break after our tries expire
+            try:
+                return method(*args, **kwargs)
+            except RateLimitException as e:
+                if tries <= 1:
+                    raise
+                period = float(e.period)
+                self.log.warn('rate limit encountered, pausing '
+                              'for %ds and trying again, %d remaining',
+                              period, tries)
+                sleep(period)
+                tries -= 1
+
+    def zones_retrieve(self, name):
+        return self._try(self._zones.retrieve, name)
+
+    def zones_create(self, name):
+        return self._try(self._zones.create, name)
+
+    def records_retrieve(self, zone, domain, _type):
+        return self._try(self._records.retrieve, zone, domain, _type)
+
+    def records_create(self, zone, domain, _type, **params):
+        return self._try(self._records.create, zone, domain, _type, **params)
+
+    def records_update(self, zone, domain, _type, **params):
+        return self._try(self._records.update, zone, domain, _type, **params)
+
+    def records_delete(self, zone, domain, _type):
+        return self._try(self._records.delete, zone, domain, _type)
 
 
 class Ns1Provider(BaseProvider):
     '''
     Ns1 provider
 
-    nsone:
+    ns1:
         class: octodns.provider.ns1.Ns1Provider
         api_key: env/NS1_API_KEY
     '''
@@ -32,11 +78,12 @@ class Ns1Provider(BaseProvider):
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
-    def __init__(self, id, api_key, *args, **kwargs):
+    def __init__(self, id, api_key, retry_count=4, *args, **kwargs):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
-        self.log.debug('__init__: id=%s, api_key=***', id)
+        self.log.debug('__init__: id=%s, api_key=***, retry_count=%d', id,
+                       retry_count)
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
-        self._client = NSONE(apiKey=api_key)
+        self._client = Ns1Client(api_key, retry_count)
 
     def _data_for_A(self, _type, record):
         # record meta (which would include geo information is only
@@ -60,8 +107,7 @@ class Ns1Provider(BaseProvider):
                 us_state = meta.get('us_state', [])
                 ca_province = meta.get('ca_province', [])
                 for cntry in country:
-                    cn = transformations.cc_to_cn(cntry)
-                    con = transformations.cn_to_ctca2(cn)
+                    con = country_alpha2_to_continent_code(cntry)
                     key = '{}-{}'.format(con, cntry)
                     geo[key].extend(answer['answer'])
                 for state in us_state:
@@ -76,9 +122,9 @@ class Ns1Provider(BaseProvider):
             else:
                 values.extend(answer['answer'])
                 codes.append([])
-        values = [unicode(x) for x in values]
+        values = [text_type(x) for x in values]
         geo = OrderedDict(
-            {unicode(k): [unicode(x) for x in v] for k, v in geo.items()}
+            {text_type(k): [text_type(x) for x in v] for k, v in geo.items()}
         )
         data['values'] = values
         data['geo'] = geo
@@ -188,18 +234,29 @@ class Ns1Provider(BaseProvider):
                        target, lenient)
 
         try:
-            nsone_zone = self._client.loadZone(zone.name[:-1])
-            records = nsone_zone.data['records']
+            ns1_zone_name = zone.name[:-1]
+            ns1_zone = self._client.zones_retrieve(ns1_zone_name)
+
+            records = []
+            geo_records = []
 
             # change answers for certain types to always be absolute
-            for record in records:
+            for record in ns1_zone['records']:
                 if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'PTR',
                                       'SRV']:
                     for i, a in enumerate(record['short_answers']):
                         if not a.endswith('.'):
                             record['short_answers'][i] = '{}.'.format(a)
 
-            geo_records = nsone_zone.search(has_geo=True)
+                if record.get('tier', 1) > 1:
+                    # Need to get the full record data for geo records
+                    record = self._client.records_retrieve(ns1_zone_name,
+                                                           record['domain'],
+                                                           record['type'])
+                    geo_records.append(record)
+                else:
+                    records.append(record)
+
             exists = True
         except ResourceException as e:
             if e.message != self.ZONE_NOT_FOUND_MESSAGE:
@@ -298,53 +355,28 @@ class Ns1Provider(BaseProvider):
                   for v in record.values]
         return {'answers': values, 'ttl': record.ttl}
 
-    def _get_name(self, record):
-        return record.fqdn[:-1] if record.name == '' else record.name
-
-    def _apply_Create(self, nsone_zone, change):
+    def _apply_Create(self, ns1_zone, change):
         new = change.new
-        name = self._get_name(new)
+        zone = new.zone.name[:-1]
+        domain = new.fqdn[:-1]
         _type = new._type
         params = getattr(self, '_params_for_{}'.format(_type))(new)
-        meth = getattr(nsone_zone, 'add_{}'.format(_type))
-        try:
-            meth(name, **params)
-        except RateLimitException as e:
-            period = float(e.period)
-            self.log.warn('_apply_Create: rate limit encountered, pausing '
-                          'for %ds and trying again', period)
-            sleep(period)
-            meth(name, **params)
+        self._client.records_create(zone, domain, _type, **params)
 
-    def _apply_Update(self, nsone_zone, change):
-        existing = change.existing
-        name = self._get_name(existing)
-        _type = existing._type
-        record = nsone_zone.loadRecord(name, _type)
+    def _apply_Update(self, ns1_zone, change):
         new = change.new
+        zone = new.zone.name[:-1]
+        domain = new.fqdn[:-1]
+        _type = new._type
         params = getattr(self, '_params_for_{}'.format(_type))(new)
-        try:
-            record.update(**params)
-        except RateLimitException as e:
-            period = float(e.period)
-            self.log.warn('_apply_Update: rate limit encountered, pausing '
-                          'for %ds and trying again', period)
-            sleep(period)
-            record.update(**params)
+        self._client.records_update(zone, domain, _type, **params)
 
-    def _apply_Delete(self, nsone_zone, change):
+    def _apply_Delete(self, ns1_zone, change):
         existing = change.existing
-        name = self._get_name(existing)
+        zone = existing.zone.name[:-1]
+        domain = existing.fqdn[:-1]
         _type = existing._type
-        record = nsone_zone.loadRecord(name, _type)
-        try:
-            record.delete()
-        except RateLimitException as e:
-            period = float(e.period)
-            self.log.warn('_apply_Delete: rate limit encountered, pausing '
-                          'for %ds and trying again', period)
-            sleep(period)
-            record.delete()
+        self._client.records_delete(zone, domain, _type)
 
     def _apply(self, plan):
         desired = plan.desired
@@ -354,14 +386,14 @@ class Ns1Provider(BaseProvider):
 
         domain_name = desired.name[:-1]
         try:
-            nsone_zone = self._client.loadZone(domain_name)
+            ns1_zone = self._client.zones_retrieve(domain_name)
         except ResourceException as e:
             if e.message != self.ZONE_NOT_FOUND_MESSAGE:
                 raise
             self.log.debug('_apply:   no matching zone, creating')
-            nsone_zone = self._client.createZone(domain_name)
+            ns1_zone = self._client.zones_create(domain_name)
 
         for change in changes:
             class_name = change.__class__.__name__
-            getattr(self, '_apply_{}'.format(class_name))(nsone_zone,
+            getattr(self, '_apply_{}'.format(class_name))(ns1_zone,
                                                           change)

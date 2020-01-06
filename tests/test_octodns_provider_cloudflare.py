@@ -9,6 +9,7 @@ from mock import Mock, call
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
+from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record, Update
@@ -65,7 +66,7 @@ class TestCloudflareProvider(TestCase):
                 provider.populate(zone)
 
             self.assertEquals('CloudflareError', type(ctx.exception).__name__)
-            self.assertEquals('request was invalid', ctx.exception.message)
+            self.assertEquals('request was invalid', text_type(ctx.exception))
 
         # Bad auth
         with requests_mock() as mock:
@@ -80,7 +81,7 @@ class TestCloudflareProvider(TestCase):
             self.assertEquals('CloudflareAuthenticationError',
                               type(ctx.exception).__name__)
             self.assertEquals('Unknown X-Auth-Key or X-Auth-Email',
-                              ctx.exception.message)
+                              text_type(ctx.exception))
 
         # Bad auth, unknown resp
         with requests_mock() as mock:
@@ -91,7 +92,7 @@ class TestCloudflareProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals('CloudflareAuthenticationError',
                               type(ctx.exception).__name__)
-            self.assertEquals('Cloudflare error', ctx.exception.message)
+            self.assertEquals('Cloudflare error', text_type(ctx.exception))
 
         # General error
         with requests_mock() as mock:
@@ -102,7 +103,7 @@ class TestCloudflareProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals(502, ctx.exception.response.status_code)
 
-        # Non-existant zone doesn't populate anything
+        # Non-existent zone doesn't populate anything
         with requests_mock() as mock:
             mock.get(ANY, status_code=200, json=self.empty)
 
@@ -110,7 +111,7 @@ class TestCloudflareProvider(TestCase):
             provider.populate(zone)
             self.assertEquals(set(), zone.records)
 
-        # re-populating the same non-existant zone uses cache and makes no
+        # re-populating the same non-existent zone uses cache and makes no
         # calls
         again = Zone('unit.tests.', [])
         provider.populate(again)
@@ -173,7 +174,7 @@ class TestCloudflareProvider(TestCase):
             },  # zone create
         ] + [None] * 20  # individual record creates
 
-        # non-existant zone, create everything
+        # non-existent zone, create everything
         plan = provider.plan(self.expected)
         self.assertEquals(12, len(plan.changes))
         self.assertEquals(12, provider.apply(plan))
@@ -742,23 +743,25 @@ class TestCloudflareProvider(TestCase):
         # the CDN.
         self.assertEquals(3, len(zone.records))
 
-        record = list(zone.records)[0]
-        self.assertEquals('multi', record.name)
-        self.assertEquals('multi.unit.tests.', record.fqdn)
-        self.assertEquals('CNAME', record._type)
-        self.assertEquals('multi.unit.tests.cdn.cloudflare.net.', record.value)
+        ordered = sorted(zone.records, key=lambda r: r.name)
 
-        record = list(zone.records)[1]
+        record = ordered[0]
+        self.assertEquals('a', record.name)
+        self.assertEquals('a.unit.tests.', record.fqdn)
+        self.assertEquals('CNAME', record._type)
+        self.assertEquals('a.unit.tests.cdn.cloudflare.net.', record.value)
+
+        record = ordered[1]
         self.assertEquals('cname', record.name)
         self.assertEquals('cname.unit.tests.', record.fqdn)
         self.assertEquals('CNAME', record._type)
         self.assertEquals('cname.unit.tests.cdn.cloudflare.net.', record.value)
 
-        record = list(zone.records)[2]
-        self.assertEquals('a', record.name)
-        self.assertEquals('a.unit.tests.', record.fqdn)
+        record = ordered[2]
+        self.assertEquals('multi', record.name)
+        self.assertEquals('multi.unit.tests.', record.fqdn)
         self.assertEquals('CNAME', record._type)
-        self.assertEquals('a.unit.tests.cdn.cloudflare.net.', record.value)
+        self.assertEquals('multi.unit.tests.cdn.cloudflare.net.', record.value)
 
         # CDN enabled records can't be updated, we don't know the real values
         # never point a Cloudflare record to itself.
@@ -950,7 +953,7 @@ class TestCloudflareProvider(TestCase):
             'value': 'ns1.unit.tests.'
         })
 
-        data = provider._gen_data(record).next()
+        data = next(provider._gen_data(record))
 
         self.assertFalse('proxied' in data)
 
@@ -965,7 +968,7 @@ class TestCloudflareProvider(TestCase):
             }), False
         )
 
-        data = provider._gen_data(record).next()
+        data = next(provider._gen_data(record))
 
         self.assertFalse(data['proxied'])
 
@@ -980,7 +983,7 @@ class TestCloudflareProvider(TestCase):
             }), True
         )
 
-        data = provider._gen_data(record).next()
+        data = next(provider._gen_data(record))
 
         self.assertTrue(data['proxied'])
 

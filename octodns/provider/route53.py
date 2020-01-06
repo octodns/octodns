@@ -8,16 +8,18 @@ from __future__ import absolute_import, division, print_function, \
 from boto3 import client
 from botocore.config import Config
 from collections import defaultdict
-from incf.countryutils.transformations import cca_to_ctca2
 from ipaddress import AddressValueError, ip_address
+from pycountry_convert import country_alpha2_to_continent_code
 from uuid import uuid4
 import logging
 import re
 
+from six import text_type
+
+from ..equality import EqualityTupleMixin
 from ..record import Record, Update
 from ..record.geo import GeoCodes
 from .base import BaseProvider
-
 
 octal_re = re.compile(r'\\(\d\d\d)')
 
@@ -28,7 +30,7 @@ def _octal_replace(s):
     return octal_re.sub(lambda m: chr(int(m.group(1), 8)), s)
 
 
-class _Route53Record(object):
+class _Route53Record(EqualityTupleMixin):
 
     @classmethod
     def _new_dynamic(cls, provider, record, hosted_zone_id, creating):
@@ -136,7 +138,7 @@ class _Route53Record(object):
         values_for = getattr(self, '_values_for_{}'.format(self._type))
         self.values = values_for(record)
 
-    def mod(self, action):
+    def mod(self, action, existing_rrsets):
         return {
             'Action': action,
             'ResourceRecordSet': {
@@ -147,7 +149,7 @@ class _Route53Record(object):
             }
         }
 
-    # NOTE: we're using __hash__ and __cmp__ methods that consider
+    # NOTE: we're using __hash__ and ordering methods that consider
     # _Route53Records equivalent if they have the same class, fqdn, and _type.
     # Values are ignored. This is useful when computing diffs/changes.
 
@@ -155,17 +157,10 @@ class _Route53Record(object):
         'sub-classes should never use this method'
         return '{}:{}'.format(self.fqdn, self._type).__hash__()
 
-    def __cmp__(self, other):
-        '''sub-classes should call up to this and return its value if non-zero.
-        When it's zero they should compute their own __cmp__'''
-        if self.__class__ != other.__class__:
-            return cmp(self.__class__, other.__class__)
-        elif self.fqdn != other.fqdn:
-            return cmp(self.fqdn, other.fqdn)
-        elif self._type != other._type:
-            return cmp(self._type, other._type)
-        # We're ignoring ttl, it's not an actual differentiator
-        return 0
+    def _equality_tuple(self):
+        '''Sub-classes should call up to this and return its value and add
+        any additional fields they need to hav considered.'''
+        return (self.__class__.__name__, self.fqdn, self._type)
 
     def __repr__(self):
         return '_Route53Record<{} {} {} {}>'.format(self.fqdn, self._type,
@@ -268,7 +263,7 @@ class _Route53DynamicPool(_Route53Record):
                                      self.target_name)
         return '{}-{}'.format(self.pool_name, self.mode)
 
-    def mod(self, action):
+    def mod(self, action, existing_rrsets):
         return {
             'Action': action,
             'ResourceRecordSet': {
@@ -311,7 +306,7 @@ class _Route53DynamicRule(_Route53Record):
     def identifer(self):
         return '{}-{}-{}'.format(self.index, self.pool_name, self.geo)
 
-    def mod(self, action):
+    def mod(self, action, existing_rrsets):
         rrset = {
             'AliasTarget': {
                 'DNSName': self.target_dns_name,
@@ -379,7 +374,21 @@ class _Route53DynamicValue(_Route53Record):
     def identifer(self):
         return '{}-{:03d}'.format(self.pool_name, self.index)
 
-    def mod(self, action):
+    def mod(self, action, existing_rrsets):
+
+        if action == 'DELETE':
+            # When deleting records try and find the original rrset so that
+            # we're 100% sure to have the complete & accurate data (this mostly
+            # ensures we have the right health check id when there's multiple
+            # potential matches)
+            for existing in existing_rrsets:
+                if self.fqdn == existing.get('Name') and \
+                   self.identifer == existing.get('SetIdentifier', None):
+                    return {
+                        'Action': action,
+                        'ResourceRecordSet': existing,
+                    }
+
         return {
             'Action': action,
             'ResourceRecordSet': {
@@ -404,7 +413,7 @@ class _Route53DynamicValue(_Route53Record):
 
 class _Route53GeoDefault(_Route53Record):
 
-    def mod(self, action):
+    def mod(self, action, existing_rrsets):
         return {
             'Action': action,
             'ResourceRecordSet': {
@@ -437,15 +446,31 @@ class _Route53GeoRecord(_Route53Record):
         self.health_check_id = provider.get_health_check_id(record, value,
                                                             creating)
 
-    def mod(self, action):
+    def mod(self, action, existing_rrsets):
         geo = self.geo
+        set_identifier = geo.code
+        fqdn = self.fqdn
+
+        if action == 'DELETE':
+            # When deleting records try and find the original rrset so that
+            # we're 100% sure to have the complete & accurate data (this mostly
+            # ensures we have the right health check id when there's multiple
+            # potential matches)
+            for existing in existing_rrsets:
+                if fqdn == existing.get('Name') and \
+                   set_identifier == existing.get('SetIdentifier', None):
+                    return {
+                        'Action': action,
+                        'ResourceRecordSet': existing,
+                    }
+
         rrset = {
             'Name': self.fqdn,
             'GeoLocation': {
                 'CountryCode': '*'
             },
             'ResourceRecords': [{'Value': v} for v in geo.values],
-            'SetIdentifier': geo.code,
+            'SetIdentifier': set_identifier,
             'TTL': self.ttl,
             'Type': self._type,
         }
@@ -476,11 +501,9 @@ class _Route53GeoRecord(_Route53Record):
         return '{}:{}:{}'.format(self.fqdn, self._type,
                                  self.geo.code).__hash__()
 
-    def __cmp__(self, other):
-        ret = super(_Route53GeoRecord, self).__cmp__(other)
-        if ret != 0:
-            return ret
-        return cmp(self.geo.code, other.geo.code)
+    def _equality_tuple(self):
+        return super(_Route53GeoRecord, self)._equality_tuple() + \
+            (self.geo.code,)
 
     def __repr__(self):
         return '_Route53GeoRecord<{} {} {} {} {}>'.format(self.fqdn,
@@ -489,37 +512,74 @@ class _Route53GeoRecord(_Route53Record):
                                                           self.values)
 
 
-_mod_keyer_action_order = {
-    'DELETE': 0,  # Delete things first
-    'CREATE': 1,  # Then Create things
-    'UPSERT': 2,  # Upsert things last
-}
-
-
 def _mod_keyer(mod):
     rrset = mod['ResourceRecordSet']
-    action_order = _mod_keyer_action_order[mod['Action']]
 
-    # We're sorting by 3 "columns", the action, the rrset type, and finally the
-    # name/id of the rrset. This ensures that Route53 won't see a RRSet that
-    # targets another that hasn't been seen yet. I.e. targets must come before
-    # things that target them. We sort on types of things rather than
-    # explicitly looking for targeting relationships since that's sufficent and
-    # easier to grok/do.
+    # Route53 requires that changes are ordered such that a target of an
+    # AliasTarget is created or upserted prior to the record that targets it.
+    # This is complicated by "UPSERT" appearing to be implemented as "DELETE"
+    # before all changes, followed by a "CREATE", internally in the AWS API.
+    # Because of this, we order changes as follows:
+    #   - Delete any records that we wish to delete that are GEOS
+    #      (because they are never targeted by anything)
+    #   - Delete any records that we wish to delete that are SECONDARY
+    #      (because they are no longer targeted by GEOS)
+    #   - Delete any records that we wish to delete that are PRIMARY
+    #      (because they are no longer targeted by SECONDARY)
+    #   - Delete any records that we wish to delete that are VALUES
+    #      (because they are no longer targeted by PRIMARY)
+    #   - CREATE/UPSERT any records that are VALUES
+    #      (because they don't depend on other records)
+    #   - CREATE/UPSERT any records that are PRIMARY
+    #      (because they always point to VALUES which now exist)
+    #   - CREATE/UPSERT any records that are SECONDARY
+    #      (because they now have PRIMARY records to target)
+    #   - CREATE/UPSERT any records that are GEOS
+    #      (because they now have all their PRIMARY pools to target)
+    #   - :tada:
+    #
+    # In theory we could also do this based on actual target reference
+    # checking, but that's more complex. Since our rules have a known
+    # dependency order, we just rely on that.
 
+    # Get the unique ID from the name/id to get a consistent ordering.
     if rrset.get('GeoLocation', False):
-        return (action_order, 3, rrset['SetIdentifier'])
+        unique_id = rrset['SetIdentifier']
+    else:
+        if 'SetIdentifier' in rrset:
+            unique_id = '{}-{}'.format(rrset['Name'], rrset['SetIdentifier'])
+        else:
+            unique_id = rrset['Name']
+
+    # Prioritise within the action_priority, ensuring targets come first.
+    if rrset.get('GeoLocation', False):
+        # Geos reference pools, so they come last.
+        record_priority = 3
     elif rrset.get('AliasTarget', False):
         # We use an alias
         if rrset.get('Failover', False) == 'SECONDARY':
-            # We're a secondary we'll ref primaries
-            return (action_order, 2, rrset['Name'])
+            # We're a secondary, which reference the primary (failover, P1).
+            record_priority = 2
         else:
-            # We're a primary we'll ref values
-            return (action_order, 1, rrset['Name'])
+            # We're a primary, we reference values (P0).
+            record_priority = 1
+    else:
+        # We're just a plain value, has no dependencies so first.
+        record_priority = 0
 
-    # We're just a plain value, these come first
-    return (action_order, 0, rrset['Name'])
+    if mod['Action'] == 'DELETE':
+        # Delete things first, so we can never trounce our own additions
+        action_priority = 0
+        # Delete in the reverse order of priority, e.g. start with the deepest
+        # reference and work back to the values, rather than starting at the
+        # values (still ref'd).
+        record_priority = -record_priority
+    else:
+        # For CREATE and UPSERT, Route53 seems to treat them the same, so
+        # interleave these, keeping the reference order described above.
+        action_priority = 1
+
+    return (action_priority, record_priority, unique_id)
 
 
 def _parse_pool_name(n):
@@ -636,7 +696,7 @@ class Route53Provider(BaseProvider):
             if cc == '*':
                 # This is the default
                 return
-            cn = cca_to_ctca2(cc)
+            cn = country_alpha2_to_continent_code(cc)
             try:
                 return '{}-{}-{}'.format(cn, cc, loc['SubdivisionCode'])
             except KeyError:
@@ -659,7 +719,7 @@ class Route53Provider(BaseProvider):
     def _data_for_CAA(self, rrset):
         values = []
         for rr in rrset['ResourceRecords']:
-            flags, tag, value = rr['Value'].split(' ')
+            flags, tag, value = rr['Value'].split()
             values.append({
                 'flags': flags,
                 'tag': tag,
@@ -697,7 +757,7 @@ class Route53Provider(BaseProvider):
     def _data_for_MX(self, rrset):
         values = []
         for rr in rrset['ResourceRecords']:
-            preference, exchange = rr['Value'].split(' ')
+            preference, exchange = rr['Value'].split()
             values.append({
                 'preference': preference,
                 'exchange': exchange,
@@ -712,7 +772,7 @@ class Route53Provider(BaseProvider):
         values = []
         for rr in rrset['ResourceRecords']:
             order, preference, flags, service, regexp, replacement = \
-                rr['Value'].split(' ')
+                rr['Value'].split()
             flags = flags[1:-1]
             service = service[1:-1]
             regexp = regexp[1:-1]
@@ -740,7 +800,7 @@ class Route53Provider(BaseProvider):
     def _data_for_SRV(self, rrset):
         values = []
         for rr in rrset['ResourceRecords']:
-            priority, weight, port, target = rr['Value'].split(' ')
+            priority, weight, port, target = rr['Value'].split()
             values.append({
                 'priority': priority,
                 'weight': weight,
@@ -927,11 +987,11 @@ class Route53Provider(BaseProvider):
                       len(zone.records) - before, exists)
         return exists
 
-    def _gen_mods(self, action, records):
+    def _gen_mods(self, action, records, existing_rrsets):
         '''
         Turns `_Route53*`s in to `change_resource_record_sets` `Changes`
         '''
-        return [r.mod(action) for r in records]
+        return [r.mod(action, existing_rrsets) for r in records]
 
     @property
     def health_checks(self):
@@ -964,7 +1024,7 @@ class Route53Provider(BaseProvider):
             .get('healthcheck', {}) \
             .get('measure_latency', True)
 
-    def _health_check_equivilent(self, host, path, protocol, port,
+    def _health_check_equivalent(self, host, path, protocol, port,
                                  measure_latency, health_check, value=None):
         config = health_check['HealthCheckConfig']
 
@@ -973,8 +1033,8 @@ class Route53Provider(BaseProvider):
         # ip_address's returned object for equivalence
         # E.g 2001:4860:4860::8842 -> 2001:4860:4860:0:0:0:0:8842
         if value:
-            value = ip_address(unicode(value))
-            config_ip_address = ip_address(unicode(config['IPAddress']))
+            value = ip_address(text_type(value))
+            config_ip_address = ip_address(text_type(config['IPAddress']))
         else:
             # No value so give this a None to match value's
             config_ip_address = None
@@ -995,7 +1055,7 @@ class Route53Provider(BaseProvider):
                        fqdn, record._type, value)
 
         try:
-            ip_address(unicode(value))
+            ip_address(text_type(value))
             # We're working with an IP, host is the Host header
             healthcheck_host = record.healthcheck_host
         except (AddressValueError, ValueError):
@@ -1016,7 +1076,7 @@ class Route53Provider(BaseProvider):
             if not health_check['CallerReference'].startswith(expected_ref):
                 # not match, ignore
                 continue
-            if self._health_check_equivilent(healthcheck_host,
+            if self._health_check_equivalent(healthcheck_host,
                                              healthcheck_path,
                                              healthcheck_protocol,
                                              healthcheck_port,
@@ -1117,15 +1177,15 @@ class Route53Provider(BaseProvider):
         '''
         return _Route53Record.new(self, record, zone_id, creating)
 
-    def _mod_Create(self, change, zone_id):
+    def _mod_Create(self, change, zone_id, existing_rrsets):
         # New is the stuff that needs to be created
         new_records = self._gen_records(change.new, zone_id, creating=True)
         # Now is a good time to clear out any unused health checks since we
         # know what we'll be using going forward
         self._gc_health_checks(change.new, new_records)
-        return self._gen_mods('CREATE', new_records)
+        return self._gen_mods('CREATE', new_records, existing_rrsets)
 
-    def _mod_Update(self, change, zone_id):
+    def _mod_Update(self, change, zone_id, existing_rrsets):
         # See comments in _Route53Record for how the set math is made to do our
         # bidding here.
         existing_records = self._gen_records(change.existing, zone_id,
@@ -1148,18 +1208,18 @@ class Route53Provider(BaseProvider):
             if new_record in existing_records:
                 upserts.add(new_record)
 
-        return self._gen_mods('DELETE', deletes) + \
-            self._gen_mods('CREATE', creates) + \
-            self._gen_mods('UPSERT', upserts)
+        return self._gen_mods('DELETE', deletes, existing_rrsets) + \
+            self._gen_mods('CREATE', creates, existing_rrsets) + \
+            self._gen_mods('UPSERT', upserts, existing_rrsets)
 
-    def _mod_Delete(self, change, zone_id):
+    def _mod_Delete(self, change, zone_id, existing_rrsets):
         # Existing is the thing that needs to be deleted
         existing_records = self._gen_records(change.existing, zone_id,
                                              creating=False)
         # Now is a good time to clear out all the health checks since we know
         # we're done with them
         self._gc_health_checks(change.existing, [])
-        return self._gen_mods('DELETE', existing_records)
+        return self._gen_mods('DELETE', existing_records, existing_rrsets)
 
     def _extra_changes_update_needed(self, record, rrset):
         healthcheck_host = record.healthcheck_host
@@ -1173,7 +1233,7 @@ class Route53Provider(BaseProvider):
             health_check = self.health_checks[health_check_id]
             caller_ref = health_check['CallerReference']
             if caller_ref.startswith(self.HEALTH_CHECK_VERSION):
-                if self._health_check_equivilent(healthcheck_host,
+                if self._health_check_equivalent(healthcheck_host,
                                                  healthcheck_path,
                                                  healthcheck_protocol,
                                                  healthcheck_port,
@@ -1220,15 +1280,27 @@ class Route53Provider(BaseProvider):
                        '%s', record.fqdn, record._type)
 
         fqdn = record.fqdn
+        _type = record._type
 
         # loop through all the r53 rrsets
         for rrset in self._load_records(zone_id):
             name = rrset['Name']
+            # Break off the first piece of the name, it'll let us figure out if
+            # this is an rrset we're interested in.
+            maybe_meta, rest = name.split('.', 1)
 
-            if record._type == rrset['Type'] and name.endswith(fqdn) and \
-               name.startswith('_octodns-') and '-value.' in name and \
-               '-default-' not in name and \
-               self._extra_changes_update_needed(record, rrset):
+            if not maybe_meta.startswith('_octodns-') or \
+               not maybe_meta.endswith('-value') or \
+               '-default-' in name:
+                # We're only interested in non-default dynamic value records,
+                # as that's where healthchecks live
+                continue
+
+            if rest != fqdn or _type != rrset['Type']:
+                # rrset isn't for the current record
+                continue
+
+            if self._extra_changes_update_needed(record, rrset):
                 # no good, doesn't have the right health check, needs an update
                 self.log.info('_extra_changes_dynamic_needs_update: '
                               'health-check caused update of %s:%s',
@@ -1271,10 +1343,11 @@ class Route53Provider(BaseProvider):
         batch = []
         batch_rs_count = 0
         zone_id = self._get_zone_id(desired.name, True)
+        existing_rrsets = self._load_records(zone_id)
         for c in changes:
             # Generate the mods for this change
             mod_type = getattr(self, '_mod_{}'.format(c.__class__.__name__))
-            mods = mod_type(c, zone_id)
+            mods = mod_type(c, zone_id, existing_rrsets)
 
             # Order our mods to make sure targets exist before alises point to
             # them and we CRUD in the desired order
