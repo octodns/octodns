@@ -1091,6 +1091,113 @@ class TestNs1ProviderDynamic(TestCase):
         data2 = provider._data_for_A('A', ns1_record)
         self.assertEquals(data, data2)
 
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_extra_changes(self, monitors_for_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        desired = Zone('unit.tests.', [])
+
+        # Empty zone and no changes
+        monitors_for_mock.reset_mock()
+        extra = provider._extra_changes(desired, [])
+        self.assertFalse(extra)
+        monitors_for_mock.assert_not_called()
+
+        # Simple record, ignored
+        monitors_for_mock.reset_mock()
+        simple = Record.new(desired, '', {
+            'ttl': 32,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'meta': {},
+        })
+        desired.add_record(simple)
+        extra = provider._extra_changes(desired, [])
+        self.assertFalse(extra)
+        monitors_for_mock.assert_not_called()
+
+        # Dynamic record, inspectable
+        dynamic = Record.new(desired, 'dyn', {
+            'dynamic': {
+                'pools': {
+                    'iad': {
+                        'values': [{
+                            'value': '1.2.3.4',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'iad',
+                }],
+            },
+            'octodns': {
+                'healthcheck': {
+                    'host': 'send.me',
+                    'path': '/_ping',
+                    'port': 80,
+                    'protocol': 'HTTP',
+                }
+            },
+            'ttl': 32,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'meta': {},
+        })
+        desired.add_record(dynamic)
+
+        # untouched, but everything in sync so no change needed
+        monitors_for_mock.reset_mock()
+        # Generate what we expect to have
+        gend = provider._monitor_gen(dynamic, '1.2.3.4')
+        gend.update({
+            'id': 'mid',  # need to add an id
+            'notify_list': 'xyz',  # need to add a notify list (for now)
+        })
+        monitors_for_mock.side_effect = [{
+            '1.2.3.4': gend,
+        }]
+        extra = provider._extra_changes(desired, [])
+        self.assertFalse(extra)
+        monitors_for_mock.assert_has_calls([call(dynamic)])
+
+        update = Update(dynamic, dynamic)
+
+        # If we don't have a notify list we're broken and we'll expect to see
+        # an Update
+        monitors_for_mock.reset_mock()
+        del gend['notify_list']
+        monitors_for_mock.side_effect = [{
+            '1.2.3.4': gend,
+        }]
+        extra = provider._extra_changes(desired, [])
+        self.assertEquals(1, len(extra))
+        extra = list(extra)[0]
+        self.assertIsInstance(extra, Update)
+        self.assertEquals(dynamic, extra.new)
+        monitors_for_mock.assert_has_calls([call(dynamic)])
+
+        # Add notify_list back and change the healthcheck protocol, we'll still
+        # expect to see an update
+        monitors_for_mock.reset_mock()
+        gend['notify_list'] = 'xyz'
+        dynamic._octodns['healthcheck']['protocol'] = 'HTTPS'
+        del gend['notify_list']
+        monitors_for_mock.side_effect = [{
+            '1.2.3.4': gend,
+        }]
+        extra = provider._extra_changes(desired, [])
+        self.assertEquals(1, len(extra))
+        extra = list(extra)[0]
+        self.assertIsInstance(extra, Update)
+        self.assertEquals(dynamic, extra.new)
+        monitors_for_mock.assert_has_calls([call(dynamic)])
+
+        # If it's in the changed list, it'll be ignored
+        monitors_for_mock.reset_mock()
+        extra = provider._extra_changes(desired, [update])
+        self.assertFalse(extra)
+        monitors_for_mock.assert_not_called()
+
 
 class TestNs1Client(TestCase):
 
