@@ -523,6 +523,12 @@ class TestNs1ProviderDynamic(TestCase):
     record = Record.new(zone, '', {
         'dynamic': {
             'pools': {
+                'lhr': {
+                    'fallback': 'iad',
+                    'values': [{
+                        'value': '3.4.5.6',
+                    }],
+                },
                 'iad': {
                     'values': [{
                         'value': '1.2.3.4',
@@ -532,6 +538,13 @@ class TestNs1ProviderDynamic(TestCase):
                 },
             },
             'rules': [{
+                'geos': [
+                    'AF',
+                    'EU-GB',
+                    'NA-US-FL'
+                ],
+                'pool': 'lhr',
+            }, {
                 'pool': 'iad',
             }],
         },
@@ -911,6 +924,38 @@ class TestNs1ProviderDynamic(TestCase):
         datafeed_delete_mock.assert_not_called()
         monitors_delete_mock.assert_has_calls([call('mon-id2')])
         notifylists_delete_mock.assert_has_calls([call('nl-id2')])
+
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_params_for_dynamic(self, monitors_for_mock, monitors_sync_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {
+            'mon-id': 'feed-id',
+        }
+
+        monitors_for_mock.reset_mock()
+        monitors_sync_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            '3.4.5.6': 'mid-3',
+        }]
+        monitors_sync_mock.side_effect = [
+            ('mid-1', 'fid-1'),
+            ('mid-2', 'fid-2'),
+            ('mid-3', 'fid-3'),
+        ]
+        # This indirectly calls into _params_for_dynamic_A and tests the
+        # handling to get there
+        provider._params_for_A(self.record)
+        monitors_for_mock.assert_has_calls([call(self.record)])
+        monitors_sync_mock.assert_has_calls([
+            call(self.record, '1.2.3.4', None),
+            call(self.record, '2.3.4.5', None),
+            call(self.record, '3.4.5.6', 'mid-3'),
+        ])
 
 
 class TestNs1Client(TestCase):
