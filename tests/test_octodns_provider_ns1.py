@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from collections import defaultdict
-from mock import Mock, call, patch
+from mock import call, patch
 from ns1.rest.errors import AuthException, RateLimitException, \
     ResourceException
 from unittest import TestCase
@@ -14,14 +14,6 @@ from unittest import TestCase
 from octodns.record import Delete, Record, Update
 from octodns.provider.ns1 import Ns1Provider
 from octodns.zone import Zone
-
-
-class DummyZone(object):
-
-    def __init__(self, records):
-        self.data = {
-            'records': records
-        }
 
 
 class TestNs1Provider(TestCase):
@@ -116,7 +108,7 @@ class TestNs1Provider(TestCase):
         },
     }))
 
-    nsone_records = [{
+    ns1_records = [{
         'type': 'A',
         'ttl': 32,
         'short_answers': ['1.2.3.4'],
@@ -172,43 +164,40 @@ class TestNs1Provider(TestCase):
         'domain': 'unit.tests.',
     }]
 
-    @patch('ns1.NS1.loadZone')
-    def test_populate(self, load_mock):
+    @patch('ns1.rest.zones.Zones.retrieve')
+    def test_populate(self, zone_retrieve_mock):
         provider = Ns1Provider('test', 'api-key')
 
         # Bad auth
-        load_mock.side_effect = AuthException('unauthorized')
+        zone_retrieve_mock.side_effect = AuthException('unauthorized')
         zone = Zone('unit.tests.', [])
         with self.assertRaises(AuthException) as ctx:
             provider.populate(zone)
-        self.assertEquals(load_mock.side_effect, ctx.exception)
+        self.assertEquals(zone_retrieve_mock.side_effect, ctx.exception)
 
         # General error
-        load_mock.reset_mock()
-        load_mock.side_effect = ResourceException('boom')
+        zone_retrieve_mock.reset_mock()
+        zone_retrieve_mock.side_effect = ResourceException('boom')
         zone = Zone('unit.tests.', [])
         with self.assertRaises(ResourceException) as ctx:
             provider.populate(zone)
-        self.assertEquals(load_mock.side_effect, ctx.exception)
-        self.assertEquals(('unit.tests',), load_mock.call_args[0])
+        self.assertEquals(zone_retrieve_mock.side_effect, ctx.exception)
+        self.assertEquals(('unit.tests',), zone_retrieve_mock.call_args[0])
 
         # Non-existent zone doesn't populate anything
-        load_mock.reset_mock()
-        load_mock.side_effect = \
+        zone_retrieve_mock.reset_mock()
+        zone_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
         zone = Zone('unit.tests.', [])
         exists = provider.populate(zone)
         self.assertEquals(set(), zone.records)
-        self.assertEquals(('unit.tests',), load_mock.call_args[0])
+        self.assertEquals(('unit.tests',), zone_retrieve_mock.call_args[0])
         self.assertFalse(exists)
 
         # Existing zone w/o records
-        load_mock.reset_mock()
-        nsone_zone = DummyZone([])
-        load_mock.side_effect = [nsone_zone]
-        zone_search = Mock()
-        zone_search.return_value = [
-            {
+        zone_retrieve_mock.reset_mock()
+        ns1_zone = {
+            'records': [{
                 "domain": "geo.unit.tests",
                 "zone": "unit.tests",
                 "type": "A",
@@ -222,21 +211,18 @@ class TestNs1Provider(TestCase):
                      'meta': {'iso_region_code': ['NA-US-WA']}},
                 ],
                 'ttl': 34,
-            },
-        ]
-        nsone_zone.search = zone_search
+            }],
+        }
+        zone_retrieve_mock.side_effect = [ns1_zone]
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
         self.assertEquals(1, len(zone.records))
-        self.assertEquals(('unit.tests',), load_mock.call_args[0])
+        self.assertEquals(('unit.tests',), zone_retrieve_mock.call_args[0])
 
         # Existing zone w/records
-        load_mock.reset_mock()
-        nsone_zone = DummyZone(self.nsone_records)
-        load_mock.side_effect = [nsone_zone]
-        zone_search = Mock()
-        zone_search.return_value = [
-            {
+        zone_retrieve_mock.reset_mock()
+        ns1_zone = {
+            'records': self.ns1_records + [{
                 "domain": "geo.unit.tests",
                 "zone": "unit.tests",
                 "type": "A",
@@ -250,26 +236,23 @@ class TestNs1Provider(TestCase):
                      'meta': {'iso_region_code': ['NA-US-WA']}},
                 ],
                 'ttl': 34,
-            },
-        ]
-        nsone_zone.search = zone_search
+            }],
+        }
+        zone_retrieve_mock.side_effect = [ns1_zone]
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
         self.assertEquals(self.expected, zone.records)
-        self.assertEquals(('unit.tests',), load_mock.call_args[0])
+        self.assertEquals(('unit.tests',), zone_retrieve_mock.call_args[0])
 
         # Test skipping unsupported record type
-        load_mock.reset_mock()
-        nsone_zone = DummyZone(self.nsone_records + [{
-            'type': 'UNSUPPORTED',
-            'ttl': 42,
-            'short_answers': ['unsupported'],
-            'domain': 'unsupported.unit.tests.',
-        }])
-        load_mock.side_effect = [nsone_zone]
-        zone_search = Mock()
-        zone_search.return_value = [
-            {
+        zone_retrieve_mock.reset_mock()
+        ns1_zone = {
+            'records': self.ns1_records + [{
+                'type': 'UNSUPPORTED',
+                'ttl': 42,
+                'short_answers': ['unsupported'],
+                'domain': 'unsupported.unit.tests.',
+            }, {
                 "domain": "geo.unit.tests",
                 "zone": "unit.tests",
                 "type": "A",
@@ -283,17 +266,23 @@ class TestNs1Provider(TestCase):
                      'meta': {'iso_region_code': ['NA-US-WA']}},
                 ],
                 'ttl': 34,
-            },
-        ]
-        nsone_zone.search = zone_search
+            }],
+        }
+        zone_retrieve_mock.side_effect = [ns1_zone]
         zone = Zone('unit.tests.', [])
         provider.populate(zone)
         self.assertEquals(self.expected, zone.records)
-        self.assertEquals(('unit.tests',), load_mock.call_args[0])
+        self.assertEquals(('unit.tests',), zone_retrieve_mock.call_args[0])
 
-    @patch('ns1.NS1.createZone')
-    @patch('ns1.NS1.loadZone')
-    def test_sync(self, load_mock, create_mock):
+    @patch('ns1.rest.records.Records.delete')
+    @patch('ns1.rest.records.Records.update')
+    @patch('ns1.rest.records.Records.create')
+    @patch('ns1.rest.records.Records.retrieve')
+    @patch('ns1.rest.zones.Zones.create')
+    @patch('ns1.rest.zones.Zones.retrieve')
+    def test_sync(self, zone_retrieve_mock, zone_create_mock,
+                  record_retrieve_mock, record_create_mock,
+                  record_update_mock, record_delete_mock):
         provider = Ns1Provider('test', 'api-key')
 
         desired = Zone('unit.tests.', [])
@@ -307,71 +296,98 @@ class TestNs1Provider(TestCase):
         self.assertTrue(plan.exists)
 
         # Fails, general error
-        load_mock.reset_mock()
-        create_mock.reset_mock()
-        load_mock.side_effect = ResourceException('boom')
+        zone_retrieve_mock.reset_mock()
+        zone_create_mock.reset_mock()
+        zone_retrieve_mock.side_effect = ResourceException('boom')
         with self.assertRaises(ResourceException) as ctx:
             provider.apply(plan)
-        self.assertEquals(load_mock.side_effect, ctx.exception)
+        self.assertEquals(zone_retrieve_mock.side_effect, ctx.exception)
 
         # Fails, bad auth
-        load_mock.reset_mock()
-        create_mock.reset_mock()
-        load_mock.side_effect = \
+        zone_retrieve_mock.reset_mock()
+        zone_create_mock.reset_mock()
+        zone_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
-        create_mock.side_effect = AuthException('unauthorized')
+        zone_create_mock.side_effect = AuthException('unauthorized')
         with self.assertRaises(AuthException) as ctx:
             provider.apply(plan)
-        self.assertEquals(create_mock.side_effect, ctx.exception)
+        self.assertEquals(zone_create_mock.side_effect, ctx.exception)
 
         # non-existent zone, create
-        load_mock.reset_mock()
-        create_mock.reset_mock()
-        load_mock.side_effect = \
+        zone_retrieve_mock.reset_mock()
+        zone_create_mock.reset_mock()
+        zone_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
-        # ugh, need a mock zone with a mock prop since we're using getattr, we
-        # can actually control side effects on `meth` with that.
-        mock_zone = Mock()
-        mock_zone.add_SRV = Mock()
-        mock_zone.add_SRV.side_effect = [
+
+        zone_create_mock.side_effect = ['foo']
+        # Test out the create rate-limit handling, then 9 successes
+        record_create_mock.side_effect = [
             RateLimitException('boo', period=0),
-            None,
-        ]
-        create_mock.side_effect = [mock_zone]
+        ] + ([None] * 9)
+
         got_n = provider.apply(plan)
         self.assertEquals(expected_n, got_n)
 
+        # Zone was created
+        zone_create_mock.assert_has_calls([call('unit.tests')])
+        # Checking that we got some of the expected records too
+        record_create_mock.assert_has_calls([
+            call('unit.tests', 'unit.tests', 'A', answers=[
+                {'answer': ['1.2.3.4'], 'meta': {}}
+            ], filters=[], ttl=32),
+            call('unit.tests', 'unit.tests', 'CAA', answers=[
+                (0, 'issue', 'ca.unit.tests')
+            ], ttl=40),
+            call('unit.tests', 'unit.tests', 'MX', answers=[
+                (10, 'mx1.unit.tests.'), (20, 'mx2.unit.tests.')
+            ], ttl=35),
+        ])
+
         # Update & delete
-        load_mock.reset_mock()
-        create_mock.reset_mock()
-        nsone_zone = DummyZone(self.nsone_records + [{
-            'type': 'A',
-            'ttl': 42,
-            'short_answers': ['9.9.9.9'],
-            'domain': 'delete-me.unit.tests.',
-        }])
-        nsone_zone.data['records'][0]['short_answers'][0] = '2.2.2.2'
-        nsone_zone.loadRecord = Mock()
-        zone_search = Mock()
-        zone_search.return_value = [
-            {
+        zone_retrieve_mock.reset_mock()
+        zone_create_mock.reset_mock()
+
+        ns1_zone = {
+            'records': self.ns1_records + [{
+                'type': 'A',
+                'ttl': 42,
+                'short_answers': ['9.9.9.9'],
+                'domain': 'delete-me.unit.tests.',
+            }, {
                 "domain": "geo.unit.tests",
                 "zone": "unit.tests",
                 "type": "A",
-                "answers": [
-                    {'answer': ['1.1.1.1'], 'meta': {}},
-                    {'answer': ['1.2.3.4'],
-                     'meta': {'ca_province': ['ON']}},
-                    {'answer': ['2.3.4.5'], 'meta': {'us_state': ['NY']}},
-                    {'answer': ['3.4.5.6'], 'meta': {'country': ['US']}},
-                    {'answer': ['4.5.6.7'],
-                     'meta': {'iso_region_code': ['NA-US-WA']}},
+                "short_answers": [
+                    '1.1.1.1',
+                    '1.2.3.4',
+                    '2.3.4.5',
+                    '3.4.5.6',
+                    '4.5.6.7',
                 ],
+                'tier': 3,  # This flags it as advacned, full load required
                 'ttl': 34,
-            },
-        ]
-        nsone_zone.search = zone_search
-        load_mock.side_effect = [nsone_zone, nsone_zone]
+            }],
+        }
+        ns1_zone['records'][0]['short_answers'][0] = '2.2.2.2'
+
+        record_retrieve_mock.side_effect = [{
+            "domain": "geo.unit.tests",
+            "zone": "unit.tests",
+            "type": "A",
+            "answers": [
+                {'answer': ['1.1.1.1'], 'meta': {}},
+                {'answer': ['1.2.3.4'],
+                 'meta': {'ca_province': ['ON']}},
+                {'answer': ['2.3.4.5'], 'meta': {'us_state': ['NY']}},
+                {'answer': ['3.4.5.6'], 'meta': {'country': ['US']}},
+                {'answer': ['4.5.6.7'],
+                 'meta': {'iso_region_code': ['NA-US-WA']}},
+            ],
+            'tier': 3,
+            'ttl': 34,
+        }]
+
+        zone_retrieve_mock.side_effect = [ns1_zone, ns1_zone]
         plan = provider.plan(desired)
         self.assertEquals(3, len(plan.changes))
         # Shouldn't rely on order so just count classes
@@ -380,55 +396,42 @@ class TestNs1Provider(TestCase):
             classes[change.__class__] += 1
         self.assertEquals(1, classes[Delete])
         self.assertEquals(2, classes[Update])
-        # ugh, we need a mock record that can be returned from loadRecord for
-        # the update and delete targets, we can add our side effects to that to
-        # trigger rate limit handling
-        mock_record = Mock()
-        mock_record.update.side_effect = [
+
+        record_update_mock.side_effect = [
             RateLimitException('one', period=0),
             None,
             None,
         ]
-        mock_record.delete.side_effect = [
+        record_delete_mock.side_effect = [
             RateLimitException('two', period=0),
             None,
             None,
         ]
-        nsone_zone.loadRecord.side_effect = [mock_record, mock_record,
-                                             mock_record]
+
         got_n = provider.apply(plan)
         self.assertEquals(3, got_n)
-        nsone_zone.loadRecord.assert_has_calls([
-            call('unit.tests', u'A'),
-            call('delete-me', u'A'),
-            call('geo', u'A'),
-        ])
-        mock_record.assert_has_calls([
-            call.update(answers=[{'answer': [u'1.2.3.4'], 'meta': {}}],
-                        filters=[],
-                        ttl=32),
-            call.update(answers=[{u'answer': [u'1.2.3.4'], u'meta': {}}],
-                        filters=[],
-                        ttl=32),
-            call.delete(),
-            call.delete(),
-            call.update(
-                answers=[
-                    {u'answer': [u'101.102.103.104'], u'meta': {}},
-                    {u'answer': [u'101.102.103.105'], u'meta': {}},
-                    {
-                        u'answer': [u'201.202.203.204'],
-                        u'meta': {
-                            u'iso_region_code': [u'NA-US-NY']
-                        },
-                    },
-                ],
+
+        record_update_mock.assert_has_calls([
+            call('unit.tests', 'unit.tests', 'A', answers=[
+                {'answer': ['1.2.3.4'], 'meta': {}}],
+                filters=[],
+                ttl=32),
+            call('unit.tests', 'unit.tests', 'A', answers=[
+                {'answer': ['1.2.3.4'], 'meta': {}}],
+                filters=[],
+                ttl=32),
+            call('unit.tests', 'geo.unit.tests', 'A', answers=[
+                {'answer': ['101.102.103.104'], 'meta': {}},
+                {'answer': ['101.102.103.105'], 'meta': {}},
+                {
+                    'answer': ['201.202.203.204'],
+                    'meta': {'iso_region_code': ['NA-US-NY']}
+                }],
                 filters=[
-                    {u'filter': u'shuffle', u'config': {}},
-                    {u'filter': u'geotarget_country', u'config': {}},
-                    {u'filter': u'select_first_n', u'config': {u'N': 1}},
-                ],
-                ttl=34),
+                    {'filter': 'shuffle', 'config': {}},
+                    {'filter': 'geotarget_country', 'config': {}},
+                    {'filter': 'select_first_n', 'config': {'N': 1}}],
+                ttl=34)
         ])
 
     def test_escaping(self):
@@ -467,7 +470,7 @@ class TestNs1Provider(TestCase):
     def test_data_for_CNAME(self):
         provider = Ns1Provider('test', 'api-key')
 
-        # answers from nsone
+        # answers from ns1
         a_record = {
             'ttl': 31,
             'type': 'CNAME',
@@ -481,7 +484,7 @@ class TestNs1Provider(TestCase):
         self.assertEqual(a_expected,
                          provider._data_for_CNAME(a_record['type'], a_record))
 
-        # no answers from nsone
+        # no answers from ns1
         b_record = {
             'ttl': 32,
             'type': 'CNAME',
