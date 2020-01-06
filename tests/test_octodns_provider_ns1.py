@@ -1408,3 +1408,48 @@ class TestNs1Client(TestCase):
         self.assertEquals('deleted', client.monitors_delete('new-id'))
         monitors_delete_mock.assert_has_calls([call('new-id')])
         self.assertEquals(expected, client.monitors)
+
+    @patch('ns1.rest.monitoring.NotifyLists.delete')
+    @patch('ns1.rest.monitoring.NotifyLists.create')
+    @patch('ns1.rest.monitoring.NotifyLists.list')
+    def test_notifylists(self, notifylists_list_mock, notifylists_create_mock,
+                         notifylists_delete_mock):
+        client = Ns1Client('dummy-key')
+
+        notifylists_list_mock.reset_mock()
+        notifylists_create_mock.reset_mock()
+        notifylists_delete_mock.reset_mock()
+        notifylists_create_mock.side_effect = ['bar']
+        notify_list = [{
+            'config': {
+                'sourceid': 'foo',
+            },
+            'type': 'datafeed',
+        }]
+        nl = client.notifylists_create(name='some name',
+                                       notify_list=notify_list)
+        self.assertEquals('bar', nl)
+        notifylists_list_mock.assert_not_called()
+        notifylists_create_mock.assert_has_calls([
+            call({'name': 'some name', 'notify_list': notify_list})
+        ])
+        notifylists_delete_mock.assert_not_called()
+
+        notifylists_list_mock.reset_mock()
+        notifylists_create_mock.reset_mock()
+        notifylists_delete_mock.reset_mock()
+        client.notifylists_delete('nlid')
+        notifylists_list_mock.assert_not_called()
+        notifylists_create_mock.assert_not_called()
+        notifylists_delete_mock.assert_has_calls([call('nlid')])
+
+        notifylists_list_mock.reset_mock()
+        notifylists_create_mock.reset_mock()
+        notifylists_delete_mock.reset_mock()
+        expected = ['one', 'two', 'three']
+        notifylists_list_mock.side_effect = [expected]
+        nls = client.notifylists_list()
+        self.assertEquals(expected, nls)
+        notifylists_list_mock.assert_has_calls([call()])
+        notifylists_create_mock.assert_not_called()
+        notifylists_delete_mock.assert_not_called()
