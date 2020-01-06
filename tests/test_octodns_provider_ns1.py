@@ -13,7 +13,7 @@ from six import text_type
 from unittest import TestCase
 
 from octodns.record import Delete, Record, Update
-from octodns.provider.ns1 import Ns1Client, Ns1Provider
+from octodns.provider.ns1 import Ns1Client, Ns1Exception, Ns1Provider
 from octodns.zone import Zone
 
 
@@ -956,6 +956,140 @@ class TestNs1ProviderDynamic(TestCase):
             call(self.record, '2.3.4.5', None),
             call(self.record, '3.4.5.6', 'mid-3'),
         ])
+
+    def test_data_for_dynamic_A(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        # Unexpected filters throws an error
+        ns1_record = {
+            'domain': 'unit.tests',
+            'filters': [],
+        }
+        with self.assertRaises(Ns1Exception) as ctx:
+            provider._data_for_dynamic_A('A', ns1_record)
+        self.assertEquals('Unrecognized advanced record',
+                          text_type(ctx.exception))
+
+        # empty record turns into empty data
+        ns1_record = {
+            'answers': [],
+            'domain': 'unit.tests',
+            'filters': Ns1Provider._DYNAMIC_FILTERS,
+            'regions': {},
+            'ttl': 42,
+        }
+        data = provider._data_for_dynamic_A('A', ns1_record)
+        self.assertEquals({
+            'dynamic': {
+                'pools': {},
+                'rules': [],
+            },
+            'ttl': 42,
+            'type': 'A',
+            'values': [],
+        }, data)
+
+        # Test out a small, but realistic setup that covers all the options
+        ns1_record = {
+            'answers': [{
+                'answer': ['3.4.5.6'],
+                'meta': {
+                    'priority': 1,
+                    'note': 'from:lhr',
+                },
+                'region': 'lhr',
+            }, {
+                'answer': ['2.3.4.5'],
+                'meta': {
+                    'priority': 2,
+                    'weight': 12,
+                    'note': 'from:iad',
+                },
+                'region': 'lhr',
+            }, {
+                'answer': ['1.2.3.4'],
+                'meta': {
+                    'priority': 3,
+                    'note': 'from:--default--',
+                },
+                'region': 'lhr',
+            }, {
+                'answer': ['2.3.4.5'],
+                'meta': {
+                    'priority': 1,
+                    'weight': 12,
+                    'note': 'from:iad',
+                },
+                'region': 'iad',
+            }, {
+                'answer': ['1.2.3.4'],
+                'meta': {
+                    'priority': 2,
+                    'note': 'from:--default--',
+                },
+                'region': 'iad',
+            }],
+            'domain': 'unit.tests',
+            'filters': Ns1Provider._DYNAMIC_FILTERS,
+            'regions': {
+                'lhr': {
+                    'meta': {
+                        'note': 'rule-order:1 fallback:iad',
+                        'country': ['CA'],
+                        'georegion': ['AFRICA'],
+                        'us_state': ['OR'],
+                    },
+                },
+                'iad': {
+                    'meta': {
+                        'note': 'rule-order:2',
+                    },
+                }
+            },
+            'tier': 3,
+            'ttl': 42,
+        }
+        data = provider._data_for_dynamic_A('A', ns1_record)
+        self.assertEquals({
+            'dynamic': {
+                'pools': {
+                    'iad': {
+                        'fallback': None,
+                        'values': [{
+                            'value': '2.3.4.5',
+                            'weight': 12,
+                        }],
+                    },
+                    'lhr': {
+                        'fallback': 'iad',
+                        'values': [{
+                            'weight': 1,
+                            'value': '3.4.5.6',
+                        }],
+                    },
+                },
+                'rules': [{
+                    '_order': '1',
+                    'geos': [
+                        'AF',
+                        'NA-CA',
+                        'NA-US-OR',
+                    ],
+                    'pool': 'lhr',
+                }, {
+                    '_order': '2',
+                    'pool': 'iad',
+                }],
+            },
+            'ttl': 42,
+            'type': 'A',
+            'values': ['1.2.3.4'],
+        }, data)
+
+        # Same answer if we go through _data_for_A which out sources the job to
+        # _data_for_dynamic_A
+        data2 = provider._data_for_A('A', ns1_record)
+        self.assertEquals(data, data2)
 
 
 class TestNs1Client(TestCase):
