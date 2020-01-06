@@ -15,7 +15,7 @@ from yaml.constructor import ConstructorError
 from octodns.record import Create
 from octodns.provider.base import Plan
 from octodns.provider.yaml import _list_all_yaml_files, \
-    OverridingYamlProvider, SplitYamlProvider, YamlProvider
+    SplitYamlProvider, YamlProvider
 from octodns.zone import SubzoneRecordException, Zone
 
 from helpers import TemporaryDirectory
@@ -377,31 +377,29 @@ class TestOverridingYamlProvider(TestCase):
     def test_provider(self):
         config = join(dirname(__file__), 'config')
         override_config = join(dirname(__file__), 'config', 'override')
-        source = OverridingYamlProvider('test', config, override_config)
+        base = YamlProvider('base', config, populate_should_replace=False)
+        override = YamlProvider('test', override_config,
+                                populate_should_replace=True)
 
-        zone = Zone('unit.tests.', [])
-        dynamic_zone = Zone('dynamic.tests.', [])
+        zone = Zone('dynamic.tests.', [])
 
-        # With target we don't add anything (same as base)
-        source.populate(zone, target=source)
-        self.assertEquals(0, len(zone.records))
+        # Load the base, should see the 5 records
+        base.populate(zone)
+        got = {r.name: r for r in zone.records}
+        self.assertEquals(5, len(got))
+        # We get the "dynamic" A from the bae config
+        self.assertTrue('dynamic' in got['a'].data)
+        # No added
+        self.assertFalse('added' in got)
 
-        # without it we see everything
-        source.populate(zone)
-        self.assertEquals(18, len(zone.records))
-
-        # Load the dynamic records
-        source.populate(dynamic_zone)
-
-        got = {r.name: r for r in dynamic_zone.records}
-        # We see both the base and override files, 1 extra record
+        # Load the overrides, should replace one and add 1
+        override.populate(zone)
+        got = {r.name: r for r in zone.records}
         self.assertEquals(6, len(got))
-
         # 'a' was replaced with a generic record
         self.assertEquals({
             'ttl': 3600,
             'values': ['4.4.4.4', '5.5.5.5']
         }, got['a'].data)
-
-        # And we have a new override
+        # And we have the new one
         self.assertTrue('added' in got)

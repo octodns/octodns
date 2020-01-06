@@ -28,7 +28,78 @@ class YamlProvider(BaseProvider):
         default_ttl: 3600
         # Whether or not to enforce sorting order on the yaml config
         # (optional, default True)
-        enforce_order: True
+        enforce_order: true
+        # Whether duplicate records should replace rather than error
+        # (optiona, default False)
+        populate_should_replace: false
+
+    Overriding values can be accomplished using multiple yaml providers in the
+    `sources` list where subsequent providers have `populate_should_replace`
+    set to `true`. An example use of this would be a zone that you want to push
+    to external DNS providers and internally, but you want to modify some of
+    the records in the internal version.
+
+    config/octodns.com.yaml
+    ---
+    other:
+      type: A
+      values:
+        - 192.30.252.115
+        - 192.30.252.116
+    www:
+      type: A
+      values:
+        - 192.30.252.113
+        - 192.30.252.114
+
+
+    internal/octodns.com.yaml
+    ---
+    'www':
+      type: A
+      values:
+        - 10.0.0.12
+        - 10.0.0.13
+
+    external.yaml
+    ---
+    providers:
+      config:
+        class: octodns.provider.yaml.YamlProvider
+        directory: ./config
+
+    zones:
+
+      octodns.com.:
+        sources:
+          - config
+        targets:
+          - route53
+
+    internal.yaml
+    ---
+    providers:
+      config:
+        class: octodns.provider.yaml.YamlProvider
+        directory: ./config
+
+      internal:
+        class: octodns.provider.yaml.YamlProvider
+        directory: ./internal
+
+    zones:
+
+      octodns.com.:
+        sources:
+          - config
+          - internal
+        targets:
+          - pdns
+
+    You can then sync our records eternally with `--config-file=external.yaml`
+    and internally (with the custom overrides) with
+    `--config-file=internal.yaml`
+
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
@@ -36,18 +107,20 @@ class YamlProvider(BaseProvider):
                     'PTR', 'SSHFP', 'SPF', 'SRV', 'TXT'))
 
     def __init__(self, id, directory, default_ttl=3600, enforce_order=True,
-                 *args, **kwargs):
+                 populate_should_replace=False, *args, **kwargs):
         self.log = logging.getLogger('{}[{}]'.format(
             self.__class__.__name__, id))
         self.log.debug('__init__: id=%s, directory=%s, default_ttl=%d, '
-                       'enforce_order=%d', id, directory, default_ttl,
-                       enforce_order)
+                       'enforce_order=%d, populate_should_replace=%d',
+                       id, directory, default_ttl, enforce_order,
+                       populate_should_replace)
         super(YamlProvider, self).__init__(id, *args, **kwargs)
         self.directory = directory
         self.default_ttl = default_ttl
         self.enforce_order = enforce_order
+        self.populate_should_replace = populate_should_replace
 
-    def _populate_from_file(self, filename, zone, lenient, replace=False):
+    def _populate_from_file(self, filename, zone, lenient):
         with open(filename, 'r') as fh:
             yaml_data = safe_load(fh, enforce_order=self.enforce_order)
             if yaml_data:
@@ -60,7 +133,7 @@ class YamlProvider(BaseProvider):
                         record = Record.new(zone, name, d, source=self,
                                             lenient=lenient)
                         zone.add_record(record, lenient=lenient,
-                                        replace=replace)
+                                        replace=self.populate_should_replace)
             self.log.debug('_populate_from_file: successfully loaded "%s"',
                            filename)
 
@@ -212,54 +285,3 @@ class SplitYamlProvider(YamlProvider):
             self.log.debug('_apply:   writing catchall filename=%s', filename)
             with open(filename, 'w') as fh:
                 safe_dump(catchall, fh)
-
-
-class OverridingYamlProvider(YamlProvider):
-    '''
-    Provider that builds on YamlProvider to allow overriding specific records.
-
-    Works identically to YamlProvider with the additional behavior of loading
-    data from a second zonefile in override_directory if it exists. Records in
-    this second file will override (replace) those previously seen in the
-    primary. Records that do not exist in the primary will just be added. There
-    is currently no mechinism to remove records from the primary zone.
-
-    config:
-        class: octodns.provider.yaml.OverridingYamlProvider
-        # The location of yaml config files (required)
-        directory: ./config
-        # The location of overriding yaml config files (required)
-        override_directory: ./config
-        # The ttl to use for records when not specified in the data
-        # (optional, default 3600)
-        default_ttl: 3600
-        # Whether or not to enforce sorting order on the yaml config
-        # (optional, default True)
-        enforce_order: True
-    '''
-
-    def __init__(self, id, directory, override_directory, *args, **kwargs):
-        super(OverridingYamlProvider, self).__init__(id, directory, *args,
-                                                     **kwargs)
-        self.override_directory = override_directory
-
-    def populate(self, zone, target=False, lenient=False):
-        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
-                       target, lenient)
-
-        if target:
-            # When acting as a target we ignore any existing records so that we
-            # create a completely new copy
-            return False
-
-        before = len(zone.records)
-        filename = join(self.directory, '{}yaml'.format(zone.name))
-        self._populate_from_file(filename, zone, lenient)
-
-        filename = join(self.override_directory, '{}yaml'.format(zone.name))
-        if isfile(filename):
-            self._populate_from_file(filename, zone, lenient, replace=True)
-
-        self.log.info('populate:   found %s records, exists=False',
-                      len(zone.records) - before)
-        return False
