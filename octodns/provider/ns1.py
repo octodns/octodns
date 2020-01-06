@@ -256,8 +256,6 @@ class Ns1Provider(BaseProvider):
             'type': _type,
         }
         values, codes = [], []
-        if 'answers' not in record:
-            values = record['short_answers']
         for answer in record.get('answers', []):
             meta = answer.get('meta', {})
             if meta:
