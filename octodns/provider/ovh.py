@@ -323,7 +323,7 @@ class OvhProvider(BaseProvider):
                           'n': lambda _: True,
                           'g': lambda _: True}
 
-        splitted = list(filter(None, value.split('\\;')))
+        splitted = [v for v in value.split('\\;') if v]
         found_key = False
         for splitted_value in splitted:
             sub_split = [x.strip() for x in splitted_value.split("=", 1)]
