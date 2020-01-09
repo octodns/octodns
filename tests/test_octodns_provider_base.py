@@ -85,6 +85,14 @@ class TestBaseProvider(TestCase):
         self.assertTrue(HasSupportsDyanmic('hassupportsdynamic')
                         .SUPPORTS_DYNAMIC)
 
+        self.assertFalse(HasSupports('hassupports').SUPPORTS_ROOT_NS)
+
+        class HasSupportsRootNS(HasSupports):
+            SUPPORTS_ROOT_NS = True
+
+        self.assertTrue(HasSupportsRootNS('hassupportsrootns')
+                        .SUPPORTS_ROOT_NS)
+
         class HasPopulate(HasSupports):
 
             def populate(self, zone, target=False, lenient=False):
