@@ -82,10 +82,12 @@ class Ns1Provider(BaseProvider):
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
-    def __init__(self, id, api_key, retry_count=4, manage_root_ns=False, *args, **kwargs):
+    def __init__(self, id, api_key, retry_count=4, manage_root_ns=False, *args,
+                 **kwargs):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, api_key=***, retry_count=%d', id)
-        super(Ns1Provider, self).__init__(id, manage_root_ns=manage_root_ns, *args, **kwargs)
+        super(Ns1Provider, self).__init__(id, manage_root_ns=manage_root_ns,
+                                          *args, **kwargs)
         self._client = Ns1Client(api_key, retry_count)
 
     def _data_for_A(self, _type, record):

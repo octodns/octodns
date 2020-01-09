@@ -632,7 +632,9 @@ class Route53Provider(BaseProvider):
             _msg = 'auth=fallback'
         self.log = logging.getLogger('Route53Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, %s', id, _msg)
-        super(Route53Provider, self).__init__(id, manage_root_ns=manage_root_ns, *args, **kwargs)
+        super(Route53Provider, self).__init__(id,
+                                              manage_root_ns=manage_root_ns,
+                                              *args, **kwargs)
 
         config = None
         if client_max_attempts is not None:
