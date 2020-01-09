@@ -85,7 +85,7 @@ class TestDigitalOceanProvider(TestCase):
             provider.populate(zone)
             self.assertEquals(12, len(zone.records))
             changes = self.expected.changes(zone, provider)
-            self.assertEquals(0, len(changes))
+            self.assertEquals(1, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])

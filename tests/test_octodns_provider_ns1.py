@@ -291,7 +291,9 @@ class TestNs1Provider(TestCase):
             desired.add_record(r)
 
         plan = provider.plan(desired)
-        self.assertEquals(len(self.expected), len(plan.changes))
+        # everything except the root NS
+        expected_n = len(self.expected) - 1
+        self.assertEquals(expected_n, len(plan.changes))
         self.assertTrue(plan.exists)
 
         # Fails, general error
@@ -325,7 +327,7 @@ class TestNs1Provider(TestCase):
         ] + ([None] * 9)
 
         got_n = provider.apply(plan)
-        self.assertEquals(len(self.expected), got_n)
+        self.assertEquals(expected_n, got_n)
 
         # Zone was created
         zone_create_mock.assert_has_calls([call('unit.tests')])

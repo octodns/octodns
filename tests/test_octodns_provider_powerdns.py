@@ -89,7 +89,7 @@ class TestPowerDnsProvider(TestCase):
             provider.populate(zone)
             self.assertEquals(16, len(zone.records))
             changes = expected.changes(zone, provider)
-            self.assertEquals(0, len(changes))
+            self.assertEquals(1, len(changes))
 
         # Used in a minute
         def assert_rrsets_callback(request, context):

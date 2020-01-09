@@ -610,7 +610,7 @@ class TestRoute53Provider(TestCase):
                              {'HostedZoneId': 'z42'})
 
         plan = provider.plan(self.expected)
-        self.assertEquals(10, len(plan.changes))
+        self.assertEquals(9, len(plan.changes))
         self.assertTrue(plan.exists)
         for change in plan.changes:
             self.assertIsInstance(change, Create)
@@ -630,7 +630,7 @@ class TestRoute53Provider(TestCase):
                                  'SubmittedAt': '2017-01-29T01:02:03Z',
                              }}, {'HostedZoneId': 'z42', 'ChangeBatch': ANY})
 
-        self.assertEquals(10, provider.apply(plan))
+        self.assertEquals(9, provider.apply(plan))
         stubber.assert_no_pending_responses()
 
         # Delete by monkey patching in a populate that includes an extra record
@@ -843,7 +843,7 @@ class TestRoute53Provider(TestCase):
                              {})
 
         plan = provider.plan(self.expected)
-        self.assertEquals(10, len(plan.changes))
+        self.assertEquals(9, len(plan.changes))
         self.assertFalse(plan.exists)
         for change in plan.changes:
             self.assertIsInstance(change, Create)
@@ -910,7 +910,7 @@ class TestRoute53Provider(TestCase):
                                  'SubmittedAt': '2017-01-29T01:02:03Z',
                              }}, {'HostedZoneId': 'z42', 'ChangeBatch': ANY})
 
-        self.assertEquals(10, provider.apply(plan))
+        self.assertEquals(9, provider.apply(plan))
         stubber.assert_no_pending_responses()
 
     def test_health_checks_pagination(self):
