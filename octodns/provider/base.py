@@ -15,6 +15,7 @@ from .plan import Plan
 class BaseProvider(BaseSource):
 
     def __init__(self, id, apply_disabled=False,
+                 manage_root_ns=False,
                  update_pcent_threshold=Plan.MAX_SAFE_UPDATE_PCENT,
                  delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT):
         super(BaseProvider, self).__init__(id)
@@ -26,6 +27,7 @@ class BaseProvider(BaseSource):
                        update_pcent_threshold,
                        delete_pcent_threshold)
         self.apply_disabled = apply_disabled
+        self.manage_root_ns = manage_root_ns
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
 
@@ -36,7 +38,8 @@ class BaseProvider(BaseSource):
 
         return not (change.record._type == 'NS' and
                     change.record.name == '' and
-                    not self.SUPPORTS_ROOT_NS)
+                    not (self.SUPPORTS_ROOT_NS and
+                         self.manage_root_ns))
 
     def _include_change(self, change):
         '''

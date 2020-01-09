@@ -600,6 +600,9 @@ class Route53Provider(BaseProvider):
         # The AWS session token (optional)
         # Only needed if using temporary security credentials
         session_token:
+        # Needed if you want to manage your root NS records with octodns
+        # When you enable this you MUST specify a root NS.
+        manage_root_ns:
 
     Alternatively, you may leave out access_key_id, secret_access_key
     and session_token.
@@ -619,7 +622,7 @@ class Route53Provider(BaseProvider):
 
     def __init__(self, id, access_key_id=None, secret_access_key=None,
                  max_changes=1000, client_max_attempts=None,
-                 session_token=None, *args, **kwargs):
+                 session_token=None, manage_root_ns=False, *args, **kwargs):
         self.max_changes = max_changes
         _msg = 'access_key_id={}, secret_access_key=***, ' \
                'session_token=***'.format(access_key_id)
@@ -629,7 +632,7 @@ class Route53Provider(BaseProvider):
             _msg = 'auth=fallback'
         self.log = logging.getLogger('Route53Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, %s', id, _msg)
-        super(Route53Provider, self).__init__(id, *args, **kwargs)
+        super(Route53Provider, self).__init__(id, manage_root_ns=manage_root_ns, *args, **kwargs)
 
         config = None
         if client_max_attempts is not None:
