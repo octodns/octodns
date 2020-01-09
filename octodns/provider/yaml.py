@@ -86,6 +86,7 @@ class YamlProvider(BaseProvider):
       internal:
         class: octodns.provider.yaml.YamlProvider
         directory: ./internal
+        populate_should_replace: true
 
     zones:
 
