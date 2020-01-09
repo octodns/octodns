@@ -176,38 +176,6 @@ class TestDynProvider(TestCase):
                     'zone': 'unit.tests',
                 }],
                 'ns_records': [{
-                    'fqdn': 'unit.tests',
-                    'rdata': {'nsdname': 'ns1.p10.dynect.net.'},
-                    'record_id': 254597562,
-                    'record_type': 'NS',
-                    'service_class': '',
-                    'ttl': 3600,
-                    'zone': 'unit.tests'
-                }, {
-                    'fqdn': 'unit.tests',
-                    'rdata': {'nsdname': 'ns2.p10.dynect.net.'},
-                    'record_id': 254597563,
-                    'record_type': 'NS',
-                    'service_class': '',
-                    'ttl': 3600,
-                    'zone': 'unit.tests'
-                }, {
-                    'fqdn': 'unit.tests',
-                    'rdata': {'nsdname': 'ns3.p10.dynect.net.'},
-                    'record_id': 254597564,
-                    'record_type': 'NS',
-                    'service_class': '',
-                    'ttl': 3600,
-                    'zone': 'unit.tests'
-                }, {
-                    'fqdn': 'unit.tests',
-                    'rdata': {'nsdname': 'ns4.p10.dynect.net.'},
-                    'record_id': 254597565,
-                    'record_type': 'NS',
-                    'service_class': '',
-                    'ttl': 3600,
-                    'zone': 'unit.tests'
-                }, {
                     'fqdn': 'sub.unit.tests',
                     'rdata': {'nsdname': 'ns3.p10.dynect.net.'},
                     'record_id': 254597564,

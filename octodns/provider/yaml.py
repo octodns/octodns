@@ -47,6 +47,7 @@ class YamlProvider(BaseProvider):
         self.directory = directory
         self.default_ttl = default_ttl
         self.enforce_order = enforce_order
+        self.manage_root_ns = True
 
     def _populate_from_file(self, filename, zone, lenient):
         with open(filename, 'r') as fh:

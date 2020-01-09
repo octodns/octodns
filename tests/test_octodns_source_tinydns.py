@@ -29,6 +29,11 @@ class TestTinyDnsFileSource(TestCase):
                 'ttl': 30,
                 'values': ['10.2.3.4', '10.2.3.5'],
             }),
+            ('', {
+                'type': 'NS',
+                'ttl': 3600,
+                'values': ['ns1.ns.com.', 'ns2.ns.com.'],
+            }),
             ('sub', {
                 'type': 'NS',
                 'ttl': 30,

@@ -21,7 +21,7 @@ from .base import BaseSource
 class TinyDnsBaseSource(BaseSource):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS_ROOT_NS = False
+    SUPPORTS_ROOT_NS = True
     SUPPORTS = set(('A', 'CNAME', 'MX', 'NS', 'TXT', 'AAAA'))
 
     split_re = re.compile(r':+')
@@ -29,6 +29,7 @@ class TinyDnsBaseSource(BaseSource):
     def __init__(self, id, default_ttl=3600):
         super(TinyDnsBaseSource, self).__init__(id)
         self.default_ttl = default_ttl
+        self.manage_root_ns = True
 
     def _data_for_A(self, _type, records):
         values = []

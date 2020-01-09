@@ -58,12 +58,12 @@ class TestYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(15, len([c for c in plan.changes
+            self.assertEquals(16, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
             self.assertFalse(isfile(yaml_file))
 
             # Now actually do it
-            self.assertEquals(15, target.apply(plan))
+            self.assertEquals(16, target.apply(plan))
             self.assertTrue(isfile(yaml_file))
 
             # Dynamic plan
@@ -87,7 +87,7 @@ class TestYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(15, len([c for c in plan.changes
+            self.assertEquals(16, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
 
             with open(yaml_file) as fh:
@@ -251,12 +251,12 @@ class TestSplitYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(15, len([c for c in plan.changes
+            self.assertEquals(16, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
             self.assertFalse(isdir(zone_dir))
 
             # Now actually do it
-            self.assertEquals(15, target.apply(plan))
+            self.assertEquals(16, target.apply(plan))
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
@@ -279,7 +279,7 @@ class TestSplitYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(15, len([c for c in plan.changes
+            self.assertEquals(16, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
 
             yaml_file = join(zone_dir, '$unit.tests.yaml')
