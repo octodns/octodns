@@ -85,7 +85,8 @@ class Ns1Provider(BaseProvider):
     def __init__(self, id, api_key, retry_count=4, manage_root_ns=False, *args,
                  **kwargs):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
-        self.log.debug('__init__: id=%s, api_key=***, retry_count=%d', id)
+        self.log.debug('__init__: id=%s, api_key=***, retry_count=%d',
+                       id, retry_count)
         super(Ns1Provider, self).__init__(id, manage_root_ns=manage_root_ns,
                                           *args, **kwargs)
         self._client = Ns1Client(api_key, retry_count)
