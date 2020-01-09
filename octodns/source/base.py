@@ -16,9 +16,6 @@ class BaseSource(object):
         if not hasattr(self, 'SUPPORTS_GEO'):
             raise NotImplementedError('Abstract base class, SUPPORTS_GEO '
                                       'property missing')
-        if not hasattr(self, 'SUPPORTS_ROOT_NS'):
-            raise NotImplementedError('Abstract base class, SUPPORTS_ROOT_NS '
-                                      'property missing')
         if not hasattr(self, 'SUPPORTS'):
             raise NotImplementedError('Abstract base class, SUPPORTS '
                                       'property missing')
