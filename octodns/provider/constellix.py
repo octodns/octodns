@@ -18,7 +18,7 @@ from .base import BaseProvider
 
 
 class ConstellixClientException(Exception):
-    pass  # gas
+    pass
 
 
 class ConstellixClientBadRequest(ConstellixClientException):
@@ -222,9 +222,9 @@ class ConstellixClient(object):
                         )
 
             # compress IPv6 addresses
-            # if record['type'] == 'AAAA':
-            #     for i, v in enumerate(value):
-            #         value[i] = str(ip_address(v))
+            if record['type'] == 'AAAA':
+                for i, v in enumerate(value):
+                    value[i] = str(ip_address(v))
 
         return record_list
 
@@ -677,8 +677,8 @@ class ConstellixProvider(BaseProvider):
             values.append({
                 'flags': value['flag'],
                 'tag': value['tag'],
-                # 'value': value['data']
-                'value': value
+                'value': value['data']
+                #'value': value
             })
         return {
             'ttl': records[0]['ttl'],
@@ -692,7 +692,7 @@ class ConstellixProvider(BaseProvider):
         return {
             'ttl': record['ttl'],
             'type': _type,
-            'values': [r['value'] for r in records]
+            'values': [value['value'] for value in records['value']]
         }
 
     @staticmethod
@@ -709,6 +709,8 @@ class ConstellixProvider(BaseProvider):
             }
         else:   # pragma: no coverage
             return None
+
+        _data_for_PTR = _data_for_ALIAS
 
     @staticmethod
     def _data_for_TXT(_type, records):
@@ -774,7 +776,6 @@ class ConstellixProvider(BaseProvider):
         }
 
     _data_for_CNAME = _data_for_single
-    _data_for_PTR = _data_for_single
 
     @staticmethod
     def _data_for_SRV(_type, records):
@@ -822,7 +823,6 @@ class ConstellixProvider(BaseProvider):
         }
 
     _params_for_CNAME = _params_for_single
-    _params_for_PTR = _params_for_single
 
     @staticmethod
     def _params_for_ALIAS(record):
@@ -834,6 +834,8 @@ class ConstellixProvider(BaseProvider):
                 'disableFlag': False
             }]
         }
+
+    _params_for_PTR = _params_for_ALIAS
 
     @staticmethod
     def _params_for_MX(record):
@@ -849,7 +851,6 @@ class ConstellixProvider(BaseProvider):
         ]
 
         yield {
-            'value': values[-1]['value'],
             'name': record.name,
             'ttl': record.ttl,
             'roundRobin': values
