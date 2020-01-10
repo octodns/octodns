@@ -215,7 +215,7 @@ class ConstellixClient(object):
 
                 if isinstance(value, string_types):
                         record['value'] = self._absolutize_value(value,
-                                                         zone_name)
+                                                                 zone_name)
                 if isinstance(value, list):
                     for v in value:
                         v['value'] = self._absolutize_value(
@@ -246,21 +246,13 @@ class ConstellixClient(object):
         path = '/domains/{}/records/{}'.format(domain['id'], record_type)
         self._request('POST', path, data=params)
 
-    def record_delete(self, domain, record_type, record_id):
-        """
-        Deletes a record from a domain
-        :param domain: Dict - a dictionary representing a domain
-        :param record_type:  string - the record type (i.e. A, AAAA, etc)
-        :param record_id: int - The ID of the record to delete
-        :return:
-            Response - with success or error message
-        """
+    def record_delete(self, zone_name, record_type, record_id):
+        # change ALIAS records to ANAME
+        if record_type == 'ALIAS':
+            record_type = 'ANAME'
 
-        # turns "ALIAS" type into "ANAME"
-        new_record_type = "ANAME" if record_type == "ALIAS" else record_type
-        path = '/domains/{}/records/{}/{}'.format(
-            domain['id'], new_record_type, record_id
-        )
+        zone_id = self.domains.get(zone_name, False)
+        path = '/{}/records/{}/{}'.format(zone_id, record_type, record_id)
         self._request('DELETE', path)
 
     def pools(self, pool_type):
