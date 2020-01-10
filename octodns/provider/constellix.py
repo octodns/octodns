@@ -8,6 +8,8 @@ from __future__ import absolute_import, division, print_function, \
 from collections import defaultdict
 from requests import Session
 from base64 import b64encode
+from ipaddress import ip_address
+from six import string_types
 import hashlib
 import hmac
 import logging
