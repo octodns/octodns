@@ -212,7 +212,6 @@ class ConstellixClient(object):
             # change relative values to absolute
             value = record['value']
             if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'SRV']:
-
                 if isinstance(value, string_types):
                     record['value'] = self._absolutize_value(value,
                                                              zone_name)
