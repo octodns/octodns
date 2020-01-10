@@ -212,12 +212,11 @@ class ConstellixClient(object):
             # change relative values to absolute
             value = record['value']
             if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'SRV']:
-                # find out why "unicode" is producing and error
-                if isinstance(value, (str, unicode)):
-                    record['value'] = self._absolutize_value(
-                        value, zone_name
-                    )
-                else:
+
+                if isinstance(value, string_types):
+                        record['value'] = self._absolutize_value(value,
+                                                         zone_name)
+                if isinstance(value, list):
                     for v in value:
                         v['value'] = self._absolutize_value(
                             v['value'], zone_name
