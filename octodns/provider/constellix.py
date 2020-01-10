@@ -214,8 +214,8 @@ class ConstellixClient(object):
             if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'SRV']:
 
                 if isinstance(value, string_types):
-                        record['value'] = self._absolutize_value(value,
-                                                                 zone_name)
+                    record['value'] = self._absolutize_value(value,
+                                                             zone_name)
                 if isinstance(value, list):
                     for v in value:
                         v['value'] = self._absolutize_value(
