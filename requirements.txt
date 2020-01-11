@@ -8,7 +8,7 @@ docutils==0.14
 dyn==1.8.1
 edgegrid-python==1.1.1
 futures==3.2.0; python_version < '3.0'
-google-cloud-core==0.28.1
+google-cloud-core==1.1.0
 google-cloud-dns==0.29.0
 ipaddress==1.0.22
 jmespath==0.9.3
