@@ -18,7 +18,7 @@ ns1-python==0.13.0
 ovh==0.4.8
 pycountry-convert==0.7.2
 pycountry==19.8.18
-python-dateutil==2.6.1
+python-dateutil==2.8.1
 requests==2.22.0
 s3transfer==0.1.13
 setuptools==40.3.0
