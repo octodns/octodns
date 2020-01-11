@@ -11,7 +11,7 @@ futures==3.2.0; python_version < '3.0'
 google-cloud-core==1.1.0
 google-cloud-dns==0.29.0
 ipaddress==1.0.22
-jmespath==0.9.3
+jmespath==0.9.4
 msrestazure==0.6.2
 natsort==5.5.0
 ns1-python==0.13.0
