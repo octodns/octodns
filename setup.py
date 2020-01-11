@@ -73,8 +73,7 @@ setup(
         'natsort>=5.5.0',
         'pycountry>=19.8.18',
         'pycountry-convert>=0.7.2',
-        # botocore doesn't like >=2.7.0 for some reason
-        'python-dateutil>=2.6.0,<2.9.0',
+        'python-dateutil>=2.8.1',
         'requests>=2.20.0'
     ],
     license='MIT',
