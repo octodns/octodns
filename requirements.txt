@@ -1,8 +1,8 @@
 PyYaml==4.2b1
 azure-common==1.1.23
 azure-mgmt-dns==3.0.0
-boto3==1.7.5
-botocore==1.10.5
+boto3==1.11.0
+botocore==1.14.0
 dnspython==1.15.0
 docutils==0.14
 dyn==1.8.1
