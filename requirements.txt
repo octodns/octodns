@@ -1,4 +1,4 @@
-PyYaml==4.2b1
+PyYaml==5.3
 azure-common==1.1.24
 azure-mgmt-dns==3.0.0
 boto3==1.11.0
