@@ -15,7 +15,7 @@ jmespath==0.9.4
 msrestazure==0.6.2
 natsort==5.5.0
 ns1-python==0.13.0
-ovh==0.4.8
+ovh==0.5.0
 pycountry-convert==0.7.2
 pycountry==19.8.18
 python-dateutil==2.8.1
