@@ -1,5 +1,5 @@
 $ORIGIN unit.tests.
-@           IN	SOA	ns1.unit.tests. root.unit.tests. (
+@           3600 IN	SOA	ns1.unit.tests. root.unit.tests. (
                         2018071501		; Serial
                         3600    ; Refresh (1 hour)
                         600     ; Retry (10 minutes)
