@@ -365,7 +365,7 @@ class TestConstellixProvider(TestCase):
                 'value': [
                     '3.2.3.4'
                 ]
-            },{
+            },  {
                 'id': 11189899,
                 'type': 'ALIAS',
                 'name': 'alias',
