@@ -8,6 +8,8 @@ from __future__ import absolute_import, division, print_function, \
 from collections import defaultdict
 from requests import Session
 from base64 import b64encode
+from ipaddress import ip_address
+from six import string_types
 import hashlib
 import hmac
 import logging
@@ -210,21 +212,19 @@ class ConstellixClient(object):
             # change relative values to absolute
             value = record['value']
             if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'SRV']:
-                # find out why "unicode" is producing and error
-                if isinstance(value, (str, unicode)):
-                    record['value'] = self._absolutize_value(
-                        value, zone_name
-                    )
-                else:
+                if isinstance(value, string_types):
+                    record['value'] = self._absolutize_value(value,
+                                                             zone_name)
+                if isinstance(value, list):
                     for v in value:
                         v['value'] = self._absolutize_value(
                             v['value'], zone_name
                         )
 
             # compress IPv6 addresses
-            # if record['type'] == 'AAAA':
-            #     for i, v in enumerate(value):
-            #         value[i] = str(ip_address(v))
+            if record['type'] == 'AAAA':
+                for i, v in enumerate(value):
+                    value[i] = str(ip_address(v))
 
         return record_list
 
@@ -245,21 +245,13 @@ class ConstellixClient(object):
         path = '/domains/{}/records/{}'.format(domain['id'], record_type)
         self._request('POST', path, data=params)
 
-    def record_delete(self, domain, record_type, record_id):
-        """
-        Deletes a record from a domain
-        :param domain: Dict - a dictionary representing a domain
-        :param record_type:  string - the record type (i.e. A, AAAA, etc)
-        :param record_id: int - The ID of the record to delete
-        :return:
-            Response - with success or error message
-        """
+    def record_delete(self, zone_name, record_type, record_id):
+        # change ALIAS records to ANAME
+        if record_type == 'ALIAS':
+            record_type = 'ANAME'
 
-        # turns "ALIAS" type into "ANAME"
-        new_record_type = "ANAME" if record_type == "ALIAS" else record_type
-        path = '/domains/{}/records/{}/{}'.format(
-            domain['id'], new_record_type, record_id
-        )
+        zone_id = self.domains.get(zone_name, False)
+        path = '/{}/records/{}/{}'.format(zone_id, record_type, record_id)
         self._request('DELETE', path)
 
     def pools(self, pool_type):
@@ -677,8 +669,8 @@ class ConstellixProvider(BaseProvider):
             values.append({
                 'flags': value['flag'],
                 'tag': value['tag'],
-                # 'value': value['data']
-                'value': value
+                'value': value['data']
+                #'value': value
             })
         return {
             'ttl': records[0]['ttl'],
@@ -692,7 +684,7 @@ class ConstellixProvider(BaseProvider):
         return {
             'ttl': record['ttl'],
             'type': _type,
-            'values': [r['value'] for r in records]
+            'values': [value['value'] for value in records['value']]
         }
 
     @staticmethod
@@ -709,6 +701,8 @@ class ConstellixProvider(BaseProvider):
             }
         else:   # pragma: no coverage
             return None
+
+        _data_for_PTR = _data_for_ALIAS
 
     @staticmethod
     def _data_for_TXT(_type, records):
@@ -774,7 +768,6 @@ class ConstellixProvider(BaseProvider):
         }
 
     _data_for_CNAME = _data_for_single
-    _data_for_PTR = _data_for_single
 
     @staticmethod
     def _data_for_SRV(_type, records):
@@ -822,7 +815,6 @@ class ConstellixProvider(BaseProvider):
         }
 
     _params_for_CNAME = _params_for_single
-    _params_for_PTR = _params_for_single
 
     @staticmethod
     def _params_for_ALIAS(record):
@@ -834,6 +826,8 @@ class ConstellixProvider(BaseProvider):
                 'disableFlag': False
             }]
         }
+
+    _params_for_PTR = _params_for_ALIAS
 
     @staticmethod
     def _params_for_MX(record):
@@ -849,7 +843,6 @@ class ConstellixProvider(BaseProvider):
         ]
 
         yield {
-            'value': values[-1]['value'],
             'name': record.name,
             'ttl': record.ttl,
             'roundRobin': values
