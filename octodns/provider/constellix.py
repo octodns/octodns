@@ -18,7 +18,7 @@ from .base import BaseProvider
 
 
 class ConstellixClientException(Exception):
-    pass  # gas
+    pass
 
 
 class ConstellixClientBadRequest(ConstellixClientException):
