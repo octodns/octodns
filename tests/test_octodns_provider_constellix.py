@@ -92,8 +92,8 @@ class TestConstellixProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-                self.assertEquals('\n  - "unittests" is not a valid domain name',
-                                   text_type(ctx.exception))
+            self.assertEquals('\n  - "unittests" is not a valid domain name',
+                              text_type(ctx.exception))
 
         # General error
         with requests_mock() as mock:
@@ -365,7 +365,7 @@ class TestConstellixProvider(TestCase):
                 'value': [
                     '3.2.3.4'
                 ]
-            }, {
+            },{
                 'id': 11189899,
                 'type': 'ALIAS',
                 'name': 'alias',
