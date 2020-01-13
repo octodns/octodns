@@ -655,9 +655,9 @@ class Ns1Provider(BaseProvider):
         host = record.fqdn[:-1]
         _type = record._type
 
-        request = 'GET {path} HTTP/1.0\\r\\nHost: {host}\\r\\n' \
-            'User-agent: NS1\\r\\n\\r\\n'.format(path=record.healthcheck_path,
-                                                 host=record.healthcheck_host)
+        request = r'GET {path} HTTP/1.0\r\nHost: {host}\r\n' \
+            r'User-agent: NS1\r\n\r\n'.format(path=record.healthcheck_path,
+                                              host=record.healthcheck_host)
 
         return {
             'active': True,
@@ -771,13 +771,13 @@ class Ns1Provider(BaseProvider):
             for geo in rule.data.get('geos', []):
                 n = len(geo)
                 if n == 8:
-                    # US state
+                    # US state, e.g. NA-US-KY
                     us_state.add(geo[-2:])
                 elif n == 5:
-                    # Country
+                    # Country, e.g. EU-FR
                     country.add(geo[-2:])
                 else:
-                    # Continent
+                    # Continent, e.g. AS
                     georegion.update(self._CONTINENT_TO_REGIONS[geo])
 
             meta = {
@@ -826,7 +826,9 @@ class Ns1Provider(BaseProvider):
 
             # Dynamic/health checked
             current_pool_name = pool_name
-            while current_pool_name:
+            seen = set()
+            while current_pool_name and current_pool_name not in seen:
+                seen.add(current_pool_name)
                 pool = pools[current_pool_name]
                 for answer in pool_answers[current_pool_name]:
                     answer = {
