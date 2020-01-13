@@ -51,6 +51,9 @@ We start by creating a config file to tell OctoDNS about our providers and the z
 
 ```yaml
 ---
+manager:
+  max_workers: 2
+
 providers:
   config:
     class: octodns.provider.yaml.YamlProvider
@@ -79,6 +82,8 @@ zones:
 `class` is a special key that tells OctoDNS what python class should be loaded. Any other keys will be passed as configuration values to that provider. In general any sensitive or frequently rotated values should come from environmental variables. When OctoDNS sees a value that starts with `env/` it will look for that value in the process's environment and pass the result along.
 
 Further information can be found in the `docstring` of each source and provider class.
+
+The `max_workers` key in the `manager` section of the config enables threading to parallelize the planning portion of the sync.
 
 Now that we have something to tell OctoDNS about our providers & zones we need to tell it about or records. We'll keep it simple for now and just create a single `A` record at the top-level of the domain.
 
