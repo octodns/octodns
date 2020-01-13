@@ -382,64 +382,63 @@ class TestOvhProvider(TestCase):
                 get_mock.side_effect = [[100], [101], [102], [103]]
                 provider.apply(plan)
                 wanted_calls = [
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'TXT',
-                         subDomain='txt', target=u'TXT text', ttl=1400),
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'DKIM',
-                         subDomain='dkim', target=self.valid_dkim_key,
-                         ttl=1300),
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'A',
-                         subDomain=u'', target=u'1.2.3.4', ttl=100),
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'SRV',
+                    call('/domain/zone/unit.tests/record', fieldType='A',
+                         subDomain='', target='1.2.3.4', ttl=100),
+                    call('/domain/zone/unit.tests/record', fieldType='AAAA',
+                         subDomain='', target='1:1ec:1::1', ttl=200),
+                    call('/domain/zone/unit.tests/record', fieldType='MX',
+                         subDomain='', target='10 mx1.unit.tests.', ttl=400),
+                    call('/domain/zone/unit.tests/record', fieldType='SPF',
+                         subDomain='',
+                         target='v=spf1 include:unit.texts.redirect ~all',
+                         ttl=1000),
+                    call('/domain/zone/unit.tests/record', fieldType='SSHFP',
+                         subDomain='',
+                         target='1 1 bf6b6825d2977c511a475bbefb88aad54a92ac73',
+                         ttl=1100),
+                    call('/domain/zone/unit.tests/record', fieldType='PTR',
+                         subDomain='4', target='unit.tests.', ttl=900),
+                    call('/domain/zone/unit.tests/record', fieldType='SRV',
                          subDomain='_srv._tcp',
-                         target=u'10 20 30 foo-1.unit.tests.', ttl=800),
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'SRV',
+                         target='10 20 30 foo-1.unit.tests.', ttl=800),
+                    call('/domain/zone/unit.tests/record', fieldType='SRV',
                          subDomain='_srv._tcp',
-                         target=u'40 50 60 foo-2.unit.tests.', ttl=800),
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'PTR',
-                         subDomain='4', target=u'unit.tests.', ttl=900),
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'NS',
-                         subDomain='www3', target=u'ns3.unit.tests.', ttl=700),
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'NS',
-                         subDomain='www3', target=u'ns4.unit.tests.', ttl=700),
-                    call(u'/domain/zone/unit.tests/record',
-                         fieldType=u'SSHFP', subDomain=u'', ttl=1100,
-                         target=u'1 1 bf6b6825d2977c511a475bbefb88a'
-                                   u'ad54'
-                                   u'a92ac73',
-                         ),
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'AAAA',
-                         subDomain=u'', target=u'1:1ec:1::1', ttl=200),
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'MX',
-                         subDomain=u'', target=u'10 mx1.unit.tests.', ttl=400),
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'CNAME',
-                         subDomain='www2', target=u'unit.tests.', ttl=300),
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'SPF',
-                         subDomain=u'', ttl=1000,
-                         target=u'v=spf1 include:unit.texts.'
-                                u'redirect ~all',
-                         ),
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'A',
-                         subDomain='sub', target=u'1.2.3.4', ttl=200),
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'NAPTR',
-                         subDomain='naptr', ttl=500,
-                         target=u'10 100 "S" "SIP+D2U" "!^.*$!sip:'
-                                u'info@bar'
-                                u'.example.com!" .'
-                         ),
-                    call(u'/domain/zone/unit.tests/refresh')]
+                         target='40 50 60 foo-2.unit.tests.', ttl=800),
+                    call('/domain/zone/unit.tests/record', fieldType='DKIM',
+                         subDomain='dkim',
+                         target='p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCxLaG'
+                         '16G4SaEcXVdiIxTg7gKSGbHKQLm30CHib1h9FzS9nkcyvQSyQj1r'
+                         'MFyqC//tft3ohx3nvJl+bGCWxdtLYDSmir9PW54e5CTdxEh8MWRk'
+                         'BO3StF6QG/tAh3aTGDmkqhIJGLb87iHvpmVKqURmEUzJPv5KPJfW'
+                         'LofADI+q9lQIDAQAB', ttl=1300),
+                    call('/domain/zone/unit.tests/record', fieldType='NAPTR',
+                         subDomain='naptr',
+                         target='10 100 "S" "SIP+D2U" "!^.*$!sip:info@bar.exam'
+                         'ple.com!" .', ttl=500),
+                    call('/domain/zone/unit.tests/record', fieldType='A',
+                         subDomain='sub', target='1.2.3.4', ttl=200),
+                    call('/domain/zone/unit.tests/record', fieldType='TXT',
+                         subDomain='txt', target='TXT text', ttl=1400),
+                    call('/domain/zone/unit.tests/record', fieldType='CNAME',
+                         subDomain='www2', target='unit.tests.', ttl=300),
+                    call('/domain/zone/unit.tests/record', fieldType='NS',
+                         subDomain='www3', target='ns3.unit.tests.', ttl=700),
+                    call('/domain/zone/unit.tests/record', fieldType='NS',
+                         subDomain='www3', target='ns4.unit.tests.', ttl=700),
+                    call('/domain/zone/unit.tests/refresh')]
 
                 post_mock.assert_has_calls(wanted_calls)
 
                 # Get for delete calls
                 wanted_get_calls = [
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'TXT',
-                         subDomain='txt'),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'A',
+                         subDomain=u''),
                     call(u'/domain/zone/unit.tests/record', fieldType=u'DKIM',
                          subDomain='dkim'),
                     call(u'/domain/zone/unit.tests/record', fieldType=u'A',
-                         subDomain=u''),
-                    call(u'/domain/zone/unit.tests/record', fieldType=u'A',
-                         subDomain='fake')]
+                         subDomain='fake'),
+                    call(u'/domain/zone/unit.tests/record', fieldType=u'TXT',
+                         subDomain='txt')]
                 get_mock.assert_has_calls(wanted_get_calls)
                 # 4 delete calls for update and delete
                 delete_mock.assert_has_calls(

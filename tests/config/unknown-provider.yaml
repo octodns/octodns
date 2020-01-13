@@ -5,24 +5,8 @@ providers:
   simple_source:
     class: helpers.SimpleSource
 zones:
-  missing.sources.:
-    targets:
-    - yaml
-  missing.targets.:
-    sources:
-    - yaml
   unknown.source.:
     sources:
     - not-there
     targets:
     - yaml
-  unknown.target.:
-    sources:
-    - yaml
-    targets:
-    - not-there-either
-  not.targetable.:
-    sources:
-    - yaml
-    targets:
-    - simple_source 

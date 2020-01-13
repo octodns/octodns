@@ -5,8 +5,8 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-# from mock import Mock, call
 from os.path import dirname, join
+from six import text_type
 
 from suds import WebFault
 
@@ -176,7 +176,7 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         self.assertEquals(
             'populate: (102) Transip used as target' +
             ' for non-existing zone: notfound.unit.tests.',
-            ctx.exception.message)
+            text_type(ctx.exception))
 
         # Happy Plan - Zone does not exists
         # Won't trigger an exception if provider is NOT used as a target for a

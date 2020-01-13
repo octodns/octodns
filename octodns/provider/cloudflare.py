@@ -442,7 +442,7 @@ class CloudflareProvider(BaseProvider):
                 # Round trip the single value through a record to contents flow
                 # to get a consistent _gen_data result that matches what
                 # went in to new_contents
-                data = self._gen_data(r).next()
+                data = next(self._gen_data(r))
 
                 # Record the record_id and data for this existing record
                 key = self._gen_key(data)

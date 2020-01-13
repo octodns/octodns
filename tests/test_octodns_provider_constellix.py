@@ -80,7 +80,7 @@ class TestConstellixProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            self.assertEquals('Unauthorized', ctx.exception.message)
+            self.assertEquals('Unauthorized', text_type(ctx.exception))
 
         # Bad request
         with requests_mock() as mock:
@@ -424,8 +424,8 @@ class TestConstellixProvider(TestCase):
         }))
 
         plan = provider.plan(wanted)
-        self.assertEquals(2, len(plan.changes))
-        self.assertEquals(2, provider.apply(plan))
+        self.assertEquals(3, len(plan.changes))
+        self.assertEquals(3, provider.apply(plan))
 
         # recreate for update, and deletes for the 2 parts of the other
         provider._client._request.assert_has_calls([

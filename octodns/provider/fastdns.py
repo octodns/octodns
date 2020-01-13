@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from requests import Session
 from akamai.edgegrid import EdgeGridAuth
-from urlparse import urljoin
+from six.moves.urllib.parse import urljoin
 from collections import defaultdict
 
 from logging import getLogger

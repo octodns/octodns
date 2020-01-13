@@ -51,6 +51,9 @@ We start by creating a config file to tell OctoDNS about our providers and the z
 
 ```yaml
 ---
+manager:
+  max_workers: 2
+
 providers:
   config:
     class: octodns.provider.yaml.YamlProvider
@@ -79,6 +82,8 @@ zones:
 `class` is a special key that tells OctoDNS what python class should be loaded. Any other keys will be passed as configuration values to that provider. In general any sensitive or frequently rotated values should come from environmental variables. When OctoDNS sees a value that starts with `env/` it will look for that value in the process's environment and pass the result along.
 
 Further information can be found in the `docstring` of each source and provider class.
+
+The `max_workers` key in the `manager` section of the config enables threading to parallelize the planning portion of the sync.
 
 Now that we have something to tell OctoDNS about our providers & zones we need to tell it about or records. We'll keep it simple for now and just create a single `A` record at the top-level of the domain.
 
@@ -169,7 +174,7 @@ The above command pulled the existing data out of Route53 and placed the results
 
 ## Supported providers
 
-| Provider | Requirements | Record Support | Dynamic/Geo Support | Notes |
+| Provider | Requirements | Record Support | Dynamic | Notes |
 |--|--|--|--|--|
 | [AzureProvider](/octodns/provider/azuredns.py) | azure-mgmt-dns | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | No | |
 | [Akamai](/octodns/provider/fastdns.py) | edgegrid-python | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
@@ -182,7 +187,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | A, AAAA, ALIAS, CNAME | No | |
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
 | [MythicBeastsProvider](/octodns/provider/mythicbeasts.py) | Mythic Beasts | A, AAAA, ALIAS, CNAME, MX, NS, SRV, SSHFP, CAA, TXT | No | |
-| [Ns1Provider](/octodns/provider/ns1.py) | nsone | All | Partial Geo | No health checking for GeoDNS |
+| [Ns1Provider](/octodns/provider/ns1.py) | ns1-python | All | Yes | No CNAME support, missing `NA` geo target |
 | [OVH](/octodns/provider/ovh.py) | ovh | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
 | [PowerDnsProvider](/octodns/provider/powerdns.py) | | All | No | |
 | [Rackspace](/octodns/provider/rackspace.py) | | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |

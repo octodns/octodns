@@ -8,16 +8,18 @@ from __future__ import absolute_import, division, print_function, \
 from boto3 import client
 from botocore.config import Config
 from collections import defaultdict
-from incf.countryutils.transformations import cca_to_ctca2
 from ipaddress import AddressValueError, ip_address
+from pycountry_convert import country_alpha2_to_continent_code
 from uuid import uuid4
 import logging
 import re
 
+from six import text_type
+
+from ..equality import EqualityTupleMixin
 from ..record import Record, Update
 from ..record.geo import GeoCodes
 from .base import BaseProvider
-
 
 octal_re = re.compile(r'\\(\d\d\d)')
 
@@ -28,7 +30,7 @@ def _octal_replace(s):
     return octal_re.sub(lambda m: chr(int(m.group(1), 8)), s)
 
 
-class _Route53Record(object):
+class _Route53Record(EqualityTupleMixin):
 
     @classmethod
     def _new_dynamic(cls, provider, record, hosted_zone_id, creating):
@@ -147,7 +149,7 @@ class _Route53Record(object):
             }
         }
 
-    # NOTE: we're using __hash__ and __cmp__ methods that consider
+    # NOTE: we're using __hash__ and ordering methods that consider
     # _Route53Records equivalent if they have the same class, fqdn, and _type.
     # Values are ignored. This is useful when computing diffs/changes.
 
@@ -155,17 +157,10 @@ class _Route53Record(object):
         'sub-classes should never use this method'
         return '{}:{}'.format(self.fqdn, self._type).__hash__()
 
-    def __cmp__(self, other):
-        '''sub-classes should call up to this and return its value if non-zero.
-        When it's zero they should compute their own __cmp__'''
-        if self.__class__ != other.__class__:
-            return cmp(self.__class__, other.__class__)
-        elif self.fqdn != other.fqdn:
-            return cmp(self.fqdn, other.fqdn)
-        elif self._type != other._type:
-            return cmp(self._type, other._type)
-        # We're ignoring ttl, it's not an actual differentiator
-        return 0
+    def _equality_tuple(self):
+        '''Sub-classes should call up to this and return its value and add
+        any additional fields they need to hav considered.'''
+        return (self.__class__.__name__, self.fqdn, self._type)
 
     def __repr__(self):
         return '_Route53Record<{} {} {} {}>'.format(self.fqdn, self._type,
@@ -506,11 +501,9 @@ class _Route53GeoRecord(_Route53Record):
         return '{}:{}:{}'.format(self.fqdn, self._type,
                                  self.geo.code).__hash__()
 
-    def __cmp__(self, other):
-        ret = super(_Route53GeoRecord, self).__cmp__(other)
-        if ret != 0:
-            return ret
-        return cmp(self.geo.code, other.geo.code)
+    def _equality_tuple(self):
+        return super(_Route53GeoRecord, self)._equality_tuple() + \
+            (self.geo.code,)
 
     def __repr__(self):
         return '_Route53GeoRecord<{} {} {} {} {}>'.format(self.fqdn,
@@ -553,7 +546,10 @@ def _mod_keyer(mod):
     if rrset.get('GeoLocation', False):
         unique_id = rrset['SetIdentifier']
     else:
-        unique_id = rrset['Name']
+        if 'SetIdentifier' in rrset:
+            unique_id = '{}-{}'.format(rrset['Name'], rrset['SetIdentifier'])
+        else:
+            unique_id = rrset['Name']
 
     # Prioritise within the action_priority, ensuring targets come first.
     if rrset.get('GeoLocation', False):
@@ -700,7 +696,7 @@ class Route53Provider(BaseProvider):
             if cc == '*':
                 # This is the default
                 return
-            cn = cca_to_ctca2(cc)
+            cn = country_alpha2_to_continent_code(cc)
             try:
                 return '{}-{}-{}'.format(cn, cc, loc['SubdivisionCode'])
             except KeyError:
@@ -1037,8 +1033,8 @@ class Route53Provider(BaseProvider):
         # ip_address's returned object for equivalence
         # E.g 2001:4860:4860::8842 -> 2001:4860:4860:0:0:0:0:8842
         if value:
-            value = ip_address(unicode(value))
-            config_ip_address = ip_address(unicode(config['IPAddress']))
+            value = ip_address(text_type(value))
+            config_ip_address = ip_address(text_type(config['IPAddress']))
         else:
             # No value so give this a None to match value's
             config_ip_address = None
@@ -1059,7 +1055,7 @@ class Route53Provider(BaseProvider):
                        fqdn, record._type, value)
 
         try:
-            ip_address(unicode(value))
+            ip_address(text_type(value))
             # We're working with an IP, host is the Host header
             healthcheck_host = record.healthcheck_host
         except (AddressValueError, ValueError):

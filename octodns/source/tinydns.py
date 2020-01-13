@@ -67,7 +67,8 @@ class TinyDnsBaseSource(BaseSource):
         values = []
 
         for record in records:
-            new_value = record[0].decode('unicode-escape').replace(";", "\\;")
+            new_value = record[0].encode('latin1').decode('unicode-escape') \
+                .replace(";", "\\;")
             values.append(new_value)
 
         try:
@@ -252,7 +253,7 @@ class TinyDnsFileSource(TinyDnsBaseSource):
                     # Ignore hidden files
                     continue
                 with open(join(self.directory, filename), 'r') as fh:
-                    lines += filter(lambda l: l, fh.read().split('\n'))
+                    lines += [l for l in fh.read().split('\n') if l]
 
             self._cache = lines
 
