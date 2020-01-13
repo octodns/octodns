@@ -896,20 +896,41 @@ class ConstellixProvider(BaseProvider):
             'roundRobin': values
         }
 
-    @staticmethod
-    def _params_for_NAPTR(record):
-        values = []
-        for value in record.values:
-            values.append({
-                'order': value.order,
-                'preference': value.preference,
-                'flags': value.flags,
-                'service': value.service,
-                'regularExpression': value.regexp,
-                'replacement': value.replacement
-            })
-        yield {
-            'name': record.name,
-            'ttl': record.ttl,
-            'roundRobin': values
-        }
+    def _apply_Create(self, change):
+        new = change.new
+        params_for = getattr(self, '_params_for_{}'.format(new._type))
+        for params in params_for(new):
+            self._client.record_create(new.zone.name, new._type, params)
+
+    def _apply_Update(self, change):
+        self._apply_Delete(change)
+        self._apply_Create(change)
+
+    def _apply_Delete(self, change):
+        existing = change.existing
+        zone = existing.zone
+        for record in self.zone_records(zone):
+            if existing.name == record['name'] and \
+                    existing._type == record['type']:
+                self._client.record_delete(zone.name, record['type'],
+                                           record['id'])
+
+    def _apply(self, plan):
+        desired = plan.desired
+        changes = plan.changes
+        self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
+                       len(changes))
+
+        try:
+            self._client.domain(desired.name)
+        except ConstellixClientNotFound:
+            self.log.debug('_apply:   no matching zone, creating domain')
+            self._client.domain_create(desired.name[:-1])
+
+        for change in changes:
+            class_name = change.__class__.__name__
+            getattr(self, '_apply_{}'.format(class_name))(change)
+
+        # Clear out the cache if any
+        self._zone_records.pop(desired.name, None)
+
