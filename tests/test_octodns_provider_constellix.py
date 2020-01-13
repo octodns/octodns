@@ -10,6 +10,7 @@ from mock import Mock, call
 from os.path import dirname, join
 from requests import HTTPError, Response
 from requests_mock import ANY, mock as requests_mock
+from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record
@@ -91,8 +92,8 @@ class TestConstellixProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            self.assertEquals(u'errors',
-                              ctx.exception.message)
+                self.assertEquals('\n  - "unittests" is not a valid domain name',
+                                   text_type(ctx.exception))
 
         # General error
         with requests_mock() as mock:
@@ -168,17 +169,18 @@ class TestConstellixProvider(TestCase):
 
         provider._client._request.assert_has_calls([
             # get all domains to build the cache
-            call('GET', '/domains'),
-            # get all domains to build the cache
-            call('GET', '/domains'),
-            call(u'POST', u'/domains', data={u'names': [u'unit.tests']}),
-            # call(u'GET', u'/domains'),
-            call(u'POST', u'/domains/123123/records/SRV', data={
-                u'roundRobin': [{
-                    u'priority': 10,
-                    u'weight': 20,
-                    u'value': 'foo-1.unit.tests.',
-                    u'port': 30
+            call('GET', '/'),
+        ])
+        # These two checks are broken up so that ordering doesn't break things.
+        # Python3 doesn't make the calls in a consistent order so different
+        # things follow the GET / on different runs
+        provider._client._request.assert_has_calls([
+            call('POST', '/123123/records/SRV', data={
+                'roundRobin': [{
+                    'priority': 10,
+                    'weight': 20,
+                    'value': 'foo-1.unit.tests.',
+                    'port': 30
                 }, {
                     u'priority': 12,
                     u'weight': 20,
@@ -360,7 +362,17 @@ class TestConstellixProvider(TestCase):
                 'name': 'ttl',
                 'value': '3.2.3.4',
                 'ttl': 600,
-                'type': 'A',
+                'value': [
+                    '3.2.3.4'
+                ]
+            }, {
+                'id': 11189899,
+                'type': 'ALIAS',
+                'name': 'alias',
+                'ttl': 600,
+                'value': [{
+                    'value': 'aname.unit.tests.'
+                }]
             }
         ])
 
@@ -426,354 +438,7 @@ class TestConstellixProvider(TestCase):
                 u'name': u'ttl',
                 u'ttl': 300
             }),
-            call(u'DELETE', u'/domains/123123/records/A/11189897'),
-            call(u'DELETE', u'/domains/123123/records/A/11189898')
-        ], any_order=True)
-
-        #
-        # create pool when pool doesn't exist
-        #
-        provider._client._request.reset_mock()
-
-        # mock the client request method when retrieving A-record pools,
-        # which should return an empty list, in this case
-        resp = Response()
-        resp.status_code = 200
-        resp.json = self.json_func([])
-        provider._client._request = Mock(
-            {'method': 'GET', 'path': '/pools/A'},
-            return_value=resp
-        )
-
-        provider._client.pool_create = Mock(return_value=[
-            {
-                "id": 1234567,
-                "name": "unit.tests.:wrr-pool:my-pool",
-                "type": "A",
-                "numReturn": 1,
-                "minAvailableFailover": 1,
-                "ttl": 100,
-                "values": [
-                    {"value": "2.7.1.2", "weight": 10},
-                    {"value": "2.7.1.3", "weight": 10},
-                    {"value": "2.7.1.5", "weight": 10}
-                ]
-            }
-        ])
-
-        resp.json.side_effect = ['{}']
-
-        wanted = Zone('unit.tests.', [])
-        wanted.add_record(Record.new(wanted, 'wrr-pool', {
-            "dynamic": {
-                "pools": {
-                    "my-pool": {
-                        "values": [
-                            {"value": "2.7.1.2", "weight": 10},
-                            {"value": "2.7.1.3", "weight": 10},
-                            {"value": "2.7.1.5", "weight": 10}
-                        ]
-                    }
-                },
-                "rules": [
-                    {"pool": "my-pool"}
-                ]
-            },
-            "ttl": 100,
-            "type": "A",
-            "value": "1.2.3.4",
-            "octodns": {
-                "healthcheck": {
-                    "path": "/checks",
-                    "host": "sonar.constellix.com",
-                    "port": 443,
-                    "protocol": "HTTPS"
-                },
-                "constellix": {
-                    "healthcheck": {
-                        "param_1": "True"
-                    }
-                }
-            },
-        }))
-
-        # provider._client.domains = Mock(return_value={
-        #     "unit.tests.": 123123
-        # })
-
-        # resp = Mock()
-        # resp.json = Mock(return_value={
-        provider._client.domain = Mock(return_value={
-            "id": 123123,
-            "name": "unit.tests.",
-            "soa": {
-                "primaryNameserver": "ns11.constellix.com.",
-                "email": "dns.constellix.com.",
-                "ttl": 86400,
-                "serial": 2015010118,
-                "refresh": 43200,
-                "retry": 3600,
-                "expire": 1209600,
-                "negCache": 180
-            },
-            "createdTs": "2019-08-02T12:52:10Z",
-            "modifiedTs": "2019-08-13T11:45:59Z",
-            "typeId": 1,
-            "domainTags": [],
-            "hasGtdRegions": False,
-            "hasGeoIP": False,
-            "nameserverGroup": 1,
-            "nameservers": [
-                "ns11.constellix.com.",
-                "ns21.constellix.com.",
-                "ns31.constellix.com.",
-                "ns41.constellix.net.",
-                "ns51.constellix.net.",
-                "ns61.constellix.net."
-            ],
-            "note": "",
-            "status": "ACTIVE",
-        })
-        provider._client._request = Mock(return_value=resp)
-
-        plan = provider.plan(wanted)
-        self.assertEquals(3, len(plan.changes))
-        self.assertEquals(3, provider.apply(plan))
-
-        provider._client._request.assert_has_calls([], any_order=True)
-
-        #
-        # update pool when pool does exist
-        #
-        provider._client._request.reset_mock()
-
-        # mock the client request method when retrieving A-record pools,
-        # which should return an empty list, in this case
-        provider._client.pools = Mock(return_value=[{
-            "id": 1234567,
-            "name": "unit.tests.:wrr-pool:my-pool",
-            "type": "A",
-            "numReturn": 1,
-            "minAvailableFailover": 1,
-            "ttl": 180,
-            "values": [
-                {"weight": 10, "value": "1.1.1.1"},
-                {"weight": 20, "value": "1.1.1.2"}
-            ]
-        }])
-        update = {
-            "id": 1234567,
-            "name": "unit.tests.:wrr-pool:my-pool",
-            "type": "A",
-            "numReturn": 1,
-            "minAvailableFailover": 1,
-            "ttl": 100,
-            "values": [
-                {"value": "2.7.1.7", "weight": 7},
-                {"value": "2.7.1.8", "weight": 8},
-                {"value": "2.7.1.9", "weight": 9}
-            ]
-        }
-        resp = Response()
-        resp.status_code = 200
-        resp.json = self.json_func({"success": "yep"})
-        provider._client._request = Mock(
-            {'method': 'PUT', 'path': '/pools/A/1234567', 'data': update},
-            return_value=resp
-        )
-
-        resp.json.side_effect = ['{}']
-
-        wanted = Zone('unit.tests.', [])
-        wanted.add_record(Record.new(wanted, 'wrr-pool', {
-            "dynamic": {
-                "pools": {
-                    "my-pool": {
-                        "values": [
-                            {"value": "2.7.1.2", "weight": 10},
-                            {"value": "2.7.1.3", "weight": 10},
-                            {"value": "2.7.1.5", "weight": 10}
-                        ]
-                    }
-                },
-                "rules": [
-                    {"pool": "my-pool"}
-                ]
-            },
-            "ttl": 100,
-            "type": "A",
-            "value": "1.2.3.4",
-            "octodns": {
-                "healthcheck": {
-                    "path": "/checks",
-                    "host": "sonar.constellix.com",
-                    "port": 443,
-                    "protocol": "HTTPS"
-                },
-                "constellix": {
-                    "healthcheck": {
-                        "param_1": "True"
-                    }
-                }
-            },
-        }))
-
-        plan = provider.plan(wanted)
-        self.assertEquals(3, len(plan.changes))
-        self.assertEquals(3, provider.apply(plan))
-
-        provider._client._request.assert_has_calls([
-            call(u'DELETE', u'/domains/123123/records/A/11189899'),
-            call(u'DELETE', u'/domains/123123/records/A/11189897'),
-            call(u'DELETE', u'/domains/123123/records/A/11189898'),
-            call(u'POST', u'/domains/123123/records/A',
-                 data={u'pools': [1234567],
-                       u'recordOption': u'pools',
-                       u'roundRobin': [{u'value': u'1.2.3.4'}],
-                       u'name': u'wrr-pool',
-                       u'ttl': 100}
-                 )
-        ], any_order=True)
-
-        #
-        # create pool when pool doesn't exist, using octodns to provide
-        # the default weight of 1 when is wasn't specified
-        #
-        provider._client._request.reset_mock()
-
-        provider._client.pools = Mock(return_value=[])
-
-        resp.json.side_effect = ['{}']
-
-        wanted = Zone('unit.tests.', [])
-        wanted.add_record(Record.new(wanted, 'wrr-pool-3', {
-            "dynamic": {
-                "pools": {
-                    "my-pool-3": {
-                        "values": [
-                            {"value": "2.7.1.2"},
-                            {"value": "2.7.1.3"},
-                            {"value": "2.7.1.5"}
-                        ]
-                    }
-                },
-                "rules": [
-                    {"pool": "my-pool-3"}
-                ]
-            },
-            "ttl": 100,
-            "type": "A",
-            "value": "1.2.3.4",
-            "octodns": {
-                "healthcheck": {
-                    "path": "/checks",
-                    "host": "sonar.constellix.com",
-                    "port": 443,
-                    "protocol": "HTTPS"
-                },
-                "constellix": {
-                    "healthcheck": {
-                        "param_1": "True"
-                    }
-                }
-            },
-        }))
-
-        plan = provider.plan(wanted)
-        self.assertEquals(3, len(plan.changes))
-        self.assertEquals(3, provider.apply(plan))
-
-        provider._client._request.assert_has_calls([], any_order=True)
-
-        #
-        # update pool when pool does exist
-        #
-        provider._client._request.reset_mock()
-
-        # mock the client request method when retrieving A-record pools,
-        # which should return an empty list, in this case
-        provider._client.pools = Mock(return_value=[{
-            "id": 1234567,
-            "name": "unit.tests.:wrr-pool:my-pool",
-            "type": "A",
-            "numReturn": 1,
-            "minAvailableFailover": 1,
-            "ttl": 180,
-            "values": [
-                {"weight": 10, "value": "1.1.1.1"},
-                {"weight": 20, "value": "1.1.1.2"}
-            ]
-        }])
-        update = {
-            "id": 1234567,
-            "name": "unit.tests.:wrr-pool:my-pool",
-            "type": "A",
-            "numReturn": 1,
-            "minAvailableFailover": 1,
-            "ttl": 100,
-            "values": [
-                {"value": "2.7.1.7", "weight": 7},
-                {"value": "2.7.1.8", "weight": 8},
-                {"value": "2.7.1.9", "weight": 9}
-            ]
-        }
-        resp = Response()
-        resp.status_code = 200
-        resp.json = self.json_func({"error": "no changes to save"})
-        provider._client._request = Mock(
-            {'method': 'PUT', 'path': '/pools/A/1234567', 'data': update},
-            return_value=resp
-        )
-
-        resp.json.side_effect = ['{}']
-
-        wanted = Zone('unit.tests.', [])
-        wanted.add_record(Record.new(wanted, 'wrr-pool', {
-            "dynamic": {
-                "pools": {
-                    "my-pool": {
-                        "values": [
-                            {"value": "2.7.1.2", "weight": 10},
-                            {"value": "2.7.1.3", "weight": 10},
-                            {"value": "2.7.1.5", "weight": 10}
-                        ]
-                    }
-                },
-                "rules": [
-                    {"pool": "my-pool"}
-                ]
-            },
-            "ttl": 100,
-            "type": "A",
-            "value": "1.2.3.4",
-            "octodns": {
-                "healthcheck": {
-                    "path": "/checks",
-                    "host": "sonar.constellix.com",
-                    "port": 443,
-                    "protocol": "HTTPS"
-                },
-                "constellix": {
-                    "healthcheck": {
-                        "param_1": "True"
-                    }
-                }
-            },
-        }))
-
-        plan = provider.plan(wanted)
-        self.assertEquals(3, len(plan.changes))
-        self.assertEquals(3, provider.apply(plan))
-
-        provider._client._request.assert_has_calls([
-            call(u'DELETE', u'/domains/123123/records/A/11189899'),
-            call(u'DELETE', u'/domains/123123/records/A/11189897'),
-            call(u'DELETE', u'/domains/123123/records/A/11189898'),
-            call(u'POST', u'/domains/123123/records/A',
-                 data={u'pools': [1234567],
-                       u'recordOption': u'pools',
-                       u'roundRobin': [{u'value': u'1.2.3.4'}],
-                       u'name': u'wrr-pool',
-                       u'ttl': 100}
-                 )
+            call('DELETE', '/123123/records/A/11189897'),
+            call('DELETE', '/123123/records/A/11189898'),
+            call('DELETE', '/123123/records/ANAME/11189899')
         ], any_order=True)
