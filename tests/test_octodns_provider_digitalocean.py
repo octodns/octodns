@@ -10,6 +10,7 @@ from mock import Mock, call
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
+from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record
@@ -50,7 +51,7 @@ class TestDigitalOceanProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            self.assertEquals('Unauthorized', ctx.exception.message)
+            self.assertEquals('Unauthorized', text_type(ctx.exception))
 
         # General error
         with requests_mock() as mock:
@@ -175,7 +176,20 @@ class TestDigitalOceanProvider(TestCase):
             call('GET', '/domains/unit.tests/records', {'page': 1}),
             # delete the initial A record
             call('DELETE', '/domains/unit.tests/records/11189877'),
-            # created at least one of the record with expected data
+            # created at least some of the record with expected data
+            call('POST', '/domains/unit.tests/records', data={
+                'data': '1.2.3.4',
+                'name': '@',
+                'ttl': 300, 'type': 'A'}),
+            call('POST', '/domains/unit.tests/records', data={
+                'data': '1.2.3.5',
+                'name': '@',
+                'ttl': 300, 'type': 'A'}),
+            call('POST', '/domains/unit.tests/records', data={
+                'data': 'ca.unit.tests.',
+                'flags': 0, 'name': '@',
+                'tag': 'issue',
+                'ttl': 3600, 'type': 'CAA'}),
             call('POST', '/domains/unit.tests/records', data={
                 'name': '_srv._tcp',
                 'weight': 20,

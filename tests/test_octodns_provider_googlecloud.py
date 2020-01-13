@@ -193,8 +193,13 @@ class DummyIterator:
     def __iter__(self):
         return self
 
+    # python2
     def next(self):
-        return self.iterable.next()
+        return next(self.iterable)
+
+    # python3
+    def __next__(self):
+        return next(self.iterable)
 
 
 class TestGoogleCloudProvider(TestCase):
@@ -247,7 +252,7 @@ class TestGoogleCloudProvider(TestCase):
         return_values_for_status = iter(
             ["pending"] * 11 + ['done', 'done'])
         type(status_mock).status = PropertyMock(
-            side_effect=return_values_for_status.next)
+            side_effect=lambda: next(return_values_for_status))
         gcloud_zone_mock.changes = Mock(return_value=status_mock)
 
         provider = self._get_provider()

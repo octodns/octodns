@@ -9,6 +9,7 @@ import base64
 import binascii
 import logging
 from collections import defaultdict
+from six import text_type
 
 import ovh
 from ovh import ResourceNotFoundError
@@ -64,7 +65,7 @@ class OvhProvider(BaseProvider):
             records = self.get_records(zone_name=zone_name)
             exists = True
         except ResourceNotFoundError as e:
-            if e.message != self.ZONE_NOT_FOUND_MESSAGE:
+            if text_type(e) != self.ZONE_NOT_FOUND_MESSAGE:
                 raise
             exists = False
             records = []
@@ -322,10 +323,10 @@ class OvhProvider(BaseProvider):
                           'n': lambda _: True,
                           'g': lambda _: True}
 
-        splitted = value.split('\\;')
+        splitted = [v for v in value.split('\\;') if v]
         found_key = False
         for splitted_value in splitted:
-            sub_split = map(lambda x: x.strip(), splitted_value.split("=", 1))
+            sub_split = [x.strip() for x in splitted_value.split("=", 1)]
             if len(sub_split) < 2:
                 return False
             key, value = sub_split[0], sub_split[1]
@@ -343,7 +344,7 @@ class OvhProvider(BaseProvider):
     @staticmethod
     def _is_valid_dkim_key(key):
         try:
-            base64.decodestring(key)
+            base64.decodestring(bytearray(key, 'utf-8'))
         except binascii.Error:
             return False
         return True

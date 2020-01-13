@@ -7,11 +7,14 @@ from __future__ import absolute_import, division, print_function, \
 from requests import HTTPError, Session, post
 from collections import defaultdict
 import logging
-import string
 import time
 
 from ..record import Record
 from .base import BaseProvider
+
+
+def _value_keyer(v):
+    return (v.get('type', ''), v['name'], v.get('data', ''))
 
 
 def add_trailing_dot(s):
@@ -28,12 +31,12 @@ def remove_trailing_dot(s):
 
 def escape_semicolon(s):
     assert s
-    return string.replace(s, ';', '\\;')
+    return s.replace(';', '\\;')
 
 
 def unescape_semicolon(s):
     assert s
-    return string.replace(s, '\\;', ';')
+    return s.replace('\\;', ';')
 
 
 class RackspaceProvider(BaseProvider):
@@ -367,11 +370,9 @@ class RackspaceProvider(BaseProvider):
             self._delete('domains/{}/records?{}'.format(domain_id, params))
 
         if updates:
-            data = {"records": sorted(updates, key=lambda v: v['name'])}
+            data = {"records": sorted(updates, key=_value_keyer)}
             self._put('domains/{}/records'.format(domain_id), data=data)
 
         if creates:
-            data = {"records": sorted(creates, key=lambda v: v['type'] +
-                                      v['name'] +
-                                      v.get('data', ''))}
+            data = {"records": sorted(creates, key=_value_keyer)}
             self._post('domains/{}/records'.format(domain_id), data=data)

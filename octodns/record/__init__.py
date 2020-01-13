@@ -9,6 +9,9 @@ from ipaddress import IPv4Address, IPv6Address
 from logging import getLogger
 import re
 
+from six import string_types, text_type
+
+from ..equality import EqualityTupleMixin
 from .geo import GeoCodes
 
 
@@ -22,6 +25,12 @@ class Change(object):
     def record(self):
         'Returns new if we have one, existing otherwise'
         return self.new or self.existing
+
+    def __lt__(self, other):
+        self_record = self.record
+        other_record = other.record
+        return ((self_record.name, self_record._type) <
+                (other_record.name, other_record._type))
 
 
 class Create(Change):
@@ -68,11 +77,12 @@ class ValidationError(Exception):
         self.reasons = reasons
 
 
-class Record(object):
+class Record(EqualityTupleMixin):
     log = getLogger('Record')
 
     @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
+        name = text_type(name)
         fqdn = '{}.{}'.format(name, zone.name) if name else zone.name
         try:
             _type = data['type']
@@ -96,7 +106,7 @@ class Record(object):
             }[_type]
         except KeyError:
             raise Exception('Unknown record type: "{}"'.format(_type))
-        reasons = _class.validate(name, data)
+        reasons = _class.validate(name, fqdn, data)
         try:
             lenient |= data['octodns']['lenient']
         except KeyError:
@@ -109,8 +119,16 @@ class Record(object):
         return _class(zone, name, data, source=source)
 
     @classmethod
-    def validate(cls, name, data):
+    def validate(cls, name, fqdn, data):
         reasons = []
+        n = len(fqdn)
+        if n > 253:
+            reasons.append('invalid fqdn, "{}" is too long at {} chars, max '
+                           'is 253'.format(fqdn, n))
+        n = len(name)
+        if n > 63:
+            reasons.append('invalid name, "{}" is too long at {} chars, max '
+                           'is 63'.format(name, n))
         try:
             ttl = int(data['ttl'])
             if ttl < 0:
@@ -130,7 +148,7 @@ class Record(object):
                        self.__class__.__name__, name)
         self.zone = zone
         # force everything lower-case just to be safe
-        self.name = unicode(name).lower() if name else name
+        self.name = text_type(name).lower() if name else name
         self.source = source
         self.ttl = int(data['ttl'])
 
@@ -194,24 +212,22 @@ class Record(object):
         if self.ttl != other.ttl:
             return Update(self, other)
 
-    # NOTE: we're using __hash__ and __cmp__ methods that consider Records
+    # NOTE: we're using __hash__ and ordering methods that consider Records
     # equivalent if they have the same name & _type. Values are ignored. This
     # is useful when computing diffs/changes.
 
     def __hash__(self):
         return '{}:{}'.format(self.name, self._type).__hash__()
 
-    def __cmp__(self, other):
-        a = '{}:{}'.format(self.name, self._type)
-        b = '{}:{}'.format(other.name, other._type)
-        return cmp(a, b)
+    def _equality_tuple(self):
+        return (self.name, self._type)
 
     def __repr__(self):
         # Make sure this is always overridden
         raise NotImplementedError('Abstract base class, __repr__ required')
 
 
-class GeoValue(object):
+class GeoValue(EqualityTupleMixin):
     geo_re = re.compile(r'^(?P<continent_code>\w\w)(-(?P<country_code>\w\w)'
                         r'(-(?P<subdivision_code>\w\w))?)?$')
 
@@ -238,11 +254,9 @@ class GeoValue(object):
             yield '-'.join(bits)
             bits.pop()
 
-    def __cmp__(self, other):
-        return 0 if (self.continent_code == other.continent_code and
-                     self.country_code == other.country_code and
-                     self.subdivision_code == other.subdivision_code and
-                     self.values == other.values) else 1
+    def _equality_tuple(self):
+        return (self.continent_code, self.country_code, self.subdivision_code,
+                self.values)
 
     def __repr__(self):
         return "'Geo {} {} {} {}'".format(self.continent_code,
@@ -253,8 +267,8 @@ class GeoValue(object):
 class _ValuesMixin(object):
 
     @classmethod
-    def validate(cls, name, data):
-        reasons = super(_ValuesMixin, cls).validate(name, data)
+    def validate(cls, name, fqdn, data):
+        reasons = super(_ValuesMixin, cls).validate(name, fqdn, data)
 
         values = data.get('values', data.get('value', []))
 
@@ -268,7 +282,6 @@ class _ValuesMixin(object):
             values = data['values']
         except KeyError:
             values = [data['value']]
-        # TODO: should we natsort values?
         self.values = sorted(self._value_type.process(values))
 
     def changes(self, other, target):
@@ -292,7 +305,7 @@ class _ValuesMixin(object):
         return ret
 
     def __repr__(self):
-        values = "['{}']".format("', '".join([unicode(v)
+        values = "['{}']".format("', '".join([text_type(v)
                                               for v in self.values]))
         return '<{} {} {}, {}, {}>'.format(self.__class__.__name__,
                                            self._type, self.ttl,
@@ -307,8 +320,8 @@ class _GeoMixin(_ValuesMixin):
     '''
 
     @classmethod
-    def validate(cls, name, data):
-        reasons = super(_GeoMixin, cls).validate(name, data)
+    def validate(cls, name, fqdn, data):
+        reasons = super(_GeoMixin, cls).validate(name, fqdn, data)
         try:
             geo = dict(data['geo'])
             for code, values in geo.items():
@@ -354,8 +367,8 @@ class _GeoMixin(_ValuesMixin):
 class _ValueMixin(object):
 
     @classmethod
-    def validate(cls, name, data):
-        reasons = super(_ValueMixin, cls).validate(name, data)
+    def validate(cls, name, fqdn, data):
+        reasons = super(_ValueMixin, cls).validate(name, fqdn, data)
         reasons.extend(cls._value_type.validate(data.get('value', None),
                                                 cls._type))
         return reasons
@@ -481,8 +494,8 @@ class _DynamicMixin(object):
                         r'(-(?P<subdivision_code>\w\w))?)?$')
 
     @classmethod
-    def validate(cls, name, data):
-        reasons = super(_DynamicMixin, cls).validate(name, data)
+    def validate(cls, name, fqdn, data):
+        reasons = super(_DynamicMixin, cls).validate(name, fqdn, data)
 
         if 'dynamic' not in data:
             return reasons
@@ -574,7 +587,7 @@ class _DynamicMixin(object):
                     reasons.append('rule {} missing pool'.format(rule_num))
                     continue
 
-                if not isinstance(pool, basestring):
+                if not isinstance(pool, string_types):
                     reasons.append('rule {} invalid pool "{}"'
                                    .format(rule_num, pool))
                 elif pool not in pools:
@@ -671,13 +684,13 @@ class _IpList(object):
             return ['missing value(s)']
         reasons = []
         for value in data:
-            if value is '':
+            if value == '':
                 reasons.append('empty value')
             elif value is None:
                 reasons.append('missing value(s)')
             else:
                 try:
-                    cls._address_type(unicode(value))
+                    cls._address_type(text_type(value))
                 except Exception:
                     reasons.append('invalid {} address "{}"'
                                    .format(cls._address_name, value))
@@ -685,7 +698,8 @@ class _IpList(object):
 
     @classmethod
     def process(cls, values):
-        return values
+        # Translating None into '' so that the list will be sortable in python3
+        return [v if v is not None else '' for v in values]
 
 
 class Ipv4List(_IpList):
@@ -742,7 +756,7 @@ class AliasRecord(_ValueMixin, Record):
     _value_type = AliasValue
 
 
-class CaaValue(object):
+class CaaValue(EqualityTupleMixin):
     # https://tools.ietf.org/html/rfc6844#page-5
 
     @classmethod
@@ -781,12 +795,8 @@ class CaaValue(object):
             'value': self.value,
         }
 
-    def __cmp__(self, other):
-        if self.flags == other.flags:
-            if self.tag == other.tag:
-                return cmp(self.value, other.value)
-            return cmp(self.tag, other.tag)
-        return cmp(self.flags, other.flags)
+    def _equality_tuple(self):
+        return (self.flags, self.tag, self.value)
 
     def __repr__(self):
         return '{} {} "{}"'.format(self.flags, self.tag, self.value)
@@ -802,15 +812,15 @@ class CnameRecord(_DynamicMixin, _ValueMixin, Record):
     _value_type = CnameValue
 
     @classmethod
-    def validate(cls, name, data):
+    def validate(cls, name, fqdn, data):
         reasons = []
         if name == '':
             reasons.append('root CNAME not allowed')
-        reasons.extend(super(CnameRecord, cls).validate(name, data))
+        reasons.extend(super(CnameRecord, cls).validate(name, fqdn, data))
         return reasons
 
 
-class MxValue(object):
+class MxValue(EqualityTupleMixin):
 
     @classmethod
     def validate(cls, data, _type):
@@ -863,10 +873,11 @@ class MxValue(object):
             'exchange': self.exchange,
         }
 
-    def __cmp__(self, other):
-        if self.preference == other.preference:
-            return cmp(self.exchange, other.exchange)
-        return cmp(self.preference, other.preference)
+    def __hash__(self):
+        return hash((self.preference, self.exchange))
+
+    def _equality_tuple(self):
+        return (self.preference, self.exchange)
 
     def __repr__(self):
         return "'{} {}'".format(self.preference, self.exchange)
@@ -877,7 +888,7 @@ class MxRecord(_ValuesMixin, Record):
     _value_type = MxValue
 
 
-class NaptrValue(object):
+class NaptrValue(EqualityTupleMixin):
     VALID_FLAGS = ('S', 'A', 'U', 'P')
 
     @classmethod
@@ -936,18 +947,12 @@ class NaptrValue(object):
             'replacement': self.replacement,
         }
 
-    def __cmp__(self, other):
-        if self.order != other.order:
-            return cmp(self.order, other.order)
-        elif self.preference != other.preference:
-            return cmp(self.preference, other.preference)
-        elif self.flags != other.flags:
-            return cmp(self.flags, other.flags)
-        elif self.service != other.service:
-            return cmp(self.service, other.service)
-        elif self.regexp != other.regexp:
-            return cmp(self.regexp, other.regexp)
-        return cmp(self.replacement, other.replacement)
+    def __hash__(self):
+        return hash(self.__repr__())
+
+    def _equality_tuple(self):
+        return (self.order, self.preference, self.flags, self.service,
+                self.regexp, self.replacement)
 
     def __repr__(self):
         flags = self.flags if self.flags is not None else ''
@@ -997,7 +1002,7 @@ class PtrRecord(_ValueMixin, Record):
     _value_type = PtrValue
 
 
-class SshfpValue(object):
+class SshfpValue(EqualityTupleMixin):
     VALID_ALGORITHMS = (1, 2, 3, 4)
     VALID_FINGERPRINT_TYPES = (1, 2)
 
@@ -1048,12 +1053,11 @@ class SshfpValue(object):
             'fingerprint': self.fingerprint,
         }
 
-    def __cmp__(self, other):
-        if self.algorithm != other.algorithm:
-            return cmp(self.algorithm, other.algorithm)
-        elif self.fingerprint_type != other.fingerprint_type:
-            return cmp(self.fingerprint_type, other.fingerprint_type)
-        return cmp(self.fingerprint, other.fingerprint)
+    def __hash__(self):
+        return hash(self.__repr__())
+
+    def _equality_tuple(self):
+        return (self.algorithm, self.fingerprint_type, self.fingerprint)
 
     def __repr__(self):
         return "'{} {} {}'".format(self.algorithm, self.fingerprint_type,
@@ -1114,7 +1118,7 @@ class SpfRecord(_ChunkedValuesMixin, Record):
     _value_type = _ChunkedValue
 
 
-class SrvValue(object):
+class SrvValue(EqualityTupleMixin):
 
     @classmethod
     def validate(cls, data, _type):
@@ -1169,14 +1173,11 @@ class SrvValue(object):
             'target': self.target,
         }
 
-    def __cmp__(self, other):
-        if self.priority != other.priority:
-            return cmp(self.priority, other.priority)
-        elif self.weight != other.weight:
-            return cmp(self.weight, other.weight)
-        elif self.port != other.port:
-            return cmp(self.port, other.port)
-        return cmp(self.target, other.target)
+    def __hash__(self):
+        return hash(self.__repr__())
+
+    def _equality_tuple(self):
+        return (self.priority, self.weight, self.port, self.target)
 
     def __repr__(self):
         return "'{} {} {} {}'".format(self.priority, self.weight, self.port,
@@ -1189,11 +1190,11 @@ class SrvRecord(_ValuesMixin, Record):
     _name_re = re.compile(r'^_[^\.]+\.[^\.]+')
 
     @classmethod
-    def validate(cls, name, data):
+    def validate(cls, name, fqdn, data):
         reasons = []
         if not cls._name_re.match(name):
             reasons.append('invalid name')
-        reasons.extend(super(SrvRecord, cls).validate(name, data))
+        reasons.extend(super(SrvRecord, cls).validate(name, fqdn, data))
         return reasons
 
 

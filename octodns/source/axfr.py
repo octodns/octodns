@@ -15,6 +15,7 @@ from dns.exception import DNSException
 from collections import defaultdict
 from os import listdir
 from os.path import join
+from six import text_type
 import logging
 
 from ..record import Record
@@ -179,8 +180,7 @@ class ZoneFileSourceNotFound(ZoneFileSourceException):
 class ZoneFileSourceLoadFailure(ZoneFileSourceException):
 
     def __init__(self, error):
-        super(ZoneFileSourceLoadFailure, self).__init__(
-            error.message)
+        super(ZoneFileSourceLoadFailure, self).__init__(text_type(error))
 
 
 class ZoneFileSource(AxfrBaseSource):

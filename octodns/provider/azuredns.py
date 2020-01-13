@@ -175,6 +175,10 @@ class _AzureRecord(object):
 
             :type return: bool
         '''
+
+        def key_dict(d):
+            return sum([hash('{}:{}'.format(k, v)) for k, v in d.items()])
+
         def parse_dict(params):
             vals = []
             for char in params:
@@ -185,7 +189,7 @@ class _AzureRecord(object):
                             vals.append(record.__dict__)
                     except:
                         vals.append(list_records.__dict__)
-            vals.sort()
+            vals.sort(key=key_dict)
             return vals
 
         return (self.resource_group == b.resource_group) & \
@@ -373,13 +377,13 @@ class AzureProvider(BaseProvider):
         self._populate_zones()
         self._check_zone(zone_name)
 
-        _records = set()
+        _records = []
         records = self._dns_client.record_sets.list_by_dns_zone
         if self._check_zone(zone_name):
             exists = True
             for azrecord in records(self._resource_group, zone_name):
                 if _parse_azure_type(azrecord.type) in self.SUPPORTS:
-                    _records.add(azrecord)
+                    _records.append(azrecord)
             for azrecord in _records:
                 record_name = azrecord.name if azrecord.name != '@' else ''
                 typ = _parse_azure_type(azrecord.type)

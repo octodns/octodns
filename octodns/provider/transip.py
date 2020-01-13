@@ -137,7 +137,7 @@ class TransipProvider(BaseProvider):
         try:
             self._client.get_info(plan.desired.name[:-1])
         except WebFault as e:
-            self.log.warning('_apply: %s ', e.message)
+            self.log.exception('_apply: get_info failed')
             raise e
 
         _dns_entries = []
