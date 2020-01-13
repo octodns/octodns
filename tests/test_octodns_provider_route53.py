@@ -379,6 +379,15 @@ class TestRoute53Provider(TestCase):
 
         return (provider, stubber)
 
+    def _get_stubbed_private_zone_provider(self):
+        provider = Route53Provider('test', 'abc', '123', private_zones=True)
+
+        # Use the stubber
+        stubber = Stubber(provider._conn)
+        stubber.activate()
+
+        return (provider, stubber)
+
     def test_populate_with_fallback(self):
         provider, stubber = self._get_stubbed_fallback_auth_provider()
 
@@ -386,6 +395,44 @@ class TestRoute53Provider(TestCase):
         with self.assertRaises(ClientError):
             stubber.add_client_error('list_hosted_zones')
             provider.populate(got)
+
+    def test_toggle_hosted_zone_type(self):
+        list_hosted_zones_resp = {
+            "HostedZones": [{
+                "Id": "z1",
+                "Name": "private.zone.",
+                "Config": {
+                    "PrivateZone": True
+                },
+                "CallerReference": "abc",
+            }, {
+                "Id": "z2",
+                "Name": "public.zone.",
+                "Config": {
+                    "PrivateZone": False
+                },
+                "CallerReference": "def",
+            }],
+            'Marker': 'm',
+            'IsTruncated': False,
+            'MaxItems': '100',
+        }
+
+        # Only Private Hosted Zones
+        provider, stubber = self._get_stubbed_private_zone_provider()
+        stubber.add_response('list_hosted_zones', list_hosted_zones_resp,
+                             {})
+        zones = provider.r53_zones
+        self.assertEqual(list_hosted_zones_resp['HostedZones'][0]['Id'],
+                         zones['private.zone.'])
+
+        # # Only Public Hosted Zones
+        # provider, stubber = self._get_stubbed_provider()
+        # stubber.add_response('list_hosted_zones', list_hosted_zones_resp,
+        #                      {})
+        # zones = provider.r53_zones
+        # self.assertEqual(list_hosted_zones_resp['HostedZones'][1]['Id'],
+        #                  zones['public.zone.'])
 
     def test_populate(self):
         provider, stubber = self._get_stubbed_provider()
@@ -400,6 +447,9 @@ class TestRoute53Provider(TestCase):
                 'HostedZones': [{
                     'Name': 'unit.tests.',
                     'Id': 'z42',
+                    'Config': {
+                        'PrivateZone': False
+                    },
                     'CallerReference': 'abc',
                 }],
                 'Marker': 'm',
@@ -592,6 +642,9 @@ class TestRoute53Provider(TestCase):
             'HostedZones': [{
                 'Name': 'unit.tests.',
                 'Id': 'z42',
+                'Config': {
+                    'PrivateZone': False,
+                },
                 'CallerReference': 'abc',
             }],
             'Marker': 'm',
@@ -1377,6 +1430,9 @@ class TestRoute53Provider(TestCase):
             'HostedZones': [{
                 'Name': 'unit.tests.',
                 'Id': 'z42',
+                'Config': {
+                    'PrivateZone': False,
+                },
                 'CallerReference': 'abc',
             }],
             'Marker': 'm',
@@ -1416,6 +1472,9 @@ class TestRoute53Provider(TestCase):
             'HostedZones': [{
                 'Name': 'unit.tests.',
                 'Id': 'z42',
+                'Config': {
+                    'PrivateZone': False,
+                },
                 'CallerReference': 'abc',
             }],
             'Marker': 'm',
@@ -1464,6 +1523,9 @@ class TestRoute53Provider(TestCase):
             'HostedZones': [{
                 'Name': 'unit.tests.',
                 'Id': 'z42',
+                'Config': {
+                    'PrivateZone': False,
+                },
                 'CallerReference': 'abc',
             }],
             'Marker': 'm',
@@ -1537,6 +1599,9 @@ class TestRoute53Provider(TestCase):
             'HostedZones': [{
                 'Name': 'unit.tests.',
                 'Id': 'z42',
+                'Config': {
+                    'PrivateZone': False,
+                },
                 'CallerReference': 'abc',
             }],
             'Marker': 'm',
@@ -1644,6 +1709,9 @@ class TestRoute53Provider(TestCase):
             'HostedZones': [{
                 'Name': 'unit.tests.',
                 'Id': 'z42',
+                'Config': {
+                    'PrivateZone': False
+                },
                 'CallerReference': 'abc',
             }],
             'Marker': 'm',
