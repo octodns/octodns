@@ -15,4 +15,4 @@ if [ ! -f "$ACTIVATE" ]; then
 fi
 . "$ACTIVATE"
 
-flake8 . --count --ignore=E241,E722,W504 --max-complexity=35 --max-line-length=88 --statistics
+flake8 . --count --exclude=./.*,./env --ignore=E241,E722,W504 --max-complexity=35 --max-line-length=88 --statistics
