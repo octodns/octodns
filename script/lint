@@ -15,8 +15,4 @@ if [ ! -f "$ACTIVATE" ]; then
 fi
 . "$ACTIVATE"
 
-SOURCES="*.py octodns/*.py octodns/*/*.py tests/*.py"
-
-pycodestyle --ignore=E221,E241,E251,E722,W504 $SOURCES
-pyflakes $SOURCES
-flake8 . --count --exclude=./env/* --select=E9,F63,F7,F82 --show-source --statistics
+flake8 . --count --ignore=E241,E722,W504 --max-complexity=35 --max-line-length=88 --statistics
