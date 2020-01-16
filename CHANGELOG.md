@@ -41,7 +41,7 @@
 
 * AkamaiProvider, ConstellixProvider, MythicBeastsProvider, SelectelProvider,
   &amp; TransipPovider providers added
-* Route53Provider seperator fix
+* Route53Provider separator fix
 * YamlProvider export error around stringification
 * PyPi markdown rendering fix
 
@@ -114,7 +114,7 @@
 
 Using this version on existing records with `geo` will result in
 recreating all health checks. This process has been tested pretty thoroughly to
-try and ensure a seemless upgrade without any traffic shifting around. It's
+try and ensure a seamless upgrade without any traffic shifting around. It's
 probably best to take extra care when updating and to try and make sure that
 all health checks are passing before the first sync with `--doit`. See
 [#67](https://github.com/github/octodns/pull/67) for more information.

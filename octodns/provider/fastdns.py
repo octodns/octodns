@@ -151,9 +151,9 @@ class AkamaiProvider(BaseProvider):
         and then set appropriate Access level (Read-Write to make changes).
         Then select the "New Credential" button to generate values for above
 
-        The contract_id paramater is optional, and only required for creating
+        The contract_id parameter is optional, and only required for creating
         a new zone. If the zone being managed already exists in Akamai for the
-        user in question, then this paramater is not needed.
+        user in question, then this parameter is not needed.
 
     '''
 

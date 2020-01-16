@@ -2127,7 +2127,7 @@ class TestRoute53Records(TestCase):
             'value': 'Not Important',
         })
 
-        # We don't really have to test the details fo chunked_value as that's
+        # We don't really have to test the details of chunked_value as that's
         # tested elsewhere, we just need to make sure that it's plumbed up and
         # working
         self.assertEquals('"Not Important"', route53_record

@@ -1217,7 +1217,7 @@ class TestRecordValidation(TestCase):
     zone = Zone('unit.tests.', [])
 
     def test_base(self):
-        # fqdn length, DNS defins max as 253
+        # fqdn length, DNS defines max as 253
         with self.assertRaises(ValidationError) as ctx:
             # The . will put this over the edge
             name = 'x' * (253 - len(self.zone.name))
@@ -1231,7 +1231,7 @@ class TestRecordValidation(TestCase):
         self.assertTrue(reason.endswith('.unit.tests." is too long at 254'
                                         ' chars, max is 253'))
 
-        # label length, DNS defins max as 63
+        # label length, DNS defines max as 63
         with self.assertRaises(ValidationError) as ctx:
             # The . will put this over the edge
             name = 'x' * 64
@@ -2740,7 +2740,7 @@ class TestDynamicRecords(TestCase):
         self.assertEquals(['pool "one" is missing values'],
                           ctx.exception.reasons)
 
-        # pool valu not a dict
+        # pool value not a dict
         a_data = {
             'dynamic': {
                 'pools': {

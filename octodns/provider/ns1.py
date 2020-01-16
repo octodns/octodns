@@ -261,7 +261,7 @@ class Ns1Provider(BaseProvider):
             if meta:
                 # country + state and country + province are allowed
                 # in that case though, supplying a state/province would
-                # be redundant since the country would supercede in when
+                # be redundant since the country would supersede in when
                 # resolving the record.  it is syntactically valid, however.
                 country = meta.get('country', [])
                 us_state = meta.get('us_state', [])
@@ -346,7 +346,7 @@ class Ns1Provider(BaseProvider):
             for georegion in meta.get('georegion', []):
                 geos.add(self._REGION_TO_CONTINENT[georegion])
 
-            # Countries are easy enough to map, we just have ot find their
+            # Countries are easy enough to map, we just have to find their
             # continent
             for country in meta.get('country', []):
                 con = country_alpha2_to_continent_code(country)
@@ -937,7 +937,7 @@ class Ns1Provider(BaseProvider):
                 expected = self._monitor_gen(record, value)
                 # TODO: find values which have missing monitors
                 if not self._monitor_is_match(expected, have):
-                    self.log.info('_extra_changes: monitor mis-match for %s',
+                    self.log.info('_extra_changes: monitor mismatch for %s',
                                   expected['name'])
                     extra.append(Update(record, record))
                     break

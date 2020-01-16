@@ -34,7 +34,7 @@ class BaseSource(object):
         When `lenient` is True the populate call may skip record validation and
         do a "best effort" load of data. That will allow through some common,
         but not best practices stuff that we otherwise would reject. E.g. no
-        trailing . or mising escapes for ;.
+        trailing . or missing escapes for ;.
 
         When target is True (loading current state) this method should return
         True if the zone exists or False if it does not.
