@@ -1,3 +1,11 @@
+## v0.9.10 - ????-??-?? - ???
+
+* Added support for dynamic records to Ns1Provider, updated client and rate
+  limiting implementation
+* Moved CI to use GitHub Actions
+* Set up dependabot to automatically PR requirements updates
+* Pass at bumping all of the requirements
+
 ## v0.9.9 - 2019-11-04 - Python 3.7 Support
 
 * Extensive pass through the whole codebase to support Python 3
