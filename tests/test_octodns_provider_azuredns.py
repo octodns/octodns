@@ -321,7 +321,7 @@ class Test_ParseAzureType(TestCase):
                                ['AAAA', 'Microsoft.Network/dnszones/AAAA'],
                                ['NS', 'Microsoft.Network/dnszones/NS'],
                                ['MX', 'Microsoft.Network/dnszones/MX']]:
-                self.assertEquals(expected, _parse_azure_type(test))
+            self.assertEquals(expected, _parse_azure_type(test))
 
 
 class Test_CheckEndswithDot(TestCase):
