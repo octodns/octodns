@@ -174,30 +174,30 @@ The above command pulled the existing data out of Route53 and placed the results
 
 ## Supported providers
 
-| Provider | Requirements | Record Support | Dynamic/Geo Support | Root NS Support | Notes |
-|--|--|--|--|--|--|
-| [AzureProvider](/octodns/provider/azuredns.py) | azure-mgmt-dns | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | No | No |  |
-| [Akamai](/octodns/provider/fastdns.py) | edgegrid-python | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | No |  |
-| [CloudflareProvider](/octodns/provider/cloudflare.py) |  | A, AAAA, ALIAS, CAA, CNAME, MX, NS, SPF, SRV, TXT | No | No | CAA tags restricted |
-| [ConstellixProvider](/octodns/provider/constellix.py) |  | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | No | CAA tags restricted |
-| [DigitalOceanProvider](/octodns/provider/digitalocean.py) |  | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | No | CAA tags restricted |
-| [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) |  | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | No | CAA tags restricted |
-| [DnsimpleProvider](/octodns/provider/dnsimple.py) |  | All | No | No | CAA tags restricted |
-| [DynProvider](/octodns/provider/dyn.py) | dyn | All | Both | No |  |
-| [EtcHostsProvider](/octodns/provider/etc_hosts.py) |  | A, AAAA, ALIAS, CNAME | No | No |  |
-| [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | No | No |  |
-| [MythicBeastsProvider](/octodns/provider/mythicbeasts.py) | Mythic Beasts | A, AAAA, ALIAS, CNAME, MX, NS, SRV, SSHFP, CAA, TXT | No | No |  |
-| [Ns1Provider](/octodns/provider/ns1.py) | ns1-python | All | Partial Geo | Yes | No health checking for GeoDNS |
-| [OVH](/octodns/provider/ovh.py) | ovh | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | No |  |
-| [PowerDnsProvider](/octodns/provider/powerdns.py) |  | All | No | Yes |  |
-| [Rackspace](/octodns/provider/rackspace.py) |  | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No | No |  |
+| Provider | Requirements | Record Support | Dynamic | Root NS Support | Notes |
+|--|--|--|--|--|
+| [AzureProvider](/octodns/provider/azuredns.py) | azure-mgmt-dns | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | No | No | |
+| [Akamai](/octodns/provider/fastdns.py) | edgegrid-python | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | No | |
+| [CloudflareProvider](/octodns/provider/cloudflare.py) | | A, AAAA, ALIAS, CAA, CNAME, MX, NS, SPF, SRV, TXT | No | No | CAA tags restricted |
+| [ConstellixProvider](/octodns/provider/constellix.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | No | CAA tags restricted |
+| [DigitalOceanProvider](/octodns/provider/digitalocean.py) | | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | No | CAA tags restricted |
+| [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | No | CAA tags restricted |
+| [DnsimpleProvider](/octodns/provider/dnsimple.py) | | All | No | No | CAA tags restricted |
+| [DynProvider](/octodns/provider/dyn.py) | dyn | All | Both | No | |
+| [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | A, AAAA, ALIAS, CNAME | No | No | |
+| [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | No | |
+| [MythicBeastsProvider](/octodns/provider/mythicbeasts.py) | Mythic Beasts | A, AAAA, ALIAS, CNAME, MX, NS, SRV, SSHFP, CAA, TXT | No | No | |
+| [Ns1Provider](/octodns/provider/ns1.py) | ns1-python | All | Yes | No | No CNAME support, missing `NA` geo target |
+| [OVH](/octodns/provider/ovh.py) | ovh | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | No | |
+| [PowerDnsProvider](/octodns/provider/powerdns.py) | | All | No | Yes | |
+| [Rackspace](/octodns/provider/rackspace.py) | | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No | No |  |
 | [Route53](/octodns/provider/route53.py) | boto3 | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Both | Yes | CNAME health checks don't support a Host header |
-| [Selectel](/octodns/provider/selectel.py) |  | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | No |  |
-| [Transip](/octodns/provider/transip.py) | transip | A, AAAA, CNAME, MX, SRV, SPF, TXT, SSHFP, CAA | No | No |  |
-| [AxfrSource](/octodns/source/axfr.py) |  | A, AAAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | Yes | read-only |
-| [ZoneFileSource](/octodns/source/axfr.py) |  | A, AAAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | Yes | read-only |
-| [TinyDnsFileSource](/octodns/source/tinydns.py) |  | A, CNAME, MX, NS, PTR | No | Yes | read-only |
-| [YamlProvider](/octodns/provider/yaml.py) |  | All | Yes | Yes | config |
+| [Selectel](/octodns/provider/selectel.py) | | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | No | |
+| [Transip](/octodns/provider/transip.py) | transip | A, AAAA, CNAME, MX, SRV, SPF, TXT, SSHFP, CAA | No | No | |
+| [AxfrSource](/octodns/source/axfr.py) | | A, AAAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | Yes | read-only |
+| [ZoneFileSource](/octodns/source/axfr.py) | | A, AAAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | Yes | read-only |
+| [TinyDnsFileSource](/octodns/source/tinydns.py) | | A, CNAME, MX, NS, PTR | No | Yes | read-only |
+| [YamlProvider](/octodns/provider/yaml.py) | | All | Yes | Yes | config |
 
 #### Notes
 

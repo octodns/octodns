@@ -375,7 +375,7 @@ class DnsMadeEasyProvider(BaseProvider):
         for record in self.zone_records(zone):
             if existing.name == record['name'] and \
                existing._type == record['type']:
-                    self._client.record_delete(zone.name, record['id'])
+                self._client.record_delete(zone.name, record['id'])
 
     def _apply(self, plan):
         desired = plan.desired
