@@ -264,7 +264,8 @@ class OvhProvider(BaseProvider):
     def _params_for_CAA(record):
         for value in record.values:
             yield {
-                'target': '%d %s "%s"' % (value.flags, value.tag, value.value),
+                'target': '{} {} "{}"'.format(value.flags, value.tag,
+                                              value.value),
                 'subDomain': record.name,
                 'ttl': record.ttl,
                 'fieldType': record._type
