@@ -370,6 +370,16 @@ class TestRoute53Provider(TestCase):
 
         return (provider, stubber)
 
+    def _get_stubbed_delegation_set_provider(self):
+        provider = Route53Provider('test', 'abc', '123',
+                                   delegation_set_id="ABCDEFG123456")
+
+        # Use the stubber
+        stubber = Stubber(provider._conn)
+        stubber.activate()
+
+        return (provider, stubber)
+
     def _get_stubbed_fallback_auth_provider(self):
         provider = Route53Provider('test')
 
@@ -874,6 +884,92 @@ class TestRoute53Provider(TestCase):
                              create_hosted_zone_resp, {
                                  'Name': got.name,
                                  'CallerReference': ANY,
+                             })
+
+        list_resource_record_sets_resp = {
+            'ResourceRecordSets': [{
+                'Name': 'a.unit.tests.',
+                'Type': 'A',
+                'GeoLocation': {
+                    'ContinentCode': 'NA',
+                },
+                'ResourceRecords': [{
+                    'Value': '2.2.3.4',
+                }],
+                'TTL': 61,
+            }],
+            'IsTruncated': False,
+            'MaxItems': '100',
+        }
+        stubber.add_response('list_resource_record_sets',
+                             list_resource_record_sets_resp,
+                             {'HostedZoneId': 'z42'})
+
+        stubber.add_response('list_health_checks',
+                             {
+                                 'HealthChecks': self.health_checks,
+                                 'IsTruncated': False,
+                                 'MaxItems': '100',
+                                 'Marker': '',
+                             })
+
+        stubber.add_response('change_resource_record_sets',
+                             {'ChangeInfo': {
+                                 'Id': 'id',
+                                 'Status': 'PENDING',
+                                 'SubmittedAt': '2017-01-29T01:02:03Z',
+                             }}, {'HostedZoneId': 'z42', 'ChangeBatch': ANY})
+
+        self.assertEquals(9, provider.apply(plan))
+        stubber.assert_no_pending_responses()
+
+    def test_sync_create_with_delegation_set(self):
+        provider, stubber = self._get_stubbed_delegation_set_provider()
+
+        got = Zone('unit.tests.', [])
+
+        list_hosted_zones_resp = {
+            'HostedZones': [],
+            'Marker': 'm',
+            'IsTruncated': False,
+            'MaxItems': '100',
+        }
+        stubber.add_response('list_hosted_zones', list_hosted_zones_resp,
+                             {})
+
+        plan = provider.plan(self.expected)
+        self.assertEquals(9, len(plan.changes))
+        self.assertFalse(plan.exists)
+        for change in plan.changes:
+            self.assertIsInstance(change, Create)
+        stubber.assert_no_pending_responses()
+
+        create_hosted_zone_resp = {
+            'HostedZone': {
+                'Name': 'unit.tests.',
+                'Id': 'z42',
+                'CallerReference': 'abc',
+            },
+            'ChangeInfo': {
+                'Id': 'a12',
+                'Status': 'PENDING',
+                'SubmittedAt': '2017-01-29T01:02:03Z',
+                'Comment': 'hrm',
+            },
+            'DelegationSet': {
+                'Id': 'b23',
+                'CallerReference': 'blip',
+                'NameServers': [
+                    'n12.unit.tests.',
+                ],
+            },
+            'Location': 'us-east-1',
+        }
+        stubber.add_response('create_hosted_zone',
+                             create_hosted_zone_resp, {
+                                 'Name': got.name,
+                                 'CallerReference': ANY,
+                                 'DelegationSetId': 'ABCDEFG123456'
                              })
 
         list_resource_record_sets_resp = {
@@ -1930,9 +2026,8 @@ class TestRoute53Provider(TestCase):
         provider = Route53Provider('test', 'abc', '123',
                                    client_max_attempts=42)
         # NOTE: this will break if boto ever changes the impl details...
-        self.assertEquals(43, provider._conn.meta.events
-                          ._unique_id_handlers['retry-config-route53']
-                          ['handler']._checker.__dict__['_max_attempts'])
+        self.assertEquals(42, provider._conn._client_config
+                          .retries['max_attempts'])
 
     def test_data_for_dynamic(self):
         provider = Route53Provider('test', 'abc', '123')

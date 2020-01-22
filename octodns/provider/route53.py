@@ -618,8 +618,9 @@ class Route53Provider(BaseProvider):
 
     def __init__(self, id, access_key_id=None, secret_access_key=None,
                  max_changes=1000, client_max_attempts=None,
-                 session_token=None, *args, **kwargs):
+                 session_token=None, delegation_set_id=None, *args, **kwargs):
         self.max_changes = max_changes
+        self.delegation_set_id = delegation_set_id
         _msg = 'access_key_id={}, secret_access_key=***, ' \
                'session_token=***'.format(access_key_id)
         use_fallback_auth = access_key_id is None and \
@@ -674,10 +675,16 @@ class Route53Provider(BaseProvider):
             return id
         if create:
             ref = uuid4().hex
+            del_set = self.delegation_set_id
             self.log.debug('_get_zone_id:   no matching zone, creating, '
                            'ref=%s', ref)
-            resp = self._conn.create_hosted_zone(Name=name,
-                                                 CallerReference=ref)
+            if del_set:
+                resp = self._conn.create_hosted_zone(Name=name,
+                                                     CallerReference=ref,
+                                                     DelegationSetId=del_set)
+            else:
+                resp = self._conn.create_hosted_zone(Name=name,
+                                                     CallerReference=ref)
             self.r53_zones[name] = id = resp['HostedZone']['Id']
             return id
         return None
