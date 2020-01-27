@@ -1199,47 +1199,47 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertFalse(extra)
         monitors_for_mock.assert_not_called()
 
+    DESIRED = Zone('unit.tests.', [])
+
+    SIMPLE = Record.new(DESIRED, 'sim', {
+        'ttl': 33,
+        'type': 'A',
+        'value': '1.2.3.4',
+    })
+
+    # Dynamic record, inspectable
+    DYNAMIC = Record.new(DESIRED, 'dyn', {
+        'dynamic': {
+            'pools': {
+                'iad': {
+                    'values': [{
+                        'value': '1.2.3.4',
+                    }],
+                },
+            },
+            'rules': [{
+                'pool': 'iad',
+            }],
+        },
+        'octodns': {
+            'healthcheck': {
+                'host': 'send.me',
+                'path': '/_ping',
+                'port': 80,
+                'protocol': 'HTTP',
+            }
+        },
+        'ttl': 32,
+        'type': 'A',
+        'value': '1.2.3.4',
+        'meta': {},
+    })
+
     def test_has_dynamic(self):
         provider = Ns1Provider('test', 'api-key')
 
-        desired = Zone('unit.tests.', [])
-
-        simple = Record.new(desired, 'sim', {
-            'ttl': 33,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
-
-        # Dynamic record, inspectable
-        dynamic = Record.new(desired, 'dyn', {
-            'dynamic': {
-                'pools': {
-                    'iad': {
-                        'values': [{
-                            'value': '1.2.3.4',
-                        }],
-                    },
-                },
-                'rules': [{
-                    'pool': 'iad',
-                }],
-            },
-            'octodns': {
-                'healthcheck': {
-                    'host': 'send.me',
-                    'path': '/_ping',
-                    'port': 80,
-                    'protocol': 'HTTP',
-                }
-            },
-            'ttl': 32,
-            'type': 'A',
-            'value': '1.2.3.4',
-            'meta': {},
-        })
-
-        simple_update = Update(simple, simple)
-        dynamic_update = Update(dynamic, dynamic)
+        simple_update = Update(self.SIMPLE, self.SIMPLE)
+        dynamic_update = Update(self.DYNAMIC, self.DYNAMIC)
 
         self.assertFalse(provider._has_dynamic([simple_update]))
         self.assertTrue(provider._has_dynamic([dynamic_update]))
@@ -1251,48 +1251,14 @@ class TestNs1ProviderDynamic(TestCase):
                                    zones_retrieve_mock):
         provider = Ns1Provider('test', 'api-key')
 
-        desired = Zone('unit.tests.', [])
-
-        simple = Record.new(desired, 'sim', {
-            'ttl': 33,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
-
-        # Dynamic record, inspectable
-        dynamic = Record.new(desired, 'dyn', {
-            'dynamic': {
-                'pools': {
-                    'iad': {
-                        'values': [{
-                            'value': '1.2.3.4',
-                        }],
-                    },
-                },
-                'rules': [{
-                    'pool': 'iad',
-                }],
-            },
-            'octodns': {
-                'healthcheck': {
-                    'host': 'send.me',
-                    'path': '/_ping',
-                    'port': 80,
-                    'protocol': 'HTTP',
-                }
-            },
-            'ttl': 32,
-            'type': 'A',
-            'value': '1.2.3.4',
-            'meta': {},
-        })
-
-        simple_update = Update(simple, simple)
-        simple_plan = Plan(desired, desired, [simple_update], True)
-        dynamic_update = Update(dynamic, dynamic)
-        dynamic_plan = Plan(desired, desired, [dynamic_update], True)
-        both_plan = Plan(desired, desired, [simple_update, dynamic_update],
-                         True)
+        simple_update = Update(self.SIMPLE, self.SIMPLE)
+        simple_plan = Plan(self.DESIRED, self.DESIRED, [simple_update], True)
+        dynamic_update = Update(self.DYNAMIC, self.DYNAMIC)
+        dynamic_update = Update(self.DYNAMIC, self.DYNAMIC)
+        dynamic_plan = Plan(self.DESIRED, self.DESIRED, [dynamic_update],
+                            True)
+        both_plan = Plan(self.DESIRED, self.DESIRED, [simple_update,
+                                                      dynamic_update], True)
 
         # always return foo, we aren't testing this part here
         zones_retrieve_mock.side_effect = [
