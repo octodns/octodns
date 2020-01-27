@@ -14,6 +14,7 @@ from unittest import TestCase
 
 from octodns.record import Delete, Record, Update
 from octodns.provider.ns1 import Ns1Client, Ns1Exception, Ns1Provider
+from octodns.provider.plan import Plan
 from octodns.zone import Zone
 
 
@@ -1197,6 +1198,104 @@ class TestNs1ProviderDynamic(TestCase):
         extra = provider._extra_changes(desired, [update])
         self.assertFalse(extra)
         monitors_for_mock.assert_not_called()
+
+    DESIRED = Zone('unit.tests.', [])
+
+    SIMPLE = Record.new(DESIRED, 'sim', {
+        'ttl': 33,
+        'type': 'A',
+        'value': '1.2.3.4',
+    })
+
+    # Dynamic record, inspectable
+    DYNAMIC = Record.new(DESIRED, 'dyn', {
+        'dynamic': {
+            'pools': {
+                'iad': {
+                    'values': [{
+                        'value': '1.2.3.4',
+                    }],
+                },
+            },
+            'rules': [{
+                'pool': 'iad',
+            }],
+        },
+        'octodns': {
+            'healthcheck': {
+                'host': 'send.me',
+                'path': '/_ping',
+                'port': 80,
+                'protocol': 'HTTP',
+            }
+        },
+        'ttl': 32,
+        'type': 'A',
+        'value': '1.2.3.4',
+        'meta': {},
+    })
+
+    def test_has_dynamic(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        simple_update = Update(self.SIMPLE, self.SIMPLE)
+        dynamic_update = Update(self.DYNAMIC, self.DYNAMIC)
+
+        self.assertFalse(provider._has_dynamic([simple_update]))
+        self.assertTrue(provider._has_dynamic([dynamic_update]))
+        self.assertTrue(provider._has_dynamic([simple_update, dynamic_update]))
+
+    @patch('octodns.provider.ns1.Ns1Client.zones_retrieve')
+    @patch('octodns.provider.ns1.Ns1Provider._apply_Update')
+    def test_apply_monitor_regions(self, apply_update_mock,
+                                   zones_retrieve_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        simple_update = Update(self.SIMPLE, self.SIMPLE)
+        simple_plan = Plan(self.DESIRED, self.DESIRED, [simple_update], True)
+        dynamic_update = Update(self.DYNAMIC, self.DYNAMIC)
+        dynamic_update = Update(self.DYNAMIC, self.DYNAMIC)
+        dynamic_plan = Plan(self.DESIRED, self.DESIRED, [dynamic_update],
+                            True)
+        both_plan = Plan(self.DESIRED, self.DESIRED, [simple_update,
+                                                      dynamic_update], True)
+
+        # always return foo, we aren't testing this part here
+        zones_retrieve_mock.side_effect = [
+            'foo',
+            'foo',
+            'foo',
+            'foo',
+        ]
+
+        # Doesn't blow up, and calls apply once
+        apply_update_mock.reset_mock()
+        provider._apply(simple_plan)
+        apply_update_mock.assert_has_calls([call('foo', simple_update)])
+
+        # Blows up and apply not called
+        apply_update_mock.reset_mock()
+        with self.assertRaises(Ns1Exception) as ctx:
+            provider._apply(dynamic_plan)
+        self.assertTrue('monitor_regions not set' in text_type(ctx.exception))
+        apply_update_mock.assert_not_called()
+
+        # Blows up and apply not called even though there's a simple
+        apply_update_mock.reset_mock()
+        with self.assertRaises(Ns1Exception) as ctx:
+            provider._apply(both_plan)
+        self.assertTrue('monitor_regions not set' in text_type(ctx.exception))
+        apply_update_mock.assert_not_called()
+
+        # with monitor_regions set
+        provider.monitor_regions = ['lga']
+
+        apply_update_mock.reset_mock()
+        provider._apply(both_plan)
+        apply_update_mock.assert_has_calls([
+            call('foo', dynamic_update),
+            call('foo', simple_update),
+        ])
 
 
 class TestNs1Client(TestCase):

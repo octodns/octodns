@@ -175,6 +175,9 @@ class Ns1Provider(BaseProvider):
     ns1:
         class: octodns.provider.ns1.Ns1Provider
         api_key: env/NS1_API_KEY
+        # Only required if using dynamic records
+        monitor_regions:
+          - lga
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
@@ -224,11 +227,13 @@ class Ns1Provider(BaseProvider):
         'NA': ('US-CENTRAL', 'US-EAST', 'US-WEST'),
     }
 
-    def __init__(self, id, api_key, retry_count=4, *args, **kwargs):
+    def __init__(self, id, api_key, retry_count=4, monitor_regions=None, *args,
+                 **kwargs):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
-        self.log.debug('__init__: id=%s, api_key=***, retry_count=%d', id,
-                       retry_count)
+        self.log.debug('__init__: id=%s, api_key=***, retry_count=%d, '
+                       'monitor_regions=%s', id, retry_count, monitor_regions)
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
+        self.monitor_regions = monitor_regions
 
         self._client = Ns1Client(api_key, retry_count)
 
@@ -679,8 +684,7 @@ class Ns1Provider(BaseProvider):
             'policy': 'quorum',
             'rapid_recheck': False,
             'region_scope': 'fixed',
-            # TODO: what should we do here dal, sjc, lga, sin, ams
-            'regions': ['lga'],
+            'regions': self.monitor_regions,
             'rules': [{
                 'comparison': 'contains',
                 'key': 'output',
@@ -977,11 +981,24 @@ class Ns1Provider(BaseProvider):
         self._client.records_delete(zone, domain, _type)
         self._monitors_gc(existing)
 
+    def _has_dynamic(self, changes):
+        for change in changes:
+            if getattr(change.record, 'dynamic', False):
+                return True
+
+        return False
+
     def _apply(self, plan):
         desired = plan.desired
         changes = plan.changes
         self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
                        len(changes))
+
+        # Make sure that if we're going to make any dynamic changes that we
+        # have monitor_regions configured before touching anything so we can
+        # abort early and not half-apply
+        if self._has_dynamic(changes) and self.monitor_regions is None:
+            raise Ns1Exception('Monitored record, but monitor_regions not set')
 
         domain_name = desired.name[:-1]
         try:
