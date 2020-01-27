@@ -279,6 +279,24 @@ class TestOvhProvider(TestCase):
         'id': 18
     })
 
+    # CAA
+    api_record.append({
+        'fieldType': 'CAA',
+        'ttl': 1600,
+        'target': '0 issue "ca.unit.tests"',
+        'subDomain': 'caa',
+        'id': 19
+    })
+    expected.add(Record.new(zone, 'caa', {
+        'ttl': 1600,
+        'type': 'CAA',
+        'values': [{
+            'flags': 0,
+            'tag': 'issue',
+            'value': 'ca.unit.tests'
+        }]
+    }))
+
     valid_dkim = [valid_dkim_key,
                   'v=DKIM1 \\; %s' % valid_dkim_key,
                   'h=sha256 \\; %s' % valid_dkim_key,
@@ -404,6 +422,9 @@ class TestOvhProvider(TestCase):
                     call('/domain/zone/unit.tests/record', fieldType='SRV',
                          subDomain='_srv._tcp',
                          target='40 50 60 foo-2.unit.tests.', ttl=800),
+                    call('/domain/zone/unit.tests/record', fieldType='CAA',
+                         subDomain='caa', target='0 issue "ca.unit.tests"',
+                         ttl=1600),
                     call('/domain/zone/unit.tests/record', fieldType='DKIM',
                          subDomain='dkim',
                          target='p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCxLaG'
