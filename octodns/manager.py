@@ -99,7 +99,7 @@ class Manager(object):
 
         self.include_meta = include_meta or manager_config.get('include_meta',
                                                                False)
-        self.log.info('__init__:   max_workers=%s', self.include_meta)
+        self.log.info('__init__:   include_meta=%s', self.include_meta)
 
         self.log.debug('__init__:   configuring providers')
         self.providers = {}
