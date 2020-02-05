@@ -82,7 +82,7 @@ class CloudflareProvider(BaseProvider):
             # https://api.cloudflare.com/#getting-started-requests
             # https://tools.ietf.org/html/rfc6750#section-2.1
             sess.headers.update({
-                'Authorization': 'Bearer %s'.format(token),
+                'Authorization': 'Bearer {}'.format(token),
             })
         self.cdn = cdn
         self._sess = sess
