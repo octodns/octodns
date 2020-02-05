@@ -10,15 +10,14 @@ from mock import Mock, call
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
+from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record
-from octodns.provider.constellix import ConstellixClientNotFound, \
+from octodns.provider.constellix import \
     ConstellixProvider
 from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
-
-import json
 
 
 class TestConstellixProvider(TestCase):
@@ -65,7 +64,7 @@ class TestConstellixProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            self.assertEquals('Unauthorized', ctx.exception.message)
+            self.assertEquals('Unauthorized', text_type(ctx.exception))
 
         # Bad request
         with requests_mock() as mock:
@@ -77,7 +76,7 @@ class TestConstellixProvider(TestCase):
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
             self.assertEquals('\n  - "unittests" is not a valid domain name',
-                              ctx.exception.message)
+                              text_type(ctx.exception))
 
         # General error
         with requests_mock() as mock:
@@ -101,7 +100,7 @@ class TestConstellixProvider(TestCase):
         with requests_mock() as mock:
             base = 'https://api.dns.constellix.com/v1/domains'
             with open('tests/fixtures/constellix-domains.json') as fh:
-                mock.get('{}{}'.format(base, '/'), text=fh.read())
+                mock.get('{}{}'.format(base, ''), text=fh.read())
             with open('tests/fixtures/constellix-records.json') as fh:
                 mock.get('{}{}'.format(base, '/123123/records'),
                          text=fh.read())
@@ -127,15 +126,15 @@ class TestConstellixProvider(TestCase):
         resp.json = Mock()
         provider._client._request = Mock(return_value=resp)
 
-        with open('tests/fixtures/constellix-domains.json') as fh:
-            domains = json.load(fh)
-
         # non-existent domain, create everything
         resp.json.side_effect = [
-            ConstellixClientNotFound,  # no zone in populate
-            ConstellixClientNotFound,  # no domain during apply
-            domains
+            [],  # no domains returned during populate
+            [{
+                'id': 123123,
+                'name': 'unit.tests'
+            }],  # domain created in apply
         ]
+
         plan = provider.plan(self.expected)
 
         # No root NS, no ignored, no excluded, no unsupported
@@ -144,10 +143,15 @@ class TestConstellixProvider(TestCase):
         self.assertEquals(n, provider.apply(plan))
 
         provider._client._request.assert_has_calls([
-            # created the domain
-            call('POST', '/', data={'names': ['unit.tests']}),
             # get all domains to build the cache
-            call('GET', '/'),
+            call('GET', ''),
+            # created the domain
+            call('POST', '/', data={'names': ['unit.tests']})
+        ])
+        # These two checks are broken up so that ordering doesn't break things.
+        # Python3 doesn't make the calls in a consistent order so different
+        # things follow the GET / on different runs
+        provider._client._request.assert_has_calls([
             call('POST', '/123123/records/SRV', data={
                 'roundRobin': [{
                     'priority': 10,
@@ -165,7 +169,7 @@ class TestConstellixProvider(TestCase):
             }),
         ])
 
-        self.assertEquals(20, provider._client._request.call_count)
+        self.assertEquals(18, provider._client._request.call_count)
 
         provider._client._request.reset_mock()
 
@@ -187,6 +191,14 @@ class TestConstellixProvider(TestCase):
                 'value': [
                     '3.2.3.4'
                 ]
+            },  {
+                'id': 11189899,
+                'type': 'ALIAS',
+                'name': 'alias',
+                'ttl': 600,
+                'value': [{
+                    'value': 'aname.unit.tests.'
+                }]
             }
         ])
 
@@ -201,8 +213,8 @@ class TestConstellixProvider(TestCase):
         }))
 
         plan = provider.plan(wanted)
-        self.assertEquals(2, len(plan.changes))
-        self.assertEquals(2, provider.apply(plan))
+        self.assertEquals(3, len(plan.changes))
+        self.assertEquals(3, provider.apply(plan))
 
         # recreate for update, and deletes for the 2 parts of the other
         provider._client._request.assert_has_calls([
@@ -214,5 +226,6 @@ class TestConstellixProvider(TestCase):
                 'ttl': 300
             }),
             call('DELETE', '/123123/records/A/11189897'),
-            call('DELETE', '/123123/records/A/11189898')
+            call('DELETE', '/123123/records/A/11189898'),
+            call('DELETE', '/123123/records/ANAME/11189899')
         ], any_order=True)

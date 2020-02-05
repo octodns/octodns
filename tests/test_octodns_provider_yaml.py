@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 from os import makedirs
 from os.path import basename, dirname, isdir, isfile, join
 from unittest import TestCase
+from six import text_type
 from yaml import safe_load
 from yaml.constructor import ConstructorError
 
@@ -57,8 +58,8 @@ class TestYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(15, len(filter(lambda c: isinstance(c, Create),
-                                             plan.changes)))
+            self.assertEquals(15, len([c for c in plan.changes
+                                       if isinstance(c, Create)]))
             self.assertFalse(isfile(yaml_file))
 
             # Now actually do it
@@ -67,8 +68,8 @@ class TestYamlProvider(TestCase):
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
-            self.assertEquals(5, len(filter(lambda c: isinstance(c, Create),
-                                            plan.changes)))
+            self.assertEquals(5, len([c for c in plan.changes
+                                      if isinstance(c, Create)]))
             self.assertFalse(isfile(dynamic_yaml_file))
             # Apply it
             self.assertEquals(5, target.apply(plan))
@@ -79,16 +80,15 @@ class TestYamlProvider(TestCase):
             target.populate(reloaded)
             self.assertDictEqual(
                 {'included': ['test']},
-                filter(
-                    lambda x: x.name == 'included', reloaded.records
-                )[0]._octodns)
+                [x for x in reloaded.records
+                 if x.name == 'included'][0]._octodns)
 
             self.assertFalse(zone.changes(reloaded, target=source))
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(15, len(filter(lambda c: isinstance(c, Create),
-                                             plan.changes)))
+            self.assertEquals(15, len([c for c in plan.changes
+                                       if isinstance(c, Create)]))
 
             with open(yaml_file) as fh:
                 data = safe_load(fh.read())
@@ -116,7 +116,7 @@ class TestYamlProvider(TestCase):
                 self.assertTrue('value' in data.pop('www.sub'))
 
                 # make sure nothing is left
-                self.assertEquals([], data.keys())
+                self.assertEquals([], list(data.keys()))
 
             with open(dynamic_yaml_file) as fh:
                 data = safe_load(fh.read())
@@ -145,7 +145,7 @@ class TestYamlProvider(TestCase):
                 # self.assertTrue('dynamic' in dyna)
 
                 # make sure nothing is left
-                self.assertEquals([], data.keys())
+                self.assertEquals([], list(data.keys()))
 
     def test_empty(self):
         source = YamlProvider('test', join(dirname(__file__), 'config'))
@@ -178,7 +178,7 @@ class TestYamlProvider(TestCase):
         with self.assertRaises(SubzoneRecordException) as ctx:
             source.populate(zone)
         self.assertEquals('Record www.sub.unit.tests. is under a managed '
-                          'subzone', ctx.exception.message)
+                          'subzone', text_type(ctx.exception))
 
 
 class TestSplitYamlProvider(TestCase):
@@ -201,9 +201,8 @@ class TestSplitYamlProvider(TestCase):
 
             # This isn't great, but given the variable nature of the temp dir
             # names, it's necessary.
-            self.assertItemsEqual(
-                yaml_files,
-                (basename(f) for f in _list_all_yaml_files(directory)))
+            d = list(basename(f) for f in _list_all_yaml_files(directory))
+            self.assertEqual(len(yaml_files), len(d))
 
     def test_zone_directory(self):
         source = SplitYamlProvider(
@@ -252,8 +251,8 @@ class TestSplitYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(15, len(filter(lambda c: isinstance(c, Create),
-                                             plan.changes)))
+            self.assertEquals(15, len([c for c in plan.changes
+                                       if isinstance(c, Create)]))
             self.assertFalse(isdir(zone_dir))
 
             # Now actually do it
@@ -261,8 +260,8 @@ class TestSplitYamlProvider(TestCase):
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
-            self.assertEquals(5, len(filter(lambda c: isinstance(c, Create),
-                                            plan.changes)))
+            self.assertEquals(5, len([c for c in plan.changes
+                                      if isinstance(c, Create)]))
             self.assertFalse(isdir(dynamic_zone_dir))
             # Apply it
             self.assertEquals(5, target.apply(plan))
@@ -273,16 +272,15 @@ class TestSplitYamlProvider(TestCase):
             target.populate(reloaded)
             self.assertDictEqual(
                 {'included': ['test']},
-                filter(
-                    lambda x: x.name == 'included', reloaded.records
-                )[0]._octodns)
+                [x for x in reloaded.records
+                 if x.name == 'included'][0]._octodns)
 
             self.assertFalse(zone.changes(reloaded, target=source))
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(15, len(filter(lambda c: isinstance(c, Create),
-                                             plan.changes)))
+            self.assertEquals(15, len([c for c in plan.changes
+                                       if isinstance(c, Create)]))
 
             yaml_file = join(zone_dir, '$unit.tests.yaml')
             self.assertTrue(isfile(yaml_file))
@@ -371,4 +369,37 @@ class TestSplitYamlProvider(TestCase):
         with self.assertRaises(SubzoneRecordException) as ctx:
             source.populate(zone)
         self.assertEquals('Record www.sub.unit.tests. is under a managed '
-                          'subzone', ctx.exception.message)
+                          'subzone', text_type(ctx.exception))
+
+
+class TestOverridingYamlProvider(TestCase):
+
+    def test_provider(self):
+        config = join(dirname(__file__), 'config')
+        override_config = join(dirname(__file__), 'config', 'override')
+        base = YamlProvider('base', config, populate_should_replace=False)
+        override = YamlProvider('test', override_config,
+                                populate_should_replace=True)
+
+        zone = Zone('dynamic.tests.', [])
+
+        # Load the base, should see the 5 records
+        base.populate(zone)
+        got = {r.name: r for r in zone.records}
+        self.assertEquals(5, len(got))
+        # We get the "dynamic" A from the bae config
+        self.assertTrue('dynamic' in got['a'].data)
+        # No added
+        self.assertFalse('added' in got)
+
+        # Load the overrides, should replace one and add 1
+        override.populate(zone)
+        got = {r.name: r for r in zone.records}
+        self.assertEquals(6, len(got))
+        # 'a' was replaced with a generic record
+        self.assertEquals({
+            'ttl': 3600,
+            'values': ['4.4.4.4', '5.5.5.5']
+        }, got['a'].data)
+        # And we have the new one
+        self.assertTrue('added' in got)

@@ -5,9 +5,10 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from StringIO import StringIO
 from logging import DEBUG, ERROR, INFO, WARN, getLogger
 from sys import stdout
+
+from six import StringIO, text_type
 
 
 class UnsafePlan(Exception):
@@ -26,7 +27,11 @@ class Plan(object):
                  delete_pcent_threshold=MAX_SAFE_DELETE_PCENT):
         self.existing = existing
         self.desired = desired
-        self.changes = changes
+        # Sort changes to ensure we always have a consistent ordering for
+        # things that make assumptions about that. Many providers will do their
+        # own ordering to ensure things happen in a way that makes sense to
+        # them and/or is as safe as possible.
+        self.changes = sorted(changes)
         self.exists = exists
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
@@ -122,7 +127,7 @@ class PlanLogger(_PlanOutput):
                 buf.write('* ')
                 buf.write(target.id)
                 buf.write(' (')
-                buf.write(target)
+                buf.write(text_type(target))
                 buf.write(')\n*   ')
 
                 if plan.exists is False:
@@ -135,7 +140,7 @@ class PlanLogger(_PlanOutput):
                     buf.write('\n*   ')
 
                 buf.write('Summary: ')
-                buf.write(plan)
+                buf.write(text_type(plan))
                 buf.write('\n')
         else:
             buf.write(hr)
@@ -147,11 +152,11 @@ class PlanLogger(_PlanOutput):
 
 def _value_stringifier(record, sep):
     try:
-        values = [unicode(v) for v in record.values]
+        values = [text_type(v) for v in record.values]
     except AttributeError:
         values = [record.value]
     for code, gv in sorted(getattr(record, 'geo', {}).items()):
-        vs = ', '.join([unicode(v) for v in gv.values])
+        vs = ', '.join([text_type(v) for v in gv.values])
         values.append('{}: {}'.format(code, vs))
     return sep.join(values)
 
@@ -193,7 +198,7 @@ class PlanMarkdown(_PlanOutput):
                     fh.write(' | ')
                     # TTL
                     if existing:
-                        fh.write(unicode(existing.ttl))
+                        fh.write(text_type(existing.ttl))
                         fh.write(' | ')
                         fh.write(_value_stringifier(existing, '; '))
                         fh.write(' | |\n')
@@ -201,7 +206,7 @@ class PlanMarkdown(_PlanOutput):
                             fh.write('| | | | ')
 
                     if new:
-                        fh.write(unicode(new.ttl))
+                        fh.write(text_type(new.ttl))
                         fh.write(' | ')
                         fh.write(_value_stringifier(new, '; '))
                         fh.write(' | ')
@@ -210,7 +215,7 @@ class PlanMarkdown(_PlanOutput):
                         fh.write(' |\n')
 
                 fh.write('\nSummary: ')
-                fh.write(unicode(plan))
+                fh.write(text_type(plan))
                 fh.write('\n\n')
         else:
             fh.write('## No changes were planned\n')
@@ -261,7 +266,7 @@ class PlanHtml(_PlanOutput):
                     # TTL
                     if existing:
                         fh.write('    <td>')
-                        fh.write(unicode(existing.ttl))
+                        fh.write(text_type(existing.ttl))
                         fh.write('</td>\n    <td>')
                         fh.write(_value_stringifier(existing, '<br/>'))
                         fh.write('</td>\n    <td></td>\n  </tr>\n')
@@ -270,7 +275,7 @@ class PlanHtml(_PlanOutput):
 
                     if new:
                         fh.write('    <td>')
-                        fh.write(unicode(new.ttl))
+                        fh.write(text_type(new.ttl))
                         fh.write('</td>\n    <td>')
                         fh.write(_value_stringifier(new, '<br/>'))
                         fh.write('</td>\n    <td>')
@@ -279,7 +284,7 @@ class PlanHtml(_PlanOutput):
                         fh.write('</td>\n  </tr>\n')
 
                 fh.write('  <tr>\n    <td colspan=6>Summary: ')
-                fh.write(unicode(plan))
+                fh.write(text_type(plan))
                 fh.write('</td>\n  </tr>\n</table>\n')
         else:
             fh.write('<b>No changes were planned</b>')

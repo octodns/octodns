@@ -9,6 +9,7 @@ from collections import defaultdict
 from requests import Session
 from base64 import b64encode
 from ipaddress import ip_address
+from six import string_types
 import hashlib
 import hmac
 import logging
@@ -87,7 +88,7 @@ class ConstellixClient(object):
         if self._domains is None:
             zones = []
 
-            resp = self._request('GET', '/').json()
+            resp = self._request('GET', '').json()
             zones += resp
 
             self._domains = {'{}.'.format(z['name']): z['id'] for z in zones}
@@ -95,11 +96,16 @@ class ConstellixClient(object):
         return self._domains
 
     def domain(self, name):
-        path = '/{}'.format(self.domains.get(name))
+        zone_id = self.domains.get(name, False)
+        if not zone_id:
+            raise ConstellixClientNotFound()
+        path = '/{}'.format(zone_id)
         return self._request('GET', path).json()
 
     def domain_create(self, name):
-        self._request('POST', '/', data={'names': [name]})
+        resp = self._request('POST', '/', data={'names': [name]})
+        # Add newly created zone to domain cache
+        self._domains['{}.'.format(name)] = resp.json()[0]['id']
 
     def _absolutize_value(self, value, zone_name):
         if value == '':
@@ -111,6 +117,8 @@ class ConstellixClient(object):
 
     def records(self, zone_name):
         zone_id = self.domains.get(zone_name, False)
+        if not zone_id:
+            raise ConstellixClientNotFound()
         path = '/{}/records'.format(zone_id)
 
         resp = self._request('GET', path).json()
@@ -122,7 +130,7 @@ class ConstellixClient(object):
             # change relative values to absolute
             value = record['value']
             if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'SRV']:
-                if isinstance(value, unicode):
+                if isinstance(value, string_types):
                     record['value'] = self._absolutize_value(value,
                                                              zone_name)
                 if isinstance(value, list):
@@ -148,6 +156,10 @@ class ConstellixClient(object):
         self._request('POST', path, data=params)
 
     def record_delete(self, zone_name, record_type, record_id):
+        # change ALIAS records to ANAME
+        if record_type == 'ALIAS':
+            record_type = 'ANAME'
+
         zone_id = self.domains.get(zone_name, False)
         path = '/{}/records/{}/{}'.format(zone_id, record_type, record_id)
         self._request('DELETE', path)
@@ -424,8 +436,8 @@ class ConstellixProvider(BaseProvider):
         for record in self.zone_records(zone):
             if existing.name == record['name'] and \
                existing._type == record['type']:
-                    self._client.record_delete(zone.name, record['type'],
-                                               record['id'])
+                self._client.record_delete(zone.name, record['type'],
+                                           record['id'])
 
     def _apply(self, plan):
         desired = plan.desired

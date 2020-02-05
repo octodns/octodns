@@ -9,6 +9,7 @@ import dns.zone
 from dns.exception import DNSException
 
 from mock import patch
+from six import text_type
 from unittest import TestCase
 
 from octodns.source.axfr import AxfrSource, AxfrSourceZoneTransferFailed, \
@@ -38,7 +39,7 @@ class TestAxfrSource(TestCase):
             zone = Zone('unit.tests.', [])
             self.source.populate(zone)
         self.assertEquals('Unable to Perform Zone Transfer',
-                          ctx.exception.message)
+                          text_type(ctx.exception))
 
 
 class TestZoneFileSource(TestCase):
@@ -68,4 +69,4 @@ class TestZoneFileSource(TestCase):
             zone = Zone('invalid.zone.', [])
             self.source.populate(zone)
         self.assertEquals('The DNS zone has no NS RRset at its origin.',
-                          ctx.exception.message)
+                          text_type(ctx.exception))
