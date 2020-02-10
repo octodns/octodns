@@ -44,6 +44,7 @@ class TestDnsimpleProvider(TestCase):
         self.assertTrue('sandbox' in provider._client.base)
 
         provider = DnsimpleProvider('test', 'token', 42)
+        self.assertFalse('sandbox' in provider._client.base)
 
         # Bad auth
         with requests_mock() as mock:
