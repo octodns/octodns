@@ -37,12 +37,12 @@ class DnsimpleClient(object):
         sess.headers.update({'Authorization': 'Bearer {}'.format(token)})
         self._sess = sess
         if sandbox:
-            self.BASE = 'https://api.sandbox.dnsimple.com/v2/'
+            self.base = 'https://api.sandbox.dnsimple.com/v2/'
         else:
-            self.BASE = 'https://api.dnsimple.com/v2/'
+            self.base = 'https://api.dnsimple.com/v2/'
 
     def _request(self, method, path, params=None, data=None):
-        url = '{}{}{}'.format(self.BASE, self.account, path)
+        url = '{}{}{}'.format(self.base, self.account, path)
         resp = self._sess.request(method, url, params=params, json=data)
         if resp.status_code == 401:
             raise DnsimpleClientUnauthorized()

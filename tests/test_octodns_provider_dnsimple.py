@@ -41,6 +41,7 @@ class TestDnsimpleProvider(TestCase):
 
         # Sandbox
         provider = DnsimpleProvider('test', 'token', 42, 'true')
+        self.assertTrue('sandbox' in provider._client.base)
 
         provider = DnsimpleProvider('test', 'token', 42)
 
