@@ -38,6 +38,10 @@ class TestDnsimpleProvider(TestCase):
             break
 
     def test_populate(self):
+
+        # Sandbox
+        provider = DnsimpleProvider('test', 'token', 42, 'true')
+
         provider = DnsimpleProvider('test', 'token', 42)
 
         # Bad auth
