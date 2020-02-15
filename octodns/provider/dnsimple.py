@@ -30,16 +30,19 @@ class DnsimpleClientUnauthorized(DnsimpleClientException):
 
 
 class DnsimpleClient(object):
-    BASE = 'https://api.dnsimple.com/v2/'
 
-    def __init__(self, token, account):
+    def __init__(self, token, account, sandbox):
         self.account = account
         sess = Session()
         sess.headers.update({'Authorization': 'Bearer {}'.format(token)})
         self._sess = sess
+        if sandbox:
+            self.base = 'https://api.sandbox.dnsimple.com/v2/'
+        else:
+            self.base = 'https://api.dnsimple.com/v2/'
 
     def _request(self, method, path, params=None, data=None):
-        url = '{}{}{}'.format(self.BASE, self.account, path)
+        url = '{}{}{}'.format(self.base, self.account, path)
         resp = self._sess.request(method, url, params=params, json=data)
         if resp.status_code == 401:
             raise DnsimpleClientUnauthorized()
@@ -89,17 +92,19 @@ class DnsimpleProvider(BaseProvider):
         token: letmein
         # Your account number (required)
         account: 42
+        # Use sandbox (optional)
+        sandbox: true
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
                     'PTR', 'SPF', 'SRV', 'SSHFP', 'TXT'))
 
-    def __init__(self, id, token, account, *args, **kwargs):
+    def __init__(self, id, token, account, sandbox=False, *args, **kwargs):
         self.log = logging.getLogger('DnsimpleProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, token=***, account=%s', id, account)
         super(DnsimpleProvider, self).__init__(id, *args, **kwargs)
-        self._client = DnsimpleClient(token, account)
+        self._client = DnsimpleClient(token, account, sandbox)
 
         self._zone_records = {}
 
