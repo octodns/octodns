@@ -1212,3 +1212,14 @@ class TestCloudflareProvider(TestCase):
         self.assertFalse(
             extra_changes[0].new._octodns['cloudflare']['proxied']
         )
+
+    def test_emailless_auth(self):
+        provider = CloudflareProvider('test', token='token 123',
+                                      email='email 234')
+        headers = provider._sess.headers
+        self.assertEquals('email 234', headers['X-Auth-Email'])
+        self.assertEquals('token 123', headers['X-Auth-Key'])
+
+        provider = CloudflareProvider('test', token='token 123')
+        headers = provider._sess.headers
+        self.assertEquals('Bearer token 123', headers['Authorization'])
