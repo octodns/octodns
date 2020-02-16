@@ -45,7 +45,7 @@ Here are a few things you can do that will increase the likelihood of your pull 
 source env/bin/activate
 ```
 
-See the [`scripts/`](/scripts) if you'd like to run tests and coverage ([`script/coverage/`](/scripts/coverage)) and coverage ([`script/lint`](/scripts/lint)). After bootstrapping and sourcing the `env/` commands in the [`octodns/cmds/`](/octodns/cmds) directory can be run with `PYTHONPATH=. ./octodns/cmds/sync.py ...`
+See the [`script/`](/script) if you'd like to run tests and coverage ([`script/coverage`](/scripts/coverage)) and coverage ([`script/lint`](/scripts/lint)). After bootstrapping and sourcing the `env/` commands in the [`octodns/cmds/`](/octodns/cmds) directory can be run with `PYTHONPATH=. ./octodns/cmds/sync.py ...`
 
 ## License note
 
