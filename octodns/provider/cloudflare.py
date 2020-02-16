@@ -37,9 +37,9 @@ class CloudflareProvider(BaseProvider):
 
     cloudflare:
         class: octodns.provider.cloudflare.CloudflareProvider
-        # Your Cloudflare account email address (required)
-        email: dns-manager@example.com
         # The api key (required)
+        # Your Cloudflare account email address (required)
+        email: dns-manager@example.com (optional if using token)
         token: foo
         # Import CDN enabled records as CNAME to {}.cdn.cloudflare.net. Records
         # ending at .cdn.cloudflare.net. will be ignored when this provider is
@@ -66,17 +66,24 @@ class CloudflareProvider(BaseProvider):
     MIN_TTL = 120
     TIMEOUT = 15
 
-    def __init__(self, id, email, token, cdn=False, *args, **kwargs):
+    def __init__(self, id, email=None, token=None, cdn=False, *args, **kwargs):
         self.log = getLogger('CloudflareProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, email=%s, token=***, cdn=%s', id,
                        email, cdn)
         super(CloudflareProvider, self).__init__(id, *args, **kwargs)
 
         sess = Session()
-        sess.headers.update({
-            'X-Auth-Email': email,
-            'X-Auth-Key': token,
-        })
+        if email and token:
+            sess.headers.update({
+                'X-Auth-Email': email,
+                'X-Auth-Key': token,
+            })
+        else:
+            # https://api.cloudflare.com/#getting-started-requests
+            # https://tools.ietf.org/html/rfc6750#section-2.1
+            sess.headers.update({
+                'Authorization': 'Bearer {}'.format(token),
+            })
         self.cdn = cdn
         self._sess = sess
 

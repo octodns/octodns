@@ -41,9 +41,11 @@ Here are a few things you can do that will increase the likelihood of your pull 
 ## Development setup
 
 ```
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+./scipt/bootstrap
+source env/bin/activate
 ```
+
+See the [`script/`](/script) if you'd like to run tests and coverage ([`script/coverage`](/script/coverage)) and coverage ([`script/lint`](/script/lint)). After bootstrapping and sourcing the `env/` commands in the [`octodns/cmds/`](/octodns/cmds) directory can be run with `PYTHONPATH=. ./octodns/cmds/sync.py ...`
 
 ## License note
 
