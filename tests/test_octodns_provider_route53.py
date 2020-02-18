@@ -2026,8 +2026,10 @@ class TestRoute53Provider(TestCase):
         provider = Route53Provider('test', 'abc', '123',
                                    client_max_attempts=42)
         # NOTE: this will break if boto ever changes the impl details...
-        self.assertEquals(42, provider._conn._client_config
-                          .retries['max_attempts'])
+        self.assertEquals({
+            'mode': 'legacy',
+            'total_max_attempts': 43,
+        }, provider._conn._client_config.retries)
 
     def test_data_for_dynamic(self):
         provider = Route53Provider('test', 'abc', '123')
