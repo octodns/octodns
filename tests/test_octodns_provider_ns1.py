@@ -521,6 +521,12 @@ class TestNs1Provider(TestCase):
 class TestNs1ProviderDynamic(TestCase):
     zone = Zone('unit.tests.', [])
 
+    _CONTINENT_TO_LIST_OF_COUNTRIES = {
+        'OC': ['FJ', 'NC', 'PG', 'SB', 'VU', 'AU', 'NF', 'NZ', 'FM', 'GU',
+               'KI', 'MH', 'MP', 'NR', 'PW', 'AS', 'CK', 'NU', 'PF', 'PN',
+               'TK', 'TO', 'TV', 'WF', 'WS'],
+    }
+
     record = Record.new(zone, '', {
         'dynamic': {
             'pools': {
@@ -928,6 +934,43 @@ class TestNs1ProviderDynamic(TestCase):
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_params_for_dynamic_oceania(self, monitors_for_mock,
+                                        monitor_sync_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {
+            'mon-id': 'feed-id',
+        }
+
+        # provider._params_for_A() calls provider._monitors_for() and
+        # provider._monitor_sync(). Mock their return values so that we don't
+        # make NS1 API calls during tests
+        monitors_for_mock.reset_mock()
+        monitor_sync_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            '3.4.5.6': 'mid-3',
+        }]
+        monitor_sync_mock.side_effect = [
+            ('mid-1', 'fid-1'),
+            ('mid-2', 'fid-2'),
+            ('mid-3', 'fid-3'),
+        ]
+
+        # Set geos to 'OC' in rules[0] (pool - 'lhr')
+        # Check returned dict has list of countries under 'OC'
+        rule0 = self.record.data['dynamic']['rules'][0]
+        saved_geos = rule0['geos']
+        rule0['geos'] = ['OC']
+        ret, _ = provider._params_for_A(self.record)
+        self.assertEquals(sorted(ret['regions']['lhr']['meta']['country']),
+                          sorted(self._CONTINENT_TO_LIST_OF_COUNTRIES['OC']))
+        rule0['geos'] = saved_geos
+
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
     def test_params_for_dynamic(self, monitors_for_mock, monitors_sync_mock):
         provider = Ns1Provider('test', 'api-key')
 
@@ -1091,6 +1134,20 @@ class TestNs1ProviderDynamic(TestCase):
         # _data_for_dynamic_A
         data2 = provider._data_for_A('A', ns1_record)
         self.assertEquals(data, data2)
+
+        # Oceania test cases
+        # 1. Full list of countries should return 'OC' in geos
+        oc_country_list = self._CONTINENT_TO_LIST_OF_COUNTRIES['OC']
+        ns1_record['regions']['lhr']['meta']['country'] = oc_country_list
+        data3 = provider._data_for_A('A', ns1_record)
+        assert('OC' in data3['dynamic']['rules'][0]['geos'])
+
+        # 2. Partial list of countries should return just those
+        partial_oc_cntry_list = oc_country_list[:5]
+        ns1_record['regions']['lhr']['meta']['country'] = partial_oc_cntry_list
+        data4 = provider._data_for_A('A', ns1_record)
+        for c in partial_oc_cntry_list:
+            assert('OC-{}'.format(c) in data4['dynamic']['rules'][0]['geos'])
 
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
     def test_extra_changes(self, monitors_for_mock):
