@@ -192,12 +192,17 @@ class ZoneFileSource(AxfrBaseSource):
         # The directory holding the zone files
         # Filenames should match zone name (eg. example.com.)
         directory: ./zonefiles
+        # Should sanity checks of the origin node be done
+        # (optional, default true)
+        check_origin: false
     '''
-    def __init__(self, id, directory):
+    def __init__(self, id, directory, check_origin=True):
         self.log = logging.getLogger('ZoneFileSource[{}]'.format(id))
-        self.log.debug('__init__: id=%s, directory=%s', id, directory)
+        self.log.debug('__init__: id=%s, directory=%s, check_origin=%s', id,
+                       directory, check_origin)
         super(ZoneFileSource, self).__init__(id)
         self.directory = directory
+        self.check_origin = check_origin
 
         self._zone_records = {}
 
@@ -206,7 +211,8 @@ class ZoneFileSource(AxfrBaseSource):
         if zone_name in zonefiles:
             try:
                 z = dns.zone.from_file(join(self.directory, zone_name),
-                                       zone_name, relativize=False)
+                                       zone_name, relativize=False,
+                                       check_origin=self.check_origin)
             except DNSException as error:
                 raise ZoneFileSourceLoadFailure(error)
         else:
