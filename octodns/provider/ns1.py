@@ -229,9 +229,9 @@ class Ns1Provider(BaseProvider):
 
     # Necessary for handling unsupported continents in _CONTINENT_TO_REGIONS
     _CONTINENT_TO_LIST_OF_COUNTRIES = {
-        'OC': ['FJ', 'NC', 'PG', 'SB', 'VU', 'AU', 'NF', 'NZ', 'FM', 'GU',
+        'OC': {'FJ', 'NC', 'PG', 'SB', 'VU', 'AU', 'NF', 'NZ', 'FM', 'GU',
                'KI', 'MH', 'MP', 'NR', 'PW', 'AS', 'CK', 'NU', 'PF', 'PN',
-               'TK', 'TO', 'TV', 'WF', 'WS'],
+               'TK', 'TO', 'TV', 'WF', 'WS'},
     }
 
     def __init__(self, id, api_key, retry_count=4, monitor_regions=None, *args,
@@ -367,7 +367,7 @@ class Ns1Provider(BaseProvider):
             # Oceania countries list are found, set the region to OC and remove
             # individual oceania country entries
 
-            oc_countries = []
+            oc_countries = set()
             for country in meta.get('country', []):
                 # country_alpha2_to_continent_code fails for Pitcairn ('PN')
                 if country == 'PN':
@@ -376,16 +376,19 @@ class Ns1Provider(BaseProvider):
                     con = country_alpha2_to_continent_code(country)
 
                 if con == 'OC':
-                    oc_countries.append(country)
-                geos.add('{}-{}'.format(con, country))
+                    oc_countries.add(country)
+                else:
+                    # Adding only non-OC countries here to geos
+                    geos.add('{}-{}'.format(con, country))
 
-            if len(oc_countries):
-                all_oc_countries = self._CONTINENT_TO_LIST_OF_COUNTRIES['OC']
-                if sorted(oc_countries) == sorted(all_oc_countries):
-                    # Remove oceania countries from the map, add 'OC' region
-                    for c in oc_countries:
-                        geos.remove('{}-{}'.format('OC', c))
+            if oc_countries:
+                if oc_countries == self._CONTINENT_TO_LIST_OF_COUNTRIES['OC']:
+                    # All OC countries found, so add 'OC' to geos
                     geos.add('OC')
+                else:
+                    # Partial OC countries found, just add them as-is to geos
+                    for c in oc_countries:
+                        geos.add('{}-{}'.format('OC', c))
 
             # States are easy too, just assume NA-US (CA providences aren't
             # supported by octoDNS currently)

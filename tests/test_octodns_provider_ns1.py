@@ -521,12 +521,6 @@ class TestNs1Provider(TestCase):
 class TestNs1ProviderDynamic(TestCase):
     zone = Zone('unit.tests.', [])
 
-    _CONTINENT_TO_LIST_OF_COUNTRIES = {
-        'OC': ['FJ', 'NC', 'PG', 'SB', 'VU', 'AU', 'NF', 'NZ', 'FM', 'GU',
-               'KI', 'MH', 'MP', 'NR', 'PW', 'AS', 'CK', 'NU', 'PF', 'PN',
-               'TK', 'TO', 'TV', 'WF', 'WS'],
-    }
-
     record = Record.new(zone, '', {
         'dynamic': {
             'pools': {
@@ -965,8 +959,8 @@ class TestNs1ProviderDynamic(TestCase):
         saved_geos = rule0['geos']
         rule0['geos'] = ['OC']
         ret, _ = provider._params_for_A(self.record)
-        self.assertEquals(sorted(ret['regions']['lhr']['meta']['country']),
-                          sorted(self._CONTINENT_TO_LIST_OF_COUNTRIES['OC']))
+        self.assertEquals(set(ret['regions']['lhr']['meta']['country']),
+                          Ns1Provider._CONTINENT_TO_LIST_OF_COUNTRIES['OC'])
         rule0['geos'] = saved_geos
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
@@ -1137,17 +1131,18 @@ class TestNs1ProviderDynamic(TestCase):
 
         # Oceania test cases
         # 1. Full list of countries should return 'OC' in geos
-        oc_country_list = self._CONTINENT_TO_LIST_OF_COUNTRIES['OC']
-        ns1_record['regions']['lhr']['meta']['country'] = oc_country_list
+        oc_countries = Ns1Provider._CONTINENT_TO_LIST_OF_COUNTRIES['OC']
+        ns1_record['regions']['lhr']['meta']['country'] = list(oc_countries)
         data3 = provider._data_for_A('A', ns1_record)
-        assert('OC' in data3['dynamic']['rules'][0]['geos'])
+        self.assertTrue('OC' in data3['dynamic']['rules'][0]['geos'])
 
         # 2. Partial list of countries should return just those
-        partial_oc_cntry_list = oc_country_list[:5]
+        partial_oc_cntry_list = list(oc_countries)[:5]
         ns1_record['regions']['lhr']['meta']['country'] = partial_oc_cntry_list
         data4 = provider._data_for_A('A', ns1_record)
         for c in partial_oc_cntry_list:
-            assert('OC-{}'.format(c) in data4['dynamic']['rules'][0]['geos'])
+            self.assertTrue(
+                'OC-{}'.format(c) in data4['dynamic']['rules'][0]['geos'])
 
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
     def test_extra_changes(self, monitors_for_mock):
