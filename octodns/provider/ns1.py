@@ -194,6 +194,9 @@ class Ns1Provider(BaseProvider):
         'filter': u'geofence_regional'
     }, {
         'config': {},
+        'filter': u'geofence_country'
+    }, {
+        'config': {},
         'filter': u'select_first_region'
     }, {
         'config': {
