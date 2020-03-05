@@ -205,6 +205,9 @@ class Ns1Provider(BaseProvider):
     ns1:
         class: octodns.provider.ns1.Ns1Provider
         api_key: env/NS1_API_KEY
+        # Optional, to avoid 429s from rate-limiting. Try setting to the
+        # value of max_workers.
+        parallelism: 11
         # Only required if using dynamic records
         monitor_regions:
           - lga
