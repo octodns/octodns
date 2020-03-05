@@ -27,11 +27,41 @@ class Ns1Exception(Exception):
 class Ns1Client(object):
     log = getLogger('NS1Client')
 
-    def __init__(self, api_key, retry_count=4):
-        self.log.debug('__init__: retry_count=%d', retry_count)
+    def __init__(self, api_key, parallelism=None, retry_count=4):
+        self.log.debug('__init__: parallelism=%s, retry_count=%d', parallelism,
+                       retry_count)
         self.retry_count = retry_count
 
         client = NS1(apiKey=api_key)
+
+        # NS1 rate limits via a "token bucket" scheme, and provides information
+        # about rate limiting in headers on responses. Token bucket can be
+        # thought of as an initially "full" bucket, where, if not full, tokens
+        # are added at some rate. This allows "bursting" requests until the
+        # bucket is empty, after which, you are limited to the rate of token
+        # replenishment.
+        # There are a couple of "strategies" built into the SDK to avoid 429s
+        # from rate limiting. Since octodns operates concurrently via
+        # `max_workers`, a concurrent strategy seems appropriate.
+        # This strategy does nothing until the remaining requests are equal to
+        # or less than our `parallelism`, after which, each process will sleep
+        # for the token replenishment interval times parallelism.
+        # For example, if we can make 10 requests in 60 seconds, a token is
+        # replenished every 6 seconds. If parallelism is 3, we will burst 7
+        # requests, and subsequently each process will sleep for 18 seconds
+        # before making another request.
+        # In general, parallelism should match the number of workers.
+        if parallelism is not None:
+            client.config['rate_limit_strategy'] = 'concurrent'
+            client.config['parallelism'] = parallelism
+
+        # The list of records for a zone is paginated at around ~2.5k records,
+        # this tells the client to handle any of that transparently and ensure
+        # we get the full list of records.
+        client.config['follow_pagination'] = True
+
+        self._config = client.config
+
         self._records = client.records()
         self._zones = client.zones()
         self._monitors = client.monitors()
@@ -234,15 +264,16 @@ class Ns1Provider(BaseProvider):
                'TK', 'TO', 'TV', 'WF', 'WS'},
     }
 
-    def __init__(self, id, api_key, retry_count=4, monitor_regions=None, *args,
-                 **kwargs):
+    def __init__(self, id, api_key, retry_count=4, monitor_regions=None,
+                 parallelism=None, *args, **kwargs):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, api_key=***, retry_count=%d, '
-                       'monitor_regions=%s', id, retry_count, monitor_regions)
+                       'monitor_regions=%s, parallelism=%s', id, retry_count,
+                       monitor_regions, parallelism)
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
         self.monitor_regions = monitor_regions
 
-        self._client = Ns1Client(api_key, retry_count)
+        self._client = Ns1Client(api_key, parallelism, retry_count)
 
     def _encode_notes(self, data):
         return ' '.join(['{}:{}'.format(k, v)
