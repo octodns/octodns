@@ -13,6 +13,7 @@ from ns1.rest.errors import RateLimitException, ResourceException
 from pycountry_convert import country_alpha2_to_continent_code
 from time import sleep
 from uuid import uuid4
+from copy import deepcopy
 
 from six import text_type
 
@@ -186,7 +187,7 @@ class Ns1Provider(BaseProvider):
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
-    _DYNAMIC_FILTERS = [{
+    _SUPPORTED_FILTER_CONFIGS = [{
         'config': {},
         'filter': 'up'
     }, {
@@ -195,6 +196,30 @@ class Ns1Provider(BaseProvider):
     }, {
         'config': {},
         'filter': u'geofence_country'
+    }, {
+        'config': {},
+        'filter': u'select_first_region'
+    }, {
+        'config': {
+            'eliminate': u'1'
+        },
+        'filter': 'priority'
+    }, {
+        'config': {},
+        'filter': u'weighted_shuffle'
+    }, {
+        'config': {
+            'N': u'1'
+        },
+        'filter': u'select_first_n'
+    }]
+
+    _DEFAULT_DYNAMIC_FILTERS = [{
+        'config': {},
+        'filter': 'up'
+    }, {
+        'config': {},
+        'filter': u'geofence_regional'
     }, {
         'config': {},
         'filter': u'select_first_region'
@@ -307,7 +332,9 @@ class Ns1Provider(BaseProvider):
 
     def _data_for_dynamic_A(self, _type, record):
         # First make sure we have the expected filters config
-        if self._DYNAMIC_FILTERS != record['filters']:
+        unsupported_fcs = False in [fc in self._SUPPORTED_FILTER_CONFIGS for
+                                    fc in record['filters']]
+        if not record['filters'] or unsupported_fcs:
             self.log.error('_data_for_dynamic_A: %s %s has unsupported '
                            'filters', record['domain'], _type)
             raise Ns1Exception('Unrecognized advanced record')
@@ -792,6 +819,7 @@ class Ns1Provider(BaseProvider):
         pools = record.dynamic.pools
 
         # Convert rules to regions
+        has_country = False
         regions = {}
         for i, rule in enumerate(record.dynamic.rules):
             pool_name = rule.data['pool']
@@ -809,6 +837,7 @@ class Ns1Provider(BaseProvider):
             us_state = set()
 
             for geo in rule.data.get('geos', []):
+
                 n = len(geo)
                 if n == 8:
                     # US state, e.g. NA-US-KY
@@ -816,6 +845,7 @@ class Ns1Provider(BaseProvider):
                 elif n == 5:
                     # Country, e.g. EU-FR
                     country.add(geo[-2:])
+                    has_country = True
                 else:
                     # Continent, e.g. AS
                     if geo in self._CONTINENT_TO_REGIONS:
@@ -827,6 +857,7 @@ class Ns1Provider(BaseProvider):
                                        format(geo))
                         for c in self._CONTINENT_TO_LIST_OF_COUNTRIES[geo]:
                             country.add(c)
+                            has_country = True
 
             meta = {
                 'note': self._encode_notes(notes),
@@ -914,9 +945,22 @@ class Ns1Provider(BaseProvider):
                 }
                 answers.append(answer)
 
+        # Adjust filters as necessary
+        # Make a copy the filters since we might modify it
+        filters = deepcopy(self._DEFAULT_DYNAMIC_FILTERS)
+        if has_country:
+            self.log.debug('Adding country filter')
+            country_filter = {
+                'config': {},
+                'filter': u'geofence_country'
+            }
+            # We want the 'UP' filter first (pos 0) followed by the 'REGION'
+            # filter (pos 1). The country filter comes next at pos 2
+            filters.insert(2, country_filter)
+
         return {
             'answers': answers,
-            'filters': self._DYNAMIC_FILTERS,
+            'filters': filters,
             'regions': regions,
             'ttl': record.ttl,
         }, active_monitors
