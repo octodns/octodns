@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from logging import getLogger
 from itertools import chain
-from collections import OrderedDict, defaultdict
+from collections import Mapping, OrderedDict, defaultdict
 from ns1 import NS1
 from ns1.rest.errors import RateLimitException, ResourceException
 from pycountry_convert import country_alpha2_to_continent_code
@@ -27,9 +27,11 @@ class Ns1Exception(Exception):
 class Ns1Client(object):
     log = getLogger('NS1Client')
 
-    def __init__(self, api_key, parallelism=None, retry_count=4):
-        self.log.debug('__init__: parallelism=%s, retry_count=%d', parallelism,
-                       retry_count)
+    def __init__(self, api_key, parallelism=None, retry_count=4,
+                 client_config=None):
+        self.log.debug('__init__: parallelism=%s, retry_count=%d, '
+                       'client_config=%s', parallelism, retry_count,
+                       client_config)
         self.retry_count = retry_count
 
         client = NS1(apiKey=api_key)
@@ -60,7 +62,12 @@ class Ns1Client(object):
         # we get the full list of records.
         client.config['follow_pagination'] = True
 
-        self._config = client.config
+        # additional options or overrides
+        if isinstance(client_config, Mapping):
+            for k, v in client_config.items():
+                client.config[k] = v
+
+        self._client = client
 
         self._records = client.records()
         self._zones = client.zones()
@@ -203,14 +210,26 @@ class Ns1Provider(BaseProvider):
     Ns1 provider
 
     ns1:
+        # Required
         class: octodns.provider.ns1.Ns1Provider
         api_key: env/NS1_API_KEY
-        # Optional, to avoid 429s from rate-limiting. Try setting to the
-        # value of max_workers.
-        parallelism: 11
         # Only required if using dynamic records
         monitor_regions:
           - lga
+        # Optional. Default: None. If set, back off in advance to avoid 429s
+        # from rate-limiting. Generally this should be set to the number
+        # of processes or workers hitting the API, e.g. the value of
+        # `max_workers`.
+        parallelism: 11
+        # Optional. Default: 4. Number of times to retry if a 429 response
+        # is received.
+        retry_count: 4
+        # Optional. Default: None. Additional options or overrides passed to
+        # the NS1 SDK config, as key-value pairs.
+        client_config:
+            endpoint: my.nsone.endpoint # Default: api.nsone.net
+            ignore-ssl-errors: true     # Default: false
+            follow_pagination: false    # Default: true
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
@@ -268,15 +287,16 @@ class Ns1Provider(BaseProvider):
     }
 
     def __init__(self, id, api_key, retry_count=4, monitor_regions=None,
-                 parallelism=None, *args, **kwargs):
+                 parallelism=None, client_config=None, *args, **kwargs):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, api_key=***, retry_count=%d, '
-                       'monitor_regions=%s, parallelism=%s', id, retry_count,
-                       monitor_regions, parallelism)
+                       'monitor_regions=%s, parallelism=%s, client_config=%s',
+                       id, retry_count, monitor_regions, parallelism,
+                       client_config)
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
         self.monitor_regions = monitor_regions
-
-        self._client = Ns1Client(api_key, parallelism, retry_count)
+        self._client = Ns1Client(api_key, parallelism, retry_count,
+                                 client_config)
 
     def _encode_notes(self, data):
         return ' '.join(['{}:{}'.format(k, v)
