@@ -187,56 +187,39 @@ class Ns1Provider(BaseProvider):
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
-    _SUPPORTED_FILTER_CONFIGS = [{
+    # See comment before _valid_filter_config() for details on filter indices
+    _BASIC_DYNAMIC_FILTERS = [{
         'config': {},
         'filter': 'up'
     }, {
         'config': {},
-        'filter': u'geofence_regional'
+        'filter': u'select_first_region'
     }, {
+        'config': {
+            'eliminate': u'1'
+        },
+        'filter': 'priority'
+    }, {
+        'config': {},
+        'filter': u'weighted_shuffle'
+    }, {
+        'config': {
+            'N': u'1'
+        },
+        'filter': u'select_first_n'
+    }]
+    _REGION_FILTER = {
+        'config': {},
+        'filter': u'geofence_regional'
+    }
+    _COUNTRY_FILTER = {
         'config': {},
         'filter': u'geofence_country'
-    }, {
-        'config': {},
-        'filter': u'select_first_region'
-    }, {
-        'config': {
-            'eliminate': u'1'
-        },
-        'filter': 'priority'
-    }, {
-        'config': {},
-        'filter': u'weighted_shuffle'
-    }, {
-        'config': {
-            'N': u'1'
-        },
-        'filter': u'select_first_n'
-    }]
+    }
+    _REGION_FILTER_INDEX = 1
+    _COUNTRY_FILTER_INDEX = 1
+    _COUNTRY_FILTER_INDEX_WITH_REGION = 2
 
-    _DEFAULT_DYNAMIC_FILTERS = [{
-        'config': {},
-        'filter': 'up'
-    }, {
-        'config': {},
-        'filter': u'geofence_regional'
-    }, {
-        'config': {},
-        'filter': u'select_first_region'
-    }, {
-        'config': {
-            'eliminate': u'1'
-        },
-        'filter': 'priority'
-    }, {
-        'config': {},
-        'filter': u'weighted_shuffle'
-    }, {
-        'config': {
-            'N': u'1'
-        },
-        'filter': u'select_first_n'
-    }]
     _REGION_TO_CONTINENT = {
         'AFRICA': 'AF',
         'ASIAPAC': 'AS',
@@ -271,6 +254,36 @@ class Ns1Provider(BaseProvider):
         self.monitor_regions = monitor_regions
 
         self._client = Ns1Client(api_key, retry_count)
+
+    # Allowed filter configurations:
+    # 1. Filter chain is the basic filter chain
+    # 2. In addition, it could have the 'geofence_country' filter and or
+    # 'geofence_regional' filter only at index 1 in the filter chain
+    # 3. If both country and regional filters are present, they are required
+    # to be as below:
+    #   - 'geofence_regional' at index 1
+    #   - 'geofence_country' at index 2
+    # Any other deviation is returned as an unsupported filter configuration
+    def _valid_filter_config(self, filter_config):
+        has_region = 'geofence_regional' in [f['filter'] for f in filter_config]
+        has_country = 'geofence_country' in [f['filter'] for f in filter_config]
+        expected_filter_config = self._get_updated_filter_chain(has_region,
+                                                                has_country)
+        self.log.debug("input %s", ','.join([f['filter'] for f in filter_config]))
+        self.log.debug("expected %s", ','.join([f['filter'] for f in expected_filter_config]))
+        return filter_config == expected_filter_config
+
+    def _get_updated_filter_chain(self, has_region, has_country):
+        filters = deepcopy(self._BASIC_DYNAMIC_FILTERS)
+        if has_region:
+            filters.insert(self._REGION_FILTER_INDEX, self._REGION_FILTER)
+        if has_country:
+            if has_region:
+                filters.insert(self._COUNTRY_FILTER_INDEX_WITH_REGION,
+                               self._COUNTRY_FILTER)
+            else:
+                filters.insert(self._COUNTRY_FILTER_INDEX, self._COUNTRY_FILTER)
+        return filters
 
     def _encode_notes(self, data):
         return ' '.join(['{}:{}'.format(k, v)
@@ -332,9 +345,7 @@ class Ns1Provider(BaseProvider):
 
     def _data_for_dynamic_A(self, _type, record):
         # First make sure we have the expected filters config
-        unsupported_fcs = False in [fc in self._SUPPORTED_FILTER_CONFIGS for
-                                    fc in record['filters']]
-        if not record['filters'] or unsupported_fcs:
+        if not self._valid_filter_config(record['filters']):
             self.log.error('_data_for_dynamic_A: %s %s has unsupported '
                            'filters', record['domain'], _type)
             raise Ns1Exception('Unrecognized advanced record')
@@ -820,6 +831,7 @@ class Ns1Provider(BaseProvider):
 
         # Convert rules to regions
         has_country = False
+        has_region = False
         regions = {}
         for i, rule in enumerate(record.dynamic.rules):
             pool_name = rule.data['pool']
@@ -842,6 +854,9 @@ class Ns1Provider(BaseProvider):
                 if n == 8:
                     # US state, e.g. NA-US-KY
                     us_state.add(geo[-2:])
+                    # For filtering. State filtering is done by the country
+                    # filter
+                    has_country = True
                 elif n == 5:
                     # Country, e.g. EU-FR
                     country.add(geo[-2:])
@@ -850,6 +865,7 @@ class Ns1Provider(BaseProvider):
                     # Continent, e.g. AS
                     if geo in self._CONTINENT_TO_REGIONS:
                         georegion.update(self._CONTINENT_TO_REGIONS[geo])
+                        has_region = True
                     else:
                         # No maps for geo in _CONTINENT_TO_REGIONS.
                         # Use the country list
@@ -945,18 +961,8 @@ class Ns1Provider(BaseProvider):
                 }
                 answers.append(answer)
 
-        # Adjust filters as necessary
-        # Make a copy the filters since we might modify it
-        filters = deepcopy(self._DEFAULT_DYNAMIC_FILTERS)
-        if has_country:
-            self.log.debug('Adding country filter')
-            country_filter = {
-                'config': {},
-                'filter': u'geofence_country'
-            }
-            # We want the 'UP' filter first (pos 0) followed by the 'REGION'
-            # filter (pos 1). The country filter comes next at pos 2
-            filters.insert(2, country_filter)
+        # Update filters as necessary
+        filters = self._get_updated_filter_chain(has_region, has_country)
 
         return {
             'answers': answers,
