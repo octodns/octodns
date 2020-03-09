@@ -264,11 +264,11 @@ class Ns1Provider(BaseProvider):
     #   - 'geofence_regional' at index 1
     #   - 'geofence_country' at index 2
     # Any other deviation is returned as an unsupported filter configuration
-    def _valid_filter_config(self, filter_config):
-        has_region = 'geofence_regional' in [f['filter'] for f in filter_config]
-        has_country = 'geofence_country' in [f['filter'] for f in filter_config]
-        return filter_config == self._get_updated_filter_chain(has_region,
-                                                                has_country)
+    def _valid_filter_config(self, filter_cfg):
+        has_region = 'geofence_regional' in [f['filter'] for f in filter_cfg]
+        has_country = 'geofence_country' in [f['filter'] for f in filter_cfg]
+        return filter_cfg == self._get_updated_filter_chain(has_region,
+                                                            has_country)
 
     def _get_updated_filter_chain(self, has_region, has_country):
         filters = deepcopy(self._BASIC_DYNAMIC_FILTERS)
@@ -279,7 +279,8 @@ class Ns1Provider(BaseProvider):
                 filters.insert(self._COUNTRY_FILTER_INDEX_WITH_REGION,
                                self._COUNTRY_FILTER)
             else:
-                filters.insert(self._COUNTRY_FILTER_INDEX, self._COUNTRY_FILTER)
+                filters.insert(self._COUNTRY_FILTER_INDEX,
+                               self._COUNTRY_FILTER)
         return filters
 
     def _encode_notes(self, data):
