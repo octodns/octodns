@@ -267,11 +267,8 @@ class Ns1Provider(BaseProvider):
     def _valid_filter_config(self, filter_config):
         has_region = 'geofence_regional' in [f['filter'] for f in filter_config]
         has_country = 'geofence_country' in [f['filter'] for f in filter_config]
-        expected_filter_config = self._get_updated_filter_chain(has_region,
+        return filter_config == self._get_updated_filter_chain(has_region,
                                                                 has_country)
-        self.log.debug("input %s", ','.join([f['filter'] for f in filter_config]))
-        self.log.debug("expected %s", ','.join([f['filter'] for f in expected_filter_config]))
-        return filter_config == expected_filter_config
 
     def _get_updated_filter_chain(self, has_region, has_country):
         filters = deepcopy(self._BASIC_DYNAMIC_FILTERS)
