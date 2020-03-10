@@ -11,6 +11,7 @@ from six import text_type
 from suds import WebFault
 
 from unittest import TestCase
+from unittest import skip
 
 from octodns.provider.transip import TransipProvider
 from octodns.provider.yaml import YamlProvider
@@ -97,11 +98,10 @@ class MockDomainService(DomainService):
         document = {}
         raise WebFault(fault, document)
 
-
+# FIXME Skipping broken tests for now. Revert this once they are found to
+# be working again
+@skip("Skipping broken transip tests")
 class TestTransipProvider(TestCase):
-    # FIXME Tests are breaking at the moment. Set bypass_tests to False once
-    # they are working again
-    bypass_tests = True
 
     bogus_key = str("""-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEA0U5HGCkLrz423IyUf3u4cKN2WrNz1x5KNr6PvH2M/zxas+zB
@@ -138,9 +138,6 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         return expected
 
     def test_init(self):
-        if self.bypass_tests:
-            return
-
         with self.assertRaises(Exception) as ctx:
             TransipProvider('test', 'unittest')
 
@@ -154,9 +151,6 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         TransipProvider('test', 'unittest', key_file='/fake/path')
 
     def test_populate(self):
-        if self.bypass_tests:
-            return
-
         _expected = self.make_expected()
 
         # Unhappy Plan - Not authenticated
@@ -224,9 +218,6 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         return
 
     def test_plan(self):
-        if self.bypass_tests:
-            return
-
         _expected = self.make_expected()
 
         # Test Happy plan, only create
@@ -241,9 +232,6 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         return
 
     def test_apply(self):
-        if self.bypass_tests:
-            return
-
         _expected = self.make_expected()
 
         # Test happy flow. Create all supoorted records
