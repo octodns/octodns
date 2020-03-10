@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from logging import getLogger
 from itertools import chain
-from collections import OrderedDict, defaultdict
+from collections import Mapping, OrderedDict, defaultdict
 from ns1 import NS1
 from ns1.rest.errors import RateLimitException, ResourceException
 from pycountry_convert import country_alpha2_to_continent_code
@@ -28,11 +28,48 @@ class Ns1Exception(Exception):
 class Ns1Client(object):
     log = getLogger('NS1Client')
 
-    def __init__(self, api_key, retry_count=4):
-        self.log.debug('__init__: retry_count=%d', retry_count)
+    def __init__(self, api_key, parallelism=None, retry_count=4,
+                 client_config=None):
+        self.log.debug('__init__: parallelism=%s, retry_count=%d, '
+                       'client_config=%s', parallelism, retry_count,
+                       client_config)
         self.retry_count = retry_count
 
         client = NS1(apiKey=api_key)
+
+        # NS1 rate limits via a "token bucket" scheme, and provides information
+        # about rate limiting in headers on responses. Token bucket can be
+        # thought of as an initially "full" bucket, where, if not full, tokens
+        # are added at some rate. This allows "bursting" requests until the
+        # bucket is empty, after which, you are limited to the rate of token
+        # replenishment.
+        # There are a couple of "strategies" built into the SDK to avoid 429s
+        # from rate limiting. Since octodns operates concurrently via
+        # `max_workers`, a concurrent strategy seems appropriate.
+        # This strategy does nothing until the remaining requests are equal to
+        # or less than our `parallelism`, after which, each process will sleep
+        # for the token replenishment interval times parallelism.
+        # For example, if we can make 10 requests in 60 seconds, a token is
+        # replenished every 6 seconds. If parallelism is 3, we will burst 7
+        # requests, and subsequently each process will sleep for 18 seconds
+        # before making another request.
+        # In general, parallelism should match the number of workers.
+        if parallelism is not None:
+            client.config['rate_limit_strategy'] = 'concurrent'
+            client.config['parallelism'] = parallelism
+
+        # The list of records for a zone is paginated at around ~2.5k records,
+        # this tells the client to handle any of that transparently and ensure
+        # we get the full list of records.
+        client.config['follow_pagination'] = True
+
+        # additional options or overrides
+        if isinstance(client_config, Mapping):
+            for k, v in client_config.items():
+                client.config[k] = v
+
+        self._client = client
+
         self._records = client.records()
         self._zones = client.zones()
         self._monitors = client.monitors()
@@ -174,11 +211,26 @@ class Ns1Provider(BaseProvider):
     Ns1 provider
 
     ns1:
+        # Required
         class: octodns.provider.ns1.Ns1Provider
         api_key: env/NS1_API_KEY
         # Only required if using dynamic records
         monitor_regions:
           - lga
+        # Optional. Default: None. If set, back off in advance to avoid 429s
+        # from rate-limiting. Generally this should be set to the number
+        # of processes or workers hitting the API, e.g. the value of
+        # `max_workers`.
+        parallelism: 11
+        # Optional. Default: 4. Number of times to retry if a 429 response
+        # is received.
+        retry_count: 4
+        # Optional. Default: None. Additional options or overrides passed to
+        # the NS1 SDK config, as key-value pairs.
+        client_config:
+            endpoint: my.nsone.endpoint # Default: api.nsone.net
+            ignore-ssl-errors: true     # Default: false
+            follow_pagination: false    # Default: true
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
@@ -245,15 +297,17 @@ class Ns1Provider(BaseProvider):
                'TK', 'TO', 'TV', 'WF', 'WS'},
     }
 
-    def __init__(self, id, api_key, retry_count=4, monitor_regions=None, *args,
-                 **kwargs):
+    def __init__(self, id, api_key, retry_count=4, monitor_regions=None,
+                 parallelism=None, client_config=None, *args, **kwargs):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, api_key=***, retry_count=%d, '
-                       'monitor_regions=%s', id, retry_count, monitor_regions)
+                       'monitor_regions=%s, parallelism=%s, client_config=%s',
+                       id, retry_count, monitor_regions, parallelism,
+                       client_config)
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
         self.monitor_regions = monitor_regions
-
-        self._client = Ns1Client(api_key, retry_count)
+        self._client = Ns1Client(api_key, parallelism, retry_count,
+                                 client_config)
 
     # Allowed filter configurations:
     # 1. Filter chain is the basic filter chain

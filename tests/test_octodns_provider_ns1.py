@@ -1403,6 +1403,31 @@ class TestNs1Client(TestCase):
             client.zones_retrieve('unit.tests')
         self.assertEquals('last', text_type(ctx.exception))
 
+    def test_client_config(self):
+        with self.assertRaises(TypeError):
+            Ns1Client()
+
+        client = Ns1Client('dummy-key')
+        self.assertEquals(
+            client._client.config.get('keys'),
+            {'default': {'key': u'dummy-key', 'desc': 'imported API key'}})
+        self.assertEquals(client._client.config.get('follow_pagination'), True)
+        self.assertEquals(
+            client._client.config.get('rate_limit_strategy'), None)
+        self.assertEquals(client._client.config.get('parallelism'), None)
+
+        client = Ns1Client('dummy-key', parallelism=11)
+        self.assertEquals(
+            client._client.config.get('rate_limit_strategy'), 'concurrent')
+        self.assertEquals(client._client.config.get('parallelism'), 11)
+
+        client = Ns1Client('dummy-key', client_config={
+            'endpoint': 'my.endpoint.com', 'follow_pagination': False})
+        self.assertEquals(
+            client._client.config.get('endpoint'), 'my.endpoint.com')
+        self.assertEquals(
+            client._client.config.get('follow_pagination'), False)
+
     @patch('ns1.rest.data.Source.list')
     @patch('ns1.rest.data.Source.create')
     def test_datasource_id(self, datasource_create_mock, datasource_list_mock):
