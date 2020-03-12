@@ -13,7 +13,6 @@ from ns1.rest.errors import RateLimitException, ResourceException
 from pycountry_convert import country_alpha2_to_continent_code
 from time import sleep
 from uuid import uuid4
-from copy import deepcopy
 
 from six import text_type
 
@@ -239,27 +238,11 @@ class Ns1Provider(BaseProvider):
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
-    # See comment before _valid_filter_config() for details on filter indices
-    _BASIC_DYNAMIC_FILTERS = [{
+    _UP_FILTER = {
         'config': {},
         'filter': 'up'
-    }, {
-        'config': {},
-        'filter': u'select_first_region'
-    }, {
-        'config': {
-            'eliminate': u'1'
-        },
-        'filter': 'priority'
-    }, {
-        'config': {},
-        'filter': u'weighted_shuffle'
-    }, {
-        'config': {
-            'N': u'1'
-        },
-        'filter': u'select_first_n'
-    }]
+    }
+
     _REGION_FILTER = {
         'config': {},
         'filter': u'geofence_regional'
@@ -268,9 +251,66 @@ class Ns1Provider(BaseProvider):
         'config': {},
         'filter': u'geofence_country'
     }
-    _REGION_FILTER_INDEX = 1
-    _COUNTRY_FILTER_INDEX = 1
-    _COUNTRY_FILTER_INDEX_WITH_REGION = 2
+
+    _SELECT_FIRST_REGION_FILTER = {
+        'config': {},
+        'filter': u'select_first_region'
+    }
+
+    _PRIORITY_FILTER = {
+        'config': {
+            'eliminate': u'1'
+        },
+        'filter': 'priority'
+    }
+
+    _WEIGHTED_SHUFFLE_FILTER = {
+        'config': {},
+        'filter': u'weighted_shuffle'
+    }
+
+    _SELECT_FIRST_N_FILTER = {
+        'config': {
+            'N': u'1'
+        },
+        'filter': u'select_first_n'
+    }
+
+    _BASIC_FILTER_CHAIN = [
+        _UP_FILTER,
+        _SELECT_FIRST_REGION_FILTER,
+        _PRIORITY_FILTER,
+        _WEIGHTED_SHUFFLE_FILTER,
+        _SELECT_FIRST_N_FILTER
+    ]
+
+    _FILTER_CHAIN_WITH_REGION = [
+        _UP_FILTER,
+        _REGION_FILTER,
+        _SELECT_FIRST_REGION_FILTER,
+        _PRIORITY_FILTER,
+        _WEIGHTED_SHUFFLE_FILTER,
+        _SELECT_FIRST_N_FILTER
+    ]
+
+    _FILTER_CHAIN_WITH_COUNTRY = [
+        _UP_FILTER,
+        _COUNTRY_FILTER,
+        _SELECT_FIRST_REGION_FILTER,
+        _PRIORITY_FILTER,
+        _WEIGHTED_SHUFFLE_FILTER,
+        _SELECT_FIRST_N_FILTER
+    ]
+
+    _FILTER_CHAIN_WITH_REGION_AND_COUNTRY = [
+        _UP_FILTER,
+        _REGION_FILTER,
+        _COUNTRY_FILTER,
+        _SELECT_FIRST_REGION_FILTER,
+        _PRIORITY_FILTER,
+        _WEIGHTED_SHUFFLE_FILTER,
+        _SELECT_FIRST_N_FILTER
+    ]
 
     _REGION_TO_CONTINENT = {
         'AFRICA': 'AF',
@@ -309,33 +349,22 @@ class Ns1Provider(BaseProvider):
         self._client = Ns1Client(api_key, parallelism, retry_count,
                                  client_config)
 
-    # Allowed filter configurations:
-    # 1. Filter chain is the basic filter chain
-    # 2. In addition, it could have the 'geofence_country' filter and or
-    # 'geofence_regional' filter only at index 1 in the filter chain
-    # 3. If both country and regional filters are present, they are required
-    # to be as below:
-    #   - 'geofence_regional' at index 1
-    #   - 'geofence_country' at index 2
-    # Any other deviation is returned as an unsupported filter configuration
     def _valid_filter_config(self, filter_cfg):
-        has_region = 'geofence_regional' in [f['filter'] for f in filter_cfg]
-        has_country = 'geofence_country' in [f['filter'] for f in filter_cfg]
+        has_region = self._REGION_FILTER in filter_cfg
+        has_country = self._COUNTRY_FILTER in filter_cfg
         return filter_cfg == self._get_updated_filter_chain(has_region,
                                                             has_country)
 
     def _get_updated_filter_chain(self, has_region, has_country):
-        filters = deepcopy(self._BASIC_DYNAMIC_FILTERS)
-        if has_region:
-            filters.insert(self._REGION_FILTER_INDEX, self._REGION_FILTER)
-        if has_country:
-            if has_region:
-                filters.insert(self._COUNTRY_FILTER_INDEX_WITH_REGION,
-                               self._COUNTRY_FILTER)
-            else:
-                filters.insert(self._COUNTRY_FILTER_INDEX,
-                               self._COUNTRY_FILTER)
-        return filters
+        if has_region and has_country:
+            filter_chain = self._FILTER_CHAIN_WITH_REGION_AND_COUNTRY
+        elif has_region:
+            filter_chain = self._FILTER_CHAIN_WITH_REGION
+        elif has_country:
+            filter_chain = self._FILTER_CHAIN_WITH_COUNTRY
+        else:
+            filter_chain = self._BASIC_FILTER_CHAIN
+        return filter_chain
 
     def _encode_notes(self, data):
         return ' '.join(['{}:{}'.format(k, v)

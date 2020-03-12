@@ -928,6 +928,41 @@ class TestNs1ProviderDynamic(TestCase):
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_params_for_dynamic_region_only(self, monitors_for_mock,
+                                            monitor_sync_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {
+            'mon-id': 'feed-id',
+        }
+
+        # provider._params_for_A() calls provider._monitors_for() and
+        # provider._monitor_sync(). Mock their return values so that we don't
+        # make NS1 API calls during tests
+        monitors_for_mock.reset_mock()
+        monitor_sync_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            '3.4.5.6': 'mid-3',
+        }]
+        monitor_sync_mock.side_effect = [
+            ('mid-1', 'fid-1'),
+            ('mid-2', 'fid-2'),
+            ('mid-3', 'fid-3'),
+        ]
+
+        rule0 = self.record.data['dynamic']['rules'][0]
+        saved_geos = rule0['geos']
+        rule0['geos'] = ['AF', 'EU']
+        ret, _ = provider._params_for_A(self.record)
+        self.assertEquals(ret['filters'],
+                          Ns1Provider._FILTER_CHAIN_WITH_REGION)
+        rule0['geos'] = saved_geos
+
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
     def test_params_for_dynamic_oceania(self, monitors_for_mock,
                                         monitor_sync_mock):
         provider = Ns1Provider('test', 'api-key')
@@ -962,9 +997,9 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertEquals(set(ret['regions']['lhr']['meta']['country']),
                           Ns1Provider._CONTINENT_TO_LIST_OF_COUNTRIES['OC'])
         # When rules has 'OC', it is converted to list of countries in the
-        # params. Look for filter 'geofence_country' in the returned filters at
-        # index 2
-        self.assertEquals(ret['filters'][1]['filter'], 'geofence_country')
+        # params. Look if the returned filters is the filter chain with country
+        self.assertEquals(ret['filters'],
+                          Ns1Provider._FILTER_CHAIN_WITH_COUNTRY)
         rule0['geos'] = saved_geos
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
@@ -993,9 +1028,10 @@ class TestNs1ProviderDynamic(TestCase):
         # handling to get there
         ret, _ = provider._params_for_A(self.record)
 
-        # Given that self.record has a country in the rules, we should find
-        # the filter 'geofence_country' in the returned filters at index 2
-        self.assertEquals(ret['filters'][2]['filter'], 'geofence_country')
+        # Given that self.record has both country and region in the rules,
+        # the returned filter chain should be one with region and country
+        self.assertEquals(ret['filters'],
+                          Ns1Provider._FILTER_CHAIN_WITH_REGION_AND_COUNTRY)
 
         monitors_for_mock.assert_has_calls([call(self.record)])
         monitors_sync_mock.assert_has_calls([
@@ -1021,7 +1057,7 @@ class TestNs1ProviderDynamic(TestCase):
         ns1_record = {
             'answers': [],
             'domain': 'unit.tests',
-            'filters': Ns1Provider._BASIC_DYNAMIC_FILTERS,
+            'filters': Ns1Provider._BASIC_FILTER_CHAIN,
             'regions': {},
             'ttl': 42,
         }
