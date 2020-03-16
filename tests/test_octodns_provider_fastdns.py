@@ -59,7 +59,7 @@ class TestFastdnsProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals(502, ctx.exception.response.status_code)
 
-        # Non-existant zone doesn't populate anything
+        # Non-existent zone doesn't populate anything
         with requests_mock() as mock:
             mock.get(ANY, status_code=404,
                      text='{"message": "Domain `foo.bar` not found"}')

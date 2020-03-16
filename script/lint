@@ -17,5 +17,6 @@ fi
 
 SOURCES="*.py octodns/*.py octodns/*/*.py tests/*.py"
 
+codespell -L dne,doesnt,files\',splitted,te, --skip=./.*,./env
 pycodestyle --ignore=E221,E241,E251,E722,W504 $SOURCES
 pyflakes $SOURCES

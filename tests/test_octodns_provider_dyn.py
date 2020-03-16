@@ -2107,7 +2107,7 @@ class TestDynProviderDynamic(TestCase):
         self.assertEquals([1 for r in records], [r.weight for r in records])
         mock.assert_called_once_with(td)
 
-        # Ask for the pool we created above and include it in the canidate list
+        # Ask for the pool we created above and include it in candidate list
         mock.reset_mock()
         pools = [pool]
         cached = provider._find_or_create_dynamic_pool(td, pools, label, 'A',

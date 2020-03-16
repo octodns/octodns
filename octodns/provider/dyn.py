@@ -26,7 +26,7 @@ from .base import BaseProvider
 #
 # The following monkey patching is to work around functionality that is lacking
 # from DSFMonitor. You cannot set host or path (which we need) and there's no
-# update method. What's more host & path aren't publically accessible on the
+# update method. What's more host & path aren't publicly accessible on the
 # object so you can't see their current values and depending on how the object
 # came to be (constructor vs pulled from the api) the "private" location of
 # those fields varies :-(
@@ -520,7 +520,7 @@ class DynProvider(BaseProvider):
                 pool = ruleset.response_pools[0].label
                 # TODO: verify pool exists
                 if num_pools > 1:
-                    # We have a fallback, record it in the approrpriate pool.
+                    # We have a fallback, record it in the appropriate pool.
                     # Note we didn't have fallback info when we populated the
                     # pools above so we're filling that info in here. It's
                     # possible that rules will have disagreeing values for the
@@ -709,7 +709,7 @@ class DynProvider(BaseProvider):
                                      record.healthcheck_path,
                                      record.healthcheck_protocol,
                                      record.healthcheck_port):
-                self.log.info('_extra_changes: health-check mis-match for %s',
+                self.log.info('_extra_changes: health-check mismatch for %s',
                               label)
                 extra.append(Update(record, record))
 

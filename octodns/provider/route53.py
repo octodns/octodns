@@ -257,7 +257,7 @@ class _Route53DynamicPool(_Route53Record):
         return 'Secondary' if self.target_name else 'Primary'
 
     @property
-    def identifer(self):
+    def identifier(self):
         if self.target_name:
             return '{}-{}-{}'.format(self.pool_name, self.mode,
                                      self.target_name)
@@ -274,14 +274,14 @@ class _Route53DynamicPool(_Route53Record):
                 },
                 'Failover': 'SECONDARY' if self.target_name else 'PRIMARY',
                 'Name': self.fqdn,
-                'SetIdentifier': self.identifer,
+                'SetIdentifier': self.identifier,
                 'Type': self._type,
             }
         }
 
     def __hash__(self):
         return '{}:{}:{}'.format(self.fqdn, self._type,
-                                 self.identifer).__hash__()
+                                 self.identifier).__hash__()
 
     def __repr__(self):
         return '_Route53DynamicPool<{} {} {} {}>' \
@@ -303,7 +303,7 @@ class _Route53DynamicRule(_Route53Record):
                                                             record.fqdn)
 
     @property
-    def identifer(self):
+    def identifier(self):
         return '{}-{}-{}'.format(self.index, self.pool_name, self.geo)
 
     def mod(self, action, existing_rrsets):
@@ -317,7 +317,7 @@ class _Route53DynamicRule(_Route53Record):
                 'CountryCode': '*'
             },
             'Name': self.fqdn,
-            'SetIdentifier': self.identifer,
+            'SetIdentifier': self.identifier,
             'Type': self._type,
         }
 
@@ -345,7 +345,7 @@ class _Route53DynamicRule(_Route53Record):
 
     def __hash__(self):
         return '{}:{}:{}'.format(self.fqdn, self._type,
-                                 self.identifer).__hash__()
+                                 self.identifier).__hash__()
 
     def __repr__(self):
         return '_Route53DynamicRule<{} {} {} {} {}>' \
@@ -371,7 +371,7 @@ class _Route53DynamicValue(_Route53Record):
                                                             creating)
 
     @property
-    def identifer(self):
+    def identifier(self):
         return '{}-{:03d}'.format(self.pool_name, self.index)
 
     def mod(self, action, existing_rrsets):
@@ -383,7 +383,7 @@ class _Route53DynamicValue(_Route53Record):
             # potential matches)
             for existing in existing_rrsets:
                 if self.fqdn == existing.get('Name') and \
-                   self.identifer == existing.get('SetIdentifier', None):
+                   self.identifier == existing.get('SetIdentifier', None):
                     return {
                         'Action': action,
                         'ResourceRecordSet': existing,
@@ -395,7 +395,7 @@ class _Route53DynamicValue(_Route53Record):
                 'HealthCheckId': self.health_check_id,
                 'Name': self.fqdn,
                 'ResourceRecords': [{'Value': self.value}],
-                'SetIdentifier': self.identifer,
+                'SetIdentifier': self.identifier,
                 'TTL': self.ttl,
                 'Type': self._type,
                 'Weight': self.weight,
@@ -404,11 +404,11 @@ class _Route53DynamicValue(_Route53Record):
 
     def __hash__(self):
         return '{}:{}:{}'.format(self.fqdn, self._type,
-                                 self.identifer).__hash__()
+                                 self.identifier).__hash__()
 
     def __repr__(self):
         return '_Route53DynamicValue<{} {} {} {}>' \
-            .format(self.fqdn, self._type, self.identifer, self.value)
+            .format(self.fqdn, self._type, self.identifier, self.value)
 
 
 class _Route53GeoDefault(_Route53Record):
