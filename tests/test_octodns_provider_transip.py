@@ -11,7 +11,6 @@ from six import text_type
 from suds import WebFault
 
 from unittest import TestCase
-from unittest import skip
 
 from octodns.provider.transip import TransipProvider
 from octodns.provider.yaml import YamlProvider
@@ -98,9 +97,7 @@ class MockDomainService(DomainService):
         document = {}
         raise WebFault(fault, document)
 
-# FIXME Skipping broken tests for now. Revert this once they are found to
-# be working again
-@skip("Skipping broken transip tests")
+
 class TestTransipProvider(TestCase):
 
     bogus_key = str("""-----BEGIN RSA PRIVATE KEY-----
