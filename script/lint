@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+echo "Failing on purpose"
+exit 1
+
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 
