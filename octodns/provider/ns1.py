@@ -240,20 +240,28 @@ class Ns1Provider(BaseProvider):
 
     _UP_FILTER = {
         'config': {},
+        'disabled': False,
         'filter': 'up'
     }
 
     _REGION_FILTER = {
         'config': {},
+        'disabled': False,
         'filter': u'geofence_regional'
     }
     _COUNTRY_FILTER = {
-        'config': {},
+        'config': {
+            'remove_no_location': True
+        },
+        'disabled': False,
         'filter': u'geofence_country'
     }
 
+    # In the NS1 UI/portal, this filter is called "SELECT FIRST GROUP" though
+    # the filter name in the NS1 api is 'select_first_region'
     _SELECT_FIRST_REGION_FILTER = {
         'config': {},
+        'disabled': False,
         'filter': u'select_first_region'
     }
 
@@ -261,11 +269,13 @@ class Ns1Provider(BaseProvider):
         'config': {
             'eliminate': u'1'
         },
+        'disabled': False,
         'filter': 'priority'
     }
 
     _WEIGHTED_SHUFFLE_FILTER = {
         'config': {},
+        'disabled': False,
         'filter': u'weighted_shuffle'
     }
 
@@ -273,6 +283,7 @@ class Ns1Provider(BaseProvider):
         'config': {
             'N': u'1'
         },
+        'disabled': False,
         'filter': u'select_first_n'
     }
 
