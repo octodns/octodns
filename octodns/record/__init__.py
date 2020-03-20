@@ -579,6 +579,7 @@ class _DynamicMixin(object):
 
             # TODO: don't allow 'default' as a pool name, reserved
             # TODO: warn or error on unused pools?
+            pools_seen = set()
             for i, rule in enumerate(rules):
                 rule_num = i + 1
                 try:
@@ -590,9 +591,15 @@ class _DynamicMixin(object):
                 if not isinstance(pool, string_types):
                     reasons.append('rule {} invalid pool "{}"'
                                    .format(rule_num, pool))
-                elif pool not in pools:
-                    reasons.append('rule {} undefined pool "{}"'
-                                   .format(rule_num, pool))
+                else:
+                    if pool not in pools:
+                        reasons.append('rule {} undefined pool "{}"'
+                                       .format(rule_num, pool))
+                        pools_seen.add(pool)
+                    elif pool in pools_seen:
+                        reasons.append('rule {} invalid, target pool "{}" '
+                                       'reused'.format(rule_num, pool))
+                    pools_seen.add(pool)
 
                 try:
                     geos = rule['geos']
