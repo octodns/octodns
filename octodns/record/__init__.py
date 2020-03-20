@@ -507,6 +507,8 @@ class _DynamicMixin(object):
         except KeyError:
             pools = {}
 
+        pools_exist = set()
+        pools_seen = set()
         if not isinstance(pools, dict):
             reasons.append('pools must be a dict')
         elif not pools:
@@ -521,6 +523,8 @@ class _DynamicMixin(object):
                 except KeyError:
                     reasons.append('pool "{}" is missing values'.format(_id))
                     continue
+
+                pools_exist.add(_id)
 
                 for i, value in enumerate(values):
                     value_num = i + 1
@@ -578,8 +582,6 @@ class _DynamicMixin(object):
             seen_default = False
 
             # TODO: don't allow 'default' as a pool name, reserved
-            # TODO: warn or error on unused pools?
-            pools_seen = set()
             for i, rule in enumerate(rules):
                 rule_num = i + 1
                 try:
@@ -617,6 +619,11 @@ class _DynamicMixin(object):
                     for geo in geos:
                         reasons.extend(GeoCodes.validate(geo, 'rule {} '
                                                          .format(rule_num)))
+
+        unused = pools_exist - pools_seen
+        if unused:
+            unused = '", "'.join(sorted(unused))
+            reasons.append('unused pools: "{}"'.format(unused))
 
         return reasons
 

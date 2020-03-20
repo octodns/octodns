@@ -3075,7 +3075,7 @@ class TestDynamicRecords(TestCase):
             'invalid IPv4 address "blip"',
         ], ctx.exception.reasons)
 
-        # missing rules
+        # missing rules, and unused pools
         a_data = {
             'dynamic': {
                 'pools': {
@@ -3102,7 +3102,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['missing rules'], ctx.exception.reasons)
+        self.assertEquals([
+            'missing rules',
+            'unused pools: "one", "two"',
+        ], ctx.exception.reasons)
 
         # empty rules
         a_data = {
@@ -3132,7 +3135,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['missing rules'], ctx.exception.reasons)
+        self.assertEquals([
+            'missing rules',
+            'unused pools: "one", "two"',
+        ], ctx.exception.reasons)
 
         # rules not a list/tuple
         a_data = {
@@ -3162,7 +3168,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['rules must be a list'], ctx.exception.reasons)
+        self.assertEquals([
+            'rules must be a list',
+            'unused pools: "one", "two"',
+        ], ctx.exception.reasons)
 
         # rule without pool
         a_data = {
@@ -3196,7 +3205,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['rule 1 missing pool'], ctx.exception.reasons)
+        self.assertEquals([
+            'rule 1 missing pool',
+            'unused pools: "two"',
+        ], ctx.exception.reasons)
 
         # rule with non-string pools
         a_data = {
@@ -3231,8 +3243,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['rule 1 invalid pool "[]"'],
-                          ctx.exception.reasons)
+        self.assertEquals([
+            'rule 1 invalid pool "[]"',
+            'unused pools: "two"',
+        ], ctx.exception.reasons)
 
         # rule references non-existent pool
         a_data = {
@@ -3267,8 +3281,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(["rule 1 undefined pool \"non-existent\""],
-                          ctx.exception.reasons)
+        self.assertEquals([
+            "rule 1 undefined pool \"non-existent\"",
+            'unused pools: "two"',
+        ], ctx.exception.reasons)
 
         # rule with invalid geos
         a_data = {
@@ -3411,7 +3427,6 @@ class TestDynamicRecords(TestCase):
                 '2.2.2.2',
             ],
         }
-        print('\n*** start ***')
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
         self.assertEquals(['rule 3 invalid, target pool "one" reused'],
