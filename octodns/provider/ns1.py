@@ -1138,7 +1138,7 @@ class Ns1Provider(BaseProvider):
                                                          ns1_record['domain'],
                                                          ns1_record['type'])
                 if 'filters' in full_rec:
-                    filter_key = ns1_record['domain'] + '.'
+                    filter_key = '{}.'format(ns1_record['domain'])
                     ns1_filters[filter_key] = full_rec['filters']
         return ns1_filters
 
@@ -1165,7 +1165,7 @@ class Ns1Provider(BaseProvider):
             # Check if filters for existing domains need an update
             # Needs an explicit check since there might be no change in the
             # config at all. Filters however might still need an update
-            domain = '.'.join([record.name, record.zone.name])
+            domain = '{}.{}'format(record.name, record.zone.name)
             if domain in ns1_filters:
                 domain_filters = ns1_filters[domain]
                 if not self._disabled_flag_in_filters(domain_filters, domain):
