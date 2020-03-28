@@ -1219,10 +1219,27 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertFalse(extra)
         monitors_for_mock.assert_not_called()
 
-        # Simple record, ignored
+        # Non-existent zone. No changes
+        monitors_for_mock.reset_mock()
+        zones_retrieve_mock.side_effect = \
+            ResourceException('server error: zone not found')
+        records_retrieve_mock.reset_mock()
+        extra = provider._extra_changes(desired, [])
+        self.assertFalse(extra)
+
+        # Unexpected exception message
+        zones_retrieve_mock.reset_mock()
+        zones_retrieve_mock.side_effect = ResourceException('boom')
+        with self.assertRaises(ResourceException) as ctx:
+            extra = provider._extra_changes(desired, [])
+        self.assertEquals(zones_retrieve_mock.side_effect, ctx.exception)
+
+        # Simple record, ignored, filter update lookups ignored
         monitors_for_mock.reset_mock()
         zones_retrieve_mock.reset_mock()
         records_retrieve_mock.reset_mock()
+        zones_retrieve_mock.side_effect = \
+            ResourceException('server error: zone not found')
 
         simple = Record.new(desired, '', {
             'ttl': 32,
