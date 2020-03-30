@@ -1130,8 +1130,15 @@ class Ns1Provider(BaseProvider):
 
     def _get_ns1_filters(self, ns1_zone_name):
         ns1_filters = {}
+        ns1_zone = {}
+
         try:
             ns1_zone = self._client.zones_retrieve(ns1_zone_name)
+        except ResourceException as e:
+            if e.message != self.ZONE_NOT_FOUND_MESSAGE:
+                raise
+
+        if 'records' in ns1_zone:
             for ns1_record in ns1_zone['records']:
                 if ns1_record.get('tier', 1) > 1:
                     # Need to get the full record data for geo records
@@ -1142,9 +1149,7 @@ class Ns1Provider(BaseProvider):
                     if 'filters' in full_rec:
                         filter_key = '{}.'.format(ns1_record['domain'])
                         ns1_filters[filter_key] = full_rec['filters']
-        except ResourceException as e:
-            if e.message != self.ZONE_NOT_FOUND_MESSAGE:
-                raise
+
         return ns1_filters
 
     def _disabled_flag_in_filters(self, filters, domain):
