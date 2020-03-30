@@ -586,7 +586,7 @@ class CloudflareProvider(BaseProvider):
 
         for desired_record in desired.records:
             existing_record = existing_records.get(desired_record, None)
-            if existing_record:  # Will be created
+            if not existing_record:  # Will be created
                 continue
             elif desired_record in changed_records:  # Already being updated
                 continue
