@@ -238,29 +238,102 @@ class Ns1Provider(BaseProvider):
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
-    _DYNAMIC_FILTERS = [{
-        'config': {},
-        'filter': 'up'
-    }, {
-        'config': {},
-        'filter': u'geofence_regional'
-    }, {
-        'config': {},
-        'filter': u'select_first_region'
-    }, {
-        'config': {
-            'eliminate': u'1'
-        },
-        'filter': 'priority'
-    }, {
-        'config': {},
-        'filter': u'weighted_shuffle'
-    }, {
-        'config': {
-            'N': u'1'
-        },
-        'filter': u'select_first_n'
-    }]
+    def _update_filter(self, filter, with_disabled):
+        if with_disabled:
+            filter['disabled'] = False
+            return (dict(sorted(filter.items(), key=lambda t: t[0])))
+        return filter
+
+    def _UP_FILTER(self, with_disabled):
+        return self._update_filter({
+            'config': {},
+            'filter': 'up'
+        }, with_disabled)
+
+    def _REGION_FILTER(self, with_disabled):
+        return self._update_filter({
+            'config': {},
+            'filter': u'geofence_regional'
+        }, with_disabled)
+
+    def _COUNTRY_FILTER(self, with_disabled):
+        return self._update_filter({
+            'config': {
+                'remove_no_location': True
+            },
+            'filter': u'geofence_country'
+        }, with_disabled)
+
+    # In the NS1 UI/portal, this filter is called "SELECT FIRST GROUP" though
+    # the filter name in the NS1 api is 'select_first_region'
+    def _SELECT_FIRST_REGION_FILTER(self, with_disabled):
+        return self._update_filter({
+            'config': {},
+            'filter': u'select_first_region'
+        }, with_disabled)
+
+    def _PRIORITY_FILTER(self, with_disabled):
+        return self._update_filter({
+            'config': {
+                'eliminate': u'1'
+            },
+            'filter': 'priority'
+        }, with_disabled)
+
+    def _WEIGHTED_SHUFFLE_FILTER(self, with_disabled):
+        return self._update_filter({
+            'config': {},
+            'filter': u'weighted_shuffle'
+        }, with_disabled)
+
+    def _SELECT_FIRST_N_FILTER(self, with_disabled):
+        return self._update_filter({
+            'config': {
+                'N': u'1'
+            },
+            'filter': u'select_first_n'
+        }, with_disabled)
+
+    def _BASIC_FILTER_CHAIN(self, with_disabled):
+        return [
+            self._UP_FILTER(with_disabled),
+            self._SELECT_FIRST_REGION_FILTER(with_disabled),
+            self._PRIORITY_FILTER(with_disabled),
+            self._WEIGHTED_SHUFFLE_FILTER(with_disabled),
+            self._SELECT_FIRST_N_FILTER(with_disabled)
+        ]
+
+    def _FILTER_CHAIN_WITH_REGION(self, with_disabled):
+        return [
+            self._UP_FILTER(with_disabled),
+            self._REGION_FILTER(with_disabled),
+            self._SELECT_FIRST_REGION_FILTER(with_disabled),
+            self._PRIORITY_FILTER(with_disabled),
+            self._WEIGHTED_SHUFFLE_FILTER(with_disabled),
+            self._SELECT_FIRST_N_FILTER(with_disabled)
+        ]
+
+    def _FILTER_CHAIN_WITH_COUNTRY(self, with_disabled):
+        return [
+            self._UP_FILTER(with_disabled),
+            self._COUNTRY_FILTER(with_disabled),
+            self._SELECT_FIRST_REGION_FILTER(with_disabled),
+            self._PRIORITY_FILTER(with_disabled),
+            self._WEIGHTED_SHUFFLE_FILTER(with_disabled),
+            self._SELECT_FIRST_N_FILTER(with_disabled)
+        ]
+
+    def _FILTER_CHAIN_WITH_REGION_AND_COUNTRY(self, with_disabled):
+        return [
+            self._UP_FILTER(with_disabled),
+            self._REGION_FILTER(with_disabled),
+            self._COUNTRY_FILTER(with_disabled),
+            self._SELECT_FIRST_REGION_FILTER(with_disabled),
+            self._PRIORITY_FILTER(with_disabled),
+            self._WEIGHTED_SHUFFLE_FILTER(with_disabled),
+            self._SELECT_FIRST_N_FILTER(with_disabled)
+        ]
+
     _REGION_TO_CONTINENT = {
         'AFRICA': 'AF',
         'ASIAPAC': 'AS',
@@ -297,6 +370,29 @@ class Ns1Provider(BaseProvider):
         self.monitor_regions = monitor_regions
         self._client = Ns1Client(api_key, parallelism, retry_count,
                                  client_config)
+
+    def _valid_filter_config(self, filter_cfg, domain):
+        with_disabled = self._disabled_flag_in_filters(filter_cfg, domain)
+        has_region = self._REGION_FILTER(with_disabled) in filter_cfg
+        has_country = self._COUNTRY_FILTER(with_disabled) in filter_cfg
+        expected_filter_cfg = self._get_updated_filter_chain(has_region,
+                                                             has_country,
+                                                             with_disabled)
+        return filter_cfg == expected_filter_cfg
+
+    def _get_updated_filter_chain(self, has_region, has_country,
+                                  with_disabled=True):
+        if has_region and has_country:
+            filter_chain = self._FILTER_CHAIN_WITH_REGION_AND_COUNTRY(
+                with_disabled)
+        elif has_region:
+            filter_chain = self._FILTER_CHAIN_WITH_REGION(with_disabled)
+        elif has_country:
+            filter_chain = self._FILTER_CHAIN_WITH_COUNTRY(with_disabled)
+        else:
+            filter_chain = self._BASIC_FILTER_CHAIN(with_disabled)
+
+        return filter_chain
 
     def _encode_notes(self, data):
         return ' '.join(['{}:{}'.format(k, v)
@@ -358,7 +454,7 @@ class Ns1Provider(BaseProvider):
 
     def _data_for_dynamic_A(self, _type, record):
         # First make sure we have the expected filters config
-        if self._DYNAMIC_FILTERS != record['filters']:
+        if not self._valid_filter_config(record['filters'], record['domain']):
             self.log.error('_data_for_dynamic_A: %s %s has unsupported '
                            'filters', record['domain'], _type)
             raise Ns1Exception('Unrecognized advanced record')
@@ -843,6 +939,8 @@ class Ns1Provider(BaseProvider):
         pools = record.dynamic.pools
 
         # Convert rules to regions
+        has_country = False
+        has_region = False
         regions = {}
         for i, rule in enumerate(record.dynamic.rules):
             pool_name = rule.data['pool']
@@ -860,17 +958,23 @@ class Ns1Provider(BaseProvider):
             us_state = set()
 
             for geo in rule.data.get('geos', []):
+
                 n = len(geo)
                 if n == 8:
                     # US state, e.g. NA-US-KY
                     us_state.add(geo[-2:])
+                    # For filtering. State filtering is done by the country
+                    # filter
+                    has_country = True
                 elif n == 5:
                     # Country, e.g. EU-FR
                     country.add(geo[-2:])
+                    has_country = True
                 else:
                     # Continent, e.g. AS
                     if geo in self._CONTINENT_TO_REGIONS:
                         georegion.update(self._CONTINENT_TO_REGIONS[geo])
+                        has_region = True
                     else:
                         # No maps for geo in _CONTINENT_TO_REGIONS.
                         # Use the country list
@@ -878,6 +982,7 @@ class Ns1Provider(BaseProvider):
                                        format(geo))
                         for c in self._CONTINENT_TO_LIST_OF_COUNTRIES[geo]:
                             country.add(c)
+                            has_country = True
 
             meta = {
                 'note': self._encode_notes(notes),
@@ -965,9 +1070,12 @@ class Ns1Provider(BaseProvider):
                 }
                 answers.append(answer)
 
+        # Update filters as necessary
+        filters = self._get_updated_filter_chain(has_region, has_country)
+
         return {
             'answers': answers,
-            'filters': self._DYNAMIC_FILTERS,
+            'filters': filters,
             'regions': regions,
             'ttl': record.ttl,
         }, active_monitors
@@ -1020,16 +1128,63 @@ class Ns1Provider(BaseProvider):
                   for v in record.values]
         return {'answers': values, 'ttl': record.ttl}, None
 
+    def _get_ns1_filters(self, ns1_zone_name):
+        ns1_filters = {}
+        ns1_zone = {}
+
+        try:
+            ns1_zone = self._client.zones_retrieve(ns1_zone_name)
+        except ResourceException as e:
+            if e.message != self.ZONE_NOT_FOUND_MESSAGE:
+                raise
+
+        if 'records' in ns1_zone:
+            for ns1_record in ns1_zone['records']:
+                if ns1_record.get('tier', 1) > 1:
+                    # Need to get the full record data for geo records
+                    full_rec = self._client.records_retrieve(
+                        ns1_zone_name,
+                        ns1_record['domain'],
+                        ns1_record['type'])
+                    if 'filters' in full_rec:
+                        filter_key = '{}.'.format(ns1_record['domain'])
+                        ns1_filters[filter_key] = full_rec['filters']
+
+        return ns1_filters
+
+    def _disabled_flag_in_filters(self, filters, domain):
+        disabled_count = ['disabled' in f for f in filters].count(True)
+        if disabled_count and disabled_count != len(filters):
+            # Some filters have the disabled flag, and some don't. Disallow
+            exception_msg = 'Mixed disabled flag in filters for {}'.format(
+                            domain)
+            raise Ns1Exception(exception_msg)
+        return disabled_count == len(filters)
+
     def _extra_changes(self, desired, changes, **kwargs):
         self.log.debug('_extra_changes: desired=%s', desired.name)
-
+        ns1_filters = self._get_ns1_filters(desired.name[:-1])
         changed = set([c.record for c in changes])
-
         extra = []
         for record in desired.records:
             if record in changed or not getattr(record, 'dynamic', False):
                 # Already changed, or no dynamic , no need to check it
                 continue
+
+            # Filter normalization
+            # Check if filters for existing domains need an update
+            # Needs an explicit check since there might be no change in the
+            # config at all. Filters however might still need an update
+            domain = '{}.{}'.format(record.name, record.zone.name)
+            if domain in ns1_filters:
+                domain_filters = ns1_filters[domain]
+                if not self._disabled_flag_in_filters(domain_filters, domain):
+                    # 'disabled' entry absent in filter config. Need to update
+                    # filters. Update record
+                    self.log.info('_extra_changes: change in filters for %s',
+                                  domain)
+                    extra.append(Update(record, record))
+                    continue
 
             for have in self._monitors_for(record).values():
                 value = have['config']['host']
