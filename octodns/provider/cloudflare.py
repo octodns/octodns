@@ -585,12 +585,11 @@ class CloudflareProvider(BaseProvider):
         changed_records = {c.record for c in changes}
 
         for desired_record in desired.records:
-            if desired_record not in existing.records:  # Will be created
+            existing_record = existing_records.get(desired_record, None)
+            if not existing_record:  # Will be created
                 continue
             elif desired_record in changed_records:  # Already being updated
                 continue
-
-            existing_record = existing_records[desired_record]
 
             if (self._record_is_proxied(existing_record) !=
                     self._record_is_proxied(desired_record)):
