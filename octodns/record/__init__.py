@@ -590,6 +590,11 @@ class _DynamicMixin(object):
                     reasons.append('rule {} missing pool'.format(rule_num))
                     continue
 
+                try:
+                    geos = rule['geos']
+                except KeyError:
+                    geos = []
+
                 if not isinstance(pool, string_types):
                     reasons.append('rule {} invalid pool "{}"'
                                    .format(rule_num, pool))
@@ -598,15 +603,12 @@ class _DynamicMixin(object):
                         reasons.append('rule {} undefined pool "{}"'
                                        .format(rule_num, pool))
                         pools_seen.add(pool)
-                    elif pool in pools_seen:
+                    elif pool in pools_seen and geos:
                         reasons.append('rule {} invalid, target pool "{}" '
                                        'reused'.format(rule_num, pool))
                     pools_seen.add(pool)
 
-                try:
-                    geos = rule['geos']
-                except KeyError:
-                    geos = []
+                if not geos:
                     if seen_default:
                         reasons.append('rule {} duplicate default'
                                        .format(rule_num))
