@@ -3,6 +3,6 @@ mock
 nose
 pycodestyle==2.5.0
 pyflakes==2.1.1
-readme_renderer[md]==24.0
+readme_renderer[md]==25.0
 requests_mock
 twine==1.15.0
