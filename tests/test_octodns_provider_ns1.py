@@ -553,6 +553,11 @@ class TestNs1ProviderDynamic(TestCase):
                 ],
                 'pool': 'lhr',
             }, {
+                'geos': [
+                    'AF-ZW',
+                ],
+                'pool': 'iad',
+            }, {
                 'pool': 'iad',
             }],
         },
@@ -961,13 +966,17 @@ class TestNs1ProviderDynamic(TestCase):
         ]
 
         rule0 = self.record.data['dynamic']['rules'][0]
-        saved_geos = rule0['geos']
+        rule1 = self.record.data['dynamic']['rules'][1]
+        rule0_saved_geos = rule0['geos']
+        rule1_saved_geos = rule1['geos']
         rule0['geos'] = ['AF', 'EU']
+        rule1['geos'] = ['NA']
         ret, _ = provider._params_for_A(self.record)
         self.assertEquals(ret['filters'],
                           Ns1Provider._FILTER_CHAIN_WITH_REGION(provider,
                                                                 True))
-        rule0['geos'] = saved_geos
+        rule0['geos'] = rule0_saved_geos
+        rule1['geos'] = rule1_saved_geos
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
@@ -1123,6 +1132,21 @@ class TestNs1ProviderDynamic(TestCase):
                     'note': 'from:--default--',
                 },
                 'region': 'iad',
+            }, {
+                'answer': ['2.3.4.5'],
+                'meta': {
+                    'priority': 1,
+                    'weight': 12,
+                    'note': 'from:iad_shadow',
+                },
+                'region': 'iad_shadow',
+            }, {
+                'answer': ['1.2.3.4'],
+                'meta': {
+                    'priority': 2,
+                    'note': 'from:--default--',
+                },
+                'region': 'iad_shadow',
             }],
             'domain': 'unit.tests',
             'filters': filters,
@@ -1135,9 +1159,15 @@ class TestNs1ProviderDynamic(TestCase):
                         'us_state': ['OR'],
                     },
                 },
-                'iad': {
+                'iad_shadow': {
                     'meta': {
                         'note': 'rule-order:2',
+                        'country': ['ZW'],
+                    },
+                },
+                'iad': {
+                    'meta': {
+                        'note': 'rule-order:3',
                     },
                 }
             },
@@ -1173,6 +1203,12 @@ class TestNs1ProviderDynamic(TestCase):
                     'pool': 'lhr',
                 }, {
                     '_order': '2',
+                    'geos': [
+                        'AF-ZW',
+                    ],
+                    'pool': 'iad',
+                }, {
+                    '_order': '3',
                     'pool': 'iad',
                 }],
             },

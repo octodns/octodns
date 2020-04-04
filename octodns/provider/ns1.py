@@ -468,8 +468,12 @@ class Ns1Provider(BaseProvider):
         pools = defaultdict(lambda: {'fallback': None, 'values': []})
         for answer in record['answers']:
             # region (group name in the UI) is the pool name
+            # Shadow pools are a mechanism internal to this provider
+            # Skip them when constructing octoDNS records from ns1 records
             pool_name = answer['region']
-            pool = pools[answer['region']]
+            if pool_name.endswith('_shadow'):
+                continue
+            pool = pools[pool_name]
 
             meta = answer['meta']
             value = text_type(answer['answer'][0])
@@ -492,6 +496,11 @@ class Ns1Provider(BaseProvider):
         # examples currently where it would
         rules = []
         for pool_name, region in sorted(record['regions'].items()):
+            # Rules that refer to the default dynamic pool would have
+            # used the shadow pool name. Convert it back to the dynamic
+            # default pool name by stripping the '_shadow' in the pool name
+            if pool_name.endswith('_shadow'):
+                pool_name = pool_name[:-7]
             meta = region['meta']
             notes = self._parse_notes(meta.get('note', ''))
 
@@ -935,6 +944,49 @@ class Ns1Provider(BaseProvider):
             notify_list_id = monitor['notify_list']
             self._client.notifylists_delete(notify_list_id)
 
+    def _add_answers_for_pool(self, answers, default_answers, pool_name,
+                              pool_label, pool_answers, pools, priority):
+        current_pool_name = pool_name
+        seen = set()
+        while current_pool_name and current_pool_name not in seen:
+            seen.add(current_pool_name)
+            pool = pools[current_pool_name]
+            for answer in pool_answers[current_pool_name]:
+                answer = {
+                    'answer': answer['answer'],
+                    'meta': {
+                        'priority': priority,
+                        'note': self._encode_notes({
+                            'from': pool_label,
+                        }),
+                        'up': {
+                            'feed': answer['feed_id'],
+                        },
+                        'weight': answer['weight'],
+                    },
+                    'region': pool_label,  # the one we're answering
+                }
+                answers.append(answer)
+
+            current_pool_name = pool.data.get('fallback', None)
+            priority += 1
+
+        # Static/default
+        for answer in default_answers:
+            answer = {
+                'answer': answer['answer'],
+                'meta': {
+                    'priority': priority,
+                    'note': self._encode_notes({
+                        'from': '--default--',
+                    }),
+                    'up': True,
+                    'weight': 1,
+                },
+                'region': pool_label,  # the one we're answering
+            }
+            answers.append(answer)
+
     def _params_for_dynamic_A(self, record):
         pools = record.dynamic.pools
 
@@ -942,6 +994,16 @@ class Ns1Provider(BaseProvider):
         has_country = False
         has_region = False
         regions = {}
+        needs_shadow = False
+
+        # Get dynamic default pool name
+        # It is a pool that has no 'geos' associated with it
+        dynamic_default_pool_name = None
+        for i, rule in enumerate(record.dynamic.rules):
+            pool_name = rule.data['pool']
+            if not rule.data.get('geos', []):
+                dynamic_default_pool_name = pool_name
+
         for i, rule in enumerate(record.dynamic.rules):
             pool_name = rule.data['pool']
 
@@ -958,7 +1020,15 @@ class Ns1Provider(BaseProvider):
             us_state = set()
 
             for geo in rule.data.get('geos', []):
-
+                # regions dictionary below is indexed by pool names. If there
+                # is reuse of a pool name in the rules, the earlier one gets
+                # overwritten. Reuse of pool names is disallowed but for an
+                # exception in the case of the dynamic default pool. So, when
+                # the dynamic default pool name is reused elsewhere, use
+                # the shadow pool name for the dynamic default pool
+                if pool_name == dynamic_default_pool_name:
+                    pool_name = '{}_{}'.format(pool_name, 'shadow')
+                    needs_shadow = True
                 n = len(geo)
                 if n == 8:
                     # US state, e.g. NA-US-KY
@@ -1029,46 +1099,17 @@ class Ns1Provider(BaseProvider):
             priority = 1
 
             # Dynamic/health checked
-            current_pool_name = pool_name
-            seen = set()
-            while current_pool_name and current_pool_name not in seen:
-                seen.add(current_pool_name)
-                pool = pools[current_pool_name]
-                for answer in pool_answers[current_pool_name]:
-                    answer = {
-                        'answer': answer['answer'],
-                        'meta': {
-                            'priority': priority,
-                            'note': self._encode_notes({
-                                'from': current_pool_name,
-                            }),
-                            'up': {
-                                'feed': answer['feed_id'],
-                            },
-                            'weight': answer['weight'],
-                        },
-                        'region': pool_name,  # the one we're answering
-                    }
-                    answers.append(answer)
-
-                current_pool_name = pool.data.get('fallback', None)
-                priority += 1
-
-            # Static/default
-            for answer in default_answers:
-                answer = {
-                    'answer': answer['answer'],
-                    'meta': {
-                        'priority': priority,
-                        'note': self._encode_notes({
-                            'from': '--default--',
-                        }),
-                        'up': True,
-                        'weight': 1,
-                    },
-                    'region': pool_name,  # the one we're answering
-                }
-                answers.append(answer)
+            self._add_answers_for_pool(answers, default_answers, pool_name,
+                                       pool_name, pool_answers, pools,
+                                       priority)
+            if pool_name == dynamic_default_pool_name and needs_shadow:
+                # If it is the dynamic default pool, add a shadow pool.
+                # This will be used in regions when there are rules that refer
+                # to the dynamic default pool
+                shadow_pn = '{}_{}'.format(pool_name, 'shadow')
+                self._add_answers_for_pool(answers, default_answers, pool_name,
+                                           shadow_pn, pool_answers, pools,
+                                           priority)
 
         # Update filters as necessary
         filters = self._get_updated_filter_chain(has_region, has_country)
