@@ -1395,6 +1395,8 @@ class Route53Provider(BaseProvider):
         self._really_apply(batch, zone_id)
 
     def _really_apply(self, batch, zone_id):
+        # Ensure this batch is ordered (deletes before creates etc.)
+        batch.sort(key=_mod_keyer)
         uuid = uuid4().hex
         batch = {
             'Comment': 'Change: {}'.format(uuid),
