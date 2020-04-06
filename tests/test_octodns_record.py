@@ -3417,6 +3417,7 @@ class TestDynamicRecords(TestCase):
                     'geos': ['AF'],
                     'pool': 'one',
                 }, {
+                    'geos': ['OC'],
                     'pool': 'one',
                 }],
             },
@@ -3431,6 +3432,43 @@ class TestDynamicRecords(TestCase):
             Record.new(self.zone, 'bad', a_data)
         self.assertEquals(['rule 3 invalid, target pool "one" reused'],
                           ctx.exception.reasons)
+
+        # Repeated pool is OK if later one is a default
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': ['EU-GB'],
+                    'pool': 'one',
+                }, {
+                    'geos': ['EU'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        # This should be valid, no exception
+        Record.new(self.zone, 'bad', a_data)
 
     def test_dynamic_lenient(self):
         # Missing pools
