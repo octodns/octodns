@@ -237,6 +237,7 @@ class Ns1Provider(BaseProvider):
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
+    CATCHALL_PREFIX = 'catchall_'
 
     def _update_filter(self, filter, with_disabled):
         if with_disabled:
@@ -468,21 +469,26 @@ class Ns1Provider(BaseProvider):
         pools = defaultdict(lambda: {'fallback': None, 'values': []})
         for answer in record['answers']:
             # region (group name in the UI) is the pool name
-            # Shadow pools are a mechanism internal to this provider
-            # Skip them when constructing octoDNS records from ns1 records
             pool_name = answer['region']
-            if pool_name.endswith('_shadow'):
-                continue
+            # Get the actual pool name from the constructed pool name in case
+            # of the catchall
+            if pool_name.startswith(self.CATCHALL_PREFIX):
+                pool_name = pool_name[len(self.CATCHALL_PREFIX):]
             pool = pools[pool_name]
 
             meta = answer['meta']
             value = text_type(answer['answer'][0])
             if meta['priority'] == 1:
                 # priority 1 means this answer is part of the pools own values
-                pool['values'].append({
+                value_dict = {
                     'value': value,
                     'weight': int(meta.get('weight', 1)),
-                })
+                }
+                # If we have the original pool name and the catchall pool name
+                # in the answers, they point at the same pool. Add values only
+                # once
+                if value_dict not in pool['values']:
+                    pool['values'].append(value_dict)
             else:
                 # It's a fallback, we only care about it if it's a
                 # final/default
@@ -496,11 +502,11 @@ class Ns1Provider(BaseProvider):
         # examples currently where it would
         rules = []
         for pool_name, region in sorted(record['regions'].items()):
-            # Rules that refer to the default dynamic pool would have
-            # used the shadow pool name. Convert it back to the dynamic
-            # default pool name by stripping the '_shadow' in the pool name
-            if pool_name.endswith('_shadow'):
-                pool_name = pool_name[:-7]
+            # Rules that refer to the catchall pool would have the
+            # CATCHALL_PREFIX in the pool name. Strip the prefix to get back
+            # the pool name as in the config
+            if pool_name.startswith(self.CATCHALL_PREFIX):
+                pool_name = pool_name[len(self.CATCHALL_PREFIX):]
             meta = region['meta']
             notes = self._parse_notes(meta.get('note', ''))
 
@@ -994,18 +1000,12 @@ class Ns1Provider(BaseProvider):
         has_country = False
         has_region = False
         regions = {}
-        needs_shadow = False
-
-        # Get dynamic default pool name
-        # It is a pool that has no 'geos' associated with it
-        dynamic_default_pool_name = None
-        for i, rule in enumerate(record.dynamic.rules):
-            pool_name = rule.data['pool']
-            if not rule.data.get('geos', []):
-                dynamic_default_pool_name = pool_name
+        catchall_pool_name = None
+        pool_usage = defaultdict(lambda: 0)
 
         for i, rule in enumerate(record.dynamic.rules):
             pool_name = rule.data['pool']
+            pool_usage[pool_name] += 1
 
             notes = {
                 'rule-order': i,
@@ -1020,15 +1020,6 @@ class Ns1Provider(BaseProvider):
             us_state = set()
 
             for geo in rule.data.get('geos', []):
-                # regions dictionary below is indexed by pool names. If there
-                # is reuse of a pool name in the rules, the earlier one gets
-                # overwritten. Reuse of pool names is disallowed but for an
-                # exception in the case of the dynamic default pool. So, when
-                # the dynamic default pool name is reused elsewhere, use
-                # the shadow pool name for the dynamic default pool
-                if pool_name == dynamic_default_pool_name:
-                    pool_name = '{}_{}'.format(pool_name, 'shadow')
-                    needs_shadow = True
                 n = len(geo)
                 if n == 8:
                     # US state, e.g. NA-US-KY
@@ -1064,9 +1055,25 @@ class Ns1Provider(BaseProvider):
             if us_state:
                 meta['us_state'] = sorted(us_state)
 
-            regions[pool_name] = {
-                'meta': meta,
-            }
+            if not georegion and not country and not us_state:
+                # This is the catchall pool. Modify the pool name in the record
+                # being pushed
+                # NS1 regions are indexed by pool names. Any reuse of pool
+                # names in the rules will result in overwriting of the pool.
+                # Reuse of pools is in general disallowed but for the case of
+                # the catchall pool - to allow legitimate usecases.
+                # The pool name renaming is done to accommodate for such a
+                # reuse.
+                # (We expect only one catchall per record. Any associated
+                # validation is expected to covered under record validation)
+                catchall_pool_name = pool_name
+                regions['{}{}'.format(self.CATCHALL_PREFIX, pool_name)] = {
+                    'meta': meta,
+                }
+            else:
+                regions[pool_name] = {
+                    'meta': meta,
+                }
 
         existing_monitors = self._monitors_for(record)
         active_monitors = set()
@@ -1097,18 +1104,26 @@ class Ns1Provider(BaseProvider):
         answers = []
         for pool_name in sorted(pools.keys()):
             priority = 1
+            answers_added = False
 
             # Dynamic/health checked
-            self._add_answers_for_pool(answers, default_answers, pool_name,
-                                       pool_name, pool_answers, pools,
-                                       priority)
-            if pool_name == dynamic_default_pool_name and needs_shadow:
-                # If it is the dynamic default pool, add a shadow pool.
-                # This will be used in regions when there are rules that refer
-                # to the dynamic default pool
-                shadow_pn = '{}_{}'.format(pool_name, 'shadow')
+            if pool_name == catchall_pool_name:
+                # For the catchall, use the internal pool name with the prefix
+                pool_label = '{}{}'.format(self.CATCHALL_PREFIX, pool_name)
                 self._add_answers_for_pool(answers, default_answers, pool_name,
-                                           shadow_pn, pool_answers, pools,
+                                           pool_label, pool_answers, pools,
+                                           priority)
+                answers_added = True
+
+                # If the catchall pool has been reused, we need the original
+                # pool name too, the creation of which is controlled by the
+                # answers_added flag
+                if pool_usage[pool_name] > 1:
+                    answers_added = False
+
+            if not answers_added:
+                self._add_answers_for_pool(answers, default_answers, pool_name,
+                                           pool_name, pool_answers, pools,
                                            priority)
 
         # Update filters as necessary
