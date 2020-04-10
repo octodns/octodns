@@ -26,8 +26,8 @@ class AkamaiClient(object):
     '''
     Client for making calls to Akamai Fast DNS API using Python Requests
 
-    Fast DNS Zone Management API V2, found here:
-    developer.akamai.com/api/web_performance/fast_dns_zone_management/v2.html
+    Edge DNS Zone Management API V2, found here:
+    https://developer.akamai.com/api/cloud_security/edge_dns_zone_management/v2.html
 
     Info on Python Requests library:
     https://2.python-requests.org/en/master/
@@ -112,7 +112,7 @@ class AkamaiClient(object):
 class AkamaiProvider(BaseProvider):
 
     '''
-    Akamai Fast DNS Provider
+    Akamai Edge DNS Provider
 
     edgedns.py:
 
