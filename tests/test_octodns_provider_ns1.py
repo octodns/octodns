@@ -528,7 +528,7 @@ class TestNs1Provider(TestCase):
 class TestNs1ProviderDynamic(TestCase):
     zone = Zone('unit.tests.', [])
 
-    record_data = {
+    record = Record.new(zone, '', {
         'dynamic': {
             'pools': {
                 'lhr': {
@@ -573,8 +573,7 @@ class TestNs1ProviderDynamic(TestCase):
         'type': 'A',
         'value': '1.2.3.4',
         'meta': {},
-    }
-    record = Record.new(zone, '', record_data)
+    })
 
     def test_notes(self):
         provider = Ns1Provider('test', 'api-key')
@@ -979,34 +978,6 @@ class TestNs1ProviderDynamic(TestCase):
         rule0['geos'] = rule0_saved_geos
         rule1['geos'] = rule1_saved_geos
 
-        # Test record with no reuse of the catchall
-        monitors_for_mock.reset_mock()
-        monitor_sync_mock.reset_mock()
-        monitors_for_mock.side_effect = [{
-            '3.4.5.6': 'mid-3',
-        }]
-        monitor_sync_mock.side_effect = [
-            ('mid-1', 'fid-1'),
-            ('mid-2', 'fid-2'),
-            ('mid-3', 'fid-3'),
-        ]
-        # Modify the record data before creating the Record object
-        rule0 = self.record_data['dynamic']['rules'][0]
-        rule0_saved_geos = rule0['geos']
-        rule0['geos'] = ['AF', 'EU']
-        rule1 = self.record_data['dynamic']['rules'].pop(1)
-
-        # Create a local record object without reuse of catchall
-        zone = Zone('unit.tests.', [])
-        record = Record.new(zone, '', self.record_data)
-        ret, _ = provider._params_for_A(record)
-        self.assertEquals(ret['filters'],
-                          Ns1Provider._FILTER_CHAIN_WITH_REGION(provider,
-                                                                True))
-        # Restore record_data
-        rule0['geos'] = rule0_saved_geos
-        self.record_data['dynamic']['rules'].insert(1, rule1)
-
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
     def test_params_for_dynamic_oceania(self, monitors_for_mock,
@@ -1123,6 +1094,7 @@ class TestNs1ProviderDynamic(TestCase):
         # Test out a small, but realistic setup that covers all the options
         # We have country and region in the test config
         filters = provider._get_updated_filter_chain(True, True)
+        catchall_pool_name = '{}{}'.format(provider.CATCHALL_PREFIX, 'iad')
         ns1_record = {
             'answers': [{
                 'answer': ['3.4.5.6'],
@@ -1166,16 +1138,16 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 1,
                     'weight': 12,
-                    'note': 'from:catchall_iad',
+                    'note': 'from:{}'.format(catchall_pool_name),
                 },
-                'region': 'catchall_iad',
+                'region': catchall_pool_name,
             }, {
                 'answer': ['1.2.3.4'],
                 'meta': {
                     'priority': 2,
                     'note': 'from:--default--',
                 },
-                'region': 'catchall_iad',
+                'region': catchall_pool_name,
             }],
             'domain': 'unit.tests',
             'filters': filters,
@@ -1194,7 +1166,7 @@ class TestNs1ProviderDynamic(TestCase):
                         'country': ['ZW'],
                     },
                 },
-                'catchall_iad': {
+                catchall_pool_name: {
                     'meta': {
                         'note': 'rule-order:3',
                     },

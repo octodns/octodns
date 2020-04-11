@@ -237,7 +237,7 @@ class Ns1Provider(BaseProvider):
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
-    CATCHALL_PREFIX = 'catchall_'
+    CATCHALL_PREFIX = 'catchall__'
 
     def _update_filter(self, filter, with_disabled):
         if with_disabled:
@@ -472,8 +472,7 @@ class Ns1Provider(BaseProvider):
             pool_name = answer['region']
             # Get the actual pool name from the constructed pool name in case
             # of the catchall
-            if pool_name.startswith(self.CATCHALL_PREFIX):
-                pool_name = pool_name[len(self.CATCHALL_PREFIX):]
+            pool_name = pool_name.replace(self.CATCHALL_PREFIX, '')
             pool = pools[pool_name]
 
             meta = answer['meta']
@@ -505,8 +504,7 @@ class Ns1Provider(BaseProvider):
             # Rules that refer to the catchall pool would have the
             # CATCHALL_PREFIX in the pool name. Strip the prefix to get back
             # the pool name as in the config
-            if pool_name.startswith(self.CATCHALL_PREFIX):
-                pool_name = pool_name[len(self.CATCHALL_PREFIX):]
+            pool_name = pool_name.replace(self.CATCHALL_PREFIX, '')
             meta = region['meta']
             notes = self._parse_notes(meta.get('note', ''))
 
@@ -1000,12 +998,9 @@ class Ns1Provider(BaseProvider):
         has_country = False
         has_region = False
         regions = {}
-        catchall_pool_name = None
-        pool_usage = defaultdict(lambda: 0)
 
         for i, rule in enumerate(record.dynamic.rules):
             pool_name = rule.data['pool']
-            pool_usage[pool_name] += 1
 
             notes = {
                 'rule-order': i,
@@ -1066,14 +1061,11 @@ class Ns1Provider(BaseProvider):
                 # reuse.
                 # (We expect only one catchall per record. Any associated
                 # validation is expected to covered under record validation)
-                catchall_pool_name = pool_name
-                regions['{}{}'.format(self.CATCHALL_PREFIX, pool_name)] = {
-                    'meta': meta,
-                }
-            else:
-                regions[pool_name] = {
-                    'meta': meta,
-                }
+                pool_name = '{}{}'.format(self.CATCHALL_PREFIX, pool_name)
+
+            regions[pool_name] = {
+                'meta': meta,
+            }
 
         existing_monitors = self._monitors_for(record)
         active_monitors = set()
@@ -1101,30 +1093,20 @@ class Ns1Provider(BaseProvider):
         } for v in record.values]
 
         # Build our list of answers
+        # The regions dictionary built above already has the required pool
+        # names. Iterate over them and add answers.
+        # In the case of the catchall, original pool name can be obtained
+        # by stripping the CATCHALL_PREFIX from the pool name
         answers = []
-        for pool_name in sorted(pools.keys()):
+        for pool_name in sorted(regions.keys()):
             priority = 1
-            answers_added = False
 
             # Dynamic/health checked
-            if pool_name == catchall_pool_name:
-                # For the catchall, use the internal pool name with the prefix
-                pool_label = '{}{}'.format(self.CATCHALL_PREFIX, pool_name)
-                self._add_answers_for_pool(answers, default_answers, pool_name,
-                                           pool_label, pool_answers, pools,
-                                           priority)
-                answers_added = True
-
-                # If the catchall pool has been reused, we need the original
-                # pool name too, the creation of which is controlled by the
-                # answers_added flag
-                if pool_usage[pool_name] > 1:
-                    answers_added = False
-
-            if not answers_added:
-                self._add_answers_for_pool(answers, default_answers, pool_name,
-                                           pool_name, pool_answers, pools,
-                                           priority)
+            pool_label = pool_name
+            pool_name = pool_name.replace(self.CATCHALL_PREFIX, '')
+            self._add_answers_for_pool(answers, default_answers, pool_name,
+                                       pool_label, pool_answers, pools,
+                                       priority)
 
         # Update filters as necessary
         filters = self._get_updated_filter_chain(has_region, has_country)
