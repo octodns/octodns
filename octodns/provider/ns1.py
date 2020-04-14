@@ -237,6 +237,7 @@ class Ns1Provider(BaseProvider):
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
+    CATCHALL_PREFIX = 'catchall__'
 
     def _update_filter(self, filter, with_disabled):
         if with_disabled:
@@ -469,16 +470,24 @@ class Ns1Provider(BaseProvider):
         for answer in record['answers']:
             # region (group name in the UI) is the pool name
             pool_name = answer['region']
-            pool = pools[answer['region']]
+            # Get the actual pool name from the constructed pool name in case
+            # of the catchall
+            pool_name = pool_name.replace(self.CATCHALL_PREFIX, '')
+            pool = pools[pool_name]
 
             meta = answer['meta']
             value = text_type(answer['answer'][0])
             if meta['priority'] == 1:
                 # priority 1 means this answer is part of the pools own values
-                pool['values'].append({
+                value_dict = {
                     'value': value,
                     'weight': int(meta.get('weight', 1)),
-                })
+                }
+                # If we have the original pool name and the catchall pool name
+                # in the answers, they point at the same pool. Add values only
+                # once
+                if value_dict not in pool['values']:
+                    pool['values'].append(value_dict)
             else:
                 # It's a fallback, we only care about it if it's a
                 # final/default
@@ -492,6 +501,10 @@ class Ns1Provider(BaseProvider):
         # examples currently where it would
         rules = []
         for pool_name, region in sorted(record['regions'].items()):
+            # Rules that refer to the catchall pool would have the
+            # CATCHALL_PREFIX in the pool name. Strip the prefix to get back
+            # the pool name as in the config
+            pool_name = pool_name.replace(self.CATCHALL_PREFIX, '')
             meta = region['meta']
             notes = self._parse_notes(meta.get('note', ''))
 
@@ -935,6 +948,49 @@ class Ns1Provider(BaseProvider):
             notify_list_id = monitor['notify_list']
             self._client.notifylists_delete(notify_list_id)
 
+    def _add_answers_for_pool(self, answers, default_answers, pool_name,
+                              pool_label, pool_answers, pools, priority):
+        current_pool_name = pool_name
+        seen = set()
+        while current_pool_name and current_pool_name not in seen:
+            seen.add(current_pool_name)
+            pool = pools[current_pool_name]
+            for answer in pool_answers[current_pool_name]:
+                answer = {
+                    'answer': answer['answer'],
+                    'meta': {
+                        'priority': priority,
+                        'note': self._encode_notes({
+                            'from': pool_label,
+                        }),
+                        'up': {
+                            'feed': answer['feed_id'],
+                        },
+                        'weight': answer['weight'],
+                    },
+                    'region': pool_label,  # the one we're answering
+                }
+                answers.append(answer)
+
+            current_pool_name = pool.data.get('fallback', None)
+            priority += 1
+
+        # Static/default
+        for answer in default_answers:
+            answer = {
+                'answer': answer['answer'],
+                'meta': {
+                    'priority': priority,
+                    'note': self._encode_notes({
+                        'from': '--default--',
+                    }),
+                    'up': True,
+                    'weight': 1,
+                },
+                'region': pool_label,  # the one we're answering
+            }
+            answers.append(answer)
+
     def _params_for_dynamic_A(self, record):
         pools = record.dynamic.pools
 
@@ -942,6 +998,7 @@ class Ns1Provider(BaseProvider):
         has_country = False
         has_region = False
         regions = {}
+
         for i, rule in enumerate(record.dynamic.rules):
             pool_name = rule.data['pool']
 
@@ -958,7 +1015,6 @@ class Ns1Provider(BaseProvider):
             us_state = set()
 
             for geo in rule.data.get('geos', []):
-
                 n = len(geo)
                 if n == 8:
                     # US state, e.g. NA-US-KY
@@ -994,6 +1050,19 @@ class Ns1Provider(BaseProvider):
             if us_state:
                 meta['us_state'] = sorted(us_state)
 
+            if not georegion and not country and not us_state:
+                # This is the catchall pool. Modify the pool name in the record
+                # being pushed
+                # NS1 regions are indexed by pool names. Any reuse of pool
+                # names in the rules will result in overwriting of the pool.
+                # Reuse of pools is in general disallowed but for the case of
+                # the catchall pool - to allow legitimate usecases.
+                # The pool name renaming is done to accommodate for such a
+                # reuse.
+                # (We expect only one catchall per record. Any associated
+                # validation is expected to covered under record validation)
+                pool_name = '{}{}'.format(self.CATCHALL_PREFIX, pool_name)
+
             regions[pool_name] = {
                 'meta': meta,
             }
@@ -1024,51 +1093,20 @@ class Ns1Provider(BaseProvider):
         } for v in record.values]
 
         # Build our list of answers
+        # The regions dictionary built above already has the required pool
+        # names. Iterate over them and add answers.
+        # In the case of the catchall, original pool name can be obtained
+        # by stripping the CATCHALL_PREFIX from the pool name
         answers = []
-        for pool_name in sorted(pools.keys()):
+        for pool_name in sorted(regions.keys()):
             priority = 1
 
             # Dynamic/health checked
-            current_pool_name = pool_name
-            seen = set()
-            while current_pool_name and current_pool_name not in seen:
-                seen.add(current_pool_name)
-                pool = pools[current_pool_name]
-                for answer in pool_answers[current_pool_name]:
-                    answer = {
-                        'answer': answer['answer'],
-                        'meta': {
-                            'priority': priority,
-                            'note': self._encode_notes({
-                                'from': current_pool_name,
-                            }),
-                            'up': {
-                                'feed': answer['feed_id'],
-                            },
-                            'weight': answer['weight'],
-                        },
-                        'region': pool_name,  # the one we're answering
-                    }
-                    answers.append(answer)
-
-                current_pool_name = pool.data.get('fallback', None)
-                priority += 1
-
-            # Static/default
-            for answer in default_answers:
-                answer = {
-                    'answer': answer['answer'],
-                    'meta': {
-                        'priority': priority,
-                        'note': self._encode_notes({
-                            'from': '--default--',
-                        }),
-                        'up': True,
-                        'weight': 1,
-                    },
-                    'region': pool_name,  # the one we're answering
-                }
-                answers.append(answer)
+            pool_label = pool_name
+            pool_name = pool_name.replace(self.CATCHALL_PREFIX, '')
+            self._add_answers_for_pool(answers, default_answers, pool_name,
+                                       pool_label, pool_answers, pools,
+                                       priority)
 
         # Update filters as necessary
         filters = self._get_updated_filter_chain(has_region, has_country)

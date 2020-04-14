@@ -553,6 +553,11 @@ class TestNs1ProviderDynamic(TestCase):
                 ],
                 'pool': 'lhr',
             }, {
+                'geos': [
+                    'AF-ZW',
+                ],
+                'pool': 'iad',
+            }, {
                 'pool': 'iad',
             }],
         },
@@ -961,13 +966,17 @@ class TestNs1ProviderDynamic(TestCase):
         ]
 
         rule0 = self.record.data['dynamic']['rules'][0]
-        saved_geos = rule0['geos']
+        rule1 = self.record.data['dynamic']['rules'][1]
+        rule0_saved_geos = rule0['geos']
+        rule1_saved_geos = rule1['geos']
         rule0['geos'] = ['AF', 'EU']
+        rule1['geos'] = ['NA']
         ret, _ = provider._params_for_A(self.record)
         self.assertEquals(ret['filters'],
                           Ns1Provider._FILTER_CHAIN_WITH_REGION(provider,
                                                                 True))
-        rule0['geos'] = saved_geos
+        rule0['geos'] = rule0_saved_geos
+        rule1['geos'] = rule1_saved_geos
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
@@ -1085,6 +1094,7 @@ class TestNs1ProviderDynamic(TestCase):
         # Test out a small, but realistic setup that covers all the options
         # We have country and region in the test config
         filters = provider._get_updated_filter_chain(True, True)
+        catchall_pool_name = '{}{}'.format(provider.CATCHALL_PREFIX, 'iad')
         ns1_record = {
             'answers': [{
                 'answer': ['3.4.5.6'],
@@ -1123,6 +1133,21 @@ class TestNs1ProviderDynamic(TestCase):
                     'note': 'from:--default--',
                 },
                 'region': 'iad',
+            }, {
+                'answer': ['2.3.4.5'],
+                'meta': {
+                    'priority': 1,
+                    'weight': 12,
+                    'note': 'from:{}'.format(catchall_pool_name),
+                },
+                'region': catchall_pool_name,
+            }, {
+                'answer': ['1.2.3.4'],
+                'meta': {
+                    'priority': 2,
+                    'note': 'from:--default--',
+                },
+                'region': catchall_pool_name,
             }],
             'domain': 'unit.tests',
             'filters': filters,
@@ -1138,6 +1163,12 @@ class TestNs1ProviderDynamic(TestCase):
                 'iad': {
                     'meta': {
                         'note': 'rule-order:2',
+                        'country': ['ZW'],
+                    },
+                },
+                catchall_pool_name: {
+                    'meta': {
+                        'note': 'rule-order:3',
                     },
                 }
             },
@@ -1173,6 +1204,12 @@ class TestNs1ProviderDynamic(TestCase):
                     'pool': 'lhr',
                 }, {
                     '_order': '2',
+                    'geos': [
+                        'AF-ZW',
+                    ],
+                    'pool': 'iad',
+                }, {
+                    '_order': '3',
                     'pool': 'iad',
                 }],
             },
