@@ -64,10 +64,18 @@ class TestPowerDnsProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals(502, ctx.exception.response.status_code)
 
-        # Non-existent zone doesn't populate anything
+        # Non-existent zone in PowerDNS <4.3.0 doesn't populate anything
         with requests_mock() as mock:
             mock.get(ANY, status_code=422,
                      json={'error': "Could not find domain 'unit.tests.'"})
+
+            zone = Zone('unit.tests.', [])
+            provider.populate(zone)
+            self.assertEquals(set(), zone.records)
+
+        # Non-existent zone in PowerDNS >=4.3.0 doesn't populate anything
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=404, text='Not Found')
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
@@ -119,6 +127,19 @@ class TestPowerDnsProvider(TestCase):
             mock.get(ANY, status_code=422, text='')
             # patch 422's, unknown zone
             mock.patch(ANY, status_code=422, text=dumps(not_found))
+            # post 201, is response to the create with data
+            mock.post(ANY, status_code=201, text=assert_rrsets_callback)
+
+            plan = provider.plan(expected)
+            self.assertEquals(expected_n, len(plan.changes))
+            self.assertEquals(expected_n, provider.apply(plan))
+            self.assertFalse(plan.exists)
+
+        with requests_mock() as mock:
+            # get 404's, unknown zone
+            mock.get(ANY, status_code=404, text='')
+            # patch 404's, unknown zone
+            mock.patch(ANY, status_code=404, text=dumps(not_found))
             # post 201, is response to the create with data
             mock.post(ANY, status_code=201, text=assert_rrsets_callback)
 
@@ -291,3 +312,22 @@ class TestPowerDnsProvider(TestCase):
 
             plan = provider.plan(expected)
             self.assertEquals(1, len(plan.changes))
+
+    def test_soa_edit_api(self):
+        provider = PowerDnsProvider('test', 'non.existent', 'api-key',
+                                    soa_edit_api='DEFAULT')
+
+        def assert_soa_edit_api_callback(request, context):
+            data = loads(request.body)
+            self.assertEquals('DEFAULT', data['soa_edit_api'])
+            return ''
+
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=404)
+            mock.patch(ANY, status_code=404)
+            mock.post(ANY, status_code=204, text=assert_soa_edit_api_callback)
+            zone = Zone('unit.tests.', [])
+            source = YamlProvider('test', join(dirname(__file__), 'config'))
+            source.populate(zone)
+            plan = provider.plan(zone)
+            provider.apply(plan)

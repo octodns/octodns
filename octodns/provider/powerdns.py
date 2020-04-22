@@ -19,12 +19,13 @@ class PowerDnsBaseProvider(BaseProvider):
                     'PTR', 'SPF', 'SSHFP', 'SRV', 'TXT'))
     TIMEOUT = 5
 
-    def __init__(self, id, host, api_key, port=8081, scheme="http",
-                 timeout=TIMEOUT, *args, **kwargs):
+    def __init__(self, id, host, api_key, soa_edit_api, port=8081,
+                 scheme="http", timeout=TIMEOUT, *args, **kwargs):
         super(PowerDnsBaseProvider, self).__init__(id, *args, **kwargs)
 
         self.host = host
         self.port = port
+        self.soa_edit_api = soa_edit_api
         self.scheme = scheme
         self.timeout = timeout
 
@@ -178,10 +179,10 @@ class PowerDnsBaseProvider(BaseProvider):
                 # Nicer error message for auth problems
                 raise Exception('PowerDNS unauthorized host={}'
                                 .format(self.host))
-            elif e.response.status_code == 422:
-                # 422 means powerdns doesn't know anything about the requested
-                # domain. We'll just ignore it here and leave the zone
-                # untouched.
+            elif e.response.status_code in (404, 422):
+                # 404 or 422 means powerdns doesn't know anything about the
+                # requested domain. We'll just ignore it here and leave the
+                # zone untouched.
                 pass
             else:
                 # just re-throw
@@ -338,23 +339,25 @@ class PowerDnsBaseProvider(BaseProvider):
             self.log.debug('_apply:   patched')
         except HTTPError as e:
             error = self._get_error(e)
-            if e.response.status_code != 422 or \
-               not error.startswith('Could not find domain '):
+            if e.response.status_code != 404 and \
+                    not (e.response.status_code == 422 and
+                         error.startswith('Could not find domain ')):
                 self.log.error('_apply:   status=%d, text=%s',
                                e.response.status_code,
                                e.response.text)
                 raise
             self.log.info('_apply:   creating zone=%s', desired.name)
-            # 422 means powerdns doesn't know anything about the requested
-            # domain. We'll try to create it with the correct records instead
-            # of update. Hopefully all the mods are creates :-)
+            # 404 or 422 means powerdns doesn't know anything about the
+            # requested domain. We'll try to create it with the correct
+            # records instead of update. Hopefully all the mods are
+            # creates :-)
             data = {
                 'name': desired.name,
                 'kind': 'Master',
                 'masters': [],
                 'nameservers': [],
                 'rrsets': mods,
-                'soa_edit_api': 'INCEPTION-INCREMENT',
+                'soa_edit_api': self.soa_edit_api,
                 'serial': 0,
             }
             try:
@@ -388,16 +391,25 @@ class PowerDnsProvider(PowerDnsBaseProvider):
             - 1.2.3.5.
         # The nameserver record TTL when managed, (optional, default 600)
         nameserver_ttl: 600
+        # The SOA-EDIT-API value to set for newly created zones (optional)
+        # Defaults to INCEPTION-INCREMENT. PowerDNS >=4.3.x users should use
+        # 'DEFAULT' instead, as INCEPTION-INCREMENT is no longer a valid value.
+        soa_edit_api: INCEPTION-INCREMENT
     '''
 
     def __init__(self, id, host, api_key, port=8081, nameserver_values=None,
-                 nameserver_ttl=600, *args, **kwargs):
+                 nameserver_ttl=600, soa_edit_api='INCEPTION-INCREMENT',
+                 *args, **kwargs):
         self.log = logging.getLogger('PowerDnsProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, host=%s, port=%d, '
-                       'nameserver_values=%s, nameserver_ttl=%d',
-                       id, host, port, nameserver_values, nameserver_ttl)
+                       'nameserver_values=%s, nameserver_ttl=%d'
+                       'soa_edit_api=%s',
+                       id, host, port, nameserver_values, nameserver_ttl,
+                       soa_edit_api)
         super(PowerDnsProvider, self).__init__(id, host=host, api_key=api_key,
-                                               port=port, *args, **kwargs)
+                                               port=port,
+                                               soa_edit_api=soa_edit_api,
+                                               *args, **kwargs)
 
         self.nameserver_values = nameserver_values
         self.nameserver_ttl = nameserver_ttl
