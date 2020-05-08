@@ -1059,6 +1059,16 @@ class TestNs1ProviderDynamic(TestCase):
             call(self.record, '3.4.5.6', 'mid-3'),
         ])
 
+        record = Record.new(self.zone, 'geo', {
+            'ttl': 34,
+            'type': 'A',
+            'values': ['101.102.103.104', '101.102.103.105'],
+            'geo': {'EU': ['201.202.203.204']},
+            'meta': {},
+        })
+        params, _ = provider._params_for_geo_A(record)
+        self.assertEquals([], params['filters'])
+
     def test_data_for_dynamic_A(self):
         provider = Ns1Provider('test', 'api-key')
 
