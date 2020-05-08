@@ -1141,7 +1141,7 @@ class DynProvider(BaseProvider):
                 pools[rpid] = get_response_pool(rpid, td)
         # now that we have full objects for the complete set of existing pools,
         # a list will be more useful
-        pools = pools.values()
+        pools = list(pools.values())
 
         # Rulesets
 
