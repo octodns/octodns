@@ -766,8 +766,7 @@ class Ns1Provider(BaseProvider):
         for iso_region, target in record.geo.items():
             key = 'iso_region_code'
             value = iso_region
-            if not has_country and \
-               len(value.split('-')) > 1:  # pragma: nocover
+            if not has_country and len(value.split('-')) > 1:
                 has_country = True
             for answer in target.values:
                 params['answers'].append(
