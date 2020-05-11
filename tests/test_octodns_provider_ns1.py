@@ -717,6 +717,13 @@ class TestNs1ProviderDynamic(TestCase):
         monitor = provider._monitor_gen(self.record, value)
         self.assertTrue(monitor['config']['ssl'])
 
+        self.record._octodns['healthcheck']['protocol'] = 'TCP'
+        monitor = provider._monitor_gen(self.record, value)
+        # No http send done
+        self.assertFalse('send' in monitor['config'])
+        # No http response expected
+        self.assertFalse('rules' in monitor)
+
     def test_monitor_is_match(self):
         provider = Ns1Provider('test', 'api-key')
 

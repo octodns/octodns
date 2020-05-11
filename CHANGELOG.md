@@ -1,3 +1,7 @@
+## v0.9.11 - 2020-??-?? - ???????????????
+
+* Added support for TCP health checking to dynamic records
+
 ## v0.9.10 - 2020-04-20 - Dynamic NS1 and lots of misc
 
 * Added support for dynamic records to Ns1Provider, updated client and rate

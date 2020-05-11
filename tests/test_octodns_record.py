@@ -886,6 +886,40 @@ class TestRecord(TestCase):
         self.assertEquals('HTTPS', new.healthcheck_protocol)
         self.assertEquals(443, new.healthcheck_port)
 
+    def test_healthcheck_tcp(self):
+        new = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                    'path': '/ignored',
+                    'host': 'completely.ignored',
+                    'protocol': 'TCP',
+                    'port': 8080,
+                }
+            }
+        })
+        self.assertIsNone(new.healthcheck_path)
+        self.assertIsNone(new.healthcheck_host)
+        self.assertEquals('TCP', new.healthcheck_protocol)
+        self.assertEquals(8080, new.healthcheck_port)
+
+        new = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                    'protocol': 'TCP',
+                }
+            }
+        })
+        self.assertIsNone(new.healthcheck_path)
+        self.assertIsNone(new.healthcheck_host)
+        self.assertEquals('TCP', new.healthcheck_protocol)
+        self.assertEquals(443, new.healthcheck_port)
+
     def test_inored(self):
         new = Record.new(self.zone, 'txt', {
             'ttl': 44,
