@@ -253,7 +253,9 @@ class Ns1Provider(BaseProvider):
 
     def _REGION_FILTER(self, with_disabled):
         return self._update_filter({
-            'config': {},
+            'config': {
+                'remove_no_georegion': True
+            },
             'filter': u'geofence_regional'
         }, with_disabled)
 
