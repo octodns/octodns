@@ -28,7 +28,7 @@ export GOOGLE_APPLICATION_CREDENTIALS=
 
 # Lexicon might read any variables prefixed with LEXICON_
 # in the EnvironmentConfigSource class.
-for var in $(grep -o 'LEXICON_[^=]\+' <<< $(env))
+for var in $(env | grep -o 'LEXICON_[^=]\+')
  do
   export $var=
 done
