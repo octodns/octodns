@@ -186,6 +186,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [DynProvider](/octodns/provider/dyn.py) | dyn | All | Both | |
 | [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | A, AAAA, ALIAS, CNAME | No | |
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
+| [LexiconProvider](/octodns/provider/lexicon.py) | lexicon | Depends on [Lexicon](https://github.com/AnalogJ/lexicon) module  | No | |
 | [MythicBeastsProvider](/octodns/provider/mythicbeasts.py) | Mythic Beasts | A, AAAA, ALIAS, CNAME, MX, NS, SRV, SSHFP, CAA, TXT | No | |
 | [Ns1Provider](/octodns/provider/ns1.py) | ns1-python | All | Yes | No CNAME support, missing `NA` geo target |
 | [OVH](/octodns/provider/ovh.py) | ovh | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
