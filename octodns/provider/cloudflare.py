@@ -60,8 +60,8 @@ class CloudflareProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SRV',
-                    'SPF', 'TXT'))
+    SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR',
+                    'SRV', 'SPF', 'TXT'))
 
     MIN_TTL = 120
     TIMEOUT = 15
@@ -173,6 +173,7 @@ class CloudflareProvider(BaseProvider):
         }
 
     _data_for_ALIAS = _data_for_CNAME
+    _data_for_PTR = _data_for_CNAME
 
     def _data_for_MX(self, _type, records):
         values = []
@@ -338,6 +339,8 @@ class CloudflareProvider(BaseProvider):
 
     def _contents_for_CNAME(self, record):
         yield {'content': record.value}
+
+    _contents_for_PTR = _contents_for_CNAME
 
     def _contents_for_MX(self, record):
         for value in record.values:
