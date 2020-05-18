@@ -149,7 +149,7 @@ class TestCloudflareProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(12, len(zone.records))
+            self.assertEquals(13, len(zone.records))
 
             changes = self.expected.changes(zone, provider)
 
@@ -158,7 +158,7 @@ class TestCloudflareProvider(TestCase):
         # re-populating the same zone/records comes out of cache, no calls
         again = Zone('unit.tests.', [])
         provider.populate(again)
-        self.assertEquals(12, len(again.records))
+        self.assertEquals(13, len(again.records))
 
     def test_apply(self):
         provider = CloudflareProvider('test', 'email', 'token')
@@ -172,12 +172,12 @@ class TestCloudflareProvider(TestCase):
                     'id': 42,
                 }
             },  # zone create
-        ] + [None] * 20  # individual record creates
+        ] + [None] * 22  # individual record creates
 
         # non-existent zone, create everything
         plan = provider.plan(self.expected)
-        self.assertEquals(12, len(plan.changes))
-        self.assertEquals(12, provider.apply(plan))
+        self.assertEquals(13, len(plan.changes))
+        self.assertEquals(13, provider.apply(plan))
         self.assertFalse(plan.exists)
 
         provider._request.assert_has_calls([
@@ -203,7 +203,7 @@ class TestCloudflareProvider(TestCase):
             }),
         ], True)
         # expected number of total calls
-        self.assertEquals(22, provider._request.call_count)
+        self.assertEquals(23, provider._request.call_count)
 
         provider._request.reset_mock()
 
@@ -509,6 +509,25 @@ class TestCloudflareProvider(TestCase):
             call('DELETE', '/zones/42/dns_records/'
                  'fc12ab34cd5611334422ab3322997653')
         ])
+
+    def test_ptr(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+
+        zone = Zone('unit.tests.', [])
+        # PTR record
+        ptr_record = Record.new(zone, 'ptr', {
+            'ttl': 300,
+            'type': 'PTR',
+            'value': 'foo.bar.com.'
+        })
+
+        ptr_record_contents = provider._gen_data(ptr_record)
+        self.assertEquals({
+            'name': 'ptr.unit.tests',
+            'ttl': 300,
+            'type': 'PTR',
+            'content': 'foo.bar.com.'
+        }, list(ptr_record_contents)[0])
 
     def test_srv(self):
         provider = CloudflareProvider('test', 'email', 'token')
