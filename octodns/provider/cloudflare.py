@@ -104,7 +104,7 @@ class CloudflareProvider(BaseProvider):
         self._zones = None
         self._zone_records = {}
 
-    def _try(self, *args, **kwargs):
+    def _try_request(self, *args, **kwargs):
         tries = self.retry_count
         while True:  # We'll raise to break after our tries expire
             try:
@@ -141,7 +141,8 @@ class CloudflareProvider(BaseProvider):
             page = 1
             zones = []
             while page:
-                resp = self._try('GET', '/zones', params={'page': page})
+                resp = self._try_request('GET', '/zones',
+                                         params={'page': page})
                 zones += resp['result']
                 info = resp['result_info']
                 if info['count'] > 0 and info['count'] == info['per_page']:
@@ -250,7 +251,7 @@ class CloudflareProvider(BaseProvider):
             path = '/zones/{}/dns_records'.format(zone_id)
             page = 1
             while page:
-                resp = self._try('GET', path, params={'page': page})
+                resp = self._try_request('GET', path, params={'page': page})
                 records += resp['result']
                 info = resp['result_info']
                 if info['count'] > 0 and info['count'] == info['per_page']:
@@ -463,7 +464,7 @@ class CloudflareProvider(BaseProvider):
         zone_id = self.zones[new.zone.name]
         path = '/zones/{}/dns_records'.format(zone_id)
         for content in self._gen_data(new):
-            self._try('POST', path, data=content)
+            self._try_request('POST', path, data=content)
 
     def _apply_Update(self, change):
         zone = change.new.zone
@@ -552,7 +553,7 @@ class CloudflareProvider(BaseProvider):
         path = '/zones/{}/dns_records'.format(zone_id)
         for _, data in sorted(creates.items()):
             self.log.debug('_apply_Update: creating %s', data)
-            self._try('POST', path, data=data)
+            self._try_request('POST', path, data=data)
 
         # Updates
         for _, info in sorted(updates.items()):
@@ -562,7 +563,7 @@ class CloudflareProvider(BaseProvider):
             path = '/zones/{}/dns_records/{}'.format(zone_id, record_id)
             self.log.debug('_apply_Update: updating %s, %s -> %s',
                            record_id, data, old_data)
-            self._try('PUT', path, data=data)
+            self._try_request('PUT', path, data=data)
 
         # Deletes
         for _, info in sorted(deletes.items()):
@@ -571,7 +572,7 @@ class CloudflareProvider(BaseProvider):
             path = '/zones/{}/dns_records/{}'.format(zone_id, record_id)
             self.log.debug('_apply_Update: removing %s, %s', record_id,
                            old_data)
-            self._try('DELETE', path)
+            self._try_request('DELETE', path)
 
     def _apply_Delete(self, change):
         existing = change.existing
@@ -584,7 +585,7 @@ class CloudflareProvider(BaseProvider):
                existing_type == record['type']:
                 path = '/zones/{}/dns_records/{}'.format(record['zone_id'],
                                                          record['id'])
-                self._try('DELETE', path)
+                self._try_request('DELETE', path)
 
     def _apply(self, plan):
         desired = plan.desired
@@ -599,7 +600,7 @@ class CloudflareProvider(BaseProvider):
                 'name': name[:-1],
                 'jump_start': False,
             }
-            resp = self._try('POST', '/zones', data=data)
+            resp = self._try_request('POST', '/zones', data=data)
             zone_id = resp['result']['id']
             self.zones[name] = zone_id
             self._zone_records[name] = {}
