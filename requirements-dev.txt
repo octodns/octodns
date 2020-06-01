@@ -1,4 +1,5 @@
 coverage
+flake8==3.7.9
 mock
 nose
 pycodestyle==2.5.0
