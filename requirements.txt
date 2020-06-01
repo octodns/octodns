@@ -21,6 +21,6 @@ pycountry==19.8.18
 python-dateutil==2.8.1
 requests==2.23.0
 s3transfer==0.3.3
-setuptools==44.1.0
+setuptools==44.1.1
 six==1.14.0
 transip==2.1.2
