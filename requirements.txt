@@ -14,7 +14,7 @@ ipaddress==1.0.23
 jmespath==0.9.5
 msrestazure==0.6.3
 natsort==6.2.1
-ns1-python==0.15.0
+ns1-python==0.16.0
 ovh==0.5.0
 pycountry-convert==0.7.2
 pycountry==19.8.18
