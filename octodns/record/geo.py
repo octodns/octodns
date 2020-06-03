@@ -63,7 +63,8 @@ class GeoCodes(object):
 
     @classmethod
     def province_to_code(cls, province):
-        # We cheat on this one a little since we only support provinces in NA-US, NA-CA
+        # We cheat on this one a little since we only support provinces in
+        # NA-US, NA-CA
         if (province not in geo_data['NA']['US']['provinces'] and
                 province not in geo_data['NA']['CA']['provinces']):
             cls.log.warn('country_to_code: unrecognized province "%s"',
