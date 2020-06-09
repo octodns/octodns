@@ -137,7 +137,7 @@ class Record(EqualityTupleMixin):
             reasons.append('missing ttl')
         try:
             if data['octodns']['healthcheck']['protocol'] \
-               not in ('HTTP', 'HTTPS'):
+               not in ('HTTP', 'HTTPS', 'TCP'):
                 reasons.append('invalid healthcheck protocol')
         except KeyError:
             pass
@@ -181,15 +181,21 @@ class Record(EqualityTupleMixin):
 
     @property
     def healthcheck_host(self):
+        healthcheck = self._octodns.get('healthcheck', {})
+        if healthcheck.get('protocol', None) == 'TCP':
+            return None
         try:
-            return self._octodns['healthcheck']['host']
+            return healthcheck['host']
         except KeyError:
             return self.fqdn[:-1]
 
     @property
     def healthcheck_path(self):
+        healthcheck = self._octodns.get('healthcheck', {})
+        if healthcheck.get('protocol', None) == 'TCP':
+            return None
         try:
-            return self._octodns['healthcheck']['path']
+            return healthcheck['path']
         except KeyError:
             return '/_dns'
 

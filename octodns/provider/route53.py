@@ -1046,8 +1046,11 @@ class Route53Provider(BaseProvider):
             # No value so give this a None to match value's
             config_ip_address = None
 
-        return host == config['FullyQualifiedDomainName'] and \
-            path == config['ResourcePath'] and protocol == config['Type'] \
+        fully_qualified_domain_name = config.get('FullyQualifiedDomainName',
+                                                 None)
+        resource_path = config.get('ResourcePath', None)
+        return host == fully_qualified_domain_name and \
+            path == resource_path and protocol == config['Type'] \
             and port == config['Port'] and \
             measure_latency == config['MeasureLatency'] and \
             value == config_ip_address
@@ -1103,13 +1106,14 @@ class Route53Provider(BaseProvider):
         config = {
             'EnableSNI': healthcheck_protocol == 'HTTPS',
             'FailureThreshold': 6,
-            'FullyQualifiedDomainName': healthcheck_host,
             'MeasureLatency': healthcheck_latency,
             'Port': healthcheck_port,
             'RequestInterval': 10,
-            'ResourcePath': healthcheck_path,
             'Type': healthcheck_protocol,
         }
+        if healthcheck_protocol != 'TCP':
+            config['FullyQualifiedDomainName'] = healthcheck_host
+            config['ResourcePath'] = healthcheck_path
         if value:
             config['IPAddress'] = value
 

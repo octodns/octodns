@@ -717,6 +717,13 @@ class TestNs1ProviderDynamic(TestCase):
         monitor = provider._monitor_gen(self.record, value)
         self.assertTrue(monitor['config']['ssl'])
 
+        self.record._octodns['healthcheck']['protocol'] = 'TCP'
+        monitor = provider._monitor_gen(self.record, value)
+        # No http send done
+        self.assertFalse('send' in monitor['config'])
+        # No http response expected
+        self.assertFalse('rules' in monitor)
+
     def test_monitor_is_match(self):
         provider = Ns1Provider('test', 'api-key')
 
@@ -1058,6 +1065,16 @@ class TestNs1ProviderDynamic(TestCase):
             call(self.record, '2.3.4.5', None),
             call(self.record, '3.4.5.6', 'mid-3'),
         ])
+
+        record = Record.new(self.zone, 'geo', {
+            'ttl': 34,
+            'type': 'A',
+            'values': ['101.102.103.104', '101.102.103.105'],
+            'geo': {'EU': ['201.202.203.204']},
+            'meta': {},
+        })
+        params, _ = provider._params_for_geo_A(record)
+        self.assertEquals([], params['filters'])
 
     def test_data_for_dynamic_A(self):
         provider = Ns1Provider('test', 'api-key')

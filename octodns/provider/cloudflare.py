@@ -9,6 +9,7 @@ from collections import defaultdict
 from copy import deepcopy
 from logging import getLogger
 from requests import Session
+from time import sleep
 
 from ..record import Record, Update
 from .base import BaseProvider
@@ -18,12 +19,17 @@ class CloudflareError(Exception):
     def __init__(self, data):
         try:
             message = data['errors'][0]['message']
-        except (IndexError, KeyError):
+        except (IndexError, KeyError, TypeError):
             message = 'Cloudflare error'
         super(CloudflareError, self).__init__(message)
 
 
 class CloudflareAuthenticationError(CloudflareError):
+    def __init__(self, data):
+        CloudflareError.__init__(self, data)
+
+
+class CloudflareRateLimitError(CloudflareError):
     def __init__(self, data):
         CloudflareError.__init__(self, data)
 
@@ -47,6 +53,11 @@ class CloudflareProvider(BaseProvider):
         #
         # See: https://support.cloudflare.com/hc/en-us/articles/115000830351
         cdn: false
+        # Optional. Default: 4. Number of times to retry if a 429 response
+        # is received.
+        retry_count: 4
+        # Optional. Default: 300. Number of seconds to wait before retrying.
+        retry_period: 300
 
     Note: The "proxied" flag of "A", "AAAA" and "CNAME" records can be managed
           via the YAML provider like so:
@@ -60,13 +71,14 @@ class CloudflareProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SRV',
-                    'SPF', 'TXT'))
+    SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR',
+                    'SRV', 'SPF', 'TXT'))
 
     MIN_TTL = 120
     TIMEOUT = 15
 
-    def __init__(self, id, email=None, token=None, cdn=False, *args, **kwargs):
+    def __init__(self, id, email=None, token=None, cdn=False, retry_count=4,
+                 retry_period=300, *args, **kwargs):
         self.log = getLogger('CloudflareProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, email=%s, token=***, cdn=%s', id,
                        email, cdn)
@@ -85,10 +97,26 @@ class CloudflareProvider(BaseProvider):
                 'Authorization': 'Bearer {}'.format(token),
             })
         self.cdn = cdn
+        self.retry_count = retry_count
+        self.retry_period = retry_period
         self._sess = sess
 
         self._zones = None
         self._zone_records = {}
+
+    def _try_request(self, *args, **kwargs):
+        tries = self.retry_count
+        while True:  # We'll raise to break after our tries expire
+            try:
+                return self._request(*args, **kwargs)
+            except CloudflareRateLimitError:
+                if tries <= 1:
+                    raise
+                tries -= 1
+                self.log.warn('rate limit encountered, pausing '
+                              'for %ds and trying again, %d remaining',
+                              self.retry_period, tries)
+                sleep(self.retry_period)
 
     def _request(self, method, path, params=None, data=None):
         self.log.debug('_request: method=%s, path=%s', method, path)
@@ -101,6 +129,8 @@ class CloudflareProvider(BaseProvider):
             raise CloudflareError(resp.json())
         if resp.status_code == 403:
             raise CloudflareAuthenticationError(resp.json())
+        if resp.status_code == 429:
+            raise CloudflareRateLimitError(resp.json())
 
         resp.raise_for_status()
         return resp.json()
@@ -111,7 +141,8 @@ class CloudflareProvider(BaseProvider):
             page = 1
             zones = []
             while page:
-                resp = self._request('GET', '/zones', params={'page': page})
+                resp = self._try_request('GET', '/zones',
+                                         params={'page': page})
                 zones += resp['result']
                 info = resp['result_info']
                 if info['count'] > 0 and info['count'] == info['per_page']:
@@ -173,6 +204,7 @@ class CloudflareProvider(BaseProvider):
         }
 
     _data_for_ALIAS = _data_for_CNAME
+    _data_for_PTR = _data_for_CNAME
 
     def _data_for_MX(self, _type, records):
         values = []
@@ -219,7 +251,7 @@ class CloudflareProvider(BaseProvider):
             path = '/zones/{}/dns_records'.format(zone_id)
             page = 1
             while page:
-                resp = self._request('GET', path, params={'page': page})
+                resp = self._try_request('GET', path, params={'page': page})
                 records += resp['result']
                 info = resp['result_info']
                 if info['count'] > 0 and info['count'] == info['per_page']:
@@ -339,6 +371,8 @@ class CloudflareProvider(BaseProvider):
     def _contents_for_CNAME(self, record):
         yield {'content': record.value}
 
+    _contents_for_PTR = _contents_for_CNAME
+
     def _contents_for_MX(self, record):
         for value in record.values:
             yield {
@@ -430,7 +464,7 @@ class CloudflareProvider(BaseProvider):
         zone_id = self.zones[new.zone.name]
         path = '/zones/{}/dns_records'.format(zone_id)
         for content in self._gen_data(new):
-            self._request('POST', path, data=content)
+            self._try_request('POST', path, data=content)
 
     def _apply_Update(self, change):
         zone = change.new.zone
@@ -519,7 +553,7 @@ class CloudflareProvider(BaseProvider):
         path = '/zones/{}/dns_records'.format(zone_id)
         for _, data in sorted(creates.items()):
             self.log.debug('_apply_Update: creating %s', data)
-            self._request('POST', path, data=data)
+            self._try_request('POST', path, data=data)
 
         # Updates
         for _, info in sorted(updates.items()):
@@ -529,7 +563,7 @@ class CloudflareProvider(BaseProvider):
             path = '/zones/{}/dns_records/{}'.format(zone_id, record_id)
             self.log.debug('_apply_Update: updating %s, %s -> %s',
                            record_id, data, old_data)
-            self._request('PUT', path, data=data)
+            self._try_request('PUT', path, data=data)
 
         # Deletes
         for _, info in sorted(deletes.items()):
@@ -538,7 +572,7 @@ class CloudflareProvider(BaseProvider):
             path = '/zones/{}/dns_records/{}'.format(zone_id, record_id)
             self.log.debug('_apply_Update: removing %s, %s', record_id,
                            old_data)
-            self._request('DELETE', path)
+            self._try_request('DELETE', path)
 
     def _apply_Delete(self, change):
         existing = change.existing
@@ -551,7 +585,7 @@ class CloudflareProvider(BaseProvider):
                existing_type == record['type']:
                 path = '/zones/{}/dns_records/{}'.format(record['zone_id'],
                                                          record['id'])
-                self._request('DELETE', path)
+                self._try_request('DELETE', path)
 
     def _apply(self, plan):
         desired = plan.desired
@@ -566,7 +600,7 @@ class CloudflareProvider(BaseProvider):
                 'name': name[:-1],
                 'jump_start': False,
             }
-            resp = self._request('POST', '/zones', data=data)
+            resp = self._try_request('POST', '/zones', data=data)
             zone_id = resp['result']['id']
             self.zones[name] = zone_id
             self._zone_records[name] = {}
