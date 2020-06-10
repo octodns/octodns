@@ -19,13 +19,15 @@ class PowerDnsBaseProvider(BaseProvider):
                     'PTR', 'SPF', 'SSHFP', 'SRV', 'TXT'))
     TIMEOUT = 5
 
-    def __init__(self, id, host, api_key, soa_edit_api, port=8081,
+    def __init__(self, id, host, api_key, port=8081,
                  scheme="http", timeout=TIMEOUT, *args, **kwargs):
         super(PowerDnsBaseProvider, self).__init__(id, *args, **kwargs)
 
         self.host = host
         self.port = port
-        self.soa_edit_api = soa_edit_api
+        self.version_detected = ''
+        self.soa_edit_api = "INCEPTION-INCREMENT"
+        self.check_status_not_found = False
         self.scheme = scheme
         self.timeout = timeout
 
@@ -37,7 +39,8 @@ class PowerDnsBaseProvider(BaseProvider):
         self.log.debug('_request: method=%s, path=%s', method, path)
 
         url = '{}://{}:{}/api/v1/servers/localhost/{}' \
-            .format(self.scheme, self.host, self.port, path)
+            .format(self.scheme, self.host, self.port, path).rstrip("/")
+        # Strip trailing / from url.
         resp = self._sess.request(method, url, json=data, timeout=self.timeout)
         self.log.debug('_request:   status=%d', resp.status_code)
         resp.raise_for_status()
@@ -166,20 +169,75 @@ class PowerDnsBaseProvider(BaseProvider):
             'ttl': rrset['ttl']
         }
 
+    def detect_version(self):
+        # Only detect version once
+        if self.version_detected != '':
+            self.log.debug('detect_version: version %s allready detected',
+                           self.version_detected)
+            return self.version_detected
+
+        try:
+            self.log.debug('detect_version: getting version from server')
+            resp = self._get('')
+        except HTTPError as e:
+            if e.response.status_code == 401:
+                # Nicer error message for auth problems
+                raise Exception('PowerDNS unauthorized host={}'
+                                .format(self.host))
+            else:
+                raise
+
+        self.version_detected = resp.json()["version"]
+        self.log.debug('detect_version: got version %s from server',
+                       self.version_detected)
+        self.configure_for_version(self.version_detected)
+
+    def configure_for_version(self, version):
+        major, minor, patch = version.split('.', 2)
+        major, minor, patch = int(major), int(minor), int(patch)
+        self.log.debug('configure_for_version: configure for '
+                       'major: %s, minor: %s, patch: %s',
+                       major, minor, patch)
+
+        # Defaults for v4.0.0
+        self.soa_edit_api = "INCEPTION-INCREMENT"
+        self.check_status_not_found = False
+
+        if major == 4 and minor >= 2:
+            self.log.debug("configure_for_version: Version >= 4.2")
+            self.soa_edit_api = "INCEPTION-INCREMENT"
+            self.check_status_not_found = True
+
+        if major == 4 and minor >= 3:
+            self.log.debug("configure_for_version: Version >= 4.3")
+            self.soa_edit_api = "DEFAULT"
+            self.check_status_not_found = True
+
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
+
+        self.detect_version()
 
         resp = None
         try:
             resp = self._get('zones/{}'.format(zone.name))
             self.log.debug('populate:   loaded')
         except HTTPError as e:
+            error = self._get_error(e)
             if e.response.status_code == 401:
                 # Nicer error message for auth problems
                 raise Exception('PowerDNS unauthorized host={}'
                                 .format(self.host))
-            elif e.response.status_code in (404, 422):
+            elif e.response.status_code == 404 \
+                    and self.check_status_not_found:
+                # 404 or 422 means powerdns doesn't know anything about the
+                # requested domain. We'll just ignore it here and leave the
+                # zone untouched.
+                pass
+            elif e.response.status_code == 422 \
+                    and error.startswith('Could not find domain ') \
+                    and not self.check_status_not_found:
                 # 404 or 422 means powerdns doesn't know anything about the
                 # requested domain. We'll just ignore it here and leave the
                 # zone untouched.
@@ -339,13 +397,22 @@ class PowerDnsBaseProvider(BaseProvider):
             self.log.debug('_apply:   patched')
         except HTTPError as e:
             error = self._get_error(e)
-            if e.response.status_code != 404 and \
-                    not (e.response.status_code == 422 and
-                         error.startswith('Could not find domain ')):
-                self.log.error('_apply:   status=%d, text=%s',
-                               e.response.status_code,
-                               e.response.text)
+            if not (
+                (
+                    e.response.status_code == 404 and
+                    self.check_status_not_found
+                ) or (
+                    e.response.status_code == 422 and
+                    error.startswith('Could not find domain ') and
+                    not self.check_status_not_found
+                )
+            ):
+                self.log.error(
+                    '_apply:   status=%d, text=%s',
+                    e.response.status_code,
+                    e.response.text)
                 raise
+
             self.log.info('_apply:   creating zone=%s', desired.name)
             # 404 or 422 means powerdns doesn't know anything about the
             # requested domain. We'll try to create it with the correct
@@ -398,17 +465,14 @@ class PowerDnsProvider(PowerDnsBaseProvider):
     '''
 
     def __init__(self, id, host, api_key, port=8081, nameserver_values=None,
-                 nameserver_ttl=600, soa_edit_api='INCEPTION-INCREMENT',
+                 nameserver_ttl=600,
                  *args, **kwargs):
         self.log = logging.getLogger('PowerDnsProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, host=%s, port=%d, '
-                       'nameserver_values=%s, nameserver_ttl=%d'
-                       'soa_edit_api=%s',
-                       id, host, port, nameserver_values, nameserver_ttl,
-                       soa_edit_api)
+                       'nameserver_values=%s, nameserver_ttl=%d',
+                       id, host, port, nameserver_values, nameserver_ttl)
         super(PowerDnsProvider, self).__init__(id, host=host, api_key=api_key,
                                                port=port,
-                                               soa_edit_api=soa_edit_api,
                                                *args, **kwargs)
 
         self.nameserver_values = nameserver_values

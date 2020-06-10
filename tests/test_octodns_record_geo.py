@@ -77,4 +77,6 @@ class TestRecordGeoCodes(TestCase):
     def test_province_to_code(self):
         self.assertEquals('NA-US-OR', GeoCodes.province_to_code('OR'))
         self.assertEquals('NA-US-KY', GeoCodes.province_to_code('KY'))
+        self.assertEquals('NA-CA-AB', GeoCodes.province_to_code('AB'))
+        self.assertEquals('NA-CA-BC', GeoCodes.province_to_code('BC'))
         self.assertFalse(GeoCodes.province_to_code('XX'))

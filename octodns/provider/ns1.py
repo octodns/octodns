@@ -253,7 +253,9 @@ class Ns1Provider(BaseProvider):
 
     def _REGION_FILTER(self, with_disabled):
         return self._update_filter({
-            'config': {},
+            'config': {
+                'remove_no_georegion': True
+            },
             'filter': u'geofence_regional'
         }, with_disabled)
 
@@ -766,8 +768,7 @@ class Ns1Provider(BaseProvider):
         for iso_region, target in record.geo.items():
             key = 'iso_region_code'
             value = iso_region
-            if not has_country and \
-               len(value.split('-')) > 1:  # pragma: nocover
+            if not has_country and len(value.split('-')) > 1:
                 has_country = True
             for answer in target.values:
                 params['answers'].append(
@@ -856,18 +857,13 @@ class Ns1Provider(BaseProvider):
         host = record.fqdn[:-1]
         _type = record._type
 
-        request = r'GET {path} HTTP/1.0\r\nHost: {host}\r\n' \
-            r'User-agent: NS1\r\n\r\n'.format(path=record.healthcheck_path,
-                                              host=record.healthcheck_host)
-
-        return {
+        ret = {
             'active': True,
             'config': {
                 'connect_timeout': 2000,
                 'host': value,
                 'port': record.healthcheck_port,
                 'response_timeout': 10000,
-                'send': request,
                 'ssl': record.healthcheck_protocol == 'HTTPS',
             },
             'frequency': 60,
@@ -881,12 +877,23 @@ class Ns1Provider(BaseProvider):
             'rapid_recheck': False,
             'region_scope': 'fixed',
             'regions': self.monitor_regions,
-            'rules': [{
+        }
+
+        if record.healthcheck_protocol != 'TCP':
+            # IF it's HTTP we need to send the request string
+            path = record.healthcheck_path
+            host = record.healthcheck_host
+            request = r'GET {path} HTTP/1.0\r\nHost: {host}\r\n' \
+                r'User-agent: NS1\r\n\r\n'.format(path=path, host=host)
+            ret['config']['send'] = request
+            # We'll also expect a HTTP response
+            ret['rules'] = [{
                 'comparison': 'contains',
                 'key': 'output',
                 'value': '200 OK',
-            }],
-        }
+            }]
+
+        return ret
 
     def _monitor_is_match(self, expected, have):
         # Make sure what we have matches what's in expected exactly. Anything

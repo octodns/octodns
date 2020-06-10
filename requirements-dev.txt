@@ -1,7 +1,7 @@
 coverage
 mock
 nose
-pycodestyle==2.5.0
+pycodestyle==2.6.0
 pyflakes==2.2.0
 readme_renderer[md]==26.0
 requests_mock
