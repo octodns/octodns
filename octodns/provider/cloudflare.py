@@ -142,7 +142,7 @@ class CloudflareProvider(BaseProvider):
             zones = []
             while page:
                 resp = self._try_request('GET', '/zones',
-                                         params={'page': page})
+                                         params={'page': page, 'per_page': 50})
                 zones += resp['result']
                 info = resp['result_info']
                 if info['count'] > 0 and info['count'] == info['per_page']:
@@ -251,7 +251,7 @@ class CloudflareProvider(BaseProvider):
             path = '/zones/{}/dns_records'.format(zone_id)
             page = 1
             while page:
-                resp = self._try_request('GET', path, params={'page': page})
+                resp = self._try_request('GET', path, params={'page': page, 'per_page': 100})
                 records += resp['result']
                 info = resp['result_info']
                 if info['count'] > 0 and info['count'] == info['per_page']:
