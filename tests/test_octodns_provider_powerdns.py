@@ -50,7 +50,7 @@ class TestPowerDnsProvider(TestCase):
             mock.get(ANY, status_code=401, text='Unauthorized')
 
             with self.assertRaises(Exception) as ctx:
-                provider.detect_version()
+                provider.powerdns_version
             self.assertTrue('unauthorized' in text_type(ctx.exception))
 
         # Api not found
@@ -58,23 +58,20 @@ class TestPowerDnsProvider(TestCase):
             mock.get(ANY, status_code=404, text='Not Found')
 
             with self.assertRaises(Exception) as ctx:
-                provider.detect_version()
+                provider.powerdns_version
             self.assertTrue('404' in text_type(ctx.exception))
 
         # Test version detection
         with requests_mock() as mock:
             mock.get('http://non.existent:8081/api/v1/servers/localhost',
                      status_code=200, json={'version': "4.1.10"})
-
-            provider.detect_version()
-            self.assertEquals(provider.version_detected, '4.1.10')
+            self.assertEquals(provider.powerdns_version, [4, 1, 10])
 
         # Test version detection for second time (should stay at 4.1.10)
         with requests_mock() as mock:
             mock.get('http://non.existent:8081/api/v1/servers/localhost',
                      status_code=200, json={'version': "4.2.0"})
-            provider.detect_version()
-            self.assertEquals(provider.version_detected, '4.1.10')
+            self.assertEquals(provider.powerdns_version, [4, 1, 10])
 
         # Test version detection
         with requests_mock() as mock:
@@ -82,39 +79,44 @@ class TestPowerDnsProvider(TestCase):
                      status_code=200, json={'version': "4.2.0"})
 
             # Reset version, so detection will try again
-            provider.version_detected = ''
-            provider.detect_version()
-            self.assertNotEquals(provider.version_detected, '4.1.10')
+            provider._powerdns_version = None
+            self.assertNotEquals(provider.powerdns_version, [4, 1, 10])
 
     def test_provider_version_config(self):
         provider = PowerDnsProvider('test', 'non.existent', 'api-key',
                                     nameserver_values=['8.8.8.8.',
                                                        '9.9.9.9.'])
 
-        provider.check_status_not_found = None
-        provider.soa_edit_api = 'something else'
-
         # Test version 4.1.0
-        provider.configure_for_version("4.1.0")
-        self.assertEquals(provider.soa_edit_api, 'INCEPTION-INCREMENT')
-        self.assertFalse(
-            provider.check_status_not_found,
-            'check_status_not_found should be false '
-            'for version 4.1.x and below')
+        provider._powerdns_version = None
+        with requests_mock() as mock:
+            mock.get('http://non.existent:8081/api/v1/servers/localhost',
+                     status_code=200, json={'version': "4.1.10"})
+            self.assertEquals(provider.soa_edit_api, 'INCEPTION-INCREMENT')
+            self.assertFalse(
+                provider.check_status_not_found,
+                'check_status_not_found should be false '
+                'for version 4.1.x and below')
 
         # Test version 4.2.0
-        provider.configure_for_version("4.2.0")
-        self.assertEquals(provider.soa_edit_api, 'INCEPTION-INCREMENT')
-        self.assertTrue(
-            provider.check_status_not_found,
-            'check_status_not_found should be true for version 4.2.x')
+        provider._powerdns_version = None
+        with requests_mock() as mock:
+            mock.get('http://non.existent:8081/api/v1/servers/localhost',
+                     status_code=200, json={'version': "4.2.0"})
+            self.assertEquals(provider.soa_edit_api, 'INCEPTION-INCREMENT')
+            self.assertTrue(
+                provider.check_status_not_found,
+                'check_status_not_found should be true for version 4.2.x')
 
         # Test version 4.3.0
-        provider.configure_for_version("4.3.0")
-        self.assertEquals(provider.soa_edit_api, 'DEFAULT')
-        self.assertTrue(
-            provider.check_status_not_found,
-            'check_status_not_found should be true for version 4.3.x')
+        provider._powerdns_version = None
+        with requests_mock() as mock:
+            mock.get('http://non.existent:8081/api/v1/servers/localhost',
+                     status_code=200, json={'version': "4.3.0"})
+            self.assertEquals(provider.soa_edit_api, 'DEFAULT')
+            self.assertTrue(
+                provider.check_status_not_found,
+                'check_status_not_found should be true for version 4.3.x')
 
     def test_provider(self):
         provider = PowerDnsProvider('test', 'non.existent', 'api-key',
@@ -125,9 +127,7 @@ class TestPowerDnsProvider(TestCase):
         with requests_mock() as mock:
             mock.get('http://non.existent:8081/api/v1/servers/localhost',
                      status_code=200, json={'version': "4.1.10"})
-
-            provider.detect_version()
-            self.assertEquals(provider.version_detected, '4.1.10')
+            self.assertEquals(provider.powerdns_version, [4, 1, 10])
 
         # Bad auth
         with requests_mock() as mock:
@@ -157,13 +157,14 @@ class TestPowerDnsProvider(TestCase):
 
         # Non-existent zone in PowerDNS >=4.2.0 doesn't populate anything
 
+        provider._powerdns_version = [4, 2, 0]
         with requests_mock() as mock:
             mock.get(ANY, status_code=404, text='Not Found')
-            provider.configure_for_version("4.2.0")
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
             self.assertEquals(set(), zone.records)
-            provider.configure_for_version("4.1.0")
+
+        provider._powerdns_version = [4, 1, 0]
 
         # The rest of this is messy/complicated b/c it's dealing with mocking
 
@@ -219,8 +220,8 @@ class TestPowerDnsProvider(TestCase):
             self.assertEquals(expected_n, provider.apply(plan))
             self.assertFalse(plan.exists)
 
+        provider._powerdns_version = [4, 2, 0]
         with requests_mock() as mock:
-            provider.configure_for_version('4.2.0')
             # get 404's, unknown zone
             mock.get(ANY, status_code=404, text='')
             # patch 404's, unknown zone
@@ -232,8 +233,8 @@ class TestPowerDnsProvider(TestCase):
             self.assertEquals(expected_n, len(plan.changes))
             self.assertEquals(expected_n, provider.apply(plan))
             self.assertFalse(plan.exists)
-            provider.configure_for_version('4.1.0')
 
+        provider._powerdns_version = [4, 1, 0]
         with requests_mock() as mock:
             # get 422's, unknown zone
             mock.get(ANY, status_code=422, text=dumps(not_found))
