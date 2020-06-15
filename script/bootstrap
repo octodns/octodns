@@ -13,7 +13,7 @@ fi
 
 if [ ! -d "$VENV_NAME" ]; then
     if [ -z "$VENV_PYTHON" ]; then
-        VENV_PYTHON=$(command -v python)
+        VENV_PYTHON=$(command -v python3)
     fi
     virtualenv --python="$VENV_PYTHON" "$VENV_NAME"
 fi

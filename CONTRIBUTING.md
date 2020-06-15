@@ -11,12 +11,13 @@ If you have questions, or you'd like to check with us before embarking on a majo
 This project uses the [GitHub Flow](https://guides.github.com/introduction/flow/). That means that the `master` branch is stable and new development is done in feature branches. Feature branches are merged into the `master` branch via a Pull Request.
 
 0. Fork and clone the repository
-0. Configure and install the dependencies: `script/bootstrap`
-0. Make sure the tests pass on your machine: `script/test`
+0. Configure and install the dependencies: `./script/bootstrap`
+0. Activate virtual environment: `source env/bin/activate`
+0. Make sure the tests pass on your machine: `./script/test`
 0. Create a new branch: `git checkout -b my-branch-name`
 0. Make your change, add tests, and make sure the tests still pass
 0. Make sure that `./script/lint` passes without any warnings
-0. Make sure that coverage is at :100:% `script/coverage` and open `htmlcov/index.html`
+0. Make sure that coverage is at :100:% `./script/coverage` and open `htmlcov/index.html`
    * You can open PRs for :eyes: & discussion prior to this
 0. Push to your fork and submit a pull request
 
