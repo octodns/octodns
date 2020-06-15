@@ -69,7 +69,7 @@ setup(
         'PyYaml>=4.2b1',
         'dnspython>=1.15.0',
         'futures>=3.2.0; python_version<"3.2"',
-        'ipaddress>=1.0.22',
+        'ipaddress>=1.0.22; python_version<"3.2"',
         'natsort>=5.5.0',
         'pycountry>=19.8.18',
         'pycountry-convert>=0.7.2',
