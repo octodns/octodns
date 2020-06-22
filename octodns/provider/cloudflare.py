@@ -58,6 +58,10 @@ class CloudflareProvider(BaseProvider):
         retry_count: 4
         # Optional. Default: 300. Number of seconds to wait before retrying.
         retry_period: 300
+        # Optional. Default: 50. Number of zones per page.
+        zones_per_page: 50
+        # Optional. Default: 100. Number of dns records per page.
+        records_per_page: 100
 
     Note: The "proxied" flag of "A", "AAAA" and "CNAME" records can be managed
           via the YAML provider like so:
@@ -78,7 +82,8 @@ class CloudflareProvider(BaseProvider):
     TIMEOUT = 15
 
     def __init__(self, id, email=None, token=None, cdn=False, retry_count=4,
-                 retry_period=300, *args, **kwargs):
+                 retry_period=300, zones_per_page=50, records_per_page=100,
+                 *args, **kwargs):
         self.log = getLogger('CloudflareProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, email=%s, token=***, cdn=%s', id,
                        email, cdn)
@@ -99,6 +104,8 @@ class CloudflareProvider(BaseProvider):
         self.cdn = cdn
         self.retry_count = retry_count
         self.retry_period = retry_period
+        self.zones_per_page = zones_per_page
+        self.records_per_page = records_per_page
         self._sess = sess
 
         self._zones = None
@@ -142,7 +149,10 @@ class CloudflareProvider(BaseProvider):
             zones = []
             while page:
                 resp = self._try_request('GET', '/zones',
-                                         params={'page': page, 'per_page': 50})
+                                         params={
+                                                'page': page,
+                                                'per_page': self.zones_per_page
+                                         })
                 zones += resp['result']
                 info = resp['result_info']
                 if info['count'] > 0 and info['count'] == info['per_page']:
@@ -252,7 +262,7 @@ class CloudflareProvider(BaseProvider):
             page = 1
             while page:
                 resp = self._try_request('GET', path, params={'page': page,
-                                         'per_page': 100})
+                                         'per_page': self.records_per_page})
                 records += resp['result']
                 info = resp['result_info']
                 if info['count'] > 0 and info['count'] == info['per_page']:
