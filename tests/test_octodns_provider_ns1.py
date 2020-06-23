@@ -528,52 +528,55 @@ class TestNs1Provider(TestCase):
 class TestNs1ProviderDynamic(TestCase):
     zone = Zone('unit.tests.', [])
 
-    record = Record.new(zone, '', {
-        'dynamic': {
-            'pools': {
-                'lhr': {
-                    'fallback': 'iad',
-                    'values': [{
-                        'value': '3.4.5.6',
-                    }],
+    def record(self):
+        # return a new object each time so we can mess with it without causing
+        # problems from test to test
+        return Record.new(self.zone, '', {
+            'dynamic': {
+                'pools': {
+                    'lhr': {
+                        'fallback': 'iad',
+                        'values': [{
+                            'value': '3.4.5.6',
+                        }],
+                    },
+                    'iad': {
+                        'values': [{
+                            'value': '1.2.3.4',
+                        }, {
+                            'value': '2.3.4.5',
+                        }],
+                    },
                 },
-                'iad': {
-                    'values': [{
-                        'value': '1.2.3.4',
-                    }, {
-                        'value': '2.3.4.5',
-                    }],
-                },
+                'rules': [{
+                    'geos': [
+                        'AF',
+                        'EU-GB',
+                        'NA-US-FL'
+                    ],
+                    'pool': 'lhr',
+                }, {
+                    'geos': [
+                        'AF-ZW',
+                    ],
+                    'pool': 'iad',
+                }, {
+                    'pool': 'iad',
+                }],
             },
-            'rules': [{
-                'geos': [
-                    'AF',
-                    'EU-GB',
-                    'NA-US-FL'
-                ],
-                'pool': 'lhr',
-            }, {
-                'geos': [
-                    'AF-ZW',
-                ],
-                'pool': 'iad',
-            }, {
-                'pool': 'iad',
-            }],
-        },
-        'octodns': {
-            'healthcheck': {
-                'host': 'send.me',
-                'path': '/_ping',
-                'port': 80,
-                'protocol': 'HTTP',
-            }
-        },
-        'ttl': 32,
-        'type': 'A',
-        'value': '1.2.3.4',
-        'meta': {},
-    })
+            'octodns': {
+                'healthcheck': {
+                    'host': 'send.me',
+                    'path': '/_ping',
+                    'port': 80,
+                    'protocol': 'HTTP',
+                }
+            },
+            'ttl': 32,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'meta': {},
+        })
 
     def test_notes(self):
         provider = Ns1Provider('test', 'api-key')
@@ -636,7 +639,7 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertEquals({
             '1.2.3.4': monitor_one,
             '2.3.4.5': monitor_four,
-        }, provider._monitors_for(self.record))
+        }, provider._monitors_for(self.record()))
 
     def test_uuid(self):
         # Just a smoke test/for coverage
@@ -707,18 +710,19 @@ class TestNs1ProviderDynamic(TestCase):
         provider = Ns1Provider('test', 'api-key')
 
         value = '3.4.5.6'
-        monitor = provider._monitor_gen(self.record, value)
+        record = self.record()
+        monitor = provider._monitor_gen(record, value)
         self.assertEquals(value, monitor['config']['host'])
         self.assertTrue('\\nHost: send.me\\r' in monitor['config']['send'])
         self.assertFalse(monitor['config']['ssl'])
         self.assertEquals('host:unit.tests type:A', monitor['notes'])
 
-        self.record._octodns['healthcheck']['protocol'] = 'HTTPS'
-        monitor = provider._monitor_gen(self.record, value)
+        record._octodns['healthcheck']['protocol'] = 'HTTPS'
+        monitor = provider._monitor_gen(record, value)
         self.assertTrue(monitor['config']['ssl'])
 
-        self.record._octodns['healthcheck']['protocol'] = 'TCP'
-        monitor = provider._monitor_gen(self.record, value)
+        record._octodns['healthcheck']['protocol'] = 'TCP'
+        monitor = provider._monitor_gen(record, value)
         # No http send done
         self.assertFalse('send' in monitor['config'])
         # No http response expected
@@ -790,10 +794,11 @@ class TestNs1ProviderDynamic(TestCase):
         monitor_gen_mock.side_effect = [{'key': 'value'}]
         monitor_create_mock.side_effect = [('mon-id', 'feed-id')]
         value = '1.2.3.4'
-        monitor_id, feed_id = provider._monitor_sync(self.record, value, None)
+        record = self.record()
+        monitor_id, feed_id = provider._monitor_sync(record, value, None)
         self.assertEquals('mon-id', monitor_id)
         self.assertEquals('feed-id', feed_id)
-        monitor_gen_mock.assert_has_calls([call(self.record, value)])
+        monitor_gen_mock.assert_has_calls([call(record, value)])
         monitor_create_mock.assert_has_calls([call({'key': 'value'})])
         monitors_update_mock.assert_not_called()
         feed_create_mock.assert_not_called()
@@ -809,7 +814,7 @@ class TestNs1ProviderDynamic(TestCase):
             'name': 'monitor name',
         }
         monitor_gen_mock.side_effect = [monitor]
-        monitor_id, feed_id = provider._monitor_sync(self.record, value,
+        monitor_id, feed_id = provider._monitor_sync(record, value,
                                                      monitor)
         self.assertEquals('mon-id', monitor_id)
         self.assertEquals('feed-id', feed_id)
@@ -830,7 +835,7 @@ class TestNs1ProviderDynamic(TestCase):
         }
         monitor_gen_mock.side_effect = [monitor]
         feed_create_mock.side_effect = ['feed-id2']
-        monitor_id, feed_id = provider._monitor_sync(self.record, value,
+        monitor_id, feed_id = provider._monitor_sync(record, value,
                                                      monitor)
         self.assertEquals('mon-id2', monitor_id)
         self.assertEquals('feed-id2', feed_id)
@@ -853,7 +858,7 @@ class TestNs1ProviderDynamic(TestCase):
             'other': 'thing',
         }
         monitor_gen_mock.side_effect = [gened]
-        monitor_id, feed_id = provider._monitor_sync(self.record, value,
+        monitor_id, feed_id = provider._monitor_sync(record, value,
                                                      monitor)
         self.assertEquals('mon-id', monitor_id)
         self.assertEquals('feed-id', feed_id)
@@ -883,8 +888,9 @@ class TestNs1ProviderDynamic(TestCase):
         monitors_delete_mock.reset_mock()
         notifylists_delete_mock.reset_mock()
         monitors_for_mock.side_effect = [{}]
-        provider._monitors_gc(self.record)
-        monitors_for_mock.assert_has_calls([call(self.record)])
+        record = self.record()
+        provider._monitors_gc(record)
+        monitors_for_mock.assert_has_calls([call(record)])
         datafeed_delete_mock.assert_not_called()
         monitors_delete_mock.assert_not_called()
         notifylists_delete_mock.assert_not_called()
@@ -900,8 +906,8 @@ class TestNs1ProviderDynamic(TestCase):
                 'notify_list': 'nl-id',
             }
         }]
-        provider._monitors_gc(self.record)
-        monitors_for_mock.assert_has_calls([call(self.record)])
+        provider._monitors_gc(record)
+        monitors_for_mock.assert_has_calls([call(record)])
         datafeed_delete_mock.assert_has_calls([call('foo', 'feed-id')])
         monitors_delete_mock.assert_has_calls([call('mon-id')])
         notifylists_delete_mock.assert_has_calls([call('nl-id')])
@@ -917,8 +923,8 @@ class TestNs1ProviderDynamic(TestCase):
                 'notify_list': 'nl-id',
             }
         }]
-        provider._monitors_gc(self.record, {'mon-id'})
-        monitors_for_mock.assert_has_calls([call(self.record)])
+        provider._monitors_gc(record, {'mon-id'})
+        monitors_for_mock.assert_has_calls([call(record)])
         datafeed_delete_mock.assert_not_called()
         monitors_delete_mock.assert_not_called()
         notifylists_delete_mock.assert_not_called()
@@ -939,8 +945,8 @@ class TestNs1ProviderDynamic(TestCase):
                 'notify_list': 'nl-id2',
             },
         }]
-        provider._monitors_gc(self.record, {'mon-id'})
-        monitors_for_mock.assert_has_calls([call(self.record)])
+        provider._monitors_gc(record, {'mon-id'})
+        monitors_for_mock.assert_has_calls([call(record)])
         datafeed_delete_mock.assert_not_called()
         monitors_delete_mock.assert_has_calls([call('mon-id2')])
         notifylists_delete_mock.assert_has_calls([call('nl-id2')])
@@ -972,13 +978,14 @@ class TestNs1ProviderDynamic(TestCase):
             ('mid-3', 'fid-3'),
         ]
 
-        rule0 = self.record.data['dynamic']['rules'][0]
-        rule1 = self.record.data['dynamic']['rules'][1]
+        record = self.record()
+        rule0 = record.data['dynamic']['rules'][0]
+        rule1 = record.data['dynamic']['rules'][1]
         rule0_saved_geos = rule0['geos']
         rule1_saved_geos = rule1['geos']
         rule0['geos'] = ['AF', 'EU']
         rule1['geos'] = ['NA']
-        ret, _ = provider._params_for_A(self.record)
+        ret, _ = provider._params_for_A(record)
         self.assertEquals(ret['filters'],
                           Ns1Provider._FILTER_CHAIN_WITH_REGION(provider,
                                                                 True))
@@ -1012,13 +1019,14 @@ class TestNs1ProviderDynamic(TestCase):
             ('mid-3', 'fid-3'),
         ]
 
-        rule0 = self.record.data['dynamic']['rules'][0]
-        rule1 = self.record.data['dynamic']['rules'][1]
+        record = self.record()
+        rule0 = record.data['dynamic']['rules'][0]
+        rule1 = record.data['dynamic']['rules'][1]
         rule0_saved_geos = rule0['geos']
         rule1_saved_geos = rule1['geos']
         rule0['geos'] = ['AF', 'EU']
         rule1['geos'] = ['NA-US-CA']
-        ret, _ = provider._params_for_A(self.record)
+        ret, _ = provider._params_for_A(record)
         exp = Ns1Provider._FILTER_CHAIN_WITH_REGION_AND_COUNTRY(provider,
                                                                 True)
         self.assertEquals(ret['filters'], exp)
@@ -1054,10 +1062,11 @@ class TestNs1ProviderDynamic(TestCase):
 
         # Set geos to 'OC' in rules[0] (pool - 'lhr')
         # Check returned dict has list of countries under 'OC'
-        rule0 = self.record.data['dynamic']['rules'][0]
+        record = self.record()
+        rule0 = record.data['dynamic']['rules'][0]
         saved_geos = rule0['geos']
         rule0['geos'] = ['OC']
-        ret, _ = provider._params_for_A(self.record)
+        ret, _ = provider._params_for_A(record)
         got = set(ret['regions']['lhr__country']['meta']['country'])
         self.assertEquals(got,
                           Ns1Provider._CONTINENT_TO_LIST_OF_COUNTRIES['OC'])
@@ -1092,19 +1101,20 @@ class TestNs1ProviderDynamic(TestCase):
         ]
         # This indirectly calls into _params_for_dynamic_A and tests the
         # handling to get there
-        ret, _ = provider._params_for_A(self.record)
+        record = self.record()
+        ret, _ = provider._params_for_A(record)
 
-        # Given that self.record has both country and region in the rules,
+        # Given that record has both country and region in the rules,
         # the returned filter chain should be one with region and country
         self.assertEquals(ret['filters'],
                           Ns1Provider._FILTER_CHAIN_WITH_REGION_AND_COUNTRY(
                           provider, True))
 
-        monitors_for_mock.assert_has_calls([call(self.record)])
+        monitors_for_mock.assert_has_calls([call(record)])
         monitors_sync_mock.assert_has_calls([
-            call(self.record, '1.2.3.4', None),
-            call(self.record, '2.3.4.5', None),
-            call(self.record, '3.4.5.6', 'mid-3'),
+            call(record, '1.2.3.4', None),
+            call(record, '2.3.4.5', None),
+            call(record, '3.4.5.6', 'mid-3'),
         ])
 
         record = Record.new(self.zone, 'geo', {
