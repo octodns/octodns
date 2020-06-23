@@ -987,6 +987,46 @@ class TestNs1ProviderDynamic(TestCase):
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_params_for_dynamic_state_only(self, monitors_for_mock,
+                                           monitor_sync_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {
+            'mon-id': 'feed-id',
+        }
+
+        # provider._params_for_A() calls provider._monitors_for() and
+        # provider._monitor_sync(). Mock their return values so that we don't
+        # make NS1 API calls during tests
+        monitors_for_mock.reset_mock()
+        monitor_sync_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            '3.4.5.6': 'mid-3',
+        }]
+        monitor_sync_mock.side_effect = [
+            ('mid-1', 'fid-1'),
+            ('mid-2', 'fid-2'),
+            ('mid-3', 'fid-3'),
+        ]
+
+        rule0 = self.record.data['dynamic']['rules'][0]
+        rule1 = self.record.data['dynamic']['rules'][1]
+        rule0_saved_geos = rule0['geos']
+        rule1_saved_geos = rule1['geos']
+        rule0['geos'] = ['AF', 'EU']
+        rule1['geos'] = ['NA-US-CA']
+        ret, _ = provider._params_for_A(self.record)
+        exp = Ns1Provider._FILTER_CHAIN_WITH_REGION_AND_COUNTRY(provider,
+                                                                True)
+        self.assertEquals(ret['filters'], exp)
+        rule0['geos'] = rule0_saved_geos
+        rule1['geos'] = rule1_saved_geos
+
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
     def test_params_for_dynamic_oceania(self, monitors_for_mock,
                                         monitor_sync_mock):
         provider = Ns1Provider('test', 'api-key')
@@ -1018,7 +1058,8 @@ class TestNs1ProviderDynamic(TestCase):
         saved_geos = rule0['geos']
         rule0['geos'] = ['OC']
         ret, _ = provider._params_for_A(self.record)
-        self.assertEquals(set(ret['regions']['lhr']['meta']['country']),
+        got = set(ret['regions']['lhr__country']['meta']['country'])
+        self.assertEquals(got,
                           Ns1Provider._CONTINENT_TO_LIST_OF_COUNTRIES['OC'])
         # When rules has 'OC', it is converted to list of countries in the
         # params. Look if the returned filters is the filter chain with country
@@ -1111,7 +1152,7 @@ class TestNs1ProviderDynamic(TestCase):
         # Test out a small, but realistic setup that covers all the options
         # We have country and region in the test config
         filters = provider._get_updated_filter_chain(True, True)
-        catchall_pool_name = '{}{}'.format(provider.CATCHALL_PREFIX, 'iad')
+        catchall_pool_name = '{}__catchall'.format('iad')
         ns1_record = {
             'answers': [{
                 'answer': ['3.4.5.6'],
