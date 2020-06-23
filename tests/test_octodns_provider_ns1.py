@@ -1305,7 +1305,7 @@ class TestNs1ProviderDynamic(TestCase):
         # Test out a small, but realistic setup that covers all the options
         # We have country and region in the test config
         filters = provider._get_updated_filter_chain(True, True)
-        catchall_pool_name = '{}__catchall'.format('iad')
+        catchall_pool_name = 'iad__catchall'
         ns1_record = {
             'answers': [{
                 'answer': ['3.4.5.6'],
@@ -1442,6 +1442,16 @@ class TestNs1ProviderDynamic(TestCase):
         # Same answer if we go through _data_for_A which out sources the job to
         # _data_for_dynamic_A
         data2 = provider._data_for_A('A', ns1_record)
+        self.assertEquals(data, data2)
+
+        # Same answer if we have an old-style catchall name
+        old_style_catchall_pool_name = 'catchall__iad'
+        ns1_record['answers'][-2]['region'] = old_style_catchall_pool_name
+        ns1_record['answers'][-1]['region'] = old_style_catchall_pool_name
+        ns1_record['regions'][old_style_catchall_pool_name] = \
+            ns1_record['regions'][catchall_pool_name]
+        del ns1_record['regions'][catchall_pool_name]
+        data3 = provider._data_for_dynamic_A('A', ns1_record)
         self.assertEquals(data, data2)
 
         # Oceania test cases

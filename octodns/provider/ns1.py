@@ -455,6 +455,9 @@ class Ns1Provider(BaseProvider):
         return data
 
     def _parse_dynamic_pool_name(self, pool_name):
+        if pool_name.startswith('catchall__'):
+            # Special case for the old-style catchall prefix
+            return pool_name[10:]
         try:
             pool_name, _ = pool_name.rsplit('__', 1)
         except ValueError:
