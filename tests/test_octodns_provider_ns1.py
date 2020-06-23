@@ -1311,7 +1311,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'answer': ['3.4.5.6'],
                 'meta': {
                     'priority': 1,
-                    'note': 'from:lhr',
+                    'note': 'from:lhr__country',
                 },
                 'region': 'lhr',
             }, {
@@ -1363,14 +1363,24 @@ class TestNs1ProviderDynamic(TestCase):
             'domain': 'unit.tests',
             'filters': filters,
             'regions': {
-                'lhr': {
+                # lhr will use the new-split style names (and that will require
+                # combining in the code to produce the expected answer
+                'lhr__georegion': {
+                    'meta': {
+                        'note': 'rule-order:1 fallback:iad',
+                        'georegion': ['AFRICA'],
+                    },
+                },
+                'lhr__country': {
                     'meta': {
                         'note': 'rule-order:1 fallback:iad',
                         'country': ['CA'],
-                        'georegion': ['AFRICA'],
                         'us_state': ['OR'],
                     },
                 },
+                # iad will use the old style "plain" region naming. We won't
+                # see mixed names like this in practice, but this should
+                # exercise both paths
                 'iad': {
                     'meta': {
                         'note': 'rule-order:2',
@@ -1437,13 +1447,15 @@ class TestNs1ProviderDynamic(TestCase):
         # Oceania test cases
         # 1. Full list of countries should return 'OC' in geos
         oc_countries = Ns1Provider._CONTINENT_TO_LIST_OF_COUNTRIES['OC']
-        ns1_record['regions']['lhr']['meta']['country'] = list(oc_countries)
+        ns1_record['regions']['lhr__country']['meta']['country'] = \
+            list(oc_countries)
         data3 = provider._data_for_A('A', ns1_record)
         self.assertTrue('OC' in data3['dynamic']['rules'][0]['geos'])
 
         # 2. Partial list of countries should return just those
         partial_oc_cntry_list = list(oc_countries)[:5]
-        ns1_record['regions']['lhr']['meta']['country'] = partial_oc_cntry_list
+        ns1_record['regions']['lhr__country']['meta']['country'] = \
+            partial_oc_cntry_list
         data4 = provider._data_for_A('A', ns1_record)
         for c in partial_oc_cntry_list:
             self.assertTrue(
