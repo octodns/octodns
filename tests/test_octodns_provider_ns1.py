@@ -981,16 +981,12 @@ class TestNs1ProviderDynamic(TestCase):
         record = self.record()
         rule0 = record.data['dynamic']['rules'][0]
         rule1 = record.data['dynamic']['rules'][1]
-        rule0_saved_geos = rule0['geos']
-        rule1_saved_geos = rule1['geos']
         rule0['geos'] = ['AF', 'EU']
         rule1['geos'] = ['NA']
         ret, _ = provider._params_for_A(record)
         self.assertEquals(ret['filters'],
                           Ns1Provider._FILTER_CHAIN_WITH_REGION(provider,
                                                                 True))
-        rule0['geos'] = rule0_saved_geos
-        rule1['geos'] = rule1_saved_geos
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
@@ -1022,16 +1018,12 @@ class TestNs1ProviderDynamic(TestCase):
         record = self.record()
         rule0 = record.data['dynamic']['rules'][0]
         rule1 = record.data['dynamic']['rules'][1]
-        rule0_saved_geos = rule0['geos']
-        rule1_saved_geos = rule1['geos']
         rule0['geos'] = ['AF', 'EU']
         rule1['geos'] = ['NA-US-CA']
         ret, _ = provider._params_for_A(record)
         exp = Ns1Provider._FILTER_CHAIN_WITH_REGION_AND_COUNTRY(provider,
                                                                 True)
         self.assertEquals(ret['filters'], exp)
-        rule0['geos'] = rule0_saved_geos
-        rule1['geos'] = rule1_saved_geos
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
@@ -1064,7 +1056,6 @@ class TestNs1ProviderDynamic(TestCase):
         # Check returned dict has list of countries under 'OC'
         record = self.record()
         rule0 = record.data['dynamic']['rules'][0]
-        saved_geos = rule0['geos']
         rule0['geos'] = ['OC']
         ret, _ = provider._params_for_A(record)
         got = set(ret['regions']['lhr__country']['meta']['country'])
@@ -1075,7 +1066,6 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertEquals(ret['filters'],
                           Ns1Provider._FILTER_CHAIN_WITH_COUNTRY(provider,
                                                                  True))
-        rule0['geos'] = saved_geos
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
