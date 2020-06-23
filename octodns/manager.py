@@ -221,13 +221,14 @@ class Manager(object):
         self.log.debug('configured_sub_zones: subs=%s', sub_zone_names)
         return set(sub_zone_names)
 
-    def _populate_and_plan(self, zone_name, sources, targets):
+    def _populate_and_plan(self, zone_name, sources, targets, lenient=False):
 
-        self.log.debug('sync:   populating, zone=%s', zone_name)
+        self.log.debug('sync:   populating, zone=%s, lenient=%s',
+                       zone_name, lenient)
         zone = Zone(zone_name,
                     sub_zones=self.configured_sub_zones(zone_name))
         for source in sources:
-            source.populate(zone)
+            source.populate(zone, lenient=lenient)
 
         self.log.debug('sync:   planning, zone=%s', zone_name)
         plans = []
@@ -259,6 +260,7 @@ class Manager(object):
         futures = []
         for zone_name, config in zones:
             self.log.info('sync:   zone=%s', zone_name)
+            lenient = config.get('lenient', False)
             try:
                 sources = config['sources']
             except KeyError:
@@ -308,7 +310,8 @@ class Manager(object):
                                        .format(zone_name, target))
 
             futures.append(self._executor.submit(self._populate_and_plan,
-                                                 zone_name, sources, targets))
+                                                 zone_name, sources,
+                                                 targets, lenient=lenient))
 
         # Wait on all results and unpack/flatten them in to a list of target &
         # plan pairs.
