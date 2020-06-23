@@ -983,10 +983,31 @@ class TestNs1ProviderDynamic(TestCase):
         rule1 = record.data['dynamic']['rules'][1]
         rule0['geos'] = ['AF', 'EU']
         rule1['geos'] = ['NA']
-        ret, _ = provider._params_for_A(record)
+        ret, monitor_ids = provider._params_for_A(record)
+        self.assertEquals(10, len(ret['answers']))
         self.assertEquals(ret['filters'],
                           Ns1Provider._FILTER_CHAIN_WITH_REGION(provider,
                                                                 True))
+        self.assertEquals({
+            'iad__catchall': {
+                'meta': {
+                    'note': 'rule-order:2'
+                }
+            },
+            'iad__georegion': {
+                'meta': {
+                    'georegion': ['US-CENTRAL', 'US-EAST', 'US-WEST'],
+                    'note': 'rule-order:1'
+                }
+            },
+            'lhr__georegion': {
+                'meta': {
+                    'georegion': ['AFRICA', 'EUROPE'],
+                    'note': 'fallback:iad rule-order:0'
+                }
+            }
+        }, ret['regions'])
+        self.assertEquals({'mid-1', 'mid-2', 'mid-3'}, monitor_ids)
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
@@ -1021,9 +1042,138 @@ class TestNs1ProviderDynamic(TestCase):
         rule0['geos'] = ['AF', 'EU']
         rule1['geos'] = ['NA-US-CA']
         ret, _ = provider._params_for_A(record)
+        self.assertEquals(10, len(ret['answers']))
         exp = Ns1Provider._FILTER_CHAIN_WITH_REGION_AND_COUNTRY(provider,
                                                                 True)
         self.assertEquals(ret['filters'], exp)
+        self.assertEquals({
+            'iad__catchall': {
+                'meta': {
+                    'note': 'rule-order:2'
+                }
+            },
+            'iad__country': {
+                'meta': {
+                    'note': 'rule-order:1',
+                    'us_state': ['CA']
+                }
+            },
+            'lhr__georegion': {
+                'meta': {
+                    'georegion': ['AFRICA', 'EUROPE'],
+                    'note': 'fallback:iad rule-order:0'
+                }
+            }
+        }, ret['regions'])
+
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_params_for_dynamic_contient_and_countries(self,
+                                                       monitors_for_mock,
+                                                       monitor_sync_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {
+            'mon-id': 'feed-id',
+        }
+
+        # provider._params_for_A() calls provider._monitors_for() and
+        # provider._monitor_sync(). Mock their return values so that we don't
+        # make NS1 API calls during tests
+        monitors_for_mock.reset_mock()
+        monitor_sync_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            '3.4.5.6': 'mid-3',
+        }]
+        monitor_sync_mock.side_effect = [
+            ('mid-1', 'fid-1'),
+            ('mid-2', 'fid-2'),
+            ('mid-3', 'fid-3'),
+        ]
+
+        record = self.record()
+        rule0 = record.data['dynamic']['rules'][0]
+        rule1 = record.data['dynamic']['rules'][1]
+        rule0['geos'] = ['AF', 'EU', 'NA-US-CA']
+        rule1['geos'] = ['NA', 'NA-US']
+        ret, _ = provider._params_for_A(record)
+
+        self.assertEquals(17, len(ret['answers']))
+        # Deeply check the answers we have here
+        # group the answers based on where they came from
+        notes = defaultdict(list)
+        for answer in ret['answers']:
+            notes[answer['meta']['note']].append(answer)
+            # Remove the meta and region part since it'll vary based on the
+            # exact pool, that'll let us == them down below
+            del answer['meta']
+            del answer['region']
+
+        # Expected groups. iad has occurances in here: a country and region
+        # that was split out based on targeting a continent and a state. It
+        # finally has a catchall.  Those are examples of the two ways pools get
+        # expanded.
+        #
+        # lhr splits in two, with a region and country.
+        #
+        # well as both lhr georegion (for contients) and country. The first is
+        # an example of a repeated target pool in a rule (only allowed when the
+        # 2nd is a catchall.)
+        self.assertEquals(['from:--default--', 'from:iad__catchall',
+                           'from:iad__country', 'from:iad__georegion',
+                           'from:lhr__country', 'from:lhr__georegion'],
+                          sorted(notes.keys()))
+
+        # All the iad's should match (after meta and region were removed)
+        self.assertEquals(notes['from:iad__catchall'],
+                          notes['from:iad__country'])
+        self.assertEquals(notes['from:iad__catchall'],
+                          notes['from:iad__georegion'])
+
+        # The lhrs should match each other too
+        self.assertEquals(notes['from:lhr__georegion'],
+                          notes['from:lhr__country'])
+
+        # We have both country and region filter chain entries
+        exp = Ns1Provider._FILTER_CHAIN_WITH_REGION_AND_COUNTRY(provider,
+                                                                True)
+        self.assertEquals(ret['filters'], exp)
+
+        # and our region details match the expected behaviors/targeting
+        self.assertEquals({
+            'iad__catchall': {
+                'meta': {
+                    'note': 'rule-order:2'
+                }
+            },
+            'iad__country': {
+                'meta': {
+                    'country': ['US'],
+                    'note': 'rule-order:1'
+                }
+            },
+            'iad__georegion': {
+                'meta': {
+                    'georegion': ['US-CENTRAL', 'US-EAST', 'US-WEST'],
+                    'note': 'rule-order:1'
+                }
+            },
+            'lhr__country': {
+                'meta': {
+                    'note': 'fallback:iad rule-order:0',
+                    'us_state': ['CA']
+                }
+            },
+            'lhr__georegion': {
+                'meta': {
+                    'georegion': ['AFRICA', 'EUROPE'],
+                    'note': 'fallback:iad rule-order:0'
+                }
+            }
+        }, ret['regions'])
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
@@ -1058,9 +1208,12 @@ class TestNs1ProviderDynamic(TestCase):
         rule0 = record.data['dynamic']['rules'][0]
         rule0['geos'] = ['OC']
         ret, _ = provider._params_for_A(record)
+
+        # Make sure the country list expanded into all the OC countries
         got = set(ret['regions']['lhr__country']['meta']['country'])
         self.assertEquals(got,
                           Ns1Provider._CONTINENT_TO_LIST_OF_COUNTRIES['OC'])
+
         # When rules has 'OC', it is converted to list of countries in the
         # params. Look if the returned filters is the filter chain with country
         self.assertEquals(ret['filters'],
