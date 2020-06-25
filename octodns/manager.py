@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from os import environ
+from six import text_type
 import logging
 
 from .provider.base import BaseProvider
@@ -228,7 +229,14 @@ class Manager(object):
         zone = Zone(zone_name,
                     sub_zones=self.configured_sub_zones(zone_name))
         for source in sources:
-            source.populate(zone, lenient=lenient)
+            try:
+                source.populate(zone, lenient=lenient)
+            except TypeError as e:
+                if "keyword argument 'lenient'" not in text_type(e):
+                    raise
+                self.log.warn(': provider %s does not accept lenient param',
+                              source.__class__.__name__)
+                source.populate(zone)
 
         self.log.debug('sync:   planning, zone=%s', zone_name)
         plans = []
