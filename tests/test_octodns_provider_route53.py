@@ -12,9 +12,9 @@ from unittest import TestCase
 from mock import patch
 
 from octodns.record import Create, Delete, Record, Update
-from octodns.provider.route53 import Route53Provider, _Route53GeoDefault, \
-    _Route53DynamicValue, _Route53GeoRecord, _Route53Record, _mod_keyer, \
-    _octal_replace
+from octodns.provider.route53 import Route53Provider, _Route53DynamicValue, \
+    _Route53GeoDefault, _Route53GeoRecord, Route53ProviderException, \
+    _Route53Record, _mod_keyer, _octal_replace
 from octodns.zone import Zone
 
 from helpers import GeoProvider
@@ -304,6 +304,7 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'Port': 443,
             'MeasureLatency': True,
+            'RequestInterval': 10,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -317,6 +318,7 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'Port': 443,
             'MeasureLatency': True,
+            'RequestInterval': 10,
         },
         'HealthCheckVersion': 42,
     }, {
@@ -330,6 +332,7 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'Port': 443,
             'MeasureLatency': True,
+            'RequestInterval': 10,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -343,6 +346,7 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'Port': 443,
             'MeasureLatency': True,
+            'RequestInterval': 10,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -357,6 +361,7 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'Port': 443,
             'MeasureLatency': True,
+            'RequestInterval': 10,
         },
         'HealthCheckVersion': 2,
     }]
@@ -1023,6 +1028,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -1036,6 +1042,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }]
@@ -1059,6 +1066,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }]
@@ -1108,6 +1116,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -1121,6 +1130,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }]
@@ -1242,9 +1252,9 @@ class TestRoute53Provider(TestCase):
         self.assertEquals('42', id)
         stubber.assert_no_pending_responses()
 
-    def test_health_check_measure_latency(self):
+    def test_health_check_provider_options(self):
         provider, stubber = self._get_stubbed_provider()
-        record_true = Record.new(self.expected, 'a', {
+        record = Record.new(self.expected, 'a', {
             'ttl': 61,
             'type': 'A',
             'value': '1.2.3.4',
@@ -1253,23 +1263,28 @@ class TestRoute53Provider(TestCase):
                 },
                 'route53': {
                     'healthcheck': {
-                        'measure_latency': True
+                        'measure_latency': True,
+                        'request_interval': 10,
                     }
                 }
             }
         })
-        measure_latency = provider._healthcheck_measure_latency(record_true)
-        self.assertTrue(measure_latency)
+        latency = provider._healthcheck_measure_latency(record)
+        interval = provider._healthcheck_request_interval(record)
+        self.assertTrue(latency)
+        self.assertEquals(10, interval)
 
         record_default = Record.new(self.expected, 'a', {
             'ttl': 61,
             'type': 'A',
             'value': '1.2.3.4',
         })
-        measure_latency = provider._healthcheck_measure_latency(record_default)
-        self.assertTrue(measure_latency)
+        latency = provider._healthcheck_measure_latency(record_default)
+        interval = provider._healthcheck_request_interval(record_default)
+        self.assertTrue(latency)
+        self.assertEquals(10, interval)
 
-        record_false = Record.new(self.expected, 'a', {
+        record = Record.new(self.expected, 'a', {
             'ttl': 61,
             'type': 'A',
             'value': '1.2.3.4',
@@ -1278,15 +1293,35 @@ class TestRoute53Provider(TestCase):
                 },
                 'route53': {
                     'healthcheck': {
-                        'measure_latency': False
+                        'measure_latency': False,
+                        'request_interval': 30,
                     }
                 }
             }
         })
-        measure_latency = provider._healthcheck_measure_latency(record_false)
-        self.assertFalse(measure_latency)
+        latency = provider._healthcheck_measure_latency(record)
+        interval = provider._healthcheck_request_interval(record)
+        self.assertFalse(latency)
+        self.assertEquals(30, interval)
 
-    def test_create_health_checks_measure_latency(self):
+        record_invalid = Record.new(self.expected, 'a', {
+            'ttl': 61,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                },
+                'route53': {
+                    'healthcheck': {
+                        'request_interval': 20,
+                    }
+                }
+            }
+        })
+        with self.assertRaises(Route53ProviderException):
+            interval = provider._healthcheck_request_interval(record_invalid)
+
+    def test_create_health_checks_provider_options(self):
         provider, stubber = self._get_stubbed_provider()
 
         health_check_config = {
@@ -1296,7 +1331,7 @@ class TestRoute53Provider(TestCase):
             'IPAddress': '1.2.3.4',
             'MeasureLatency': False,
             'Port': 443,
-            'RequestInterval': 10,
+            'RequestInterval': 30,
             'ResourcePath': '/_dns',
             'Type': 'HTTPS'
         }
@@ -1335,7 +1370,8 @@ class TestRoute53Provider(TestCase):
                 },
                 'route53': {
                     'healthcheck': {
-                        'measure_latency': False
+                        'measure_latency': False,
+                        'request_interval': 30
                     }
                 }
             }
@@ -1344,7 +1380,9 @@ class TestRoute53Provider(TestCase):
         value = record.geo['AF'].values[0]
         id = provider.get_health_check_id(record, value, True)
         ml = provider.health_checks[id]['HealthCheckConfig']['MeasureLatency']
-        self.assertEqual(False, ml)
+        ri = provider.health_checks[id]['HealthCheckConfig']['RequestInterval']
+        self.assertFalse(ml)
+        self.assertEquals(30, ri)
 
     def test_health_check_gc(self):
         provider, stubber = self._get_stubbed_provider()
@@ -1436,6 +1474,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -1449,6 +1488,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -1462,6 +1502,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }]
@@ -1639,6 +1680,7 @@ class TestRoute53Provider(TestCase):
                     'Type': 'HTTPS',
                     'Port': 443,
                     'MeasureLatency': True,
+                    'RequestInterval': 10,
                 },
                 'HealthCheckVersion': 2,
             }],
@@ -1742,7 +1784,8 @@ class TestRoute53Provider(TestCase):
                     'ResourcePath': '/_dns',
                     'Type': 'HTTPS',
                     'Port': 443,
-                    'MeasureLatency': True
+                    'MeasureLatency': True,
+                    'RequestInterval': 10,
                 },
                 'HealthCheckVersion': 2,
             }],
@@ -1890,7 +1933,8 @@ class TestRoute53Provider(TestCase):
                     'ResourcePath': '/_dns',
                     'Type': 'HTTPS',
                     'Port': 443,
-                    'MeasureLatency': True
+                    'MeasureLatency': True,
+                    'RequestInterval': 10,
                 },
                 'HealthCheckVersion': 2,
             }],
