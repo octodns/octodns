@@ -49,8 +49,7 @@ class SortingDumper(SafeDumper):
     '''
 
     def _representer(self, data):
-        data = data.items()
-        data.sort(key=lambda d: _natsort_key(d[0]))
+        data = sorted(data.items(), key=lambda d: _natsort_key(d[0]))
         return self.represent_mapping(self.DEFAULT_MAPPING_TAG, data)
 
 

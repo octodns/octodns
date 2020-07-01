@@ -1,0 +1,46 @@
+---
+aaaa:
+  dynamic:
+    pools:
+      ams:
+        fallback: null
+        values:
+        - value: 2601:642:500:e210:62f8:1dff:feb8:9471
+          weight: 1
+      iad:
+        fallback: null
+        values:
+        - value: 2601:642:500:e210:62f8:1dff:feb8:9472
+          weight: 1
+        - value: 2601:642:500:e210:62f8:1dff:feb8:9473
+          weight: 1
+      lax:
+        fallback: null
+        values:
+        - value: 2601:642:500:e210:62f8:1dff:feb8:9474
+          weight: 1
+      sea:
+        fallback: null
+        values:
+        - value: 2601:642:500:e210:62f8:1dff:feb8:9475
+          weight: 1
+        - value: 2601:642:500:e210:62f8:1dff:feb8:9476
+          weight: 2
+    rules:
+    - geos:
+      - EU-GB
+      pool: lax
+    - geos:
+      - EU
+      pool: ams
+    - geos:
+      - NA-US-CA
+      - NA-US-NC
+      - NA-US-OR
+      - NA-US-WA
+      pool: sea
+    - pool: iad
+  type: AAAA
+  values:
+  - 2601:642:500:e210:62f8:1dff:feb8:947a
+  - 2601:644:500:e210:62f8:1dff:feb8:947a

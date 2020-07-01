@@ -335,6 +335,24 @@
     "value": "aname",
     "id": 11189896,
     "type": "ANAME"
-	}],
+	}, {
+    "failover": false,
+    "monitor": false,
+    "sourceId": 123123,
+    "dynamicDns": false,
+    "failed": false,
+    "gtdLocation": "DEFAULT",
+    "hardLink": true,
+    "ttl": 1800,
+    "source": 1,
+    "name": "unsupported",
+    "value": "https://redirect.unit.tests",
+    "id": 11189897,
+    "title": "Unsupported Record",
+    "keywords": "unsupported",
+    "redirectType": "Standard - 302",
+    "description": "unsupported record",
+    "type": "HTTPRED"
+  }],
 	"page": 0
 }

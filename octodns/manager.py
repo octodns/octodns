@@ -8,11 +8,12 @@ from __future__ import absolute_import, division, print_function, \
 from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from os import environ
+from six import text_type
 import logging
 
 from .provider.base import BaseProvider
 from .provider.plan import Plan
-from .provider.yaml import YamlProvider
+from .provider.yaml import SplitYamlProvider, YamlProvider
 from .record import Record
 from .yaml import safe_load
 from .zone import Zone
@@ -69,6 +70,10 @@ class MainThreadExecutor(object):
         return MakeThreadFuture(func, args, kwargs)
 
 
+class ManagerException(Exception):
+    pass
+
+
 class Manager(object):
     log = logging.getLogger('Manager')
 
@@ -95,7 +100,7 @@ class Manager(object):
 
         self.include_meta = include_meta or manager_config.get('include_meta',
                                                                False)
-        self.log.info('__init__:   max_workers=%s', self.include_meta)
+        self.log.info('__init__:   include_meta=%s', self.include_meta)
 
         self.log.debug('__init__:   configuring providers')
         self.providers = {}
@@ -105,16 +110,16 @@ class Manager(object):
                 _class = provider_config.pop('class')
             except KeyError:
                 self.log.exception('Invalid provider class')
-                raise Exception('Provider {} is missing class'
-                                .format(provider_name))
+                raise ManagerException('Provider {} is missing class'
+                                       .format(provider_name))
             _class = self._get_named_class('provider', _class)
             kwargs = self._build_kwargs(provider_config)
             try:
                 self.providers[provider_name] = _class(provider_name, **kwargs)
             except TypeError:
                 self.log.exception('Invalid provider config')
-                raise Exception('Incorrect provider config for {}'
-                                .format(provider_name))
+                raise ManagerException('Incorrect provider config for {}'
+                                       .format(provider_name))
 
         zone_tree = {}
         # sort by reversed strings so that parent zones always come first
@@ -148,8 +153,8 @@ class Manager(object):
                 _class = plan_output_config.pop('class')
             except KeyError:
                 self.log.exception('Invalid plan_output class')
-                raise Exception('plan_output {} is missing class'
-                                .format(plan_output_name))
+                raise ManagerException('plan_output {} is missing class'
+                                       .format(plan_output_name))
             _class = self._get_named_class('plan_output', _class)
             kwargs = self._build_kwargs(plan_output_config)
             try:
@@ -157,8 +162,8 @@ class Manager(object):
                     _class(plan_output_name, **kwargs)
             except TypeError:
                 self.log.exception('Invalid plan_output config')
-                raise Exception('Incorrect plan_output config for {}'
-                                .format(plan_output_name))
+                raise ManagerException('Incorrect plan_output config for {}'
+                                       .format(plan_output_name))
 
     def _get_named_class(self, _type, _class):
         try:
@@ -167,13 +172,15 @@ class Manager(object):
         except (ImportError, ValueError):
             self.log.exception('_get_{}_class: Unable to import '
                                'module %s', _class)
-            raise Exception('Unknown {} class: {}'.format(_type, _class))
+            raise ManagerException('Unknown {} class: {}'
+                                   .format(_type, _class))
         try:
             return getattr(module, class_name)
         except AttributeError:
             self.log.exception('_get_{}_class: Unable to get class %s '
                                'from module %s', class_name, module)
-            raise Exception('Unknown {} class: {}'.format(_type, _class))
+            raise ManagerException('Unknown {} class: {}'
+                                   .format(_type, _class))
 
     def _build_kwargs(self, source):
         # Build up the arguments we need to pass to the provider
@@ -186,9 +193,9 @@ class Manager(object):
                         v = environ[env_var]
                     except KeyError:
                         self.log.exception('Invalid provider config')
-                        raise Exception('Incorrect provider config, '
-                                        'missing env var {}'
-                                        .format(env_var))
+                        raise ManagerException('Incorrect provider config, '
+                                               'missing env var {}'
+                                               .format(env_var))
             except AttributeError:
                 pass
             kwargs[k] = v
@@ -215,13 +222,21 @@ class Manager(object):
         self.log.debug('configured_sub_zones: subs=%s', sub_zone_names)
         return set(sub_zone_names)
 
-    def _populate_and_plan(self, zone_name, sources, targets):
+    def _populate_and_plan(self, zone_name, sources, targets, lenient=False):
 
-        self.log.debug('sync:   populating, zone=%s', zone_name)
+        self.log.debug('sync:   populating, zone=%s, lenient=%s',
+                       zone_name, lenient)
         zone = Zone(zone_name,
                     sub_zones=self.configured_sub_zones(zone_name))
         for source in sources:
-            source.populate(zone)
+            try:
+                source.populate(zone, lenient=lenient)
+            except TypeError as e:
+                if "keyword argument 'lenient'" not in text_type(e):
+                    raise
+                self.log.warn(': provider %s does not accept lenient param',
+                              source.__class__.__name__)
+                source.populate(zone)
 
         self.log.debug('sync:   planning, zone=%s', zone_name)
         plans = []
@@ -248,22 +263,25 @@ class Manager(object):
 
         zones = self.config['zones'].items()
         if eligible_zones:
-            zones = filter(lambda d: d[0] in eligible_zones, zones)
+            zones = [z for z in zones if z[0] in eligible_zones]
 
         futures = []
         for zone_name, config in zones:
             self.log.info('sync:   zone=%s', zone_name)
+            lenient = config.get('lenient', False)
             try:
                 sources = config['sources']
             except KeyError:
-                raise Exception('Zone {} is missing sources'.format(zone_name))
+                raise ManagerException('Zone {} is missing sources'
+                                       .format(zone_name))
 
             try:
                 targets = config['targets']
             except KeyError:
-                raise Exception('Zone {} is missing targets'.format(zone_name))
+                raise ManagerException('Zone {} is missing targets'
+                                       .format(zone_name))
             if eligible_targets:
-                targets = filter(lambda d: d in eligible_targets, targets)
+                targets = [t for t in targets if t in eligible_targets]
 
             if not targets:
                 # Don't bother planning (and more importantly populating) zones
@@ -275,26 +293,33 @@ class Manager(object):
             self.log.info('sync:   sources=%s -> targets=%s', sources, targets)
 
             try:
-                sources = [self.providers[source] for source in sources]
+                # rather than using a list comprehension, we break this loop
+                # out so that the `except` block below can reference the
+                # `source`
+                collected = []
+                for source in sources:
+                    collected.append(self.providers[source])
+                sources = collected
             except KeyError:
-                raise Exception('Zone {}, unknown source: {}'.format(zone_name,
-                                                                     source))
+                raise ManagerException('Zone {}, unknown source: {}'
+                                       .format(zone_name, source))
 
             try:
                 trgs = []
                 for target in targets:
                     trg = self.providers[target]
                     if not isinstance(trg, BaseProvider):
-                        raise Exception('{} - "{}" does not support targeting'
-                                        .format(trg, target))
+                        raise ManagerException('{} - "{}" does not support '
+                                               'targeting'.format(trg, target))
                     trgs.append(trg)
                 targets = trgs
             except KeyError:
-                raise Exception('Zone {}, unknown target: {}'.format(zone_name,
-                                                                     target))
+                raise ManagerException('Zone {}, unknown target: {}'
+                                       .format(zone_name, target))
 
             futures.append(self._executor.submit(self._populate_and_plan,
-                                                 zone_name, sources, targets))
+                                                 zone_name, sources,
+                                                 targets, lenient=lenient))
 
         # Wait on all results and unpack/flatten them in to a list of target &
         # plan pairs.
@@ -344,7 +369,7 @@ class Manager(object):
             a = [self.providers[source] for source in a]
             b = [self.providers[source] for source in b]
         except KeyError as e:
-            raise Exception('Unknown source: {}'.format(e.args[0]))
+            raise ManagerException('Unknown source: {}'.format(e.args[0]))
 
         sub_zones = self.configured_sub_zones(zone)
         za = Zone(zone, sub_zones)
@@ -357,7 +382,7 @@ class Manager(object):
 
         return zb.changes(za, _AggregateTarget(a + b))
 
-    def dump(self, zone, output_dir, lenient, source, *sources):
+    def dump(self, zone, output_dir, lenient, split, source, *sources):
         '''
         Dump zone data from the specified source
         '''
@@ -370,9 +395,12 @@ class Manager(object):
         try:
             sources = [self.providers[s] for s in sources]
         except KeyError as e:
-            raise Exception('Unknown source: {}'.format(e.args[0]))
+            raise ManagerException('Unknown source: {}'.format(e.args[0]))
 
-        target = YamlProvider('dump', output_dir)
+        clz = YamlProvider
+        if split:
+            clz = SplitYamlProvider
+        target = clz('dump', output_dir)
 
         zone = Zone(zone, self.configured_sub_zones(zone))
         for source in sources:
@@ -390,13 +418,20 @@ class Manager(object):
             try:
                 sources = config['sources']
             except KeyError:
-                raise Exception('Zone {} is missing sources'.format(zone_name))
+                raise ManagerException('Zone {} is missing sources'
+                                       .format(zone_name))
 
             try:
-                sources = [self.providers[source] for source in sources]
+                # rather than using a list comprehension, we break this loop
+                # out so that the `except` block below can reference the
+                # `source`
+                collected = []
+                for source in sources:
+                    collected.append(self.providers[source])
+                sources = collected
             except KeyError:
-                raise Exception('Zone {}, unknown source: {}'.format(zone_name,
-                                                                     source))
+                raise ManagerException('Zone {}, unknown source: {}'
+                                       .format(zone_name, source))
 
             for source in sources:
                 if isinstance(source, YamlProvider):

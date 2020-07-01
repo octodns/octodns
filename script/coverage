@@ -26,11 +26,17 @@ export DYN_PASSWORD=
 export DYN_USERNAME=
 export GOOGLE_APPLICATION_CREDENTIALS=
 
-coverage run --branch --source=octodns --omit=octodns/cmds/* `which nosetests` --with-xunit "$@"
+# Don't allow disabling coverage
+grep -r -I --line-number "# pragma: nocover" octodns && {
+  echo "Code coverage should not be disabled"
+  exit 1
+}
+
+coverage run --branch --source=octodns --omit=octodns/cmds/* "$(command -v nosetests)" --with-xunit "$@"
 coverage html
 coverage xml
-coverage report
-coverage report | grep ^TOTAL| grep -qv 100% && {
-    echo "Incomplete code coverage"
+coverage report --show-missing
+coverage report | grep ^TOTAL | grep -qv 100% && {
+    echo "Incomplete code coverage" >&2
     exit 1
 } || echo "Code coverage 100%"

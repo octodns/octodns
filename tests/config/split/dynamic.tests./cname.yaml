@@ -1,0 +1,42 @@
+---
+cname:
+  dynamic:
+    pools:
+      ams:
+        fallback: null
+        values:
+        - value: target-ams.unit.tests.
+          weight: 1
+      iad:
+        fallback: null
+        values:
+        - value: target-iad.unit.tests.
+          weight: 1
+      lax:
+        fallback: null
+        values:
+        - value: target-lax.unit.tests.
+          weight: 1
+      sea:
+        fallback: null
+        values:
+        - value: target-sea-1.unit.tests.
+          weight: 10
+        - value: target-sea-2.unit.tests.
+          weight: 14
+    rules:
+    - geos:
+      - EU-GB
+      pool: lax
+    - geos:
+      - EU
+      pool: ams
+    - geos:
+      - NA-US-CA
+      - NA-US-NC
+      - NA-US-OR
+      - NA-US-WA
+      pool: sea
+    - pool: iad
+  type: CNAME
+  value: target.unit.tests.

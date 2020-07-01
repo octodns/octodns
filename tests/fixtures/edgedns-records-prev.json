@@ -1,0 +1,166 @@
+{
+    "recordsets": [
+                {
+            "rdata": [
+                "10 20 30 foo-1.unit.tests.",
+                "12 20 30 foo-2.unit.tests."
+            ],
+            "type": "SRV",
+            "name": "_srv._tcp.old.unit.tests",
+            "ttl": 600
+        },
+        {
+            "rdata": [
+                "10 20 30 foo-1.unit.tests.",
+                "12 20 30 foo-2.unit.tests."
+            ],
+            "type": "SRV",
+            "name": "_srv._tcp.old.unit.tests",
+            "ttl": 600
+        },
+        {
+            "rdata": [
+                "2601:644:500:e210:62f8:1dff:feb8:9471"
+            ],
+            "type": "AAAA",
+            "name": "aaaa.old.unit.tests",
+            "ttl": 600
+        },
+        {
+            "rdata": [
+                "ns1.akam.net.",
+                "ns2.akam.net.",
+                "ns3.akam.net.",
+                "ns4.akam.net."
+            ],
+            "type": "NS",
+            "name": "old.unit.tests",
+            "ttl": 3600
+        },
+        {
+            "rdata": [
+                "1.2.3.4",
+                "1.2.3.5"
+            ],
+            "type": "A",
+            "name": "old.unit.tests",
+            "ttl": 300
+        },
+        {
+            "rdata": [
+                "ns1.akam.net hostmaster.akamai.com 1489074932 86400 7200 604800 300"
+            ],
+            "type": "SOA",
+            "name": "unit.tests",
+            "ttl": 3600
+        },
+        {
+            "rdata": [
+                "1 1 7491973e5f8b39d5327cd4e08bc81b05f7710b49",
+                "1 1 bf6b6825d2977c511a475bbefb88aad54a92ac73"
+            ],
+            "type": "SSHFP",
+            "name": "old.unit.tests",
+            "ttl": 3600
+        },
+        {
+            "rdata": [
+                "unit.tests"
+            ],
+            "type": "CNAME",
+            "name": "old.cname.unit.tests",
+            "ttl": 300
+        },
+        {
+            "rdata": [
+                "unit.tests."
+            ],
+            "type": "CNAME",
+            "name": "excluded.old.unit.tests",
+            "ttl": 3600
+        },
+        {
+            "rdata": [
+                "unit.tests."
+            ],
+            "type": "CNAME",
+            "name": "included.old.unit.tests",
+            "ttl": 3600
+        },
+        {
+            "rdata": [
+                "10 smtp-4.unit.tests.",
+                "20 smtp-2.unit.tests.",
+                "30 smtp-3.unit.tests.",
+                "40 smtp-1.unit.tests."
+            ],
+            "type": "MX",
+            "name": "mx.old.unit.tests",
+            "ttl": 300
+        },
+        {
+            "rdata": [
+                "10 100 \"S\" \"SIP+D2U\" \"!^.*$!sip:info@bar.example.com!\" .",
+                "100 100 \"U\" \"SIP+D2U\" \"!^.*$!sip:info@bar.example.com!\" ."
+            ],
+            "type": "NAPTR",
+            "name": "naptr.old.unit.tests",
+            "ttl": 600
+        },
+        {
+            "rdata": [
+                "foo.bar.com."
+            ],
+            "type": "PTR",
+            "name": "ptr.old.unit.tests",
+            "ttl": 300
+        },
+        {
+            "rdata": [
+                "\"v=spf1 ip4:192.168.0.1/16-all\""
+            ],
+            "type": "SPF",
+            "name": "spf.old.unit.tests",
+            "ttl": 600
+        },
+        {
+            "rdata": [
+                "ns1.unit.tests.",
+                "ns2.unit.tests."
+            ],
+            "type": "NS",
+            "name": "under.old.unit.tests",
+            "ttl": 3600
+        },
+        {
+            "rdata": [
+                "\"Bah bah black sheep\"",
+                "\"have you any wool.\"",
+                "\"v=DKIM1;k=rsa;s=email;h=sha256;p=A/kinda+of/long/string+with+numb3rs\""
+            ],
+            "type": "TXT",
+            "name": "txt.old.unit.tests",
+            "ttl": 600
+        },
+        {
+            "rdata": [
+                "2.2.3.7"
+            ],
+            "type": "A",
+            "name": "www.unit.tests",
+            "ttl": 300
+        },
+        {
+            "rdata": [
+                "2.2.3.6"
+            ],
+            "type": "A",
+            "name": "www.sub.old.unit.tests",
+            "ttl": 300
+        }
+    ],
+    "metadata": {
+        "totalElements": 16,
+        "showAll": true
+    }
+}

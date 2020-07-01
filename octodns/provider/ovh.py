@@ -9,6 +9,7 @@ import base64
 import binascii
 import logging
 from collections import defaultdict
+from six import text_type
 
 import ovh
 from ovh import ResourceNotFoundError
@@ -39,8 +40,8 @@ class OvhProvider(BaseProvider):
 
     # This variable is also used in populate method to filter which OVH record
     # types are supported by octodns
-    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'DKIM', 'MX', 'NAPTR', 'NS', 'PTR',
-                    'SPF', 'SRV', 'SSHFP', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'DKIM', 'MX', 'NAPTR', 'NS',
+                    'PTR', 'SPF', 'SRV', 'SSHFP', 'TXT'))
 
     def __init__(self, id, endpoint, application_key, application_secret,
                  consumer_key, *args, **kwargs):
@@ -64,7 +65,7 @@ class OvhProvider(BaseProvider):
             records = self.get_records(zone_name=zone_name)
             exists = True
         except ResourceNotFoundError as e:
-            if e.message != self.ZONE_NOT_FOUND_MESSAGE:
+            if text_type(e) != self.ZONE_NOT_FOUND_MESSAGE:
                 raise
             exists = False
             records = []
@@ -136,6 +137,22 @@ class OvhProvider(BaseProvider):
             'ttl': record['ttl'],
             'type': _type,
             'value': record['target']
+        }
+
+    @staticmethod
+    def _data_for_CAA(_type, records):
+        values = []
+        for record in records:
+            flags, tag, value = record['target'].split(' ', 2)
+            values.append({
+                'flags': flags,
+                'tag': tag,
+                'value': value[1:-1]
+            })
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values
         }
 
     @staticmethod
@@ -244,6 +261,17 @@ class OvhProvider(BaseProvider):
         }
 
     @staticmethod
+    def _params_for_CAA(record):
+        for value in record.values:
+            yield {
+                'target': '{} {} "{}"'.format(value.flags, value.tag,
+                                              value.value),
+                'subDomain': record.name,
+                'ttl': record.ttl,
+                'fieldType': record._type
+            }
+
+    @staticmethod
     def _params_for_MX(record):
         for value in record.values:
             yield {
@@ -322,10 +350,10 @@ class OvhProvider(BaseProvider):
                           'n': lambda _: True,
                           'g': lambda _: True}
 
-        splitted = value.split('\\;')
+        splitted = [v for v in value.split('\\;') if v]
         found_key = False
         for splitted_value in splitted:
-            sub_split = map(lambda x: x.strip(), splitted_value.split("=", 1))
+            sub_split = [x.strip() for x in splitted_value.split("=", 1)]
             if len(sub_split) < 2:
                 return False
             key, value = sub_split[0], sub_split[1]
@@ -343,7 +371,7 @@ class OvhProvider(BaseProvider):
     @staticmethod
     def _is_valid_dkim_key(key):
         try:
-            base64.decodestring(key)
+            base64.decodestring(bytearray(key, 'utf-8'))
         except binascii.Error:
             return False
         return True

@@ -5,12 +5,14 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from six import text_type
 from unittest import TestCase
 
 from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
-    CnameRecord, Create, Delete, GeoValue, MxRecord, NaptrRecord, \
-    NaptrValue, NsRecord, Record, SshfpRecord, SpfRecord, SrvRecord, \
-    TxtRecord, Update, ValidationError, _Dynamic, _DynamicPool, _DynamicRule
+    CaaValue, CnameRecord, Create, Delete, GeoValue, MxRecord, MxValue, \
+    NaptrRecord, NaptrValue, NsRecord, PtrRecord, Record, SshfpRecord, \
+    SshfpValue, SpfRecord, SrvRecord, SrvValue, TxtRecord, Update, \
+    ValidationError, _Dynamic, _DynamicPool, _DynamicRule
 from octodns.zone import Zone
 
 from helpers import DynamicProvider, GeoProvider, SimpleProvider
@@ -26,6 +28,45 @@ class TestRecord(TestCase):
             'value': '1.2.3.4',
         })
         self.assertEquals('mixedcase', record.name)
+
+    def test_alias_lowering_value(self):
+        upper_record = AliasRecord(self.zone, 'aliasUppwerValue', {
+            'ttl': 30,
+            'type': 'ALIAS',
+            'value': 'GITHUB.COM',
+        })
+        lower_record = AliasRecord(self.zone, 'aliasLowerValue', {
+            'ttl': 30,
+            'type': 'ALIAS',
+            'value': 'github.com',
+        })
+        self.assertEquals(upper_record.value, lower_record.value)
+
+    def test_cname_lowering_value(self):
+        upper_record = CnameRecord(self.zone, 'CnameUppwerValue', {
+            'ttl': 30,
+            'type': 'CNAME',
+            'value': 'GITHUB.COM',
+        })
+        lower_record = CnameRecord(self.zone, 'CnameLowerValue', {
+            'ttl': 30,
+            'type': 'CNAME',
+            'value': 'github.com',
+        })
+        self.assertEquals(upper_record.value, lower_record.value)
+
+    def test_ptr_lowering_value(self):
+        upper_record = PtrRecord(self.zone, 'PtrUppwerValue', {
+            'ttl': 30,
+            'type': 'PTR',
+            'value': 'GITHUB.COM',
+        })
+        lower_record = PtrRecord(self.zone, 'PtrLowerValue', {
+            'ttl': 30,
+            'type': 'PTR',
+            'value': 'github.com',
+        })
+        self.assertEquals(upper_record.value, lower_record.value)
 
     def test_a_and_record(self):
         a_values = ['1.2.3.4', '2.2.3.4']
@@ -354,6 +395,17 @@ class TestRecord(TestCase):
         self.assertEquals(b_value['exchange'], b.values[0].exchange)
         self.assertEquals(b_data, b.data)
 
+        a_upper_values = [{
+            'preference': 10,
+            'exchange': 'SMTP1.'
+        }, {
+            'priority': 20,
+            'value': 'SMTP2.'
+        }]
+        a_upper_data = {'ttl': 30, 'values': a_upper_values}
+        a_upper = MxRecord(self.zone, 'a', a_upper_data)
+        self.assertEquals(a_upper.data, a.data)
+
         target = SimpleProvider()
         # No changes with self
         self.assertFalse(a.changes(a, target))
@@ -432,112 +484,139 @@ class TestRecord(TestCase):
         # full sorting
         # equivalent
         b_naptr_value = b.values[0]
-        self.assertEquals(0, b_naptr_value.__cmp__(b_naptr_value))
+        self.assertTrue(b_naptr_value == b_naptr_value)
+        self.assertFalse(b_naptr_value != b_naptr_value)
+        self.assertTrue(b_naptr_value <= b_naptr_value)
+        self.assertTrue(b_naptr_value >= b_naptr_value)
         # by order
-        self.assertEquals(1, b_naptr_value.__cmp__(NaptrValue({
+        self.assertTrue(b_naptr_value > NaptrValue({
             'order': 10,
             'preference': 31,
             'flags': 'M',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'x',
-        })))
-        self.assertEquals(-1, b_naptr_value.__cmp__(NaptrValue({
+        }))
+        self.assertTrue(b_naptr_value < NaptrValue({
             'order': 40,
             'preference': 31,
             'flags': 'M',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'x',
-        })))
+        }))
         # by preference
-        self.assertEquals(1, b_naptr_value.__cmp__(NaptrValue({
+        self.assertTrue(b_naptr_value > NaptrValue({
             'order': 30,
             'preference': 10,
             'flags': 'M',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'x',
-        })))
-        self.assertEquals(-1, b_naptr_value.__cmp__(NaptrValue({
+        }))
+        self.assertTrue(b_naptr_value < NaptrValue({
             'order': 30,
             'preference': 40,
             'flags': 'M',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'x',
-        })))
+        }))
         # by flags
-        self.assertEquals(1, b_naptr_value.__cmp__(NaptrValue({
+        self.assertTrue(b_naptr_value > NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'A',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'x',
-        })))
-        self.assertEquals(-1, b_naptr_value.__cmp__(NaptrValue({
+        }))
+        self.assertTrue(b_naptr_value < NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'Z',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'x',
-        })))
+        }))
         # by service
-        self.assertEquals(1, b_naptr_value.__cmp__(NaptrValue({
+        self.assertTrue(b_naptr_value > NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'M',
             'service': 'A',
             'regexp': 'O',
             'replacement': 'x',
-        })))
-        self.assertEquals(-1, b_naptr_value.__cmp__(NaptrValue({
+        }))
+        self.assertTrue(b_naptr_value < NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'M',
             'service': 'Z',
             'regexp': 'O',
             'replacement': 'x',
-        })))
+        }))
         # by regexp
-        self.assertEquals(1, b_naptr_value.__cmp__(NaptrValue({
+        self.assertTrue(b_naptr_value > NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'M',
             'service': 'N',
             'regexp': 'A',
             'replacement': 'x',
-        })))
-        self.assertEquals(-1, b_naptr_value.__cmp__(NaptrValue({
+        }))
+        self.assertTrue(b_naptr_value < NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'M',
             'service': 'N',
             'regexp': 'Z',
             'replacement': 'x',
-        })))
+        }))
         # by replacement
-        self.assertEquals(1, b_naptr_value.__cmp__(NaptrValue({
+        self.assertTrue(b_naptr_value > NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'M',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'a',
-        })))
-        self.assertEquals(-1, b_naptr_value.__cmp__(NaptrValue({
+        }))
+        self.assertTrue(b_naptr_value < NaptrValue({
             'order': 30,
             'preference': 31,
             'flags': 'M',
             'service': 'N',
             'regexp': 'O',
             'replacement': 'z',
-        })))
+        }))
 
         # __repr__ doesn't blow up
         a.__repr__()
+
+        # Hash
+        v = NaptrValue({
+            'order': 30,
+            'preference': 31,
+            'flags': 'M',
+            'service': 'N',
+            'regexp': 'O',
+            'replacement': 'z',
+        })
+        o = NaptrValue({
+            'order': 30,
+            'preference': 32,
+            'flags': 'M',
+            'service': 'N',
+            'regexp': 'O',
+            'replacement': 'z',
+        })
+        values = set()
+        values.add(v)
+        self.assertTrue(v in values)
+        self.assertFalse(o in values)
+        values.add(o)
+        self.assertTrue(o in values)
 
     def test_ns(self):
         a_values = ['5.6.7.8.', '6.7.8.9.', '7.8.9.0.']
@@ -708,14 +787,14 @@ class TestRecord(TestCase):
         # Missing type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {})
-        self.assertTrue('missing type' in ctx.exception.message)
+        self.assertTrue('missing type' in text_type(ctx.exception))
 
         # Unknown type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {
                 'type': 'XXX',
             })
-        self.assertTrue('Unknown record type' in ctx.exception.message)
+        self.assertTrue('Unknown record type' in text_type(ctx.exception))
 
     def test_change(self):
         existing = Record.new(self.zone, 'txt', {
@@ -746,6 +825,38 @@ class TestRecord(TestCase):
         self.assertEquals(values, geo.values)
         self.assertEquals(['NA-US', 'NA'], list(geo.parents))
 
+        a = GeoValue('NA-US-CA', values)
+        b = GeoValue('AP-JP', values)
+        c = GeoValue('NA-US-CA', ['2.3.4.5'])
+
+        self.assertEqual(a, a)
+        self.assertEqual(b, b)
+        self.assertEqual(c, c)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+
+        self.assertTrue(a > b)
+        self.assertTrue(a < c)
+        self.assertTrue(b < a)
+        self.assertTrue(b < c)
+        self.assertTrue(c > a)
+        self.assertTrue(c > b)
+
+        self.assertTrue(a >= a)
+        self.assertTrue(a >= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(b <= a)
+        self.assertTrue(b <= b)
+        self.assertTrue(b <= c)
+        self.assertTrue(c > a)
+        self.assertTrue(c > b)
+        self.assertTrue(c >= b)
+
     def test_healthcheck(self):
         new = Record.new(self.zone, 'a', {
             'ttl': 44,
@@ -775,6 +886,40 @@ class TestRecord(TestCase):
         self.assertEquals('HTTPS', new.healthcheck_protocol)
         self.assertEquals(443, new.healthcheck_port)
 
+    def test_healthcheck_tcp(self):
+        new = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                    'path': '/ignored',
+                    'host': 'completely.ignored',
+                    'protocol': 'TCP',
+                    'port': 8080,
+                }
+            }
+        })
+        self.assertIsNone(new.healthcheck_path)
+        self.assertIsNone(new.healthcheck_host)
+        self.assertEquals('TCP', new.healthcheck_protocol)
+        self.assertEquals(8080, new.healthcheck_port)
+
+        new = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                    'protocol': 'TCP',
+                }
+            }
+        })
+        self.assertIsNone(new.healthcheck_path)
+        self.assertIsNone(new.healthcheck_host)
+        self.assertEquals('TCP', new.healthcheck_protocol)
+        self.assertEquals(443, new.healthcheck_port)
+
     def test_inored(self):
         new = Record.new(self.zone, 'txt', {
             'ttl': 44,
@@ -801,11 +946,339 @@ class TestRecord(TestCase):
         })
         self.assertFalse(new.ignored)
 
+    def test_ordering_functions(self):
+        a = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        b = Record.new(self.zone, 'b', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        c = Record.new(self.zone, 'c', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        aaaa = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'AAAA',
+            'value': '2601:644:500:e210:62f8:1dff:feb8:947a',
+        })
+
+        self.assertEquals(a, a)
+        self.assertEquals(b, b)
+        self.assertEquals(c, c)
+        self.assertEquals(aaaa, aaaa)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(a, aaaa)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(b, aaaa)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+        self.assertNotEqual(c, aaaa)
+        self.assertNotEqual(aaaa, a)
+        self.assertNotEqual(aaaa, b)
+        self.assertNotEqual(aaaa, c)
+
+        self.assertTrue(a < b)
+        self.assertTrue(a < c)
+        self.assertTrue(a < aaaa)
+        self.assertTrue(b > a)
+        self.assertTrue(b < c)
+        self.assertTrue(b > aaaa)
+        self.assertTrue(c > a)
+        self.assertTrue(c > b)
+        self.assertTrue(c > aaaa)
+        self.assertTrue(aaaa > a)
+        self.assertTrue(aaaa < b)
+        self.assertTrue(aaaa < c)
+
+        self.assertTrue(a <= a)
+        self.assertTrue(a <= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(a <= aaaa)
+        self.assertTrue(b >= a)
+        self.assertTrue(b >= b)
+        self.assertTrue(b <= c)
+        self.assertTrue(b >= aaaa)
+        self.assertTrue(c >= a)
+        self.assertTrue(c >= b)
+        self.assertTrue(c >= c)
+        self.assertTrue(c >= aaaa)
+        self.assertTrue(aaaa >= a)
+        self.assertTrue(aaaa <= b)
+        self.assertTrue(aaaa <= c)
+        self.assertTrue(aaaa <= aaaa)
+
+    def test_caa_value(self):
+        a = CaaValue({'flags': 0, 'tag': 'a', 'value': 'v'})
+        b = CaaValue({'flags': 1, 'tag': 'a', 'value': 'v'})
+        c = CaaValue({'flags': 0, 'tag': 'c', 'value': 'v'})
+        d = CaaValue({'flags': 0, 'tag': 'a', 'value': 'z'})
+
+        self.assertEqual(a, a)
+        self.assertEqual(b, b)
+        self.assertEqual(c, c)
+        self.assertEqual(d, d)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(a, d)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(b, d)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+        self.assertNotEqual(c, d)
+
+        self.assertTrue(a < b)
+        self.assertTrue(a < c)
+        self.assertTrue(a < d)
+
+        self.assertTrue(b > a)
+        self.assertTrue(b > c)
+        self.assertTrue(b > d)
+
+        self.assertTrue(c > a)
+        self.assertTrue(c < b)
+        self.assertTrue(c > d)
+
+        self.assertTrue(d > a)
+        self.assertTrue(d < b)
+        self.assertTrue(d < c)
+
+        self.assertTrue(a <= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(a <= d)
+        self.assertTrue(a <= a)
+        self.assertTrue(a >= a)
+
+        self.assertTrue(b >= a)
+        self.assertTrue(b >= c)
+        self.assertTrue(b >= d)
+        self.assertTrue(b >= b)
+        self.assertTrue(b <= b)
+
+        self.assertTrue(c >= a)
+        self.assertTrue(c <= b)
+        self.assertTrue(c >= d)
+        self.assertTrue(c >= c)
+        self.assertTrue(c <= c)
+
+        self.assertTrue(d >= a)
+        self.assertTrue(d <= b)
+        self.assertTrue(d <= c)
+        self.assertTrue(d >= d)
+        self.assertTrue(d <= d)
+
+    def test_mx_value(self):
+        a = MxValue({'preference': 0, 'priority': 'a', 'exchange': 'v',
+                     'value': '1'})
+        b = MxValue({'preference': 10, 'priority': 'a', 'exchange': 'v',
+                     'value': '2'})
+        c = MxValue({'preference': 0, 'priority': 'b', 'exchange': 'z',
+                     'value': '3'})
+
+        self.assertEqual(a, a)
+        self.assertEqual(b, b)
+        self.assertEqual(c, c)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+
+        self.assertTrue(a < b)
+        self.assertTrue(a < c)
+
+        self.assertTrue(b > a)
+        self.assertTrue(b > c)
+
+        self.assertTrue(c > a)
+        self.assertTrue(c < b)
+
+        self.assertTrue(a <= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(a <= a)
+        self.assertTrue(a >= a)
+
+        self.assertTrue(b >= a)
+        self.assertTrue(b >= c)
+        self.assertTrue(b >= b)
+        self.assertTrue(b <= b)
+
+        self.assertTrue(c >= a)
+        self.assertTrue(c <= b)
+        self.assertTrue(c >= c)
+        self.assertTrue(c <= c)
+
+    def test_sshfp_value(self):
+        a = SshfpValue({'algorithm': 0, 'fingerprint_type': 0,
+                        'fingerprint': 'abcd'})
+        b = SshfpValue({'algorithm': 1, 'fingerprint_type': 0,
+                        'fingerprint': 'abcd'})
+        c = SshfpValue({'algorithm': 0, 'fingerprint_type': 1,
+                        'fingerprint': 'abcd'})
+        d = SshfpValue({'algorithm': 0, 'fingerprint_type': 0,
+                        'fingerprint': 'bcde'})
+
+        self.assertEqual(a, a)
+        self.assertEqual(b, b)
+        self.assertEqual(c, c)
+        self.assertEqual(d, d)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(a, d)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(b, d)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+        self.assertNotEqual(c, d)
+        self.assertNotEqual(d, a)
+        self.assertNotEqual(d, b)
+        self.assertNotEqual(d, c)
+
+        self.assertTrue(a < b)
+        self.assertTrue(a < c)
+
+        self.assertTrue(b > a)
+        self.assertTrue(b > c)
+
+        self.assertTrue(c > a)
+        self.assertTrue(c < b)
+
+        self.assertTrue(a <= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(a <= a)
+        self.assertTrue(a >= a)
+
+        self.assertTrue(b >= a)
+        self.assertTrue(b >= c)
+        self.assertTrue(b >= b)
+        self.assertTrue(b <= b)
+
+        self.assertTrue(c >= a)
+        self.assertTrue(c <= b)
+        self.assertTrue(c >= c)
+        self.assertTrue(c <= c)
+
+        # Hash
+        values = set()
+        values.add(a)
+        self.assertTrue(a in values)
+        self.assertFalse(b in values)
+        values.add(b)
+        self.assertTrue(b in values)
+
+    def test_srv_value(self):
+        a = SrvValue({'priority': 0, 'weight': 0, 'port': 0, 'target': 'foo.'})
+        b = SrvValue({'priority': 1, 'weight': 0, 'port': 0, 'target': 'foo.'})
+        c = SrvValue({'priority': 0, 'weight': 2, 'port': 0, 'target': 'foo.'})
+        d = SrvValue({'priority': 0, 'weight': 0, 'port': 3, 'target': 'foo.'})
+        e = SrvValue({'priority': 0, 'weight': 0, 'port': 0, 'target': 'mmm.'})
+
+        self.assertEqual(a, a)
+        self.assertEqual(b, b)
+        self.assertEqual(c, c)
+        self.assertEqual(d, d)
+        self.assertEqual(e, e)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(a, d)
+        self.assertNotEqual(a, e)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(b, d)
+        self.assertNotEqual(b, e)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+        self.assertNotEqual(c, d)
+        self.assertNotEqual(c, e)
+        self.assertNotEqual(d, a)
+        self.assertNotEqual(d, b)
+        self.assertNotEqual(d, c)
+        self.assertNotEqual(d, e)
+        self.assertNotEqual(e, a)
+        self.assertNotEqual(e, b)
+        self.assertNotEqual(e, c)
+        self.assertNotEqual(e, d)
+
+        self.assertTrue(a < b)
+        self.assertTrue(a < c)
+
+        self.assertTrue(b > a)
+        self.assertTrue(b > c)
+
+        self.assertTrue(c > a)
+        self.assertTrue(c < b)
+
+        self.assertTrue(a <= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(a <= a)
+        self.assertTrue(a >= a)
+
+        self.assertTrue(b >= a)
+        self.assertTrue(b >= c)
+        self.assertTrue(b >= b)
+        self.assertTrue(b <= b)
+
+        self.assertTrue(c >= a)
+        self.assertTrue(c <= b)
+        self.assertTrue(c >= c)
+        self.assertTrue(c <= c)
+
+        # Hash
+        values = set()
+        values.add(a)
+        self.assertTrue(a in values)
+        self.assertFalse(b in values)
+        values.add(b)
+        self.assertTrue(b in values)
+
 
 class TestRecordValidation(TestCase):
     zone = Zone('unit.tests.', [])
 
     def test_base(self):
+        # fqdn length, DNS defins max as 253
+        with self.assertRaises(ValidationError) as ctx:
+            # The . will put this over the edge
+            name = 'x' * (253 - len(self.zone.name))
+            Record.new(self.zone, name, {
+                'ttl': 300,
+                'type': 'A',
+                'value': '1.2.3.4',
+            })
+        reason = ctx.exception.reasons[0]
+        self.assertTrue(reason.startswith('invalid fqdn, "xxxx'))
+        self.assertTrue(reason.endswith('.unit.tests." is too long at 254'
+                                        ' chars, max is 253'))
+
+        # label length, DNS defins max as 63
+        with self.assertRaises(ValidationError) as ctx:
+            # The . will put this over the edge
+            name = 'x' * 64
+            Record.new(self.zone, name, {
+                'ttl': 300,
+                'type': 'A',
+                'value': '1.2.3.4',
+            })
+        reason = ctx.exception.reasons[0]
+        self.assertTrue(reason.startswith('invalid name, "xxxx'))
+        self.assertTrue(reason.endswith('xxx" is too long at 64'
+                                        ' chars, max is 63'))
+
         # no ttl
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
@@ -1694,7 +2167,8 @@ class TestRecordValidation(TestCase):
                     'target': 'foo.bar.baz.'
                 }
             })
-        self.assertEquals(['invalid name'], ctx.exception.reasons)
+        self.assertEquals(['invalid name for SRV record'],
+                          ctx.exception.reasons)
 
         # missing priority
         with self.assertRaises(ValidationError) as ctx:
@@ -2410,7 +2884,7 @@ class TestDynamicRecords(TestCase):
                             'weight': 1,
                             'value': '6.6.6.6',
                         }, {
-                            'weight': 256,
+                            'weight': 16,
                             'value': '7.7.7.7',
                         }],
                     },
@@ -2434,7 +2908,7 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['invalid weight "256" in pool "three" value 2'],
+        self.assertEquals(['invalid weight "16" in pool "three" value 2'],
                           ctx.exception.reasons)
 
         # invalid non-int weight
@@ -2636,7 +3110,7 @@ class TestDynamicRecords(TestCase):
             'invalid IPv4 address "blip"',
         ], ctx.exception.reasons)
 
-        # missing rules
+        # missing rules, and unused pools
         a_data = {
             'dynamic': {
                 'pools': {
@@ -2663,7 +3137,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['missing rules'], ctx.exception.reasons)
+        self.assertEquals([
+            'missing rules',
+            'unused pools: "one", "two"',
+        ], ctx.exception.reasons)
 
         # empty rules
         a_data = {
@@ -2693,7 +3170,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['missing rules'], ctx.exception.reasons)
+        self.assertEquals([
+            'missing rules',
+            'unused pools: "one", "two"',
+        ], ctx.exception.reasons)
 
         # rules not a list/tuple
         a_data = {
@@ -2723,7 +3203,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['rules must be a list'], ctx.exception.reasons)
+        self.assertEquals([
+            'rules must be a list',
+            'unused pools: "one", "two"',
+        ], ctx.exception.reasons)
 
         # rule without pool
         a_data = {
@@ -2757,7 +3240,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['rule 1 missing pool'], ctx.exception.reasons)
+        self.assertEquals([
+            'rule 1 missing pool',
+            'unused pools: "two"',
+        ], ctx.exception.reasons)
 
         # rule with non-string pools
         a_data = {
@@ -2792,10 +3278,12 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['rule 1 invalid pool "[]"'],
-                          ctx.exception.reasons)
+        self.assertEquals([
+            'rule 1 invalid pool "[]"',
+            'unused pools: "two"',
+        ], ctx.exception.reasons)
 
-        # rule references non-existant pool
+        # rule references non-existent pool
         a_data = {
             'dynamic': {
                 'pools': {
@@ -2814,7 +3302,7 @@ class TestDynamicRecords(TestCase):
                 },
                 'rules': [{
                     'geos': ['NA-US-CA'],
-                    'pool': 'non-existant',
+                    'pool': 'non-existent',
                 }, {
                     'pool': 'one',
                 }],
@@ -2828,8 +3316,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(["rule 1 undefined pool \"non-existant\""],
-                          ctx.exception.reasons)
+        self.assertEquals([
+            "rule 1 undefined pool \"non-existent\"",
+            'unused pools: "two"',
+        ], ctx.exception.reasons)
 
         # rule with invalid geos
         a_data = {
@@ -2937,6 +3427,83 @@ class TestDynamicRecords(TestCase):
             Record.new(self.zone, 'bad', a_data)
         self.assertEquals(['rule 2 duplicate default'],
                           ctx.exception.reasons)
+
+        # repeated pool in rules
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': ['EU'],
+                    'pool': 'two',
+                }, {
+                    'geos': ['AF'],
+                    'pool': 'one',
+                }, {
+                    'geos': ['OC'],
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['rule 3 invalid, target pool "one" reused'],
+                          ctx.exception.reasons)
+
+        # Repeated pool is OK if later one is a default
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': ['EU-GB'],
+                    'pool': 'one',
+                }, {
+                    'geos': ['EU'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        # This should be valid, no exception
+        Record.new(self.zone, 'bad', a_data)
 
     def test_dynamic_lenient(self):
         # Missing pools

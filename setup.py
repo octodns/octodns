@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 from os.path import dirname, join
 import octodns
 
@@ -21,6 +25,39 @@ console_scripts = {
     for name in cmds
 }
 
+
+def long_description():
+    buf = StringIO()
+    yaml_block = False
+    supported_providers = False
+    with open('README.md') as fh:
+        for line in fh:
+            if line == '```yaml\n':
+                yaml_block = True
+                continue
+            elif yaml_block and line == '---\n':
+                # skip the line
+                continue
+            elif yaml_block and line == '```\n':
+                yaml_block = False
+                continue
+            elif supported_providers:
+                if line.startswith('## '):
+                    supported_providers = False
+                    # write this line out, no continue
+                else:
+                    # We're ignoring this one
+                    continue
+            elif line == '## Supported providers\n':
+                supported_providers = True
+                continue
+            buf.write(line)
+    buf = buf.getvalue()
+    with open('/tmp/mod', 'w') as fh:
+        fh.write(buf)
+    return buf
+
+
 setup(
     author='Ross McFarland',
     author_email='rwmcfa1@gmail.com',
@@ -31,16 +68,17 @@ setup(
     install_requires=[
         'PyYaml>=4.2b1',
         'dnspython>=1.15.0',
-        'futures>=3.2.0',
-        'incf.countryutils>=1.0',
+        'futures>=3.2.0; python_version<"3.2"',
         'ipaddress>=1.0.22',
         'natsort>=5.5.0',
-        # botocore doesn't like >=2.7.0 for some reason
-        'python-dateutil>=2.6.0,<2.7.0',
+        'pycountry>=19.8.18',
+        'pycountry-convert>=0.7.2',
+        'python-dateutil>=2.8.1',
         'requests>=2.20.0'
     ],
     license='MIT',
-    long_description=open('README.md').read(),
+    long_description=long_description(),
+    long_description_content_type='text/markdown',
     name='octodns',
     packages=find_packages(),
     url='https://github.com/github/octodns',

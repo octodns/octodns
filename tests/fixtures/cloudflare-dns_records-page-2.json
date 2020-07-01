@@ -158,6 +158,23 @@
       }
     },
     {
+      "id": "fc12ab34cd5611334422ab3322997677",
+      "type": "PTR",
+      "name": "ptr.unit.tests",
+      "content": "foo.bar.com",
+      "proxiable": true,
+      "proxied": false,
+      "ttl": 300,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "modified_on": "2017-03-11T18:01:43.940682Z",
+      "created_on": "2017-03-11T18:01:43.940682Z",
+      "meta": {
+        "auto_added": false
+      }
+    },
+    {
       "id": "fc12ab34cd5611334422ab3322997656",
       "type": "SRV",
       "name": "_srv._tcp.unit.tests",
@@ -212,8 +229,8 @@
     "page": 2,
     "per_page": 11,
     "total_pages": 2,
-    "count": 9,
-    "total_count": 21
+    "count": 10,
+    "total_count": 20
   },
   "success": true,
   "errors": [],

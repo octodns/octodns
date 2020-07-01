@@ -1,7 +1,12 @@
+#
+# Do not add editor or OS specific ignores here. Have a look at adding
+# `excludesfile` to your `~/.gitconfig` to globally ignore such things.
+#
 *.pyc
 .coverage
 .env
 /config/
+/build/
 coverage.xml
 dist/
 env/

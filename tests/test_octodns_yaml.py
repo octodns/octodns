@@ -5,7 +5,7 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from StringIO import StringIO
+from six import StringIO
 from unittest import TestCase
 from yaml.constructor import ConstructorError
 

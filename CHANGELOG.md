@@ -1,3 +1,88 @@
+## v0.9.11 - 2020-??-?? - ???????????????
+
+* Added support for TCP health checking to dynamic records
+
+## v0.9.10 - 2020-04-20 - Dynamic NS1 and lots of misc
+
+* Added support for dynamic records to Ns1Provider, updated client and rate
+  limiting implementation
+* Moved CI to use GitHub Actions
+* Set up dependabot to automatically PR requirements updates
+* Pass at bumping all of the requirements and Dependabot them going forward
+* Enhanced `dynamic` pool validation rules
+* Delegation set support for Route53 and fix for CNAME/A ordering issues
+* DNSimple sandbox support
+* OVHProvider support for CAA
+* Akamai rename FastDNS to EdgeDNS
+* Transip bumped to 2.1.2 which should get away from its SOAP api which is EOLd
+
+## v0.9.9 - 2019-11-04 - Python 3.7 Support
+
+* Extensive pass through the whole codebase to support Python 3
+   * Tons of updates to replace `def __cmp__` with `__eq__` and friends to
+     preserve custom equality and ordering behaviors that are essential to
+     octoDNS's processes.
+   * Quite a few objects required the addition of `__eq__` and friends so that
+     they're sortable in Python 3 now that those things are more strict. A few
+     places this required jumping through hoops of sorts. Thankfully our tests
+     are pretty thorough and caught a lot of issues and hopefully the whole
+     plan, review, apply process will backstop that.
+   * Explicit ordering of changes by (name, type) to address inconsistent
+     ordering for a number of providers that just convert changes into API
+     calls as they come. Python 2 sets ordered consistently, Python 3 they do
+     not. https://github.com/github/octodns/pull/384/commits/7958233fccf9ea22d95e2fd06c48d7d0a4529e26
+   * Route53 `_mod_keyer` ordering wasn't 100% complete and thus unreliable and
+     random in Python 3. This has been addressed and may result in value
+     reordering on next plan, no actual changes in behavior should occur.
+   * `incf.countryutils` (in pypi) was last released in 2009 is not python 3
+     compatible (it's country data is also pretty stale.) `pycountry_convert`
+     appears to have the functionality required to replace its usage so it has
+     been removed as a dependency/requirement.
+   * Bunch of additional unit tests and supporting config to exercise new code
+     and verify things that were run into during the Python 3 work
+   * lots of `six`ing of things
+* Validate Record name & fqdn length
+
+## v0.9.8 - 2019-09-30 - One with no changes b/c PyPi description problems
+
+* No material changes
+
+## v0.9.7 - 2019-09-30 - It's about time
+
+* AkamaiProvider, ConstellixProvider, MythicBeastsProvider, SelectelProvider,
+  &amp; TransipPovider providers added
+* Route53Provider seperator fix
+* YamlProvider export error around stringification
+* PyPi markdown rendering fix
+
+## v0.9.6 - 2019-07-16 - The little one that fixes stuff from the big one
+
+* Reduced dynamic record value weight range to 0-15 so that Dyn and Route53
+  match up behaviors. Dyn is limited to 0-15 and scaling that up would lose
+  resolution that couldn't be recovered during populate.
+* Addressed issues with Route53 change set ordering for dynamic records
+* Ignore unsupported record types in DigitalOceanProvider
+* Fix bugs in Route53 extra changes handling and health check managagement
+
+## v0.9.5 - 2019-05-06 - The big one, with all the dynamic stuff
+
+* dynamic record support, essentially a v2 version of geo records with a lot
+  more flexibility and power. Also support dynamic CNAME records (alpha)
+* Route53Provider dynamic record support
+* DynProvider dynamic record support
+* SUPPORTS_DYNAMIC is an optional property, defaults to False
+* Route53Provider health checks support disabling latency measurement
+* CloudflareProvider SRV record unpacking fix
+* DNSMadeEasy provider uses supports to avoid blowing up on unknown record
+  types
+* Updates to AzureProvider lib versions
+* Normalize MX/CNAME/ALIAS/PTR value to lower case
+* SplitYamlProvider support added
+* DynProvider fix for Traffic Directors association to records, explicit rather
+  than "looks close enough"
+* TinyDNS support for TXT and AAAA records and fixes to ; escaping
+* pre-commit hook requires 100% code coverage
+
 ## v0.9.4 - 2019-01-28 - The one with a bunch of stuff, before the big one
 
 * A bunch of "dynamic" stuff that'll be detailed in the next release when
@@ -84,7 +169,7 @@ Adds an OVH provider.
 
 ## v0.8.6 - 2017-09-06 - CAA record type,
 
-Misc fixes and improvments.
+Misc fixes and improvements.
 
 * Azure TXT record fix
 * PowerDNS api support for https

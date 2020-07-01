@@ -1,0 +1,46 @@
+---
+a:
+  dynamic:
+    pools:
+      ams:
+        fallback: null
+        values:
+        - value: 1.1.1.1
+          weight: 1
+      iad:
+        fallback: null
+        values:
+        - value: 2.2.2.2
+          weight: 1
+        - value: 3.3.3.3
+          weight: 1
+      lax:
+        fallback: null
+        values:
+        - value: 4.4.4.4
+          weight: 1
+      sea:
+        fallback: null
+        values:
+        - value: 5.5.5.5
+          weight: 15
+        - value: 6.6.6.6
+          weight: 10
+    rules:
+    - geos:
+      - EU-GB
+      pool: lax
+    - geos:
+      - EU
+      pool: ams
+    - geos:
+      - NA-US-CA
+      - NA-US-NC
+      - NA-US-OR
+      - NA-US-WA
+      pool: sea
+    - pool: iad
+  type: A
+  values:
+  - 2.2.2.2
+  - 3.3.3.3

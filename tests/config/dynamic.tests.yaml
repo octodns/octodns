@@ -19,16 +19,17 @@ a:
           - value: 6.6.6.6
             weight: 10
           - value: 5.5.5.5
-            weight: 25
+            weight: 15
     rules:
       - geos:
         - EU-GB
-        pool: iad
+        pool: lax
       - geos:
         - EU
         pool: ams
       - geos:
           - NA-US-CA
+          - NA-US-NC
           - NA-US-OR
           - NA-US-WA
         pool: sea
@@ -59,12 +60,13 @@ aaaa:
     rules:
       - geos:
         - EU-GB
-        pool: iad
+        pool: lax
       - geos:
         - EU
         pool: ams
       - geos:
           - NA-US-CA
+          - NA-US-NC
           - NA-US-OR
           - NA-US-WA
         pool: sea
@@ -88,18 +90,19 @@ cname:
       sea:
         values:
           - value: target-sea-1.unit.tests.
-            weight: 100
+            weight: 10
           - value: target-sea-2.unit.tests.
-            weight: 175
+            weight: 14
     rules:
       - geos:
         - EU-GB
-        pool: iad
+        pool: lax
       - geos:
         - EU
         pool: ams
       - geos:
           - NA-US-CA
+          - NA-US-NC
           - NA-US-OR
           - NA-US-WA
         pool: sea
@@ -159,6 +162,7 @@ real-ish-a:
       - geos:
         # TODO: require sorted
         - NA-US-CA
+        - NA-US-NC
         - NA-US-OR
         - NA-US-WA
         pool: us-west-2
