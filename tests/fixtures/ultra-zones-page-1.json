@@ -1,0 +1,135 @@
+{
+    "queryInfo": {
+        "q": "zone_type:PRIMARY",
+        "sort": "NAME",
+        "reverse": false,
+        "limit": 10
+    },
+    "resultInfo": {
+        "totalCount": 20,
+        "offset": 0,
+        "returnedCount": 10
+    },
+    "zones": [
+        {
+            "properties": {
+                "name": "octodns1.test.",
+                "accountName": "Netflix - Automation",
+                "type": "PRIMARY",
+                "dnssecStatus": "UNSIGNED",
+                "status": "ACTIVE",
+                "owner": "phelpstest",
+                "resourceRecordCount": 5,
+                "lastModifiedDateTime": "2020-06-19T01:05Z"
+            }
+        },
+        {
+            "properties": {
+                "name": "octodns10.test.",
+                "accountName": "Netflix - Automation",
+                "type": "PRIMARY",
+                "dnssecStatus": "UNSIGNED",
+                "status": "ACTIVE",
+                "owner": "phelpstest",
+                "resourceRecordCount": 5,
+                "lastModifiedDateTime": "2020-06-19T01:06Z"
+            }
+        },
+        {
+            "properties": {
+                "name": "octodns11.test.",
+                "accountName": "Netflix - Automation",
+                "type": "PRIMARY",
+                "dnssecStatus": "UNSIGNED",
+                "status": "ACTIVE",
+                "owner": "phelpstest",
+                "resourceRecordCount": 5,
+                "lastModifiedDateTime": "2020-06-19T01:06Z"
+            }
+        },
+        {
+            "properties": {
+                "name": "octodns12.test.",
+                "accountName": "Netflix - Automation",
+                "type": "PRIMARY",
+                "dnssecStatus": "UNSIGNED",
+                "status": "ACTIVE",
+                "owner": "phelpstest",
+                "resourceRecordCount": 5,
+                "lastModifiedDateTime": "2020-06-19T01:06Z"
+            }
+        },
+        {
+            "properties": {
+                "name": "octodns13.test.",
+                "accountName": "Netflix - Automation",
+                "type": "PRIMARY",
+                "dnssecStatus": "UNSIGNED",
+                "status": "ACTIVE",
+                "owner": "phelpstest",
+                "resourceRecordCount": 5,
+                "lastModifiedDateTime": "2020-06-19T01:06Z"
+            }
+        },
+        {
+            "properties": {
+                "name": "octodns14.test.",
+                "accountName": "Netflix - Automation",
+                "type": "PRIMARY",
+                "dnssecStatus": "UNSIGNED",
+                "status": "ACTIVE",
+                "owner": "phelpstest",
+                "resourceRecordCount": 5,
+                "lastModifiedDateTime": "2020-06-19T01:06Z"
+            }
+        },
+        {
+            "properties": {
+                "name": "octodns15.test.",
+                "accountName": "Netflix - Automation",
+                "type": "PRIMARY",
+                "dnssecStatus": "UNSIGNED",
+                "status": "ACTIVE",
+                "owner": "phelpstest",
+                "resourceRecordCount": 5,
+                "lastModifiedDateTime": "2020-06-19T01:06Z"
+            }
+        },
+        {
+            "properties": {
+                "name": "octodns16.test.",
+                "accountName": "Netflix - Automation",
+                "type": "PRIMARY",
+                "dnssecStatus": "UNSIGNED",
+                "status": "ACTIVE",
+                "owner": "phelpstest",
+                "resourceRecordCount": 5,
+                "lastModifiedDateTime": "2020-06-19T01:06Z"
+            }
+        },
+        {
+            "properties": {
+                "name": "octodns17.test.",
+                "accountName": "Netflix - Automation",
+                "type": "PRIMARY",
+                "dnssecStatus": "UNSIGNED",
+                "status": "ACTIVE",
+                "owner": "phelpstest",
+                "resourceRecordCount": 5,
+                "lastModifiedDateTime": "2020-06-19T01:06Z"
+            }
+        },
+        {
+            "properties": {
+                "name": "octodns18.test.",
+                "accountName": "Netflix - Automation",
+                "type": "PRIMARY",
+                "dnssecStatus": "UNSIGNED",
+                "status": "ACTIVE",
+                "owner": "phelpstest",
+                "resourceRecordCount": 5,
+                "lastModifiedDateTime": "2020-06-19T01:07Z"
+            }
+        }
+    ]
+}
