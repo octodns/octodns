@@ -512,6 +512,10 @@ class _Route53GeoRecord(_Route53Record):
                                                           self.values)
 
 
+class Route53ProviderException(Exception):
+    pass
+
+
 def _mod_keyer(mod):
     rrset = mod['ResourceRecordSet']
 
@@ -1031,8 +1035,20 @@ class Route53Provider(BaseProvider):
             .get('healthcheck', {}) \
             .get('measure_latency', True)
 
+    def _healthcheck_request_interval(self, record):
+        interval = record._octodns.get('route53', {}) \
+            .get('healthcheck', {}) \
+            .get('request_interval', 10)
+        if (interval in [10, 30]):
+            return interval
+        else:
+            raise Route53ProviderException(
+                'route53.healthcheck.request_interval '
+                'parameter must be either 10 or 30.')
+
     def _health_check_equivalent(self, host, path, protocol, port,
-                                 measure_latency, health_check, value=None):
+                                 measure_latency, request_interval,
+                                 health_check, value=None):
         config = health_check['HealthCheckConfig']
 
         # So interestingly Route53 normalizes IPAddress which will cause us to
@@ -1050,9 +1066,10 @@ class Route53Provider(BaseProvider):
                                                  None)
         resource_path = config.get('ResourcePath', None)
         return host == fully_qualified_domain_name and \
-            path == resource_path and protocol == config['Type'] \
-            and port == config['Port'] and \
+            path == resource_path and protocol == config['Type'] and \
+            port == config['Port'] and \
             measure_latency == config['MeasureLatency'] and \
+            request_interval == config['RequestInterval'] and \
             value == config_ip_address
 
     def get_health_check_id(self, record, value, create):
@@ -1077,6 +1094,7 @@ class Route53Provider(BaseProvider):
         healthcheck_protocol = record.healthcheck_protocol
         healthcheck_port = record.healthcheck_port
         healthcheck_latency = self._healthcheck_measure_latency(record)
+        healthcheck_interval = self._healthcheck_request_interval(record)
 
         # we're looking for a healthcheck with the current version & our record
         # type, we'll ignore anything else
@@ -1091,6 +1109,7 @@ class Route53Provider(BaseProvider):
                                              healthcheck_protocol,
                                              healthcheck_port,
                                              healthcheck_latency,
+                                             healthcheck_interval,
                                              health_check,
                                              value=value):
                 # this is the health check we're looking for
@@ -1108,7 +1127,7 @@ class Route53Provider(BaseProvider):
             'FailureThreshold': 6,
             'MeasureLatency': healthcheck_latency,
             'Port': healthcheck_port,
-            'RequestInterval': 10,
+            'RequestInterval': healthcheck_interval,
             'Type': healthcheck_protocol,
         }
         if healthcheck_protocol != 'TCP':
@@ -1143,9 +1162,10 @@ class Route53Provider(BaseProvider):
         self._health_checks[id] = health_check
         self.log.info('get_health_check_id: created id=%s, host=%s, '
                       'path=%s, protocol=%s, port=%d, measure_latency=%r, '
-                      'value=%s', id, healthcheck_host, healthcheck_path,
+                      'request_interval=%d, value=%s',
+                      id, healthcheck_host, healthcheck_path,
                       healthcheck_protocol, healthcheck_port,
-                      healthcheck_latency, value)
+                      healthcheck_latency, healthcheck_interval, value)
         return id
 
     def _gc_health_checks(self, record, new):
@@ -1238,6 +1258,7 @@ class Route53Provider(BaseProvider):
         healthcheck_protocol = record.healthcheck_protocol
         healthcheck_port = record.healthcheck_port
         healthcheck_latency = self._healthcheck_measure_latency(record)
+        healthcheck_interval = self._healthcheck_request_interval(record)
 
         try:
             health_check_id = rrset['HealthCheckId']
@@ -1249,6 +1270,7 @@ class Route53Provider(BaseProvider):
                                                  healthcheck_protocol,
                                                  healthcheck_port,
                                                  healthcheck_latency,
+                                                 healthcheck_interval,
                                                  health_check):
                     # it has the right health check
                     return False

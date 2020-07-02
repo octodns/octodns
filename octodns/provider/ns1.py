@@ -237,7 +237,6 @@ class Ns1Provider(BaseProvider):
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
-    CATCHALL_PREFIX = 'catchall__'
 
     def _update_filter(self, filter, with_disabled):
         if with_disabled:
@@ -455,6 +454,16 @@ class Ns1Provider(BaseProvider):
         data['geo'] = geo
         return data
 
+    def _parse_dynamic_pool_name(self, pool_name):
+        if pool_name.startswith('catchall__'):
+            # Special case for the old-style catchall prefix
+            return pool_name[10:]
+        try:
+            pool_name, _ = pool_name.rsplit('__', 1)
+        except ValueError:
+            pass
+        return pool_name
+
     def _data_for_dynamic_A(self, _type, record):
         # First make sure we have the expected filters config
         if not self._valid_filter_config(record['filters'], record['domain']):
@@ -472,9 +481,8 @@ class Ns1Provider(BaseProvider):
         for answer in record['answers']:
             # region (group name in the UI) is the pool name
             pool_name = answer['region']
-            # Get the actual pool name from the constructed pool name in case
-            # of the catchall
-            pool_name = pool_name.replace(self.CATCHALL_PREFIX, '')
+            # Get the actual pool name by removing the type
+            pool_name = self._parse_dynamic_pool_name(pool_name)
             pool = pools[pool_name]
 
             meta = answer['meta']
@@ -501,14 +509,23 @@ class Ns1Provider(BaseProvider):
         # tied to pools on the NS1 side, e.g. we can only have 1 rule per pool,
         # that may eventually run into problems, but I don't have any use-cases
         # examples currently where it would
-        rules = []
+        rules = {}
         for pool_name, region in sorted(record['regions'].items()):
-            # Rules that refer to the catchall pool would have the
-            # CATCHALL_PREFIX in the pool name. Strip the prefix to get back
-            # the pool name as in the config
-            pool_name = pool_name.replace(self.CATCHALL_PREFIX, '')
+            # Get the actual pool name by removing the type
+            pool_name = self._parse_dynamic_pool_name(pool_name)
+
             meta = region['meta']
             notes = self._parse_notes(meta.get('note', ''))
+
+            rule_order = notes['rule-order']
+            try:
+                rule = rules[rule_order]
+            except KeyError:
+                rule = {
+                    'pool': pool_name,
+                    '_order': rule_order,
+                }
+                rules[rule_order] = rule
 
             # The group notes field in the UI is a `note` on the region here,
             # that's where we can find our pool's fallback.
@@ -560,17 +577,15 @@ class Ns1Provider(BaseProvider):
             for state in meta.get('us_state', []):
                 geos.add('NA-US-{}'.format(state))
 
-            rule = {
-                'pool': pool_name,
-                '_order': notes['rule-order'],
-            }
             if geos:
-                rule['geos'] = sorted(geos)
-            rules.append(rule)
+                # There are geos, combine them with any existing geos for this
+                # pool and recorded the sorted unique set of them
+                rule['geos'] = sorted(set(rule.get('geos', [])) | geos)
 
         # Order and convert to a list
         default = sorted(default)
-        # Order
+        # Convert to list and order
+        rules = list(rules.values())
         rules.sort(key=lambda r: (r['_order'], r['pool']))
 
         return {
@@ -1050,29 +1065,34 @@ class Ns1Provider(BaseProvider):
             meta = {
                 'note': self._encode_notes(notes),
             }
+
             if georegion:
-                meta['georegion'] = sorted(georegion)
-            if country:
-                meta['country'] = sorted(country)
-            if us_state:
-                meta['us_state'] = sorted(us_state)
+                georegion_meta = dict(meta)
+                georegion_meta['georegion'] = sorted(georegion)
+                regions['{}__georegion'.format(pool_name)] = {
+                    'meta': georegion_meta,
+                }
+
+            if country or us_state:
+                # If there's country and/or states its a country pool,
+                # countries and states can coexist as they're handled by the
+                # same step in the filterchain (countries and georegions
+                # cannot as they're seperate stages and run the risk of
+                # eliminating all options)
+                country_state_meta = dict(meta)
+                if country:
+                    country_state_meta['country'] = sorted(country)
+                if us_state:
+                    country_state_meta['us_state'] = sorted(us_state)
+                regions['{}__country'.format(pool_name)] = {
+                    'meta': country_state_meta,
+                }
 
             if not georegion and not country and not us_state:
-                # This is the catchall pool. Modify the pool name in the record
-                # being pushed
-                # NS1 regions are indexed by pool names. Any reuse of pool
-                # names in the rules will result in overwriting of the pool.
-                # Reuse of pools is in general disallowed but for the case of
-                # the catchall pool - to allow legitimate usecases.
-                # The pool name renaming is done to accommodate for such a
-                # reuse.
-                # (We expect only one catchall per record. Any associated
-                # validation is expected to covered under record validation)
-                pool_name = '{}{}'.format(self.CATCHALL_PREFIX, pool_name)
-
-            regions[pool_name] = {
-                'meta': meta,
-            }
+                # If there's no targeting it's a catchall
+                regions['{}__catchall'.format(pool_name)] = {
+                    'meta': meta,
+                }
 
         existing_monitors = self._monitors_for(record)
         active_monitors = set()
@@ -1102,15 +1122,14 @@ class Ns1Provider(BaseProvider):
         # Build our list of answers
         # The regions dictionary built above already has the required pool
         # names. Iterate over them and add answers.
-        # In the case of the catchall, original pool name can be obtained
-        # by stripping the CATCHALL_PREFIX from the pool name
         answers = []
         for pool_name in sorted(regions.keys()):
             priority = 1
 
             # Dynamic/health checked
             pool_label = pool_name
-            pool_name = pool_name.replace(self.CATCHALL_PREFIX, '')
+            # Remove the pool type from the end of the name
+            pool_name = self._parse_dynamic_pool_name(pool_name)
             self._add_answers_for_pool(answers, default_answers, pool_name,
                                        pool_label, pool_answers, pools,
                                        priority)
