@@ -346,21 +346,6 @@ class TestUltraProvider(TestCase):
             'type': 'A',
             'value': '5.6.7.8'  # Change number of IPs (3 -> 1)
         }))
-        # TODO: Figure out why this isn't happening
-        wanted.add_record(Record.new(wanted, '', {
-            'ttl': 3600,  # TTL change
-            'type': 'NS',
-            'values': [  # Add additional NS records
-                "pdns1.ultradns.biz.",
-                "pdns1.ultradns.com.",
-                "pdns1.ultradns.net.",
-                "pdns1.ultradns.org.",
-                "pdns2.ultradns.biz.",
-                "pdns2.ultradns.com.",
-                "pdns2.ultradns.net.",
-                "pdns2.ultradns.org.",
-            ]
-        }))
         wanted.add_record(Record.new(wanted, 'txt', {
             'ttl': 3600,
             'type': 'TXT',
@@ -371,7 +356,6 @@ class TestUltraProvider(TestCase):
         }))
 
         plan = provider.plan(wanted)
-        # TODO: 11 expected but NS isn't being respected
         self.assertEquals(10, len(plan.changes))
         self.assertEquals(10, provider.apply(plan))
         self.assertTrue(plan.exists)
