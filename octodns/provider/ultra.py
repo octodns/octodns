@@ -8,27 +8,26 @@ from .base import BaseProvider
 
 
 class UltraClientException(Exception):
+    '''
+    Base Ultra exception type
+    '''
     pass
 
 
-class UltraError(UltraClientException):
+class UltraNoZonesExistException(UltraClientException):
     '''
-    This exception is thrown for error messages returned from Ultra DNS
+    Specially handling this condition where no zones exist in an account.
+    This is not an error exactly yet ultra treats this scenario as though a
+    failure has occurred.
     '''
     def __init__(self, data):
-        try:
-            message = data.json()[0]['errorMessage']
-        except (IndexError, KeyError, TypeError, AttributeError):
-            message = 'Ultra error'
-        super(UltraError, self).__init__(message)
-
-
-class UltraNoZonesExistException(UltraError):
-    def __init__(self, data):
-        UltraError.__init__(self, data)
+        super(UltraNoZonesExistException, self).__init__('NoZonesExist')
 
 
 class UltraClientUnauthorized(UltraClientException):
+    '''
+    Exception for invalid credentials.
+    '''
     def __init__(self):
         super(UltraClientUnauthorized, self).__init__('Unauthorized')
 
@@ -39,7 +38,11 @@ class UltraProvider(BaseProvider):
 
     Documentation for Ultra REST API requires a login:
     https://portal.ultradns.com/static/docs/REST-API_User_Guide.pdf
-    Implemented to the July 18, 2017 version of the document
+    Implemented to the May 20, 2020 version of the document (dated on page ii)
+    Also described as Version 2.83.0 (title page)
+
+    Tested against 3.0.0-20200627220036.81047f5
+    As determined by querying https://api.ultradns.com/version
 
     ultra:
         class: octodns.provider.ultra.UltraProvider
@@ -49,9 +52,6 @@ class UltraProvider(BaseProvider):
         username: user
         # Ultra password (required)
         password: pass
-        # Whether to use the ultradns test endpoint
-        # (optional, default is false)
-        test_endpoint: false
     '''
 
     RECORDS_TO_TYPE = {
@@ -129,17 +129,13 @@ class UltraProvider(BaseProvider):
             'Authorization': 'Bearer {}'.format(resp['access_token']),
         })
 
-    def __init__(self, id, account, username, password,
-                 test_endpoint=False, *args, **kwargs):
+    def __init__(self, id, account, username, password, *args, **kwargs):
         self.log = getLogger('UltraProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, account=%s, username=%s, '
-                       'password=***, test_endpoint=%s', id,
-                       account, username, test_endpoint)
+                       'password=***', id, account, username)
 
         super(UltraProvider, self).__init__(id, *args, **kwargs)
         self.base_uri = 'https://restapi.ultradns.com'
-        if test_endpoint:
-            self.base_uri = 'https://test-restapi.ultradns.com'
         self._sess = Session()
         self._login(username, password)
         self._account = account
