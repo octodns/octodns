@@ -1,5 +1,6 @@
 from mock import Mock, call
 from os.path import dirname, join
+from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
 from six import text_type
 from unittest import TestCase
@@ -32,20 +33,6 @@ class TestUltraProvider(TestCase):
     source = YamlProvider('test', join(dirname(__file__), 'config'))
     source.populate(expected)
 
-    # Our test suite differs a bit, add our NS and remove the simple one
-    expected.add_record(Record.new(expected, 'under', {
-        'ttl': 3600,
-        'type': 'NS',
-        'values': [
-            'ns1.unit.tests.',
-            'ns2.unit.tests.',
-        ]
-    }))
-    for record in list(expected.records):
-        if record.name == 'sub' and record._type == 'NS':
-            expected._remove_record(record)
-            break
-
     def test_login(self):
         path = '/v2/authorization/token'
 
@@ -59,23 +46,29 @@ class TestUltraProvider(TestCase):
 
         # Good Auth
         with requests_mock() as mock:
+            headers = {'Content-Type': 'application/x-www-form-urlencoded'}
             mock.post('{}{}'.format(self.host, path), status_code=200,
+                      request_headers=headers,
                       text='{"token type": "Bearer", "refresh_token": "abc", '
                       '"access_token":"123", "expires_in": "3600"}')
-            UltraProvider('test', 'account', 'user', 'pass',
-                          test_endpoint=False)
-
-        with requests_mock() as mock:
-            test_host = 'https://test-restapi.ultradns.com'
-            mock.post('{}{}'.format(test_host, path), status_code=200,
-                      text='{"token type": "Bearer", "refresh_token": "abc", '
-                      '"access_token":"123", "expires_in": "3600"}')
-            UltraProvider('test', 'account', 'user', 'pass',
-                          test_endpoint=True)
+            UltraProvider('test', 'account', 'user', 'rightpass')
+            self.assertEquals(1, mock.call_count)
+            expected_payload = "grant_type=password&username=user&"\
+                               "password=rightpass"
+            self.assertEquals(mock.last_request.text, expected_payload)
 
     def test_get_zones(self):
         provider = _get_provider()
         path = "/v2/zones"
+
+        # Test authorization issue
+        with requests_mock() as mock:
+            mock.get('{}{}'.format(self.host, path), status_code=400,
+                     json={"errorCode": 60004,
+                           "errorMessage": "Authorization Header required"})
+            with self.assertRaises(HTTPError) as ctx:
+                zones = provider.zones
+            self.assertEquals(400, ctx.exception.response.status_code)
 
         # Test no zones exist error
         with requests_mock() as mock:
@@ -83,6 +76,7 @@ class TestUltraProvider(TestCase):
                      headers={'Authorization': 'Bearer 123'},
                      json=self.empty_body)
             zones = provider.zones
+            self.assertEquals(1, mock.call_count)
             self.assertEquals(list(), zones)
 
         # Reset zone cache so they are queried again
@@ -115,6 +109,7 @@ class TestUltraProvider(TestCase):
                      headers={'Authorization': 'Bearer 123'},
                      json=payload)
             zones = provider.zones
+            self.assertEquals(1, mock.call_count)
             self.assertEquals(1, len(zones))
             self.assertEquals('testzone123.com.', zones[0])
 
@@ -134,7 +129,7 @@ class TestUltraProvider(TestCase):
                                           "returnedCount": 5},
                            "zones": []})
             zones = provider.zones
-            self.assertEquals(mock.call_count, 2)
+            self.assertEquals(2, mock.call_count)
 
     def test_request(self):
         provider = _get_provider()
@@ -276,10 +271,11 @@ class TestUltraProvider(TestCase):
                          status_code=200, text=fh.read())
 
             zone = Zone('octodns1.test.', [])
+
             self.assertTrue(provider.populate(zone))
             self.assertEquals('octodns1.test.', zone.name)
             self.assertEquals(11, len(zone.records))
-            self.assertEquals(mock.call_count, 4)
+            self.assertEquals(4, mock.call_count)
 
     def test_apply(self):
         provider = _get_provider()
@@ -359,3 +355,152 @@ class TestUltraProvider(TestCase):
         self.assertEquals(10, len(plan.changes))
         self.assertEquals(10, provider.apply(plan))
         self.assertTrue(plan.exists)
+
+        provider._request.assert_has_calls([
+            # Validate multi-ip apex A record replaced with standard A
+            call('PUT', '/v2/zones/octodns1.test./rrsets/A/octodns1.test.',
+                 json={'ttl': 60,
+                       'rdata': ['5.6.7.8']}),
+            # Make sure TXT value is properly updated
+            call('PUT',
+                 '/v2/zones/octodns1.test./rrsets/TXT/txt.octodns1.test.',
+                 json={'ttl': 3600,
+                       'rdata': ["foobar",
+                                 "v=spf1 include:mail.server.net ?all"]}),
+            # Confirm a few of the DELETE operations properly occur
+            call('DELETE',
+                 '/v2/zones/octodns1.test./rrsets/A/a.octodns1.test.',
+                 json_response=False),
+            call('DELETE',
+                 '/v2/zones/octodns1.test./rrsets/AAAA/aaaa.octodns1.test.',
+                 json_response=False),
+            call('DELETE',
+                 '/v2/zones/octodns1.test./rrsets/CAA/caa.octodns1.test.',
+                 json_response=False),
+            call('DELETE',
+                 '/v2/zones/octodns1.test./rrsets/CNAME/cname.octodns1.test.',
+                 json_response=False),
+        ], True)
+
+    def test_gen_data(self):
+        provider = _get_provider()
+        zone = Zone('unit.tests.', [])
+
+        for name, _type, expected_path, expected_payload, expected_record in (
+            # A
+            ('a', 'A',
+             '/v2/zones/unit.tests./rrsets/A/a.unit.tests.',
+             {'ttl': 60, 'rdata': ['1.2.3.4']},
+             Record.new(zone, 'a',
+                        {'ttl': 60, 'type': 'A', 'values': ['1.2.3.4']})),
+            ('a', 'A',
+             '/v2/zones/unit.tests./rrsets/A/a.unit.tests.',
+             {'ttl': 60, 'rdata': ['1.2.3.4', '5.6.7.8'],
+              'profile': {'@context':
+                          'http://schemas.ultradns.com/RDPool.jsonschema',
+                          'order': 'FIXED',
+                          'description': 'a.unit.tests.'}},
+             Record.new(zone, 'a',
+                        {'ttl': 60, 'type': 'A',
+                         'values': ['1.2.3.4', '5.6.7.8']})),
+
+            # AAAA
+            ('aaaa', 'AAAA',
+             '/v2/zones/unit.tests./rrsets/AAAA/aaaa.unit.tests.',
+             {'ttl': 60, 'rdata': ['::1']},
+             Record.new(zone, 'aaaa',
+                        {'ttl': 60, 'type': 'AAAA', 'values': ['::1']})),
+            ('aaaa', 'AAAA',
+             '/v2/zones/unit.tests./rrsets/AAAA/aaaa.unit.tests.',
+             {'ttl': 60, 'rdata': ['::1', '::2'],
+              'profile': {'@context':
+                          'http://schemas.ultradns.com/RDPool.jsonschema',
+                          'order': 'FIXED',
+                          'description': 'aaaa.unit.tests.'}},
+             Record.new(zone, 'aaaa',
+                        {'ttl': 60, 'type': 'AAAA',
+                         'values': ['::1', '::2']})),
+
+            # CAA
+            ('caa', 'CAA',
+             '/v2/zones/unit.tests./rrsets/CAA/caa.unit.tests.',
+             {'ttl': 60, 'rdata': ['0 issue foo.com']},
+             Record.new(zone, 'caa',
+                        {'ttl': 60, 'type': 'CAA',
+                         'values':
+                         [{'flags': 0, 'tag': 'issue', 'value': 'foo.com'}]})),
+
+            # CNAME
+            ('cname', 'CNAME',
+             '/v2/zones/unit.tests./rrsets/CNAME/cname.unit.tests.',
+             {'ttl': 60, 'rdata': ['netflix.com.']},
+             Record.new(zone, 'cname',
+                        {'ttl': 60, 'type': 'CNAME',
+                         'value': 'netflix.com.'})),
+
+
+            # MX
+            ('mx', 'MX',
+             '/v2/zones/unit.tests./rrsets/MX/mx.unit.tests.',
+             {'ttl': 60, 'rdata': ['1 mx1.unit.tests.', '1 mx2.unit.tests.']},
+             Record.new(zone, 'mx',
+                        {'ttl': 60, 'type': 'MX',
+                         'values': [{'preference': 1,
+                                     'exchange': 'mx1.unit.tests.'},
+                                    {'preference': 1,
+                                     'exchange': 'mx2.unit.tests.'}]})),
+
+            # NS
+            ('ns', 'NS',
+             '/v2/zones/unit.tests./rrsets/NS/ns.unit.tests.',
+             {'ttl': 60, 'rdata': ['ns1.unit.tests.', 'ns2.unit.tests.']},
+             Record.new(zone, 'ns',
+                        {'ttl': 60, 'type': 'NS',
+                         'values': ['ns1.unit.tests.', 'ns2.unit.tests.']})),
+
+            # PTR
+            ('ptr', 'PTR',
+             '/v2/zones/unit.tests./rrsets/PTR/ptr.unit.tests.',
+             {'ttl': 60, 'rdata': ['a.unit.tests.']},
+             Record.new(zone, 'ptr',
+                        {'ttl': 60, 'type': 'PTR',
+                         'value': 'a.unit.tests.'})),
+
+            # SPF
+            ('spf', 'SPF',
+             '/v2/zones/unit.tests./rrsets/SPF/spf.unit.tests.',
+             {'ttl': 60, 'rdata': ['v=spf1 -all']},
+             Record.new(zone, 'spf',
+                        {'ttl': 60, 'type': 'SPF',
+                         'values': ['v=spf1 -all']})),
+
+            # SRV
+            ('_srv._tcp', 'SRV',
+             '/v2/zones/unit.tests./rrsets/SRV/_srv._tcp.unit.tests.',
+             {'ttl': 60, 'rdata': ['10 20 443 target.unit.tests.']},
+             Record.new(zone, '_srv._tcp',
+                        {'ttl': 60, 'type': 'SRV',
+                         'values': [{'priority': 10,
+                                     'weight': 20,
+                                     'port': 443,
+                                     'target': 'target.unit.tests.'}]})),
+
+            # TXT
+            ('txt', 'TXT',
+             '/v2/zones/unit.tests./rrsets/TXT/txt.unit.tests.',
+             {'ttl': 60, 'rdata': ['abc', 'def']},
+             Record.new(zone, 'txt',
+                        {'ttl': 60, 'type': 'TXT',
+                         'values': ['abc', 'def']})),
+        ):
+            # Validate path and payload based on record meet expectations
+            path, payload = provider._gen_data(expected_record)
+            self.assertEqual(expected_path, path)
+            self.assertEqual(expected_payload, payload)
+
+            # Use generator for record and confirm the output matches
+            rec = provider._record_for(zone, name, _type,
+                                       expected_payload, False)
+            path, payload = provider._gen_data(rec)
+            self.assertEqual(expected_path, path)
+            self.assertEqual(expected_payload, payload)
