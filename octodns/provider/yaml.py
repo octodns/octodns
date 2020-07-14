@@ -29,6 +29,10 @@ class YamlProvider(BaseProvider):
         # Whether or not to enforce sorting order on the yaml config
         # (optional, default True)
         enforce_order: True
+        # Needed if you want to write root NS records to the yaml config
+        # when yaml is used as a target.
+        # (optional, default False)
+        manage_root_ns: True
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
@@ -47,7 +51,6 @@ class YamlProvider(BaseProvider):
         self.directory = directory
         self.default_ttl = default_ttl
         self.enforce_order = enforce_order
-        self.manage_root_ns = True
 
     def _populate_from_file(self, filename, zone, lenient):
         with open(filename, 'r') as fh:

@@ -305,7 +305,7 @@ class CloudflareProvider(BaseProvider):
                 change.record.value.endswith('.cdn.cloudflare.net.')):
             return False
 
-        return True
+        return super(CloudflareProvider, self)._include_change(change)
 
     def _contents_for_multiple(self, record):
         for value in record.values:

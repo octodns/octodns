@@ -140,6 +140,11 @@ class Zone(object):
                                record)
                 changes.append(Delete(record))
             else:
+                if not target.supports(record):
+                    self.log.debug('changes:  skipping record=%s %s - %s does '
+                                   'not support it', record.fqdn, record._type,
+                                   target.id)
+                    continue
                 change = record.changes(desired_record, target)
                 if change:
                     self.log.debug('changes: zone=%s, modified\n'

@@ -85,7 +85,7 @@ class SelectelProvider(BaseProvider):
                 self.log.debug('_include_changes: new=%s, found existing=%s',
                                new, existing)
                 return False
-        return True
+        return super(SelectelProvider, self)._include_change(change)
 
     def _apply(self, plan):
         desired = plan.desired

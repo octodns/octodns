@@ -29,7 +29,6 @@ class TinyDnsBaseSource(BaseSource):
     def __init__(self, id, default_ttl=3600):
         super(TinyDnsBaseSource, self).__init__(id)
         self.default_ttl = default_ttl
-        self.manage_root_ns = True
 
     def _data_for_A(self, _type, records):
         values = []
