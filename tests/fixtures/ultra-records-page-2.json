@@ -1,0 +1,34 @@
+{
+    "zoneName": "octodns1.test.",
+    "rrSets": [
+        {
+            "ownerName": "txt.octodns1.test.",
+            "rrtype": "TXT (16)",
+            "ttl": 3600,
+            "rdata": [
+                "foobar",
+                "v=spf1 -all"
+            ]
+        },
+        {
+            "ownerName": "octodns1.test.",
+            "rrtype": "A (1)",
+            "ttl": 3600,
+            "rdata": [
+                "1.2.3.4",
+                "1.2.3.5",
+                "1.2.3.6"
+            ],
+            "profile": {
+                "@context": "http://schemas.ultradns.com/RDPool.jsonschema",
+                "order": "FIXED",
+                "description": "octodns1.test."
+            }
+        }
+    ],
+    "resultInfo": {
+        "totalCount": 12,
+        "offset": 10,
+        "returnedCount": 2
+    }
+}
