@@ -77,13 +77,13 @@ class UltraProvider(BaseProvider):
                  data=None, json=None, json_response=True):
         self.log.debug('_request: method=%s, path=%s', method, path)
 
-        url = '{}{}'.format(self.base_uri, path)
+        url = '{}{}'.format(self._base_uri, path)
         resp = self._sess.request(method,
                                   url,
                                   params=params,
                                   data=data,
                                   json=json,
-                                  timeout=self.TIMEOUT)
+                                  timeout=self._timeout)
         self.log.debug('_request:   status=%d', resp.status_code)
 
         if resp.status_code == 401:
@@ -129,16 +129,21 @@ class UltraProvider(BaseProvider):
             'Authorization': 'Bearer {}'.format(resp['access_token']),
         })
 
-    def __init__(self, id, account, username, password, *args, **kwargs):
+    def __init__(self, id, account, username, password, timeout=TIMEOUT,
+                 *args, **kwargs):
         self.log = getLogger('UltraProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, account=%s, username=%s, '
                        'password=***', id, account, username)
 
         super(UltraProvider, self).__init__(id, *args, **kwargs)
-        self.base_uri = 'https://restapi.ultradns.com'
+
+        self._base_uri = 'https://restapi.ultradns.com'
         self._sess = Session()
-        self._login(username, password)
         self._account = account
+        self._timeout = timeout
+
+        self._login(username, password)
+
         self._zones = None
         self._zone_records = {}
 
