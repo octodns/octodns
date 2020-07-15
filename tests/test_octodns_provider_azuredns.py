@@ -13,7 +13,7 @@ from octodns.provider.base import Plan
 
 from azure.mgmt.dns.models import ARecord, AaaaRecord, CaaRecord, \
     CnameRecord, MxRecord, SrvRecord, NsRecord, PtrRecord, TxtRecord, \
-    RecordSet, SoaRecord, Zone as AzureZone
+    RecordSet, SoaRecord, SubResource, Zone as AzureZone
 from msrestazure.azure_exceptions import CloudError
 
 from unittest import TestCase
@@ -358,19 +358,23 @@ class TestAzureDnsProvider(TestCase):
         rs = []
         recordSet = RecordSet(arecords=[ARecord(ipv4_address='1.1.1.1')])
         recordSet.name, recordSet.ttl, recordSet.type = 'a1', 0, 'A'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         recordSet = RecordSet(arecords=[ARecord(ipv4_address='1.1.1.1'),
                                         ARecord(ipv4_address='2.2.2.2')])
         recordSet.name, recordSet.ttl, recordSet.type = 'a2', 1, 'A'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         aaaa1 = AaaaRecord(ipv6_address='1:1ec:1::1')
         recordSet = RecordSet(aaaa_records=[aaaa1])
         recordSet.name, recordSet.ttl, recordSet.type = 'aaaa1', 2, 'AAAA'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         aaaa2 = AaaaRecord(ipv6_address='1:1ec:1::2')
         recordSet = RecordSet(aaaa_records=[aaaa1,
                                             aaaa2])
         recordSet.name, recordSet.ttl, recordSet.type = 'aaaa2', 3, 'AAAA'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         recordSet = RecordSet(caa_records=[CaaRecord(flags=0,
                                                      tag='issue',
@@ -388,9 +392,11 @@ class TestAzureDnsProvider(TestCase):
         cname1 = CnameRecord(cname='cname.unit.test.')
         recordSet = RecordSet(cname_record=cname1)
         recordSet.name, recordSet.ttl, recordSet.type = 'cname1', 5, 'CNAME'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         recordSet = RecordSet(cname_record=None)
         recordSet.name, recordSet.ttl, recordSet.type = 'cname2', 6, 'CNAME'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         recordSet = RecordSet(mx_records=[MxRecord(preference=10,
                                                    exchange='mx1.unit.test.')])
@@ -434,10 +440,12 @@ class TestAzureDnsProvider(TestCase):
         rs.append(recordSet)
         recordSet = RecordSet(txt_records=[TxtRecord(value='sample text1')])
         recordSet.name, recordSet.ttl, recordSet.type = 'txt1', 15, 'TXT'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         recordSet = RecordSet(txt_records=[TxtRecord(value='sample text1'),
                                            TxtRecord(value='sample text2')])
         recordSet.name, recordSet.ttl, recordSet.type = 'txt2', 16, 'TXT'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         recordSet = RecordSet(soa_record=[SoaRecord()])
         recordSet.name, recordSet.ttl, recordSet.type = '', 17, 'SOA'
