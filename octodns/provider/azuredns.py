@@ -419,8 +419,9 @@ class AzureProvider(BaseProvider):
 
                 if typ in ['A', 'CNAME']:
                     if self._check_for_alias(azrecord, typ):
-                        self.log.info(
-                            'This entry is an Azure alias. Skipping. zone=%s record=%s, type=%s', zone_name, record_name, typ)
+                        self.log.debug(
+                            'This entry is an Azure alias. Skipping. zone=%s record=%s, type=%s',
+                            zone_name, record_name, typ)
                         continue
 
                 data = getattr(self, '_data_for_{}'.format(typ))
@@ -436,7 +437,8 @@ class AzureProvider(BaseProvider):
         return exists
 
     def _check_for_alias(self, azrecord, typ):
-        if azrecord.target_resource.id and not azrecord.arecords and not azrecord.arecords and not azrecord.cname_record:
+        if (azrecord.target_resource.id and not azrecord.arecords
+                and not azrecord.arecords and not azrecord.cname_record):
             return True
         return False
 
