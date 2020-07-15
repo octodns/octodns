@@ -452,11 +452,11 @@ class TestAzureDnsProvider(TestCase):
         rs.append(recordSet)
         long_txt = "v=spf1 ip4:10.10.0.0/24 ip4:10.10.1.0/24 ip4:10.10.2.0/24"
         long_txt += " ip4:10.10.3.0/24 ip4:10.10.4.0/24 ip4:10.10.5.0/24 "
-        long_txt += " 10.6.0/24 ip4:10.10.7.0/24 ip4:10.10.8.0/24 ip4:10.10.9.0/24"
+        long_txt += " 10.6.0/24 ip4:10.10.7.0/24 ip4:10.10.8.0/24 "
         long_txt += " ip4:10.10.10.0/24 ip4:10.10.11.0/24 ip4:10.10.12.0/24"
         long_txt += " ip4:10.10.13.0/24 ip4:10.10.14.0/24 ip4:10.10.15.0/24"
         long_txt += " ip4:10.10.16.0/24 ip4:10.10.17.0/24 ip4:10.10.18.0/24"
-        long_txt += " ip4:10.10.19.0/24 ip4:10.10.20.0/24 ip4:10.10.21.0/24 ~all"
+        long_txt += " ip4:10.10.19.0/24 ip4:10.10.20.0/24  ~all"
         recordSet = RecordSet(txt_records=[TxtRecord(value='sample value1'),
                                            TxtRecord(value=long_txt)])
         recordSet.name, recordSet.ttl, recordSet.type = 'txt2', 18, 'TXT'
