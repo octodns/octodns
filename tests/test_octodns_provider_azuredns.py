@@ -459,7 +459,7 @@ class TestAzureDnsProvider(TestCase):
         long_txt += " ip4:10.10.19.0/24 ip4:10.10.20.0/24  ~all"
         recordSet = RecordSet(txt_records=[TxtRecord(value='sample value1'),
                                            TxtRecord(value=long_txt)])
-        recordSet.name, recordSet.ttl, recordSet.type = 'txt2', 18, 'TXT'
+        recordSet.name, recordSet.ttl, recordSet.type = 'txt3', 18, 'TXT'
         recordSet.target_resource = SubResource()
         rs.append(recordSet)
 
