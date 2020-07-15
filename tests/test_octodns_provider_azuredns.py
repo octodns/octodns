@@ -469,7 +469,7 @@ class TestAzureDnsProvider(TestCase):
         exists = provider.populate(zone)
         self.assertTrue(exists)
 
-        self.assertEquals(len(zone.records), 18)
+        self.assertEquals(len(zone.records), 19)
 
     def test_populate_zone(self):
         provider = self._get_provider()
