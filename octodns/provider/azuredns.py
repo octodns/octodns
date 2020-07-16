@@ -498,7 +498,7 @@ class AzureProvider(BaseProvider):
         self._check_zone(azure_zone_name, create=True)
 
         # Force the operation order to be Update() -> Delete() -> Create()
-        # This will help avoid problems in updating a CNAME record into an A record.
+        # Helps avoid problems in updating a CNAME record into an A record.
         changes.reverse()
 
         for change in changes:
