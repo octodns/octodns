@@ -497,7 +497,7 @@ class AzureProvider(BaseProvider):
         azure_zone_name = desired.name[:len(desired.name) - 1]
         self._check_zone(azure_zone_name, create=True)
 
-        # Force the operation order to be Update() -> Delete() -> Create()
+        # Force the operation order to be Delete() before Create()
         # Helps avoid problems in updating a CNAME record into an A record.
         changes.reverse()
 
