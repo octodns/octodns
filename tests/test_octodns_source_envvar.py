@@ -18,17 +18,24 @@ class TestEnvVarSource(TestCase):
         self.assertEquals(msg, text_type(ctx.exception))
 
         with patch.dict('os.environ', {envvar: 'testvalue'}):
-            source._read_variable()
-        self.assertEquals(source.value, 'testvalue')
+            value = source._read_variable()
+        self.assertEquals(value, 'testvalue')
 
     def test_populate(self):
         envvar = 'TEST_VAR'
         value = 'somevalue'
-        record = 'testrecord'
-        source = EnvVarSource('testid', envvar, record)
-        zone = Zone('unit.tests.', [])
+        name = 'testrecord'
+        zone_name = 'unit.tests.'
+        source = EnvVarSource('testid', envvar, name)
+        zone = Zone(zone_name, [])
 
         with patch.dict('os.environ', {envvar: value}):
             source.populate(zone)
 
-        # TODO: Validate zone and record
+        self.assertEquals(1, len(zone.records))
+        record = list(zone.records)[0]
+        self.assertEquals(name, record.name)
+        self.assertEquals('{}.{}'.format(name, zone_name), record.fqdn)
+        self.assertEquals('TXT', record._type)
+        self.assertEquals(1, len(record.values))
+        self.assertEquals(value, record.values[0])
