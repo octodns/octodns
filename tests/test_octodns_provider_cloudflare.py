@@ -153,7 +153,7 @@ class TestCloudflareProvider(TestCase):
 
             changes = self.expected.changes(zone, provider)
 
-            self.assertEquals(1, len(changes))
+            self.assertEquals(0, len(changes))
 
         # re-populating the same zone/records comes out of cache, no calls
         again = Zone('unit.tests.', [])

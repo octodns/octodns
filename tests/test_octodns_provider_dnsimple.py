@@ -81,7 +81,7 @@ class TestDnsimpleProvider(TestCase):
             provider.populate(zone)
             self.assertEquals(16, len(zone.records))
             changes = self.expected.changes(zone, provider)
-            self.assertEquals(1, len(changes))
+            self.assertEquals(0, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])
