@@ -43,27 +43,28 @@ class EasyDNSClient(object):
     # EasyDNS Live API
     LIVE = 'https://rest.easydns.net'
     # Default Currency CAD
-    defaultCurrency = 'CAD'
+    default_currency = 'CAD'
     # Domain Portfolio
-    domainPortfolio = 'myport'
+    domain_portfolio = 'myport'
 
-    def __init__(self, token, apikey, currency, portfolio, sandbox):
+    def __init__(self, token, api_key, currency, portfolio, sandbox):
         self.log = logging.getLogger('EasyDNSProvider[{}]'.format(id))
         self.token = token
-        self.apikey = apikey
-        self.defaultCurrency = currency
-        self.domainPortfolio = portfolio
+        self.api_key = api_key
+        self.default_currency = currency
+        self.domain_portfolio = portfolio
         self.apienv = 'sandbox' if sandbox else 'live'
-        authkey = '{}:{}'.format(self.token, self.apikey)
-        self.authkey = base64.b64encode(authkey.encode("utf-8"))
-        self.basepath = self.SANDBOX if sandbox else self.LIVE
+        auth_key = '{}:{}'.format(self.token, self.api_key)
+        self.auth_key = base64.b64encode(auth_key.encode("utf-8"))
+        self.base_path = self.SANDBOX if sandbox else self.LIVE
         sess = Session()
-        sess.headers.update({'Authorization': 'Basic {}'.format(self.authkey)})
+        sess.headers.update({'Authorization': 'Basic {}'
+                             .format(self.auth_key)})
         sess.headers.update({'accept': 'application/json'})
         self._sess = sess
 
     def _request(self, method, path, params=None, data=None):
-        url = '{}{}'.format(self.basepath, path)
+        url = '{}{}'.format(self.base_path, path)
         resp = self._sess.request(method, url, params=params, json=data)
         if resp.status_code == 400:
             self.log.debug('Response code 400, path=%s', path)
@@ -86,12 +87,12 @@ class EasyDNSClient(object):
         # only, or with domain registration. This function creates a DNS only
         # record expectig the domain to be registered already
         path = '/domains/add/{}'.format(name)
-        domainData = {'service': 'dns',
-                      'term': 1,
-                      'dns_only': 1,
-                      'portfolio': self.domainPortfolio,
-                      'currency': self.defaultCurrency}
-        self._request('PUT', path, data=domainData).json()
+        domain_data = {'service': 'dns',
+                       'term': 1,
+                       'dns_only': 1,
+                       'portfolio': self.domain_portfolio,
+                       'currency': self.default_currency}
+        self._request('PUT', path, data=domain_data).json()
 
         # EasyDNS creates default records for MX, A and CNAME for new domains,
         # we need to delete those default record so we can sync with the source
@@ -100,7 +101,8 @@ class EasyDNSClient(object):
         sleep(1)
         records = self.records(name, True)
         for record in records:
-            if record['type'] in ('A', 'MX', 'CNAME'):
+            if record['host'] in ('', 'www') \
+               and record['type'] in ('A', 'MX', 'CNAME'):
                 self.record_delete(name, record['id'])
 
     def records(self, zone_name, raw=False):
@@ -156,11 +158,11 @@ class EasyDNSProvider(BaseProvider):
         # Your EasyDNS API token (required)
         token: foo
         # Your EasyDNS API Key (required)
-        apikey: bar
+        api_key: bar
         # Use SandBox or Live environment, optional, defaults to live
         sandbox: False
         # Currency to use for creating domains, default CAD
-        defaultCurrency: CAD
+        default_currency: CAD
         # Domain Portfolio under which to create domains
         portfolio: myport
     '''
@@ -169,12 +171,12 @@ class EasyDNSProvider(BaseProvider):
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'TXT',
                     'SRV', 'NAPTR'))
 
-    def __init__(self, id, token, apikey, currency='CAD', portfolio='myport',
+    def __init__(self, id, token, api_key, currency='CAD', portfolio='myport',
                  sandbox=False, *args, **kwargs):
         self.log = logging.getLogger('EasyDNSProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, token=***', id)
         super(EasyDNSProvider, self).__init__(id, *args, **kwargs)
-        self._client = EasyDNSClient(token, apikey, currency, portfolio,
+        self._client = EasyDNSClient(token, api_key, currency, portfolio,
                                      sandbox)
         self._zone_records = {}
 
