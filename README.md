@@ -187,6 +187,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [DnsimpleProvider](/octodns/provider/dnsimple.py) | | All | No | CAA tags restricted |
 | [DynProvider](/octodns/provider/dyn.py) | dyn | All | Both | |
 | [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | A, AAAA, ALIAS, CNAME | No | |
+| [EnvVarSource](/octodns/source/envvar.py) | | TXT | No | read-only environment variable injection |
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
 | [MythicBeastsProvider](/octodns/provider/mythicbeasts.py) | Mythic Beasts | A, AAAA, ALIAS, CNAME, MX, NS, SRV, SSHFP, CAA, TXT | No | |
 | [Ns1Provider](/octodns/provider/ns1.py) | ns1-python | All | Yes | No CNAME support, missing `NA` geo target |
@@ -196,6 +197,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [Route53](/octodns/provider/route53.py) | boto3 | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Both | CNAME health checks don't support a Host header |
 | [Selectel](/octodns/provider/selectel.py) | | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | |
 | [Transip](/octodns/provider/transip.py) | transip | A, AAAA, CNAME, MX, SRV, SPF, TXT, SSHFP, CAA | No | |
+| [UltraDns](/octodns/provider/ultra.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | |
 | [AxfrSource](/octodns/source/axfr.py) | | A, AAAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [ZoneFileSource](/octodns/source/axfr.py) | | A, AAAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [TinyDnsFileSource](/octodns/source/tinydns.py) | | A, CNAME, MX, NS, PTR | No | read-only |

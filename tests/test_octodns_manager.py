@@ -278,6 +278,29 @@ class TestManager(TestCase):
                 .validate_configs()
         self.assertTrue('unknown source' in text_type(ctx.exception))
 
+    def test_populate_lenient_fallback(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            # Only allow a target that doesn't exist
+            manager = Manager(get_config_filename('simple.yaml'))
+
+            class NoLenient(SimpleProvider):
+
+                def populate(self, zone, source=False):
+                    pass
+
+            # This should be ok, we'll fall back to not passing it
+            manager._populate_and_plan('unit.tests.', [NoLenient()], [])
+
+            class NoZone(SimpleProvider):
+
+                def populate(self, lenient=False):
+                    pass
+
+            # This will blow up, we don't fallback for source
+            with self.assertRaises(TypeError):
+                manager._populate_and_plan('unit.tests.', [NoZone()], [])
+
 
 class TestMainThreadExecutor(TestCase):
 

@@ -86,6 +86,7 @@ test:
 | Key  | Description | Default |
 |--|--|--|
 | measure_latency | Show latency in AWS console | true |
+| request_interval | Healthcheck interval [10\|30] seconds | 10 |
 
 ```yaml
 ---
@@ -98,4 +99,5 @@ test:
     route53:
       healthcheck:
         measure_latency: false
+        request_interval: 30
 ```
