@@ -106,7 +106,7 @@
       "host": "cname",
       "ttl": "300",
       "prio": null,
-      "type": "URL",
+      "type": "CNAME",
       "rdata": "@",
       "geozone_id": "0",
       "last_mod": "2020-01-01 01:01:01"

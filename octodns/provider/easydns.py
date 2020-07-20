@@ -115,9 +115,6 @@ class EasyDNSClient(object):
         resp = self._request('GET', path).json()
         ret += resp['data']
 
-        # EasyDNS supports URL forwarding, stealth URL forwarding and DYNamic
-        # A records so we'll convert them to their underlying DNS record
-        # types before processing
         for record in ret:
             # change any apex record to empty string
             if record['host'] == '@':
@@ -127,10 +124,8 @@ class EasyDNSClient(object):
             if record['rdata'] == '@':
                 record['rdata'] = '{}.'.format(zone_name)
 
-            # change "URL" & "STEALTH" to a "CNAME"
-            if record['type'] == "URL" or record['type'] == "STEALTH":
-                record['type'] = 'CNAME'
-
+            # EasyDNS supports DYNamic A records so we'll convert these
+            # to their underlying DNS record type before processing
             if record['type'] == "DYN":
                 record['type'] = 'A'
 
