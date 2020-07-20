@@ -15,6 +15,11 @@ from ..record import Record, Update
 from .base import BaseProvider
 
 
+def escape_semicolon(s):
+    assert s
+    return s.replace(';', '\\;')
+
+
 class SelectelAuthenticationRequired(Exception):
     def __init__(self, msg):
         message = 'Authorization failed. Invalid or empty token.'
@@ -200,7 +205,7 @@ class SelectelProvider(BaseProvider):
         return {
             'ttl': records[0]['ttl'],
             'type': _type,
-            'values': [r['content'] for r in records],
+            'values': [escape_semicolon(r['content']) for r in records]
         }
 
     def _data_for_SRV(self, _type, records):
