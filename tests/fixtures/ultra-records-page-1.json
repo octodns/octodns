@@ -1,0 +1,94 @@
+{
+    "zoneName": "octodns1.test.",
+    "rrSets": [
+        {
+            "ownerName": "_srv._tcp.octodns1.test.",
+            "rrtype": "SRV (33)",
+            "ttl": 3600,
+            "rdata": [
+                "0 20 443 cname.octodns1.test."
+            ]
+        },
+        {
+            "ownerName": "a.octodns1.test.",
+            "rrtype": "A (1)",
+            "ttl": 3600,
+            "rdata": [
+                "1.1.1.1"
+            ]
+        },
+        {
+            "ownerName": "aaaa.octodns1.test.",
+            "rrtype": "AAAA (28)",
+            "ttl": 3600,
+            "rdata": [
+                "0:0:0:0:0:0:0:1"
+            ]
+        },
+        {
+            "ownerName": "caa.octodns1.test.",
+            "rrtype": "CAA (257)",
+            "ttl": 3600,
+            "rdata": [
+                "0 issue \"symantec.com\""
+            ]
+        },
+        {
+            "ownerName": "cname.octodns1.test.",
+            "rrtype": "CNAME (5)",
+            "ttl": 60,
+            "rdata": [
+                "a.octodns1.test."
+            ]
+        },
+        {
+            "ownerName": "mail.octodns1.test.",
+            "rrtype": "MX (15)",
+            "ttl": 3600,
+            "rdata": [
+                "1 aspmx.l.google.com.",
+                "5 alt1.aspmx.l.google.com."
+            ]
+        },
+        {
+            "ownerName": "octodns1.test.",
+            "rrtype": "NS (2)",
+            "ttl": 86400,
+            "rdata": [
+                "pdns1.ultradns.biz.",
+                "pdns1.ultradns.com.",
+                "pdns1.ultradns.net.",
+                "pdns1.ultradns.org."
+            ]
+        },
+        {
+            "ownerName": "octodns1.test.",
+            "rrtype": "SOA (6)",
+            "ttl": 86400,
+            "rdata": [
+                "pdns1.ultradns.com. phelps.netflix.com. 2020062003 86400 86400 86400 86400"
+            ]
+        },
+        {
+            "ownerName": "ptr.octodns1.test.",
+            "rrtype": "PTR (12)",
+            "ttl": 300,
+            "rdata": [
+                "foo.bar.com."
+            ]
+        },
+        {
+            "ownerName": "spf.octodns1.test.",
+            "rrtype": "SPF (99)",
+            "ttl": 3600,
+            "rdata": [
+                "v=spf1 -all"
+            ]
+        }
+    ],
+    "resultInfo": {
+        "totalCount": 12,
+        "offset": 0,
+        "returnedCount": 10
+    }
+}
