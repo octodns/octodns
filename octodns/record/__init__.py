@@ -1209,7 +1209,7 @@ class SrvValue(EqualityTupleMixin):
 class SrvRecord(_ValuesMixin, Record):
     _type = 'SRV'
     _value_type = SrvValue
-    _name_re = re.compile(r'^_[^\.]+\.[^\.]+')
+    _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
 
     @classmethod
     def validate(cls, name, fqdn, data):
