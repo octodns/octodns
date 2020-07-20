@@ -426,7 +426,7 @@ class TestCloudflareProvider(TestCase):
         # get the list of zones, create a zone, add some records, update
         # something, and delete something
         provider._request.assert_has_calls([
-            call('GET', '/zones', params={'page': 1}),
+            call('GET', '/zones', params={'page': 1, 'per_page': 50}),
             call('POST', '/zones', data={
                 'jump_start': False,
                 'name': 'unit.tests'
@@ -531,7 +531,7 @@ class TestCloudflareProvider(TestCase):
 
         # Get zones, create zone, create a record, delete a record
         provider._request.assert_has_calls([
-            call('GET', '/zones', params={'page': 1}),
+            call('GET', '/zones', params={'page': 1, 'per_page': 50}),
             call('POST', '/zones', data={
                 'jump_start': False,
                 'name': 'unit.tests'
@@ -1302,7 +1302,8 @@ class TestCloudflareProvider(TestCase):
         provider._request.side_effect = [result]
         self.assertEquals([], provider.zone_records(zone))
         provider._request.assert_has_calls([call('GET', '/zones',
-                                           params={'page': 1})])
+                                           params={'page': 1,
+                                                   'per_page': 50})])
 
         # One retry required
         provider._zones = None
@@ -1313,7 +1314,8 @@ class TestCloudflareProvider(TestCase):
         ]
         self.assertEquals([], provider.zone_records(zone))
         provider._request.assert_has_calls([call('GET', '/zones',
-                                           params={'page': 1})])
+                                           params={'page': 1,
+                                                   'per_page': 50})])
 
         # Two retries required
         provider._zones = None
@@ -1325,7 +1327,8 @@ class TestCloudflareProvider(TestCase):
         ]
         self.assertEquals([], provider.zone_records(zone))
         provider._request.assert_has_calls([call('GET', '/zones',
-                                           params={'page': 1})])
+                                           params={'page': 1,
+                                                   'per_page': 50})])
 
         # # Exhaust our retries
         provider._zones = None
