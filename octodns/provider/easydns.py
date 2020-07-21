@@ -124,11 +124,6 @@ class EasyDNSClient(object):
             if record['rdata'] == '@':
                 record['rdata'] = '{}.'.format(zone_name)
 
-            # EasyDNS supports DYNamic A records so we'll convert these
-            # to their underlying DNS record type before processing
-            if record['type'] == "DYN":
-                record['type'] = 'A'
-
         return ret
 
     def record_create(self, zone_name, params):
