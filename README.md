@@ -186,6 +186,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
 | [DnsimpleProvider](/octodns/provider/dnsimple.py) | | All | No | CAA tags restricted |
 | [DynProvider](/octodns/provider/dyn.py) | dyn | All | Both | |
+| [EasyDNSProvider](/octodns/provider/easydns.py) | | A, AAAA, CAA, CNAME, MX, NAPTR, NS, SRV, TXT | No | |
 | [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | A, AAAA, ALIAS, CNAME | No | |
 | [EnvVarSource](/octodns/source/envvar.py) | | TXT | No | read-only environment variable injection |
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
