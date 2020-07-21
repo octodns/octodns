@@ -2155,6 +2155,18 @@ class TestRecordValidation(TestCase):
             }
         })
 
+        # permit wildcard entries
+        Record.new(self.zone, '*._tcp', {
+            'type': 'SRV',
+            'ttl': 600,
+            'value': {
+                'priority': 1,
+                'weight': 2,
+                'port': 3,
+                'target': 'food.bar.baz.'
+            }
+        })
+
         # invalid name
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'neup', {
