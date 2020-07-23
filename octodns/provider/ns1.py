@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from logging import getLogger
 from itertools import chain
-from collections import OrderedDict, defaultdict
+from collections import Mapping, OrderedDict, defaultdict
 from ns1 import NS1
 from ns1.rest.errors import RateLimitException, ResourceException
 from pycountry_convert import country_alpha2_to_continent_code
@@ -27,11 +27,48 @@ class Ns1Exception(Exception):
 class Ns1Client(object):
     log = getLogger('NS1Client')
 
-    def __init__(self, api_key, retry_count=4):
-        self.log.debug('__init__: retry_count=%d', retry_count)
+    def __init__(self, api_key, parallelism=None, retry_count=4,
+                 client_config=None):
+        self.log.debug('__init__: parallelism=%s, retry_count=%d, '
+                       'client_config=%s', parallelism, retry_count,
+                       client_config)
         self.retry_count = retry_count
 
         client = NS1(apiKey=api_key)
+
+        # NS1 rate limits via a "token bucket" scheme, and provides information
+        # about rate limiting in headers on responses. Token bucket can be
+        # thought of as an initially "full" bucket, where, if not full, tokens
+        # are added at some rate. This allows "bursting" requests until the
+        # bucket is empty, after which, you are limited to the rate of token
+        # replenishment.
+        # There are a couple of "strategies" built into the SDK to avoid 429s
+        # from rate limiting. Since octodns operates concurrently via
+        # `max_workers`, a concurrent strategy seems appropriate.
+        # This strategy does nothing until the remaining requests are equal to
+        # or less than our `parallelism`, after which, each process will sleep
+        # for the token replenishment interval times parallelism.
+        # For example, if we can make 10 requests in 60 seconds, a token is
+        # replenished every 6 seconds. If parallelism is 3, we will burst 7
+        # requests, and subsequently each process will sleep for 18 seconds
+        # before making another request.
+        # In general, parallelism should match the number of workers.
+        if parallelism is not None:
+            client.config['rate_limit_strategy'] = 'concurrent'
+            client.config['parallelism'] = parallelism
+
+        # The list of records for a zone is paginated at around ~2.5k records,
+        # this tells the client to handle any of that transparently and ensure
+        # we get the full list of records.
+        client.config['follow_pagination'] = True
+
+        # additional options or overrides
+        if isinstance(client_config, Mapping):
+            for k, v in client_config.items():
+                client.config[k] = v
+
+        self._client = client
+
         self._records = client.records()
         self._zones = client.zones()
         self._monitors = client.monitors()
@@ -173,11 +210,29 @@ class Ns1Provider(BaseProvider):
     Ns1 provider
 
     ns1:
+        # Required
         class: octodns.provider.ns1.Ns1Provider
         api_key: env/NS1_API_KEY
         # Needed if you want to manage your root NS records with octodns
         # When you enable this you MUST specify a root NS.
-        manage_root_ns:
+        manage_root_ns: true
+        # Only required if using dynamic records
+        monitor_regions:
+          - lga
+        # Optional. Default: None. If set, back off in advance to avoid 429s
+        # from rate-limiting. Generally this should be set to the number
+        # of processes or workers hitting the API, e.g. the value of
+        # `max_workers`.
+        parallelism: 11
+        # Optional. Default: 4. Number of times to retry if a 429 response
+        # is received.
+        retry_count: 4
+        # Optional. Default: None. Additional options or overrides passed to
+        # the NS1 SDK config, as key-value pairs.
+        client_config:
+            endpoint: my.nsone.endpoint # Default: api.nsone.net
+            ignore-ssl-errors: true     # Default: false
+            follow_pagination: false    # Default: true
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
@@ -187,29 +242,104 @@ class Ns1Provider(BaseProvider):
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
-    _DYNAMIC_FILTERS = [{
-        'config': {},
-        'filter': 'up'
-    }, {
-        'config': {},
-        'filter': u'geofence_regional'
-    }, {
-        'config': {},
-        'filter': u'select_first_region'
-    }, {
-        'config': {
-            'eliminate': u'1'
-        },
-        'filter': 'priority'
-    }, {
-        'config': {},
-        'filter': u'weighted_shuffle'
-    }, {
-        'config': {
-            'N': u'1'
-        },
-        'filter': u'select_first_n'
-    }]
+    def _update_filter(self, filter, with_disabled):
+        if with_disabled:
+            filter['disabled'] = False
+            return (dict(sorted(filter.items(), key=lambda t: t[0])))
+        return filter
+
+    def _UP_FILTER(self, with_disabled):
+        return self._update_filter({
+            'config': {},
+            'filter': 'up'
+        }, with_disabled)
+
+    def _REGION_FILTER(self, with_disabled):
+        return self._update_filter({
+            'config': {
+                'remove_no_georegion': True
+            },
+            'filter': u'geofence_regional'
+        }, with_disabled)
+
+    def _COUNTRY_FILTER(self, with_disabled):
+        return self._update_filter({
+            'config': {
+                'remove_no_location': True
+            },
+            'filter': u'geofence_country'
+        }, with_disabled)
+
+    # In the NS1 UI/portal, this filter is called "SELECT FIRST GROUP" though
+    # the filter name in the NS1 api is 'select_first_region'
+    def _SELECT_FIRST_REGION_FILTER(self, with_disabled):
+        return self._update_filter({
+            'config': {},
+            'filter': u'select_first_region'
+        }, with_disabled)
+
+    def _PRIORITY_FILTER(self, with_disabled):
+        return self._update_filter({
+            'config': {
+                'eliminate': u'1'
+            },
+            'filter': 'priority'
+        }, with_disabled)
+
+    def _WEIGHTED_SHUFFLE_FILTER(self, with_disabled):
+        return self._update_filter({
+            'config': {},
+            'filter': u'weighted_shuffle'
+        }, with_disabled)
+
+    def _SELECT_FIRST_N_FILTER(self, with_disabled):
+        return self._update_filter({
+            'config': {
+                'N': u'1'
+            },
+            'filter': u'select_first_n'
+        }, with_disabled)
+
+    def _BASIC_FILTER_CHAIN(self, with_disabled):
+        return [
+            self._UP_FILTER(with_disabled),
+            self._SELECT_FIRST_REGION_FILTER(with_disabled),
+            self._PRIORITY_FILTER(with_disabled),
+            self._WEIGHTED_SHUFFLE_FILTER(with_disabled),
+            self._SELECT_FIRST_N_FILTER(with_disabled)
+        ]
+
+    def _FILTER_CHAIN_WITH_REGION(self, with_disabled):
+        return [
+            self._UP_FILTER(with_disabled),
+            self._REGION_FILTER(with_disabled),
+            self._SELECT_FIRST_REGION_FILTER(with_disabled),
+            self._PRIORITY_FILTER(with_disabled),
+            self._WEIGHTED_SHUFFLE_FILTER(with_disabled),
+            self._SELECT_FIRST_N_FILTER(with_disabled)
+        ]
+
+    def _FILTER_CHAIN_WITH_COUNTRY(self, with_disabled):
+        return [
+            self._UP_FILTER(with_disabled),
+            self._COUNTRY_FILTER(with_disabled),
+            self._SELECT_FIRST_REGION_FILTER(with_disabled),
+            self._PRIORITY_FILTER(with_disabled),
+            self._WEIGHTED_SHUFFLE_FILTER(with_disabled),
+            self._SELECT_FIRST_N_FILTER(with_disabled)
+        ]
+
+    def _FILTER_CHAIN_WITH_REGION_AND_COUNTRY(self, with_disabled):
+        return [
+            self._UP_FILTER(with_disabled),
+            self._REGION_FILTER(with_disabled),
+            self._COUNTRY_FILTER(with_disabled),
+            self._SELECT_FIRST_REGION_FILTER(with_disabled),
+            self._PRIORITY_FILTER(with_disabled),
+            self._WEIGHTED_SHUFFLE_FILTER(with_disabled),
+            self._SELECT_FIRST_N_FILTER(with_disabled)
+        ]
+
     _REGION_TO_CONTINENT = {
         'AFRICA': 'AF',
         'ASIAPAC': 'AS',
@@ -228,15 +358,47 @@ class Ns1Provider(BaseProvider):
         'NA': ('US-CENTRAL', 'US-EAST', 'US-WEST'),
     }
 
-    def __init__(self, id, api_key, retry_count=4, manage_root_ns=False, *args,
-                 **kwargs):
-        self.log = getLogger('Ns1Provider[{}]'.format(id))
-        self.log.debug('__init__: id=%s, api_key=***, retry_count=%d',
-                       id, retry_count)
-        super(Ns1Provider, self).__init__(id, manage_root_ns=manage_root_ns,
-                                          *args, **kwargs)
+    # Necessary for handling unsupported continents in _CONTINENT_TO_REGIONS
+    _CONTINENT_TO_LIST_OF_COUNTRIES = {
+        'OC': {'FJ', 'NC', 'PG', 'SB', 'VU', 'AU', 'NF', 'NZ', 'FM', 'GU',
+               'KI', 'MH', 'MP', 'NR', 'PW', 'AS', 'CK', 'NU', 'PF', 'PN',
+               'TK', 'TO', 'TV', 'WF', 'WS'},
+    }
 
-        self._client = Ns1Client(api_key, retry_count)
+    def __init__(self, id, api_key, retry_count=4, monitor_regions=None,
+                 parallelism=None, client_config=None, *args, **kwargs):
+        self.log = getLogger('Ns1Provider[{}]'.format(id))
+        self.log.debug('__init__: id=%s, api_key=***, retry_count=%d, '
+                       'monitor_regions=%s, parallelism=%s, client_config=%s',
+                       id, retry_count, monitor_regions, parallelism,
+                       client_config)
+        super(Ns1Provider, self).__init__(id, *args, **kwargs)
+        self.monitor_regions = monitor_regions
+        self._client = Ns1Client(api_key, parallelism, retry_count,
+                                 client_config)
+
+    def _valid_filter_config(self, filter_cfg, domain):
+        with_disabled = self._disabled_flag_in_filters(filter_cfg, domain)
+        has_region = self._REGION_FILTER(with_disabled) in filter_cfg
+        has_country = self._COUNTRY_FILTER(with_disabled) in filter_cfg
+        expected_filter_cfg = self._get_updated_filter_chain(has_region,
+                                                             has_country,
+                                                             with_disabled)
+        return filter_cfg == expected_filter_cfg
+
+    def _get_updated_filter_chain(self, has_region, has_country,
+                                  with_disabled=True):
+        if has_region and has_country:
+            filter_chain = self._FILTER_CHAIN_WITH_REGION_AND_COUNTRY(
+                with_disabled)
+        elif has_region:
+            filter_chain = self._FILTER_CHAIN_WITH_REGION(with_disabled)
+        elif has_country:
+            filter_chain = self._FILTER_CHAIN_WITH_COUNTRY(with_disabled)
+        else:
+            filter_chain = self._BASIC_FILTER_CHAIN(with_disabled)
+
+        return filter_chain
 
     def _encode_notes(self, data):
         return ' '.join(['{}:{}'.format(k, v)
@@ -296,9 +458,19 @@ class Ns1Provider(BaseProvider):
         data['geo'] = geo
         return data
 
+    def _parse_dynamic_pool_name(self, pool_name):
+        if pool_name.startswith('catchall__'):
+            # Special case for the old-style catchall prefix
+            return pool_name[10:]
+        try:
+            pool_name, _ = pool_name.rsplit('__', 1)
+        except ValueError:
+            pass
+        return pool_name
+
     def _data_for_dynamic_A(self, _type, record):
         # First make sure we have the expected filters config
-        if self._DYNAMIC_FILTERS != record['filters']:
+        if not self._valid_filter_config(record['filters'], record['domain']):
             self.log.error('_data_for_dynamic_A: %s %s has unsupported '
                            'filters', record['domain'], _type)
             raise Ns1Exception('Unrecognized advanced record')
@@ -313,16 +485,23 @@ class Ns1Provider(BaseProvider):
         for answer in record['answers']:
             # region (group name in the UI) is the pool name
             pool_name = answer['region']
-            pool = pools[answer['region']]
+            # Get the actual pool name by removing the type
+            pool_name = self._parse_dynamic_pool_name(pool_name)
+            pool = pools[pool_name]
 
             meta = answer['meta']
             value = text_type(answer['answer'][0])
             if meta['priority'] == 1:
                 # priority 1 means this answer is part of the pools own values
-                pool['values'].append({
+                value_dict = {
                     'value': value,
                     'weight': int(meta.get('weight', 1)),
-                })
+                }
+                # If we have the original pool name and the catchall pool name
+                # in the answers, they point at the same pool. Add values only
+                # once
+                if value_dict not in pool['values']:
+                    pool['values'].append(value_dict)
             else:
                 # It's a fallback, we only care about it if it's a
                 # final/default
@@ -334,10 +513,23 @@ class Ns1Provider(BaseProvider):
         # tied to pools on the NS1 side, e.g. we can only have 1 rule per pool,
         # that may eventually run into problems, but I don't have any use-cases
         # examples currently where it would
-        rules = []
+        rules = {}
         for pool_name, region in sorted(record['regions'].items()):
+            # Get the actual pool name by removing the type
+            pool_name = self._parse_dynamic_pool_name(pool_name)
+
             meta = region['meta']
             notes = self._parse_notes(meta.get('note', ''))
+
+            rule_order = notes['rule-order']
+            try:
+                rule = rules[rule_order]
+            except KeyError:
+                rule = {
+                    'pool': pool_name,
+                    '_order': rule_order,
+                }
+                rules[rule_order] = rule
 
             # The group notes field in the UI is a `note` on the region here,
             # that's where we can find our pool's fallback.
@@ -352,28 +544,52 @@ class Ns1Provider(BaseProvider):
             for georegion in meta.get('georegion', []):
                 geos.add(self._REGION_TO_CONTINENT[georegion])
 
-            # Countries are easy enough to map, we just have ot find their
+            # Countries are easy enough to map, we just have to find their
             # continent
+            #
+            # NOTE: Special handling for Oceania
+            # NS1 doesn't support Oceania as a region. So the Oceania countries
+            # will be present in meta['country']. If all the countries in the
+            # Oceania countries list are found, set the region to OC and remove
+            # individual oceania country entries
+
+            oc_countries = set()
             for country in meta.get('country', []):
-                con = country_alpha2_to_continent_code(country)
-                geos.add('{}-{}'.format(con, country))
+                # country_alpha2_to_continent_code fails for Pitcairn ('PN')
+                if country == 'PN':
+                    con = 'OC'
+                else:
+                    con = country_alpha2_to_continent_code(country)
+
+                if con == 'OC':
+                    oc_countries.add(country)
+                else:
+                    # Adding only non-OC countries here to geos
+                    geos.add('{}-{}'.format(con, country))
+
+            if oc_countries:
+                if oc_countries == self._CONTINENT_TO_LIST_OF_COUNTRIES['OC']:
+                    # All OC countries found, so add 'OC' to geos
+                    geos.add('OC')
+                else:
+                    # Partial OC countries found, just add them as-is to geos
+                    for c in oc_countries:
+                        geos.add('{}-{}'.format('OC', c))
 
             # States are easy too, just assume NA-US (CA providences aren't
             # supported by octoDNS currently)
             for state in meta.get('us_state', []):
                 geos.add('NA-US-{}'.format(state))
 
-            rule = {
-                'pool': pool_name,
-                '_order': notes['rule-order'],
-            }
             if geos:
-                rule['geos'] = sorted(geos)
-            rules.append(rule)
+                # There are geos, combine them with any existing geos for this
+                # pool and recorded the sorted unique set of them
+                rule['geos'] = sorted(set(rule.get('geos', [])) | geos)
 
         # Order and convert to a list
         default = sorted(default)
-        # Order
+        # Convert to list and order
+        rules = list(rules.values())
         rules.sort(key=lambda r: (r['_order'], r['pool']))
 
         return {
@@ -571,8 +787,7 @@ class Ns1Provider(BaseProvider):
         for iso_region, target in record.geo.items():
             key = 'iso_region_code'
             value = iso_region
-            if not has_country and \
-               len(value.split('-')) > 1:  # pragma: nocover
+            if not has_country and len(value.split('-')) > 1:
                 has_country = True
             for answer in target.values:
                 params['answers'].append(
@@ -661,18 +876,13 @@ class Ns1Provider(BaseProvider):
         host = record.fqdn[:-1]
         _type = record._type
 
-        request = r'GET {path} HTTP/1.0\r\nHost: {host}\r\n' \
-            r'User-agent: NS1\r\n\r\n'.format(path=record.healthcheck_path,
-                                              host=record.healthcheck_host)
-
-        return {
+        ret = {
             'active': True,
             'config': {
                 'connect_timeout': 2000,
                 'host': value,
                 'port': record.healthcheck_port,
                 'response_timeout': 10000,
-                'send': request,
                 'ssl': record.healthcheck_protocol == 'HTTPS',
             },
             'frequency': 60,
@@ -685,14 +895,24 @@ class Ns1Provider(BaseProvider):
             'policy': 'quorum',
             'rapid_recheck': False,
             'region_scope': 'fixed',
-            # TODO: what should we do here dal, sjc, lga, sin, ams
-            'regions': ['lga'],
-            'rules': [{
+            'regions': self.monitor_regions,
+        }
+
+        if record.healthcheck_protocol != 'TCP':
+            # IF it's HTTP we need to send the request string
+            path = record.healthcheck_path
+            host = record.healthcheck_host
+            request = r'GET {path} HTTP/1.0\r\nHost: {host}\r\n' \
+                r'User-agent: NS1\r\n\r\n'.format(path=path, host=host)
+            ret['config']['send'] = request
+            # We'll also expect a HTTP response
+            ret['rules'] = [{
                 'comparison': 'contains',
                 'key': 'output',
                 'value': '200 OK',
-            }],
-        }
+            }]
+
+        return ret
 
     def _monitor_is_match(self, expected, have):
         # Make sure what we have matches what's in expected exactly. Anything
@@ -754,11 +974,57 @@ class Ns1Provider(BaseProvider):
             notify_list_id = monitor['notify_list']
             self._client.notifylists_delete(notify_list_id)
 
+    def _add_answers_for_pool(self, answers, default_answers, pool_name,
+                              pool_label, pool_answers, pools, priority):
+        current_pool_name = pool_name
+        seen = set()
+        while current_pool_name and current_pool_name not in seen:
+            seen.add(current_pool_name)
+            pool = pools[current_pool_name]
+            for answer in pool_answers[current_pool_name]:
+                answer = {
+                    'answer': answer['answer'],
+                    'meta': {
+                        'priority': priority,
+                        'note': self._encode_notes({
+                            'from': pool_label,
+                        }),
+                        'up': {
+                            'feed': answer['feed_id'],
+                        },
+                        'weight': answer['weight'],
+                    },
+                    'region': pool_label,  # the one we're answering
+                }
+                answers.append(answer)
+
+            current_pool_name = pool.data.get('fallback', None)
+            priority += 1
+
+        # Static/default
+        for answer in default_answers:
+            answer = {
+                'answer': answer['answer'],
+                'meta': {
+                    'priority': priority,
+                    'note': self._encode_notes({
+                        'from': '--default--',
+                    }),
+                    'up': True,
+                    'weight': 1,
+                },
+                'region': pool_label,  # the one we're answering
+            }
+            answers.append(answer)
+
     def _params_for_dynamic_A(self, record):
         pools = record.dynamic.pools
 
         # Convert rules to regions
+        has_country = False
+        has_region = False
         regions = {}
+
         for i, rule in enumerate(record.dynamic.rules):
             pool_name = rule.data['pool']
 
@@ -779,26 +1045,58 @@ class Ns1Provider(BaseProvider):
                 if n == 8:
                     # US state, e.g. NA-US-KY
                     us_state.add(geo[-2:])
+                    # For filtering. State filtering is done by the country
+                    # filter
+                    has_country = True
                 elif n == 5:
                     # Country, e.g. EU-FR
                     country.add(geo[-2:])
+                    has_country = True
                 else:
                     # Continent, e.g. AS
-                    georegion.update(self._CONTINENT_TO_REGIONS[geo])
+                    if geo in self._CONTINENT_TO_REGIONS:
+                        georegion.update(self._CONTINENT_TO_REGIONS[geo])
+                        has_region = True
+                    else:
+                        # No maps for geo in _CONTINENT_TO_REGIONS.
+                        # Use the country list
+                        self.log.debug('Converting geo {} to country list'.
+                                       format(geo))
+                        for c in self._CONTINENT_TO_LIST_OF_COUNTRIES[geo]:
+                            country.add(c)
+                            has_country = True
 
             meta = {
                 'note': self._encode_notes(notes),
             }
-            if georegion:
-                meta['georegion'] = sorted(georegion)
-            if country:
-                meta['country'] = sorted(country)
-            if us_state:
-                meta['us_state'] = sorted(us_state)
 
-            regions[pool_name] = {
-                'meta': meta,
-            }
+            if georegion:
+                georegion_meta = dict(meta)
+                georegion_meta['georegion'] = sorted(georegion)
+                regions['{}__georegion'.format(pool_name)] = {
+                    'meta': georegion_meta,
+                }
+
+            if country or us_state:
+                # If there's country and/or states its a country pool,
+                # countries and states can coexist as they're handled by the
+                # same step in the filterchain (countries and georegions
+                # cannot as they're seperate stages and run the risk of
+                # eliminating all options)
+                country_state_meta = dict(meta)
+                if country:
+                    country_state_meta['country'] = sorted(country)
+                if us_state:
+                    country_state_meta['us_state'] = sorted(us_state)
+                regions['{}__country'.format(pool_name)] = {
+                    'meta': country_state_meta,
+                }
+
+            if not georegion and not country and not us_state:
+                # If there's no targeting it's a catchall
+                regions['{}__catchall'.format(pool_name)] = {
+                    'meta': meta,
+                }
 
         existing_monitors = self._monitors_for(record)
         active_monitors = set()
@@ -826,55 +1124,26 @@ class Ns1Provider(BaseProvider):
         } for v in record.values]
 
         # Build our list of answers
+        # The regions dictionary built above already has the required pool
+        # names. Iterate over them and add answers.
         answers = []
-        for pool_name in sorted(pools.keys()):
+        for pool_name in sorted(regions.keys()):
             priority = 1
 
             # Dynamic/health checked
-            current_pool_name = pool_name
-            seen = set()
-            while current_pool_name and current_pool_name not in seen:
-                seen.add(current_pool_name)
-                pool = pools[current_pool_name]
-                for answer in pool_answers[current_pool_name]:
-                    answer = {
-                        'answer': answer['answer'],
-                        'meta': {
-                            'priority': priority,
-                            'note': self._encode_notes({
-                                'from': current_pool_name,
-                            }),
-                            'up': {
-                                'feed': answer['feed_id'],
-                            },
-                            'weight': answer['weight'],
-                        },
-                        'region': pool_name,  # the one we're answering
-                    }
-                    answers.append(answer)
+            pool_label = pool_name
+            # Remove the pool type from the end of the name
+            pool_name = self._parse_dynamic_pool_name(pool_name)
+            self._add_answers_for_pool(answers, default_answers, pool_name,
+                                       pool_label, pool_answers, pools,
+                                       priority)
 
-                current_pool_name = pool.data.get('fallback', None)
-                priority += 1
-
-            # Static/default
-            for answer in default_answers:
-                answer = {
-                    'answer': answer['answer'],
-                    'meta': {
-                        'priority': priority,
-                        'note': self._encode_notes({
-                            'from': '--default--',
-                        }),
-                        'up': True,
-                        'weight': 1,
-                    },
-                    'region': pool_name,  # the one we're answering
-                }
-                answers.append(answer)
+        # Update filters as necessary
+        filters = self._get_updated_filter_chain(has_region, has_country)
 
         return {
             'answers': answers,
-            'filters': self._DYNAMIC_FILTERS,
+            'filters': filters,
             'regions': regions,
             'ttl': record.ttl,
         }, active_monitors
@@ -927,16 +1196,63 @@ class Ns1Provider(BaseProvider):
                   for v in record.values]
         return {'answers': values, 'ttl': record.ttl}, None
 
+    def _get_ns1_filters(self, ns1_zone_name):
+        ns1_filters = {}
+        ns1_zone = {}
+
+        try:
+            ns1_zone = self._client.zones_retrieve(ns1_zone_name)
+        except ResourceException as e:
+            if e.message != self.ZONE_NOT_FOUND_MESSAGE:
+                raise
+
+        if 'records' in ns1_zone:
+            for ns1_record in ns1_zone['records']:
+                if ns1_record.get('tier', 1) > 1:
+                    # Need to get the full record data for geo records
+                    full_rec = self._client.records_retrieve(
+                        ns1_zone_name,
+                        ns1_record['domain'],
+                        ns1_record['type'])
+                    if 'filters' in full_rec:
+                        filter_key = '{}.'.format(ns1_record['domain'])
+                        ns1_filters[filter_key] = full_rec['filters']
+
+        return ns1_filters
+
+    def _disabled_flag_in_filters(self, filters, domain):
+        disabled_count = ['disabled' in f for f in filters].count(True)
+        if disabled_count and disabled_count != len(filters):
+            # Some filters have the disabled flag, and some don't. Disallow
+            exception_msg = 'Mixed disabled flag in filters for {}'.format(
+                            domain)
+            raise Ns1Exception(exception_msg)
+        return disabled_count == len(filters)
+
     def _extra_changes(self, desired, changes, **kwargs):
         self.log.debug('_extra_changes: desired=%s', desired.name)
-
+        ns1_filters = self._get_ns1_filters(desired.name[:-1])
         changed = set([c.record for c in changes])
-
         extra = []
         for record in desired.records:
             if record in changed or not getattr(record, 'dynamic', False):
                 # Already changed, or no dynamic , no need to check it
                 continue
+
+            # Filter normalization
+            # Check if filters for existing domains need an update
+            # Needs an explicit check since there might be no change in the
+            # config at all. Filters however might still need an update
+            domain = '{}.{}'.format(record.name, record.zone.name)
+            if domain in ns1_filters:
+                domain_filters = ns1_filters[domain]
+                if not self._disabled_flag_in_filters(domain_filters, domain):
+                    # 'disabled' entry absent in filter config. Need to update
+                    # filters. Update record
+                    self.log.info('_extra_changes: change in filters for %s',
+                                  domain)
+                    extra.append(Update(record, record))
+                    continue
 
             for have in self._monitors_for(record).values():
                 value = have['config']['host']
@@ -983,11 +1299,24 @@ class Ns1Provider(BaseProvider):
         self._client.records_delete(zone, domain, _type)
         self._monitors_gc(existing)
 
+    def _has_dynamic(self, changes):
+        for change in changes:
+            if getattr(change.record, 'dynamic', False):
+                return True
+
+        return False
+
     def _apply(self, plan):
         desired = plan.desired
         changes = plan.changes
         self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
                        len(changes))
+
+        # Make sure that if we're going to make any dynamic changes that we
+        # have monitor_regions configured before touching anything so we can
+        # abort early and not half-apply
+        if self._has_dynamic(changes) and self.monitor_regions is None:
+            raise Ns1Exception('Monitored record, but monitor_regions not set')
 
         domain_name = desired.name[:-1]
         try:

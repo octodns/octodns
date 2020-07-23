@@ -99,6 +99,7 @@ class MockDomainService(DomainService):
 
 
 class TestTransipProvider(TestCase):
+
     bogus_key = str("""-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEA0U5HGCkLrz423IyUf3u4cKN2WrNz1x5KNr6PvH2M/zxas+zB
 elbxkdT3AQ+wmfcIvOuTmFRTHv35q2um1aBrPxVw+2s+lWo28VwIRttwIB1vIeWu

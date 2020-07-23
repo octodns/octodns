@@ -38,7 +38,13 @@ class TestDnsimpleProvider(TestCase):
             break
 
     def test_populate(self):
+
+        # Sandbox
+        provider = DnsimpleProvider('test', 'token', 42, 'true')
+        self.assertTrue('sandbox' in provider._client.base)
+
         provider = DnsimpleProvider('test', 'token', 42)
+        self.assertFalse('sandbox' in provider._client.base)
 
         # Bad auth
         with requests_mock() as mock:
@@ -81,7 +87,7 @@ class TestDnsimpleProvider(TestCase):
             provider.populate(zone)
             self.assertEquals(16, len(zone.records))
             changes = self.expected.changes(zone, provider)
-            self.assertEquals(1, len(changes))
+            self.assertEquals(0, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])

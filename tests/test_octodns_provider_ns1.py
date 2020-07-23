@@ -14,6 +14,7 @@ from unittest import TestCase
 
 from octodns.record import Delete, Record, Update
 from octodns.provider.ns1 import Ns1Client, Ns1Exception, Ns1Provider
+from octodns.provider.plan import Plan
 from octodns.zone import Zone
 
 
@@ -313,8 +314,15 @@ class TestNs1Provider(TestCase):
         self.assertEquals(expected_n, len(plan.changes))
         self.assertTrue(plan.exists)
 
+        # root NS should be included when manage_root_ns == True
+        provider.manage_root_ns = True
+        plan_with_root_ns = provider.plan(desired)
+        self.assertEquals(len(self.expected), len(plan_with_root_ns.changes))
+        self.assertTrue(plan_with_root_ns.exists)
+
         # Fails, general error
         zone_retrieve_mock.reset_mock()
+        record_retrieve_mock.reset_mock()
         zone_create_mock.reset_mock()
         zone_retrieve_mock.side_effect = ResourceException('boom')
         with self.assertRaises(ResourceException) as ctx:
@@ -323,6 +331,7 @@ class TestNs1Provider(TestCase):
 
         # Fails, bad auth
         zone_retrieve_mock.reset_mock()
+        record_retrieve_mock.reset_mock()
         zone_create_mock.reset_mock()
         zone_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
@@ -333,6 +342,7 @@ class TestNs1Provider(TestCase):
 
         # non-existent zone, create
         zone_retrieve_mock.reset_mock()
+        record_retrieve_mock.reset_mock()
         zone_create_mock.reset_mock()
         zone_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
@@ -363,6 +373,7 @@ class TestNs1Provider(TestCase):
 
         # Update & delete
         zone_retrieve_mock.reset_mock()
+        record_retrieve_mock.reset_mock()
         zone_create_mock.reset_mock()
 
         ns1_zone = {
@@ -388,7 +399,7 @@ class TestNs1Provider(TestCase):
         }
         ns1_zone['records'][0]['short_answers'][0] = '2.2.2.2'
 
-        record_retrieve_mock.side_effect = [{
+        ns1_record = {
             "domain": "geo.unit.tests",
             "zone": "unit.tests",
             "type": "A",
@@ -403,8 +414,9 @@ class TestNs1Provider(TestCase):
             ],
             'tier': 3,
             'ttl': 34,
-        }]
+        }
 
+        record_retrieve_mock.side_effect = [ns1_record, ns1_record]
         zone_retrieve_mock.side_effect = [ns1_zone, ns1_zone]
         plan = provider.plan(desired)
         self.assertEquals(3, len(plan.changes))
@@ -426,6 +438,8 @@ class TestNs1Provider(TestCase):
             None,
         ]
 
+        record_retrieve_mock.side_effect = [ns1_record, ns1_record]
+        zone_retrieve_mock.side_effect = [ns1_zone, ns1_zone]
         got_n = provider.apply(plan)
         self.assertEquals(3, got_n)
 
@@ -520,47 +534,55 @@ class TestNs1Provider(TestCase):
 class TestNs1ProviderDynamic(TestCase):
     zone = Zone('unit.tests.', [])
 
-    record = Record.new(zone, '', {
-        'dynamic': {
-            'pools': {
-                'lhr': {
-                    'fallback': 'iad',
-                    'values': [{
-                        'value': '3.4.5.6',
-                    }],
+    def record(self):
+        # return a new object each time so we can mess with it without causing
+        # problems from test to test
+        return Record.new(self.zone, '', {
+            'dynamic': {
+                'pools': {
+                    'lhr': {
+                        'fallback': 'iad',
+                        'values': [{
+                            'value': '3.4.5.6',
+                        }],
+                    },
+                    'iad': {
+                        'values': [{
+                            'value': '1.2.3.4',
+                        }, {
+                            'value': '2.3.4.5',
+                        }],
+                    },
                 },
-                'iad': {
-                    'values': [{
-                        'value': '1.2.3.4',
-                    }, {
-                        'value': '2.3.4.5',
-                    }],
-                },
+                'rules': [{
+                    'geos': [
+                        'AF',
+                        'EU-GB',
+                        'NA-US-FL'
+                    ],
+                    'pool': 'lhr',
+                }, {
+                    'geos': [
+                        'AF-ZW',
+                    ],
+                    'pool': 'iad',
+                }, {
+                    'pool': 'iad',
+                }],
             },
-            'rules': [{
-                'geos': [
-                    'AF',
-                    'EU-GB',
-                    'NA-US-FL'
-                ],
-                'pool': 'lhr',
-            }, {
-                'pool': 'iad',
-            }],
-        },
-        'octodns': {
-            'healthcheck': {
-                'host': 'send.me',
-                'path': '/_ping',
-                'port': 80,
-                'protocol': 'HTTP',
-            }
-        },
-        'ttl': 32,
-        'type': 'A',
-        'value': '1.2.3.4',
-        'meta': {},
-    })
+            'octodns': {
+                'healthcheck': {
+                    'host': 'send.me',
+                    'path': '/_ping',
+                    'port': 80,
+                    'protocol': 'HTTP',
+                }
+            },
+            'ttl': 32,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'meta': {},
+        })
 
     def test_notes(self):
         provider = Ns1Provider('test', 'api-key')
@@ -623,7 +645,7 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertEquals({
             '1.2.3.4': monitor_one,
             '2.3.4.5': monitor_four,
-        }, provider._monitors_for(self.record))
+        }, provider._monitors_for(self.record()))
 
     def test_uuid(self):
         # Just a smoke test/for coverage
@@ -694,15 +716,23 @@ class TestNs1ProviderDynamic(TestCase):
         provider = Ns1Provider('test', 'api-key')
 
         value = '3.4.5.6'
-        monitor = provider._monitor_gen(self.record, value)
+        record = self.record()
+        monitor = provider._monitor_gen(record, value)
         self.assertEquals(value, monitor['config']['host'])
         self.assertTrue('\\nHost: send.me\\r' in monitor['config']['send'])
         self.assertFalse(monitor['config']['ssl'])
         self.assertEquals('host:unit.tests type:A', monitor['notes'])
 
-        self.record._octodns['healthcheck']['protocol'] = 'HTTPS'
-        monitor = provider._monitor_gen(self.record, value)
+        record._octodns['healthcheck']['protocol'] = 'HTTPS'
+        monitor = provider._monitor_gen(record, value)
         self.assertTrue(monitor['config']['ssl'])
+
+        record._octodns['healthcheck']['protocol'] = 'TCP'
+        monitor = provider._monitor_gen(record, value)
+        # No http send done
+        self.assertFalse('send' in monitor['config'])
+        # No http response expected
+        self.assertFalse('rules' in monitor)
 
     def test_monitor_is_match(self):
         provider = Ns1Provider('test', 'api-key')
@@ -770,10 +800,11 @@ class TestNs1ProviderDynamic(TestCase):
         monitor_gen_mock.side_effect = [{'key': 'value'}]
         monitor_create_mock.side_effect = [('mon-id', 'feed-id')]
         value = '1.2.3.4'
-        monitor_id, feed_id = provider._monitor_sync(self.record, value, None)
+        record = self.record()
+        monitor_id, feed_id = provider._monitor_sync(record, value, None)
         self.assertEquals('mon-id', monitor_id)
         self.assertEquals('feed-id', feed_id)
-        monitor_gen_mock.assert_has_calls([call(self.record, value)])
+        monitor_gen_mock.assert_has_calls([call(record, value)])
         monitor_create_mock.assert_has_calls([call({'key': 'value'})])
         monitors_update_mock.assert_not_called()
         feed_create_mock.assert_not_called()
@@ -789,7 +820,7 @@ class TestNs1ProviderDynamic(TestCase):
             'name': 'monitor name',
         }
         monitor_gen_mock.side_effect = [monitor]
-        monitor_id, feed_id = provider._monitor_sync(self.record, value,
+        monitor_id, feed_id = provider._monitor_sync(record, value,
                                                      monitor)
         self.assertEquals('mon-id', monitor_id)
         self.assertEquals('feed-id', feed_id)
@@ -810,7 +841,7 @@ class TestNs1ProviderDynamic(TestCase):
         }
         monitor_gen_mock.side_effect = [monitor]
         feed_create_mock.side_effect = ['feed-id2']
-        monitor_id, feed_id = provider._monitor_sync(self.record, value,
+        monitor_id, feed_id = provider._monitor_sync(record, value,
                                                      monitor)
         self.assertEquals('mon-id2', monitor_id)
         self.assertEquals('feed-id2', feed_id)
@@ -833,7 +864,7 @@ class TestNs1ProviderDynamic(TestCase):
             'other': 'thing',
         }
         monitor_gen_mock.side_effect = [gened]
-        monitor_id, feed_id = provider._monitor_sync(self.record, value,
+        monitor_id, feed_id = provider._monitor_sync(record, value,
                                                      monitor)
         self.assertEquals('mon-id', monitor_id)
         self.assertEquals('feed-id', feed_id)
@@ -863,8 +894,9 @@ class TestNs1ProviderDynamic(TestCase):
         monitors_delete_mock.reset_mock()
         notifylists_delete_mock.reset_mock()
         monitors_for_mock.side_effect = [{}]
-        provider._monitors_gc(self.record)
-        monitors_for_mock.assert_has_calls([call(self.record)])
+        record = self.record()
+        provider._monitors_gc(record)
+        monitors_for_mock.assert_has_calls([call(record)])
         datafeed_delete_mock.assert_not_called()
         monitors_delete_mock.assert_not_called()
         notifylists_delete_mock.assert_not_called()
@@ -880,8 +912,8 @@ class TestNs1ProviderDynamic(TestCase):
                 'notify_list': 'nl-id',
             }
         }]
-        provider._monitors_gc(self.record)
-        monitors_for_mock.assert_has_calls([call(self.record)])
+        provider._monitors_gc(record)
+        monitors_for_mock.assert_has_calls([call(record)])
         datafeed_delete_mock.assert_has_calls([call('foo', 'feed-id')])
         monitors_delete_mock.assert_has_calls([call('mon-id')])
         notifylists_delete_mock.assert_has_calls([call('nl-id')])
@@ -897,8 +929,8 @@ class TestNs1ProviderDynamic(TestCase):
                 'notify_list': 'nl-id',
             }
         }]
-        provider._monitors_gc(self.record, {'mon-id'})
-        monitors_for_mock.assert_has_calls([call(self.record)])
+        provider._monitors_gc(record, {'mon-id'})
+        monitors_for_mock.assert_has_calls([call(record)])
         datafeed_delete_mock.assert_not_called()
         monitors_delete_mock.assert_not_called()
         notifylists_delete_mock.assert_not_called()
@@ -919,11 +951,280 @@ class TestNs1ProviderDynamic(TestCase):
                 'notify_list': 'nl-id2',
             },
         }]
-        provider._monitors_gc(self.record, {'mon-id'})
-        monitors_for_mock.assert_has_calls([call(self.record)])
+        provider._monitors_gc(record, {'mon-id'})
+        monitors_for_mock.assert_has_calls([call(record)])
         datafeed_delete_mock.assert_not_called()
         monitors_delete_mock.assert_has_calls([call('mon-id2')])
         notifylists_delete_mock.assert_has_calls([call('nl-id2')])
+
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_params_for_dynamic_region_only(self, monitors_for_mock,
+                                            monitor_sync_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {
+            'mon-id': 'feed-id',
+        }
+
+        # provider._params_for_A() calls provider._monitors_for() and
+        # provider._monitor_sync(). Mock their return values so that we don't
+        # make NS1 API calls during tests
+        monitors_for_mock.reset_mock()
+        monitor_sync_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            '3.4.5.6': 'mid-3',
+        }]
+        monitor_sync_mock.side_effect = [
+            ('mid-1', 'fid-1'),
+            ('mid-2', 'fid-2'),
+            ('mid-3', 'fid-3'),
+        ]
+
+        record = self.record()
+        rule0 = record.data['dynamic']['rules'][0]
+        rule1 = record.data['dynamic']['rules'][1]
+        rule0['geos'] = ['AF', 'EU']
+        rule1['geos'] = ['NA']
+        ret, monitor_ids = provider._params_for_A(record)
+        self.assertEquals(10, len(ret['answers']))
+        self.assertEquals(ret['filters'],
+                          Ns1Provider._FILTER_CHAIN_WITH_REGION(provider,
+                                                                True))
+        self.assertEquals({
+            'iad__catchall': {
+                'meta': {
+                    'note': 'rule-order:2'
+                }
+            },
+            'iad__georegion': {
+                'meta': {
+                    'georegion': ['US-CENTRAL', 'US-EAST', 'US-WEST'],
+                    'note': 'rule-order:1'
+                }
+            },
+            'lhr__georegion': {
+                'meta': {
+                    'georegion': ['AFRICA', 'EUROPE'],
+                    'note': 'fallback:iad rule-order:0'
+                }
+            }
+        }, ret['regions'])
+        self.assertEquals({'mid-1', 'mid-2', 'mid-3'}, monitor_ids)
+
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_params_for_dynamic_state_only(self, monitors_for_mock,
+                                           monitor_sync_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {
+            'mon-id': 'feed-id',
+        }
+
+        # provider._params_for_A() calls provider._monitors_for() and
+        # provider._monitor_sync(). Mock their return values so that we don't
+        # make NS1 API calls during tests
+        monitors_for_mock.reset_mock()
+        monitor_sync_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            '3.4.5.6': 'mid-3',
+        }]
+        monitor_sync_mock.side_effect = [
+            ('mid-1', 'fid-1'),
+            ('mid-2', 'fid-2'),
+            ('mid-3', 'fid-3'),
+        ]
+
+        record = self.record()
+        rule0 = record.data['dynamic']['rules'][0]
+        rule1 = record.data['dynamic']['rules'][1]
+        rule0['geos'] = ['AF', 'EU']
+        rule1['geos'] = ['NA-US-CA']
+        ret, _ = provider._params_for_A(record)
+        self.assertEquals(10, len(ret['answers']))
+        exp = Ns1Provider._FILTER_CHAIN_WITH_REGION_AND_COUNTRY(provider,
+                                                                True)
+        self.assertEquals(ret['filters'], exp)
+        self.assertEquals({
+            'iad__catchall': {
+                'meta': {
+                    'note': 'rule-order:2'
+                }
+            },
+            'iad__country': {
+                'meta': {
+                    'note': 'rule-order:1',
+                    'us_state': ['CA']
+                }
+            },
+            'lhr__georegion': {
+                'meta': {
+                    'georegion': ['AFRICA', 'EUROPE'],
+                    'note': 'fallback:iad rule-order:0'
+                }
+            }
+        }, ret['regions'])
+
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_params_for_dynamic_contient_and_countries(self,
+                                                       monitors_for_mock,
+                                                       monitor_sync_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {
+            'mon-id': 'feed-id',
+        }
+
+        # provider._params_for_A() calls provider._monitors_for() and
+        # provider._monitor_sync(). Mock their return values so that we don't
+        # make NS1 API calls during tests
+        monitors_for_mock.reset_mock()
+        monitor_sync_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            '3.4.5.6': 'mid-3',
+        }]
+        monitor_sync_mock.side_effect = [
+            ('mid-1', 'fid-1'),
+            ('mid-2', 'fid-2'),
+            ('mid-3', 'fid-3'),
+        ]
+
+        record = self.record()
+        rule0 = record.data['dynamic']['rules'][0]
+        rule1 = record.data['dynamic']['rules'][1]
+        rule0['geos'] = ['AF', 'EU', 'NA-US-CA']
+        rule1['geos'] = ['NA', 'NA-US']
+        ret, _ = provider._params_for_A(record)
+
+        self.assertEquals(17, len(ret['answers']))
+        # Deeply check the answers we have here
+        # group the answers based on where they came from
+        notes = defaultdict(list)
+        for answer in ret['answers']:
+            notes[answer['meta']['note']].append(answer)
+            # Remove the meta and region part since it'll vary based on the
+            # exact pool, that'll let us == them down below
+            del answer['meta']
+            del answer['region']
+
+        # Expected groups. iad has occurances in here: a country and region
+        # that was split out based on targeting a continent and a state. It
+        # finally has a catchall.  Those are examples of the two ways pools get
+        # expanded.
+        #
+        # lhr splits in two, with a region and country.
+        #
+        # well as both lhr georegion (for contients) and country. The first is
+        # an example of a repeated target pool in a rule (only allowed when the
+        # 2nd is a catchall.)
+        self.assertEquals(['from:--default--', 'from:iad__catchall',
+                           'from:iad__country', 'from:iad__georegion',
+                           'from:lhr__country', 'from:lhr__georegion'],
+                          sorted(notes.keys()))
+
+        # All the iad's should match (after meta and region were removed)
+        self.assertEquals(notes['from:iad__catchall'],
+                          notes['from:iad__country'])
+        self.assertEquals(notes['from:iad__catchall'],
+                          notes['from:iad__georegion'])
+
+        # The lhrs should match each other too
+        self.assertEquals(notes['from:lhr__georegion'],
+                          notes['from:lhr__country'])
+
+        # We have both country and region filter chain entries
+        exp = Ns1Provider._FILTER_CHAIN_WITH_REGION_AND_COUNTRY(provider,
+                                                                True)
+        self.assertEquals(ret['filters'], exp)
+
+        # and our region details match the expected behaviors/targeting
+        self.assertEquals({
+            'iad__catchall': {
+                'meta': {
+                    'note': 'rule-order:2'
+                }
+            },
+            'iad__country': {
+                'meta': {
+                    'country': ['US'],
+                    'note': 'rule-order:1'
+                }
+            },
+            'iad__georegion': {
+                'meta': {
+                    'georegion': ['US-CENTRAL', 'US-EAST', 'US-WEST'],
+                    'note': 'rule-order:1'
+                }
+            },
+            'lhr__country': {
+                'meta': {
+                    'note': 'fallback:iad rule-order:0',
+                    'us_state': ['CA']
+                }
+            },
+            'lhr__georegion': {
+                'meta': {
+                    'georegion': ['AFRICA', 'EUROPE'],
+                    'note': 'fallback:iad rule-order:0'
+                }
+            }
+        }, ret['regions'])
+
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_params_for_dynamic_oceania(self, monitors_for_mock,
+                                        monitor_sync_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {
+            'mon-id': 'feed-id',
+        }
+
+        # provider._params_for_A() calls provider._monitors_for() and
+        # provider._monitor_sync(). Mock their return values so that we don't
+        # make NS1 API calls during tests
+        monitors_for_mock.reset_mock()
+        monitor_sync_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            '3.4.5.6': 'mid-3',
+        }]
+        monitor_sync_mock.side_effect = [
+            ('mid-1', 'fid-1'),
+            ('mid-2', 'fid-2'),
+            ('mid-3', 'fid-3'),
+        ]
+
+        # Set geos to 'OC' in rules[0] (pool - 'lhr')
+        # Check returned dict has list of countries under 'OC'
+        record = self.record()
+        rule0 = record.data['dynamic']['rules'][0]
+        rule0['geos'] = ['OC']
+        ret, _ = provider._params_for_A(record)
+
+        # Make sure the country list expanded into all the OC countries
+        got = set(ret['regions']['lhr__country']['meta']['country'])
+        self.assertEquals(got,
+                          Ns1Provider._CONTINENT_TO_LIST_OF_COUNTRIES['OC'])
+
+        # When rules has 'OC', it is converted to list of countries in the
+        # params. Look if the returned filters is the filter chain with country
+        self.assertEquals(ret['filters'],
+                          Ns1Provider._FILTER_CHAIN_WITH_COUNTRY(provider,
+                                                                 True))
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
@@ -949,13 +1250,31 @@ class TestNs1ProviderDynamic(TestCase):
         ]
         # This indirectly calls into _params_for_dynamic_A and tests the
         # handling to get there
-        provider._params_for_A(self.record)
-        monitors_for_mock.assert_has_calls([call(self.record)])
+        record = self.record()
+        ret, _ = provider._params_for_A(record)
+
+        # Given that record has both country and region in the rules,
+        # the returned filter chain should be one with region and country
+        self.assertEquals(ret['filters'],
+                          Ns1Provider._FILTER_CHAIN_WITH_REGION_AND_COUNTRY(
+                          provider, True))
+
+        monitors_for_mock.assert_has_calls([call(record)])
         monitors_sync_mock.assert_has_calls([
-            call(self.record, '1.2.3.4', None),
-            call(self.record, '2.3.4.5', None),
-            call(self.record, '3.4.5.6', 'mid-3'),
+            call(record, '1.2.3.4', None),
+            call(record, '2.3.4.5', None),
+            call(record, '3.4.5.6', 'mid-3'),
         ])
+
+        record = Record.new(self.zone, 'geo', {
+            'ttl': 34,
+            'type': 'A',
+            'values': ['101.102.103.104', '101.102.103.105'],
+            'geo': {'EU': ['201.202.203.204']},
+            'meta': {},
+        })
+        params, _ = provider._params_for_geo_A(record)
+        self.assertEquals([], params['filters'])
 
     def test_data_for_dynamic_A(self):
         provider = Ns1Provider('test', 'api-key')
@@ -974,7 +1293,7 @@ class TestNs1ProviderDynamic(TestCase):
         ns1_record = {
             'answers': [],
             'domain': 'unit.tests',
-            'filters': Ns1Provider._DYNAMIC_FILTERS,
+            'filters': Ns1Provider._BASIC_FILTER_CHAIN(provider, True),
             'regions': {},
             'ttl': 42,
         }
@@ -990,12 +1309,15 @@ class TestNs1ProviderDynamic(TestCase):
         }, data)
 
         # Test out a small, but realistic setup that covers all the options
+        # We have country and region in the test config
+        filters = provider._get_updated_filter_chain(True, True)
+        catchall_pool_name = 'iad__catchall'
         ns1_record = {
             'answers': [{
                 'answer': ['3.4.5.6'],
                 'meta': {
                     'priority': 1,
-                    'note': 'from:lhr',
+                    'note': 'from:lhr__country',
                 },
                 'region': 'lhr',
             }, {
@@ -1028,21 +1350,52 @@ class TestNs1ProviderDynamic(TestCase):
                     'note': 'from:--default--',
                 },
                 'region': 'iad',
+            }, {
+                'answer': ['2.3.4.5'],
+                'meta': {
+                    'priority': 1,
+                    'weight': 12,
+                    'note': 'from:{}'.format(catchall_pool_name),
+                },
+                'region': catchall_pool_name,
+            }, {
+                'answer': ['1.2.3.4'],
+                'meta': {
+                    'priority': 2,
+                    'note': 'from:--default--',
+                },
+                'region': catchall_pool_name,
             }],
             'domain': 'unit.tests',
-            'filters': Ns1Provider._DYNAMIC_FILTERS,
+            'filters': filters,
             'regions': {
-                'lhr': {
+                # lhr will use the new-split style names (and that will require
+                # combining in the code to produce the expected answer
+                'lhr__georegion': {
+                    'meta': {
+                        'note': 'rule-order:1 fallback:iad',
+                        'georegion': ['AFRICA'],
+                    },
+                },
+                'lhr__country': {
                     'meta': {
                         'note': 'rule-order:1 fallback:iad',
                         'country': ['CA'],
-                        'georegion': ['AFRICA'],
                         'us_state': ['OR'],
                     },
                 },
+                # iad will use the old style "plain" region naming. We won't
+                # see mixed names like this in practice, but this should
+                # exercise both paths
                 'iad': {
                     'meta': {
                         'note': 'rule-order:2',
+                        'country': ['ZW'],
+                    },
+                },
+                catchall_pool_name: {
+                    'meta': {
+                        'note': 'rule-order:3',
                     },
                 }
             },
@@ -1078,6 +1431,12 @@ class TestNs1ProviderDynamic(TestCase):
                     'pool': 'lhr',
                 }, {
                     '_order': '2',
+                    'geos': [
+                        'AF-ZW',
+                    ],
+                    'pool': 'iad',
+                }, {
+                    '_order': '3',
                     'pool': 'iad',
                 }],
             },
@@ -1091,20 +1450,73 @@ class TestNs1ProviderDynamic(TestCase):
         data2 = provider._data_for_A('A', ns1_record)
         self.assertEquals(data, data2)
 
+        # Same answer if we have an old-style catchall name
+        old_style_catchall_pool_name = 'catchall__iad'
+        ns1_record['answers'][-2]['region'] = old_style_catchall_pool_name
+        ns1_record['answers'][-1]['region'] = old_style_catchall_pool_name
+        ns1_record['regions'][old_style_catchall_pool_name] = \
+            ns1_record['regions'][catchall_pool_name]
+        del ns1_record['regions'][catchall_pool_name]
+        data3 = provider._data_for_dynamic_A('A', ns1_record)
+        self.assertEquals(data, data2)
+
+        # Oceania test cases
+        # 1. Full list of countries should return 'OC' in geos
+        oc_countries = Ns1Provider._CONTINENT_TO_LIST_OF_COUNTRIES['OC']
+        ns1_record['regions']['lhr__country']['meta']['country'] = \
+            list(oc_countries)
+        data3 = provider._data_for_A('A', ns1_record)
+        self.assertTrue('OC' in data3['dynamic']['rules'][0]['geos'])
+
+        # 2. Partial list of countries should return just those
+        partial_oc_cntry_list = list(oc_countries)[:5]
+        ns1_record['regions']['lhr__country']['meta']['country'] = \
+            partial_oc_cntry_list
+        data4 = provider._data_for_A('A', ns1_record)
+        for c in partial_oc_cntry_list:
+            self.assertTrue(
+                'OC-{}'.format(c) in data4['dynamic']['rules'][0]['geos'])
+
+    @patch('ns1.rest.records.Records.retrieve')
+    @patch('ns1.rest.zones.Zones.retrieve')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
-    def test_extra_changes(self, monitors_for_mock):
+    def test_extra_changes(self, monitors_for_mock, zones_retrieve_mock,
+                           records_retrieve_mock):
         provider = Ns1Provider('test', 'api-key')
 
         desired = Zone('unit.tests.', [])
 
         # Empty zone and no changes
         monitors_for_mock.reset_mock()
+        zones_retrieve_mock.reset_mock()
+        records_retrieve_mock.reset_mock()
+
         extra = provider._extra_changes(desired, [])
         self.assertFalse(extra)
         monitors_for_mock.assert_not_called()
 
-        # Simple record, ignored
+        # Non-existent zone. No changes
         monitors_for_mock.reset_mock()
+        zones_retrieve_mock.side_effect = \
+            ResourceException('server error: zone not found')
+        records_retrieve_mock.reset_mock()
+        extra = provider._extra_changes(desired, [])
+        self.assertFalse(extra)
+
+        # Unexpected exception message
+        zones_retrieve_mock.reset_mock()
+        zones_retrieve_mock.side_effect = ResourceException('boom')
+        with self.assertRaises(ResourceException) as ctx:
+            extra = provider._extra_changes(desired, [])
+        self.assertEquals(zones_retrieve_mock.side_effect, ctx.exception)
+
+        # Simple record, ignored, filter update lookups ignored
+        monitors_for_mock.reset_mock()
+        zones_retrieve_mock.reset_mock()
+        records_retrieve_mock.reset_mock()
+        zones_retrieve_mock.side_effect = \
+            ResourceException('server error: zone not found')
+
         simple = Record.new(desired, '', {
             'ttl': 32,
             'type': 'A',
@@ -1147,6 +1559,8 @@ class TestNs1ProviderDynamic(TestCase):
 
         # untouched, but everything in sync so no change needed
         monitors_for_mock.reset_mock()
+        zones_retrieve_mock.reset_mock()
+        records_retrieve_mock.reset_mock()
         # Generate what we expect to have
         gend = provider._monitor_gen(dynamic, '1.2.3.4')
         gend.update({
@@ -1165,6 +1579,8 @@ class TestNs1ProviderDynamic(TestCase):
         # If we don't have a notify list we're broken and we'll expect to see
         # an Update
         monitors_for_mock.reset_mock()
+        zones_retrieve_mock.reset_mock()
+        records_retrieve_mock.reset_mock()
         del gend['notify_list']
         monitors_for_mock.side_effect = [{
             '1.2.3.4': gend,
@@ -1179,6 +1595,8 @@ class TestNs1ProviderDynamic(TestCase):
         # Add notify_list back and change the healthcheck protocol, we'll still
         # expect to see an update
         monitors_for_mock.reset_mock()
+        zones_retrieve_mock.reset_mock()
+        records_retrieve_mock.reset_mock()
         gend['notify_list'] = 'xyz'
         dynamic._octodns['healthcheck']['protocol'] = 'HTTPS'
         del gend['notify_list']
@@ -1194,9 +1612,171 @@ class TestNs1ProviderDynamic(TestCase):
 
         # If it's in the changed list, it'll be ignored
         monitors_for_mock.reset_mock()
+        zones_retrieve_mock.reset_mock()
+        records_retrieve_mock.reset_mock()
         extra = provider._extra_changes(desired, [update])
         self.assertFalse(extra)
         monitors_for_mock.assert_not_called()
+
+        # Test changes in filters
+
+        # No change in filters
+        monitors_for_mock.reset_mock()
+        zones_retrieve_mock.reset_mock()
+        records_retrieve_mock.reset_mock()
+        ns1_zone = {
+            'records': [{
+                "domain": "dyn.unit.tests",
+                "zone": "unit.tests",
+                "type": "A",
+                "tier": 3,
+                "filters": Ns1Provider._BASIC_FILTER_CHAIN(provider, True)
+            }],
+        }
+        monitors_for_mock.side_effect = [{}]
+        zones_retrieve_mock.side_effect = [ns1_zone]
+        records_retrieve_mock.side_effect = ns1_zone['records']
+        extra = provider._extra_changes(desired, [])
+        self.assertFalse(extra)
+
+        # filters need an update
+        monitors_for_mock.reset_mock()
+        zones_retrieve_mock.reset_mock()
+        records_retrieve_mock.reset_mock()
+        ns1_zone = {
+            'records': [{
+                "domain": "dyn.unit.tests",
+                "zone": "unit.tests",
+                "type": "A",
+                "tier": 3,
+                "filters": Ns1Provider._BASIC_FILTER_CHAIN(provider, False)
+            }],
+        }
+        monitors_for_mock.side_effect = [{}]
+        zones_retrieve_mock.side_effect = [ns1_zone]
+        records_retrieve_mock.side_effect = ns1_zone['records']
+        extra = provider._extra_changes(desired, [])
+        self.assertTrue(extra)
+
+        # Mixed disabled in filters. Raise Ns1Exception
+        monitors_for_mock.reset_mock()
+        zones_retrieve_mock.reset_mock()
+        records_retrieve_mock.reset_mock()
+        ns1_zone = {
+            'records': [{
+                "domain": "dyn.unit.tests",
+                "zone": "unit.tests",
+                "type": "A",
+                "tier": 3,
+                "filters": Ns1Provider._BASIC_FILTER_CHAIN(provider, True)
+            }],
+        }
+        del ns1_zone['records'][0]['filters'][0]['disabled']
+        monitors_for_mock.side_effect = [{}]
+        zones_retrieve_mock.side_effect = [ns1_zone]
+        records_retrieve_mock.side_effect = ns1_zone['records']
+        with self.assertRaises(Ns1Exception) as ctx:
+            extra = provider._extra_changes(desired, [])
+        self.assertTrue('Mixed disabled flag in filters' in
+                        text_type(ctx.exception))
+
+    DESIRED = Zone('unit.tests.', [])
+
+    SIMPLE = Record.new(DESIRED, 'sim', {
+        'ttl': 33,
+        'type': 'A',
+        'value': '1.2.3.4',
+    })
+
+    # Dynamic record, inspectable
+    DYNAMIC = Record.new(DESIRED, 'dyn', {
+        'dynamic': {
+            'pools': {
+                'iad': {
+                    'values': [{
+                        'value': '1.2.3.4',
+                    }],
+                },
+            },
+            'rules': [{
+                'pool': 'iad',
+            }],
+        },
+        'octodns': {
+            'healthcheck': {
+                'host': 'send.me',
+                'path': '/_ping',
+                'port': 80,
+                'protocol': 'HTTP',
+            }
+        },
+        'ttl': 32,
+        'type': 'A',
+        'value': '1.2.3.4',
+        'meta': {},
+    })
+
+    def test_has_dynamic(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        simple_update = Update(self.SIMPLE, self.SIMPLE)
+        dynamic_update = Update(self.DYNAMIC, self.DYNAMIC)
+
+        self.assertFalse(provider._has_dynamic([simple_update]))
+        self.assertTrue(provider._has_dynamic([dynamic_update]))
+        self.assertTrue(provider._has_dynamic([simple_update, dynamic_update]))
+
+    @patch('octodns.provider.ns1.Ns1Client.zones_retrieve')
+    @patch('octodns.provider.ns1.Ns1Provider._apply_Update')
+    def test_apply_monitor_regions(self, apply_update_mock,
+                                   zones_retrieve_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        simple_update = Update(self.SIMPLE, self.SIMPLE)
+        simple_plan = Plan(self.DESIRED, self.DESIRED, [simple_update], True)
+        dynamic_update = Update(self.DYNAMIC, self.DYNAMIC)
+        dynamic_update = Update(self.DYNAMIC, self.DYNAMIC)
+        dynamic_plan = Plan(self.DESIRED, self.DESIRED, [dynamic_update],
+                            True)
+        both_plan = Plan(self.DESIRED, self.DESIRED, [simple_update,
+                                                      dynamic_update], True)
+
+        # always return foo, we aren't testing this part here
+        zones_retrieve_mock.side_effect = [
+            'foo',
+            'foo',
+            'foo',
+            'foo',
+        ]
+
+        # Doesn't blow up, and calls apply once
+        apply_update_mock.reset_mock()
+        provider._apply(simple_plan)
+        apply_update_mock.assert_has_calls([call('foo', simple_update)])
+
+        # Blows up and apply not called
+        apply_update_mock.reset_mock()
+        with self.assertRaises(Ns1Exception) as ctx:
+            provider._apply(dynamic_plan)
+        self.assertTrue('monitor_regions not set' in text_type(ctx.exception))
+        apply_update_mock.assert_not_called()
+
+        # Blows up and apply not called even though there's a simple
+        apply_update_mock.reset_mock()
+        with self.assertRaises(Ns1Exception) as ctx:
+            provider._apply(both_plan)
+        self.assertTrue('monitor_regions not set' in text_type(ctx.exception))
+        apply_update_mock.assert_not_called()
+
+        # with monitor_regions set
+        provider.monitor_regions = ['lga']
+
+        apply_update_mock.reset_mock()
+        provider._apply(both_plan)
+        apply_update_mock.assert_has_calls([
+            call('foo', dynamic_update),
+            call('foo', simple_update),
+        ])
 
 
 class TestNs1Client(TestCase):
@@ -1240,6 +1820,31 @@ class TestNs1Client(TestCase):
         with self.assertRaises(RateLimitException) as ctx:
             client.zones_retrieve('unit.tests')
         self.assertEquals('last', text_type(ctx.exception))
+
+    def test_client_config(self):
+        with self.assertRaises(TypeError):
+            Ns1Client()
+
+        client = Ns1Client('dummy-key')
+        self.assertEquals(
+            client._client.config.get('keys'),
+            {'default': {'key': u'dummy-key', 'desc': 'imported API key'}})
+        self.assertEquals(client._client.config.get('follow_pagination'), True)
+        self.assertEquals(
+            client._client.config.get('rate_limit_strategy'), None)
+        self.assertEquals(client._client.config.get('parallelism'), None)
+
+        client = Ns1Client('dummy-key', parallelism=11)
+        self.assertEquals(
+            client._client.config.get('rate_limit_strategy'), 'concurrent')
+        self.assertEquals(client._client.config.get('parallelism'), 11)
+
+        client = Ns1Client('dummy-key', client_config={
+            'endpoint': 'my.endpoint.com', 'follow_pagination': False})
+        self.assertEquals(
+            client._client.config.get('endpoint'), 'my.endpoint.com')
+        self.assertEquals(
+            client._client.config.get('follow_pagination'), False)
 
     @patch('ns1.rest.data.Source.list')
     @patch('ns1.rest.data.Source.create')

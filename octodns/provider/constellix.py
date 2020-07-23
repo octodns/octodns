@@ -88,7 +88,7 @@ class ConstellixClient(object):
         if self._domains is None:
             zones = []
 
-            resp = self._request('GET', '/').json()
+            resp = self._request('GET', '').json()
             zones += resp
 
             self._domains = {'{}.'.format(z['name']): z['id'] for z in zones}
@@ -96,11 +96,16 @@ class ConstellixClient(object):
         return self._domains
 
     def domain(self, name):
-        path = '/{}'.format(self.domains.get(name))
+        zone_id = self.domains.get(name, False)
+        if not zone_id:
+            raise ConstellixClientNotFound()
+        path = '/{}'.format(zone_id)
         return self._request('GET', path).json()
 
     def domain_create(self, name):
-        self._request('POST', '/', data={'names': [name]})
+        resp = self._request('POST', '/', data={'names': [name]})
+        # Add newly created zone to domain cache
+        self._domains['{}.'.format(name)] = resp.json()[0]['id']
 
     def _absolutize_value(self, value, zone_name):
         if value == '':
@@ -112,6 +117,8 @@ class ConstellixClient(object):
 
     def records(self, zone_name):
         zone_id = self.domains.get(zone_name, False)
+        if not zone_id:
+            raise ConstellixClientNotFound()
         path = '/{}/records'.format(zone_id)
 
         resp = self._request('GET', path).json()

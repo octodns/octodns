@@ -29,7 +29,7 @@ class SimpleProvider(object):
         pass
 
     def supports(self, record):
-        return True
+        return record.name != "" or record._type != "NS"
 
     def __repr__(self):
         return self.__class__.__name__
@@ -48,7 +48,7 @@ class GeoProvider(object):
         pass
 
     def supports(self, record):
-        return True
+        return record.name != "" or record._type != "NS"
 
     def __repr__(self):
         return self.__class__.__name__
@@ -67,7 +67,7 @@ class DynamicProvider(object):
         pass
 
     def supports(self, record):
-        return True
+        return record.name != "" or record._type != "NS"
 
     def __repr__(self):
         return self.__class__.__name__

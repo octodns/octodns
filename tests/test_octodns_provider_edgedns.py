@@ -13,12 +13,13 @@ from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record
-from octodns.provider.fastdns import AkamaiProvider
+from octodns.provider.edgedns import AkamaiProvider
+from octodns.provider.fastdns import AkamaiProvider as LegacyAkamaiProvider
 from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
 
 
-class TestFastdnsProvider(TestCase):
+class TestEdgeDnsProvider(TestCase):
     expected = Zone('unit.tests.', [])
     source = YamlProvider('test', join(dirname(__file__), 'config'))
     source.populate(expected)
@@ -71,14 +72,14 @@ class TestFastdnsProvider(TestCase):
         # No diffs == no changes
         with requests_mock() as mock:
 
-            with open('tests/fixtures/fastdns-records.json') as fh:
+            with open('tests/fixtures/edgedns-records.json') as fh:
                 mock.get(ANY, text=fh.read())
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
             self.assertEquals(16, len(zone.records))
             changes = self.expected.changes(zone, provider)
-            self.assertEquals(1, len(changes))
+            self.assertEquals(0, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])
@@ -95,7 +96,7 @@ class TestFastdnsProvider(TestCase):
         # tests create update delete through previous state config json
         with requests_mock() as mock:
 
-            with open('tests/fixtures/fastdns-records-prev.json') as fh:
+            with open('tests/fixtures/edgedns-records-prev.json') as fh:
                 mock.get(ANY, text=fh.read())
 
             plan = provider.plan(self.expected)
@@ -108,7 +109,7 @@ class TestFastdnsProvider(TestCase):
 
         # Test against a zone that doesn't exist yet
         with requests_mock() as mock:
-            with open('tests/fixtures/fastdns-records-prev-other.json') as fh:
+            with open('tests/fixtures/edgedns-records-prev-other.json') as fh:
                 mock.get(ANY, status_code=404)
 
             plan = provider.plan(self.expected)
@@ -121,7 +122,7 @@ class TestFastdnsProvider(TestCase):
 
         # Test against a zone that doesn't exist yet, but gid not provided
         with requests_mock() as mock:
-            with open('tests/fixtures/fastdns-records-prev-other.json') as fh:
+            with open('tests/fixtures/edgedns-records-prev-other.json') as fh:
                 mock.get(ANY, status_code=404)
             provider = AkamaiProvider("test", "s", "akam.com", "atok", "ctok",
                                       "cid")
@@ -149,3 +150,9 @@ class TestFastdnsProvider(TestCase):
             except NameError as e:
                 expected = "contractId not specified to create zone"
                 self.assertEquals(text_type(e), expected)
+
+
+class TestDeprecatedAkamaiProvider(TestCase):
+
+    def test_equivilent(self):
+        self.assertEquals(LegacyAkamaiProvider, AkamaiProvider)

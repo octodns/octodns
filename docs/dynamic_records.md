@@ -103,13 +103,14 @@ test:
 | host | FQDN for host header and SNI | - |
 | path | path to check | _dns |
 | port | port to check | 443 |
-| protocol | HTTP/HTTPS | HTTPS |
+| protocol | HTTP/HTTPS/TCP | HTTPS |
 
 #### Route53 Healtch Check Options
 
 | Key  | Description | Default |
 |--|--|--|
 | measure_latency | Show latency in AWS console | true |
+| request_interval | Healthcheck interval [10\|30] seconds | 10 |
 
 ```yaml
 
@@ -123,4 +124,5 @@ test:
     route53:
       healthcheck:
         measure_latency: false
+        request_interval: 30
 ```

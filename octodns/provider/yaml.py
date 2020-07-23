@@ -28,7 +28,83 @@ class YamlProvider(BaseProvider):
         default_ttl: 3600
         # Whether or not to enforce sorting order on the yaml config
         # (optional, default True)
-        enforce_order: True
+        enforce_order: true
+        # Needed if you want to write root NS records to the yaml config
+        # when yaml is used as a target.
+        # (optional, default False)
+        manage_root_ns: true
+        # Whether duplicate records should replace rather than error
+        # (optiona, default False)
+        populate_should_replace: false
+
+    Overriding values can be accomplished using multiple yaml providers in the
+    `sources` list where subsequent providers have `populate_should_replace`
+    set to `true`. An example use of this would be a zone that you want to push
+    to external DNS providers and internally, but you want to modify some of
+    the records in the internal version.
+
+    config/octodns.com.yaml
+    ---
+    other:
+      type: A
+      values:
+        - 192.30.252.115
+        - 192.30.252.116
+    www:
+      type: A
+      values:
+        - 192.30.252.113
+        - 192.30.252.114
+
+
+    internal/octodns.com.yaml
+    ---
+    'www':
+      type: A
+      values:
+        - 10.0.0.12
+        - 10.0.0.13
+
+    external.yaml
+    ---
+    providers:
+      config:
+        class: octodns.provider.yaml.YamlProvider
+        directory: ./config
+
+    zones:
+
+      octodns.com.:
+        sources:
+          - config
+        targets:
+          - route53
+
+    internal.yaml
+    ---
+    providers:
+      config:
+        class: octodns.provider.yaml.YamlProvider
+        directory: ./config
+
+      internal:
+        class: octodns.provider.yaml.YamlProvider
+        directory: ./internal
+        populate_should_replace: true
+
+    zones:
+
+      octodns.com.:
+        sources:
+          - config
+          - internal
+        targets:
+          - pdns
+
+    You can then sync our records eternally with `--config-file=external.yaml`
+    and internally (with the custom overrides) with
+    `--config-file=internal.yaml`
+
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
@@ -37,17 +113,18 @@ class YamlProvider(BaseProvider):
                     'PTR', 'SSHFP', 'SPF', 'SRV', 'TXT'))
 
     def __init__(self, id, directory, default_ttl=3600, enforce_order=True,
-                 *args, **kwargs):
+                 populate_should_replace=False, *args, **kwargs):
         self.log = logging.getLogger('{}[{}]'.format(
             self.__class__.__name__, id))
         self.log.debug('__init__: id=%s, directory=%s, default_ttl=%d, '
-                       'enforce_order=%d', id, directory, default_ttl,
-                       enforce_order)
+                       'enforce_order=%d, populate_should_replace=%d',
+                       id, directory, default_ttl, enforce_order,
+                       populate_should_replace)
         super(YamlProvider, self).__init__(id, *args, **kwargs)
         self.directory = directory
         self.default_ttl = default_ttl
         self.enforce_order = enforce_order
-        self.manage_root_ns = True
+        self.populate_should_replace = populate_should_replace
 
     def _populate_from_file(self, filename, zone, lenient):
         with open(filename, 'r') as fh:
@@ -61,9 +138,10 @@ class YamlProvider(BaseProvider):
                             d['ttl'] = self.default_ttl
                         record = Record.new(zone, name, d, source=self,
                                             lenient=lenient)
-                        zone.add_record(record, lenient=lenient)
-            self.log.debug(
-                '_populate_from_file: successfully loaded "%s"', filename)
+                        zone.add_record(record, lenient=lenient,
+                                        replace=self.populate_should_replace)
+            self.log.debug('_populate_from_file: successfully loaded "%s"',
+                           filename)
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,

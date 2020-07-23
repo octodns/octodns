@@ -14,12 +14,10 @@ from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record
-from octodns.provider.constellix import ConstellixClientNotFound, \
+from octodns.provider.constellix import \
     ConstellixProvider
 from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
-
-import json
 
 
 class TestConstellixProvider(TestCase):
@@ -102,7 +100,7 @@ class TestConstellixProvider(TestCase):
         with requests_mock() as mock:
             base = 'https://api.dns.constellix.com/v1/domains'
             with open('tests/fixtures/constellix-domains.json') as fh:
-                mock.get('{}{}'.format(base, '/'), text=fh.read())
+                mock.get('{}{}'.format(base, ''), text=fh.read())
             with open('tests/fixtures/constellix-records.json') as fh:
                 mock.get('{}{}'.format(base, '/123123/records'),
                          text=fh.read())
@@ -111,7 +109,7 @@ class TestConstellixProvider(TestCase):
                 provider.populate(zone)
                 self.assertEquals(15, len(zone.records))
                 changes = self.expected.changes(zone, provider)
-                self.assertEquals(1, len(changes))
+                self.assertEquals(0, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])
@@ -128,15 +126,15 @@ class TestConstellixProvider(TestCase):
         resp.json = Mock()
         provider._client._request = Mock(return_value=resp)
 
-        with open('tests/fixtures/constellix-domains.json') as fh:
-            domains = json.load(fh)
-
         # non-existent domain, create everything
         resp.json.side_effect = [
-            ConstellixClientNotFound,  # no zone in populate
-            ConstellixClientNotFound,  # no domain during apply
-            domains
+            [],  # no domains returned during populate
+            [{
+                'id': 123123,
+                'name': 'unit.tests'
+            }],  # domain created in apply
         ]
+
         plan = provider.plan(self.expected)
 
         # No root NS, no ignored, no excluded, no unsupported
@@ -145,10 +143,10 @@ class TestConstellixProvider(TestCase):
         self.assertEquals(n, provider.apply(plan))
 
         provider._client._request.assert_has_calls([
-            # created the domain
-            call('POST', '/', data={'names': ['unit.tests']}),
             # get all domains to build the cache
-            call('GET', '/'),
+            call('GET', ''),
+            # created the domain
+            call('POST', '/', data={'names': ['unit.tests']})
         ])
         # These two checks are broken up so that ordering doesn't break things.
         # Python3 doesn't make the calls in a consistent order so different
@@ -171,7 +169,7 @@ class TestConstellixProvider(TestCase):
             }),
         ])
 
-        self.assertEquals(20, provider._client._request.call_count)
+        self.assertEquals(18, provider._client._request.call_count)
 
         provider._client._request.reset_mock()
 

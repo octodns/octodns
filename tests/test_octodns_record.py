@@ -886,6 +886,40 @@ class TestRecord(TestCase):
         self.assertEquals('HTTPS', new.healthcheck_protocol)
         self.assertEquals(443, new.healthcheck_port)
 
+    def test_healthcheck_tcp(self):
+        new = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                    'path': '/ignored',
+                    'host': 'completely.ignored',
+                    'protocol': 'TCP',
+                    'port': 8080,
+                }
+            }
+        })
+        self.assertIsNone(new.healthcheck_path)
+        self.assertIsNone(new.healthcheck_host)
+        self.assertEquals('TCP', new.healthcheck_protocol)
+        self.assertEquals(8080, new.healthcheck_port)
+
+        new = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                    'protocol': 'TCP',
+                }
+            }
+        })
+        self.assertIsNone(new.healthcheck_path)
+        self.assertIsNone(new.healthcheck_host)
+        self.assertEquals('TCP', new.healthcheck_protocol)
+        self.assertEquals(443, new.healthcheck_port)
+
     def test_inored(self):
         new = Record.new(self.zone, 'txt', {
             'ttl': 44,
@@ -2121,6 +2155,18 @@ class TestRecordValidation(TestCase):
             }
         })
 
+        # permit wildcard entries
+        Record.new(self.zone, '*._tcp', {
+            'type': 'SRV',
+            'ttl': 600,
+            'value': {
+                'priority': 1,
+                'weight': 2,
+                'port': 3,
+                'target': 'food.bar.baz.'
+            }
+        })
+
         # invalid name
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'neup', {
@@ -2133,7 +2179,8 @@ class TestRecordValidation(TestCase):
                     'target': 'foo.bar.baz.'
                 }
             })
-        self.assertEquals(['invalid name'], ctx.exception.reasons)
+        self.assertEquals(['invalid name for SRV record'],
+                          ctx.exception.reasons)
 
         # missing priority
         with self.assertRaises(ValidationError) as ctx:
@@ -3075,7 +3122,7 @@ class TestDynamicRecords(TestCase):
             'invalid IPv4 address "blip"',
         ], ctx.exception.reasons)
 
-        # missing rules
+        # missing rules, and unused pools
         a_data = {
             'dynamic': {
                 'pools': {
@@ -3102,7 +3149,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['missing rules'], ctx.exception.reasons)
+        self.assertEquals([
+            'missing rules',
+            'unused pools: "one", "two"',
+        ], ctx.exception.reasons)
 
         # empty rules
         a_data = {
@@ -3132,7 +3182,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['missing rules'], ctx.exception.reasons)
+        self.assertEquals([
+            'missing rules',
+            'unused pools: "one", "two"',
+        ], ctx.exception.reasons)
 
         # rules not a list/tuple
         a_data = {
@@ -3162,7 +3215,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['rules must be a list'], ctx.exception.reasons)
+        self.assertEquals([
+            'rules must be a list',
+            'unused pools: "one", "two"',
+        ], ctx.exception.reasons)
 
         # rule without pool
         a_data = {
@@ -3196,7 +3252,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['rule 1 missing pool'], ctx.exception.reasons)
+        self.assertEquals([
+            'rule 1 missing pool',
+            'unused pools: "two"',
+        ], ctx.exception.reasons)
 
         # rule with non-string pools
         a_data = {
@@ -3231,8 +3290,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['rule 1 invalid pool "[]"'],
-                          ctx.exception.reasons)
+        self.assertEquals([
+            'rule 1 invalid pool "[]"',
+            'unused pools: "two"',
+        ], ctx.exception.reasons)
 
         # rule references non-existent pool
         a_data = {
@@ -3267,8 +3328,10 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(["rule 1 undefined pool \"non-existent\""],
-                          ctx.exception.reasons)
+        self.assertEquals([
+            "rule 1 undefined pool \"non-existent\"",
+            'unused pools: "two"',
+        ], ctx.exception.reasons)
 
         # rule with invalid geos
         a_data = {
@@ -3376,6 +3439,83 @@ class TestDynamicRecords(TestCase):
             Record.new(self.zone, 'bad', a_data)
         self.assertEquals(['rule 2 duplicate default'],
                           ctx.exception.reasons)
+
+        # repeated pool in rules
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': ['EU'],
+                    'pool': 'two',
+                }, {
+                    'geos': ['AF'],
+                    'pool': 'one',
+                }, {
+                    'geos': ['OC'],
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['rule 3 invalid, target pool "one" reused'],
+                          ctx.exception.reasons)
+
+        # Repeated pool is OK if later one is a default
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }]
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '4.4.4.4',
+                        }, {
+                            'value': '5.5.5.5',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': ['EU-GB'],
+                    'pool': 'one',
+                }, {
+                    'geos': ['EU'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        # This should be valid, no exception
+        Record.new(self.zone, 'bad', a_data)
 
     def test_dynamic_lenient(self):
         # Missing pools

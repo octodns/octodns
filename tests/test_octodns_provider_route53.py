@@ -12,9 +12,9 @@ from unittest import TestCase
 from mock import patch
 
 from octodns.record import Create, Delete, Record, Update
-from octodns.provider.route53 import Route53Provider, _Route53GeoDefault, \
-    _Route53DynamicValue, _Route53GeoRecord, _Route53Record, _mod_keyer, \
-    _octal_replace
+from octodns.provider.route53 import Route53Provider, _Route53DynamicValue, \
+    _Route53GeoDefault, _Route53GeoRecord, Route53ProviderException, \
+    _Route53Record, _mod_keyer, _octal_replace
 from octodns.zone import Zone
 
 from helpers import GeoProvider
@@ -304,6 +304,7 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'Port': 443,
             'MeasureLatency': True,
+            'RequestInterval': 10,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -317,6 +318,7 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'Port': 443,
             'MeasureLatency': True,
+            'RequestInterval': 10,
         },
         'HealthCheckVersion': 42,
     }, {
@@ -330,6 +332,7 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'Port': 443,
             'MeasureLatency': True,
+            'RequestInterval': 10,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -343,6 +346,7 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'Port': 443,
             'MeasureLatency': True,
+            'RequestInterval': 10,
         },
         'HealthCheckVersion': 2,
     }, {
@@ -357,12 +361,23 @@ class TestRoute53Provider(TestCase):
             'Type': 'HTTPS',
             'Port': 443,
             'MeasureLatency': True,
+            'RequestInterval': 10,
         },
         'HealthCheckVersion': 2,
     }]
 
     def _get_stubbed_provider(self):
         provider = Route53Provider('test', 'abc', '123')
+
+        # Use the stubber
+        stubber = Stubber(provider._conn)
+        stubber.activate()
+
+        return (provider, stubber)
+
+    def _get_stubbed_delegation_set_provider(self):
+        provider = Route53Provider('test', 'abc', '123',
+                                   delegation_set_id="ABCDEFG123456")
 
         # Use the stubber
         stubber = Stubber(provider._conn)
@@ -577,7 +592,7 @@ class TestRoute53Provider(TestCase):
         provider.populate(got)
         # Make sure we got what we expected
         changes = self.expected.changes(got, GeoProvider())
-        self.assertEquals(1, len(changes))
+        self.assertEquals(0, len(changes))
         stubber.assert_no_pending_responses()
 
         # Populate a zone that doesn't exist
@@ -601,7 +616,14 @@ class TestRoute53Provider(TestCase):
         stubber.add_response('list_hosted_zones', list_hosted_zones_resp,
                              {})
         list_resource_record_sets_resp = {
-            'ResourceRecordSets': [],
+            'ResourceRecordSets': [{
+                'Name': 'unit.tests.',
+                'Type': 'NS',
+                'ResourceRecords': [{
+                    'Value': 'ns1.unit.tests.',
+                }],
+                'TTL': 67,
+            }],
             'IsTruncated': False,
             'MaxItems': '100',
         }
@@ -614,6 +636,19 @@ class TestRoute53Provider(TestCase):
         self.assertTrue(plan.exists)
         for change in plan.changes:
             self.assertIsInstance(change, Create)
+        stubber.assert_no_pending_responses()
+
+        # root NS should be included when manage_root_ns == True
+        provider.manage_root_ns = True
+        plan_with_root_ns = provider.plan(self.expected)
+        self.assertEquals(10, len(plan_with_root_ns.changes))
+        self.assertTrue(plan_with_root_ns.exists)
+        for change in plan_with_root_ns.changes:
+            if change.record._type == 'NS' and change.record.name == '':
+                # Root NS record always exists in Route53, so this is an Update
+                self.assertIsInstance(change, Update)
+            else:
+                self.assertIsInstance(change, Create)
         stubber.assert_no_pending_responses()
 
         stubber.add_response('list_health_checks',
@@ -913,6 +948,92 @@ class TestRoute53Provider(TestCase):
         self.assertEquals(9, provider.apply(plan))
         stubber.assert_no_pending_responses()
 
+    def test_sync_create_with_delegation_set(self):
+        provider, stubber = self._get_stubbed_delegation_set_provider()
+
+        got = Zone('unit.tests.', [])
+
+        list_hosted_zones_resp = {
+            'HostedZones': [],
+            'Marker': 'm',
+            'IsTruncated': False,
+            'MaxItems': '100',
+        }
+        stubber.add_response('list_hosted_zones', list_hosted_zones_resp,
+                             {})
+
+        plan = provider.plan(self.expected)
+        self.assertEquals(9, len(plan.changes))
+        self.assertFalse(plan.exists)
+        for change in plan.changes:
+            self.assertIsInstance(change, Create)
+        stubber.assert_no_pending_responses()
+
+        create_hosted_zone_resp = {
+            'HostedZone': {
+                'Name': 'unit.tests.',
+                'Id': 'z42',
+                'CallerReference': 'abc',
+            },
+            'ChangeInfo': {
+                'Id': 'a12',
+                'Status': 'PENDING',
+                'SubmittedAt': '2017-01-29T01:02:03Z',
+                'Comment': 'hrm',
+            },
+            'DelegationSet': {
+                'Id': 'b23',
+                'CallerReference': 'blip',
+                'NameServers': [
+                    'n12.unit.tests.',
+                ],
+            },
+            'Location': 'us-east-1',
+        }
+        stubber.add_response('create_hosted_zone',
+                             create_hosted_zone_resp, {
+                                 'Name': got.name,
+                                 'CallerReference': ANY,
+                                 'DelegationSetId': 'ABCDEFG123456'
+                             })
+
+        list_resource_record_sets_resp = {
+            'ResourceRecordSets': [{
+                'Name': 'a.unit.tests.',
+                'Type': 'A',
+                'GeoLocation': {
+                    'ContinentCode': 'NA',
+                },
+                'ResourceRecords': [{
+                    'Value': '2.2.3.4',
+                }],
+                'TTL': 61,
+            }],
+            'IsTruncated': False,
+            'MaxItems': '100',
+        }
+        stubber.add_response('list_resource_record_sets',
+                             list_resource_record_sets_resp,
+                             {'HostedZoneId': 'z42'})
+
+        stubber.add_response('list_health_checks',
+                             {
+                                 'HealthChecks': self.health_checks,
+                                 'IsTruncated': False,
+                                 'MaxItems': '100',
+                                 'Marker': '',
+                             })
+
+        stubber.add_response('change_resource_record_sets',
+                             {'ChangeInfo': {
+                                 'Id': 'id',
+                                 'Status': 'PENDING',
+                                 'SubmittedAt': '2017-01-29T01:02:03Z',
+                             }}, {'HostedZoneId': 'z42', 'ChangeBatch': ANY})
+
+        self.assertEquals(9, provider.apply(plan))
+        stubber.assert_no_pending_responses()
+
     def test_health_checks_pagination(self):
         provider, stubber = self._get_stubbed_provider()
 
@@ -927,6 +1048,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -940,6 +1062,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }]
@@ -963,6 +1086,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }]
@@ -1012,6 +1136,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -1025,6 +1150,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }]
@@ -1117,9 +1243,38 @@ class TestRoute53Provider(TestCase):
         self.assertEquals('42', id)
         stubber.assert_no_pending_responses()
 
-    def test_health_check_measure_latency(self):
+        # TCP health check
+
+        health_check_config = {
+            'EnableSNI': False,
+            'FailureThreshold': 6,
+            'MeasureLatency': True,
+            'Port': 8080,
+            'RequestInterval': 10,
+            'Type': 'TCP'
+        }
+        stubber.add_response('create_health_check', {
+            'HealthCheck': {
+                'Id': '42',
+                'CallerReference': self.caller_ref,
+                'HealthCheckConfig': health_check_config,
+                'HealthCheckVersion': 1,
+            },
+            'Location': 'http://url',
+        }, {
+            'CallerReference': ANY,
+            'HealthCheckConfig': health_check_config,
+        })
+        stubber.add_response('change_tags_for_resource', {})
+
+        record._octodns['healthcheck']['protocol'] = 'TCP'
+        id = provider.get_health_check_id(record, 'target-1.unit.tests.', True)
+        self.assertEquals('42', id)
+        stubber.assert_no_pending_responses()
+
+    def test_health_check_provider_options(self):
         provider, stubber = self._get_stubbed_provider()
-        record_true = Record.new(self.expected, 'a', {
+        record = Record.new(self.expected, 'a', {
             'ttl': 61,
             'type': 'A',
             'value': '1.2.3.4',
@@ -1128,23 +1283,28 @@ class TestRoute53Provider(TestCase):
                 },
                 'route53': {
                     'healthcheck': {
-                        'measure_latency': True
+                        'measure_latency': True,
+                        'request_interval': 10,
                     }
                 }
             }
         })
-        measure_latency = provider._healthcheck_measure_latency(record_true)
-        self.assertTrue(measure_latency)
+        latency = provider._healthcheck_measure_latency(record)
+        interval = provider._healthcheck_request_interval(record)
+        self.assertTrue(latency)
+        self.assertEquals(10, interval)
 
         record_default = Record.new(self.expected, 'a', {
             'ttl': 61,
             'type': 'A',
             'value': '1.2.3.4',
         })
-        measure_latency = provider._healthcheck_measure_latency(record_default)
-        self.assertTrue(measure_latency)
+        latency = provider._healthcheck_measure_latency(record_default)
+        interval = provider._healthcheck_request_interval(record_default)
+        self.assertTrue(latency)
+        self.assertEquals(10, interval)
 
-        record_false = Record.new(self.expected, 'a', {
+        record = Record.new(self.expected, 'a', {
             'ttl': 61,
             'type': 'A',
             'value': '1.2.3.4',
@@ -1153,15 +1313,35 @@ class TestRoute53Provider(TestCase):
                 },
                 'route53': {
                     'healthcheck': {
-                        'measure_latency': False
+                        'measure_latency': False,
+                        'request_interval': 30,
                     }
                 }
             }
         })
-        measure_latency = provider._healthcheck_measure_latency(record_false)
-        self.assertFalse(measure_latency)
+        latency = provider._healthcheck_measure_latency(record)
+        interval = provider._healthcheck_request_interval(record)
+        self.assertFalse(latency)
+        self.assertEquals(30, interval)
 
-    def test_create_health_checks_measure_latency(self):
+        record_invalid = Record.new(self.expected, 'a', {
+            'ttl': 61,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                },
+                'route53': {
+                    'healthcheck': {
+                        'request_interval': 20,
+                    }
+                }
+            }
+        })
+        with self.assertRaises(Route53ProviderException):
+            interval = provider._healthcheck_request_interval(record_invalid)
+
+    def test_create_health_checks_provider_options(self):
         provider, stubber = self._get_stubbed_provider()
 
         health_check_config = {
@@ -1171,7 +1351,7 @@ class TestRoute53Provider(TestCase):
             'IPAddress': '1.2.3.4',
             'MeasureLatency': False,
             'Port': 443,
-            'RequestInterval': 10,
+            'RequestInterval': 30,
             'ResourcePath': '/_dns',
             'Type': 'HTTPS'
         }
@@ -1210,7 +1390,8 @@ class TestRoute53Provider(TestCase):
                 },
                 'route53': {
                     'healthcheck': {
-                        'measure_latency': False
+                        'measure_latency': False,
+                        'request_interval': 30
                     }
                 }
             }
@@ -1219,7 +1400,9 @@ class TestRoute53Provider(TestCase):
         value = record.geo['AF'].values[0]
         id = provider.get_health_check_id(record, value, True)
         ml = provider.health_checks[id]['HealthCheckConfig']['MeasureLatency']
-        self.assertEqual(False, ml)
+        ri = provider.health_checks[id]['HealthCheckConfig']['RequestInterval']
+        self.assertFalse(ml)
+        self.assertEquals(30, ri)
 
     def test_health_check_gc(self):
         provider, stubber = self._get_stubbed_provider()
@@ -1311,6 +1494,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -1324,6 +1508,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }, {
@@ -1337,6 +1522,7 @@ class TestRoute53Provider(TestCase):
                 'Type': 'HTTPS',
                 'Port': 443,
                 'MeasureLatency': True,
+                'RequestInterval': 10,
             },
             'HealthCheckVersion': 2,
         }]
@@ -1514,6 +1700,7 @@ class TestRoute53Provider(TestCase):
                     'Type': 'HTTPS',
                     'Port': 443,
                     'MeasureLatency': True,
+                    'RequestInterval': 10,
                 },
                 'HealthCheckVersion': 2,
             }],
@@ -1617,7 +1804,8 @@ class TestRoute53Provider(TestCase):
                     'ResourcePath': '/_dns',
                     'Type': 'HTTPS',
                     'Port': 443,
-                    'MeasureLatency': True
+                    'MeasureLatency': True,
+                    'RequestInterval': 10,
                 },
                 'HealthCheckVersion': 2,
             }],
@@ -1765,7 +1953,8 @@ class TestRoute53Provider(TestCase):
                     'ResourcePath': '/_dns',
                     'Type': 'HTTPS',
                     'Port': 443,
-                    'MeasureLatency': True
+                    'MeasureLatency': True,
+                    'RequestInterval': 10,
                 },
                 'HealthCheckVersion': 2,
             }],
@@ -1930,8 +2119,10 @@ class TestRoute53Provider(TestCase):
         provider = Route53Provider('test', 'abc', '123',
                                    client_max_attempts=42)
         # NOTE: this will break if boto ever changes the impl details...
-        self.assertEquals(42, provider._conn._client_config
-                          .retries['max_attempts'])
+        self.assertEquals({
+            'mode': 'legacy',
+            'total_max_attempts': 43,
+        }, provider._conn._client_config.retries)
 
     def test_data_for_dynamic(self):
         provider = Route53Provider('test', 'abc', '123')

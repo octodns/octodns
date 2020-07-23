@@ -137,7 +137,7 @@ class Record(EqualityTupleMixin):
             reasons.append('missing ttl')
         try:
             if data['octodns']['healthcheck']['protocol'] \
-               not in ('HTTP', 'HTTPS'):
+               not in ('HTTP', 'HTTPS', 'TCP'):
                 reasons.append('invalid healthcheck protocol')
         except KeyError:
             pass
@@ -181,15 +181,21 @@ class Record(EqualityTupleMixin):
 
     @property
     def healthcheck_host(self):
+        healthcheck = self._octodns.get('healthcheck', {})
+        if healthcheck.get('protocol', None) == 'TCP':
+            return None
         try:
-            return self._octodns['healthcheck']['host']
+            return healthcheck['host']
         except KeyError:
             return self.fqdn[:-1]
 
     @property
     def healthcheck_path(self):
+        healthcheck = self._octodns.get('healthcheck', {})
+        if healthcheck.get('protocol', None) == 'TCP':
+            return None
         try:
-            return self._octodns['healthcheck']['path']
+            return healthcheck['path']
         except KeyError:
             return '/_dns'
 
@@ -507,6 +513,8 @@ class _DynamicMixin(object):
         except KeyError:
             pools = {}
 
+        pools_exist = set()
+        pools_seen = set()
         if not isinstance(pools, dict):
             reasons.append('pools must be a dict')
         elif not pools:
@@ -521,6 +529,8 @@ class _DynamicMixin(object):
                 except KeyError:
                     reasons.append('pool "{}" is missing values'.format(_id))
                     continue
+
+                pools_exist.add(_id)
 
                 for i, value in enumerate(values):
                     value_num = i + 1
@@ -578,7 +588,6 @@ class _DynamicMixin(object):
             seen_default = False
 
             # TODO: don't allow 'default' as a pool name, reserved
-            # TODO: warn or error on unused pools?
             for i, rule in enumerate(rules):
                 rule_num = i + 1
                 try:
@@ -587,17 +596,25 @@ class _DynamicMixin(object):
                     reasons.append('rule {} missing pool'.format(rule_num))
                     continue
 
-                if not isinstance(pool, string_types):
-                    reasons.append('rule {} invalid pool "{}"'
-                                   .format(rule_num, pool))
-                elif pool not in pools:
-                    reasons.append('rule {} undefined pool "{}"'
-                                   .format(rule_num, pool))
-
                 try:
                     geos = rule['geos']
                 except KeyError:
                     geos = []
+
+                if not isinstance(pool, string_types):
+                    reasons.append('rule {} invalid pool "{}"'
+                                   .format(rule_num, pool))
+                else:
+                    if pool not in pools:
+                        reasons.append('rule {} undefined pool "{}"'
+                                       .format(rule_num, pool))
+                        pools_seen.add(pool)
+                    elif pool in pools_seen and geos:
+                        reasons.append('rule {} invalid, target pool "{}" '
+                                       'reused'.format(rule_num, pool))
+                    pools_seen.add(pool)
+
+                if not geos:
                     if seen_default:
                         reasons.append('rule {} duplicate default'
                                        .format(rule_num))
@@ -610,6 +627,11 @@ class _DynamicMixin(object):
                     for geo in geos:
                         reasons.extend(GeoCodes.validate(geo, 'rule {} '
                                                          .format(rule_num)))
+
+        unused = pools_exist - pools_seen
+        if unused:
+            unused = '", "'.join(sorted(unused))
+            reasons.append('unused pools: "{}"'.format(unused))
 
         return reasons
 
@@ -1187,13 +1209,13 @@ class SrvValue(EqualityTupleMixin):
 class SrvRecord(_ValuesMixin, Record):
     _type = 'SRV'
     _value_type = SrvValue
-    _name_re = re.compile(r'^_[^\.]+\.[^\.]+')
+    _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
 
     @classmethod
     def validate(cls, name, fqdn, data):
         reasons = []
         if not cls._name_re.match(name):
-            reasons.append('invalid name')
+            reasons.append('invalid name for SRV record')
         reasons.extend(super(SrvRecord, cls).validate(name, fqdn, data))
         return reasons
 

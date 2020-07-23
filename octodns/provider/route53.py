@@ -512,6 +512,10 @@ class _Route53GeoRecord(_Route53Record):
                                                           self.values)
 
 
+class Route53ProviderException(Exception):
+    pass
+
+
 def _mod_keyer(mod):
     rrset = mod['ResourceRecordSet']
 
@@ -602,7 +606,7 @@ class Route53Provider(BaseProvider):
         session_token:
         # Needed if you want to manage your root NS records with octodns
         # When you enable this you MUST specify a root NS.
-        manage_root_ns:
+        manage_root_ns: true
 
     Alternatively, you may leave out access_key_id, secret_access_key
     and session_token.
@@ -622,8 +626,9 @@ class Route53Provider(BaseProvider):
 
     def __init__(self, id, access_key_id=None, secret_access_key=None,
                  max_changes=1000, client_max_attempts=None,
-                 session_token=None, manage_root_ns=False, *args, **kwargs):
+                 session_token=None, delegation_set_id=None, *args, **kwargs):
         self.max_changes = max_changes
+        self.delegation_set_id = delegation_set_id
         _msg = 'access_key_id={}, secret_access_key=***, ' \
                'session_token=***'.format(access_key_id)
         use_fallback_auth = access_key_id is None and \
@@ -632,9 +637,7 @@ class Route53Provider(BaseProvider):
             _msg = 'auth=fallback'
         self.log = logging.getLogger('Route53Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, %s', id, _msg)
-        super(Route53Provider, self).__init__(id,
-                                              manage_root_ns=manage_root_ns,
-                                              *args, **kwargs)
+        super(Route53Provider, self).__init__(id, *args, **kwargs)
 
         config = None
         if client_max_attempts is not None:
@@ -680,10 +683,16 @@ class Route53Provider(BaseProvider):
             return id
         if create:
             ref = uuid4().hex
+            del_set = self.delegation_set_id
             self.log.debug('_get_zone_id:   no matching zone, creating, '
                            'ref=%s', ref)
-            resp = self._conn.create_hosted_zone(Name=name,
-                                                 CallerReference=ref)
+            if del_set:
+                resp = self._conn.create_hosted_zone(Name=name,
+                                                     CallerReference=ref,
+                                                     DelegationSetId=del_set)
+            else:
+                resp = self._conn.create_hosted_zone(Name=name,
+                                                     CallerReference=ref)
             self.r53_zones[name] = id = resp['HostedZone']['Id']
             return id
         return None
@@ -1030,8 +1039,20 @@ class Route53Provider(BaseProvider):
             .get('healthcheck', {}) \
             .get('measure_latency', True)
 
+    def _healthcheck_request_interval(self, record):
+        interval = record._octodns.get('route53', {}) \
+            .get('healthcheck', {}) \
+            .get('request_interval', 10)
+        if (interval in [10, 30]):
+            return interval
+        else:
+            raise Route53ProviderException(
+                'route53.healthcheck.request_interval '
+                'parameter must be either 10 or 30.')
+
     def _health_check_equivalent(self, host, path, protocol, port,
-                                 measure_latency, health_check, value=None):
+                                 measure_latency, request_interval,
+                                 health_check, value=None):
         config = health_check['HealthCheckConfig']
 
         # So interestingly Route53 normalizes IPAddress which will cause us to
@@ -1045,10 +1066,14 @@ class Route53Provider(BaseProvider):
             # No value so give this a None to match value's
             config_ip_address = None
 
-        return host == config['FullyQualifiedDomainName'] and \
-            path == config['ResourcePath'] and protocol == config['Type'] \
-            and port == config['Port'] and \
+        fully_qualified_domain_name = config.get('FullyQualifiedDomainName',
+                                                 None)
+        resource_path = config.get('ResourcePath', None)
+        return host == fully_qualified_domain_name and \
+            path == resource_path and protocol == config['Type'] and \
+            port == config['Port'] and \
             measure_latency == config['MeasureLatency'] and \
+            request_interval == config['RequestInterval'] and \
             value == config_ip_address
 
     def get_health_check_id(self, record, value, create):
@@ -1073,6 +1098,7 @@ class Route53Provider(BaseProvider):
         healthcheck_protocol = record.healthcheck_protocol
         healthcheck_port = record.healthcheck_port
         healthcheck_latency = self._healthcheck_measure_latency(record)
+        healthcheck_interval = self._healthcheck_request_interval(record)
 
         # we're looking for a healthcheck with the current version & our record
         # type, we'll ignore anything else
@@ -1087,6 +1113,7 @@ class Route53Provider(BaseProvider):
                                              healthcheck_protocol,
                                              healthcheck_port,
                                              healthcheck_latency,
+                                             healthcheck_interval,
                                              health_check,
                                              value=value):
                 # this is the health check we're looking for
@@ -1102,13 +1129,14 @@ class Route53Provider(BaseProvider):
         config = {
             'EnableSNI': healthcheck_protocol == 'HTTPS',
             'FailureThreshold': 6,
-            'FullyQualifiedDomainName': healthcheck_host,
             'MeasureLatency': healthcheck_latency,
             'Port': healthcheck_port,
-            'RequestInterval': 10,
-            'ResourcePath': healthcheck_path,
+            'RequestInterval': healthcheck_interval,
             'Type': healthcheck_protocol,
         }
+        if healthcheck_protocol != 'TCP':
+            config['FullyQualifiedDomainName'] = healthcheck_host
+            config['ResourcePath'] = healthcheck_path
         if value:
             config['IPAddress'] = value
 
@@ -1138,9 +1166,10 @@ class Route53Provider(BaseProvider):
         self._health_checks[id] = health_check
         self.log.info('get_health_check_id: created id=%s, host=%s, '
                       'path=%s, protocol=%s, port=%d, measure_latency=%r, '
-                      'value=%s', id, healthcheck_host, healthcheck_path,
+                      'request_interval=%d, value=%s',
+                      id, healthcheck_host, healthcheck_path,
                       healthcheck_protocol, healthcheck_port,
-                      healthcheck_latency, value)
+                      healthcheck_latency, healthcheck_interval, value)
         return id
 
     def _gc_health_checks(self, record, new):
@@ -1233,6 +1262,7 @@ class Route53Provider(BaseProvider):
         healthcheck_protocol = record.healthcheck_protocol
         healthcheck_port = record.healthcheck_port
         healthcheck_latency = self._healthcheck_measure_latency(record)
+        healthcheck_interval = self._healthcheck_request_interval(record)
 
         try:
             health_check_id = rrset['HealthCheckId']
@@ -1244,6 +1274,7 @@ class Route53Provider(BaseProvider):
                                                  healthcheck_protocol,
                                                  healthcheck_port,
                                                  healthcheck_latency,
+                                                 healthcheck_interval,
                                                  health_check):
                     # it has the right health check
                     return False
@@ -1355,11 +1386,6 @@ class Route53Provider(BaseProvider):
             mod_type = getattr(self, '_mod_{}'.format(c.__class__.__name__))
             mods = mod_type(c, zone_id, existing_rrsets)
 
-            # Rewrite NS Record to UPSERT because it always exists.
-            if mods[0]['Action'] == "CREATE" and \
-               mods[0]['ResourceRecordSet']['Type'] == "NS":
-                mods[0]['Action'] = "UPSERT"
-
             # Order our mods to make sure targets exist before alises point to
             # them and we CRUD in the desired order
             mods.sort(key=_mod_keyer)
@@ -1399,6 +1425,8 @@ class Route53Provider(BaseProvider):
         self._really_apply(batch, zone_id)
 
     def _really_apply(self, batch, zone_id):
+        # Ensure this batch is ordered (deletes before creates etc.)
+        batch.sort(key=_mod_keyer)
         uuid = uuid4().hex
         batch = {
             'Comment': 'Change: {}'.format(uuid),

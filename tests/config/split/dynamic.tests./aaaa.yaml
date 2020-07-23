@@ -29,7 +29,7 @@ aaaa:
     rules:
     - geos:
       - EU-GB
-      pool: iad
+      pool: lax
     - geos:
       - EU
       pool: ams

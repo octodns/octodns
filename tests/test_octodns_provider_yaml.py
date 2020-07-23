@@ -56,7 +56,14 @@ class TestYamlProvider(TestCase):
             dynamic_yaml_file = join(directory, 'dynamic.tests.yaml')
             target = YamlProvider('test', directory)
 
-            # We add everything
+            # We add everything except the root NS record
+            plan = target.plan(zone)
+            self.assertEquals(15, len([c for c in plan.changes
+                                       if isinstance(c, Create)]))
+            self.assertFalse(isfile(yaml_file))
+
+            # We should see the root NS record if we enable manage_root_ns
+            target.manage_root_ns = True
             plan = target.plan(zone)
             self.assertEquals(16, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
@@ -98,7 +105,10 @@ class TestYamlProvider(TestCase):
                 self.assertTrue('values' in roots[0])  # A
                 self.assertTrue('geo' in roots[0])  # geo made the trip
                 self.assertTrue('value' in roots[1])   # CAA
-                self.assertTrue('values' in roots[2])  # SSHFP
+                self.assertEqual('NS', roots[2]['type'])  # NS
+                self.assertTrue('values' in roots[2])  # NS
+                self.assertEqual('SSHFP', roots[3]['type'])  # SSHFP
+                self.assertTrue('values' in roots[3])  # SSHFP
 
                 # these are stored as plural 'values'
                 self.assertTrue('values' in data.pop('_srv._tcp'))
@@ -251,12 +261,12 @@ class TestSplitYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(16, len([c for c in plan.changes
+            self.assertEquals(15, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
             self.assertFalse(isdir(zone_dir))
 
             # Now actually do it
-            self.assertEquals(16, target.apply(plan))
+            self.assertEquals(15, target.apply(plan))
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
@@ -279,7 +289,7 @@ class TestSplitYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(16, len([c for c in plan.changes
+            self.assertEquals(15, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
 
             yaml_file = join(zone_dir, '$unit.tests.yaml')
@@ -370,3 +380,36 @@ class TestSplitYamlProvider(TestCase):
             source.populate(zone)
         self.assertEquals('Record www.sub.unit.tests. is under a managed '
                           'subzone', text_type(ctx.exception))
+
+
+class TestOverridingYamlProvider(TestCase):
+
+    def test_provider(self):
+        config = join(dirname(__file__), 'config')
+        override_config = join(dirname(__file__), 'config', 'override')
+        base = YamlProvider('base', config, populate_should_replace=False)
+        override = YamlProvider('test', override_config,
+                                populate_should_replace=True)
+
+        zone = Zone('dynamic.tests.', [])
+
+        # Load the base, should see the 5 records
+        base.populate(zone)
+        got = {r.name: r for r in zone.records}
+        self.assertEquals(5, len(got))
+        # We get the "dynamic" A from the bae config
+        self.assertTrue('dynamic' in got['a'].data)
+        # No added
+        self.assertFalse('added' in got)
+
+        # Load the overrides, should replace one and add 1
+        override.populate(zone)
+        got = {r.name: r for r in zone.records}
+        self.assertEquals(6, len(got))
+        # 'a' was replaced with a generic record
+        self.assertEquals({
+            'ttl': 3600,
+            'values': ['4.4.4.4', '5.5.5.5']
+        }, got['a'].data)
+        # And we have the new one
+        self.assertTrue('added' in got)
