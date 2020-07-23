@@ -41,8 +41,8 @@ class OvhProvider(BaseProvider):
 
     # This variable is also used in populate method to filter which OVH record
     # types are supported by octodns
-    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'DKIM', 'MX', 'NAPTR', 'NS', 'PTR',
-                    'SPF', 'SRV', 'SSHFP', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'DKIM', 'MX', 'NAPTR', 'NS',
+                    'PTR', 'SPF', 'SRV', 'SSHFP', 'TXT'))
 
     def __init__(self, id, endpoint, application_key, application_secret,
                  consumer_key, *args, **kwargs):
@@ -138,6 +138,22 @@ class OvhProvider(BaseProvider):
             'ttl': record['ttl'],
             'type': _type,
             'value': record['target']
+        }
+
+    @staticmethod
+    def _data_for_CAA(_type, records):
+        values = []
+        for record in records:
+            flags, tag, value = record['target'].split(' ', 2)
+            values.append({
+                'flags': flags,
+                'tag': tag,
+                'value': value[1:-1]
+            })
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values
         }
 
     @staticmethod
@@ -244,6 +260,17 @@ class OvhProvider(BaseProvider):
             'ttl': record.ttl,
             'fieldType': record._type
         }
+
+    @staticmethod
+    def _params_for_CAA(record):
+        for value in record.values:
+            yield {
+                'target': '{} {} "{}"'.format(value.flags, value.tag,
+                                              value.value),
+                'subDomain': record.name,
+                'ttl': record.ttl,
+                'fieldType': record._type
+            }
 
     @staticmethod
     def _params_for_MX(record):

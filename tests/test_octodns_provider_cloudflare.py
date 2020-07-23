@@ -14,7 +14,8 @@ from unittest import TestCase
 
 from octodns.record import Record, Update
 from octodns.provider.base import Plan
-from octodns.provider.cloudflare import CloudflareProvider
+from octodns.provider.cloudflare import CloudflareProvider, \
+    CloudflareRateLimitError
 from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
 
@@ -52,7 +53,7 @@ class TestCloudflareProvider(TestCase):
     empty = {'result': [], 'result_info': {'count': 0, 'per_page': 0}}
 
     def test_populate(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'email', 'token', retry_period=0)
 
         # Bad requests
         with requests_mock() as mock:
@@ -103,6 +104,36 @@ class TestCloudflareProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals(502, ctx.exception.response.status_code)
 
+        # Rate Limit error
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=429,
+                     text='{"success":false,"errors":[{"code":10100,'
+                     '"message":"More than 1200 requests per 300 seconds '
+                     'reached. Please wait and consider throttling your '
+                     'request speed"}],"messages":[],"result":null}')
+
+            with self.assertRaises(Exception) as ctx:
+                zone = Zone('unit.tests.', [])
+                provider.populate(zone)
+
+            self.assertEquals('CloudflareRateLimitError',
+                              type(ctx.exception).__name__)
+            self.assertEquals('More than 1200 requests per 300 seconds '
+                              'reached. Please wait and consider throttling '
+                              'your request speed', text_type(ctx.exception))
+
+        # Rate Limit error, unknown resp
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=429, text='{}')
+
+            with self.assertRaises(Exception) as ctx:
+                zone = Zone('unit.tests.', [])
+                provider.populate(zone)
+
+            self.assertEquals('CloudflareRateLimitError',
+                              type(ctx.exception).__name__)
+            self.assertEquals('Cloudflare error', text_type(ctx.exception))
+
         # Non-existent zone doesn't populate anything
         with requests_mock() as mock:
             mock.get(ANY, status_code=200, json=self.empty)
@@ -149,7 +180,7 @@ class TestCloudflareProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(12, len(zone.records))
+            self.assertEquals(13, len(zone.records))
 
             changes = self.expected.changes(zone, provider)
 
@@ -158,10 +189,10 @@ class TestCloudflareProvider(TestCase):
         # re-populating the same zone/records comes out of cache, no calls
         again = Zone('unit.tests.', [])
         provider.populate(again)
-        self.assertEquals(12, len(again.records))
+        self.assertEquals(13, len(again.records))
 
     def test_apply(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'email', 'token', retry_period=0)
 
         provider._request = Mock()
 
@@ -172,12 +203,12 @@ class TestCloudflareProvider(TestCase):
                     'id': 42,
                 }
             },  # zone create
-        ] + [None] * 20  # individual record creates
+        ] + [None] * 22  # individual record creates
 
         # non-existent zone, create everything
         plan = provider.plan(self.expected)
-        self.assertEquals(12, len(plan.changes))
-        self.assertEquals(12, provider.apply(plan))
+        self.assertEquals(13, len(plan.changes))
+        self.assertEquals(13, provider.apply(plan))
         self.assertFalse(plan.exists)
 
         provider._request.assert_has_calls([
@@ -203,7 +234,7 @@ class TestCloudflareProvider(TestCase):
             }),
         ], True)
         # expected number of total calls
-        self.assertEquals(22, provider._request.call_count)
+        self.assertEquals(23, provider._request.call_count)
 
         provider._request.reset_mock()
 
@@ -280,7 +311,11 @@ class TestCloudflareProvider(TestCase):
 
         # we don't care about the POST/create return values
         provider._request.return_value = {}
-        provider._request.side_effect = None
+
+        # Test out the create rate-limit handling, then 9 successes
+        provider._request.side_effect = [
+            CloudflareRateLimitError('{}'),
+        ] + ([None] * 3)
 
         wanted = Zone('unit.tests.', [])
         wanted.add_record(Record.new(wanted, 'nc', {
@@ -316,7 +351,7 @@ class TestCloudflareProvider(TestCase):
         ])
 
     def test_update_add_swap(self):
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'email', 'token', retry_period=0)
 
         provider.zone_records = Mock(return_value=[
             {
@@ -357,6 +392,7 @@ class TestCloudflareProvider(TestCase):
 
         provider._request = Mock()
         provider._request.side_effect = [
+            CloudflareRateLimitError('{}'),
             self.empty,  # no zones
             {
                 'result': {
@@ -390,7 +426,7 @@ class TestCloudflareProvider(TestCase):
         # get the list of zones, create a zone, add some records, update
         # something, and delete something
         provider._request.assert_has_calls([
-            call('GET', '/zones', params={'page': 1}),
+            call('GET', '/zones', params={'page': 1, 'per_page': 50}),
             call('POST', '/zones', data={
                 'jump_start': False,
                 'name': 'unit.tests'
@@ -423,7 +459,7 @@ class TestCloudflareProvider(TestCase):
     def test_update_delete(self):
         # We need another run so that we can delete, we can't both add and
         # delete in one go b/c of swaps
-        provider = CloudflareProvider('test', 'email', 'token')
+        provider = CloudflareProvider('test', 'email', 'token', retry_period=0)
 
         provider.zone_records = Mock(return_value=[
             {
@@ -464,6 +500,7 @@ class TestCloudflareProvider(TestCase):
 
         provider._request = Mock()
         provider._request.side_effect = [
+            CloudflareRateLimitError('{}'),
             self.empty,  # no zones
             {
                 'result': {
@@ -494,7 +531,7 @@ class TestCloudflareProvider(TestCase):
 
         # Get zones, create zone, create a record, delete a record
         provider._request.assert_has_calls([
-            call('GET', '/zones', params={'page': 1}),
+            call('GET', '/zones', params={'page': 1, 'per_page': 50}),
             call('POST', '/zones', data={
                 'jump_start': False,
                 'name': 'unit.tests'
@@ -509,6 +546,25 @@ class TestCloudflareProvider(TestCase):
             call('DELETE', '/zones/42/dns_records/'
                  'fc12ab34cd5611334422ab3322997653')
         ])
+
+    def test_ptr(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+
+        zone = Zone('unit.tests.', [])
+        # PTR record
+        ptr_record = Record.new(zone, 'ptr', {
+            'ttl': 300,
+            'type': 'PTR',
+            'value': 'foo.bar.com.'
+        })
+
+        ptr_record_contents = provider._gen_data(ptr_record)
+        self.assertEquals({
+            'name': 'ptr.unit.tests',
+            'ttl': 300,
+            'type': 'PTR',
+            'content': 'foo.bar.com.'
+        }, list(ptr_record_contents)[0])
 
     def test_srv(self):
         provider = CloudflareProvider('test', 'email', 'token')
@@ -1212,3 +1268,78 @@ class TestCloudflareProvider(TestCase):
         self.assertFalse(
             extra_changes[0].new._octodns['cloudflare']['proxied']
         )
+
+    def test_emailless_auth(self):
+        provider = CloudflareProvider('test', token='token 123',
+                                      email='email 234')
+        headers = provider._sess.headers
+        self.assertEquals('email 234', headers['X-Auth-Email'])
+        self.assertEquals('token 123', headers['X-Auth-Key'])
+
+        provider = CloudflareProvider('test', token='token 123')
+        headers = provider._sess.headers
+        self.assertEquals('Bearer token 123', headers['Authorization'])
+
+    def test_retry_behavior(self):
+        provider = CloudflareProvider('test', token='token 123',
+                                      email='email 234', retry_period=0)
+        result = {
+            "success": True,
+            "errors": [],
+            "messages": [],
+            "result": [],
+            "result_info": {
+                "count": 1,
+                "per_page": 50
+            }
+        }
+        zone = Zone('unit.tests.', [])
+        provider._request = Mock()
+
+        # No retry required, just calls and is returned
+        provider._zones = None
+        provider._request.reset_mock()
+        provider._request.side_effect = [result]
+        self.assertEquals([], provider.zone_records(zone))
+        provider._request.assert_has_calls([call('GET', '/zones',
+                                           params={'page': 1,
+                                                   'per_page': 50})])
+
+        # One retry required
+        provider._zones = None
+        provider._request.reset_mock()
+        provider._request.side_effect = [
+            CloudflareRateLimitError('{}'),
+            result
+        ]
+        self.assertEquals([], provider.zone_records(zone))
+        provider._request.assert_has_calls([call('GET', '/zones',
+                                           params={'page': 1,
+                                                   'per_page': 50})])
+
+        # Two retries required
+        provider._zones = None
+        provider._request.reset_mock()
+        provider._request.side_effect = [
+            CloudflareRateLimitError('{}'),
+            CloudflareRateLimitError('{}'),
+            result
+        ]
+        self.assertEquals([], provider.zone_records(zone))
+        provider._request.assert_has_calls([call('GET', '/zones',
+                                           params={'page': 1,
+                                                   'per_page': 50})])
+
+        # # Exhaust our retries
+        provider._zones = None
+        provider._request.reset_mock()
+        provider._request.side_effect = [
+            CloudflareRateLimitError({"errors": [{"message": "first"}]}),
+            CloudflareRateLimitError({"errors": [{"message": "boo"}]}),
+            CloudflareRateLimitError({"errors": [{"message": "boo"}]}),
+            CloudflareRateLimitError({"errors": [{"message": "boo"}]}),
+            CloudflareRateLimitError({"errors": [{"message": "last"}]}),
+        ]
+        with self.assertRaises(CloudflareRateLimitError) as ctx:
+            provider.zone_records(zone)
+            self.assertEquals('last', text_type(ctx.exception))

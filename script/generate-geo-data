@@ -8,8 +8,8 @@ from pycountry_convert import country_alpha2_to_continent_code
 
 subs = defaultdict(dict)
 for subdivision in subdivisions:
-    # Route53 only supports US states, Dyn supports US states and CA provinces, but for now we'll just do US
-    if subdivision.country_code not in ('US'):
+    # Route53 only supports US states, Dyn (and others) support US states and CA provinces
+    if subdivision.country_code not in ('US', 'CA'):
         continue
     subs[subdivision.country_code][subdivision.code[3:]] = {
         'name': subdivision.name
@@ -24,7 +24,7 @@ continent_backups = {
     'PN': 'OC',
     'SX': 'NA',
     'TF': 'AN',
-    'TL': 'ID',
+    'TL': 'AS',
     'UM': 'OC',
     'VA': 'EU',
 }

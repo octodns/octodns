@@ -1,10 +1,20 @@
-## v0.9.10 - ????-??-?? - ???
+## v0.9.11 - 2020-??-?? - ???????????????
+
+* Added support for TCP health checking to dynamic records
+
+## v0.9.10 - 2020-04-20 - Dynamic NS1 and lots of misc
 
 * Added support for dynamic records to Ns1Provider, updated client and rate
   limiting implementation
 * Moved CI to use GitHub Actions
 * Set up dependabot to automatically PR requirements updates
-* Pass at bumping all of the requirements
+* Pass at bumping all of the requirements and Dependabot them going forward
+* Enhanced `dynamic` pool validation rules
+* Delegation set support for Route53 and fix for CNAME/A ordering issues
+* DNSimple sandbox support
+* OVHProvider support for CAA
+* Akamai rename FastDNS to EdgeDNS
+* Transip bumped to 2.1.2 which should get away from its SOAP api which is EOLd
 
 ## v0.9.9 - 2019-11-04 - Python 3.7 Support
 
