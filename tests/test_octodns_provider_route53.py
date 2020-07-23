@@ -601,7 +601,14 @@ class TestRoute53Provider(TestCase):
         stubber.add_response('list_hosted_zones', list_hosted_zones_resp,
                              {})
         list_resource_record_sets_resp = {
-            'ResourceRecordSets': [],
+            'ResourceRecordSets': [{
+                'Name': 'unit.tests.',
+                'Type': 'NS',
+                'ResourceRecords': [{
+                    'Value': 'ns1.unit.tests.',
+                }],
+                'TTL': 67,
+            }],
             'IsTruncated': False,
             'MaxItems': '100',
         }
@@ -614,6 +621,19 @@ class TestRoute53Provider(TestCase):
         self.assertTrue(plan.exists)
         for change in plan.changes:
             self.assertIsInstance(change, Create)
+        stubber.assert_no_pending_responses()
+
+        # root NS should be included when manage_root_ns == True
+        provider.manage_root_ns = True
+        plan_with_root_ns = provider.plan(self.expected)
+        self.assertEquals(10, len(plan_with_root_ns.changes))
+        self.assertTrue(plan_with_root_ns.exists)
+        for change in plan_with_root_ns.changes:
+            if change.record._type == 'NS' and change.record.name == '':
+                # Root NS record always exists in Route53, so this is an Update
+                self.assertIsInstance(change, Update)
+            else:
+                self.assertIsInstance(change, Create)
         stubber.assert_no_pending_responses()
 
         stubber.add_response('list_health_checks',

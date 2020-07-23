@@ -313,6 +313,12 @@ class TestNs1Provider(TestCase):
         self.assertEquals(expected_n, len(plan.changes))
         self.assertTrue(plan.exists)
 
+        # root NS should be included when manage_root_ns == True
+        provider.manage_root_ns = True
+        plan_with_root_ns = provider.plan(desired)
+        self.assertEquals(len(self.expected), len(plan_with_root_ns.changes))
+        self.assertTrue(plan_with_root_ns.exists)
+
         # Fails, general error
         zone_retrieve_mock.reset_mock()
         zone_create_mock.reset_mock()
