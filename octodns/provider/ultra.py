@@ -71,6 +71,7 @@ class UltraProvider(BaseProvider):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
+    SUPPORTS_ROOT_NS = False
     TIMEOUT = 5
 
     def _request(self, method, path, params=None,
