@@ -56,14 +56,21 @@ class TestYamlProvider(TestCase):
             dynamic_yaml_file = join(directory, 'dynamic.tests.yaml')
             target = YamlProvider('test', directory)
 
-            # We add everything
+            # We add everything except the root NS record
             plan = target.plan(zone)
             self.assertEquals(15, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
             self.assertFalse(isfile(yaml_file))
 
+            # We should see the root NS record if we enable manage_root_ns
+            target.manage_root_ns = True
+            plan = target.plan(zone)
+            self.assertEquals(16, len([c for c in plan.changes
+                                       if isinstance(c, Create)]))
+            self.assertFalse(isfile(yaml_file))
+
             # Now actually do it
-            self.assertEquals(15, target.apply(plan))
+            self.assertEquals(16, target.apply(plan))
             self.assertTrue(isfile(yaml_file))
 
             # Dynamic plan
@@ -87,7 +94,7 @@ class TestYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(15, len([c for c in plan.changes
+            self.assertEquals(16, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
 
             with open(yaml_file) as fh:
@@ -98,7 +105,10 @@ class TestYamlProvider(TestCase):
                 self.assertTrue('values' in roots[0])  # A
                 self.assertTrue('geo' in roots[0])  # geo made the trip
                 self.assertTrue('value' in roots[1])   # CAA
-                self.assertTrue('values' in roots[2])  # SSHFP
+                self.assertEqual('NS', roots[2]['type'])  # NS
+                self.assertTrue('values' in roots[2])  # NS
+                self.assertEqual('SSHFP', roots[3]['type'])  # SSHFP
+                self.assertTrue('values' in roots[3])  # SSHFP
 
                 # these are stored as plural 'values'
                 self.assertTrue('values' in data.pop('_srv._tcp'))
