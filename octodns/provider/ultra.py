@@ -52,6 +52,9 @@ class UltraProvider(BaseProvider):
         username: user
         # Ultra password (required)
         password: pass
+        # Needed if you want to manage your root NS records with octodns
+        # When you enable this you MUST specify a root NS.
+        manage_root_ns: true
     '''
 
     RECORDS_TO_TYPE = {
@@ -71,7 +74,7 @@ class UltraProvider(BaseProvider):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS_ROOT_NS = False
+    SUPPORTS_ROOT_NS = True
     TIMEOUT = 5
 
     def _request(self, method, path, params=None,
