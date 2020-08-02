@@ -121,6 +121,20 @@ class Manager(object):
                 raise ManagerException('Incorrect provider config for {}'
                                        .format(provider_name))
 
+        for zone_name, zone_config in self.config['zones'].copy().items():
+            if 'aliases' in zone_config:
+                for alias in zone_config['aliases']:
+                    if alias in self.config['zones']:
+                        self.log.exception('Invalid zone alias')
+                        raise ManagerException('Invalid zone alias {}: '
+                                               'this zone already exists'
+                                               .format(alias))
+
+                    self.config['zones'][alias] = zone_config
+                    self.config['zones'][alias]['template_zone'] = zone_name
+
+                del self.config['zones'][zone_name]['aliases']
+
         zone_tree = {}
         # sort by reversed strings so that parent zones always come first
         for name in sorted(self.config['zones'].keys(), key=lambda s: s[::-1]):
@@ -222,12 +236,14 @@ class Manager(object):
         self.log.debug('configured_sub_zones: subs=%s', sub_zone_names)
         return set(sub_zone_names)
 
-    def _populate_and_plan(self, zone_name, sources, targets, lenient=False):
+    def _populate_and_plan(self, zone_name, template_zone, sources, targets,
+                           lenient=False):
 
-        self.log.debug('sync:   populating, zone=%s, lenient=%s',
-                       zone_name, lenient)
+        self.log.debug('sync:   populating, zone=%s, template=%s, lenient=%s',
+                       zone_name, template_zone, lenient)
         zone = Zone(zone_name,
-                    sub_zones=self.configured_sub_zones(zone_name))
+                    sub_zones=self.configured_sub_zones(zone_name),
+                    template_zone=template_zone)
         for source in sources:
             try:
                 source.populate(zone, lenient=lenient)
@@ -269,6 +285,7 @@ class Manager(object):
         for zone_name, config in zones:
             self.log.info('sync:   zone=%s', zone_name)
             lenient = config.get('lenient', False)
+            template_zone = config.get('template_zone', zone_name)
             try:
                 sources = config['sources']
             except KeyError:
@@ -318,8 +335,9 @@ class Manager(object):
                                        .format(zone_name, target))
 
             futures.append(self._executor.submit(self._populate_and_plan,
-                                                 zone_name, sources,
-                                                 targets, lenient=lenient))
+                                                 zone_name, template_zone,
+                                                 sources, targets,
+                                                 lenient=lenient))
 
         # Wait on all results and unpack/flatten them in to a list of target &
         # plan pairs.
@@ -413,7 +431,9 @@ class Manager(object):
 
     def validate_configs(self):
         for zone_name, config in self.config['zones'].items():
-            zone = Zone(zone_name, self.configured_sub_zones(zone_name))
+            template_zone = config.get('template_zone', zone_name)
+            zone = Zone(zone_name, self.configured_sub_zones(zone_name),
+                        template_zone)
 
             try:
                 sources = config['sources']

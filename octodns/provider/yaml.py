@@ -139,8 +139,8 @@ class YamlProvider(BaseProvider):
                            filename)
 
     def populate(self, zone, target=False, lenient=False):
-        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
-                       target, lenient)
+        self.log.debug('populate: name=%s, template=%s, target=%s, lenient=%s',
+                       zone.name, zone.template_zone, target, lenient)
 
         if target:
             # When acting as a target we ignore any existing records so that we
@@ -148,7 +148,9 @@ class YamlProvider(BaseProvider):
             return False
 
         before = len(zone.records)
-        filename = join(self.directory, '{}yaml'.format(zone.name))
+        filename = join(self.directory, '{}yaml'.format(zone.template_zone
+                                                        if zone.template_zone
+                                                        else zone.name))
         self._populate_from_file(filename, zone, lenient)
 
         self.log.info('populate:   found %s records, exists=False',
@@ -243,11 +245,12 @@ class SplitYamlProvider(YamlProvider):
         super(SplitYamlProvider, self).__init__(id, directory, *args, **kwargs)
 
     def _zone_directory(self, zone):
-        return join(self.directory, zone.name)
+        return join(self.directory, zone.template_zone if zone.template_zone
+                    else zone.name)
 
     def populate(self, zone, target=False, lenient=False):
-        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
-                       target, lenient)
+        self.log.debug('populate: name=%s, template=%s, target=%s, lenient=%s',
+                       zone.name, zone.template_zone, target, lenient)
 
         if target:
             # When acting as a target we ignore any existing records so that we

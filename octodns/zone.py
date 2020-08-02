@@ -35,13 +35,14 @@ def _is_eligible(record):
 class Zone(object):
     log = getLogger('Zone')
 
-    def __init__(self, name, sub_zones):
+    def __init__(self, name, sub_zones, template_zone=None):
         if not name[-1] == '.':
             raise Exception('Invalid zone name {}, missing ending dot'
                             .format(name))
         # Force everything to lowercase just to be safe
         self.name = text_type(name).lower() if name else name
         self.sub_zones = sub_zones
+        self.template_zone = template_zone
         # We're grouping by node, it allows us to efficiently search for
         # duplicates and detect when CNAMEs co-exist with other records
         self._records = defaultdict(set)

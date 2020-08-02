@@ -290,7 +290,8 @@ class TestManager(TestCase):
                     pass
 
             # This should be ok, we'll fall back to not passing it
-            manager._populate_and_plan('unit.tests.', [NoLenient()], [])
+            manager._populate_and_plan('unit.tests.', 'unit.tests.',
+                                       [NoLenient()], [])
 
             class NoZone(SimpleProvider):
 
@@ -299,7 +300,16 @@ class TestManager(TestCase):
 
             # This will blow up, we don't fallback for source
             with self.assertRaises(TypeError):
-                manager._populate_and_plan('unit.tests.', [NoZone()], [])
+                manager._populate_and_plan('unit.tests.', 'unit.tests.',
+                                           [NoZone()], [])
+
+    def test_zone_aliases(self):
+        Manager(get_config_filename('simple-aliases.yaml')).validate_configs()
+
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('bad-zone-aliases.yaml')) \
+                .validate_configs()
+        self.assertTrue('Invalid zone alias' in text_type(ctx.exception))
 
 
 class TestMainThreadExecutor(TestCase):
