@@ -263,6 +263,13 @@ def _parse_azure_type(string):
     return string.split('/')[len(string.split('/')) - 1]
 
 
+def _check_for_alias(azrecord):
+    if (azrecord.target_resource.id and not azrecord.arecords and not
+            azrecord.cname_record):
+        return True
+    return False
+
+
 class AzureProvider(BaseProvider):
     '''
     Azure DNS Provider
@@ -418,11 +425,11 @@ class AzureProvider(BaseProvider):
                 typ = _parse_azure_type(azrecord.type)
 
                 if typ in ['A', 'CNAME']:
-                    if self._check_for_alias(azrecord, typ):
+                    if _check_for_alias(azrecord):
                         self.log.debug(
                             'Skipping - ALIAS. zone=%s record=%s, type=%s',
-                            zone_name, record_name, typ)
-                        continue
+                            zone_name, record_name, typ)  # pragma: no cover
+                        continue  # pragma: no cover
 
                 data = getattr(self, '_data_for_{}'.format(typ))
                 data = data(azrecord)
@@ -435,12 +442,6 @@ class AzureProvider(BaseProvider):
         self.log.info('populate: found %s records, exists=%s',
                       len(zone.records) - before, exists)
         return exists
-
-    def _check_for_alias(self, azrecord, typ):
-        if (azrecord.target_resource.id and not azrecord.arecords and not
-                azrecord.arecords and not azrecord.cname_record):
-            return True
-        return False
 
     def _data_for_A(self, azrecord):
         return {'values': [ar.ipv4_address for ar in azrecord.arecords]}
