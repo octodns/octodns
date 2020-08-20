@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from six import text_type
 
+from ..record import Update, Create
 from ..source.base import BaseSource
 from ..zone import Zone
 from .plan import Plan
@@ -45,6 +46,20 @@ class BaseProvider(BaseSource):
         base NS records.
         '''
         return []
+
+    def _force_root_ns_update(self, changes):
+        '''
+        Changes any 'Create' changetype for a root NS record to an 'Update'
+        changetype. Used on new zone creation when a provider is managing
+        root NS records. Providers will auto-create a root NS record,
+        so our desired NS record must be applied as an Update instead of a
+        Create.
+        '''
+        for change in changes:
+            if change.record.name == "" and change.record._type == "NS" and \
+                    isinstance(change, Create):
+                change.__class__ = Update
+                return
 
     def plan(self, desired):
         self.log.info('plan: desired=%s', desired.name)
@@ -94,6 +109,8 @@ class BaseProvider(BaseSource):
             return 0
 
         self.log.info('apply: making changes')
+        if not plan.exists:
+            self._force_root_ns_update(plan.changes)
         self._apply(plan)
         return len(plan.changes)
 
