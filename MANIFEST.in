@@ -1,7 +1,11 @@
 include README.md
 include CONTRIBUTING.md
 include LICENSE
-include docs/*
-include octodns/*
+include requirements.txt
+include requirements-dev.txt
+recursive-include docs *.png *.md
 include script/*
-include tests/*
+recursive-include tests *.py
+recursive-include tests *.json *.txt *.yaml
+recursive-include tests/zones *.
+recursive-include tests/zones/tinydns *.*
