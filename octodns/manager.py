@@ -255,8 +255,8 @@ class Manager(object):
 
         return plans
 
-    def sync(self, eligible_zones=[], eligible_targets=[], dry_run=True,
-             force=False):
+    def sync(self, eligible_zones=[], eligible_sources=[], eligible_targets=[],
+             dry_run=True, force=False):
         self.log.info('sync: eligible_zones=%s, eligible_targets=%s, '
                       'dry_run=%s, force=%s', eligible_zones, eligible_targets,
                       dry_run, force)
@@ -280,6 +280,12 @@ class Manager(object):
             except KeyError:
                 raise ManagerException('Zone {} is missing targets'
                                        .format(zone_name))
+
+            if (eligible_sources and not
+                    [s for s in sources if s in eligible_sources]):
+                self.log.info('sync:   no eligible sources, skipping')
+                continue
+
             if eligible_targets:
                 targets = [t for t in targets if t in eligible_targets]
 
