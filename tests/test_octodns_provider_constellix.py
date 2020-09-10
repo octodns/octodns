@@ -144,15 +144,15 @@ class TestConstellixProvider(TestCase):
 
         provider._client._request.assert_has_calls([
             # get all domains to build the cache
-            call('GET', ''),
+            call('GET', '/domains'),
             # created the domain
-            call('POST', '/', data={'names': ['unit.tests']})
+            call('POST', '/domains', data={'names': ['unit.tests']})
         ])
         # These two checks are broken up so that ordering doesn't break things.
         # Python3 doesn't make the calls in a consistent order so different
         # things follow the GET / on different runs
         provider._client._request.assert_has_calls([
-            call('POST', '/123123/records/SRV', data={
+            call('POST', '/domains/123123/records/SRV', data={
                 'roundRobin': [{
                     'priority': 10,
                     'weight': 20,
@@ -218,14 +218,14 @@ class TestConstellixProvider(TestCase):
 
         # recreate for update, and deletes for the 2 parts of the other
         provider._client._request.assert_has_calls([
-            call('POST', '/123123/records/A', data={
+            call('POST', '/domains/123123/records/A', data={
                 'roundRobin': [{
                     'value': '3.2.3.4'
                 }],
                 'name': 'ttl',
                 'ttl': 300
             }),
-            call('DELETE', '/123123/records/A/11189897'),
-            call('DELETE', '/123123/records/A/11189898'),
-            call('DELETE', '/123123/records/ANAME/11189899')
+            call('DELETE', '/domains/123123/records/A/11189897'),
+            call('DELETE', '/domains/123123/records/A/11189898'),
+            call('DELETE', '/domains/123123/records/ANAME/11189899')
         ], any_order=True)

@@ -44,7 +44,7 @@ class ConstellixClientNotFound(ConstellixClientException):
 
 
 class ConstellixClient(object):
-    BASE = 'https://api.dns.constellix.com/v1/domains'
+    BASE = 'https://api.dns.constellix.com/v1'
 
     def __init__(self, api_key, secret_key, ratelimit_delay=0.0):
         self.api_key = api_key
@@ -88,7 +88,7 @@ class ConstellixClient(object):
         if self._domains is None:
             zones = []
 
-            resp = self._request('GET', '').json()
+            resp = self._request('GET', '/domains').json()
             zones += resp
 
             self._domains = {'{}.'.format(z['name']): z['id'] for z in zones}
@@ -103,7 +103,7 @@ class ConstellixClient(object):
         return self._request('GET', path).json()
 
     def domain_create(self, name):
-        resp = self._request('POST', '/', data={'names': [name]})
+        resp = self._request('POST', '/domains', data={'names': [name]})
         # Add newly created zone to domain cache
         self._domains['{}.'.format(name)] = resp.json()[0]['id']
 
@@ -119,7 +119,7 @@ class ConstellixClient(object):
         zone_id = self.domains.get(zone_name, False)
         if not zone_id:
             raise ConstellixClientNotFound()
-        path = '/{}/records'.format(zone_id)
+        path = '/domains/{}/records'.format(zone_id)
 
         resp = self._request('GET', path).json()
         for record in resp:
@@ -151,7 +151,7 @@ class ConstellixClient(object):
             record_type = 'ANAME'
 
         zone_id = self.domains.get(zone_name, False)
-        path = '/{}/records/{}'.format(zone_id, record_type)
+        path = '/domains/{}/records/{}'.format(zone_id, record_type)
 
         self._request('POST', path, data=params)
 
@@ -161,7 +161,8 @@ class ConstellixClient(object):
             record_type = 'ANAME'
 
         zone_id = self.domains.get(zone_name, False)
-        path = '/{}/records/{}/{}'.format(zone_id, record_type, record_id)
+        path = '/domains/{}/records/{}/{}'.format(zone_id, record_type,
+                                                  record_id)
         self._request('DELETE', path)
 
 
