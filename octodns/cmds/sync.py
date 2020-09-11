@@ -32,9 +32,11 @@ def main():
     parser.add_argument('--target', default=[], action='append',
                         help='Limit sync to the specified target(s)')
 
-    parser.add_argument('--save-plan', action='store_true', default=False, help="Save the plan")
+    parser.add_argument('--save-plan', action='store_true', default=False,
+                        help="Save the plan")
 
-    parser.add_argument('--load-plan', action='store_true', default=False, help="Load the saved plan")
+    parser.add_argument('--load-plan', action='store_true', default=False,
+                        help="Load the saved plan")
 
     args = parser.parse_args()
 

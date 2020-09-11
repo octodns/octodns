@@ -260,7 +260,8 @@ class Manager(object):
     def sync(self, eligible_zones=[], eligible_sources=[], eligible_targets=[],
              dry_run=True, force=False, save_plan=False, load_plan=False):
         self.log.info('sync: eligible_zones=%s, eligible_targets=%s, '
-                      'dry_run=%s, force=%s, save_plan=%s, load_plan=%s', eligible_zones, eligible_targets,
+                      'dry_run=%s, force=%s, save_plan=%s, load_plan=%s',
+                      eligible_zones, eligible_targets,
                       dry_run, force, save_plan, load_plan)
 
         zones = self.config['zones'].items()
@@ -281,13 +282,13 @@ class Manager(object):
                     sources = config['sources']
                 except KeyError:
                     raise ManagerException('Zone {} is missing sources'
-                                        .format(zone_name))
+                                           .format(zone_name))
 
                 try:
                     targets = config['targets']
                 except KeyError:
                     raise ManagerException('Zone {} is missing targets'
-                                        .format(zone_name))
+                                           .format(zone_name))
 
                 if (eligible_sources and not
                         [s for s in sources if s in eligible_sources]):
@@ -298,54 +299,56 @@ class Manager(object):
                     targets = [t for t in targets if t in eligible_targets]
 
                 if not targets:
-                    # Don't bother planning (and more importantly populating) zones
-                    # when we don't have any eligible targets, waste of
+                    # Don't bother planning (and more importantly populating)
+                    # zones when we don't have any eligible targets, waste of
                     # time/resources
                     self.log.info('sync:   no eligible targets, skipping')
                     continue
 
-                self.log.info('sync:   sources=%s -> targets=%s', sources, targets)
+                self.log.info('sync:   sources=%s -> targets=%s',
+                              sources, targets)
 
                 try:
-                    # rather than using a list comprehension, we break this loop
-                    # out so that the `except` block below can reference the
-                    # `source`
+                    # rather than using a list comprehension, we break this
+                    # loop out so that the `except` block below can reference
+                    # the `source`
                     collected = []
                     for source in sources:
                         collected.append(self.providers[source])
                     sources = collected
                 except KeyError:
                     raise ManagerException('Zone {}, unknown source: {}'
-                                        .format(zone_name, source))
+                                           .format(zone_name, source))
 
                 try:
                     trgs = []
                     for target in targets:
                         trg = self.providers[target]
                         if not isinstance(trg, BaseProvider):
-                            raise ManagerException('{} - "{}" does not support '
-                                                'targeting'.format(trg, target))
+                            raise ManagerException('{} - "{}" '
+                                                   'does not support '
+                                                   'targeting'.format(trg,
+                                                                      target))
                         trgs.append(trg)
                     targets = trgs
                 except KeyError:
                     raise ManagerException('Zone {}, unknown target: {}'
-                                        .format(zone_name, target))
+                                           .format(zone_name, target))
 
                 futures.append(self._executor.submit(self._populate_and_plan,
-                                                    zone_name, sources,
-                                                    targets, lenient=lenient))
+                                                     zone_name, sources,
+                                                     targets, lenient=lenient))
 
-            # Wait on all results and unpack/flatten them in to a list of target &
-            # plan pairs.
+            # Wait on all results and unpack/flatten them in to a list of
+            # target & plan pairs.
             plans = [p for f in futures for p in f.result()]
 
             # Best effort sort plans children first so that we create/update
-            # children zones before parents which should allow us to more safely
-            # extract things into sub-zones. Combining a child back into a parent
-            # can't really be done all that safely in general so we'll optimize for
-            # this direction.
+            # children zones before parents which should allow us to more
+            # safely extract things into sub-zones. Combining a child back into
+            # a parent can't really be done all that safely in general so we'll
+            # optimize for this direction.
             plans.sort(key=self._plan_keyer, reverse=True)
-
 
         for output in self.plan_outputs.values():
             output.run(plans=plans, log=self.log)
