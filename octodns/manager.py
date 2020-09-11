@@ -10,6 +10,7 @@ from importlib import import_module
 from os import environ
 from six import text_type
 import logging
+import pickle
 
 from .provider.base import BaseProvider
 from .provider.plan import Plan
@@ -83,6 +84,7 @@ class Manager(object):
         return len(plan.changes[0].record.zone.name) if plan.changes else 0
 
     def __init__(self, config_file, max_workers=None, include_meta=False):
+        self.plan_file = "plan.pickle"
         self.log.info('__init__: config_file=%s', config_file)
 
         # Read our config file
@@ -345,6 +347,11 @@ class Manager(object):
             self.log.debug('sync:   checking safety')
             for target, plan in plans:
                 plan.raise_if_unsafe()
+
+        if save_plan:
+            self.log.info("sync: Saving plan to %s", self.plan_file)
+            with open(self.plan_file, 'wb') as f:
+                pickle.dump(plans, f)
 
         if dry_run:
             return 0
