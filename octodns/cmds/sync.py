@@ -32,11 +32,16 @@ def main():
     parser.add_argument('--target', default=[], action='append',
                         help='Limit sync to the specified target(s)')
 
+    parser.add_argument('--save-plan', action='store_true', default=False, help="Save the plan")
+
+    parser.add_argument('--load-plan', action='store_true', default=False, help="Load the saved plan")
+
     args = parser.parse_args()
 
     manager = Manager(args.config_file)
     manager.sync(eligible_zones=args.zone, eligible_sources=args.source,
                  eligible_targets=args.target, dry_run=not args.doit,
+                 save_plan=args.save_plan, load_plan=args.load_plan,
                  force=args.force)
 
 
