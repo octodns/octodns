@@ -595,4 +595,41 @@
 	"roundRobinFailover": [],
 	"pools": [],
 	"poolsDetail": []
+}, {
+	"id": 1808520,
+	"type": "A",
+	"recordType": "a",
+	"name": "www.dynamic",
+	"recordOption": "pools",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 300,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565150090588,
+	"value": [],
+	"roundRobin": [],
+	"geolocation": null,
+	"recordFailover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": []
+	},
+	"failover": {
+		"disabled": false,
+		"failoverType": 1,
+		"failoverTypeStr": "Normal (always lowest level)",
+		"values": []
+	},
+	"roundRobinFailover": [],
+	"pools": [
+		1808521
+	],
+	"poolsDetail": [{
+		"id": 1808521,
+		"name": "unit.tests.:www.dynamic:A:two"
+	}]
 }]
