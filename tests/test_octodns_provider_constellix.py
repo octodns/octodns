@@ -521,3 +521,54 @@ class TestConstellixProvider(TestCase):
 
         self.assertIsNone(provider._client.pool_by_id('A', 1))
         self.assertIsNone(provider._client.pool('A', 'foobar'))
+
+    def test_pools_are_cached_correctly(self):
+        provider = ConstellixProvider('test', 'api', 'secret')
+
+        provider._client.pools = Mock(return_value=[{
+            "id": 1808521,
+            "name": "unit.tests.:www.dynamic:A:two",
+            "type": "A",
+            "values": [
+                {
+                    "value": "1.2.3.4",
+                    "weight": 1
+                }
+            ]
+        }])
+
+        found = provider._client.pool('A', 'unit.tests.:www.dynamic:A:two')
+        self.assertIsNotNone(found)
+
+        not_found = provider._client.pool('AAAA',
+                                          'unit.tests.:www.dynamic:A:two')
+        self.assertIsNone(not_found)
+
+        provider._client.pools = Mock(return_value=[{
+            "id": 42,
+            "name": "unit.tests.:www.dynamic:A:two",
+            "type": "A",
+            "values": [
+                {
+                    "value": "1.2.3.4",
+                    "weight": 1
+                }
+            ]
+        }, {
+            "id": 451,
+            "name": "unit.tests.:www.dynamic:A:two",
+            "type": "AAAA",
+            "values": [
+                {
+                    "value": "1.2.3.4",
+                    "weight": 1
+                }
+            ]
+        }])
+
+        a_pool = provider._client.pool('A', 'unit.tests.:www.dynamic:A:two')
+        self.assertEquals(42, a_pool['id'])
+
+        aaaa_pool = provider._client.pool('AAAA',
+                                          'unit.tests.:www.dynamic:A:two')
+        self.assertEquals(451, aaaa_pool['id'])

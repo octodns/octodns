@@ -178,7 +178,7 @@ class ConstellixClient(object):
     def pool(self, pool_type, pool_name):
         pools = self.pools(pool_type)
         for pool in pools:
-            if pool['name'] == pool_name:
+            if pool['name'] == pool_name and pool['type'] == pool_type:
                 return pool
         return None
 
