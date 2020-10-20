@@ -121,6 +121,23 @@ class Manager(object):
                 raise ManagerException('Incorrect provider config for {}'
                                        .format(provider_name))
 
+        for zone_name, zone_config in self.config['zones'].copy().items():
+            if 'alias' in zone_config:
+                source_zone = zone_config['alias']
+                # Check that the source zone is defined.
+                if source_zone not in self.config['zones']:
+                    self.log.exception('Invalid alias zone')
+                    raise ManagerException('Invalid alias zone {}: '
+                                           'source zone {} does not exist'
+                                           .format(zone_name, source_zone))
+                self.config['zones'][zone_name] = \
+                    self.config['zones'][source_zone]
+                self.config['zones'][zone_name]['is_alias'] = True
+                self.config['zones'][zone_name]['file'] = source_zone
+            else:
+                self.config['zones'][zone_name]['is_alias'] = False
+                self.config['zones'][zone_name]['file'] = zone_name
+
         zone_tree = {}
         # sort by reversed strings so that parent zones always come first
         for name in sorted(self.config['zones'].keys(), key=lambda s: s[::-1]):
@@ -222,12 +239,14 @@ class Manager(object):
         self.log.debug('configured_sub_zones: subs=%s', sub_zone_names)
         return set(sub_zone_names)
 
-    def _populate_and_plan(self, zone_name, sources, targets, lenient=False):
+    def _populate_and_plan(self, zone_name, file, is_alias, sources, targets,
+                           lenient=False):
 
-        self.log.debug('sync:   populating, zone=%s, lenient=%s',
-                       zone_name, lenient)
+        self.log.debug('sync:   populating, zone=%s, file=%s, is_alias=%s, '
+                       'lenient=%s', zone_name, file, is_alias, lenient)
         zone = Zone(zone_name,
-                    sub_zones=self.configured_sub_zones(zone_name))
+                    sub_zones=self.configured_sub_zones(zone_name), file=file,
+                    is_alias=is_alias)
         for source in sources:
             try:
                 source.populate(zone, lenient=lenient)
@@ -268,6 +287,8 @@ class Manager(object):
         futures = []
         for zone_name, config in zones:
             self.log.info('sync:   zone=%s', zone_name)
+            file = config.get('file')
+            is_alias = config.get('is_alias')
             lenient = config.get('lenient', False)
             try:
                 sources = config['sources']
@@ -324,8 +345,9 @@ class Manager(object):
                                        .format(zone_name, target))
 
             futures.append(self._executor.submit(self._populate_and_plan,
-                                                 zone_name, sources,
-                                                 targets, lenient=lenient))
+                                                 zone_name, file, is_alias,
+                                                 sources, targets,
+                                                 lenient=lenient))
 
         # Wait on all results and unpack/flatten them in to a list of target &
         # plan pairs.
@@ -419,7 +441,10 @@ class Manager(object):
 
     def validate_configs(self):
         for zone_name, config in self.config['zones'].items():
-            zone = Zone(zone_name, self.configured_sub_zones(zone_name))
+            file = config.get('file', False)
+            is_alias = config.get('is_alias', False)
+            zone = Zone(zone_name, self.configured_sub_zones(zone_name),
+                        file, is_alias)
 
             try:
                 sources = config['sources']

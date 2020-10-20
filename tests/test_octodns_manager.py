@@ -298,7 +298,8 @@ class TestManager(TestCase):
                     pass
 
             # This should be ok, we'll fall back to not passing it
-            manager._populate_and_plan('unit.tests.', [NoLenient()], [])
+            manager._populate_and_plan('unit.tests.', None, False,
+                                       [NoLenient()], [])
 
             class NoZone(SimpleProvider):
 
@@ -307,7 +308,21 @@ class TestManager(TestCase):
 
             # This will blow up, we don't fallback for source
             with self.assertRaises(TypeError):
-                manager._populate_and_plan('unit.tests.', [NoZone()], [])
+                manager._populate_and_plan('unit.tests.', None, False,
+                                           [NoZone()], [])
+
+    def test_alias_zones(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+
+            Manager(get_config_filename('simple-alias-zone.yaml')) \
+                .validate_configs()
+
+            with self.assertRaises(ManagerException) as ctx:
+                Manager(get_config_filename('unknown-source-zone.yaml')) \
+                    .validate_configs()
+                self.assertTrue('Invalid alias zone' in
+                                text_type(ctx.exception))
 
 
 class TestMainThreadExecutor(TestCase):
