@@ -151,6 +151,14 @@ class TestManager(TestCase):
                 .sync(dry_run=False, force=True)
             self.assertEquals(25, tc)
 
+    def test_eligible_sources(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            # Only allow a target that doesn't exist
+            tc = Manager(get_config_filename('simple.yaml')) \
+                .sync(eligible_sources=['foo'])
+            self.assertEquals(0, tc)
+
     def test_eligible_targets(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
