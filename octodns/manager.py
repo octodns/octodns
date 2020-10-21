@@ -478,6 +478,6 @@ class Manager(object):
                 is_alias = config.get('is_alias', False)
 
                 return Zone(name, self.configured_sub_zones(name),
-                    file, is_alias)
+                            file, is_alias)
 
         raise ManagerException('Unkown zone name {}'.format(zone_name))

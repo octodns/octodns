@@ -17,7 +17,6 @@ from six import text_type
 
 from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
-from octodns.zone import Zone
 
 
 class AsyncResolver(Resolver):
