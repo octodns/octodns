@@ -467,3 +467,18 @@ class Manager(object):
             for source in sources:
                 if isinstance(source, YamlProvider):
                     source.populate(zone)
+
+    def get_zone(self, zone_name):
+        if not zone_name[-1] == '.':
+            raise Exception('Invalid zone name {}, missing ending dot'
+                            .format(zone_name))
+
+        for name, config in self.config['zones'].items():
+            if name == zone_name:
+                file = config.get('file', False)
+                is_alias = config.get('is_alias', False)
+
+                return Zone(name, self.configured_sub_zones(name),
+                    file, is_alias)
+
+        raise ManagerException('Unkown zone name {}'.format(zone_name))
