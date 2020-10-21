@@ -480,4 +480,4 @@ class Manager(object):
                 return Zone(name, self.configured_sub_zones(name),
                             file, is_alias)
 
-        raise ManagerException('Unkown zone name {}'.format(zone_name))
+        raise ManagerException('Unknown zone name {}'.format(zone_name))
