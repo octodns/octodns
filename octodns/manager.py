@@ -469,8 +469,8 @@ class Manager(object):
 
     def get_zone(self, zone_name):
         if not zone_name[-1] == '.':
-            raise Exception('Invalid zone name {}, missing ending dot'
-                            .format(zone_name))
+            raise ManagerException('Invalid zone name {}, missing ending dot'
+                                   .format(zone_name))
 
         for name, config in self.config['zones'].items():
             if name == zone_name:

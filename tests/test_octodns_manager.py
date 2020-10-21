@@ -286,6 +286,18 @@ class TestManager(TestCase):
                 .validate_configs()
         self.assertTrue('unknown source' in text_type(ctx.exception))
 
+    def test_get_zone(self):
+        Manager(get_config_filename('simple.yaml')).get_zone('unit.tests.')
+
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('simple.yaml')).get_zone('unit.tests')
+        self.assertTrue('missing ending dot' in text_type(ctx.exception))
+
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('simple.yaml')) \
+                .get_zone('unknown-zone.tests.')
+        self.assertTrue('Unknown zone name' in text_type(ctx.exception))
+
     def test_populate_lenient_fallback(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
@@ -321,8 +333,8 @@ class TestManager(TestCase):
             with self.assertRaises(ManagerException) as ctx:
                 Manager(get_config_filename('unknown-source-zone.yaml')) \
                     .validate_configs()
-                self.assertTrue('Invalid alias zone' in
-                                text_type(ctx.exception))
+            self.assertTrue('Invalid alias zone' in
+                            text_type(ctx.exception))
 
 
 class TestMainThreadExecutor(TestCase):
