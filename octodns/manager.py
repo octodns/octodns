@@ -399,12 +399,11 @@ class Manager(object):
         except KeyError as e:
             raise ManagerException('Unknown source: {}'.format(e.args[0]))
 
-        sub_zones = self.configured_sub_zones(zone)
-        za = Zone(zone, sub_zones)
+        za = self.get_zone(zone)
         for source in a:
             source.populate(za)
 
-        zb = Zone(zone, sub_zones)
+        zb = self.get_zone(zone)
         for source in b:
             source.populate(zb)
 
