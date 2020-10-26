@@ -89,5 +89,14 @@
     "rrset_values": [
       "0 1 465 mail.gandi.net."
     ]
+  },
+  {
+    "rrset_type": "CDS",
+    "rrset_ttl": 10800,
+    "rrset_name": "sub",
+    "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/sub/CDS",
+    "rrset_values": [
+      "32128 13 1 6823D9BB1B03DF714DD0EB163E20B341C96D18C0"
+    ]
   }
 ]
