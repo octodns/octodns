@@ -2,7 +2,7 @@
   {
     "rrset_type": "A",
     "rrset_ttl": 10800,
-    "rrset_name": "",
+    "rrset_name": "@",
     "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/%40/A",
     "rrset_values": [
       "217.70.184.38"
@@ -11,7 +11,7 @@
   {
     "rrset_type": "MX",
     "rrset_ttl": 10800,
-    "rrset_name": "",
+    "rrset_name": "@",
     "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/%40/MX",
     "rrset_values": [
       "10 spool.mail.gandi.net.",
@@ -21,7 +21,7 @@
   {
     "rrset_type": "TXT",
     "rrset_ttl": 10800,
-    "rrset_name": "",
+    "rrset_name": "@",
     "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/%40/TXT",
     "rrset_values": [
       "\"v=spf1 include:_mailcust.gandi.net ?all\""

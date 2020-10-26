@@ -2,7 +2,7 @@
       {
         "rrset_type": "A",
         "rrset_ttl": 300,
-        "rrset_name": "",
+        "rrset_name": "@",
         "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/%40/A",
         "rrset_values": [
           "1.2.3.4",
@@ -12,7 +12,7 @@
       {
         "rrset_type": "CAA",
         "rrset_ttl": 3600,
-        "rrset_name": "",
+        "rrset_name": "@",
         "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/%40/CAA",
         "rrset_values": [
           "0 issue \"ca.unit.tests\""
@@ -21,7 +21,7 @@
       {
         "rrset_type": "SSHFP",
         "rrset_ttl": 3600,
-        "rrset_name": "",
+        "rrset_name": "@",
         "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/%40/SSHFP",
         "rrset_values": [
           "1 1 7491973e5f8b39d5327cd4e08bc81b05f7710b49",
