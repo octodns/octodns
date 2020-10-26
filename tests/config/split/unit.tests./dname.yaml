@@ -1,0 +1,5 @@
+---
+dname:
+  ttl: 300
+  type: DNAME
+  value: unit.tests.

@@ -56,6 +56,10 @@ cname:
   ttl: 300
   type: CNAME
   value: unit.tests.
+dname:
+  ttl: 300
+  type: DNAME
+  value: unit.tests.
 excluded:
   octodns:
     excluded:

@@ -9,10 +9,10 @@ from six import text_type
 from unittest import TestCase
 
 from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
-    CaaValue, CnameRecord, Create, Delete, GeoValue, MxRecord, MxValue, \
-    NaptrRecord, NaptrValue, NsRecord, PtrRecord, Record, SshfpRecord, \
-    SshfpValue, SpfRecord, SrvRecord, SrvValue, TxtRecord, Update, \
-    ValidationError, _Dynamic, _DynamicPool, _DynamicRule
+    CaaValue, CnameRecord, DnameRecord, Create, Delete, GeoValue, MxRecord, \
+    MxValue, NaptrRecord, NaptrValue, NsRecord, PtrRecord, Record, \
+    SshfpRecord, SshfpValue, SpfRecord, SrvRecord, SrvValue, TxtRecord, \
+    Update, ValidationError, _Dynamic, _DynamicPool, _DynamicRule
 from octodns.zone import Zone
 
 from helpers import DynamicProvider, GeoProvider, SimpleProvider
@@ -51,6 +51,19 @@ class TestRecord(TestCase):
         lower_record = CnameRecord(self.zone, 'CnameLowerValue', {
             'ttl': 30,
             'type': 'CNAME',
+            'value': 'github.com',
+        })
+        self.assertEquals(upper_record.value, lower_record.value)
+
+    def test_dname_lowering_value(self):
+        upper_record = DnameRecord(self.zone, 'DnameUppwerValue', {
+            'ttl': 30,
+            'type': 'DNAME',
+            'value': 'GITHUB.COM',
+        })
+        lower_record = DnameRecord(self.zone, 'DnameLowerValue', {
+            'ttl': 30,
+            'type': 'DNAME',
             'value': 'github.com',
         })
         self.assertEquals(upper_record.value, lower_record.value)
@@ -360,6 +373,10 @@ class TestRecord(TestCase):
 
     def test_cname(self):
         self.assertSingleValue(CnameRecord, 'target.foo.com.',
+                               'other.foo.com.')
+
+    def test_dname(self):
+        self.assertSingleValue(DnameRecord, 'target.foo.com.',
                                'other.foo.com.')
 
     def test_mx(self):
@@ -1825,6 +1842,31 @@ class TestRecordValidation(TestCase):
         self.assertEquals(['CNAME value "foo.bar.com" missing trailing .'],
                           ctx.exception.reasons)
 
+    def test_DNAME(self):
+        # A valid DNAME record.
+        Record.new(self.zone, 'sub', {
+            'type': 'DNAME',
+            'ttl': 600,
+            'value': 'foo.bar.com.',
+        })
+
+        # A DNAME record can be present at the zone APEX.
+        Record.new(self.zone, '', {
+            'type': 'DNAME',
+            'ttl': 600,
+            'value': 'foo.bar.com.',
+        })
+
+        # missing trailing .
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'DNAME',
+                'ttl': 600,
+                'value': 'foo.bar.com',
+            })
+        self.assertEquals(['DNAME value "foo.bar.com" missing trailing .'],
+                          ctx.exception.reasons)
+
     def test_MX(self):
         # doesn't blow up
         Record.new(self.zone, '', {
@@ -2627,6 +2669,73 @@ class TestDynamicRecords(TestCase):
         rules = dynamic.rules
         self.assertTrue(rules)
         self.assertEquals(cname_data['dynamic']['rules'][0], rules[0].data)
+
+    def test_simple_dname_weighted(self):
+        dname_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': 'one.dname.target.',
+                        }],
+                    },
+                    'two': {
+                        'values': [{
+                            'value': 'two.dname.target.',
+                        }],
+                    },
+                    'three': {
+                        'values': [{
+                            'weight': 12,
+                            'value': 'three-1.dname.target.',
+                        }, {
+                            'weight': 32,
+                            'value': 'three-2.dname.target.',
+                        }]
+                    },
+                },
+                'rules': [{
+                    'geos': ['AF', 'EU'],
+                    'pool': 'three',
+                }, {
+                    'geos': ['NA-US-CA'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'value': 'dname.target.',
+        }
+        dname = DnameRecord(self.zone, 'weighted', dname_data)
+        self.assertEquals('DNAME', dname._type)
+        self.assertEquals(dname_data['ttl'], dname.ttl)
+        self.assertEquals(dname_data['value'], dname.value)
+
+        dynamic = dname.dynamic
+        self.assertTrue(dynamic)
+
+        pools = dynamic.pools
+        self.assertTrue(pools)
+        self.assertEquals({
+            'value': 'one.dname.target.',
+            'weight': 1,
+        }, pools['one'].data['values'][0])
+        self.assertEquals({
+            'value': 'two.dname.target.',
+            'weight': 1,
+        }, pools['two'].data['values'][0])
+        self.assertEquals([{
+            'value': 'three-1.dname.target.',
+            'weight': 12,
+        }, {
+            'value': 'three-2.dname.target.',
+            'weight': 32,
+        }], pools['three'].data['values'])
+
+        rules = dynamic.rules
+        self.assertTrue(rules)
+        self.assertEquals(dname_data['dynamic']['rules'][0], rules[0].data)
 
     def test_dynamic_validation(self):
         # Missing pools

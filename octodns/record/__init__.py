@@ -95,6 +95,7 @@ class Record(EqualityTupleMixin):
                 'ALIAS': AliasRecord,
                 'CAA': CaaRecord,
                 'CNAME': CnameRecord,
+                'DNAME': DnameRecord,
                 'MX': MxRecord,
                 'NAPTR': NaptrRecord,
                 'NS': NsRecord,
@@ -759,6 +760,10 @@ class CnameValue(_TargetValue):
     pass
 
 
+class DnameValue(_TargetValue):
+    pass
+
+
 class ARecord(_DynamicMixin, _GeoMixin, Record):
     _type = 'A'
     _value_type = Ipv4List
@@ -840,6 +845,11 @@ class CnameRecord(_DynamicMixin, _ValueMixin, Record):
             reasons.append('root CNAME not allowed')
         reasons.extend(super(CnameRecord, cls).validate(name, fqdn, data))
         return reasons
+
+
+class DnameRecord(_DynamicMixin, _ValueMixin, Record):
+    _type = 'DNAME'
+    _value_type = DnameValue
 
 
 class MxValue(EqualityTupleMixin):
