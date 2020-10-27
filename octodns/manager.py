@@ -10,6 +10,7 @@ from importlib import import_module
 from os import environ
 from six import text_type
 import logging
+import pickle
 
 from .provider.base import BaseProvider
 from .provider.plan import Plan
@@ -83,6 +84,7 @@ class Manager(object):
         return len(plan.changes[0].record.zone.name) if plan.changes else 0
 
     def __init__(self, config_file, max_workers=None, include_meta=False):
+        self.plan_file = "plan.pickle"
         self.log.info('__init__: config_file=%s', config_file)
 
         # Read our config file
@@ -256,87 +258,97 @@ class Manager(object):
         return plans
 
     def sync(self, eligible_zones=[], eligible_sources=[], eligible_targets=[],
-             dry_run=True, force=False):
+             dry_run=True, force=False, save_plan=False, load_plan=False):
         self.log.info('sync: eligible_zones=%s, eligible_targets=%s, '
-                      'dry_run=%s, force=%s', eligible_zones, eligible_targets,
-                      dry_run, force)
+                      'dry_run=%s, force=%s, save_plan=%s, load_plan=%s',
+                      eligible_zones, eligible_targets,
+                      dry_run, force, save_plan, load_plan)
 
         zones = self.config['zones'].items()
         if eligible_zones:
             zones = [z for z in zones if z[0] in eligible_zones]
 
-        futures = []
-        for zone_name, config in zones:
-            self.log.info('sync:   zone=%s', zone_name)
-            lenient = config.get('lenient', False)
-            try:
-                sources = config['sources']
-            except KeyError:
-                raise ManagerException('Zone {} is missing sources'
-                                       .format(zone_name))
+        if load_plan:
+            self.log.info("sync: loading plan from %s", self.plan_file)
+            with open(self.plan_file, 'rb') as f:
+                plans = pickle.load(f)
 
-            try:
-                targets = config['targets']
-            except KeyError:
-                raise ManagerException('Zone {} is missing targets'
-                                       .format(zone_name))
+        if not load_plan:
+            futures = []
+            for zone_name, config in zones:
+                self.log.info('sync:   zone=%s', zone_name)
+                lenient = config.get('lenient', False)
+                try:
+                    sources = config['sources']
+                except KeyError:
+                    raise ManagerException('Zone {} is missing sources'
+                                           .format(zone_name))
 
-            if (eligible_sources and not
-                    [s for s in sources if s in eligible_sources]):
-                self.log.info('sync:   no eligible sources, skipping')
-                continue
+                try:
+                    targets = config['targets']
+                except KeyError:
+                    raise ManagerException('Zone {} is missing targets'
+                                           .format(zone_name))
 
-            if eligible_targets:
-                targets = [t for t in targets if t in eligible_targets]
+                if (eligible_sources and not
+                        [s for s in sources if s in eligible_sources]):
+                    self.log.info('sync:   no eligible sources, skipping')
+                    continue
 
-            if not targets:
-                # Don't bother planning (and more importantly populating) zones
-                # when we don't have any eligible targets, waste of
-                # time/resources
-                self.log.info('sync:   no eligible targets, skipping')
-                continue
+                if eligible_targets:
+                    targets = [t for t in targets if t in eligible_targets]
 
-            self.log.info('sync:   sources=%s -> targets=%s', sources, targets)
+                if not targets:
+                    # Don't bother planning (and more importantly populating)
+                    # zones when we don't have any eligible targets, waste of
+                    # time/resources
+                    self.log.info('sync:   no eligible targets, skipping')
+                    continue
 
-            try:
-                # rather than using a list comprehension, we break this loop
-                # out so that the `except` block below can reference the
-                # `source`
-                collected = []
-                for source in sources:
-                    collected.append(self.providers[source])
-                sources = collected
-            except KeyError:
-                raise ManagerException('Zone {}, unknown source: {}'
-                                       .format(zone_name, source))
+                self.log.info('sync:   sources=%s -> targets=%s',
+                              sources, targets)
 
-            try:
-                trgs = []
-                for target in targets:
-                    trg = self.providers[target]
-                    if not isinstance(trg, BaseProvider):
-                        raise ManagerException('{} - "{}" does not support '
-                                               'targeting'.format(trg, target))
-                    trgs.append(trg)
-                targets = trgs
-            except KeyError:
-                raise ManagerException('Zone {}, unknown target: {}'
-                                       .format(zone_name, target))
+                try:
+                    # rather than using a list comprehension, we break this
+                    # loop out so that the `except` block below can reference
+                    # the `source`
+                    collected = []
+                    for source in sources:
+                        collected.append(self.providers[source])
+                    sources = collected
+                except KeyError:
+                    raise ManagerException('Zone {}, unknown source: {}'
+                                           .format(zone_name, source))
 
-            futures.append(self._executor.submit(self._populate_and_plan,
-                                                 zone_name, sources,
-                                                 targets, lenient=lenient))
+                try:
+                    trgs = []
+                    for target in targets:
+                        trg = self.providers[target]
+                        if not isinstance(trg, BaseProvider):
+                            raise ManagerException('{} - "{}" '
+                                                   'does not support '
+                                                   'targeting'.format(trg,
+                                                                      target))
+                        trgs.append(trg)
+                    targets = trgs
+                except KeyError:
+                    raise ManagerException('Zone {}, unknown target: {}'
+                                           .format(zone_name, target))
 
-        # Wait on all results and unpack/flatten them in to a list of target &
-        # plan pairs.
-        plans = [p for f in futures for p in f.result()]
+                futures.append(self._executor.submit(self._populate_and_plan,
+                                                     zone_name, sources,
+                                                     targets, lenient=lenient))
 
-        # Best effort sort plans children first so that we create/update
-        # children zones before parents which should allow us to more safely
-        # extract things into sub-zones. Combining a child back into a parent
-        # can't really be done all that safely in general so we'll optimize for
-        # this direction.
-        plans.sort(key=self._plan_keyer, reverse=True)
+            # Wait on all results and unpack/flatten them in to a list of
+            # target & plan pairs.
+            plans = [p for f in futures for p in f.result()]
+
+            # Best effort sort plans children first so that we create/update
+            # children zones before parents which should allow us to more
+            # safely extract things into sub-zones. Combining a child back into
+            # a parent can't really be done all that safely in general so we'll
+            # optimize for this direction.
+            plans.sort(key=self._plan_keyer, reverse=True)
 
         for output in self.plan_outputs.values():
             output.run(plans=plans, log=self.log)
@@ -345,6 +357,11 @@ class Manager(object):
             self.log.debug('sync:   checking safety')
             for target, plan in plans:
                 plan.raise_if_unsafe()
+
+        if save_plan:
+            self.log.info("sync: Saving plan to %s", self.plan_file)
+            with open(self.plan_file, 'wb') as f:
+                pickle.dump(plans, f)
 
         if dry_run:
             return 0
