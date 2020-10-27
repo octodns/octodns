@@ -118,12 +118,12 @@ class TestManager(TestCase):
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False)
-            self.assertEquals(21, tc)
+            self.assertEquals(22, tc)
 
             # try with just one of the zones
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, eligible_zones=['unit.tests.'])
-            self.assertEquals(15, tc)
+            self.assertEquals(16, tc)
 
             # the subzone, with 2 targets
             tc = Manager(get_config_filename('simple.yaml')) \
@@ -138,18 +138,18 @@ class TestManager(TestCase):
             # Again with force
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(21, tc)
+            self.assertEquals(22, tc)
 
             # Again with max_workers = 1
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(21, tc)
+            self.assertEquals(22, tc)
 
             # Include meta
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1,
                          include_meta=True) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(25, tc)
+            self.assertEquals(26, tc)
 
     def test_eligible_sources(self):
         with TemporaryDirectory() as tmpdir:
@@ -183,13 +183,13 @@ class TestManager(TestCase):
                 fh.write('---\n{}')
 
             changes = manager.compare(['in'], ['dump'], 'unit.tests.')
-            self.assertEquals(15, len(changes))
+            self.assertEquals(16, len(changes))
 
             # Compound sources with varying support
             changes = manager.compare(['in', 'nosshfp'],
                                       ['dump'],
                                       'unit.tests.')
-            self.assertEquals(14, len(changes))
+            self.assertEquals(15, len(changes))
 
             with self.assertRaises(ManagerException) as ctx:
                 manager.compare(['nope'], ['dump'], 'unit.tests.')
