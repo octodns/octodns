@@ -86,6 +86,18 @@ class TestGandiProvider(TestCase):
                 provider.populate(zone)
             self.assertIn('"cause":"Forbidden"', text_type(ctx.exception))
 
+        # 404 - Not Found.
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=404,
+                     text='{"code": 404, "message": "The resource could not '
+                          'be found.", "object": "HTTPNotFound", "cause": '
+                          '"Not Found"}')
+
+            with self.assertRaises(GandiClientNotFound) as ctx:
+                zone = Zone('unit.tests.', [])
+                provider._client.zone(zone)
+            self.assertIn('"cause": "Not Found"', text_type(ctx.exception))
+
         # General error
         with requests_mock() as mock:
             mock.get(ANY, status_code=502, text='Things caught fire')
@@ -94,15 +106,6 @@ class TestGandiProvider(TestCase):
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
             self.assertEquals(502, ctx.exception.response.status_code)
-
-        # Non-existent zone doesn't populate anything
-        with requests_mock() as mock:
-            mock.get(ANY, status_code=404,
-                     text='{"message": "Domain `foo.bar` not found"}')
-
-            zone = Zone('unit.tests.', [])
-            provider.populate(zone)
-            self.assertEquals(set(), zone.records)
 
         # No diffs == no changes
         with requests_mock() as mock:
@@ -147,10 +150,14 @@ class TestGandiProvider(TestCase):
         resp.json = Mock()
         provider._client._request = Mock(return_value=resp)
 
+        with open('tests/fixtures/gandi-zone.json') as fh:
+            zone = fh.read()
+
         # non-existent domain
         resp.json.side_effect = [
             GandiClientNotFound(resp),  # no zone in populate
             GandiClientNotFound(resp),  # no domain during apply
+            zone
         ]
         plan = provider.plan(self.expected)
 
@@ -162,6 +169,11 @@ class TestGandiProvider(TestCase):
 
         provider._client._request.assert_has_calls([
             call('GET', '/livedns/domains/unit.tests/records'),
+            call('GET', '/livedns/domains/unit.tests'),
+            call('POST', '/livedns/domains', data={
+                'fqdn': 'unit.tests',
+                'zone': {}
+            }),
             call('POST', '/livedns/domains/unit.tests/records', data={
                 'rrset_name': 'www.sub',
                 'rrset_ttl': 300,
@@ -258,7 +270,7 @@ class TestGandiProvider(TestCase):
             })
         ])
         # expected number of total calls
-        self.assertEquals(14, provider._client._request.call_count)
+        self.assertEquals(16, provider._client._request.call_count)
 
         provider._client._request.reset_mock()
 

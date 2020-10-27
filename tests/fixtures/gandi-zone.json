@@ -1,0 +1,7 @@
+{
+      "domain_keys_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/keys",
+      "fqdn": "unit.tests",
+      "automatic_snapshots": true,
+      "domain_records_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records",
+      "domain_href": "https://api.gandi.net/v5/livedns/domains/unit.tests"
+}

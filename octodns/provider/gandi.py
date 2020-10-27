@@ -41,6 +41,12 @@ class GandiClientNotFound(GandiClientException):
         super(GandiClientNotFound, self).__init__(r.text)
 
 
+class GandiClientUnknownDomainName(GandiClientException):
+
+    def __init__(self, msg):
+        super(GandiClientUnknownDomainName, self).__init__(msg)
+
+
 class GandiClient(object):
 
     def __init__(self, token):
@@ -62,6 +68,16 @@ class GandiClient(object):
             raise GandiClientNotFound(r)
         r.raise_for_status()
         return r
+
+    def zone(self, zone_name):
+        return self._request('GET', '/livedns/domains/{}'
+                                    .format(zone_name)).json()
+
+    def zone_create(self, zone_name):
+        return self._request('POST', '/livedns/domains', data={
+            'fqdn': zone_name,
+            'zone': {}
+        }).json()
 
     def zone_records(self, zone_name):
         records = self._request('GET', '/livedns/domains/{}/records'
@@ -318,8 +334,24 @@ class GandiProvider(BaseProvider):
     def _apply(self, plan):
         desired = plan.desired
         changes = plan.changes
+        zone = desired.name[:-1]
         self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
                        len(changes))
+
+        try:
+            self._client.zone(zone)
+        except GandiClientNotFound:
+            self.log.info('_apply: no existing zone, trying to create it')
+            try:
+                self._client.zone_create(zone)
+                self.log.info('_apply: zone has been successfully created')
+            except GandiClientNotFound:
+                raise GandiClientUnknownDomainName('This domain is not '
+                                                   'registred at Gandi. '
+                                                   'Please register or '
+                                                   'transfer it here '
+                                                   'to be able to manage its '
+                                                   'DNS zone.')
 
         # Force records deletion to be done before creation in order to avoid
         # "CNAME record must be the only record" error when an existing CNAME
