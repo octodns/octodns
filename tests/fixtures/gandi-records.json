@@ -98,5 +98,14 @@
     "rrset_values": [
       "32128 13 1 6823D9BB1B03DF714DD0EB163E20B341C96D18C0"
     ]
+  },
+  {
+    "rrset_type": "CNAME",
+    "rrset_ttl": 10800,
+    "rrset_name": "relative",
+    "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/relative/CNAME",
+    "rrset_values": [
+      "target"
+    ]
   }
 ]

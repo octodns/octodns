@@ -87,6 +87,14 @@ class GandiClient(object):
             if record['rrset_name'] == '@':
                 record['rrset_name'] = ''
 
+            # Change relative targets to absolute ones.
+            if record['rrset_type'] in ['ALIAS', 'CNAME', 'DNAME', 'MX',
+                                        'NS', 'SRV']:
+                for i, value in enumerate(record['rrset_values']):
+                    if not value.endswith('.'):
+                        record['rrset_values'][i] = '{}.{}.'.format(
+                            value, zone_name)
+
         return records
 
     def record_create(self, zone_name, data):

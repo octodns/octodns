@@ -126,19 +126,19 @@ class TestGandiProvider(TestCase):
         with requests_mock() as mock:
             base = 'https://api.gandi.net/v5/livedns/domains/unit.tests' \
                 '/records'
-            with open('tests/fixtures/gandi-default-zone.json') as fh:
+            with open('tests/fixtures/gandi-records.json') as fh:
                 mock.get(base, text=fh.read())
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(10, len(zone.records))
+            self.assertEquals(11, len(zone.records))
             changes = self.expected.changes(zone, provider)
-            self.assertEquals(22, len(changes))
+            self.assertEquals(23, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])
         provider.populate(again)
-        self.assertEquals(10, len(again.records))
+        self.assertEquals(11, len(again.records))
 
         # bust the cache
         del provider._zone_records[zone.name]
