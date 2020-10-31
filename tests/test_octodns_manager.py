@@ -348,6 +348,7 @@ class TestManager(TestCase):
             with self.assertRaises(TypeError):
                 manager._populate_and_plan('unit.tests.', [NoZone()], [])
 
+
 class TestMainThreadExecutor(TestCase):
 
     def test_success(self):
