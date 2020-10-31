@@ -460,28 +460,36 @@ class Manager(object):
         for zone_name, config in self.config['zones'].items():
             zone = Zone(zone_name, self.configured_sub_zones(zone_name))
 
-            if not config.get('alias'):
-                try:
-                    sources = config['sources']
-                except KeyError:
-                    raise ManagerException('Zone {} is missing sources'
-                                           .format(zone_name))
+            source_zone = config.get('alias')
+            if source_zone:
+                if source_zone not in self.config['zones']:
+                    self.log.exception('Invalid alias zone')
+                    raise ManagerException('Invalid alias zone {}: '
+                                           'source zone {} does not exist'
+                                           .format(zone_name, source_zone))
+                continue
 
-                try:
-                    # rather than using a list comprehension, we break this
-                    # loop out so that the `except` block below can reference
-                    # the `source`
-                    collected = []
-                    for source in sources:
-                        collected.append(self.providers[source])
-                    sources = collected
-                except KeyError:
-                    raise ManagerException('Zone {}, unknown source: {}'
-                                           .format(zone_name, source))
+            try:
+                sources = config['sources']
+            except KeyError:
+                raise ManagerException('Zone {} is missing sources'
+                                       .format(zone_name))
 
+            try:
+                # rather than using a list comprehension, we break this
+                # loop out so that the `except` block below can reference
+                # the `source`
+                collected = []
                 for source in sources:
-                    if isinstance(source, YamlProvider):
-                        source.populate(zone)
+                    collected.append(self.providers[source])
+                sources = collected
+            except KeyError:
+                raise ManagerException('Zone {}, unknown source: {}'
+                                       .format(zone_name, source))
+
+            for source in sources:
+                if isinstance(source, YamlProvider):
+                    source.populate(zone)
 
     def get_zone(self, zone_name):
         if not zone_name[-1] == '.':
