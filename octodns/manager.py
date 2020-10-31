@@ -230,7 +230,12 @@ class Manager(object):
         zone = Zone(zone_name,
                     sub_zones=self.configured_sub_zones(zone_name))
 
-        if not desired:
+        if desired:
+            for _, records in desired._records.items():
+                for record in records:
+                    zone.add_record(record.copy(zone=zone), lenient=lenient)
+
+        else:
             for source in sources:
                 try:
                     source.populate(zone, lenient=lenient)
@@ -240,14 +245,6 @@ class Manager(object):
                     self.log.warn(': provider %s does not accept lenient '
                                   'param', source.__class__.__name__)
                     source.populate(zone)
-
-        else:
-            for _, records in desired._records.items():
-                for record in records:
-                    d = record.data
-                    d['type'] = record._type
-                    r = Record.new(zone, record.name, d, source=record.source)
-                    zone.add_record(r, lenient=lenient)
 
         self.log.debug('sync:   planning, zone=%s', zone_name)
         plans = []
