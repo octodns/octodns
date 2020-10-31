@@ -221,7 +221,11 @@ class Record(EqualityTupleMixin):
             return Update(self, other)
 
     def copy(self, zone=None):
-        return Record(
+        _type = getattr(self, '_type')
+        if not self._raw_data.get('type'):
+            self._raw_data['type'] = _type
+
+        return Record.new(
             zone if zone else self.zone,
             self.name,
             self._raw_data,
