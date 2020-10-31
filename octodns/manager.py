@@ -363,7 +363,7 @@ class Manager(object):
             futures.append(self._executor.submit(
                 self._populate_and_plan,
                 zone_name,
-                [self.providers[s] for s in source_config['sources']],
+                [],
                 [self.providers[t] for t in source_config['targets']],
                 desired=plan[0].desired,
                 lenient=lenient
