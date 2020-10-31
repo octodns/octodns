@@ -170,11 +170,12 @@ class TestManager(TestCase):
     def test_aliases(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
-            # Only allow a target that doesn't exist
+            # Alias zones with a valid target.
             tc = Manager(get_config_filename('simple-alias-zone.yaml')) \
                 .sync()
             self.assertEquals(0, tc)
 
+            # Alias zone with an invalid target.
             with self.assertRaises(ManagerException) as ctx:
                 tc = Manager(get_config_filename('unknown-source-zone.yaml')) \
                     .sync()
@@ -301,6 +302,17 @@ class TestManager(TestCase):
                 .validate_configs()
         self.assertTrue('unknown source' in text_type(ctx.exception))
 
+        # Alias zone using an invalid source zone.
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('unknown-source-zone.yaml')) \
+                .validate_configs()
+        self.assertTrue('Invalid alias zone' in
+                        text_type(ctx.exception))
+
+        # Valid config file using an alias zone.
+        Manager(get_config_filename('simple-alias-zone.yaml')) \
+            .validate_configs()
+
     def test_get_zone(self):
         Manager(get_config_filename('simple.yaml')).get_zone('unit.tests.')
 
@@ -335,20 +347,6 @@ class TestManager(TestCase):
             # This will blow up, we don't fallback for source
             with self.assertRaises(TypeError):
                 manager._populate_and_plan('unit.tests.', [NoZone()], [])
-
-    def test_alias_zones(self):
-        with TemporaryDirectory() as tmpdir:
-            environ['YAML_TMP_DIR'] = tmpdir.dirname
-
-            Manager(get_config_filename('simple-alias-zone.yaml')) \
-                .validate_configs()
-
-            with self.assertRaises(ManagerException) as ctx:
-                Manager(get_config_filename('unknown-source-zone.yaml')) \
-                    .validate_configs()
-            self.assertTrue('Invalid alias zone' in
-                            text_type(ctx.exception))
-
 
 class TestMainThreadExecutor(TestCase):
 
