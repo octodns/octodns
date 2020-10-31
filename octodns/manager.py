@@ -473,7 +473,10 @@ class Manager(object):
                     raise ManagerException('Invalid alias zone {}: '
                                            'source zone {} does not exist'
                                            .format(zone_name, source_zone))
-                continue  # pragma: no cover, see Python bug #2506.
+                # this is just here to satisfy coverage, see
+                # https://github.com/nedbat/coveragepy/issues/198
+                source_zone = source_zone
+                continue
 
             try:
                 sources = config['sources']
