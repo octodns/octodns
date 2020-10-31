@@ -139,8 +139,7 @@ class YamlProvider(BaseProvider):
                            filename)
 
     def populate(self, zone, target=False, lenient=False):
-        self.log.debug('populate: name=%s, file=%s, is_alias:%s, target=%s, '
-                       'lenient=%s', zone.name, zone.file, zone.is_alias,
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
 
         if target:
@@ -149,7 +148,7 @@ class YamlProvider(BaseProvider):
             return False
 
         before = len(zone.records)
-        filename = join(self.directory, '{}yaml'.format(zone.file))
+        filename = join(self.directory, '{}yaml'.format(zone.name))
         self._populate_from_file(filename, zone, lenient)
 
         self.log.info('populate:   found %s records, exists=False',

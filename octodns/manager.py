@@ -121,23 +121,6 @@ class Manager(object):
                 raise ManagerException('Incorrect provider config for {}'
                                        .format(provider_name))
 
-        for zone_name, zone_config in self.config['zones'].copy().items():
-            if 'alias' in zone_config:
-                source_zone = zone_config['alias']
-                # Check that the source zone is defined.
-                if source_zone not in self.config['zones']:
-                    self.log.exception('Invalid alias zone')
-                    raise ManagerException('Invalid alias zone {}: '
-                                           'source zone {} does not exist'
-                                           .format(zone_name, source_zone))
-                self.config['zones'][zone_name] = \
-                    self.config['zones'][source_zone]
-                self.config['zones'][zone_name]['is_alias'] = True
-                self.config['zones'][zone_name]['file'] = source_zone
-            else:
-                self.config['zones'][zone_name]['is_alias'] = False
-                self.config['zones'][zone_name]['file'] = zone_name
-
         zone_tree = {}
         # sort by reversed strings so that parent zones always come first
         for name in sorted(self.config['zones'].keys(), key=lambda s: s[::-1]):
@@ -239,23 +222,32 @@ class Manager(object):
         self.log.debug('configured_sub_zones: subs=%s', sub_zone_names)
         return set(sub_zone_names)
 
-    def _populate_and_plan(self, zone_name, file, is_alias, sources, targets,
+    def _populate_and_plan(self, zone_name, sources, targets, desired=None,
                            lenient=False):
 
-        self.log.debug('sync:   populating, zone=%s, file=%s, is_alias=%s, '
-                       'lenient=%s', zone_name, file, is_alias, lenient)
+        self.log.debug('sync:   populating, zone=%s, lenient=%s',
+                       zone_name, lenient)
         zone = Zone(zone_name,
-                    sub_zones=self.configured_sub_zones(zone_name), file=file,
-                    is_alias=is_alias)
-        for source in sources:
-            try:
-                source.populate(zone, lenient=lenient)
-            except TypeError as e:
-                if "keyword argument 'lenient'" not in text_type(e):
-                    raise
-                self.log.warn(': provider %s does not accept lenient param',
-                              source.__class__.__name__)
-                source.populate(zone)
+                    sub_zones=self.configured_sub_zones(zone_name))
+
+        if not desired:
+            for source in sources:
+                try:
+                    source.populate(zone, lenient=lenient)
+                except TypeError as e:
+                    if "keyword argument 'lenient'" not in text_type(e):
+                        raise
+                    self.log.warn(': provider %s does not accept lenient '
+                                  'param', source.__class__.__name__)
+                    source.populate(zone)
+
+        else:
+            for _, records in desired._records.items():
+                for record in records:
+                    d = record.data
+                    d['type'] = record._type
+                    r = Record.new(zone, record.name, d, source=record.source)
+                    zone.add_record(r, lenient=lenient)
 
         self.log.debug('sync:   planning, zone=%s', zone_name)
         plans = []
@@ -284,11 +276,22 @@ class Manager(object):
         if eligible_zones:
             zones = [z for z in zones if z[0] in eligible_zones]
 
+        aliased_zones  = {}
         futures = []
         for zone_name, config in zones:
             self.log.info('sync:   zone=%s', zone_name)
-            file = config.get('file')
-            is_alias = config.get('is_alias')
+            if 'alias' in config:
+                source_zone = config['alias']
+                # Check that the source zone is defined.
+                if source_zone not in self.config['zones']:
+                    self.log.exception('Invalid alias zone')
+                    raise ManagerException('Invalid alias zone {}: '
+                                           'source zone {} does not exist'
+                                           .format(zone_name, source_zone))
+
+                aliased_zones[zone_name] = source_zone
+                continue
+
             lenient = config.get('lenient', False)
             try:
                 sources = config['sources']
@@ -345,13 +348,31 @@ class Manager(object):
                                        .format(zone_name, target))
 
             futures.append(self._executor.submit(self._populate_and_plan,
-                                                 zone_name, file, is_alias,
-                                                 sources, targets,
-                                                 lenient=lenient))
+                                                 zone_name, sources,
+                                                 targets, lenient=lenient))
 
         # Wait on all results and unpack/flatten them in to a list of target &
         # plan pairs.
         plans = [p for f in futures for p in f.result()]
+
+        # Populate aliases zones.
+        futures = []
+        for zone_name, zone_source in aliased_zones.items():
+            plan = [p for t, p in plans if p.desired.name == zone_source]
+            if not plan:
+                continue
+
+            source_config = self.config['zones'][zone_source]
+            futures.append(self._executor.submit(
+                self._populate_and_plan,
+                zone_name,
+                [self.providers[s] for s in source_config['sources']],
+                [self.providers[t] for t in source_config['targets']],
+                desired=plan[0].desired,
+                lenient=lenient
+            ))
+
+        plans += [p for f in futures for p in f.result()]
 
         # Best effort sort plans children first so that we create/update
         # children zones before parents which should allow us to more safely
@@ -440,32 +461,30 @@ class Manager(object):
 
     def validate_configs(self):
         for zone_name, config in self.config['zones'].items():
-            file = config.get('file', False)
-            is_alias = config.get('is_alias', False)
-            zone = Zone(zone_name, self.configured_sub_zones(zone_name),
-                        file, is_alias)
+            zone = Zone(zone_name, self.configured_sub_zones(zone_name))
 
-            try:
-                sources = config['sources']
-            except KeyError:
-                raise ManagerException('Zone {} is missing sources'
-                                       .format(zone_name))
+            if not config.get('alias'):
+                try:
+                    sources = config['sources']
+                except KeyError:
+                    raise ManagerException('Zone {} is missing sources'
+                                           .format(zone_name))
 
-            try:
-                # rather than using a list comprehension, we break this loop
-                # out so that the `except` block below can reference the
-                # `source`
-                collected = []
+                try:
+                    # rather than using a list comprehension, we break this
+                    # loop out so that the `except` block below can reference
+                    # the `source`
+                    collected = []
+                    for source in sources:
+                        collected.append(self.providers[source])
+                    sources = collected
+                except KeyError:
+                    raise ManagerException('Zone {}, unknown source: {}'
+                                           .format(zone_name, source))
+
                 for source in sources:
-                    collected.append(self.providers[source])
-                sources = collected
-            except KeyError:
-                raise ManagerException('Zone {}, unknown source: {}'
-                                       .format(zone_name, source))
-
-            for source in sources:
-                if isinstance(source, YamlProvider):
-                    source.populate(zone)
+                    if isinstance(source, YamlProvider):
+                        source.populate(zone)
 
     def get_zone(self, zone_name):
         if not zone_name[-1] == '.':
@@ -474,10 +493,6 @@ class Manager(object):
 
         for name, config in self.config['zones'].items():
             if name == zone_name:
-                file = config.get('file', False)
-                is_alias = config.get('is_alias', False)
-
-                return Zone(name, self.configured_sub_zones(name),
-                            file, is_alias)
+                return Zone(name, self.configured_sub_zones(name))
 
         raise ManagerException('Unknown zone name {}'.format(zone_name))
