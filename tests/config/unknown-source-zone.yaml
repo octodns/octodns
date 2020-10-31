@@ -9,5 +9,10 @@ providers:
     directory: env/YAML_TMP_DIR
 zones:
   unit.tests.:
-    alias: unit-source.tests.
-
+    sources:
+      - in
+    targets:
+      - dump
+  
+  alias.tests.:
+    alias: does-not-exists.tests.

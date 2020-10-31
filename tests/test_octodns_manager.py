@@ -167,6 +167,21 @@ class TestManager(TestCase):
                 .sync(eligible_targets=['foo'])
             self.assertEquals(0, tc)
 
+    def test_aliases(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            # Only allow a target that doesn't exist
+            tc = Manager(get_config_filename('simple-alias-zone.yaml')) \
+                 .sync()
+            self.assertEquals(0, tc)
+
+            with self.assertRaises(ManagerException) as ctx:
+                tc = Manager(get_config_filename('unknown-source-zone.yaml')) \
+                     .sync()
+            self.assertEquals('Invalid alias zone alias.tests.: source zone '
+                              'does-not-exists.tests. does not exist', 
+                              text_type(ctx.exception))
+
     def test_compare(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
