@@ -310,8 +310,7 @@ class TestManager(TestCase):
                     pass
 
             # This should be ok, we'll fall back to not passing it
-            manager._populate_and_plan('unit.tests.', None, False,
-                                       [NoLenient()], [])
+            manager._populate_and_plan('unit.tests.', [NoLenient()], [])
 
             class NoZone(SimpleProvider):
 
@@ -320,8 +319,7 @@ class TestManager(TestCase):
 
             # This will blow up, we don't fallback for source
             with self.assertRaises(TypeError):
-                manager._populate_and_plan('unit.tests.', None, False,
-                                           [NoZone()], [])
+                manager._populate_and_plan('unit.tests.', [NoZone()], [])
 
     def test_alias_zones(self):
         with TemporaryDirectory() as tmpdir:
