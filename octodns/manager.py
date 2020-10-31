@@ -261,7 +261,8 @@ class Manager(object):
             if plan:
                 plans.append((target, plan))
 
-        return plans
+        # Return the zone as it's the desired state
+        return plans, zone
 
     def sync(self, eligible_zones=[], eligible_sources=[], eligible_targets=[],
              dry_run=True, force=False):
@@ -281,7 +282,8 @@ class Manager(object):
                 source_zone = config['alias']
                 # Check that the source zone is defined.
                 if source_zone not in self.config['zones']:
-                    self.log.exception('Invalid alias zone')
+                    self.log.error('Invalid alias zone {}, target {} does '
+                                   'not exist'.format(zone_name, source_zone))
                     raise ManagerException('Invalid alias zone {}: '
                                            'source zone {} does not exist'
                                            .format(zone_name, source_zone))
@@ -348,28 +350,32 @@ class Manager(object):
                                                  zone_name, sources,
                                                  targets, lenient=lenient))
 
-        # Wait on all results and unpack/flatten them in to a list of target &
-        # plan pairs.
-        plans = [p for f in futures for p in f.result()]
+        # Wait on all results and unpack/flatten the plans and store the
+        # desired states in case we need them below
+        plans = []
+        desired = {}
+        for future in futures:
+            ps, d = future.result()
+            desired[d.name] = d
+            for plan in ps:
+                plans.append(plan)
 
         # Populate aliases zones.
         futures = []
         for zone_name, zone_source in aliased_zones.items():
-            plan = [p for t, p in plans if p.desired.name == zone_source]
-            if not plan:
-                continue
-
             source_config = self.config['zones'][zone_source]
             futures.append(self._executor.submit(
                 self._populate_and_plan,
                 zone_name,
                 [],
                 [self.providers[t] for t in source_config['targets']],
-                desired=plan[0].desired,
+                desired=desired[zone_source],
                 lenient=lenient
             ))
 
-        plans += [p for f in futures for p in f.result()]
+        # Wait on results and unpack/flatten the plans, ignore the desired here
+        # as these are aliased zones
+        plans += [p for f in futures for p in f.result()[0]]
 
         # Best effort sort plans children first so that we create/update
         # children zones before parents which should allow us to more safely
