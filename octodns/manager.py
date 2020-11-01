@@ -280,12 +280,21 @@ class Manager(object):
             self.log.info('sync:   zone=%s', zone_name)
             if 'alias' in config:
                 source_zone = config['alias']
+
                 # Check that the source zone is defined.
                 if source_zone not in self.config['zones']:
                     self.log.error('Invalid alias zone {}, target {} does '
                                    'not exist'.format(zone_name, source_zone))
                     raise ManagerException('Invalid alias zone {}: '
                                            'source zone {} does not exist'
+                                           .format(zone_name, source_zone))
+
+                # Check that the source zone is not an alias zone itself.
+                if 'alias' in self.config['zones'][source_zone]:
+                    self.log.error('Invalid alias zone {}, target {} is an '
+                                   'alias zone'.format(zone_name, source_zone))
+                    raise ManagerException('Invalid alias zone {}: source '
+                                           'zone {} is an alias zone'
                                            .format(zone_name, source_zone))
 
                 aliased_zones[zone_name] = source_zone
@@ -473,6 +482,13 @@ class Manager(object):
                     raise ManagerException('Invalid alias zone {}: '
                                            'source zone {} does not exist'
                                            .format(zone_name, source_zone))
+
+                if 'alias' in self.config['zones'][source_zone]:
+                    self.log.exception('Invalid alias zone')
+                    raise ManagerException('Invalid alias zone {}: '
+                                           'source zone {} is an alias zone'
+                                           .format(zone_name, source_zone))
+
                 # this is just here to satisfy coverage, see
                 # https://github.com/nedbat/coveragepy/issues/198
                 source_zone = source_zone

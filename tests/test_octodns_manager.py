@@ -183,6 +183,14 @@ class TestManager(TestCase):
                               'does-not-exists.tests. does not exist',
                               text_type(ctx.exception))
 
+            # Alias zone that points to another alias zone.
+            with self.assertRaises(ManagerException) as ctx:
+                tc = Manager(get_config_filename('alias-zone-loop.yaml')) \
+                    .sync()
+            self.assertEquals('Invalid alias zone alias-loop.tests.: source '
+                              'zone alias.tests. is an alias zone',
+                              text_type(ctx.exception))
+
     def test_compare(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
@@ -306,7 +314,14 @@ class TestManager(TestCase):
         with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('unknown-source-zone.yaml')) \
                 .validate_configs()
-        self.assertTrue('Invalid alias zone' in
+        self.assertTrue('does not exist' in
+                        text_type(ctx.exception))
+
+        # Alias zone that points to another alias zone.
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('alias-zone-loop.yaml')) \
+                .validate_configs()
+        self.assertTrue('is an alias zone' in
                         text_type(ctx.exception))
 
         # Valid config file using an alias zone.
