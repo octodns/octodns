@@ -15,7 +15,7 @@ from unittest import TestCase
 
 from octodns.record import Record
 from octodns.provider.constellix import \
-    ConstellixProvider
+    ConstellixProvider, ConstellixClientBadRequest
 from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
 
@@ -46,6 +46,32 @@ class TestConstellixProvider(TestCase):
         'ttl': 1800,
         'type': 'ALIAS',
         'value': 'aname.unit.tests.'
+    }))
+
+    # Add a dynamic record
+    expected.add_record(Record.new(expected, 'www.dynamic', {
+        'ttl': 300,
+        'type': 'A',
+        'value': [
+            '1.2.3.4',
+            '1.2.3.5'
+        ],
+        'dynamic': {
+            'pools': {
+                'two': {
+                    'values': [{
+                        'value': '1.2.3.4',
+                        'weight': 1
+                    }, {
+                        'value': '1.2.3.5',
+                        'weight': 1
+                    }],
+                },
+            },
+            'rules': [{
+                'pool': 'two',
+            }],
+        },
     }))
 
     for record in list(expected.records):
@@ -98,23 +124,26 @@ class TestConstellixProvider(TestCase):
 
         # No diffs == no changes
         with requests_mock() as mock:
-            base = 'https://api.dns.constellix.com/v1/domains'
+            base = 'https://api.dns.constellix.com/v1'
             with open('tests/fixtures/constellix-domains.json') as fh:
-                mock.get('{}{}'.format(base, ''), text=fh.read())
+                mock.get('{}{}'.format(base, '/domains'), text=fh.read())
             with open('tests/fixtures/constellix-records.json') as fh:
-                mock.get('{}{}'.format(base, '/123123/records'),
+                mock.get('{}{}'.format(base, '/domains/123123/records'),
+                         text=fh.read())
+            with open('tests/fixtures/constellix-pools.json') as fh:
+                mock.get('{}{}'.format(base, '/pools/A'),
                          text=fh.read())
 
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-                self.assertEquals(15, len(zone.records))
+                self.assertEquals(16, len(zone.records))
                 changes = self.expected.changes(zone, provider)
                 self.assertEquals(0, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])
         provider.populate(again)
-        self.assertEquals(15, len(again.records))
+        self.assertEquals(16, len(again.records))
 
         # bust the cache
         del provider._zone_records[zone.name]
@@ -133,6 +162,11 @@ class TestConstellixProvider(TestCase):
                 'id': 123123,
                 'name': 'unit.tests'
             }],  # domain created in apply
+            [],  # No pools returned during populate
+            [{
+                "id": 1808520,
+                "name": "unit.tests.:www.dynamic:A:two",
+            }]   # pool created in apply
         ]
 
         plan = provider.plan(self.expected)
@@ -144,15 +178,37 @@ class TestConstellixProvider(TestCase):
 
         provider._client._request.assert_has_calls([
             # get all domains to build the cache
-            call('GET', ''),
+            call('GET', '/domains'),
             # created the domain
-            call('POST', '/', data={'names': ['unit.tests']})
+            call('POST', '/domains', data={'names': ['unit.tests']})
         ])
+
+        # Check we tried to get our pool
+        provider._client._request.assert_has_calls([
+            # get all pools to build the cache
+            call('GET', '/pools/A'),
+            # created the pool
+            call('POST', '/pools/A', data={
+                'name': 'unit.tests.:www.dynamic:A:two',
+                'type': 'A',
+                'numReturn': 1,
+                'minAvailableFailover': 1,
+                'ttl': 300,
+                'values': [{
+                    "value": "1.2.3.4",
+                    "weight": 1
+                }, {
+                    "value": "1.2.3.5",
+                    "weight": 1
+                }]
+            })
+        ])
+
         # These two checks are broken up so that ordering doesn't break things.
         # Python3 doesn't make the calls in a consistent order so different
         # things follow the GET / on different runs
         provider._client._request.assert_has_calls([
-            call('POST', '/123123/records/SRV', data={
+            call('POST', '/domains/123123/records/SRV', data={
                 'roundRobin': [{
                     'priority': 10,
                     'weight': 20,
@@ -169,7 +225,7 @@ class TestConstellixProvider(TestCase):
             }),
         ])
 
-        self.assertEquals(18, provider._client._request.call_count)
+        self.assertEquals(21, provider._client._request.call_count)
 
         provider._client._request.reset_mock()
 
@@ -179,6 +235,7 @@ class TestConstellixProvider(TestCase):
                 'type': 'A',
                 'name': 'www',
                 'ttl': 300,
+                'recordOption': 'roundRobin',
                 'value': [
                     '1.2.3.4',
                     '2.2.3.4',
@@ -188,6 +245,7 @@ class TestConstellixProvider(TestCase):
                 'type': 'A',
                 'name': 'ttl',
                 'ttl': 600,
+                'recordOption': 'roundRobin',
                 'value': [
                     '3.2.3.4'
                 ]
@@ -196,14 +254,44 @@ class TestConstellixProvider(TestCase):
                 'type': 'ALIAS',
                 'name': 'alias',
                 'ttl': 600,
+                'recordOption': 'roundRobin',
                 'value': [{
                     'value': 'aname.unit.tests.'
                 }]
+            }, {
+                "id": 1808520,
+                "type": "A",
+                "name": "www.dynamic",
+                "recordOption": "pools",
+                "ttl": 300,
+                "value": [],
+                "pools": [
+                    1808521
+                ]
             }
         ])
 
+        provider._client.pools = Mock(return_value=[{
+            "id": 1808521,
+            "name": "unit.tests.:www.dynamic:A:two",
+            "type": "A",
+            "values": [
+                {
+                    "value": "1.2.3.4",
+                    "weight": 1
+                },
+                {
+                    "value": "1.2.3.5",
+                    "weight": 1
+                }
+            ]
+        }])
+
         # Domain exists, we don't care about return
-        resp.json.side_effect = ['{}']
+        resp.json.side_effect = [
+            ['{}'],
+            ['{}'],
+        ]
 
         wanted = Zone('unit.tests.', [])
         wanted.add_record(Record.new(wanted, 'ttl', {
@@ -212,20 +300,275 @@ class TestConstellixProvider(TestCase):
             'value': '3.2.3.4'
         }))
 
+        wanted.add_record(Record.new(wanted, 'www.dynamic', {
+            'ttl': 300,
+            'type': 'A',
+            'value': [
+                '1.2.3.4'
+            ],
+            'dynamic': {
+                'pools': {
+                    'two': {
+                        'values': [{
+                            'value': '1.2.3.4',
+                            'weight': 1
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'two',
+                }],
+            },
+        }))
+
         plan = provider.plan(wanted)
-        self.assertEquals(3, len(plan.changes))
-        self.assertEquals(3, provider.apply(plan))
+        self.assertEquals(4, len(plan.changes))
+        self.assertEquals(4, provider.apply(plan))
 
         # recreate for update, and deletes for the 2 parts of the other
         provider._client._request.assert_has_calls([
-            call('POST', '/123123/records/A', data={
+            call('POST', '/domains/123123/records/A', data={
                 'roundRobin': [{
                     'value': '3.2.3.4'
                 }],
                 'name': 'ttl',
                 'ttl': 300
             }),
-            call('DELETE', '/123123/records/A/11189897'),
-            call('DELETE', '/123123/records/A/11189898'),
-            call('DELETE', '/123123/records/ANAME/11189899')
+            call('PUT', '/pools/A/1808521', data={
+                'name': 'unit.tests.:www.dynamic:A:two',
+                'type': 'A',
+                'numReturn': 1,
+                'minAvailableFailover': 1,
+                'ttl': 300,
+                'id': 1808521,
+                'values': [{
+                    "value": "1.2.3.4",
+                    "weight": 1
+                }]
+            }),
+            call('DELETE', '/domains/123123/records/A/11189897'),
+            call('DELETE', '/domains/123123/records/A/11189898'),
+            call('DELETE', '/domains/123123/records/ANAME/11189899'),
         ], any_order=True)
+
+    def test_dynamic_record_failures(self):
+        provider = ConstellixProvider('test', 'api', 'secret')
+
+        resp = Mock()
+        resp.json = Mock()
+        provider._client._request = Mock(return_value=resp)
+
+        # Let's handle some failures for pools - first if it's not a simple
+        # weighted pool - we'll be OK as we assume a weight of 1 for all
+        # entries
+        provider._client._request.reset_mock()
+        provider._client.records = Mock(return_value=[
+            {
+                "id": 1808520,
+                "type": "A",
+                "name": "www.dynamic",
+                "recordOption": "pools",
+                "ttl": 300,
+                "value": [],
+                "pools": [
+                    1808521
+                ]
+            }
+        ])
+
+        provider._client.pools = Mock(return_value=[{
+            "id": 1808521,
+            "name": "unit.tests.:www.dynamic:A:two",
+            "type": "A",
+            "values": [
+                {
+                    "value": "1.2.3.4",
+                    "weight": 1
+                }
+            ]
+        }])
+
+        wanted = Zone('unit.tests.', [])
+
+        resp.json.side_effect = [
+            ['{}'],
+            ['{}'],
+        ]
+        wanted.add_record(Record.new(wanted, 'www.dynamic', {
+            'ttl': 300,
+            'type': 'A',
+            'value': [
+                '1.2.3.4'
+            ],
+            'dynamic': {
+                'pools': {
+                    'two': {
+                        'values': [{
+                            'value': '1.2.3.4'
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'two',
+                }],
+            },
+        }))
+
+        plan = provider.plan(wanted)
+        self.assertIsNone(plan)
+
+    def test_dynamic_record_updates(self):
+        provider = ConstellixProvider('test', 'api', 'secret')
+
+        # Constellix API can return an error if you try and update a pool and
+        # don't change anything, so let's test we handle it silently
+
+        provider._client.records = Mock(return_value=[
+            {
+                "id": 1808520,
+                "type": "A",
+                "name": "www.dynamic",
+                "recordOption": "pools",
+                "ttl": 300,
+                "value": [],
+                "pools": [
+                    1808521
+                ]
+            }
+        ])
+
+        provider._client.pools = Mock(return_value=[{
+            "id": 1808521,
+            "name": "unit.tests.:www.dynamic:A:two",
+            "type": "A",
+            "values": [
+                {
+                    "value": "1.2.3.4",
+                    "weight": 1
+                }
+            ]
+        }])
+
+        wanted = Zone('unit.tests.', [])
+
+        wanted.add_record(Record.new(wanted, 'www.dynamic', {
+            'ttl': 300,
+            'type': 'A',
+            'value': [
+                '1.2.3.4'
+            ],
+            'dynamic': {
+                'pools': {
+                    'two': {
+                        'values': [{
+                            'value': '1.2.3.5'
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'two',
+                }],
+            },
+        }))
+
+        # Try an error we can handle
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=200,
+                     text='{}')
+            mock.delete(ANY, status_code=200,
+                        text='{}')
+            mock.put("https://api.dns.constellix.com/v1/pools/A/1808521",
+                     status_code=400,
+                     text='{"errors": [\"no changes to save\"]}')
+            mock.post(ANY, status_code=200,
+                      text='[{"id": 1234}]')
+
+            plan = provider.plan(wanted)
+            self.assertEquals(1, len(plan.changes))
+            self.assertEquals(1, provider.apply(plan))
+
+        # Now what happens if an error happens that we can't handle
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=200,
+                     text='{}')
+            mock.delete(ANY, status_code=200,
+                        text='{}')
+            mock.put("https://api.dns.constellix.com/v1/pools/A/1808521",
+                     status_code=400,
+                     text='{"errors": [\"generic error\"]}')
+            mock.post(ANY, status_code=200,
+                      text='[{"id": 1234}]')
+
+            plan = provider.plan(wanted)
+            self.assertEquals(1, len(plan.changes))
+            with self.assertRaises(ConstellixClientBadRequest):
+                provider.apply(plan)
+
+    def test_pools_that_are_notfound(self):
+        provider = ConstellixProvider('test', 'api', 'secret')
+
+        provider._client.pools = Mock(return_value=[{
+            "id": 1808521,
+            "name": "unit.tests.:www.dynamic:A:two",
+            "type": "A",
+            "values": [
+                {
+                    "value": "1.2.3.4",
+                    "weight": 1
+                }
+            ]
+        }])
+
+        self.assertIsNone(provider._client.pool_by_id('A', 1))
+        self.assertIsNone(provider._client.pool('A', 'foobar'))
+
+    def test_pools_are_cached_correctly(self):
+        provider = ConstellixProvider('test', 'api', 'secret')
+
+        provider._client.pools = Mock(return_value=[{
+            "id": 1808521,
+            "name": "unit.tests.:www.dynamic:A:two",
+            "type": "A",
+            "values": [
+                {
+                    "value": "1.2.3.4",
+                    "weight": 1
+                }
+            ]
+        }])
+
+        found = provider._client.pool('A', 'unit.tests.:www.dynamic:A:two')
+        self.assertIsNotNone(found)
+
+        not_found = provider._client.pool('AAAA',
+                                          'unit.tests.:www.dynamic:A:two')
+        self.assertIsNone(not_found)
+
+        provider._client.pools = Mock(return_value=[{
+            "id": 42,
+            "name": "unit.tests.:www.dynamic:A:two",
+            "type": "A",
+            "values": [
+                {
+                    "value": "1.2.3.4",
+                    "weight": 1
+                }
+            ]
+        }, {
+            "id": 451,
+            "name": "unit.tests.:www.dynamic:A:two",
+            "type": "AAAA",
+            "values": [
+                {
+                    "value": "1.2.3.4",
+                    "weight": 1
+                }
+            ]
+        }])
+
+        a_pool = provider._client.pool('A', 'unit.tests.:www.dynamic:A:two')
+        self.assertEquals(42, a_pool['id'])
+
+        aaaa_pool = provider._client.pool('AAAA',
+                                          'unit.tests.:www.dynamic:A:two')
+        self.assertEquals(451, aaaa_pool['id'])

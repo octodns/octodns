@@ -44,7 +44,7 @@ class ConstellixClientNotFound(ConstellixClientException):
 
 
 class ConstellixClient(object):
-    BASE = 'https://api.dns.constellix.com/v1/domains'
+    BASE = 'https://api.dns.constellix.com/v1'
 
     def __init__(self, api_key, secret_key, ratelimit_delay=0.0):
         self.api_key = api_key
@@ -53,6 +53,7 @@ class ConstellixClient(object):
         self._sess = Session()
         self._sess.headers.update({'x-cnsdns-apiKey': self.api_key})
         self._domains = None
+        self._pools = None
 
     def _current_time(self):
         return str(int(time.time() * 1000))
@@ -88,7 +89,7 @@ class ConstellixClient(object):
         if self._domains is None:
             zones = []
 
-            resp = self._request('GET', '').json()
+            resp = self._request('GET', '/domains').json()
             zones += resp
 
             self._domains = {'{}.'.format(z['name']): z['id'] for z in zones}
@@ -99,11 +100,11 @@ class ConstellixClient(object):
         zone_id = self.domains.get(name, False)
         if not zone_id:
             raise ConstellixClientNotFound()
-        path = '/{}'.format(zone_id)
+        path = '/domains/{}'.format(zone_id)
         return self._request('GET', path).json()
 
     def domain_create(self, name):
-        resp = self._request('POST', '/', data={'names': [name]})
+        resp = self._request('POST', '/domains', data={'names': [name]})
         # Add newly created zone to domain cache
         self._domains['{}.'.format(name)] = resp.json()[0]['id']
 
@@ -119,7 +120,7 @@ class ConstellixClient(object):
         zone_id = self.domains.get(zone_name, False)
         if not zone_id:
             raise ConstellixClientNotFound()
-        path = '/{}/records'.format(zone_id)
+        path = '/domains/{}/records'.format(zone_id)
 
         resp = self._request('GET', path).json()
         for record in resp:
@@ -151,7 +152,7 @@ class ConstellixClient(object):
             record_type = 'ANAME'
 
         zone_id = self.domains.get(zone_name, False)
-        path = '/{}/records/{}'.format(zone_id, record_type)
+        path = '/domains/{}/records/{}'.format(zone_id, record_type)
 
         self._request('POST', path, data=params)
 
@@ -161,8 +162,51 @@ class ConstellixClient(object):
             record_type = 'ANAME'
 
         zone_id = self.domains.get(zone_name, False)
-        path = '/{}/records/{}/{}'.format(zone_id, record_type, record_id)
+        path = '/domains/{}/records/{}/{}'.format(zone_id, record_type,
+                                                  record_id)
         self._request('DELETE', path)
+
+    def pools(self, pool_type):
+        if self._pools is None:
+            self._pools = {}
+            path = '/pools/{}'.format(pool_type)
+            response = self._request('GET', path).json()
+            for pool in response:
+                self._pools[pool['id']] = pool
+        return self._pools.values()
+
+    def pool(self, pool_type, pool_name):
+        pools = self.pools(pool_type)
+        for pool in pools:
+            if pool['name'] == pool_name and pool['type'] == pool_type:
+                return pool
+        return None
+
+    def pool_by_id(self, pool_type, pool_id):
+        pools = self.pools(pool_type)
+        for pool in pools:
+            if pool['id'] == pool_id:
+                return pool
+
+    def pool_create(self, data):
+        path = '/pools/{}'.format(data.get('type'))
+        # This returns a list of items, we want the first one
+        response = self._request('POST', path, data=data).json()[0]
+
+        # Invalidate our cache
+        self._pools = None
+        return response
+
+    def pool_update(self, pool_id, data):
+        path = '/pools/{}/{}'.format(data.get('type'), pool_id)
+        try:
+            self._request('PUT', path, data=data).json()
+
+        except ConstellixClientBadRequest as e:
+            message = str(e)
+            if not message or "no changes to save" not in message:
+                raise e
+        return data
 
 
 class ConstellixProvider(BaseProvider):
@@ -180,7 +224,7 @@ class ConstellixProvider(BaseProvider):
         ratelimit_delay: 0.0
     '''
     SUPPORTS_GEO = False
-    SUPPORTS_DYNAMIC = False
+    SUPPORTS_DYNAMIC = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX',
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 
@@ -194,10 +238,39 @@ class ConstellixProvider(BaseProvider):
 
     def _data_for_multiple(self, _type, records):
         record = records[0]
+        if record['recordOption'] == 'pools':
+            return self._data_for_pool(_type, record)
         return {
             'ttl': record['ttl'],
             'type': _type,
             'values': record['value']
+        }
+
+    def _data_for_pool(self, _type, record):
+        pool_id = record['pools'][0]
+        pool = self._client.pool_by_id(_type, pool_id)
+        pool_name = pool['name'].split(':')[-1]
+        pools = {}
+        values = []
+        pools[pool_name] = {
+            'values': []
+        }
+        for value in pool['values']:
+            pools[pool_name]['values'].append({
+                'value': value['value'],
+                'weight': value['weight']
+            })
+            values.append(value['value'])
+        return {
+            'ttl': record['ttl'],
+            'type': _type,
+            'dynamic': {
+                'pools': pools,
+                'rules': [{
+                    'pool': pool_name
+                }]
+            },
+            'value': values
         }
 
     _data_for_A = _data_for_multiple
@@ -420,10 +493,65 @@ class ConstellixProvider(BaseProvider):
             'roundRobin': values
         }
 
+    def _handle_pools(self, record):
+        # If we don't have dynamic, then there's no pools
+        if not getattr(record, 'dynamic', False):
+            return None
+
+        # Get our first entry in the rules that references a pool
+        rules = list(filter(
+            lambda rule: 'pool' in rule.data,
+            record.dynamic.rules
+        ))
+
+        pool_name = rules[0].data.get('pool')
+
+        pool = record.dynamic.pools.get(pool_name)
+        values = pool.data.get('values')
+
+        # Make a pool name based on zone, record, type and name
+        pool_name = '{}:{}:{}:{}'.format(
+            record.zone.name,
+            record.name,
+            record._type,
+            pool_name
+        )
+
+        # OK, pool is valid, let's create it or update it
+        return self._create_update_pool(
+            pool_name = pool_name,
+            pool_type = record._type,
+            ttl = record.ttl,
+            values = values
+        )
+
+    def _create_update_pool(self, pool_name, pool_type, ttl, values):
+        pool = {
+            'name': pool_name,
+            'type': pool_type,
+            'numReturn': 1,
+            'minAvailableFailover': 1,
+            'ttl': ttl,
+            'values': values
+        }
+        existing_pool = self._client.pool(pool_type, pool_name)
+        if not existing_pool:
+            return self._client.pool_create(pool)
+
+        pool_id = existing_pool['id']
+        updated_pool = self._client.pool_update(pool_id, pool)
+        updated_pool['id'] = pool_id
+        return updated_pool
+
     def _apply_Create(self, change):
         new = change.new
         params_for = getattr(self, '_params_for_{}'.format(new._type))
+        pool = self._handle_pools(new)
+
         for params in params_for(new):
+            if pool:
+                params['pools'] = [pool['id']]
+                params['recordOption'] = 'pools'
             self._client.record_create(new.zone.name, new._type, params)
 
     def _apply_Update(self, change):
