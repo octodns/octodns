@@ -231,6 +231,8 @@ class Manager(object):
                     sub_zones=self.configured_sub_zones(zone_name))
 
         if desired:
+            # This is an alias zone, rather than populate it we'll copy the
+            # records over from `desired`.
             for _, records in desired._records.items():
                 for record in records:
                     zone.add_record(record.copy(zone=zone), lenient=lenient)

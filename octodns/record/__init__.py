@@ -151,7 +151,6 @@ class Record(EqualityTupleMixin):
         # force everything lower-case just to be safe
         self.name = text_type(name).lower() if name else name
         self.source = source
-        self._raw_data = data
         self.ttl = int(data['ttl'])
 
         self._octodns = data.get('octodns', {})
@@ -221,15 +220,15 @@ class Record(EqualityTupleMixin):
             return Update(self, other)
 
     def copy(self, zone=None):
-        _type = getattr(self, '_type')
-        if not self._raw_data.get('type'):
-            self._raw_data['type'] = _type
+        data = self.data
+        data['type'] = self._type
 
         return Record.new(
             zone if zone else self.zone,
             self.name,
-            self._raw_data,
-            self.source
+            data,
+            self.source,
+            lenient=True
         )
 
     # NOTE: we're using __hash__ and ordering methods that consider Records
