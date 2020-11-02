@@ -7,6 +7,7 @@ OctoDNS supports the following record types:
 * `A`
 * `AAAA`
 * `CNAME`
+* `DNAME`
 * `MX`
 * `NAPTR`
 * `NS`
