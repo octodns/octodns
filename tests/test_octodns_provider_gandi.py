@@ -116,7 +116,7 @@ class TestGandiProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(13, len(zone.records))
+            self.assertEquals(14, len(zone.records))
             changes = self.expected.changes(zone, provider)
             self.assertEquals(0, len(changes))
 
@@ -133,7 +133,7 @@ class TestGandiProvider(TestCase):
             provider.populate(zone)
             self.assertEquals(11, len(zone.records))
             changes = self.expected.changes(zone, provider)
-            self.assertEquals(23, len(changes))
+            self.assertEquals(24, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])
@@ -227,6 +227,12 @@ class TestGandiProvider(TestCase):
                 'rrset_values': ['unit.tests.']
             }),
             call('POST', '/livedns/domains/unit.tests/records', data={
+                'rrset_name': 'dname',
+                'rrset_ttl': 300,
+                'rrset_type': 'DNAME',
+                'rrset_values': ['unit.tests.']
+            }),
+            call('POST', '/livedns/domains/unit.tests/records', data={
                 'rrset_name': 'cname',
                 'rrset_ttl': 300,
                 'rrset_type': 'CNAME',
@@ -270,7 +276,7 @@ class TestGandiProvider(TestCase):
             })
         ])
         # expected number of total calls
-        self.assertEquals(16, provider._client._request.call_count)
+        self.assertEquals(17, provider._client._request.call_count)
 
         provider._client._request.reset_mock()
 

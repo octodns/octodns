@@ -47,6 +47,15 @@
         ]
       },
       {
+          "rrset_type": "DNAME",
+          "rrset_ttl": 300,
+          "rrset_name": "dname",
+          "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/dname/DNAME",
+          "rrset_values": [
+            "unit.tests."
+          ]
+        },
+      {
         "rrset_type": "CNAME",
         "rrset_ttl": 3600,
         "rrset_name": "excluded",
