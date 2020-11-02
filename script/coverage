@@ -27,7 +27,7 @@ export DYN_USERNAME=
 export GOOGLE_APPLICATION_CREDENTIALS=
 
 # Don't allow disabling coverage
-grep -r -I --line-number "# pragma: nocover" octodns && {
+grep -r -I --line-number "# pragma: +no.*cover" octodns && {
   echo "Code coverage should not be disabled"
   exit 1
 }
