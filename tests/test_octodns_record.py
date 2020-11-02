@@ -813,6 +813,39 @@ class TestRecord(TestCase):
             })
         self.assertTrue('Unknown record type' in text_type(ctx.exception))
 
+    def test_record_copy(self):
+        a = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+
+        # Identical copy.
+        b = a.copy()
+        self.assertIsInstance(b, ARecord)
+        self.assertEquals('unit.tests.', b.zone.name)
+        self.assertEquals('a', b.name)
+        self.assertEquals('A', b._type)
+        self.assertEquals(['1.2.3.4'], b.values)
+
+        # Copy with another zone object.
+        c_zone = Zone('other.tests.', [])
+        c = a.copy(c_zone)
+        self.assertIsInstance(c, ARecord)
+        self.assertEquals('other.tests.', c.zone.name)
+        self.assertEquals('a', c.name)
+        self.assertEquals('A', c._type)
+        self.assertEquals(['1.2.3.4'], c.values)
+
+        # Record with no record type specified in data.
+        d_data = {
+            'ttl': 600,
+            'values': ['just a test']
+        }
+        d = TxtRecord(self.zone, 'txt', d_data)
+        d.copy()
+        self.assertEquals('TXT', d._type)
+
     def test_change(self):
         existing = Record.new(self.zone, 'txt', {
             'ttl': 44,
