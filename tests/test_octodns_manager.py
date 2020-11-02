@@ -167,6 +167,30 @@ class TestManager(TestCase):
                 .sync(eligible_targets=['foo'])
             self.assertEquals(0, tc)
 
+    def test_aliases(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            # Alias zones with a valid target.
+            tc = Manager(get_config_filename('simple-alias-zone.yaml')) \
+                .sync()
+            self.assertEquals(0, tc)
+
+            # Alias zone with an invalid target.
+            with self.assertRaises(ManagerException) as ctx:
+                tc = Manager(get_config_filename('unknown-source-zone.yaml')) \
+                    .sync()
+            self.assertEquals('Invalid alias zone alias.tests.: source zone '
+                              'does-not-exists.tests. does not exist',
+                              text_type(ctx.exception))
+
+            # Alias zone that points to another alias zone.
+            with self.assertRaises(ManagerException) as ctx:
+                tc = Manager(get_config_filename('alias-zone-loop.yaml')) \
+                    .sync()
+            self.assertEquals('Invalid alias zone alias-loop.tests.: source '
+                              'zone alias.tests. is an alias zone',
+                              text_type(ctx.exception))
+
     def test_compare(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
@@ -285,6 +309,36 @@ class TestManager(TestCase):
             Manager(get_config_filename('unknown-provider.yaml')) \
                 .validate_configs()
         self.assertTrue('unknown source' in text_type(ctx.exception))
+
+        # Alias zone using an invalid source zone.
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('unknown-source-zone.yaml')) \
+                .validate_configs()
+        self.assertTrue('does not exist' in
+                        text_type(ctx.exception))
+
+        # Alias zone that points to another alias zone.
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('alias-zone-loop.yaml')) \
+                .validate_configs()
+        self.assertTrue('is an alias zone' in
+                        text_type(ctx.exception))
+
+        # Valid config file using an alias zone.
+        Manager(get_config_filename('simple-alias-zone.yaml')) \
+            .validate_configs()
+
+    def test_get_zone(self):
+        Manager(get_config_filename('simple.yaml')).get_zone('unit.tests.')
+
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('simple.yaml')).get_zone('unit.tests')
+        self.assertTrue('missing ending dot' in text_type(ctx.exception))
+
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('simple.yaml')) \
+                .get_zone('unknown-zone.tests.')
+        self.assertTrue('Unknown zone name' in text_type(ctx.exception))
 
     def test_populate_lenient_fallback(self):
         with TemporaryDirectory() as tmpdir:

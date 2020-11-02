@@ -219,6 +219,18 @@ class Record(EqualityTupleMixin):
         if self.ttl != other.ttl:
             return Update(self, other)
 
+    def copy(self, zone=None):
+        data = self.data
+        data['type'] = self._type
+
+        return Record.new(
+            zone if zone else self.zone,
+            self.name,
+            data,
+            self.source,
+            lenient=True
+        )
+
     # NOTE: we're using __hash__ and ordering methods that consider Records
     # equivalent if they have the same name & _type. Values are ignored. This
     # is useful when computing diffs/changes.
