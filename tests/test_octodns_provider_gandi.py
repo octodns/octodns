@@ -14,7 +14,8 @@ from unittest import TestCase
 
 from octodns.record import Record
 from octodns.provider.gandi import GandiProvider, GandiClientBadRequest, \
-    GandiClientUnauthorized, GandiClientForbidden, GandiClientNotFound
+    GandiClientUnauthorized, GandiClientForbidden, GandiClientNotFound, \
+    GandiClientUnknownDomainName
 from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
 
@@ -145,6 +146,36 @@ class TestGandiProvider(TestCase):
 
     def test_apply(self):
         provider = GandiProvider('test_id', 'token')
+
+        # Zone does not exists but can be created.
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=404,
+                     text='{"code": 404, "message": "The resource could not '
+                          'be found.", "object": "HTTPNotFound", "cause": '
+                          '"Not Found"}')
+            mock.post(ANY, status_code=201,
+                      text='{"message": "Domain Created"}')
+
+            plan = provider.plan(self.expected)
+            provider.apply(plan)
+
+        # Zone does not exists and can't be created.
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=404,
+                     text='{"code": 404, "message": "The resource could not '
+                          'be found.", "object": "HTTPNotFound", "cause": '
+                          '"Not Found"}')
+            mock.post(ANY, status_code=404,
+                      text='{"code": 404, "message": "The resource could not '
+                           'be found.", "object": "HTTPNotFound", "cause": '
+                           '"Not Found"}')
+
+            with self.assertRaises((GandiClientNotFound,
+                                    GandiClientUnknownDomainName)) as ctx:
+                plan = provider.plan(self.expected)
+                provider.apply(plan)
+            self.assertIn('This domain is not registred at Gandi.',
+                          text_type(ctx.exception))
 
         resp = Mock()
         resp.json = Mock()
