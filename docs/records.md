@@ -89,6 +89,8 @@ Each record type has a corresponding set of required data. The easiest way to de
 
 octoDNS is fairly strict in terms of standards compliance and is opinionated in terms of best practices. Examples of former include SRV record naming requirements and the latter that ALIAS records are constrained to the root of zones. The strictness and support of providers varies so you may encounter existing records that fail validation when you try to dump them or you may even have use cases for which you need to create or preserve records that don't validate. octoDNS's solution to this is the `lenient` flag.
 
+It's best to think of the `lenient` flag as "I know what I'm doing and accept any problems I run across." The main reason being is that some providers may allow the non-compliant setup and others may not. The behavior of the non-compliant records may even vary from one provider to another. Caveat emptor.
+
 #### octodns-dump
 
 If you're trying to import a zone into octoDNS config file using `octodns-dump` which fails due to validation errors you can supply the `--lenient` argument to tell octoDNS that you acknowledge that things aren't lining up with its expectations, but you'd like it to go ahead anyway. This will do its best to populate the zone and dump the results out into an octoDNS zone file and include the non-compliant bits. If you go to use that config file octoDNS will again complain about the validation problems. You can correct them in cases where that makes sense, but if you need to preserve the non-compliant records read on for options.
