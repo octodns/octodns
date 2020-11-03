@@ -354,12 +354,16 @@ class GandiProvider(BaseProvider):
                 self._client.zone_create(zone)
                 self.log.info('_apply: zone has been successfully created')
             except GandiClientNotFound:
-                raise GandiClientUnknownDomainName('This domain is not '
-                                                   'registred at Gandi. '
-                                                   'Please register or '
-                                                   'transfer it here '
-                                                   'to be able to manage its '
-                                                   'DNS zone.')
+                # We suppress existing exception before raising
+                # GandiClientUnknownDomainName.
+                e = GandiClientUnknownDomainName('This domain is not '
+                                                 'registred at Gandi. '
+                                                 'Please register or '
+                                                 'transfer it here '
+                                                 'to be able to manage its '
+                                                 'DNS zone.')
+                e.__cause__ = None
+                raise e
 
         # Force records deletion to be done before creation in order to avoid
         # "CNAME record must be the only record" error when an existing CNAME
