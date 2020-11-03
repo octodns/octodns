@@ -794,6 +794,14 @@ class AliasRecord(_ValueMixin, Record):
     _type = 'ALIAS'
     _value_type = AliasValue
 
+    @classmethod
+    def validate(cls, name, fqdn, data):
+        reasons = []
+        if name != '':
+            reasons.append('non-root ALIAS not allowed')
+        reasons.extend(super(AliasRecord, cls).validate(name, fqdn, data))
+        return reasons
+
 
 class CaaValue(EqualityTupleMixin):
     # https://tools.ietf.org/html/rfc6844#page-5

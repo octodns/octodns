@@ -1743,6 +1743,16 @@ class TestRecordValidation(TestCase):
             'value': 'foo.bar.com.',
         })
 
+        # root only
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'nope', {
+                'type': 'ALIAS',
+                'ttl': 600,
+                'value': 'foo.bar.com.',
+            })
+        self.assertEquals(['non-root ALIAS not allowed'],
+                          ctx.exception.reasons)
+
         # missing value
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
@@ -1753,7 +1763,7 @@ class TestRecordValidation(TestCase):
 
         # missing value
         with self.assertRaises(ValidationError) as ctx:
-            Record.new(self.zone, 'www', {
+            Record.new(self.zone, '', {
                 'type': 'ALIAS',
                 'ttl': 600,
                 'value': None
@@ -1762,7 +1772,7 @@ class TestRecordValidation(TestCase):
 
         # empty value
         with self.assertRaises(ValidationError) as ctx:
-            Record.new(self.zone, 'www', {
+            Record.new(self.zone, '', {
                 'type': 'ALIAS',
                 'ttl': 600,
                 'value': ''

@@ -321,20 +321,6 @@
     "value": "aname.unit.tests.",
     "id": 11189895,
     "type": "ANAME"
-	 }, {
-    "failover": false,
-    "monitor": false,
-    "sourceId": 123123,
-    "dynamicDns": false,
-    "failed": false,
-    "gtdLocation": "DEFAULT",
-    "hardLink": false,
-    "ttl": 1800,
-    "source": 1,
-    "name": "sub",
-    "value": "aname",
-    "id": 11189896,
-    "type": "ANAME"
 	}, {
     "failover": false,
     "monitor": false,

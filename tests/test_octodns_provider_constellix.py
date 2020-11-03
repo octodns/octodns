@@ -42,12 +42,6 @@ class TestConstellixProvider(TestCase):
         'value': 'aname.unit.tests.'
     }))
 
-    expected.add_record(Record.new(expected, 'sub', {
-        'ttl': 1800,
-        'type': 'ALIAS',
-        'value': 'aname.unit.tests.'
-    }))
-
     for record in list(expected.records):
         if record.name == 'sub' and record._type == 'NS':
             expected._remove_record(record)
@@ -107,14 +101,14 @@ class TestConstellixProvider(TestCase):
 
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-                self.assertEquals(15, len(zone.records))
+                self.assertEquals(14, len(zone.records))
                 changes = self.expected.changes(zone, provider)
                 self.assertEquals(0, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])
         provider.populate(again)
-        self.assertEquals(15, len(again.records))
+        self.assertEquals(14, len(again.records))
 
         # bust the cache
         del provider._zone_records[zone.name]
@@ -169,7 +163,7 @@ class TestConstellixProvider(TestCase):
             }),
         ])
 
-        self.assertEquals(18, provider._client._request.call_count)
+        self.assertEquals(17, provider._client._request.call_count)
 
         provider._client._request.reset_mock()
 
