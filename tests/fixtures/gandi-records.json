@@ -1,0 +1,111 @@
+[
+  {
+    "rrset_type": "A",
+    "rrset_ttl": 10800,
+    "rrset_name": "@",
+    "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/%40/A",
+    "rrset_values": [
+      "217.70.184.38"
+    ]
+  },
+  {
+    "rrset_type": "MX",
+    "rrset_ttl": 10800,
+    "rrset_name": "@",
+    "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/%40/MX",
+    "rrset_values": [
+      "10 spool.mail.gandi.net.",
+      "50 fb.mail.gandi.net."
+    ]
+  },
+  {
+    "rrset_type": "TXT",
+    "rrset_ttl": 10800,
+    "rrset_name": "@",
+    "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/%40/TXT",
+    "rrset_values": [
+      "\"v=spf1 include:_mailcust.gandi.net ?all\""
+    ]
+  },
+  {
+    "rrset_type": "CNAME",
+    "rrset_ttl": 10800,
+    "rrset_name": "webmail",
+    "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/webmail/CNAME",
+    "rrset_values": [
+      "webmail.gandi.net."
+    ]
+  },
+  {
+    "rrset_type": "CNAME",
+    "rrset_ttl": 10800,
+    "rrset_name": "www",
+    "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/www/CNAME",
+    "rrset_values": [
+      "webredir.vip.gandi.net."
+    ]
+  },
+  {
+    "rrset_type": "SRV",
+    "rrset_ttl": 10800,
+    "rrset_name": "_imap._tcp",
+    "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/_imap._tcp/SRV",
+    "rrset_values": [
+      "0 0 0 ."
+    ]
+  },
+  {
+    "rrset_type": "SRV",
+    "rrset_ttl": 10800,
+    "rrset_name": "_imaps._tcp",
+    "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/_imaps._tcp/SRV",
+    "rrset_values": [
+      "0 1 993 mail.gandi.net."
+    ]
+  },
+  {
+    "rrset_type": "SRV",
+    "rrset_ttl": 10800,
+    "rrset_name": "_pop3._tcp",
+    "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/_pop3._tcp/SRV",
+    "rrset_values": [
+      "0 0 0 ."
+    ]
+  },
+  {
+    "rrset_type": "SRV",
+    "rrset_ttl": 10800,
+    "rrset_name": "_pop3s._tcp",
+    "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/_pop3s._tcp/SRV",
+    "rrset_values": [
+      "10 1 995 mail.gandi.net."
+    ]
+  },
+  {
+    "rrset_type": "SRV",
+    "rrset_ttl": 10800,
+    "rrset_name": "_submission._tcp",
+    "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/_submission._tcp/SRV",
+    "rrset_values": [
+      "0 1 465 mail.gandi.net."
+    ]
+  },
+  {
+    "rrset_type": "CDS",
+    "rrset_ttl": 10800,
+    "rrset_name": "sub",
+    "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/sub/CDS",
+    "rrset_values": [
+      "32128 13 1 6823D9BB1B03DF714DD0EB163E20B341C96D18C0"
+    ]
+  },
+  {
+    "rrset_type": "CNAME",
+    "rrset_ttl": 10800,
+    "rrset_name": "relative",
+    "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/relative/CNAME",
+    "rrset_values": [
+      "target"
+    ]
+  }
+]

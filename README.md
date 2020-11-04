@@ -194,6 +194,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [EasyDNSProvider](/octodns/provider/easydns.py) | | A, AAAA, CAA, CNAME, MX, NAPTR, NS, SRV, TXT | No | |
 | [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | A, AAAA, ALIAS, CNAME | No | |
 | [EnvVarSource](/octodns/source/envvar.py) | | TXT | No | read-only environment variable injection |
+| [GandiProvider](/octodns/provider/gandi.py) | | A, AAAA, ALIAS, CAA, CNAME, DNAME, MX, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
 | [MythicBeastsProvider](/octodns/provider/mythicbeasts.py) | Mythic Beasts | A, AAAA, ALIAS, CNAME, MX, NS, SRV, SSHFP, CAA, TXT | No | |
 | [Ns1Provider](/octodns/provider/ns1.py) | ns1-python | All | Yes | Missing `NA` geo target |
