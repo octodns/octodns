@@ -137,7 +137,7 @@ class TestDnsimpleProvider(TestCase):
         plan = provider.plan(self.expected)
 
         # No root NS, no ignored, no excluded
-        n = len(self.expected.records) - 3
+        n = len(self.expected.records) - 4
         self.assertEquals(n, len(plan.changes))
         self.assertEquals(n, provider.apply(plan))
         self.assertFalse(plan.exists)

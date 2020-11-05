@@ -17,7 +17,6 @@ from six import text_type
 
 from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
-from octodns.zone import Zone
 
 
 class AsyncResolver(Resolver):
@@ -56,7 +55,7 @@ def main():
     except KeyError as e:
         raise Exception('Unknown source: {}'.format(e.args[0]))
 
-    zone = Zone(args.zone, manager.configured_sub_zones(args.zone))
+    zone = manager.get_zone(args.zone)
     for source in sources:
         source.populate(zone)
 

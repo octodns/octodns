@@ -95,6 +95,7 @@ class Record(EqualityTupleMixin):
                 'ALIAS': AliasRecord,
                 'CAA': CaaRecord,
                 'CNAME': CnameRecord,
+                'DNAME': DnameRecord,
                 'MX': MxRecord,
                 'NAPTR': NaptrRecord,
                 'NS': NsRecord,
@@ -217,6 +218,18 @@ class Record(EqualityTupleMixin):
         # We're assuming we have the same name and type if we're being compared
         if self.ttl != other.ttl:
             return Update(self, other)
+
+    def copy(self, zone=None):
+        data = self.data
+        data['type'] = self._type
+
+        return Record.new(
+            zone if zone else self.zone,
+            self.name,
+            data,
+            self.source,
+            lenient=True
+        )
 
     # NOTE: we're using __hash__ and ordering methods that consider Records
     # equivalent if they have the same name & _type. Values are ignored. This
@@ -759,6 +772,10 @@ class CnameValue(_TargetValue):
     pass
 
 
+class DnameValue(_TargetValue):
+    pass
+
+
 class ARecord(_DynamicMixin, _GeoMixin, Record):
     _type = 'A'
     _value_type = Ipv4List
@@ -776,6 +793,14 @@ class AliasValue(_TargetValue):
 class AliasRecord(_ValueMixin, Record):
     _type = 'ALIAS'
     _value_type = AliasValue
+
+    @classmethod
+    def validate(cls, name, fqdn, data):
+        reasons = []
+        if name != '':
+            reasons.append('non-root ALIAS not allowed')
+        reasons.extend(super(AliasRecord, cls).validate(name, fqdn, data))
+        return reasons
 
 
 class CaaValue(EqualityTupleMixin):
@@ -840,6 +865,11 @@ class CnameRecord(_DynamicMixin, _ValueMixin, Record):
             reasons.append('root CNAME not allowed')
         reasons.extend(super(CnameRecord, cls).validate(name, fqdn, data))
         return reasons
+
+
+class DnameRecord(_DynamicMixin, _ValueMixin, Record):
+    _type = 'DNAME'
+    _value_type = DnameValue
 
 
 class MxValue(EqualityTupleMixin):

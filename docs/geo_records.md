@@ -1,6 +1,6 @@
 ## Geo Record Support
 
-Note: Geo DNS records are still supported for the time being, but it is still strongy encouraged that you look at [Dynamic Records](/docs/dynamic_records.md) instead as they are a superset of functionality.
+Note: Geo DNS records are still supported for the time being, but it is still strongly encouraged that you look at [Dynamic Records](/docs/dynamic_records.md) instead as they are a superset of functionality.
 
 GeoDNS is currently supported for `A` and `AAAA` records on the Dyn (via Traffic Directors) and Route53 providers. Records with geo information pushed to providers without support for them will be managed as non-geo records using the base values.
 

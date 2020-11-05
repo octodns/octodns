@@ -35,7 +35,7 @@ class TestYamlProvider(TestCase):
 
         # without it we see everything
         source.populate(zone)
-        self.assertEquals(18, len(zone.records))
+        self.assertEquals(19, len(zone.records))
 
         source.populate(dynamic_zone)
         self.assertEquals(5, len(dynamic_zone.records))
@@ -58,12 +58,12 @@ class TestYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(15, len([c for c in plan.changes
+            self.assertEquals(16, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
             self.assertFalse(isfile(yaml_file))
 
             # Now actually do it
-            self.assertEquals(15, target.apply(plan))
+            self.assertEquals(16, target.apply(plan))
             self.assertTrue(isfile(yaml_file))
 
             # Dynamic plan
@@ -87,7 +87,7 @@ class TestYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(15, len([c for c in plan.changes
+            self.assertEquals(16, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
 
             with open(yaml_file) as fh:
@@ -109,6 +109,7 @@ class TestYamlProvider(TestCase):
                 # these are stored as singular 'value'
                 self.assertTrue('value' in data.pop('aaaa'))
                 self.assertTrue('value' in data.pop('cname'))
+                self.assertTrue('value' in data.pop('dname'))
                 self.assertTrue('value' in data.pop('included'))
                 self.assertTrue('value' in data.pop('ptr'))
                 self.assertTrue('value' in data.pop('spf'))
@@ -237,7 +238,7 @@ class TestSplitYamlProvider(TestCase):
 
         # without it we see everything
         source.populate(zone)
-        self.assertEquals(18, len(zone.records))
+        self.assertEquals(19, len(zone.records))
 
         source.populate(dynamic_zone)
         self.assertEquals(5, len(dynamic_zone.records))
@@ -251,12 +252,12 @@ class TestSplitYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(15, len([c for c in plan.changes
+            self.assertEquals(16, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
             self.assertFalse(isdir(zone_dir))
 
             # Now actually do it
-            self.assertEquals(15, target.apply(plan))
+            self.assertEquals(16, target.apply(plan))
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
@@ -279,7 +280,7 @@ class TestSplitYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(15, len([c for c in plan.changes
+            self.assertEquals(16, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
 
             yaml_file = join(zone_dir, '$unit.tests.yaml')
@@ -302,8 +303,8 @@ class TestSplitYamlProvider(TestCase):
                     self.assertTrue('values' in data.pop(record_name))
 
             # These are stored as singular "value." Again, check each file.
-            for record_name in ('aaaa', 'cname', 'included', 'ptr', 'spf',
-                                'www.sub', 'www'):
+            for record_name in ('aaaa', 'cname', 'dname', 'included', 'ptr',
+                                'spf', 'www.sub', 'www'):
                 yaml_file = join(zone_dir, '{}.yaml'.format(record_name))
                 self.assertTrue(isfile(yaml_file))
                 with open(yaml_file) as fh:
@@ -387,7 +388,7 @@ class TestOverridingYamlProvider(TestCase):
         base.populate(zone)
         got = {r.name: r for r in zone.records}
         self.assertEquals(5, len(got))
-        # We get the "dynamic" A from the bae config
+        # We get the "dynamic" A from the base config
         self.assertTrue('dynamic' in got['a'].data)
         # No added
         self.assertFalse('added' in got)
