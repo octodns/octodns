@@ -1,11 +1,11 @@
-include README.md
+include CHANGELOG.md
+include CODE_OF_CONDUCT.md
 include CONTRIBUTING.md
 include LICENSE
-include requirements.txt
+include README.md
 include requirements-dev.txt
-recursive-include docs *.png *.md
+include requirements.txt
 include script/*
-recursive-include tests *.py
-recursive-include tests *.json *.txt *.yaml
-recursive-include tests/zones *.
-recursive-include tests/zones/tinydns *.*
+recursive-include docs *.png *.md
+recursive-include tests *.json *.py *.txt *.yaml
+recursive-include tests/zones *
