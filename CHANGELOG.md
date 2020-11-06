@@ -1,6 +1,31 @@
-## v0.9.11 - 2020-??-?? - ???????????????
+## v0.9.11 - 2020-11-05 - We still don't know edition
 
-* Added support for TCP health checking to dynamic records
+#### Noteworthy changtes
+
+* ALIAS records only allowed at the root of zones - see `leient` in record docs
+  for work-arounds if you really need them.
+
+#### New Providers
+
+* Gandi LiveDNS
+* UltraDNS
+* easyDNS
+
+#### Stuff
+
+* Add support for zones aliases
+* octodns-compare: Prefix filtering and status code on on mismatch
+* Implement octodns-sync --source
+* Adding environment variable record injection
+* Add support for wildcard SRV records, as shown in RFC 2782
+* Add healthcheck option 'request_interval' for Route53 provider
+* NS1 georegion, country, and catchall need to be separate groups
+* Add the ability to mark a zone as lenient
+* Add support for geo-targeting of CA provinces
+* Update geo_data to pick up a couple renames
+* Cloudflare: Add PTR Support, update rate-limit handling and pagination
+* Support PowerDNS 4.3.x
+* Added support for TCP health checking of dynamic records
 
 ## v0.9.10 - 2020-04-20 - Dynamic NS1 and lots of misc
 
