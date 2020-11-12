@@ -34,7 +34,7 @@ class TestAxfrSource(TestCase):
         ]
 
         self.source.populate(got)
-        self.assertEquals(11, len(got.records))
+        self.assertEquals(12, len(got.records))
 
         with self.assertRaises(AxfrSourceZoneTransferFailed) as ctx:
             zone = Zone('unit.tests.', [])
@@ -50,12 +50,12 @@ class TestZoneFileSource(TestCase):
         # Valid zone file in directory
         valid = Zone('unit.tests.', [])
         self.source.populate(valid)
-        self.assertEquals(11, len(valid.records))
+        self.assertEquals(12, len(valid.records))
 
         # 2nd populate does not read file again
         again = Zone('unit.tests.', [])
         self.source.populate(again)
-        self.assertEquals(11, len(again.records))
+        self.assertEquals(12, len(again.records))
 
         # bust the cache
         del self.source._zone_records[valid.name]
