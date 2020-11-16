@@ -126,10 +126,11 @@ class Record(EqualityTupleMixin):
         if n > 253:
             reasons.append('invalid fqdn, "{}" is too long at {} chars, max '
                            'is 253'.format(fqdn, n))
-        n = len(name)
-        if n > 63:
-            reasons.append('invalid name, "{}" is too long at {} chars, max '
-                           'is 63'.format(name, n))
+        for label in name.split('.'):
+            n = len(label)
+            if n > 63:
+                reasons.append('invalid label, "{}" is too long at {} chars, '
+                               'max is 63'.format(label, n))
         try:
             ttl = int(data['ttl'])
             if ttl < 0:
