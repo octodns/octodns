@@ -1315,7 +1315,7 @@ class TestRecordValidation(TestCase):
         self.assertTrue(reason.endswith('.unit.tests." is too long at 254'
                                         ' chars, max is 253'))
 
-        # label length, DNS defins max as 63
+        # label length, DNS defines max as 63
         with self.assertRaises(ValidationError) as ctx:
             # The . will put this over the edge
             name = 'x' * 64
@@ -1325,9 +1325,29 @@ class TestRecordValidation(TestCase):
                 'value': '1.2.3.4',
             })
         reason = ctx.exception.reasons[0]
-        self.assertTrue(reason.startswith('invalid name, "xxxx'))
+        self.assertTrue(reason.startswith('invalid label, "xxxx'))
         self.assertTrue(reason.endswith('xxx" is too long at 64'
                                         ' chars, max is 63'))
+
+        with self.assertRaises(ValidationError) as ctx:
+            name = 'foo.' + 'x' * 64 + '.bar'
+            Record.new(self.zone, name, {
+                'ttl': 300,
+                'type': 'A',
+                'value': '1.2.3.4',
+            })
+        reason = ctx.exception.reasons[0]
+        self.assertTrue(reason.startswith('invalid label, "xxxx'))
+        self.assertTrue(reason.endswith('xxx" is too long at 64'
+                                        ' chars, max is 63'))
+
+        # should not raise with dots
+        name = 'xxxxxxxx.' * 10
+        Record.new(self.zone, name, {
+            'ttl': 300,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
 
         # no ttl
         with self.assertRaises(ValidationError) as ctx:
