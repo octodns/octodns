@@ -183,7 +183,8 @@ class PowerDnsBaseProvider(BaseProvider):
             version = resp.json()['version']
             self.log.debug('powerdns_version: got version %s from server',
                            version)
-            self._powerdns_version = [int(p) for p in version.split('.')]
+            self._powerdns_version = [
+                int(p.split('-')[0]) for p in version.split('.')[:3]]
 
         return self._powerdns_version
 
