@@ -371,12 +371,11 @@ class OvhProvider(BaseProvider):
     @staticmethod
     def _is_valid_dkim_key(key):
         result = True
+        base64_decode = getattr(base64, 'decodestring', None)
+        base64_decode = getattr(base64, 'decodebytes', base64_decode)
+
         try:
-            decode = base64.decodestring
-        except AttributeError:
-            decode = base64.decodebytes
-        try:
-            result = decode(bytearray(key, 'utf-8'))
+            result = base64_decode(bytearray(key, 'utf-8'))
         except binascii.Error:
             result = False
         return result
