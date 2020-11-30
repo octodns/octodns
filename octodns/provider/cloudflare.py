@@ -143,6 +143,11 @@ class CloudflareProvider(BaseProvider):
         resp.raise_for_status()
         return resp.json()
 
+    def _change_keyer(self, change):
+        key = change.__class__.__name__
+        order = {'Delete': 0, 'Create': 1, 'Update': 2}
+        return order[key]
+
     @property
     def zones(self):
         if self._zones is None:
@@ -659,6 +664,11 @@ class CloudflareProvider(BaseProvider):
             zone_id = resp['result']['id']
             self.zones[name] = zone_id
             self._zone_records[name] = {}
+
+        # Force the operation order to be Delete() -> Create() -> Update()
+        # This will help avoid problems in updating a CNAME record into an
+        # A record and vice-versa
+        changes.sort(key=self._change_keyer)
 
         for change in changes:
             class_name = change.__class__.__name__

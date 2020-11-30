@@ -340,6 +340,10 @@ class TestCloudflareProvider(TestCase):
         self.assertTrue(plan.exists)
         # creates a the new value and then deletes all the old
         provider._request.assert_has_calls([
+            call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
+                 'dns_records/fc12ab34cd5611334422ab3322997653'),
+            call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
+                 'dns_records/fc12ab34cd5611334422ab3322997654'),
             call('PUT', '/zones/42/dns_records/'
                  'fc12ab34cd5611334422ab3322997655', data={
                      'content': '3.2.3.4',
@@ -347,11 +351,7 @@ class TestCloudflareProvider(TestCase):
                      'name': 'ttl.unit.tests',
                      'proxied': False,
                      'ttl': 300
-                 }),
-            call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
-                 'dns_records/fc12ab34cd5611334422ab3322997653'),
-            call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
-                 'dns_records/fc12ab34cd5611334422ab3322997654')
+                 })
         ])
 
     def test_update_add_swap(self):
