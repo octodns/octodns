@@ -177,10 +177,14 @@ class TestCloudflareProvider(TestCase):
                       'page-2.json') as fh:
                 mock.get('{}?page=2'.format(base), status_code=200,
                          text=fh.read())
+            with open('tests/fixtures/cloudflare-dns_records-'
+                      'page-3.json') as fh:
+                mock.get('{}?page=3'.format(base), status_code=200,
+                         text=fh.read())
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(13, len(zone.records))
+            self.assertEquals(14, len(zone.records))
 
             changes = self.expected.changes(zone, provider)
 
@@ -189,7 +193,7 @@ class TestCloudflareProvider(TestCase):
         # re-populating the same zone/records comes out of cache, no calls
         again = Zone('unit.tests.', [])
         provider.populate(again)
-        self.assertEquals(13, len(again.records))
+        self.assertEquals(14, len(again.records))
 
     def test_apply(self):
         provider = CloudflareProvider('test', 'email', 'token', retry_period=0)
@@ -203,12 +207,12 @@ class TestCloudflareProvider(TestCase):
                     'id': 42,
                 }
             },  # zone create
-        ] + [None] * 22  # individual record creates
+        ] + [None] * 24  # individual record creates
 
         # non-existent zone, create everything
         plan = provider.plan(self.expected)
-        self.assertEquals(13, len(plan.changes))
-        self.assertEquals(13, provider.apply(plan))
+        self.assertEquals(14, len(plan.changes))
+        self.assertEquals(14, provider.apply(plan))
         self.assertFalse(plan.exists)
 
         provider._request.assert_has_calls([
@@ -234,7 +238,7 @@ class TestCloudflareProvider(TestCase):
             }),
         ], True)
         # expected number of total calls
-        self.assertEquals(23, provider._request.call_count)
+        self.assertEquals(25, provider._request.call_count)
 
         provider._request.reset_mock()
 
@@ -565,6 +569,52 @@ class TestCloudflareProvider(TestCase):
             'type': 'PTR',
             'content': 'foo.bar.com.'
         }, list(ptr_record_contents)[0])
+
+    def test_loc(self):
+        self.maxDiff = None
+        provider = CloudflareProvider('test', 'email', 'token')
+
+        zone = Zone('unit.tests.', [])
+        # LOC record
+        loc_record = Record.new(zone, 'example', {
+            'ttl': 300,
+            'type': 'LOC',
+            'value': {
+                'lat_degrees': 31,
+                'lat_minutes': 58,
+                'lat_seconds': 52.1,
+                'lat_direction': 'S',
+                'long_degrees': 115,
+                'long_minutes': 49,
+                'long_seconds': 11.7,
+                'long_direction': 'E',
+                'altitude': 20,
+                'size': 10,
+                'precision_horz': 10,
+                'precision_vert': 2,
+            }
+        })
+
+        loc_record_contents = provider._gen_data(loc_record)
+        self.assertEquals({
+            'name': 'example.unit.tests',
+            'ttl': 300,
+            'type': 'LOC',
+            'data': {
+                'lat_degrees': 31,
+                'lat_minutes': 58,
+                'lat_seconds': 52.1,
+                'lat_direction': 'S',
+                'long_degrees': 115,
+                'long_minutes': 49,
+                'long_seconds': 11.7,
+                'long_direction': 'E',
+                'altitude': 20,
+                'size': 10,
+                'precision_horz': 10,
+                'precision_vert': 2,
+            }
+        }, list(loc_record_contents)[0])
 
     def test_srv(self):
         provider = CloudflareProvider('test', 'email', 'token')

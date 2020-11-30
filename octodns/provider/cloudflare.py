@@ -75,8 +75,8 @@ class CloudflareProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR',
-                    'SRV', 'SPF', 'TXT'))
+    SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'LOC', 'MX', 'NS',
+                    'PTR', 'SRV', 'SPF', 'TXT'))
 
     MIN_TTL = 120
     TIMEOUT = 15
@@ -133,6 +133,7 @@ class CloudflareProvider(BaseProvider):
                                   timeout=self.TIMEOUT)
         self.log.debug('_request:   status=%d', resp.status_code)
         if resp.status_code == 400:
+            self.log.debug('_request:   data=%s', data)
             raise CloudflareError(resp.json())
         if resp.status_code == 403:
             raise CloudflareAuthenticationError(resp.json())
@@ -215,6 +216,30 @@ class CloudflareProvider(BaseProvider):
 
     _data_for_ALIAS = _data_for_CNAME
     _data_for_PTR = _data_for_CNAME
+
+    def _data_for_LOC(self, _type, records):
+        values = []
+        for record in records:
+            r = record['data']
+            values.append({
+                'lat_degrees': int(r['lat_degrees']),
+                'lat_minutes': int(r['lat_minutes']),
+                'lat_seconds': float(r['lat_seconds']),
+                'lat_direction': r['lat_direction'],
+                'long_degrees': int(r['long_degrees']),
+                'long_minutes': int(r['long_minutes']),
+                'long_seconds': float(r['long_seconds']),
+                'long_direction': r['long_direction'],
+                'altitude': float(r['altitude']),
+                'size': float(r['size']),
+                'precision_horz': float(r['precision_horz']),
+                'precision_vert': float(r['precision_vert']),
+            })
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values
+        }
 
     def _data_for_MX(self, _type, records):
         values = []
@@ -383,6 +408,25 @@ class CloudflareProvider(BaseProvider):
         yield {'content': record.value}
 
     _contents_for_PTR = _contents_for_CNAME
+
+    def _contents_for_LOC(self, record):
+        for value in record.values:
+            yield {
+                'data': {
+                    'lat_degrees': value.lat_degrees,
+                    'lat_minutes': value.lat_minutes,
+                    'lat_seconds': value.lat_seconds,
+                    'lat_direction': value.lat_direction,
+                    'long_degrees': value.long_degrees,
+                    'long_minutes': value.long_minutes,
+                    'long_seconds': value.long_seconds,
+                    'long_direction': value.long_direction,
+                    'altitude': value.altitude,
+                    'size': value.size,
+                    'precision_horz': value.precision_horz,
+                    'precision_vert': value.precision_vert,
+                }
+            }
 
     def _contents_for_MX(self, record):
         for value in record.values:
