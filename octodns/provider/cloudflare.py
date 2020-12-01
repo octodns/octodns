@@ -56,7 +56,7 @@ class CloudflareProvider(BaseProvider):
         # Optional. Default: None. Specifiy the account these zones belong to.
         account_id: d45786as6dfds75adsf5678asdf9678
         # Optional. Default: None. Specifiy the plan zones should have.
-        subscription: fds987g6s8df765gsdf986g9sd7f0
+        subscription_id_id: fds987g6s8df765gsdf986g9sd7f0
         # Optional. Default: 4. Number of times to retry if a 429 response
         # is received.
         retry_count: 4
@@ -86,7 +86,7 @@ class CloudflareProvider(BaseProvider):
     TIMEOUT = 15
 
     def __init__(self, id, email=None, token=None, cdn=False, account_id=None,
-                 subscription=None, retry_count=4, retry_period=300,
+                 subscription_id=None, retry_count=4, retry_period=300,
                  zones_per_page=50, records_per_page=100, *args, **kwargs):
         self.log = getLogger('CloudflareProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, email=%s, token=***, cdn=%s', id,
@@ -107,7 +107,7 @@ class CloudflareProvider(BaseProvider):
             })
         self.cdn = cdn
         self.account_id = account_id
-        self.subscription = subscription
+        self.subscription_id = subscription_id
         self.retry_count = retry_count
         self.retry_period = retry_period
         self.zones_per_page = zones_per_page
@@ -631,10 +631,10 @@ class CloudflareProvider(BaseProvider):
             resp = self._try_request('POST', '/zones', data=data)
             zone_id = resp['result']['id']
 
-            if self.subscription:
+            if self.subscription_id:
                 self._try_request('PATCH', '/zones/{}'.format(zone_id), data={
                     'plan': {
-                        'id': self.subscription
+                        'id': self.subscription_id
                     }
                 })
 
