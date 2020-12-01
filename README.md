@@ -79,6 +79,9 @@ zones:
     targets:
       - dyn
       - route53
+
+  example.net:
+    alias: example.com.
 ```
 
 `class` is a special key that tells OctoDNS what python class should be loaded. Any other keys will be passed as configuration values to that provider. In general any sensitive or frequently rotated values should come from environmental variables. When OctoDNS sees a value that starts with `env/` it will look for that value in the process's environment and pass the result along.
@@ -86,6 +89,8 @@ zones:
 Further information can be found in the `docstring` of each source and provider class.
 
 The `max_workers` key in the `manager` section of the config enables threading to parallelize the planning portion of the sync.
+
+In this example, `example.net` is an alias of zone `example.com`, which means they share the same sources and targets. They will therefore have identical records.
 
 Now that we have something to tell OctoDNS about our providers & zones we need to tell it about or records. We'll keep it simple for now and just create a single `A` record at the top-level of the domain.
 
@@ -189,18 +194,19 @@ The above command pulled the existing data out of Route53 and placed the results
 | [EasyDNSProvider](/octodns/provider/easydns.py) | | A, AAAA, CAA, CNAME, MX, NAPTR, NS, SRV, TXT | No | No | |
 | [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | A, AAAA, ALIAS, CNAME | No | No | |
 | [EnvVarSource](/octodns/source/envvar.py) | | TXT | No | No | read-only environment variable injection |
+| [GandiProvider](/octodns/provider/gandi.py) | | A, AAAA, ALIAS, CAA, CNAME, DNAME, MX, NS, PTR, SPF, SRV, SSHFP, TXT | No | No | |
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | No | |
 | [MythicBeastsProvider](/octodns/provider/mythicbeasts.py) | Mythic Beasts | A, AAAA, ALIAS, CNAME, MX, NS, SRV, SSHFP, CAA, TXT | No | No | |
-| [Ns1Provider](/octodns/provider/ns1.py) | ns1-python | All | Yes | No | No CNAME support, missing `NA` geo target |
+| [Ns1Provider](/octodns/provider/ns1.py) | ns1-python | All | Yes | No | Missing `NA` geo target |
 | [OVH](/octodns/provider/ovh.py) | ovh | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | No | |
 | [PowerDnsProvider](/octodns/provider/powerdns.py) | | All | No | No | |
 | [Rackspace](/octodns/provider/rackspace.py) | | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No | No |  |
 | [Route53](/octodns/provider/route53.py) | boto3 | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Both | Yes | CNAME health checks don't support a Host header |
 | [Selectel](/octodns/provider/selectel.py) | | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | No | |
 | [Transip](/octodns/provider/transip.py) | transip | A, AAAA, CNAME, MX, SRV, SPF, TXT, SSHFP, CAA | No | No | |
-| [UltraDns](/octodns/provider/ultra.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | No | |
-| [AxfrSource](/octodns/source/axfr.py) | | A, AAAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | Yes | read-only |
-| [ZoneFileSource](/octodns/source/axfr.py) | | A, AAAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | Yes | read-only |
+| [UltraDns](/octodns/provider/ultra.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | Yes | |
+| [AxfrSource](/octodns/source/axfr.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | Yes | read-only |
+| [ZoneFileSource](/octodns/source/axfr.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | Yes | read-only |
 | [TinyDnsFileSource](/octodns/source/tinydns.py) | | A, CNAME, MX, NS, PTR | No | Yes | read-only |
 | [YamlProvider](/octodns/provider/yaml.py) | | All | Yes | Yes | config |
 

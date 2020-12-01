@@ -184,7 +184,10 @@ class PowerDnsBaseProvider(BaseProvider):
             version = resp.json()['version']
             self.log.debug('powerdns_version: got version %s from server',
                            version)
-            self._powerdns_version = [int(p) for p in version.split('.')]
+            # The extra `-` split is to handle pre-release and source built
+            # versions like 4.5.0-alpha0.435.master.gcb114252b
+            self._powerdns_version = [
+                int(p.split('-')[0]) for p in version.split('.')[:3]]
 
         return self._powerdns_version
 

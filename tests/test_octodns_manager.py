@@ -118,12 +118,12 @@ class TestManager(TestCase):
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False)
-            self.assertEquals(21, tc)
+            self.assertEquals(22, tc)
 
             # try with just one of the zones
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, eligible_zones=['unit.tests.'])
-            self.assertEquals(15, tc)
+            self.assertEquals(16, tc)
 
             # the subzone, with 2 targets
             tc = Manager(get_config_filename('simple.yaml')) \
@@ -138,18 +138,26 @@ class TestManager(TestCase):
             # Again with force
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(21, tc)
+            self.assertEquals(22, tc)
 
             # Again with max_workers = 1
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(21, tc)
+            self.assertEquals(22, tc)
 
             # Include meta
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1,
                          include_meta=True) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(25, tc)
+            self.assertEquals(26, tc)
+
+    def test_eligible_sources(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            # Only allow a target that doesn't exist
+            tc = Manager(get_config_filename('simple.yaml')) \
+                .sync(eligible_sources=['foo'])
+            self.assertEquals(0, tc)
 
     def test_eligible_targets(self):
         with TemporaryDirectory() as tmpdir:
@@ -158,6 +166,30 @@ class TestManager(TestCase):
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(eligible_targets=['foo'])
             self.assertEquals(0, tc)
+
+    def test_aliases(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            # Alias zones with a valid target.
+            tc = Manager(get_config_filename('simple-alias-zone.yaml')) \
+                .sync()
+            self.assertEquals(0, tc)
+
+            # Alias zone with an invalid target.
+            with self.assertRaises(ManagerException) as ctx:
+                tc = Manager(get_config_filename('unknown-source-zone.yaml')) \
+                    .sync()
+            self.assertEquals('Invalid alias zone alias.tests.: source zone '
+                              'does-not-exists.tests. does not exist',
+                              text_type(ctx.exception))
+
+            # Alias zone that points to another alias zone.
+            with self.assertRaises(ManagerException) as ctx:
+                tc = Manager(get_config_filename('alias-zone-loop.yaml')) \
+                    .sync()
+            self.assertEquals('Invalid alias zone alias-loop.tests.: source '
+                              'zone alias.tests. is an alias zone',
+                              text_type(ctx.exception))
 
     def test_compare(self):
         with TemporaryDirectory() as tmpdir:
@@ -175,13 +207,13 @@ class TestManager(TestCase):
                 fh.write('---\n{}')
 
             changes = manager.compare(['in'], ['dump'], 'unit.tests.')
-            self.assertEquals(15, len(changes))
+            self.assertEquals(16, len(changes))
 
             # Compound sources with varying support
             changes = manager.compare(['in', 'nosshfp'],
                                       ['dump'],
                                       'unit.tests.')
-            self.assertEquals(14, len(changes))
+            self.assertEquals(15, len(changes))
 
             with self.assertRaises(ManagerException) as ctx:
                 manager.compare(['nope'], ['dump'], 'unit.tests.')
@@ -283,6 +315,36 @@ class TestManager(TestCase):
             Manager(get_config_filename('unknown-provider.yaml')) \
                 .validate_configs()
         self.assertTrue('unknown source' in text_type(ctx.exception))
+
+        # Alias zone using an invalid source zone.
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('unknown-source-zone.yaml')) \
+                .validate_configs()
+        self.assertTrue('does not exist' in
+                        text_type(ctx.exception))
+
+        # Alias zone that points to another alias zone.
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('alias-zone-loop.yaml')) \
+                .validate_configs()
+        self.assertTrue('is an alias zone' in
+                        text_type(ctx.exception))
+
+        # Valid config file using an alias zone.
+        Manager(get_config_filename('simple-alias-zone.yaml')) \
+            .validate_configs()
+
+    def test_get_zone(self):
+        Manager(get_config_filename('simple.yaml')).get_zone('unit.tests.')
+
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('simple.yaml')).get_zone('unit.tests')
+        self.assertTrue('missing ending dot' in text_type(ctx.exception))
+
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('simple.yaml')) \
+                .get_zone('unknown-zone.tests.')
+        self.assertTrue('Unknown zone name' in text_type(ctx.exception))
 
     def test_populate_lenient_fallback(self):
         with TemporaryDirectory() as tmpdir:

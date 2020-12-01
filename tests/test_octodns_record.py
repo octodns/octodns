@@ -9,10 +9,10 @@ from six import text_type
 from unittest import TestCase
 
 from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
-    CaaValue, CnameRecord, Create, Delete, GeoValue, MxRecord, MxValue, \
-    NaptrRecord, NaptrValue, NsRecord, PtrRecord, Record, SshfpRecord, \
-    SshfpValue, SpfRecord, SrvRecord, SrvValue, TxtRecord, Update, \
-    ValidationError, _Dynamic, _DynamicPool, _DynamicRule
+    CaaValue, CnameRecord, DnameRecord, Create, Delete, GeoValue, MxRecord, \
+    MxValue, NaptrRecord, NaptrValue, NsRecord, PtrRecord, Record, \
+    SshfpRecord, SshfpValue, SpfRecord, SrvRecord, SrvValue, TxtRecord, \
+    Update, ValidationError, _Dynamic, _DynamicPool, _DynamicRule
 from octodns.zone import Zone
 
 from helpers import DynamicProvider, GeoProvider, SimpleProvider
@@ -51,6 +51,19 @@ class TestRecord(TestCase):
         lower_record = CnameRecord(self.zone, 'CnameLowerValue', {
             'ttl': 30,
             'type': 'CNAME',
+            'value': 'github.com',
+        })
+        self.assertEquals(upper_record.value, lower_record.value)
+
+    def test_dname_lowering_value(self):
+        upper_record = DnameRecord(self.zone, 'DnameUppwerValue', {
+            'ttl': 30,
+            'type': 'DNAME',
+            'value': 'GITHUB.COM',
+        })
+        lower_record = DnameRecord(self.zone, 'DnameLowerValue', {
+            'ttl': 30,
+            'type': 'DNAME',
             'value': 'github.com',
         })
         self.assertEquals(upper_record.value, lower_record.value)
@@ -360,6 +373,10 @@ class TestRecord(TestCase):
 
     def test_cname(self):
         self.assertSingleValue(CnameRecord, 'target.foo.com.',
+                               'other.foo.com.')
+
+    def test_dname(self):
+        self.assertSingleValue(DnameRecord, 'target.foo.com.',
                                'other.foo.com.')
 
     def test_mx(self):
@@ -795,6 +812,39 @@ class TestRecord(TestCase):
                 'type': 'XXX',
             })
         self.assertTrue('Unknown record type' in text_type(ctx.exception))
+
+    def test_record_copy(self):
+        a = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+
+        # Identical copy.
+        b = a.copy()
+        self.assertIsInstance(b, ARecord)
+        self.assertEquals('unit.tests.', b.zone.name)
+        self.assertEquals('a', b.name)
+        self.assertEquals('A', b._type)
+        self.assertEquals(['1.2.3.4'], b.values)
+
+        # Copy with another zone object.
+        c_zone = Zone('other.tests.', [])
+        c = a.copy(c_zone)
+        self.assertIsInstance(c, ARecord)
+        self.assertEquals('other.tests.', c.zone.name)
+        self.assertEquals('a', c.name)
+        self.assertEquals('A', c._type)
+        self.assertEquals(['1.2.3.4'], c.values)
+
+        # Record with no record type specified in data.
+        d_data = {
+            'ttl': 600,
+            'values': ['just a test']
+        }
+        d = TxtRecord(self.zone, 'txt', d_data)
+        d.copy()
+        self.assertEquals('TXT', d._type)
 
     def test_change(self):
         existing = Record.new(self.zone, 'txt', {
@@ -1265,7 +1315,7 @@ class TestRecordValidation(TestCase):
         self.assertTrue(reason.endswith('.unit.tests." is too long at 254'
                                         ' chars, max is 253'))
 
-        # label length, DNS defins max as 63
+        # label length, DNS defines max as 63
         with self.assertRaises(ValidationError) as ctx:
             # The . will put this over the edge
             name = 'x' * 64
@@ -1275,9 +1325,29 @@ class TestRecordValidation(TestCase):
                 'value': '1.2.3.4',
             })
         reason = ctx.exception.reasons[0]
-        self.assertTrue(reason.startswith('invalid name, "xxxx'))
+        self.assertTrue(reason.startswith('invalid label, "xxxx'))
         self.assertTrue(reason.endswith('xxx" is too long at 64'
                                         ' chars, max is 63'))
+
+        with self.assertRaises(ValidationError) as ctx:
+            name = 'foo.' + 'x' * 64 + '.bar'
+            Record.new(self.zone, name, {
+                'ttl': 300,
+                'type': 'A',
+                'value': '1.2.3.4',
+            })
+        reason = ctx.exception.reasons[0]
+        self.assertTrue(reason.startswith('invalid label, "xxxx'))
+        self.assertTrue(reason.endswith('xxx" is too long at 64'
+                                        ' chars, max is 63'))
+
+        # should not raise with dots
+        name = 'xxxxxxxx.' * 10
+        Record.new(self.zone, name, {
+            'ttl': 300,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
 
         # no ttl
         with self.assertRaises(ValidationError) as ctx:
@@ -1693,6 +1763,16 @@ class TestRecordValidation(TestCase):
             'value': 'foo.bar.com.',
         })
 
+        # root only
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'nope', {
+                'type': 'ALIAS',
+                'ttl': 600,
+                'value': 'foo.bar.com.',
+            })
+        self.assertEquals(['non-root ALIAS not allowed'],
+                          ctx.exception.reasons)
+
         # missing value
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
@@ -1703,7 +1783,7 @@ class TestRecordValidation(TestCase):
 
         # missing value
         with self.assertRaises(ValidationError) as ctx:
-            Record.new(self.zone, 'www', {
+            Record.new(self.zone, '', {
                 'type': 'ALIAS',
                 'ttl': 600,
                 'value': None
@@ -1712,12 +1792,22 @@ class TestRecordValidation(TestCase):
 
         # empty value
         with self.assertRaises(ValidationError) as ctx:
-            Record.new(self.zone, 'www', {
+            Record.new(self.zone, '', {
                 'type': 'ALIAS',
                 'ttl': 600,
                 'value': ''
             })
         self.assertEquals(['empty value'], ctx.exception.reasons)
+
+        # not a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'ALIAS',
+                'ttl': 600,
+                'value': '__.',
+            })
+        self.assertEquals(['ALIAS value "__." is not a valid FQDN'],
+                          ctx.exception.reasons)
 
         # missing trailing .
         with self.assertRaises(ValidationError) as ctx:
@@ -1815,6 +1905,16 @@ class TestRecordValidation(TestCase):
             })
         self.assertEquals(['root CNAME not allowed'], ctx.exception.reasons)
 
+        # not a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'CNAME',
+                'ttl': 600,
+                'value': '___.',
+            })
+        self.assertEquals(['CNAME value "___." is not a valid FQDN'],
+                          ctx.exception.reasons)
+
         # missing trailing .
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'www', {
@@ -1823,6 +1923,41 @@ class TestRecordValidation(TestCase):
                 'value': 'foo.bar.com',
             })
         self.assertEquals(['CNAME value "foo.bar.com" missing trailing .'],
+                          ctx.exception.reasons)
+
+    def test_DNAME(self):
+        # A valid DNAME record.
+        Record.new(self.zone, 'sub', {
+            'type': 'DNAME',
+            'ttl': 600,
+            'value': 'foo.bar.com.',
+        })
+
+        # A DNAME record can be present at the zone APEX.
+        Record.new(self.zone, '', {
+            'type': 'DNAME',
+            'ttl': 600,
+            'value': 'foo.bar.com.',
+        })
+
+        # not a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'DNAME',
+                'ttl': 600,
+                'value': '.',
+            })
+        self.assertEquals(['DNAME value "." is not a valid FQDN'],
+                          ctx.exception.reasons)
+
+        # missing trailing .
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'DNAME',
+                'ttl': 600,
+                'value': 'foo.bar.com',
+            })
+        self.assertEquals(['DNAME value "foo.bar.com" missing trailing .'],
                           ctx.exception.reasons)
 
     def test_MX(self):
@@ -1997,6 +2132,16 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
             })
         self.assertEquals(['missing value'], ctx.exception.reasons)
+
+        # not a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'PTR',
+                'ttl': 600,
+                'value': '_.',
+            })
+        self.assertEquals(['PTR value "_." is not a valid FQDN'],
+                          ctx.exception.reasons)
 
         # no trailing .
         with self.assertRaises(ValidationError) as ctx:

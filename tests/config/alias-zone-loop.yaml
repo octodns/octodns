@@ -1,0 +1,21 @@
+manager:
+  max_workers: 2
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+zones:
+  unit.tests.:
+    sources:
+      - in
+    targets:
+      - dump
+  
+  alias.tests.:
+    alias: unit.tests.
+
+  alias-loop.tests.:
+    alias: alias.tests.

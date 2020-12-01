@@ -389,9 +389,6 @@ class TestAzureDnsProvider(TestCase):
         recordSet = RecordSet(cname_record=cname1)
         recordSet.name, recordSet.ttl, recordSet.type = 'cname1', 5, 'CNAME'
         rs.append(recordSet)
-        recordSet = RecordSet(cname_record=None)
-        recordSet.name, recordSet.ttl, recordSet.type = 'cname2', 6, 'CNAME'
-        rs.append(recordSet)
         recordSet = RecordSet(mx_records=[MxRecord(preference=10,
                                                    exchange='mx1.unit.test.')])
         recordSet.name, recordSet.ttl, recordSet.type = 'mx1', 7, 'MX'
@@ -412,9 +409,6 @@ class TestAzureDnsProvider(TestCase):
         ptr1 = PtrRecord(ptrdname='ptr1.unit.test.')
         recordSet = RecordSet(ptr_records=[ptr1])
         recordSet.name, recordSet.ttl, recordSet.type = 'ptr1', 11, 'PTR'
-        rs.append(recordSet)
-        recordSet = RecordSet(ptr_records=[PtrRecord(ptrdname=None)])
-        recordSet.name, recordSet.ttl, recordSet.type = 'ptr2', 12, 'PTR'
         rs.append(recordSet)
         recordSet = RecordSet(srv_records=[SrvRecord(priority=1,
                                                      weight=2,
@@ -449,7 +443,7 @@ class TestAzureDnsProvider(TestCase):
         exists = provider.populate(zone)
         self.assertTrue(exists)
 
-        self.assertEquals(len(zone.records), 18)
+        self.assertEquals(len(zone.records), 16)
 
     def test_populate_zone(self):
         provider = self._get_provider()

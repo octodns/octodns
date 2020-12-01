@@ -417,14 +417,8 @@ class AzureProvider(BaseProvider):
             :type  azrecord: azure.mgmt.dns.models.RecordSet
 
             :type  return: dict
-
-            CNAME and PTR both use the catch block to catch possible empty
-            records. Refer to population comment.
         '''
-        try:
-            return {'value': _check_endswith_dot(azrecord.cname_record.cname)}
-        except:
-            return {'value': '.'}
+        return {'value': _check_endswith_dot(azrecord.cname_record.cname)}
 
     def _data_for_MX(self, azrecord):
         return {'values': [{'preference': ar.preference,
@@ -436,11 +430,8 @@ class AzureProvider(BaseProvider):
         return {'values': [_check_endswith_dot(val) for val in vals]}
 
     def _data_for_PTR(self, azrecord):
-        try:
-            ptrdname = azrecord.ptr_records[0].ptrdname
-            return {'value': _check_endswith_dot(ptrdname)}
-        except:
-            return {'value': '.'}
+        ptrdname = azrecord.ptr_records[0].ptrdname
+        return {'value': _check_endswith_dot(ptrdname)}
 
     def _data_for_SRV(self, azrecord):
         return {'values': [{'priority': ar.priority, 'weight': ar.weight,
