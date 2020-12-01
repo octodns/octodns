@@ -187,7 +187,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [Akamai](/octodns/provider/edgedns.py) | edgegrid-python | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | No | |
 | [CloudflareProvider](/octodns/provider/cloudflare.py) | | A, AAAA, ALIAS, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | No | CAA tags restricted |
 | [ConstellixProvider](/octodns/provider/constellix.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | No | CAA tags restricted |
-| [DigitalOceanProvider](/octodns/provider/digitalocean.py) | | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | No | CAA tags restricted |
+| [DigitalOceanProvider](/octodns/provider/digitalocean.py) | | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | Yes | CAA tags restricted |
 | [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | No | CAA tags restricted |
 | [DnsimpleProvider](/octodns/provider/dnsimple.py) | | All | No | No | CAA tags restricted |
 | [DynProvider](/octodns/provider/dyn.py) | dyn | All | Both | No | |
