@@ -53,6 +53,10 @@ class CloudflareProvider(BaseProvider):
         #
         # See: https://support.cloudflare.com/hc/en-us/articles/115000830351
         cdn: false
+        # Optional. Default: None. Specifiy the account these zones belong to.
+        account_id: d45786as6dfds75adsf5678asdf9678
+        # Optional. Default: None. Specifiy the plan zones should have.
+        subscription: fds987g6s8df765gsdf986g9sd7f0
         # Optional. Default: 4. Number of times to retry if a 429 response
         # is received.
         retry_count: 4
@@ -81,9 +85,9 @@ class CloudflareProvider(BaseProvider):
     MIN_TTL = 120
     TIMEOUT = 15
 
-    def __init__(self, id, email=None, token=None, cdn=False, retry_count=4,
-                 retry_period=300, zones_per_page=50, records_per_page=100,
-                 *args, **kwargs):
+    def __init__(self, id, email=None, token=None, cdn=False, account_id=None,
+                 subscription=None, retry_count=4, retry_period=300,
+                 zones_per_page=50, records_per_page=100, *args, **kwargs):
         self.log = getLogger('CloudflareProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, email=%s, token=***, cdn=%s', id,
                        email, cdn)
@@ -102,6 +106,8 @@ class CloudflareProvider(BaseProvider):
                 'Authorization': 'Bearer {}'.format(token),
             })
         self.cdn = cdn
+        self.account_id = account_id
+        self.subscription = subscription
         self.retry_count = retry_count
         self.retry_period = retry_period
         self.zones_per_page = zones_per_page
@@ -148,11 +154,15 @@ class CloudflareProvider(BaseProvider):
             page = 1
             zones = []
             while page:
-                resp = self._try_request('GET', '/zones',
-                                         params={
-                                                'page': page,
-                                                'per_page': self.zones_per_page
-                                         })
+                params = {
+                    'page': page,
+                    'per_page': self.zones_per_page
+                }
+
+                if self.account_id:
+                    params['account.id'] = self.account_id
+
+                resp = self._try_request('GET', '/zones', params=params)
                 zones += resp['result']
                 info = resp['result_info']
                 if info['count'] > 0 and info['count'] == info['per_page']:
@@ -607,12 +617,27 @@ class CloudflareProvider(BaseProvider):
         name = desired.name
         if name not in self.zones:
             self.log.debug('_apply:   no matching zone, creating')
+
             data = {
                 'name': name[:-1],
-                'jump_start': False,
+                'jump_start': False
             }
+
+            if self.account_id:
+                data['account'] = {
+                    'id': self.account_id
+                }
+
             resp = self._try_request('POST', '/zones', data=data)
             zone_id = resp['result']['id']
+
+            if self.subscription:
+                self._try_request('PATCH', '/zones/{}'.format(zone_id), data={
+                    'plan': {
+                        'id': self.subscription
+                    }
+                })
+
             self.zones[name] = zone_id
             self._zone_records[name] = {}
 
