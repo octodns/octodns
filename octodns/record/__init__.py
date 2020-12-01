@@ -10,6 +10,7 @@ from logging import getLogger
 import re
 
 from six import string_types, text_type
+from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
 from .geo import GeoCodes
@@ -757,6 +758,9 @@ class _TargetValue(object):
             reasons.append('empty value')
         elif not data:
             reasons.append('missing value')
+        elif not FQDN(data, allow_underscores=True).is_valid:
+            reasons.append('{} value "{}" is not a valid FQDN'
+                           .format(_type, data))
         elif not data.endswith('.'):
             reasons.append('{} value "{}" missing trailing .'
                            .format(_type, data))
