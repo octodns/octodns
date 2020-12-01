@@ -65,12 +65,12 @@ class TestYamlProvider(TestCase):
             # We should see the root NS record if we enable manage_root_ns
             target.manage_root_ns = True
             plan = target.plan(zone)
-            self.assertEquals(16, len([c for c in plan.changes
+            self.assertEquals(17, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
             self.assertFalse(isfile(yaml_file))
 
             # Now actually do it
-            self.assertEquals(16, target.apply(plan))
+            self.assertEquals(17, target.apply(plan))
             self.assertTrue(isfile(yaml_file))
 
             # Dynamic plan
@@ -94,7 +94,7 @@ class TestYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(16, len([c for c in plan.changes
+            self.assertEquals(17, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
 
             with open(yaml_file) as fh:
