@@ -350,6 +350,114 @@ class TestCloudflareProvider(TestCase):
                  'dns_records/fc12ab34cd5611334422ab3322997654')
         ])
 
+    def test_create_with_account_id(self):
+        provider = CloudflareProvider('test', 'email', 'token', retry_period=0,
+                                      account_id='test-account-id')
+
+        provider._request = Mock()
+
+        provider._request.side_effect = [
+            self.empty,  # no zones
+            {
+                'result': {
+                    'id': 42,
+                }
+            },  # zone create
+        ] + [None] * 22  # individual record creates
+
+        # non-existent zone, create everything
+        plan = provider.plan(self.expected)
+        self.assertEquals(13, len(plan.changes))
+        self.assertEquals(13, provider.apply(plan))
+        self.assertFalse(plan.exists)
+
+        provider._request.assert_has_calls([
+            # created the domain
+            call('POST', '/zones', data={
+                'jump_start': False,
+                'name': 'unit.tests',
+                'account': {
+                    'id': 'test-account-id'
+                }
+            }),
+            # created at least one of the record with expected data
+            call('POST', '/zones/42/dns_records', data={
+                'content': 'ns1.unit.tests.',
+                'type': 'NS',
+                'name': 'under.unit.tests',
+                'ttl': 3600
+            }),
+            # make sure semicolons are not escaped when sending data
+            call('POST', '/zones/42/dns_records', data={
+                'content': 'v=DKIM1;k=rsa;s=email;h=sha256;'
+                           'p=A/kinda+of/long/string+with+numb3rs',
+                'type': 'TXT',
+                'name': 'txt.unit.tests',
+                'ttl': 600
+            }),
+        ], True)
+        # expected number of total calls
+        self.assertEquals(23, provider._request.call_count)
+
+        provider._request.reset_mock()
+
+    def test_create_with_account_id_and_subscription_id(self):
+        provider = CloudflareProvider('test', 'email', 'token', retry_period=0,
+                                      account_id='test-account-id',
+                                      subscription_id='test-subscription-id')
+
+        provider._request = Mock()
+
+        provider._request.side_effect = [
+            self.empty,  # no zones
+            {
+                'result': {
+                    'id': 42,
+                }
+            },  # zone create
+        ] + [None] * 22  # individual record creates
+
+        # non-existent zone, create everything
+        plan = provider.plan(self.expected)
+        self.assertEquals(13, len(plan.changes))
+        self.assertEquals(13, provider.apply(plan))
+        self.assertFalse(plan.exists)
+
+        provider._request.assert_has_calls([
+            # created the domain
+            call('POST', '/zones', data={
+                'jump_start': False,
+                'name': 'unit.tests',
+                'account': {
+                    'id': 'test-account-id'
+                }
+            }),
+            call('PATCH', '/zones/42', data={
+                'plan': {
+                    'id': 'test-subscription-id'
+                }
+            }),
+            # created at least one of the record with expected data
+            call('POST', '/zones/42/dns_records', data={
+                'content': 'ns1.unit.tests.',
+                'type': 'NS',
+                'name': 'under.unit.tests',
+                'ttl': 3600
+            }),
+            # make sure semicolons are not escaped when sending data
+            call('POST', '/zones/42/dns_records', data={
+                'content': 'v=DKIM1;k=rsa;s=email;h=sha256;'
+                           'p=A/kinda+of/long/string+with+numb3rs',
+                'type': 'TXT',
+                'name': 'txt.unit.tests',
+                'ttl': 600
+            }),
+        ], True)
+        # expected number of total calls
+        self.assertEquals(24, provider._request.call_count)
+
+        provider._request.reset_mock()
+
     def test_update_add_swap(self):
         provider = CloudflareProvider('test', 'email', 'token', retry_period=0)
 
