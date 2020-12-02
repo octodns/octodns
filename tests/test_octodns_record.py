@@ -1799,6 +1799,16 @@ class TestRecordValidation(TestCase):
             })
         self.assertEquals(['empty value'], ctx.exception.reasons)
 
+        # not a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'ALIAS',
+                'ttl': 600,
+                'value': '__.',
+            })
+        self.assertEquals(['ALIAS value "__." is not a valid FQDN'],
+                          ctx.exception.reasons)
+
         # missing trailing .
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
@@ -1895,6 +1905,16 @@ class TestRecordValidation(TestCase):
             })
         self.assertEquals(['root CNAME not allowed'], ctx.exception.reasons)
 
+        # not a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'CNAME',
+                'ttl': 600,
+                'value': '___.',
+            })
+        self.assertEquals(['CNAME value "___." is not a valid FQDN'],
+                          ctx.exception.reasons)
+
         # missing trailing .
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'www', {
@@ -1919,6 +1939,16 @@ class TestRecordValidation(TestCase):
             'ttl': 600,
             'value': 'foo.bar.com.',
         })
+
+        # not a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'DNAME',
+                'ttl': 600,
+                'value': '.',
+            })
+        self.assertEquals(['DNAME value "." is not a valid FQDN'],
+                          ctx.exception.reasons)
 
         # missing trailing .
         with self.assertRaises(ValidationError) as ctx:
@@ -2102,6 +2132,16 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
             })
         self.assertEquals(['missing value'], ctx.exception.reasons)
+
+        # not a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'PTR',
+                'ttl': 600,
+                'value': '_.',
+            })
+        self.assertEquals(['PTR value "_." is not a valid FQDN'],
+                          ctx.exception.reasons)
 
         # no trailing .
         with self.assertRaises(ValidationError) as ctx:
