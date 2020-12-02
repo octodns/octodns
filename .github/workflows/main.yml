@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [2.7, 3.7]
+        python-version: [2.7, 3.7, 3.9]
     steps:
       - uses: actions/checkout@master
       - name: Setup python
