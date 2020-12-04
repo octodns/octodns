@@ -56,7 +56,7 @@ class BaseProvider(BaseSource):
                           'exists', self.id)
 
         for processor in processors:
-            existing = processor.process(existing)
+            existing = processor.process(existing, target=True)
 
         # compute the changes at the zone/record level
         changes = existing.changes(desired, self)
