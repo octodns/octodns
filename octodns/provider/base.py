@@ -44,7 +44,7 @@ class BaseProvider(BaseSource):
         '''
         return []
 
-    def plan(self, desired):
+    def plan(self, desired, processors=[]):
         self.log.info('plan: desired=%s', desired.name)
 
         existing = Zone(desired.name, desired.sub_zones)
@@ -54,6 +54,9 @@ class BaseProvider(BaseSource):
             # information
             self.log.warn('Provider %s used in target mode did not return '
                           'exists', self.id)
+
+        for processor in processors:
+            existing = processor.process(existing)
 
         # compute the changes at the zone/record level
         changes = existing.changes(desired, self)
