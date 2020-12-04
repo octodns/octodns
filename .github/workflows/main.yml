@@ -6,6 +6,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        # Tested versions based on dates in https://devguide.python.org/devcycle/#end-of-life-branches, 
+        # with the addition of 2.7 b/c it's still if pretty wide active use.
         python-version: [2.7, 3.6, 3.7, 3.8, 3.9]
     steps:
       - uses: actions/checkout@master
