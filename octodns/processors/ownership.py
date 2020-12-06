@@ -5,36 +5,111 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from collections import defaultdict
+from pprint import pprint
+
+from ..provider.plan import Plan
 from ..record import Record
 
 from . import BaseProcessor
 
 
+# Mark anything octoDNS is managing that way it can know it's safe to modify or
+# delete. We'll take ownership of existing records that we're told to manage
+# and thus "own" them going forward.
 class OwnershipProcessor(BaseProcessor):
 
-    def __init__(self, name, txt_name='_owner'):
+    def __init__(self, name, txt_name='_owner', txt_value='*octodns*'):
         super(OwnershipProcessor, self).__init__(name)
         self.txt_name = txt_name
+        self.txt_value = txt_value
+        self._txt_values = [txt_value]
 
-    def add_ownerships(self, zone):
+    def process_source_zone(self, zone, *args, **kwargs):
         ret = self._create_zone(zone)
         for record in zone.records:
+            # Always copy over the source records
             ret.add_record(record)
-            name = '{}.{}.{}'.format(self.txt_name, record._type, record.name),
+            # Then create and add an ownership TXT for each of them
+            record_name = record.name.replace('*', '_wildcard')
+            if record.name:
+                name = '{}.{}.{}'.format(self.txt_name, record._type,
+                                         record_name)
+            else:
+                name = '{}.{}'.format(self.txt_name, record._type)
             txt = Record.new(zone, name, {
-                                 'type': 'TXT',
-                                 'ttl': 60,
-                                 'value': 'octodns',
-                             })
+                'type': 'TXT',
+                'ttl': 60,
+                'value': self.txt_value,
+            })
             ret.add_record(txt)
 
         return ret
 
-    def remove_unowned(self, zone):
-        ret = self._create_zone(zone)
-        return ret
+    def _is_ownership(self, record):
+        return record._type == 'TXT' and \
+            record.name.startswith(self.txt_name) \
+            and record.values == self._txt_values
 
-    def process(self, zone, target=False):
-        if target:
-            return self.remove_unowned(zone)
-        return self.add_ownerships(zone)
+    def process_plan(self, plan, *args, **kwargs):
+        if not plan:
+            # If we don't have any change there's nothing to do
+            return plan
+
+        # First find all the ownership info
+        owned = defaultdict(dict)
+        # We need to look for ownership in both the desired and existing
+        # states, many things will show up in both, but that's fine.
+        for record in list(plan.existing.records) + list(plan.desired.records):
+            if self._is_ownership(record):
+                pieces = record.name.split('.', 2)
+                if len(pieces) > 2:
+                    _, _type, name = pieces
+                else:
+                    _type = pieces[1]
+                    name = ''
+                name = name.replace('_wildcard', '*')
+                owned[name][_type.upper()] = True
+
+        pprint(dict(owned))
+
+        # Cases:
+        # - Configured in source
+        #   - We'll fully CRU/manage it adding ownership TXT,
+        #     thanks to process_source_zone, if needed
+        # - Not in source
+        #   - Has an ownership TXT - delete it & the ownership TXT
+        #   - Does not have an ownership TXT - don't delete it
+        # - Special records like octodns-meta
+        #   - Should be left alone and should not have ownerthis TXTs
+
+        pprint(plan.changes)
+
+        filtered_changes = []
+        for change in plan.changes:
+            record = change.record
+
+            pprint([change,
+                    not self._is_ownership(record),
+                    record._type not in owned[record.name],
+                    record.name != 'octodns-meta'])
+
+            if not self._is_ownership(record) and \
+               record._type not in owned[record.name] and \
+               record.name != 'octodns-meta':
+                # It's not an ownership TXT, it's not owned, and it's not
+                # special we're going to ignore it
+                continue
+
+            # We own this record or owned it up until now so whatever the
+            # change is we should do
+            filtered_changes.append(change)
+
+        pprint(filtered_changes)
+
+        if plan.changes != filtered_changes:
+            return Plan(plan.existing, plan.desired, filtered_changes,
+                        plan.exists, plan.update_pcent_threshold,
+                        plan.delete_pcent_threshold)
+
+        return plan

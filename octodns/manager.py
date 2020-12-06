@@ -255,7 +255,6 @@ class Manager(object):
             for _, records in desired._records.items():
                 for record in records:
                     zone.add_record(record.copy(zone=zone), lenient=lenient)
-
         else:
             for source in sources:
                 try:
@@ -267,9 +266,8 @@ class Manager(object):
                                   'param', source.__class__.__name__)
                     source.populate(zone)
 
-        self.log.debug('sync:   processing, zone=%s', zone_name)
         for processor in processors:
-            zone = processor.process(zone)
+            zone = processor.process_source_zone(zone, sources=sources)
 
         self.log.debug('sync:   planning, zone=%s', zone_name)
         plans = []
@@ -285,6 +283,9 @@ class Manager(object):
             # TODO: if someone has overrriden plan already this will be a
             # breaking change so we probably need to try both ways
             plan = target.plan(zone, processors=processors)
+            for processor in processors:
+                plan = processor.process_plan(plan, sources=sources,
+                                              target=target)
             if plan:
                 plans.append((target, plan))
 
