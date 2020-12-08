@@ -174,7 +174,7 @@ class TestGandiProvider(TestCase):
                                     GandiClientUnknownDomainName)) as ctx:
                 plan = provider.plan(self.expected)
                 provider.apply(plan)
-            self.assertIn('This domain is not registred at Gandi.',
+            self.assertIn('This domain is not registered at Gandi.',
                           text_type(ctx.exception))
 
         resp = Mock()
