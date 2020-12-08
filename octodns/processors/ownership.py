@@ -65,10 +65,10 @@ class OwnershipProcessor(BaseProcessor):
                 pieces = record.name.split('.', 2)
                 if len(pieces) > 2:
                     _, _type, name = pieces
+                    name = name.replace('_wildcard', '*')
                 else:
                     _type = pieces[1]
                     name = ''
-                name = name.replace('_wildcard', '*')
                 owned[name][_type.upper()] = True
 
         pprint(dict(owned))
