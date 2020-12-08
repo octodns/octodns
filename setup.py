@@ -81,6 +81,6 @@ setup(
     long_description_content_type='text/markdown',
     name='octodns',
     packages=find_packages(),
-    url='https://github.com/github/octodns',
+    url='https://github.com/octodns/octodns',
     version=octodns.__VERSION__,
 )
