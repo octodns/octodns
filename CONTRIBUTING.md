@@ -4,7 +4,7 @@ Hi there! We're thrilled that you'd like to contribute to OctoDNS. Your help is 
 
 Please note that this project adheres to the [Contributor Covenant Code of Conduct](/CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
 
-If you have questions, or you'd like to check with us before embarking on a major development effort, please [open an issue](https://github.com/github/octodns/issues/new).
+If you have questions, or you'd like to check with us before embarking on a major development effort, please [open an issue](https://github.com/octodns/octodns/issues/new).
 
 ## How to contribute
 

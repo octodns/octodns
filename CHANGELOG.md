@@ -55,7 +55,7 @@
    * Explicit ordering of changes by (name, type) to address inconsistent
      ordering for a number of providers that just convert changes into API
      calls as they come. Python 2 sets ordered consistently, Python 3 they do
-     not. https://github.com/github/octodns/pull/384/commits/7958233fccf9ea22d95e2fd06c48d7d0a4529e26
+     not. https://github.com/octodns/octodns/pull/384/commits/7958233fccf9ea22d95e2fd06c48d7d0a4529e26
    * Route53 `_mod_keyer` ordering wasn't 100% complete and thus unreliable and
      random in Python 3. This has been addressed and may result in value
      reordering on next plan, no actual changes in behavior should occur.
@@ -152,10 +152,10 @@ recreating all health checks. This process has been tested pretty thoroughly to
 try and ensure a seemless upgrade without any traffic shifting around. It's
 probably best to take extra care when updating and to try and make sure that
 all health checks are passing before the first sync with `--doit`. See
-[#67](https://github.com/github/octodns/pull/67) for more information.
+[#67](https://github.com/octodns/octodns/pull/67) for more information.
 
 * Major update to geo healthchecks to allow configuring host (header), path,
-  protocol, and port [#67](https://github.com/github/octodns/pull/67)
+  protocol, and port [#67](https://github.com/octodns/octodns/pull/67)
 * SSHFP algorithm type 4
 * NS1 and DNSimple support skipping unsupported record types
 * Revert back to old style setup.py &amp; requirements.txt, setup.cfg was
