@@ -20,6 +20,9 @@ caa         1800  IN  CAA 0 iodef "mailto:admin@unit.tests"
 ; SRV Records
 _srv._tcp   600   IN  SRV 10 20 30 foo-1.unit.tests.
 _srv._tcp   600   IN  SRV 10 20 30 foo-2.unit.tests.
+; NULL SRV Records
+_pop3._tcp   600   IN  SRV 0 0 0 .
+_imap._tcp   600   IN  SRV 0 0 0 .
 
 ; TXT Records
 txt         600   IN  TXT "Bah bah black sheep"
