@@ -239,11 +239,13 @@ class CloudflareProvider(BaseProvider):
     def _data_for_SRV(self, _type, records):
         values = []
         for r in records:
+            target = ('{}.'.format(r['data']['target'])
+                      if r['data']['target'] != "." else ".")
             values.append({
                 'priority': r['data']['priority'],
                 'weight': r['data']['weight'],
                 'port': r['data']['port'],
-                'target': '{}.'.format(r['data']['target']),
+                'target': target,
             })
         return {
             'type': _type,
@@ -405,6 +407,8 @@ class CloudflareProvider(BaseProvider):
             name = subdomain
 
         for value in record.values:
+            target = value.target[:-1] if value.target != "." else "."
+
             yield {
                 'data': {
                     'service': service,
@@ -413,7 +417,7 @@ class CloudflareProvider(BaseProvider):
                     'priority': value.priority,
                     'weight': value.weight,
                     'port': value.port,
-                    'target': value.target[:-1],
+                    'target': target,
                 }
             }
 
