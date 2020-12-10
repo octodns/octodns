@@ -180,7 +180,7 @@ class TestManager(TestCase):
                 tc = Manager(get_config_filename('unknown-source-zone.yaml')) \
                     .sync()
             self.assertEquals('Invalid alias zone alias.tests.: source zone '
-                              'does-not-exists.tests. does not exist',
+                              'does-not-exists.tests. does not exist',
                               text_type(ctx.exception))
 
             # Alias zone that points to another alias zone.
@@ -188,7 +188,7 @@ class TestManager(TestCase):
                 tc = Manager(get_config_filename('alias-zone-loop.yaml')) \
                     .sync()
             self.assertEquals('Invalid alias zone alias-loop.tests.: source '
-                              'zone alias.tests. is an alias zone',
+                              'zone alias.tests. is an alias zone',
                               text_type(ctx.exception))
 
     def test_compare(self):
