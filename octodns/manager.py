@@ -288,7 +288,7 @@ class Manager(object):
                     self.log.error('Invalid alias zone {}, target {} does '
                                    'not exist'.format(zone_name, source_zone))
                     raise ManagerException('Invalid alias zone {}: '
-                                           'source zone {} does not exist'
+                                           'source zone {} does not exist'
                                            .format(zone_name, source_zone))
 
                 # Check that the source zone is not an alias zone itself.
@@ -296,7 +296,7 @@ class Manager(object):
                     self.log.error('Invalid alias zone {}, target {} is an '
                                    'alias zone'.format(zone_name, source_zone))
                     raise ManagerException('Invalid alias zone {}: source '
-                                           'zone {} is an alias zone'
+                                           'zone {} is an alias zone'
                                            .format(zone_name, source_zone))
 
                 aliased_zones[zone_name] = source_zone
@@ -482,13 +482,13 @@ class Manager(object):
                 if source_zone not in self.config['zones']:
                     self.log.exception('Invalid alias zone')
                     raise ManagerException('Invalid alias zone {}: '
-                                           'source zone {} does not exist'
+                                           'source zone {} does not exist'
                                            .format(zone_name, source_zone))
 
                 if 'alias' in self.config['zones'][source_zone]:
                     self.log.exception('Invalid alias zone')
                     raise ManagerException('Invalid alias zone {}: '
-                                           'source zone {} is an alias zone'
+                                           'source zone {} is an alias zone'
                                            .format(zone_name, source_zone))
 
                 # this is just here to satisfy coverage, see
