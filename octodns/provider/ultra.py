@@ -287,7 +287,12 @@ class UltraProvider(BaseProvider):
                 name = zone.hostname_from_fqdn(record['ownerName'])
                 if record['rrtype'] == 'SOA (6)':
                     continue
-                _type = self.RECORDS_TO_TYPE[record['rrtype']]
+                try:
+                    _type = self.RECORDS_TO_TYPE[record['rrtype']]
+                except KeyError:
+                    self.log.warning('populate: ignoring record with '
+                                     'unsupported rrtype=%s', record)
+                    continue
                 values[name][_type] = record
 
             for name, types in values.items():
