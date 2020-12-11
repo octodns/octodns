@@ -944,6 +944,12 @@ class Route53Provider(BaseProvider):
                 if record_type not in self.SUPPORTS:
                     # Skip stuff we don't support
                     continue
+                # Route53 treats some records always as fully qualified
+                if record_type in ['CNAME', 'SRV', 'NS']:
+                    rrs = rrset["ResourceRecords"]
+                    rrs = [{k: v if v.endswith('.') else v + '.'
+                            for k, v in r.items()} for r in rrs]
+                    rrset["ResourceRecords"] = rrs
                 if record_name.startswith('_octodns-'):
                     # Part of a dynamic record
                     try:
