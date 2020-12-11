@@ -291,7 +291,8 @@ class UltraProvider(BaseProvider):
                     _type = self.RECORDS_TO_TYPE[record['rrtype']]
                 except KeyError:
                     self.log.warning('populate: ignoring record with '
-                                     'unsupported rrtype, %s  %s', name, record['rrtype'])
+                                     'unsupported rrtype, %s  %s',
+                                     name, record['rrtype'])
                     continue
                 values[name][_type] = record
 
