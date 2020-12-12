@@ -120,3 +120,18 @@ If you'd like to enable lenience for a whole zone you can do so with the followi
     targets:
     - ns1
 ```
+
+#### Restrict Record manipulations
+
+OctoDNS currently provides us the ability to limit the frequency of update/deletes on 
+DNS records by allowing us to configure a percentage of the allowed operations as a
+threshold parameter. If left unconfigured, suitable defaults take over instead.
+In the below example, the Dynamic provider configured accomodates only 40% of both
+update and delete operations over all the records present.
+
+````yaml
+dyn:
+    class: octodns.provider.dyn.DynProvider
+    update_pcent_threshold: 0.4
+    delete_pcent_threshold: 0.4
+````
