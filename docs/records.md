@@ -123,11 +123,11 @@ If you'd like to enable lenience for a whole zone you can do so with the followi
 
 #### Restrict Record manipulations
 
-OctoDNS currently provides us the ability to limit the frequency of update/deletes on 
-DNS records by allowing us to configure a percentage of the allowed operations as a
-threshold parameter. If left unconfigured, suitable defaults take over instead.
-In the below example, the Dynamic provider configured accomodates only 40% of both
-update and delete operations over all the records present.
+OctoDNS currently provides the ability to limit the number of updates/deletes on 
+DNS records by configuring a percentage of allowed operations as a threshold.
+If left unconfigured, suitable defaults take over instead. In the below example, 
+the Dyn provider is configured with limits of 40% on both update and 
+delete operations over all the records present.
 
 ````yaml
 dyn:
