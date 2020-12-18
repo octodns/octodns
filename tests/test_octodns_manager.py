@@ -191,6 +191,14 @@ class TestManager(TestCase):
                               'zone alias.tests. is an alias zone',
                               text_type(ctx.exception))
 
+            # Sync an alias without the zone it refers to
+            with self.assertRaises(ManagerException) as ctx:
+                tc = Manager(get_config_filename('simple-alias-zone.yaml')) \
+                    .sync(eligible_zones=["alias.tests."])
+            self.assertEquals('Zone alias.tests. cannot be sync without zone '
+                              'unit.tests. sinced it is aliased',
+                              text_type(ctx.exception))
+
     def test_compare(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
