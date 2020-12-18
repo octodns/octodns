@@ -10,6 +10,7 @@ from logging import getLogger
 import re
 
 from six import string_types, text_type
+from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
 from .geo import GeoCodes
@@ -95,6 +96,7 @@ class Record(EqualityTupleMixin):
                 'ALIAS': AliasRecord,
                 'CAA': CaaRecord,
                 'CNAME': CnameRecord,
+                'DNAME': DnameRecord,
                 'MX': MxRecord,
                 'NAPTR': NaptrRecord,
                 'NS': NsRecord,
@@ -125,10 +127,11 @@ class Record(EqualityTupleMixin):
         if n > 253:
             reasons.append('invalid fqdn, "{}" is too long at {} chars, max '
                            'is 253'.format(fqdn, n))
-        n = len(name)
-        if n > 63:
-            reasons.append('invalid name, "{}" is too long at {} chars, max '
-                           'is 63'.format(name, n))
+        for label in name.split('.'):
+            n = len(label)
+            if n > 63:
+                reasons.append('invalid label, "{}" is too long at {} chars, '
+                               'max is 63'.format(label, n))
         try:
             ttl = int(data['ttl'])
             if ttl < 0:
@@ -217,6 +220,18 @@ class Record(EqualityTupleMixin):
         # We're assuming we have the same name and type if we're being compared
         if self.ttl != other.ttl:
             return Update(self, other)
+
+    def copy(self, zone=None):
+        data = self.data
+        data['type'] = self._type
+
+        return Record.new(
+            zone if zone else self.zone,
+            self.name,
+            data,
+            self.source,
+            lenient=True
+        )
 
     # NOTE: we're using __hash__ and ordering methods that consider Records
     # equivalent if they have the same name & _type. Values are ignored. This
@@ -743,6 +758,9 @@ class _TargetValue(object):
             reasons.append('empty value')
         elif not data:
             reasons.append('missing value')
+        elif not FQDN(data, allow_underscores=True).is_valid:
+            reasons.append('{} value "{}" is not a valid FQDN'
+                           .format(_type, data))
         elif not data.endswith('.'):
             reasons.append('{} value "{}" missing trailing .'
                            .format(_type, data))
@@ -756,6 +774,10 @@ class _TargetValue(object):
 
 
 class CnameValue(_TargetValue):
+    pass
+
+
+class DnameValue(_TargetValue):
     pass
 
 
@@ -776,6 +798,14 @@ class AliasValue(_TargetValue):
 class AliasRecord(_ValueMixin, Record):
     _type = 'ALIAS'
     _value_type = AliasValue
+
+    @classmethod
+    def validate(cls, name, fqdn, data):
+        reasons = []
+        if name != '':
+            reasons.append('non-root ALIAS not allowed')
+        reasons.extend(super(AliasRecord, cls).validate(name, fqdn, data))
+        return reasons
 
 
 class CaaValue(EqualityTupleMixin):
@@ -840,6 +870,11 @@ class CnameRecord(_DynamicMixin, _ValueMixin, Record):
             reasons.append('root CNAME not allowed')
         reasons.extend(super(CnameRecord, cls).validate(name, fqdn, data))
         return reasons
+
+
+class DnameRecord(_DynamicMixin, _ValueMixin, Record):
+    _type = 'DNAME'
+    _value_type = DnameValue
 
 
 class MxValue(EqualityTupleMixin):

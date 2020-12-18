@@ -25,18 +25,19 @@ def main():
     parser.add_argument('zone', nargs='*', default=[],
                         help='Limit sync to the specified zone(s)')
 
-    # --sources isn't an option here b/c filtering sources out would be super
-    # dangerous since you could easily end up with an empty zone and delete
-    # everything, or even just part of things when there are multiple sources
-
+    parser.add_argument('--source', default=[], action='append',
+                        help='Limit sync to zones with the specified '
+                        'source(s) (all sources will be synchronized for the '
+                        'selected zones)')
     parser.add_argument('--target', default=[], action='append',
                         help='Limit sync to the specified target(s)')
 
     args = parser.parse_args()
 
     manager = Manager(args.config_file)
-    manager.sync(eligible_zones=args.zone, eligible_targets=args.target,
-                 dry_run=not args.doit, force=args.force)
+    manager.sync(eligible_zones=args.zone, eligible_sources=args.source,
+                 eligible_targets=args.target, dry_run=not args.doit,
+                 force=args.force)
 
 
 if __name__ == '__main__':
