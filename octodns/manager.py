@@ -375,7 +375,6 @@ class Manager(object):
         futures = []
         for zone_name, zone_source in aliased_zones.items():
             source_config = self.config['zones'][zone_source]
-            print(source_config)
             try:
                 desired_config = desired[zone_source]
             except KeyError:
