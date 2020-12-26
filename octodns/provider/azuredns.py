@@ -490,7 +490,7 @@ class AzureProvider(BaseProvider):
 
         '''
         Force the operation order to be Delete() before all other operations.
-        Helps avoid problems in updating 
+        Helps avoid problems in updating
             - a CNAME record into an A record.
             - an A record into a CNAME record.
         '''
