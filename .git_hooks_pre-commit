@@ -2,10 +2,10 @@
 
 set -e
 
-HOOKS=`dirname $0`
-GIT=`dirname $HOOKS`
-ROOT=`dirname $GIT`
+HOOKS=$(dirname "$0")
+GIT=$(dirname "$HOOKS")
+ROOT=$(dirname "$GIT")
 
-. $ROOT/env/bin/activate
-$ROOT/script/lint
-$ROOT/script/coverage
+. "$ROOT/env/bin/activate"
+"$ROOT/script/lint"
+"$ROOT/script/coverage"
