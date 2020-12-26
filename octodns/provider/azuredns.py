@@ -495,7 +495,7 @@ class AzureProvider(BaseProvider):
             class_name = change.__class__.__name__
             if class_name == 'Delete':
                 getattr(self, '_apply_{}'.format(class_name))(change)
-        
+
         for change in changes:
             class_name = change.__class__.__name__
             if class_name != 'Delete':
