@@ -102,8 +102,8 @@ Now that we have something to tell OctoDNS about our providers & zones we need t
   ttl: 60
   type: A
   values:
-  - 1.2.3.4
-  - 1.2.3.5
+    - 1.2.3.4
+    - 1.2.3.5
 ```
 
 Further information can be found in [Records Documentation](/docs/records.md).
