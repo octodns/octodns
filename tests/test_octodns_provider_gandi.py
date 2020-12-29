@@ -117,7 +117,7 @@ class TestGandiProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(14, len(zone.records))
+            self.assertEquals(16, len(zone.records))
             changes = self.expected.changes(zone, provider)
             self.assertEquals(0, len(changes))
 
@@ -285,6 +285,22 @@ class TestGandiProvider(TestCase):
                 ]
             }),
             call('POST', '/livedns/domains/unit.tests/records', data={
+                'rrset_name': '_pop3._tcp',
+                'rrset_ttl': 600,
+                'rrset_type': 'SRV',
+                'rrset_values': [
+                    '0 0 0 .',
+                ]
+            }),
+            call('POST', '/livedns/domains/unit.tests/records', data={
+                'rrset_name': '_imap._tcp',
+                'rrset_ttl': 600,
+                'rrset_type': 'SRV',
+                'rrset_values': [
+                    '0 0 0 .',
+                ]
+            }),
+            call('POST', '/livedns/domains/unit.tests/records', data={
                 'rrset_name': '@',
                 'rrset_ttl': 3600,
                 'rrset_type': 'SSHFP',
@@ -307,7 +323,7 @@ class TestGandiProvider(TestCase):
             })
         ])
         # expected number of total calls
-        self.assertEquals(17, provider._client._request.call_count)
+        self.assertEquals(19, provider._client._request.call_count)
 
         provider._client._request.reset_mock()
 
