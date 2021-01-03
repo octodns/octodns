@@ -488,6 +488,19 @@ class AzureProvider(BaseProvider):
         azure_zone_name = desired.name[:len(desired.name) - 1]
         self._check_zone(azure_zone_name, create=True)
 
+        '''
+        Force the operation order to be Delete() before all other operations.
+        Helps avoid problems in updating
+            - a CNAME record into an A record.
+            - an A record into a CNAME record.
+        '''
+
         for change in changes:
             class_name = change.__class__.__name__
-            getattr(self, '_apply_{}'.format(class_name))(change)
+            if class_name == 'Delete':
+                self._apply_Delete(change)
+
+        for change in changes:
+            class_name = change.__class__.__name__
+            if class_name != 'Delete':
+                getattr(self, '_apply_{}'.format(class_name))(change)
