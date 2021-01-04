@@ -524,43 +524,6 @@
 	"pools": [],
 	"poolsDetail": []
 }, {
-	"id": 1808603,
-	"type": "ANAME",
-	"recordType": "aname",
-	"name": "sub",
-	"recordOption": "roundRobin",
-	"noAnswer": false,
-	"note": "",
-	"ttl": 1800,
-	"gtdRegion": 1,
-	"parentId": 123123,
-	"parent": "domain",
-	"source": "Domain",
-	"modifiedTs": 1565153387855,
-	"value": [{
-		"value": "aname.unit.tests.",
-		"disableFlag": false
-	}],
-	"roundRobin": [{
-		"value": "aname.unit.tests.",
-		"disableFlag": false
-	}],
-	"geolocation": null,
-	"recordFailover": {
-		"disabled": false,
-		"failoverType": 1,
-		"failoverTypeStr": "Normal (always lowest level)",
-		"values": []
-	},
-	"failover": {
-		"disabled": false,
-		"failoverType": 1,
-		"failoverTypeStr": "Normal (always lowest level)",
-		"values": []
-	},
-	"pools": [],
-	"poolsDetail": []
-}, {
 	"id": 1808520,
 	"type": "A",
 	"recordType": "a",

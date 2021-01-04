@@ -461,14 +461,8 @@ class AzureProvider(BaseProvider):
             :type  azrecord: azure.mgmt.dns.models.RecordSet
 
             :type  return: dict
-
-            CNAME and PTR both use the catch block to catch possible empty
-            records. Refer to population comment.
         '''
-        try:
-            return {'value': _check_endswith_dot(azrecord.cname_record.cname)}
-        except:
-            return {'value': '.'}
+        return {'value': _check_endswith_dot(azrecord.cname_record.cname)}
 
     def _data_for_MX(self, azrecord):
         return {'values': [{'preference': ar.preference,
@@ -480,11 +474,8 @@ class AzureProvider(BaseProvider):
         return {'values': [_check_endswith_dot(val) for val in vals]}
 
     def _data_for_PTR(self, azrecord):
-        try:
-            ptrdname = azrecord.ptr_records[0].ptrdname
-            return {'value': _check_endswith_dot(ptrdname)}
-        except:
-            return {'value': '.'}
+        ptrdname = azrecord.ptr_records[0].ptrdname
+        return {'value': _check_endswith_dot(ptrdname)}
 
     def _data_for_SRV(self, azrecord):
         return {'values': [{'priority': ar.priority, 'weight': ar.weight,
@@ -542,6 +533,19 @@ class AzureProvider(BaseProvider):
         azure_zone_name = desired.name[:len(desired.name) - 1]
         self._check_zone(azure_zone_name, create=True)
 
+        '''
+        Force the operation order to be Delete() before all other operations.
+        Helps avoid problems in updating
+            - a CNAME record into an A record.
+            - an A record into a CNAME record.
+        '''
+
         for change in changes:
             class_name = change.__class__.__name__
-            getattr(self, '_apply_{}'.format(class_name))(change)
+            if class_name == 'Delete':
+                self._apply_Delete(change)
+
+        for change in changes:
+            class_name = change.__class__.__name__
+            if class_name != 'Delete':
+                getattr(self, '_apply_{}'.format(class_name))(change)

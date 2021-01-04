@@ -222,21 +222,31 @@ class Manager(object):
         self.log.debug('configured_sub_zones: subs=%s', sub_zone_names)
         return set(sub_zone_names)
 
-    def _populate_and_plan(self, zone_name, sources, targets, lenient=False):
+    def _populate_and_plan(self, zone_name, sources, targets, desired=None,
+                           lenient=False):
 
         self.log.debug('sync:   populating, zone=%s, lenient=%s',
                        zone_name, lenient)
         zone = Zone(zone_name,
                     sub_zones=self.configured_sub_zones(zone_name))
-        for source in sources:
-            try:
-                source.populate(zone, lenient=lenient)
-            except TypeError as e:
-                if "keyword argument 'lenient'" not in text_type(e):
-                    raise
-                self.log.warn(': provider %s does not accept lenient param',
-                              source.__class__.__name__)
-                source.populate(zone)
+
+        if desired:
+            # This is an alias zone, rather than populate it we'll copy the
+            # records over from `desired`.
+            for _, records in desired._records.items():
+                for record in records:
+                    zone.add_record(record.copy(zone=zone), lenient=lenient)
+
+        else:
+            for source in sources:
+                try:
+                    source.populate(zone, lenient=lenient)
+                except TypeError as e:
+                    if "keyword argument 'lenient'" not in text_type(e):
+                        raise
+                    self.log.warn(': provider %s does not accept lenient '
+                                  'param', source.__class__.__name__)
+                    source.populate(zone)
 
         self.log.debug('sync:   planning, zone=%s', zone_name)
         plans = []
@@ -253,10 +263,11 @@ class Manager(object):
             if plan:
                 plans.append((target, plan))
 
-        return plans
+        # Return the zone as it's the desired state
+        return plans, zone
 
-    def sync(self, eligible_zones=[], eligible_targets=[], dry_run=True,
-             force=False):
+    def sync(self, eligible_zones=[], eligible_sources=[], eligible_targets=[],
+             dry_run=True, force=False):
         self.log.info('sync: eligible_zones=%s, eligible_targets=%s, '
                       'dry_run=%s, force=%s', eligible_zones, eligible_targets,
                       dry_run, force)
@@ -265,9 +276,32 @@ class Manager(object):
         if eligible_zones:
             zones = [z for z in zones if z[0] in eligible_zones]
 
+        aliased_zones  = {}
         futures = []
         for zone_name, config in zones:
             self.log.info('sync:   zone=%s', zone_name)
+            if 'alias' in config:
+                source_zone = config['alias']
+
+                # Check that the source zone is defined.
+                if source_zone not in self.config['zones']:
+                    self.log.error('Invalid alias zone {}, target {} does '
+                                   'not exist'.format(zone_name, source_zone))
+                    raise ManagerException('Invalid alias zone {}: '
+                                           'source zone {} does not exist'
+                                           .format(zone_name, source_zone))
+
+                # Check that the source zone is not an alias zone itself.
+                if 'alias' in self.config['zones'][source_zone]:
+                    self.log.error('Invalid alias zone {}, target {} is an '
+                                   'alias zone'.format(zone_name, source_zone))
+                    raise ManagerException('Invalid alias zone {}: source '
+                                           'zone {} is an alias zone'
+                                           .format(zone_name, source_zone))
+
+                aliased_zones[zone_name] = source_zone
+                continue
+
             lenient = config.get('lenient', False)
             try:
                 sources = config['sources']
@@ -280,6 +314,12 @@ class Manager(object):
             except KeyError:
                 raise ManagerException('Zone {} is missing targets'
                                        .format(zone_name))
+
+            if (eligible_sources and not
+                    [s for s in sources if s in eligible_sources]):
+                self.log.info('sync:   no eligible sources, skipping')
+                continue
+
             if eligible_targets:
                 targets = [t for t in targets if t in eligible_targets]
 
@@ -321,9 +361,38 @@ class Manager(object):
                                                  zone_name, sources,
                                                  targets, lenient=lenient))
 
-        # Wait on all results and unpack/flatten them in to a list of target &
-        # plan pairs.
-        plans = [p for f in futures for p in f.result()]
+        # Wait on all results and unpack/flatten the plans and store the
+        # desired states in case we need them below
+        plans = []
+        desired = {}
+        for future in futures:
+            ps, d = future.result()
+            desired[d.name] = d
+            for plan in ps:
+                plans.append(plan)
+
+        # Populate aliases zones.
+        futures = []
+        for zone_name, zone_source in aliased_zones.items():
+            source_config = self.config['zones'][zone_source]
+            try:
+                desired_config = desired[zone_source]
+            except KeyError:
+                raise ManagerException('Zone {} cannot be sync without zone '
+                                       '{} sinced it is aliased'
+                                       .format(zone_name, zone_source))
+            futures.append(self._executor.submit(
+                self._populate_and_plan,
+                zone_name,
+                [],
+                [self.providers[t] for t in source_config['targets']],
+                desired=desired_config,
+                lenient=lenient
+            ))
+
+        # Wait on results and unpack/flatten the plans, ignore the desired here
+        # as these are aliased zones
+        plans += [p for f in futures for p in f.result()[0]]
 
         # Best effort sort plans children first so that we create/update
         # children zones before parents which should allow us to more safely
@@ -371,12 +440,11 @@ class Manager(object):
         except KeyError as e:
             raise ManagerException('Unknown source: {}'.format(e.args[0]))
 
-        sub_zones = self.configured_sub_zones(zone)
-        za = Zone(zone, sub_zones)
+        za = self.get_zone(zone)
         for source in a:
             source.populate(za)
 
-        zb = Zone(zone, sub_zones)
+        zb = self.get_zone(zone)
         for source in b:
             source.populate(zb)
 
@@ -415,6 +483,25 @@ class Manager(object):
         for zone_name, config in self.config['zones'].items():
             zone = Zone(zone_name, self.configured_sub_zones(zone_name))
 
+            source_zone = config.get('alias')
+            if source_zone:
+                if source_zone not in self.config['zones']:
+                    self.log.exception('Invalid alias zone')
+                    raise ManagerException('Invalid alias zone {}: '
+                                           'source zone {} does not exist'
+                                           .format(zone_name, source_zone))
+
+                if 'alias' in self.config['zones'][source_zone]:
+                    self.log.exception('Invalid alias zone')
+                    raise ManagerException('Invalid alias zone {}: '
+                                           'source zone {} is an alias zone'
+                                           .format(zone_name, source_zone))
+
+                # this is just here to satisfy coverage, see
+                # https://github.com/nedbat/coveragepy/issues/198
+                source_zone = source_zone
+                continue
+
             try:
                 sources = config['sources']
             except KeyError:
@@ -422,9 +509,9 @@ class Manager(object):
                                        .format(zone_name))
 
             try:
-                # rather than using a list comprehension, we break this loop
-                # out so that the `except` block below can reference the
-                # `source`
+                # rather than using a list comprehension, we break this
+                # loop out so that the `except` block below can reference
+                # the `source`
                 collected = []
                 for source in sources:
                     collected.append(self.providers[source])
@@ -436,3 +523,14 @@ class Manager(object):
             for source in sources:
                 if isinstance(source, YamlProvider):
                     source.populate(zone)
+
+    def get_zone(self, zone_name):
+        if not zone_name[-1] == '.':
+            raise ManagerException('Invalid zone name {}, missing ending dot'
+                                   .format(zone_name))
+
+        for name, config in self.config['zones'].items():
+            if name == zone_name:
+                return Zone(name, self.configured_sub_zones(name))
+
+        raise ManagerException('Unknown zone name {}'.format(zone_name))

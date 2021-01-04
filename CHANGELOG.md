@@ -1,6 +1,31 @@
-## v0.9.11 - 2020-??-?? - ???????????????
+## v0.9.11 - 2020-11-05 - We still don't know edition
 
-* Added support for TCP health checking to dynamic records
+#### Noteworthy changtes
+
+* ALIAS records only allowed at the root of zones - see `leient` in record docs
+  for work-arounds if you really need them.
+
+#### New Providers
+
+* Gandi LiveDNS
+* UltraDNS
+* easyDNS
+
+#### Stuff
+
+* Add support for zones aliases
+* octodns-compare: Prefix filtering and status code on on mismatch
+* Implement octodns-sync --source
+* Adding environment variable record injection
+* Add support for wildcard SRV records, as shown in RFC 2782
+* Add healthcheck option 'request_interval' for Route53 provider
+* NS1 georegion, country, and catchall need to be separate groups
+* Add the ability to mark a zone as lenient
+* Add support for geo-targeting of CA provinces
+* Update geo_data to pick up a couple renames
+* Cloudflare: Add PTR Support, update rate-limit handling and pagination
+* Support PowerDNS 4.3.x
+* Added support for TCP health checking of dynamic records
 
 ## v0.9.10 - 2020-04-20 - Dynamic NS1 and lots of misc
 
@@ -30,7 +55,7 @@
    * Explicit ordering of changes by (name, type) to address inconsistent
      ordering for a number of providers that just convert changes into API
      calls as they come. Python 2 sets ordered consistently, Python 3 they do
-     not. https://github.com/github/octodns/pull/384/commits/7958233fccf9ea22d95e2fd06c48d7d0a4529e26
+     not. https://github.com/octodns/octodns/pull/384/commits/7958233fccf9ea22d95e2fd06c48d7d0a4529e26
    * Route53 `_mod_keyer` ordering wasn't 100% complete and thus unreliable and
      random in Python 3. This has been addressed and may result in value
      reordering on next plan, no actual changes in behavior should occur.
@@ -127,10 +152,10 @@ recreating all health checks. This process has been tested pretty thoroughly to
 try and ensure a seemless upgrade without any traffic shifting around. It's
 probably best to take extra care when updating and to try and make sure that
 all health checks are passing before the first sync with `--doit`. See
-[#67](https://github.com/github/octodns/pull/67) for more information.
+[#67](https://github.com/octodns/octodns/pull/67) for more information.
 
 * Major update to geo healthchecks to allow configuring host (header), path,
-  protocol, and port [#67](https://github.com/github/octodns/pull/67)
+  protocol, and port [#67](https://github.com/octodns/octodns/pull/67)
 * SSHFP algorithm type 4
 * NS1 and DNSimple support skipping unsupported record types
 * Revert back to old style setup.py &amp; requirements.txt, setup.cfg was
