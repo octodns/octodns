@@ -24,11 +24,19 @@
                 "order": "FIXED",
                 "description": "octodns1.test."
             }
+        },
+        {
+            "ownerName": "octodns1.test.",
+            "rrtype": "APEXALIAS (65282)",
+            "ttl": 3600,
+            "rdata": [
+                "www.octodns1.test."
+            ]
         }
     ],
     "resultInfo": {
-        "totalCount": 12,
+        "totalCount": 13,
         "offset": 10,
-        "returnedCount": 2
+        "returnedCount": 3
     }
 }

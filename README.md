@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/github/octodns/master/docs/logos/octodns-logo.png?" height=251 width=404>
+<img src="https://raw.githubusercontent.com/octodns/octodns/master/docs/logos/octodns-logo.png?" height=251 width=404>
 
 ## DNS as code - Tools for managing DNS across multiple providers
 
@@ -102,8 +102,8 @@ Now that we have something to tell OctoDNS about our providers & zones we need t
   ttl: 60
   type: A
   values:
-  - 1.2.3.4
-  - 1.2.3.5
+    - 1.2.3.4
+    - 1.2.3.5
 ```
 
 Further information can be found in [Records Documentation](/docs/records.md).
@@ -284,13 +284,13 @@ Please see our [contributing document](/CONTRIBUTING.md) if you would like to pa
 
 ## Getting help
 
-If you have a problem or suggestion, please [open an issue](https://github.com/github/octodns/issues/new) in this repository, and we will do our best to help. Please note that this project adheres to the [Contributor Covenant Code of Conduct](/CODE_OF_CONDUCT.md).
+If you have a problem or suggestion, please [open an issue](https://github.com/octodns/octodns/issues/new) in this repository, and we will do our best to help. Please note that this project adheres to the [Contributor Covenant Code of Conduct](/CODE_OF_CONDUCT.md).
 
 ## License
 
 OctoDNS is licensed under the [MIT license](LICENSE).
 
-The MIT license grant is not for GitHub's trademarks, which include the logo designs. GitHub reserves all trademark and copyright rights in and to all GitHub trademarks. GitHub's logos include, for instance, the stylized designs that include "logo" in the file title in the following folder: https://github.com/github/octodns/tree/master/docs/logos/
+The MIT license grant is not for GitHub's trademarks, which include the logo designs. GitHub reserves all trademark and copyright rights in and to all GitHub trademarks. GitHub's logos include, for instance, the stylized designs that include "logo" in the file title in the following folder: https://github.com/octodns/octodns/tree/master/docs/logos/
 
 GitHub® and its stylized versions and the Invertocat mark are GitHub's Trademarks or registered Trademarks. When using GitHub's logos, be sure to follow the GitHub logo guidelines.
 

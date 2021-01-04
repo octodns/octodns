@@ -288,7 +288,7 @@ class Manager(object):
                     self.log.error('Invalid alias zone {}, target {} does '
                                    'not exist'.format(zone_name, source_zone))
                     raise ManagerException('Invalid alias zone {}: '
-                                           'source zone {} does not exist'
+                                           'source zone {} does not exist'
                                            .format(zone_name, source_zone))
 
                 # Check that the source zone is not an alias zone itself.
@@ -296,7 +296,7 @@ class Manager(object):
                     self.log.error('Invalid alias zone {}, target {} is an '
                                    'alias zone'.format(zone_name, source_zone))
                     raise ManagerException('Invalid alias zone {}: source '
-                                           'zone {} is an alias zone'
+                                           'zone {} is an alias zone'
                                            .format(zone_name, source_zone))
 
                 aliased_zones[zone_name] = source_zone
@@ -375,12 +375,18 @@ class Manager(object):
         futures = []
         for zone_name, zone_source in aliased_zones.items():
             source_config = self.config['zones'][zone_source]
+            try:
+                desired_config = desired[zone_source]
+            except KeyError:
+                raise ManagerException('Zone {} cannot be sync without zone '
+                                       '{} sinced it is aliased'
+                                       .format(zone_name, zone_source))
             futures.append(self._executor.submit(
                 self._populate_and_plan,
                 zone_name,
                 [],
                 [self.providers[t] for t in source_config['targets']],
-                desired=desired[zone_source],
+                desired=desired_config,
                 lenient=lenient
             ))
 
@@ -482,13 +488,13 @@ class Manager(object):
                 if source_zone not in self.config['zones']:
                     self.log.exception('Invalid alias zone')
                     raise ManagerException('Invalid alias zone {}: '
-                                           'source zone {} does not exist'
+                                           'source zone {} does not exist'
                                            .format(zone_name, source_zone))
 
                 if 'alias' in self.config['zones'][source_zone]:
                     self.log.exception('Invalid alias zone')
                     raise ManagerException('Invalid alias zone {}: '
-                                           'source zone {} is an alias zone'
+                                           'source zone {} is an alias zone'
                                            .format(zone_name, source_zone))
 
                 # this is just here to satisfy coverage, see
