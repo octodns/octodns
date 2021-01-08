@@ -80,14 +80,14 @@ class TestEasyDNSProvider(TestCase):
                          text=fh.read())
 
                 provider.populate(zone)
-                self.assertEquals(13, len(zone.records))
+                self.assertEquals(15, len(zone.records))
                 changes = self.expected.changes(zone, provider)
                 self.assertEquals(0, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])
         provider.populate(again)
-        self.assertEquals(13, len(again.records))
+        self.assertEquals(15, len(again.records))
 
         # bust the cache
         del provider._zone_records[zone.name]
@@ -379,7 +379,7 @@ class TestEasyDNSProvider(TestCase):
         self.assertEquals(n, provider.apply(plan))
         self.assertFalse(plan.exists)
 
-        self.assertEquals(23, provider._client._request.call_count)
+        self.assertEquals(25, provider._client._request.call_count)
 
         provider._client._request.reset_mock()
 
