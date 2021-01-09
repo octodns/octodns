@@ -206,17 +206,24 @@ class ZoneFileSource(AxfrBaseSource):
         class: octodns.source.axfr.ZoneFileSource
         # The directory holding the zone files
         # Filenames should match zone name (eg. example.com.)
+        # with optional extension specified with file_extension
         directory: ./zonefiles
+        # File extension on zone files
+        # Appended to zone name to locate file
+        # (optional, default None)
+        file_extension: zone
         # Should sanity checks of the origin node be done
         # (optional, default true)
         check_origin: false
     '''
-    def __init__(self, id, directory, check_origin=True):
+    def __init__(self, id, directory, file_extension=None, check_origin=True):
         self.log = logging.getLogger('ZoneFileSource[{}]'.format(id))
-        self.log.debug('__init__: id=%s, directory=%s, check_origin=%s', id,
-                       directory, check_origin)
+        self.log.debug('__init__: id=%s, directory=%s, file_extension=%s, '
+                       'check_origin=%s', id,
+                       directory, file_extension, check_origin)
         super(ZoneFileSource, self).__init__(id)
         self.directory = directory
+        self.file_extension = file_extension
         self.check_origin = check_origin
 
         self._zone_records = {}
@@ -225,7 +232,11 @@ class ZoneFileSource(AxfrBaseSource):
         zonefiles = listdir(self.directory)
         if zone_name in zonefiles:
             try:
-                z = dns.zone.from_file(join(self.directory, zone_name),
+                filename = zone_name
+                if self.file_extension:
+                    filename = '{}{}'.format(zone_name,
+                                             self.file_extension.lstrip('.'))
+                z = dns.zone.from_file(join(self.directory, filename),
                                        zone_name, relativize=False,
                                        check_origin=self.check_origin)
             except DNSException as error:
