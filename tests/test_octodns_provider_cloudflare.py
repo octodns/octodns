@@ -747,6 +747,23 @@ class TestCloudflareProvider(TestCase):
                 },
                 'type': 'SRV',
             }),
+            ('31 58 52.1 S 115 49 11.7 E 20 10 10 2', {
+                'data': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                },
+                'type': 'LOC',
+            }),
         ):
             self.assertEqual(expected, provider._gen_key(data))
 

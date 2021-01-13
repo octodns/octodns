@@ -505,7 +505,7 @@ class CloudflareProvider(BaseProvider):
         # new records cleanly. In general when there are multiple records for a
         # name & type each will have a distinct/consistent `content` that can
         # serve as a unique identifier.
-        # BUT... there are exceptions. MX, CAA, and SRV don't have a simple
+        # BUT... there are exceptions. MX, CAA, LOC and SRV don't have a simple
         # content as things are currently implemented so we need to handle
         # those explicitly and create unique/hashable strings for them.
         _type = data['type']
@@ -517,6 +517,22 @@ class CloudflareProvider(BaseProvider):
         elif _type == 'SRV':
             data = data['data']
             return '{port} {priority} {target} {weight}'.format(**data)
+        elif _type == 'LOC':
+            data = data['data']
+            loc = (
+                '{lat_degrees}',
+                '{lat_minutes}',
+                '{lat_seconds}',
+                '{lat_direction}',
+                '{long_degrees}',
+                '{long_minutes}',
+                '{long_seconds}',
+                '{long_direction}',
+                '{altitude}',
+                '{size}',
+                '{precision_horz}',
+                '{precision_vert}')
+            return ' '.join(loc).format(**data)
         return data['content']
 
     def _apply_Create(self, change):
