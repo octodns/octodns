@@ -11,6 +11,22 @@
         },
         {
             "rdata": [
+                "0 0 0 ."
+            ],
+            "type": "SRV",
+            "name": "_imap._tcp.unit.tests",
+            "ttl": 600
+        },
+        {
+            "rdata": [
+                "0 0 0 ."
+            ],
+            "type": "SRV",
+            "name": "_pop3._tcp.unit.tests",
+            "ttl": 600
+        },
+        {
+            "rdata": [
                 "2601:644:500:e210:62f8:1dff:feb8:947a"
             ],
             "type": "AAAA",
@@ -151,7 +167,7 @@
         }
     ],
     "metadata": {
-        "totalElements": 16,
+        "totalElements": 18,
         "showAll": true
     }
 }
