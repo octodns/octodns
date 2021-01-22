@@ -286,3 +286,11 @@ class SplitYamlProvider(YamlProvider):
             self.log.debug('_apply:   writing catchall filename=%s', filename)
             with open(filename, 'w') as fh:
                 safe_dump(catchall, fh)
+
+
+class SplitYamlAltProvider(SplitYamlProvider):
+    '''
+    A variant of of the SplitYamlProvider that works with Windows
+    '''
+    def _zone_directory(self, zone):
+        return join(self.directory, zone.name.rstrip('.'))

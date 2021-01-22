@@ -13,7 +13,6 @@ import dns.rdatatype
 from dns.exception import DNSException
 
 from collections import defaultdict
-from os import listdir
 from os.path import join
 from os.path import isfile
 from six import text_type

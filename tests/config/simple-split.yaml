@@ -2,15 +2,15 @@ manager:
   max_workers: 2
 providers:
   in:
-    class: octodns.provider.yaml.SplitYamlProvider
+    class: octodns.provider.yaml.SplitYamlAltProvider
     directory: tests/config/split
   dump:
-    class: octodns.provider.yaml.SplitYamlProvider
+    class: octodns.provider.yaml.SplitYamlAltProvider
     directory: env/YAML_TMP_DIR
   # This is sort of ugly, but it shouldn't hurt anything. It'll just write out
   # the target file twice where it and dump are both used
   dump2:
-    class: octodns.provider.yaml.SplitYamlProvider
+    class: octodns.provider.yaml.SplitYamlAltProvider
     directory: env/YAML_TMP_DIR
   simple:
     class: helpers.SimpleProvider

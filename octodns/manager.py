@@ -8,12 +8,14 @@ from __future__ import absolute_import, division, print_function, \
 from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from os import environ
+import os
 from six import text_type
 import logging
 
 from .provider.base import BaseProvider
 from .provider.plan import Plan
-from .provider.yaml import SplitYamlProvider, YamlProvider
+from .provider.yaml import SplitYamlProvider, YamlProvider, \
+    SplitYamlAltProvider
 from .record import Record
 from .yaml import safe_load
 from .zone import Zone
@@ -467,7 +469,10 @@ class Manager(object):
 
         clz = YamlProvider
         if split:
-            clz = SplitYamlProvider
+            if os.name == 'nt':
+                clz = SplitYamlAltProvider
+            else:
+                clz = SplitYamlProvider
         target = clz('dump', output_dir)
 
         zone = Zone(zone, self.configured_sub_zones(zone))

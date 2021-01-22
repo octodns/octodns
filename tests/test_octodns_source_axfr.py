@@ -16,12 +16,13 @@ from octodns.source.axfr import AxfrSource, AxfrSourceZoneTransferFailed, \
     ZoneFileSource, ZoneFileSourceLoadFailure
 from octodns.zone import Zone
 from octodns.record import ValidationError
+import os
 
 
 class TestAxfrSource(TestCase):
     source = AxfrSource('test', 'localhost')
 
-    forward_zonefile = dns.zone.from_file('./tests/zones/unit.tests.',
+    forward_zonefile = dns.zone.from_file('./tests/zones/unit.tests.zone',
                                           'unit.tests', relativize=False)
 
     @patch('dns.zone.from_xfr')
@@ -44,8 +45,24 @@ class TestAxfrSource(TestCase):
 
 
 class TestZoneFileSource(TestCase):
-    source = ZoneFileSource('test', './tests/zones')
-    source_extension = ZoneFileSource('test', './tests/zones', 'extension')
+    file_extension = 'zone'
+    source = None
+    source_extention = None
+    zone_files = ['unit.tests.', 'invalid.zone.', 'invalid.records.']
+
+    def setUp(self):
+        if os.name != 'nt':
+            self.file_extension = None
+            for filename in self.zone_files:
+                dest = './tests/zones/' + filename
+                src = './' + filename + 'zone'
+                if not os.path.exists(dest):
+                    os.symlink(src, dest)
+
+        self.source = ZoneFileSource('test', './tests/zones',
+                                     self.file_extension)
+        self.source_extension = ZoneFileSource('test', './tests/zones',
+                                               'extension')
 
     def test_zonefiles_with_extension(self):
         # Load zonefiles with a specified file extension

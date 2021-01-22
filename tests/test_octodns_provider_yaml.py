@@ -15,7 +15,7 @@ from yaml.constructor import ConstructorError
 from octodns.record import Create
 from octodns.provider.base import Plan
 from octodns.provider.yaml import _list_all_yaml_files, \
-    SplitYamlProvider, YamlProvider
+    SplitYamlAltProvider, YamlProvider
 from octodns.zone import SubzoneRecordException, Zone
 
 from helpers import TemporaryDirectory
@@ -206,19 +206,19 @@ class TestSplitYamlProvider(TestCase):
             self.assertEqual(len(yaml_files), len(d))
 
     def test_zone_directory(self):
-        source = SplitYamlProvider(
+        source = SplitYamlAltProvider(
             'test', join(dirname(__file__), 'config/split'))
 
         zone = Zone('unit.tests.', [])
 
         self.assertEqual(
-            join(dirname(__file__), 'config/split/unit.tests.'),
+            join(dirname(__file__), 'config/split', 'unit.tests'),
             source._zone_directory(zone))
 
     def test_apply_handles_existing_zone_directory(self):
         with TemporaryDirectory() as td:
-            provider = SplitYamlProvider('test', join(td.dirname, 'config'))
-            makedirs(join(td.dirname, 'config', 'does.exist.'))
+            provider = SplitYamlAltProvider('test', join(td.dirname, 'config'))
+            makedirs(join(td.dirname, 'config', 'does.exist'))
 
             zone = Zone('does.exist.', [])
             self.assertTrue(isdir(provider._zone_directory(zone)))
@@ -226,7 +226,7 @@ class TestSplitYamlProvider(TestCase):
             self.assertTrue(isdir(provider._zone_directory(zone)))
 
     def test_provider(self):
-        source = SplitYamlProvider(
+        source = SplitYamlAltProvider(
             'test', join(dirname(__file__), 'config/split'))
 
         zone = Zone('unit.tests.', [])
@@ -246,9 +246,9 @@ class TestSplitYamlProvider(TestCase):
         with TemporaryDirectory() as td:
             # Add some subdirs to make sure that it can create them
             directory = join(td.dirname, 'sub', 'dir')
-            zone_dir = join(directory, 'unit.tests.')
-            dynamic_zone_dir = join(directory, 'dynamic.tests.')
-            target = SplitYamlProvider('test', directory)
+            zone_dir = join(directory, 'unit.tests')
+            dynamic_zone_dir = join(directory, 'dynamic.tests')
+            target = SplitYamlAltProvider('test', directory)
 
             # We add everything
             plan = target.plan(zone)
@@ -334,7 +334,7 @@ class TestSplitYamlProvider(TestCase):
                     self.assertTrue('dynamic' in dyna)
 
     def test_empty(self):
-        source = SplitYamlProvider(
+        source = SplitYamlAltProvider(
             'test', join(dirname(__file__), 'config/split'))
 
         zone = Zone('empty.', [])
@@ -344,7 +344,7 @@ class TestSplitYamlProvider(TestCase):
         self.assertEquals(0, len(zone.records))
 
     def test_unsorted(self):
-        source = SplitYamlProvider(
+        source = SplitYamlAltProvider(
             'test', join(dirname(__file__), 'config/split'))
 
         zone = Zone('unordered.', [])
@@ -354,7 +354,7 @@ class TestSplitYamlProvider(TestCase):
 
         zone = Zone('unordered.', [])
 
-        source = SplitYamlProvider(
+        source = SplitYamlAltProvider(
             'test', join(dirname(__file__), 'config/split'),
             enforce_order=False)
         # no exception
@@ -362,7 +362,7 @@ class TestSplitYamlProvider(TestCase):
         self.assertEqual(2, len(zone.records))
 
     def test_subzone_handling(self):
-        source = SplitYamlProvider(
+        source = SplitYamlAltProvider(
             'test', join(dirname(__file__), 'config/split'))
 
         # If we add `sub` as a sub-zone we'll reject `www.sub`
