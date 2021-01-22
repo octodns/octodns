@@ -15,6 +15,7 @@ from dns.exception import DNSException
 from collections import defaultdict
 from os import listdir
 from os.path import join
+from os.path import isfile
 from six import text_type
 import logging
 
@@ -229,14 +230,15 @@ class ZoneFileSource(AxfrBaseSource):
         self._zone_records = {}
 
     def _load_zone_file(self, zone_name):
-        zonefiles = listdir(self.directory)
-        if zone_name in zonefiles:
+        filename = zone_name
+        if self.file_extension:
+            filename = '{}{}'.format(zone_name,
+                                     self.file_extension.lstrip('.'))
+        filepath = join(self.directory, filename)
+
+        if isfile(filepath):
             try:
-                filename = zone_name
-                if self.file_extension:
-                    filename = '{}{}'.format(zone_name,
-                                             self.file_extension.lstrip('.'))
-                z = dns.zone.from_file(join(self.directory, filename),
+                z = dns.zone.from_file(filepath,
                                        zone_name, relativize=False,
                                        check_origin=self.check_origin)
             except DNSException as error:
