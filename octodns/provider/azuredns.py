@@ -28,6 +28,25 @@ def unescape_semicolon(s):
     return s.replace('\\;', ';')
 
 
+def azure_chunked_value(val):
+    CHUNK_SIZE = 255
+    val_replace = val.replace('"', '\\"')
+    value = unescape_semicolon(val_replace)
+    if len(val) > CHUNK_SIZE:
+        vs = [value[i:i + CHUNK_SIZE]
+              for i in range(0, len(value), CHUNK_SIZE)]
+    else:
+        vs = value
+    return vs
+
+
+def azure_chunked_values(s):
+    values = []
+    for v in s:
+        values.append(azure_chunked_value(v))
+    return values
+
+
 class _AzureRecord(object):
     '''Wrapper for OctoDNS record for AzureProvider to make dns_client calls.
 
@@ -72,6 +91,8 @@ class _AzureRecord(object):
 
             :type return: _AzureRecord
         '''
+        self.log = logging.getLogger('AzureRecord')
+
         self.resource_group = resource_group
         self.zone_name = record.zone.name[:len(record.zone.name) - 1]
         self.relative_record_set_name = record.name or '@'
@@ -162,11 +183,19 @@ class _AzureRecord(object):
         return {key_name: [azure_class(ptrdname=v) for v in values]}
 
     def _params_for_TXT(self, data, key_name, azure_class):
+
+        params = []
         try:  # API for TxtRecord has list of str, even for singleton
-            values = [unescape_semicolon(v) for v in data['values']]
+            values = [v for v in azure_chunked_values(data['values'])]
         except KeyError:
-            values = [unescape_semicolon(data['value'])]
-        return {key_name: [azure_class(value=[v]) for v in values]}
+            values = [azure_chunked_value(data['value'])]
+
+        for v in values:
+            if isinstance(v, list):
+                params.append(azure_class(value=v))
+            else:
+                params.append(azure_class(value=[v]))
+        return {key_name: params}
 
     def _equals(self, b):
         '''Checks whether two records are equal by comparing all fields.
@@ -232,6 +261,13 @@ def _parse_azure_type(string):
         :type return: str
     '''
     return string.split('/')[len(string.split('/')) - 1]
+
+
+def _check_for_alias(azrecord):
+    if (azrecord.target_resource.id and not azrecord.arecords and not
+            azrecord.cname_record):
+        return True
+    return False
 
 
 class AzureProvider(BaseProvider):
@@ -387,11 +423,20 @@ class AzureProvider(BaseProvider):
             for azrecord in _records:
                 record_name = azrecord.name if azrecord.name != '@' else ''
                 typ = _parse_azure_type(azrecord.type)
+
+                if typ in ['A', 'CNAME']:
+                    if _check_for_alias(azrecord):
+                        self.log.debug(
+                            'Skipping - ALIAS. zone=%s record=%s, type=%s',
+                            zone_name, record_name, typ)  # pragma: no cover
+                        continue  # pragma: no cover
+
                 data = getattr(self, '_data_for_{}'.format(typ))
                 data = data(azrecord)
                 data['type'] = typ
                 data['ttl'] = azrecord.ttl
                 record = Record.new(zone, record_name, data, source=self)
+
                 zone.add_record(record, lenient=lenient)
 
         self.log.info('populate: found %s records, exists=%s',

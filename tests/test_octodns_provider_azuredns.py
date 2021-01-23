@@ -7,13 +7,13 @@ from __future__ import absolute_import, division, print_function, \
 
 from octodns.record import Create, Delete, Record
 from octodns.provider.azuredns import _AzureRecord, AzureProvider, \
-    _check_endswith_dot, _parse_azure_type
+    _check_endswith_dot, _parse_azure_type, _check_for_alias
 from octodns.zone import Zone
 from octodns.provider.base import Plan
 
 from azure.mgmt.dns.models import ARecord, AaaaRecord, CaaRecord, \
     CnameRecord, MxRecord, SrvRecord, NsRecord, PtrRecord, TxtRecord, \
-    RecordSet, SoaRecord, Zone as AzureZone
+    RecordSet, SoaRecord, SubResource, Zone as AzureZone
 from msrestazure.azure_exceptions import CloudError
 
 from unittest import TestCase
@@ -133,6 +133,18 @@ octo_records.append(Record.new(zone, 'txt2', {
     'ttl': 9,
     'type': 'TXT',
     'values': ['txt multiple test', 'txt multiple test 2']}))
+
+long_txt = "v=spf1 ip4:10.10.0.0/24 ip4:10.10.1.0/24 ip4:10.10.2.0/24"
+long_txt += " ip4:10.10.3.0/24 ip4:10.10.4.0/24 ip4:10.10.5.0/24 "
+long_txt += " 10.6.0/24 ip4:10.10.7.0/24 ip4:10.10.8.0/24 "
+long_txt += " ip4:10.10.10.0/24 ip4:10.10.11.0/24 ip4:10.10.12.0/24"
+long_txt += " ip4:10.10.13.0/24 ip4:10.10.14.0/24 ip4:10.10.15.0/24"
+long_txt += " ip4:10.10.16.0/24 ip4:10.10.17.0/24 ip4:10.10.18.0/24"
+long_txt += " ip4:10.10.19.0/24 ip4:10.10.20.0/24  ~all"
+octo_records.append(Record.new(zone, 'txt3', {
+    'ttl': 10,
+    'type': 'TXT',
+    'values': ['txt multiple test', long_txt]}))
 
 azure_records = []
 _base0 = _AzureRecord('TestAzure', octo_records[0])
@@ -306,6 +318,22 @@ _base17.params['txt_records'] = [TxtRecord(value=['txt multiple test']),
                                  TxtRecord(value=['txt multiple test 2'])]
 azure_records.append(_base17)
 
+long_txt_az1 = "v=spf1 ip4:10.10.0.0/24 ip4:10.10.1.0/24 ip4:10.10.2.0/24"
+long_txt_az1 += " ip4:10.10.3.0/24 ip4:10.10.4.0/24 ip4:10.10.5.0/24 "
+long_txt_az1 += " 10.6.0/24 ip4:10.10.7.0/24 ip4:10.10.8.0/24 "
+long_txt_az1 += " ip4:10.10.10.0/24 ip4:10.10.11.0/24 ip4:10.10.12.0/24"
+long_txt_az1 += " ip4:10.10.13.0/24 ip4:10.10.14.0/24 ip4:10.10."
+long_txt_az2 = "15.0/24 ip4:10.10.16.0/24 ip4:10.10.17.0/24 ip4:10.10.18.0/24"
+long_txt_az2 += " ip4:10.10.19.0/24 ip4:10.10.20.0/24  ~all"
+_base18 = _AzureRecord('TestAzure', octo_records[18])
+_base18.zone_name = 'unit.tests'
+_base18.relative_record_set_name = 'txt3'
+_base18.record_type = 'TXT'
+_base18.params['ttl'] = 10
+_base18.params['txt_records'] = [TxtRecord(value=['txt multiple test']),
+                                 TxtRecord(value=[long_txt_az1, long_txt_az2])]
+azure_records.append(_base18)
+
 
 class Test_AzureRecord(TestCase):
     def test_azure_record(self):
@@ -333,6 +361,17 @@ class Test_CheckEndswithDot(TestCase):
             self.assertEquals(expected, _check_endswith_dot(test))
 
 
+class Test_CheckAzureAlias(TestCase):
+    def test_check_for_alias(self):
+        alias_record = type('C', (object,), {})
+        alias_record.target_resource = type('C', (object,), {})
+        alias_record.target_resource.id = "/subscriptions/x/resourceGroups/y/z"
+        alias_record.arecords = None
+        alias_record.cname_record = None
+
+        self.assertEquals(_check_for_alias(alias_record), True)
+
+
 class TestAzureDnsProvider(TestCase):
     def _provider(self):
         return self._get_provider('mock_spc', 'mock_dns_client')
@@ -358,19 +397,23 @@ class TestAzureDnsProvider(TestCase):
         rs = []
         recordSet = RecordSet(arecords=[ARecord(ipv4_address='1.1.1.1')])
         recordSet.name, recordSet.ttl, recordSet.type = 'a1', 0, 'A'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         recordSet = RecordSet(arecords=[ARecord(ipv4_address='1.1.1.1'),
                                         ARecord(ipv4_address='2.2.2.2')])
         recordSet.name, recordSet.ttl, recordSet.type = 'a2', 1, 'A'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         aaaa1 = AaaaRecord(ipv6_address='1:1ec:1::1')
         recordSet = RecordSet(aaaa_records=[aaaa1])
         recordSet.name, recordSet.ttl, recordSet.type = 'aaaa1', 2, 'AAAA'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         aaaa2 = AaaaRecord(ipv6_address='1:1ec:1::2')
         recordSet = RecordSet(aaaa_records=[aaaa1,
                                             aaaa2])
         recordSet.name, recordSet.ttl, recordSet.type = 'aaaa2', 3, 'AAAA'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         recordSet = RecordSet(caa_records=[CaaRecord(flags=0,
                                                      tag='issue',
@@ -388,6 +431,7 @@ class TestAzureDnsProvider(TestCase):
         cname1 = CnameRecord(cname='cname.unit.test.')
         recordSet = RecordSet(cname_record=cname1)
         recordSet.name, recordSet.ttl, recordSet.type = 'cname1', 5, 'CNAME'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         recordSet = RecordSet(mx_records=[MxRecord(preference=10,
                                                    exchange='mx1.unit.test.')])
@@ -428,13 +472,27 @@ class TestAzureDnsProvider(TestCase):
         rs.append(recordSet)
         recordSet = RecordSet(txt_records=[TxtRecord(value='sample text1')])
         recordSet.name, recordSet.ttl, recordSet.type = 'txt1', 15, 'TXT'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         recordSet = RecordSet(txt_records=[TxtRecord(value='sample text1'),
                                            TxtRecord(value='sample text2')])
         recordSet.name, recordSet.ttl, recordSet.type = 'txt2', 16, 'TXT'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
         recordSet = RecordSet(soa_record=[SoaRecord()])
         recordSet.name, recordSet.ttl, recordSet.type = '', 17, 'SOA'
+        rs.append(recordSet)
+        long_txt = "v=spf1 ip4:10.10.0.0/24 ip4:10.10.1.0/24 ip4:10.10.2.0/24"
+        long_txt += " ip4:10.10.3.0/24 ip4:10.10.4.0/24 ip4:10.10.5.0/24 "
+        long_txt += " 10.6.0/24 ip4:10.10.7.0/24 ip4:10.10.8.0/24 "
+        long_txt += " ip4:10.10.10.0/24 ip4:10.10.11.0/24 ip4:10.10.12.0/24"
+        long_txt += " ip4:10.10.13.0/24 ip4:10.10.14.0/24 ip4:10.10.15.0/24"
+        long_txt += " ip4:10.10.16.0/24 ip4:10.10.17.0/24 ip4:10.10.18.0/24"
+        long_txt += " ip4:10.10.19.0/24 ip4:10.10.20.0/24  ~all"
+        recordSet = RecordSet(txt_records=[TxtRecord(value='sample value1'),
+                                           TxtRecord(value=long_txt)])
+        recordSet.name, recordSet.ttl, recordSet.type = 'txt3', 18, 'TXT'
+        recordSet.target_resource = SubResource()
         rs.append(recordSet)
 
         record_list = provider._dns_client.record_sets.list_by_dns_zone
@@ -442,8 +500,7 @@ class TestAzureDnsProvider(TestCase):
 
         exists = provider.populate(zone)
         self.assertTrue(exists)
-
-        self.assertEquals(len(zone.records), 16)
+        self.assertEquals(len(zone.records), 17)
 
     def test_populate_zone(self):
         provider = self._get_provider()
@@ -477,9 +534,9 @@ class TestAzureDnsProvider(TestCase):
             changes.append(Create(i))
             deletes.append(Delete(i))
 
-        self.assertEquals(18, provider.apply(Plan(None, zone,
+        self.assertEquals(19, provider.apply(Plan(None, zone,
                                                   changes, True)))
-        self.assertEquals(18, provider.apply(Plan(zone, zone,
+        self.assertEquals(19, provider.apply(Plan(zone, zone,
                                                   deletes, True)))
 
     def test_create_zone(self):
@@ -495,7 +552,7 @@ class TestAzureDnsProvider(TestCase):
         _get = provider._dns_client.zones.get
         _get.side_effect = CloudError(Mock(status=404), err_msg)
 
-        self.assertEquals(18, provider.apply(Plan(None, desired, changes,
+        self.assertEquals(19, provider.apply(Plan(None, desired, changes,
                                                   True)))
 
     def test_check_zone_no_create(self):
