@@ -55,7 +55,12 @@ class TestZoneFileSource(TestCase):
         self.assertEquals(1, len(valid.records))
 
     def test_zonefiles_without_extension(self):
-        copyfile('./tests/zones/unit.tests.tst', './tests/zones/unit.tests.')
+        try:
+            copyfile('./tests/zones/unit.tests.tst',
+                     './tests/zones/unit.tests.')
+        except:
+            self.skipTest('Unable to create unit.tests. (ending with .) so '
+                          'skipping default filename testing.')
         source = ZoneFileSource('test', './tests/zones')
         # Load zonefiles without a specified file extension
         valid = Zone('unit.tests.', [])
