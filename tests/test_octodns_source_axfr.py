@@ -9,6 +9,7 @@ import dns.zone
 from dns.exception import DNSException
 
 from mock import patch
+from shutil import copyfile
 from six import text_type
 from unittest import TestCase
 
@@ -22,7 +23,7 @@ import os
 class TestAxfrSource(TestCase):
     source = AxfrSource('test', 'localhost')
 
-    forward_zonefile = dns.zone.from_file('./tests/zones/unit.tests.zone',
+    forward_zonefile = dns.zone.from_file('./tests/zones/unit.tests.tst',
                                           'unit.tests', relativize=False)
 
     @patch('dns.zone.from_xfr')
@@ -45,30 +46,28 @@ class TestAxfrSource(TestCase):
 
 
 class TestZoneFileSource(TestCase):
-    file_extension = 'zone'
-    source = None
-    source_extention = None
-    zone_files = ['unit.tests.', 'invalid.zone.', 'invalid.records.']
-
-    def setUp(self):
-        if os.name != 'nt':
-            self.file_extension = None
-            for filename in self.zone_files:
-                dest = './tests/zones/' + filename
-                src = './' + filename + 'zone'
-                if not os.path.exists(dest):
-                    os.symlink(src, dest)
-
-        self.source = ZoneFileSource('test', './tests/zones',
-                                     self.file_extension)
-        self.source_extension = ZoneFileSource('test', './tests/zones',
-                                               'extension')
+    source = ZoneFileSource('test', './tests/zones', file_extension='tst')
 
     def test_zonefiles_with_extension(self):
+        source = ZoneFileSource('test', './tests/zones', 'extension')
         # Load zonefiles with a specified file extension
-        valid = Zone('unit.tests.', [])
-        self.source_extension.populate(valid)
+        valid = Zone('ext.unit.tests.', [])
+        source.populate(valid)
         self.assertEquals(1, len(valid.records))
+
+    def test_zonefiles_without_extension(self):
+        if os.name == 'nt':
+            self.skipTest('Unable to create unit.tests. (ending with .) so '
+                          'skipping default filename testing.')
+
+        copyfile('./tests/zones/unit.tests.tst',
+                 './tests/zones/unit.tests.')
+
+        source = ZoneFileSource('test', './tests/zones')
+        # Load zonefiles without a specified file extension
+        valid = Zone('unit.tests.', [])
+        source.populate(valid)
+        self.assertEquals(12, len(valid.records))
 
     def test_populate(self):
         # Valid zone file in directory
