@@ -46,10 +46,10 @@ class TestAxfrSource(TestCase):
 
 
 class TestZoneFileSource(TestCase):
-    source = ZoneFileSource('test', './tests/zones', file_extension='tst')
+    source = ZoneFileSource('test', './tests/zones', file_extension='.tst')
 
     def test_zonefiles_with_extension(self):
-        source = ZoneFileSource('test', './tests/zones', 'extension')
+        source = ZoneFileSource('test', './tests/zones', '.extension')
         # Load zonefiles with a specified file extension
         valid = Zone('ext.unit.tests.', [])
         source.populate(valid)
