@@ -9,6 +9,7 @@ import dns.zone
 from dns.exception import DNSException
 
 from mock import patch
+from os.path import exists
 from shutil import copyfile
 from six import text_type
 from unittest import TestCase
@@ -55,12 +56,19 @@ class TestZoneFileSource(TestCase):
         self.assertEquals(1, len(valid.records))
 
     def test_zonefiles_without_extension(self):
-        try:
-            copyfile('./tests/zones/unit.tests.tst',
-                     './tests/zones/unit.tests.')
-        except:
+        # Windows doesn't let files end with a `.` so we add a .tst to them in
+        # the repo and then try and create the `.` version we need for the
+        # default case (no extension.)
+        copyfile('./tests/zones/unit.tests.tst', './tests/zones/unit.tests.')
+        # Unfortunately copyfile silently works and create the file without
+        # the `.` so we have to check to see if it did that
+        if exists('./tests/zones/unit.tests'):
+            # It did so we need to skip this test, that means windows won't
+            # have full code coverage, but skipping the test is going out of
+            # our way enough for a os-specific/oddball case.
             self.skipTest('Unable to create unit.tests. (ending with .) so '
                           'skipping default filename testing.')
+
         source = ZoneFileSource('test', './tests/zones')
         # Load zonefiles without a specified file extension
         valid = Zone('unit.tests.', [])
