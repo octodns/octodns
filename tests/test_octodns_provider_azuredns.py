@@ -502,7 +502,7 @@ class TestAzureDnsProvider(TestCase):
         zone_list.return_value = [zone]
 
         exists = provider.populate(zone)
-        
+
         self.assertEquals(len(zone.records), 17)
         self.assertTrue(exists)
 
@@ -511,10 +511,12 @@ class TestAzureDnsProvider(TestCase):
 
         zone_list = provider._dns_client.zones.list_by_resource_group
         zone_1 = AzureZone(location='global')
-        # This is far from ideal but the zone constructor doesn't let me set it on creation
+        # This is far from ideal but the 
+        # zone constructor doesn't let me set it on creation
         zone_1.name = "zone-1"
         zone_2 = AzureZone(location='global')
-        # This is far from ideal but the zone constructor doesn't let me set it on creation
+        # This is far from ideal but the
+        # zone constructor doesn't let me set it on creation
         zone_2.name = "zone-2"
         zone_list.return_value = [zone_1,
                                   zone_2,
