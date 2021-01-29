@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function, \
 
 from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.dns import DnsManagementClient
-from msrestazure.azure_exceptions import CloudError
 
 from azure.mgmt.dns.models import ARecord, AaaaRecord, CaaRecord, \
     CnameRecord, MxRecord, SrvRecord, NsRecord, PtrRecord, TxtRecord, Zone
