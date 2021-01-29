@@ -511,7 +511,7 @@ class TestAzureDnsProvider(TestCase):
 
         zone_list = provider._dns_client.zones.list_by_resource_group
         zone_1 = AzureZone(location='global')
-        # This is far from ideal but the 
+        # This is far from ideal but the
         # zone constructor doesn't let me set it on creation
         zone_1.name = "zone-1"
         zone_2 = AzureZone(location='global')
@@ -533,7 +533,7 @@ class TestAzureDnsProvider(TestCase):
         _get = provider._dns_client.zones.get
         _get.side_effect = CloudError(Mock(status=404), 'Azure Error')
         self.assertEquals(
-            provider._check_zone('unit.test', create=False), 
+            provider._check_zone('unit.test', create=False),
             None
         )
 
