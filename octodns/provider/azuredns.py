@@ -340,8 +340,7 @@ class AzureProvider(BaseProvider):
         self.log.debug('azure_zones: loading')
         list_zones = self._dns_client.zones.list_by_resource_group
         for zone in list_zones(self._resource_group):
-            if zone.name:
-                self._azure_zones.add(zone.name.rstrip('.'))
+            self._azure_zones.add(zone.name.rstrip('.'))
 
     def _check_zone(self, name, create=False):
         '''Checks whether a zone specified in a source exist in Azure server.
