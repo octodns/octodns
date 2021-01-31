@@ -498,32 +498,44 @@ class TestAzureDnsProvider(TestCase):
         record_list = provider._dns_client.record_sets.list_by_dns_zone
         record_list.return_value = rs
 
+        zone_list = provider._dns_client.zones.list_by_resource_group
+        zone_list.return_value = [zone]
+
         exists = provider.populate(zone)
-        self.assertTrue(exists)
+
         self.assertEquals(len(zone.records), 17)
+        self.assertTrue(exists)
 
     def test_populate_zone(self):
         provider = self._get_provider()
 
         zone_list = provider._dns_client.zones.list_by_resource_group
-        zone_list.return_value = [AzureZone(location='global'),
-                                  AzureZone(location='global')]
+        zone_1 = AzureZone(location='global')
+        # This is far from ideal but the
+        # zone constructor doesn't let me set it on creation
+        zone_1.name = "zone-1"
+        zone_2 = AzureZone(location='global')
+        # This is far from ideal but the
+        # zone constructor doesn't let me set it on creation
+        zone_2.name = "zone-2"
+        zone_list.return_value = [zone_1,
+                                  zone_2,
+                                  zone_1]
 
         provider._populate_zones()
 
-        self.assertEquals(len(provider._azure_zones), 1)
+        # This should be returning two zones since two zones are the same
+        self.assertEquals(len(provider._azure_zones), 2)
 
     def test_bad_zone_response(self):
         provider = self._get_provider()
 
         _get = provider._dns_client.zones.get
         _get.side_effect = CloudError(Mock(status=404), 'Azure Error')
-        trip = False
-        try:
-            provider._check_zone('unit.test', create=False)
-        except CloudError:
-            trip = True
-        self.assertEquals(trip, True)
+        self.assertEquals(
+            provider._check_zone('unit.test', create=False),
+            None
+        )
 
     def test_apply(self):
         provider = self._get_provider()
