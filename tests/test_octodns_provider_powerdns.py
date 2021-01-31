@@ -185,8 +185,8 @@ class TestPowerDnsProvider(TestCase):
         expected = Zone('unit.tests.', [])
         source = YamlProvider('test', join(dirname(__file__), 'config'))
         source.populate(expected)
-        expected_n = len(expected.records) - 4
-        self.assertEquals(16, expected_n)
+        expected_n = len(expected.records) - 3
+        self.assertEquals(17, expected_n)
 
         # No diffs == no changes
         with requests_mock() as mock:
@@ -194,7 +194,7 @@ class TestPowerDnsProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(16, len(zone.records))
+            self.assertEquals(17, len(zone.records))
             changes = expected.changes(zone, provider)
             self.assertEquals(0, len(changes))
 
