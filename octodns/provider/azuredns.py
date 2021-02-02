@@ -329,12 +329,30 @@ class AzureProvider(BaseProvider):
                        'key=***, directory_id:%s', id, client_id, directory_id)
         super(AzureProvider, self).__init__(id, *args, **kwargs)
 
-        credentials = ServicePrincipalCredentials(
-            client_id, secret=key, tenant=directory_id
-        )
-        self._dns_client = DnsManagementClient(credentials, sub_id)
+        # Store necessary initialization params
+        self._dns_client_handle = None
+        self._dns_client_client_id = client_id
+        self._dns_client_key = key
+        self._dns_client_directory_id = directory_id
+        self._dns_client_subscription_id = sub_id
+        self.__dns_client = None
+
         self._resource_group = resource_group
         self._azure_zones = set()
+
+    @property
+    def _dns_client(self):
+        if self.__dns_client is None:
+            credentials = ServicePrincipalCredentials(
+                self._dns_client_client_id,
+                secret=self._dns_client_key,
+                tenant=self._dns_client_directory_id
+            )
+            self.__dns_client = DnsManagementClient(
+                credentials,
+                self._dns_client_subscription_id
+            )
+        return self.__dns_client
 
     def _populate_zones(self):
         self.log.debug('azure_zones: loading')

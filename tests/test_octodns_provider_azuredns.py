@@ -388,8 +388,12 @@ class TestAzureDnsProvider(TestCase):
 
             :type return: AzureProvider
         '''
-        return AzureProvider('mock_id', 'mock_client', 'mock_key',
-                             'mock_directory', 'mock_sub', 'mock_rg')
+        provider = AzureProvider('mock_id', 'mock_client', 'mock_key',
+                                 'mock_directory', 'mock_sub', 'mock_rg'
+                                 )
+        # Fetch the client to force it to load the creds
+        provider._dns_client
+        return provider
 
     def test_populate_records(self):
         provider = self._get_provider()
