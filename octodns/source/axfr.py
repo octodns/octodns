@@ -229,14 +229,16 @@ class ZoneFileSource(AxfrBaseSource):
         self._zone_records = {}
 
     def _load_zone_file(self, zone_name):
+
+        zone_filename = zone_name
+        if self.file_extension:
+            zone_filename = '{}{}'.format(zone_name,
+                                          self.file_extension.lstrip('.'))
+
         zonefiles = listdir(self.directory)
-        if zone_name in zonefiles:
+        if zone_filename in zonefiles:
             try:
-                filename = zone_name
-                if self.file_extension:
-                    filename = '{}{}'.format(zone_name,
-                                             self.file_extension.lstrip('.'))
-                z = dns.zone.from_file(join(self.directory, filename),
+                z = dns.zone.from_file(join(self.directory, zone_filename),
                                        zone_name, relativize=False,
                                        check_origin=self.check_origin)
             except DNSException as error:
