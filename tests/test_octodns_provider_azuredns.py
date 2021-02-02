@@ -375,7 +375,9 @@ class Test_CheckAzureAlias(TestCase):
 class TestAzureDnsProvider(TestCase):
     def _provider(self):
         return self._get_provider('mock_spc', 'mock_dns_client')
-
+    
+    @patch('octodns.provider.azuredns.DnsManagementClient')
+    @patch('octodns.provider.azuredns.ServicePrincipalCredentials')
     def _get_provider(self, mock_spc, mock_dns_client):
         '''Returns a mock AzureProvider object to use in testing.
 
@@ -386,8 +388,11 @@ class TestAzureDnsProvider(TestCase):
 
             :type return: AzureProvider
         '''
-        return AzureProvider('mock_id', 'mock_client', 'mock_key',
+        provider = AzureProvider('mock_id', 'mock_client', 'mock_key',
                              'mock_directory', 'mock_sub', 'mock_rg')
+        # Fetch the client to force it to load the creds
+        client = provider._dns_client
+        return provider
     
     @patch('octodns.provider.azuredns.DnsManagementClient')
     @patch('octodns.provider.azuredns.ServicePrincipalCredentials')
