@@ -376,8 +376,6 @@ class TestAzureDnsProvider(TestCase):
     def _provider(self):
         return self._get_provider('mock_spc', 'mock_dns_client')
 
-    @patch('octodns.provider.azuredns.DnsManagementClient')
-    @patch('octodns.provider.azuredns.ServicePrincipalCredentials')
     def _get_provider(self, mock_spc, mock_dns_client):
         '''Returns a mock AzureProvider object to use in testing.
 
@@ -390,7 +388,9 @@ class TestAzureDnsProvider(TestCase):
         '''
         return AzureProvider('mock_id', 'mock_client', 'mock_key',
                              'mock_directory', 'mock_sub', 'mock_rg')
-
+    
+    @patch('octodns.provider.azuredns.DnsManagementClient')
+    @patch('octodns.provider.azuredns.ServicePrincipalCredentials')
     def test_populate_records(self):
         provider = self._get_provider()
 
@@ -501,7 +501,9 @@ class TestAzureDnsProvider(TestCase):
         exists = provider.populate(zone)
         self.assertTrue(exists)
         self.assertEquals(len(zone.records), 17)
-
+    
+    @patch('octodns.provider.azuredns.DnsManagementClient')
+    @patch('octodns.provider.azuredns.ServicePrincipalCredentials')
     def test_populate_zone(self):
         provider = self._get_provider()
 
@@ -512,7 +514,9 @@ class TestAzureDnsProvider(TestCase):
         provider._populate_zones()
 
         self.assertEquals(len(provider._azure_zones), 1)
-
+    
+    @patch('octodns.provider.azuredns.DnsManagementClient')
+    @patch('octodns.provider.azuredns.ServicePrincipalCredentials')
     def test_bad_zone_response(self):
         provider = self._get_provider()
 
@@ -539,6 +543,8 @@ class TestAzureDnsProvider(TestCase):
         self.assertEquals(19, provider.apply(Plan(zone, zone,
                                                   deletes, True)))
 
+    @patch('octodns.provider.azuredns.DnsManagementClient')
+    @patch('octodns.provider.azuredns.ServicePrincipalCredentials')
     def test_create_zone(self):
         provider = self._get_provider()
 
@@ -555,6 +561,8 @@ class TestAzureDnsProvider(TestCase):
         self.assertEquals(19, provider.apply(Plan(None, desired, changes,
                                                   True)))
 
+    @patch('octodns.provider.azuredns.DnsManagementClient')
+    @patch('octodns.provider.azuredns.ServicePrincipalCredentials')
     def test_check_zone_no_create(self):
         provider = self._get_provider()
 
