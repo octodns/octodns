@@ -323,24 +323,6 @@ class AzureProvider(BaseProvider):
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR', 'SRV',
                     'TXT'))
 
-    def _get_dns_client(self):
-        if not self._dns_client_handle:
-            # Not initialized yet, we need to do that.
-            credentials = ServicePrincipalCredentials(
-                self._dns_client_client_id,
-                secret=self._dns_client_key,
-                tenant=self._dns_client_directory_id
-            )
-            self._dns_client_handle = DnsManagementClient(
-                credentials,
-                self._dns_client_subscription_id
-            )
-
-        return self._dns_client_handle
-
-    def _set_dns_client(self, client)
-        self.dns_client_handle = client
-
     def __init__(self, id, client_id, key, directory_id, sub_id,
                  resource_group, *args, **kwargs):
         self.log = logging.getLogger('AzureProvider[{}]'.format(id))
@@ -354,9 +336,24 @@ class AzureProvider(BaseProvider):
         self._dns_client_key = key
         self._dns_client_directory_id = directory_id
         self._dns_client_subscription_id = sub_id
-        self._dns_client = property(_get_dns_client, _set_dns_client)
+        self._dns_client = None
+
         self._resource_group = resource_group
         self._azure_zones = set()
+
+    @property
+    def _dns_client(self)
+        if self._dns_client is None:
+            credentials = ServicePrincipalCredentials(
+                self._dns_client_client_id,
+                secret=self._dns_client_key,
+                tenant=self._dns_client_directory_id
+            )
+            self._dns_client = DnsManagementClient(
+                credentials,
+                self._dns_client_subscription_id
+            )
+        return self._dns_client
 
     def _populate_zones(self):
         self.log.debug('azure_zones: loading')
