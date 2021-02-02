@@ -342,7 +342,7 @@ class AzureProvider(BaseProvider):
         self._azure_zones = set()
 
     @property
-    def _dns_client(self)
+    def _dns_client(self):
         if self._dns_client is None:
             credentials = ServicePrincipalCredentials(
                 self._dns_client_client_id,
