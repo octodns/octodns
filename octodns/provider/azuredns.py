@@ -337,6 +337,8 @@ class AzureProvider(BaseProvider):
             )
             
         return self._dns_client_handle
+    def _set_dns_client(self, client)
+        self.dns_client_handle = client
             
 
     def __init__(self, id, client_id, key, directory_id, sub_id,
@@ -352,7 +354,7 @@ class AzureProvider(BaseProvider):
         self._dns_client_key = key
         self._dns_client_directory_id = directory_id
         self._dns_client_subscription_id = sub_id
-        self._dns_client = property(_get_dns_client)
+        self._dns_client = property(_get_dns_client, _set_dns_client)
         self._resource_group = resource_group
         self._azure_zones = set()
 
