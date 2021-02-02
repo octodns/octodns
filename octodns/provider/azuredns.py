@@ -327,19 +327,19 @@ class AzureProvider(BaseProvider):
         if not self._dns_client_handle:
             # Not initialized yet, we need to do that.
             credentials = ServicePrincipalCredentials(
-                self._dns_client_client_id, 
-                secret=self._dns_client_key, 
+                self._dns_client_client_id,
+                secret=self._dns_client_key,
                 tenant=self._dns_client_directory_id
             )
             self._dns_client_handle = DnsManagementClient(
-                credentials, 
+                credentials,
                 self._dns_client_subscription_id
             )
-            
+
         return self._dns_client_handle
+
     def _set_dns_client(self, client)
         self.dns_client_handle = client
-            
 
     def __init__(self, id, client_id, key, directory_id, sub_id,
                  resource_group, *args, **kwargs):
