@@ -390,7 +390,7 @@ class TestAzureDnsProvider(TestCase):
         '''
         provider = AzureProvider('mock_id', 'mock_client', 'mock_key',
                                  'mock_directory', 'mock_sub', 'mock_rg'
-        )
+                                 )
         # Fetch the client to force it to load the creds
         client = provider._dns_client
         return provider
