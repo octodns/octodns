@@ -352,7 +352,7 @@ class AzureProvider(BaseProvider):
         self._dns_client_key = key
         self._dns_client_directory_id = directory_id
         self._dns_client_subscription_id = sub_id
-        self._dns_client = property(_get_dns_client, _set_dns_client)
+        self._dns_client = property(_get_dns_client)
         self._resource_group = resource_group
         self._azure_zones = set()
 
