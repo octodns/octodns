@@ -392,7 +392,7 @@ class TestAzureDnsProvider(TestCase):
                                  'mock_directory', 'mock_sub', 'mock_rg'
                                  )
         # Fetch the client to force it to load the creds
-        client = provider._dns_client
+        provider._dns_client
         return provider
 
     def test_populate_records(self):
