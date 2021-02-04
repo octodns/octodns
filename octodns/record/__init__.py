@@ -758,7 +758,9 @@ class _TargetValue(object):
             reasons.append('empty value')
         elif not data:
             reasons.append('missing value')
-        elif not FQDN(data, allow_underscores=True).is_valid:
+        # NOTE: FQDN complains if the data it receives isn't a str, it doesn't
+        # allow unicode... This is likely specific to 2.7
+        elif not FQDN(str(data), allow_underscores=True).is_valid:
             reasons.append('{} value "{}" is not a valid FQDN'
                            .format(_type, data))
         elif not data.endswith('.'):
