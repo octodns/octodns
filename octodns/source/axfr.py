@@ -216,7 +216,7 @@ class ZoneFileSource(AxfrBaseSource):
         # (optional, default true)
         check_origin: false
     '''
-    def __init__(self, id, directory, file_extension=None, check_origin=True):
+    def __init__(self, id, directory, file_extension='.', check_origin=True):
         self.log = logging.getLogger('ZoneFileSource[{}]'.format(id))
         self.log.debug('__init__: id=%s, directory=%s, file_extension=%s, '
                        'check_origin=%s', id,
@@ -229,12 +229,7 @@ class ZoneFileSource(AxfrBaseSource):
         self._zone_records = {}
 
     def _load_zone_file(self, zone_name):
-
-        zone_filename = zone_name
-        if self.file_extension:
-            zone_filename = '{}{}'.format(zone_name,
-                                          self.file_extension.lstrip('.'))
-
+        zone_filename = '{}{}'.format(zone_name[:-1], self.file_extension)
         zonefiles = listdir(self.directory)
         if zone_filename in zonefiles:
             try:

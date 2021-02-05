@@ -4,14 +4,17 @@ providers:
   in:
     class: octodns.provider.yaml.SplitYamlProvider
     directory: tests/config/split
+    extension: .tst
   dump:
     class: octodns.provider.yaml.SplitYamlProvider
     directory: env/YAML_TMP_DIR
+    extension: .tst
   # This is sort of ugly, but it shouldn't hurt anything. It'll just write out
   # the target file twice where it and dump are both used
   dump2:
     class: octodns.provider.yaml.SplitYamlProvider
     directory: env/YAML_TMP_DIR
+    extension: .tst
   simple:
     class: helpers.SimpleProvider
   geo:
