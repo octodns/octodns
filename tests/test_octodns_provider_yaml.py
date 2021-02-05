@@ -213,7 +213,7 @@ class TestSplitYamlProvider(TestCase):
         zone = Zone('unit.tests.', [])
 
         self.assertEqual(
-            join(dirname(__file__), 'config/split/unit.tests.tst'),
+            join(dirname(__file__), 'config/split', 'unit.tests.tst'),
             source._zone_directory(zone))
 
     def test_apply_handles_existing_zone_directory(self):
