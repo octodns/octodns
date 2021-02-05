@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function, \
 
 from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.dns import DnsManagementClient
-from msrestazure.azure_exceptions import CloudError
 
 from azure.mgmt.dns.models import ARecord, AaaaRecord, CaaRecord, \
     CnameRecord, MxRecord, SrvRecord, NsRecord, PtrRecord, TxtRecord, Zone
@@ -330,18 +329,36 @@ class AzureProvider(BaseProvider):
                        'key=***, directory_id:%s', id, client_id, directory_id)
         super(AzureProvider, self).__init__(id, *args, **kwargs)
 
-        credentials = ServicePrincipalCredentials(
-            client_id, secret=key, tenant=directory_id
-        )
-        self._dns_client = DnsManagementClient(credentials, sub_id)
+        # Store necessary initialization params
+        self._dns_client_handle = None
+        self._dns_client_client_id = client_id
+        self._dns_client_key = key
+        self._dns_client_directory_id = directory_id
+        self._dns_client_subscription_id = sub_id
+        self.__dns_client = None
+
         self._resource_group = resource_group
         self._azure_zones = set()
+
+    @property
+    def _dns_client(self):
+        if self.__dns_client is None:
+            credentials = ServicePrincipalCredentials(
+                self._dns_client_client_id,
+                secret=self._dns_client_key,
+                tenant=self._dns_client_directory_id
+            )
+            self.__dns_client = DnsManagementClient(
+                credentials,
+                self._dns_client_subscription_id
+            )
+        return self.__dns_client
 
     def _populate_zones(self):
         self.log.debug('azure_zones: loading')
         list_zones = self._dns_client.zones.list_by_resource_group
         for zone in list_zones(self._resource_group):
-            self._azure_zones.add(zone.name)
+            self._azure_zones.add(zone.name.rstrip('.'))
 
     def _check_zone(self, name, create=False):
         '''Checks whether a zone specified in a source exist in Azure server.
@@ -356,29 +373,20 @@ class AzureProvider(BaseProvider):
 
             :type return: str or None
         '''
-        self.log.debug('_check_zone: name=%s', name)
-        try:
-            if name in self._azure_zones:
-                return name
-            self._dns_client.zones.get(self._resource_group, name)
+        self.log.debug('_check_zone: name=%s create=%s', name, create)
+        # Check if the zone already exists in our set
+        if name in self._azure_zones:
+            return name
+        # If not, and its time to create, lets do it.
+        if create:
+            self.log.debug('_check_zone:no matching zone; creating %s', name)
+            create_zone = self._dns_client.zones.create_or_update
+            create_zone(self._resource_group, name, Zone(location='global'))
             self._azure_zones.add(name)
             return name
-        except CloudError as err:
-            msg = 'The Resource \'Microsoft.Network/dnszones/{}\''.format(name)
-            msg += ' under resource group \'{}\''.format(self._resource_group)
-            msg += ' was not found.'
-            if msg == err.message:
-                # Then the only error is that the zone doesn't currently exist
-                if create:
-                    self.log.debug('_check_zone:no matching zone; creating %s',
-                                   name)
-                    create_zone = self._dns_client.zones.create_or_update
-                    create_zone(self._resource_group, name,
-                                Zone(location='global'))
-                    return name
-                else:
-                    return
-            raise
+        else:
+            # Else return nothing (aka false)
+            return
 
     def populate(self, zone, target=False, lenient=False):
         '''Required function of manager.py to collect records from zone.
