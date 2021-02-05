@@ -3,7 +3,7 @@ on: [pull_request]
 
 jobs:
   ci:
-    runs-on: ${{ matrix.platform-version }}
+    runs-on: ${{ matrix.platform }}
     strategy:
       matrix:
         # Tested versions based on dates in https://devguide.python.org/devcycle/#end-of-life-branches, 
