@@ -26,6 +26,7 @@ class AxfrBaseSource(BaseSource):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
+    SUPPORTS_ROOT_NS = True
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR', 'SPF',
                     'SRV', 'TXT'))
 

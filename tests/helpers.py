@@ -16,6 +16,7 @@ class SimpleSource(object):
 
 
 class SimpleProvider(object):
+    SUPPORTS_ROOT_NS = False
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A',))
@@ -28,13 +29,14 @@ class SimpleProvider(object):
         pass
 
     def supports(self, record):
-        return True
+        return record.name != "" or record._type != "NS"
 
     def __repr__(self):
         return self.__class__.__name__
 
 
 class GeoProvider(object):
+    SUPPORTS_ROOT_NS = False
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = False
     id = 'test'
@@ -46,15 +48,35 @@ class GeoProvider(object):
         pass
 
     def supports(self, record):
-        return True
+        return record.name != "" or record._type != "NS"
 
     def __repr__(self):
         return self.__class__.__name__
 
 
 class DynamicProvider(object):
+    SUPPORTS_ROOT_NS = False
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = True
+    id = 'test'
+
+    def __init__(self, id='test'):
+        pass
+
+    def populate(self, zone, source=False, lenient=False):
+        pass
+
+    def supports(self, record):
+        return record.name != "" or record._type != "NS"
+
+    def __repr__(self):
+        return self.__class__.__name__
+
+
+class RootNsProvider(object):
+    SUPPORTS_ROOT_NS = True
+    SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
     id = 'test'
 
     def __init__(self, id='test'):

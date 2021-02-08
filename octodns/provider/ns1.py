@@ -213,6 +213,9 @@ class Ns1Provider(BaseProvider):
         # Required
         class: octodns.provider.ns1.Ns1Provider
         api_key: env/NS1_API_KEY
+        # Needed if you want to manage your root NS records with octodns
+        # When you enable this you MUST specify a root NS.
+        manage_root_ns: true
         # Only required if using dynamic records
         monitor_regions:
           - lga
@@ -233,6 +236,7 @@ class Ns1Provider(BaseProvider):
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
+    SUPPORTS_ROOT_NS = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR',
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 

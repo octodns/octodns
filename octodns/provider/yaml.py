@@ -29,6 +29,10 @@ class YamlProvider(BaseProvider):
         # Whether or not to enforce sorting order on the yaml config
         # (optional, default True)
         enforce_order: true
+        # Needed if you want to write root NS records to the yaml config
+        # when yaml is used as a target.
+        # (optional, default False)
+        manage_root_ns: true
         # Whether duplicate records should replace rather than error
         # (optiona, default False)
         populate_should_replace: false
@@ -104,6 +108,7 @@ class YamlProvider(BaseProvider):
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
+    SUPPORTS_ROOT_NS = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'DNAME', 'MX',
                     'NAPTR', 'NS', 'PTR', 'SSHFP', 'SPF', 'SRV', 'TXT'))
 

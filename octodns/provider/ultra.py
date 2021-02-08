@@ -1,7 +1,7 @@
 from collections import defaultdict
 from ipaddress import ip_address
 from logging import getLogger
-from requests import Session
+from requests import HTTPError, Session
 
 from ..record import Record
 from .base import BaseProvider
@@ -52,6 +52,9 @@ class UltraProvider(BaseProvider):
         username: user
         # Ultra password (required)
         password: pass
+        # Needed if you want to manage your root NS records with octodns
+        # When you enable this you MUST specify a root NS.
+        manage_root_ns: true
     '''
 
     RECORDS_TO_TYPE = {
@@ -71,6 +74,7 @@ class UltraProvider(BaseProvider):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
+    SUPPORTS_ROOT_NS = True
     TIMEOUT = 5
 
     def _request(self, method, path, params=None,
@@ -98,7 +102,14 @@ class UltraProvider(BaseProvider):
                 raise UltraNoZonesExistException(resp)
         else:
             payload = resp.text
-        resp.raise_for_status()
+
+        try:
+            resp.raise_for_status()
+        except HTTPError as e:
+            self.log.error('_request: method=%s, path=%s, status=%s, body=%s',
+                           method, path, resp.status_code, payload)
+            raise e
+
         return payload
 
     def _get(self, path, **kwargs):

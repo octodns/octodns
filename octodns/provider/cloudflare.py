@@ -75,9 +75,9 @@ class CloudflareProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
+    SUPPORTS_ROOT_NS = False
     SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR',
                     'SRV', 'SPF', 'TXT'))
-
     MIN_TTL = 120
     TIMEOUT = 15
 
@@ -354,7 +354,7 @@ class CloudflareProvider(BaseProvider):
                 change.record.value.endswith('.cdn.cloudflare.net.')):
             return False
 
-        return True
+        return super(CloudflareProvider, self)._include_change(change)
 
     def _contents_for_multiple(self, record):
         for value in record.values:

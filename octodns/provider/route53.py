@@ -604,6 +604,9 @@ class Route53Provider(BaseProvider):
         # The AWS session token (optional)
         # Only needed if using temporary security credentials
         session_token:
+        # Needed if you want to manage your root NS records with octodns
+        # When you enable this you MUST specify a root NS.
+        manage_root_ns: true
 
     Alternatively, you may leave out access_key_id, secret_access_key
     and session_token.
@@ -613,6 +616,7 @@ class Route53Provider(BaseProvider):
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
+    SUPPORTS_ROOT_NS = True
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
                     'SPF', 'SRV', 'TXT'))
 

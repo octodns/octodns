@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from six import text_type
 
+from ..record import Update, Create
 from ..source.base import BaseSource
 from ..zone import Zone
 from .plan import Plan
@@ -15,6 +16,7 @@ from .plan import Plan
 class BaseProvider(BaseSource):
 
     def __init__(self, id, apply_disabled=False,
+                 manage_root_ns=False,
                  update_pcent_threshold=Plan.MAX_SAFE_UPDATE_PCENT,
                  delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT):
         super(BaseProvider, self).__init__(id)
@@ -26,6 +28,7 @@ class BaseProvider(BaseSource):
                        update_pcent_threshold,
                        delete_pcent_threshold)
         self.apply_disabled = apply_disabled
+        self.manage_root_ns = manage_root_ns
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
 
@@ -43,6 +46,20 @@ class BaseProvider(BaseSource):
         base NS records.
         '''
         return []
+
+    def _force_root_ns_update(self, changes):
+        '''
+        Changes any 'Create' changetype for a root NS record to an 'Update'
+        changetype. Used on new zone creation when a provider is managing
+        root NS records. Providers will auto-create a root NS record,
+        so our desired NS record must be applied as an Update instead of a
+        Create.
+        '''
+        for change in changes:
+            if change.record.name == "" and change.record._type == "NS" and \
+                    isinstance(change, Create):
+                change.__class__ = Update
+                return
 
     def plan(self, desired):
         self.log.info('plan: desired=%s', desired.name)
@@ -92,9 +109,17 @@ class BaseProvider(BaseSource):
             return 0
 
         self.log.info('apply: making changes')
+        if not plan.exists:
+            self._force_root_ns_update(plan.changes)
         self._apply(plan)
         return len(plan.changes)
 
     def _apply(self, plan):
         raise NotImplementedError('Abstract base class, _apply method '
                                   'missing')
+
+    def supports(self, record):
+        if record.name == "" and record._type == "NS":
+            return self.SUPPORTS_ROOT_NS and self.manage_root_ns
+
+        return super(BaseProvider, self).supports(record)

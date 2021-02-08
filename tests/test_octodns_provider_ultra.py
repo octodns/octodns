@@ -350,6 +350,14 @@ class TestUltraProvider(TestCase):
                 "v=spf1 include:mail.server.net ?all"
             ]
         }))
+        wanted.add_record(Record.new(wanted, '', {
+            'ttl': 3600,
+            'type': 'NS',
+            'values': [  # Root NS records
+                'ns1.server.net.',
+                'ns2.server.net.',
+            ]
+        }))
 
         plan = provider.plan(wanted)
         self.assertEquals(10, len(plan.changes))
@@ -380,6 +388,26 @@ class TestUltraProvider(TestCase):
             call('DELETE',
                  '/v2/zones/octodns1.test./rrsets/CNAME/cname.octodns1.test.',
                  json_response=False),
+        ], True)
+
+        # assert that we didn't attempt to modify the root NS record
+        self.assertFalse([c for c in provider._request.mock_calls if
+                          '/v2/zones/octodns1.test./rrsets/NS/octodns1.test.'
+                          in c.args])
+
+        # test root NS record management
+        provider._request.reset_mock()
+        provider._request.side_effect = [None] * 13
+        provider.manage_root_ns = True
+        plan = provider.plan(wanted)
+        self.assertEquals(11, len(plan.changes))
+        self.assertEquals(11, provider.apply(plan))
+
+        provider._request.assert_has_calls([
+            call('PUT',
+                 '/v2/zones/octodns1.test./rrsets/NS/octodns1.test.',
+                 json={'ttl': 3600, 'rdata': ['ns1.server.net.',
+                                              'ns2.server.net.']}),
         ], True)
 
     def test_gen_data(self):

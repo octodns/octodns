@@ -24,6 +24,10 @@ class BaseSource(object):
     def SUPPORTS_DYNAMIC(self):
         return False
 
+    @property
+    def SUPPORTS_ROOT_NS(self):
+        return False
+
     def populate(self, zone, target=False, lenient=False):
         '''
         Loads all records the provider knows about for the provided zone
