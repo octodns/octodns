@@ -297,7 +297,6 @@ If you have a problem or suggestion, please [open an issue](https://github.com/o
   - [`kubernetes/k8s.io:/dns`](https://github.com/kubernetes/k8s.io/tree/master/dns)
   - [`g0v-network/domains`](https://github.com/g0v-network/domains)
   - [`jekyll/dns`](https://github.com/jekyll/dns)
-  - [`parkr/dns`](https://github.com/parkr/dns)
 - **Custom Sources & Providers.**
   - [`octodns/octodns-ddns`](https://github.com/octodns/octodns-ddns): A simple Dynamic DNS source.
   - [`doddo/octodns-lexicon`](https://github.com/doddo/octodns-lexicon): Use [Lexicon](https://github.com/AnalogJ/lexicon) providers as octoDNS providers.
