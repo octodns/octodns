@@ -1,5 +1,8 @@
 name: OctoDNS
-on: [pull_request]
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
 
 jobs:
   ci:
