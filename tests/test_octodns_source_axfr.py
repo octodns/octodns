@@ -73,7 +73,7 @@ class TestZoneFileSource(TestCase):
         # Load zonefiles without a specified file extension
         valid = Zone('unit.tests.', [])
         source.populate(valid)
-        self.assertEquals(12, len(valid.records))
+        self.assertEquals(13, len(valid.records))
 
     def test_populate(self):
         # Valid zone file in directory
