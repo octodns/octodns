@@ -28,6 +28,7 @@ It is similar to [Netflix/denominator](https://github.com/Netflix/denominator).
   - [Dynamic sources](#dynamic-sources)
 - [Contributing](#contributing)
 - [Getting help](#getting-help)
+- [Related Projects & Resources](#related-projects--resources)
 - [License](#license)
 - [Authors](#authors)
 
@@ -225,6 +226,8 @@ Most of the things included in OctoDNS are providers, the obvious difference bei
 
 The `class` key in the providers config section can be used to point to arbitrary classes in the python path so internal or 3rd party providers can easily be included with no coordination beyond getting them into PYTHONPATH, most likely installed into the virtualenv with OctoDNS.
 
+For examples of building third-party sources and providers, see [Related Projects & Resources](#related-projects--resources).
+
 ## Other Uses
 
 ### Syncing between providers
@@ -285,6 +288,29 @@ Please see our [contributing document](/CONTRIBUTING.md) if you would like to pa
 ## Getting help
 
 If you have a problem or suggestion, please [open an issue](https://github.com/octodns/octodns/issues/new) in this repository, and we will do our best to help. Please note that this project adheres to the [Contributor Covenant Code of Conduct](/CODE_OF_CONDUCT.md).
+
+## Related Projects & Resources
+
+- **GitHub Action:** [OctoDNS-Sync](https://github.com/marketplace/actions/octodns-sync)
+- **Sample Implementations.** See how others are using it
+  - [`hackclub/dns`](https://github.com/hackclub/dns)
+  - [`kubernetes/k8s.io:/dns`](https://github.com/kubernetes/k8s.io/tree/master/dns)
+  - [`g0v-network/domains`](https://github.com/g0v-network/domains)
+  - [`jekyll/dns`](https://github.com/jekyll/dns)
+  - [`parkr/dns`](https://github.com/parkr/dns)
+- **Custom Sources & Providers.**
+  - [`octodns/octodns-ddns`](https://github.com/octodns/octodns-ddns): A simple Dynamic DNS source.
+  - [`doddo/octodns-lexicon`](https://github.com/doddo/octodns-lexicon): Use [Lexicon](https://github.com/AnalogJ/lexicon) providers as octoDNS providers.
+  - [`asyncon/octoblox`](https://github.com/asyncon/octoblox): [Infoblox](https://www.infoblox.com/) provider.
+  - [`sukiyaki/octodns-netbox`](https://github.com/sukiyaki/octodns-netbox): [NetBox](https://github.com/netbox-community/netbox) source.
+  - [`kompetenzbolzen/octodns-custom-provider`](https://github.com/kompetenzbolzen/octodns-custom-provider): zonefile provider & phpIPAM source.
+- **Resources.**
+  - Article: [Visualising DNS records with Neo4j](https://medium.com/@costask/querying-and-visualising-octodns-records-with-neo4j-f4f72ab2d474) + code
+  - Video: [FOSDEM 2019 - DNS as code with octodns](https://archive.fosdem.org/2019/schedule/event/dns_octodns/)
+  - GitHub Blog: [Enabling DNS split authority with OctoDNS](https://github.blog/2017-04-27-enabling-split-authority-dns-with-octodns/)
+  - Tutorial: [How To Deploy and Manage Your DNS using OctoDNS on Ubuntu 18.04](https://www.digitalocean.com/community/tutorials/how-to-deploy-and-manage-your-dns-using-octodns-on-ubuntu-18-04)
+
+If you know of any other resources, please do let us know!
 
 ## License
 
