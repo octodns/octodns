@@ -386,7 +386,7 @@ class PowerDnsBaseProvider(BaseProvider):
         # Ensure that any DELETE modifications always occur before any REPLACE
         # modifications. This ensures that an A record can be replaced by a
         # CNAME record and vice-versa.
-        mods = sorted(mods, key=itemgetter('changetype'))
+        mods.sort(key=itemgetter('changetype'))
 
         self.log.debug('_apply:   sending change request')
 
