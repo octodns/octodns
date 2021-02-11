@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from requests import HTTPError, Session
 import logging
+from operator import itemgetter
 
 from ..record import Create, Record
 from .base import BaseProvider
@@ -381,6 +382,12 @@ class PowerDnsBaseProvider(BaseProvider):
         for change in changes:
             class_name = change.__class__.__name__
             mods.append(getattr(self, '_mod_{}'.format(class_name))(change))
+
+        # Ensure that any DELETE modifications always occur before any REPLACE
+        # modifications. This ensures that an A record can be replaced by a
+        # CNAME record and vice-versa.
+        mods = sorted(mods, key=itemgetter('changetype'))
+
         self.log.debug('_apply:   sending change request')
 
         try:
