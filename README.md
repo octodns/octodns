@@ -308,6 +308,7 @@ If you have a problem or suggestion, please [open an issue](https://github.com/o
   - Video: [FOSDEM 2019 - DNS as code with octodns](https://archive.fosdem.org/2019/schedule/event/dns_octodns/)
   - GitHub Blog: [Enabling DNS split authority with OctoDNS](https://github.blog/2017-04-27-enabling-split-authority-dns-with-octodns/)
   - Tutorial: [How To Deploy and Manage Your DNS using OctoDNS on Ubuntu 18.04](https://www.digitalocean.com/community/tutorials/how-to-deploy-and-manage-your-dns-using-octodns-on-ubuntu-18-04)
+  - Cloudflare Blog: [Improving the Resiliency of Our Infrastructure DNS Zone](https://blog.cloudflare.com/improving-the-resiliency-of-our-infrastructure-dns-zone/)
 
 If you know of any other resources, please do let us know!
 
