@@ -6,8 +6,8 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from requests import HTTPError, Session
-import logging
 from operator import itemgetter
+import logging
 
 from ..record import Create, Record
 from .base import BaseProvider
