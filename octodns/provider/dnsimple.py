@@ -280,7 +280,6 @@ class DnsimpleProvider(BaseProvider):
         values = defaultdict(lambda: defaultdict(list))
         for record in self.zone_records(zone):
             _type = record['type']
-            data_for = getattr(self, '_data_for_{}'.format(_type), None)
             if _type not in self.SUPPORTS:
                 self.log.warning(
                     'populate: skipping unsupported %s record',
@@ -325,7 +324,7 @@ class DnsimpleProvider(BaseProvider):
                 )
                 return False
 
-        return record._type in self.SUPPORTS
+        return super(DnsimpleProvider, self).supports(record)
 
     def _params_for_multiple(self, record):
         for value in record.values:

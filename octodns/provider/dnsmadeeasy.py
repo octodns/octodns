@@ -306,7 +306,7 @@ class DnsMadeEasyProvider(BaseProvider):
                 )
                 return False
 
-        return record._type in self.SUPPORTS
+        return super(DnsMadeEasyProvider, self).supports(record)
 
     def _params_for_multiple(self, record):
         for value in record.values:
