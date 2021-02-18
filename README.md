@@ -186,7 +186,7 @@ The above command pulled the existing data out of Route53 and placed the results
 |--|--|--|--|--|
 | [AzureProvider](/octodns/provider/azuredns.py) | azure-mgmt-dns | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | No | |
 | [Akamai](/octodns/provider/edgedns.py) | edgegrid-python | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
-| [CloudflareProvider](/octodns/provider/cloudflare.py) | | A, AAAA, ALIAS, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
+| [CloudflareProvider](/octodns/provider/cloudflare.py) | | A, AAAA, ALIAS, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
 | [ConstellixProvider](/octodns/provider/constellix.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
 | [DigitalOceanProvider](/octodns/provider/digitalocean.py) | | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
 | [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
@@ -206,7 +206,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [Selectel](/octodns/provider/selectel.py) | | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | |
 | [Transip](/octodns/provider/transip.py) | transip | A, AAAA, CNAME, MX, SRV, SPF, TXT, SSHFP, CAA | No | |
 | [UltraDns](/octodns/provider/ultra.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | |
-| [AxfrSource](/octodns/source/axfr.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
+| [AxfrSource](/octodns/source/axfr.py) | | A, AAAA, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [ZoneFileSource](/octodns/source/axfr.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [TinyDnsFileSource](/octodns/source/tinydns.py) | | A, CNAME, MX, NS, PTR | No | read-only |
 | [YamlProvider](/octodns/provider/yaml.py) | | All | Yes | config |

@@ -9,10 +9,11 @@ from six import text_type
 from unittest import TestCase
 
 from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
-    CaaValue, CnameRecord, DnameRecord, Create, Delete, GeoValue, MxRecord, \
-    MxValue, NaptrRecord, NaptrValue, NsRecord, PtrRecord, Record, \
-    SshfpRecord, SshfpValue, SpfRecord, SrvRecord, SrvValue, TxtRecord, \
-    Update, ValidationError, _Dynamic, _DynamicPool, _DynamicRule
+    CaaValue, CnameRecord, DnameRecord, Create, Delete, GeoValue, LocRecord, \
+    LocValue, MxRecord, MxValue, NaptrRecord, NaptrValue, NsRecord, \
+    PtrRecord, Record, SshfpRecord, SshfpValue, SpfRecord, SrvRecord, \
+    SrvValue, TxtRecord, Update, ValidationError, _Dynamic, _DynamicPool, \
+    _DynamicRule
 from octodns.zone import Zone
 
 from helpers import DynamicProvider, GeoProvider, SimpleProvider
@@ -378,6 +379,98 @@ class TestRecord(TestCase):
     def test_dname(self):
         self.assertSingleValue(DnameRecord, 'target.foo.com.',
                                'other.foo.com.')
+
+    def test_loc(self):
+        a_values = [{
+            'lat_degrees': 31,
+            'lat_minutes': 58,
+            'lat_seconds': 52.1,
+            'lat_direction': 'S',
+            'long_degrees': 115,
+            'long_minutes': 49,
+            'long_seconds': 11.7,
+            'long_direction': 'E',
+            'altitude': 20,
+            'size': 10,
+            'precision_horz': 10,
+            'precision_vert': 2,
+        }]
+        a_data = {'ttl': 30, 'values': a_values}
+        a = LocRecord(self.zone, 'a', a_data)
+        self.assertEquals('a', a.name)
+        self.assertEquals('a.unit.tests.', a.fqdn)
+        self.assertEquals(30, a.ttl)
+        self.assertEquals(a_values[0]['lat_degrees'], a.values[0].lat_degrees)
+        self.assertEquals(a_values[0]['lat_minutes'], a.values[0].lat_minutes)
+        self.assertEquals(a_values[0]['lat_seconds'], a.values[0].lat_seconds)
+        self.assertEquals(a_values[0]['lat_direction'],
+                          a.values[0].lat_direction)
+        self.assertEquals(a_values[0]['long_degrees'],
+                          a.values[0].long_degrees)
+        self.assertEquals(a_values[0]['long_minutes'],
+                          a.values[0].long_minutes)
+        self.assertEquals(a_values[0]['long_seconds'],
+                          a.values[0].long_seconds)
+        self.assertEquals(a_values[0]['long_direction'],
+                          a.values[0].long_direction)
+        self.assertEquals(a_values[0]['altitude'], a.values[0].altitude)
+        self.assertEquals(a_values[0]['size'], a.values[0].size)
+        self.assertEquals(a_values[0]['precision_horz'],
+                          a.values[0].precision_horz)
+        self.assertEquals(a_values[0]['precision_vert'],
+                          a.values[0].precision_vert)
+
+        b_value = {
+            'lat_degrees': 32,
+            'lat_minutes': 7,
+            'lat_seconds': 19,
+            'lat_direction': 'S',
+            'long_degrees': 116,
+            'long_minutes': 2,
+            'long_seconds': 25,
+            'long_direction': 'E',
+            'altitude': 10,
+            'size': 1,
+            'precision_horz': 10000,
+            'precision_vert': 10,
+        }
+        b_data = {'ttl': 30, 'value': b_value}
+        b = LocRecord(self.zone, 'b', b_data)
+        self.assertEquals(b_value['lat_degrees'], b.values[0].lat_degrees)
+        self.assertEquals(b_value['lat_minutes'], b.values[0].lat_minutes)
+        self.assertEquals(b_value['lat_seconds'], b.values[0].lat_seconds)
+        self.assertEquals(b_value['lat_direction'], b.values[0].lat_direction)
+        self.assertEquals(b_value['long_degrees'], b.values[0].long_degrees)
+        self.assertEquals(b_value['long_minutes'], b.values[0].long_minutes)
+        self.assertEquals(b_value['long_seconds'], b.values[0].long_seconds)
+        self.assertEquals(b_value['long_direction'],
+                          b.values[0].long_direction)
+        self.assertEquals(b_value['altitude'], b.values[0].altitude)
+        self.assertEquals(b_value['size'], b.values[0].size)
+        self.assertEquals(b_value['precision_horz'],
+                          b.values[0].precision_horz)
+        self.assertEquals(b_value['precision_vert'],
+                          b.values[0].precision_vert)
+        self.assertEquals(b_data, b.data)
+
+        target = SimpleProvider()
+        # No changes with self
+        self.assertFalse(a.changes(a, target))
+        # Diff in lat_direction causes change
+        other = LocRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other.values[0].lat_direction = 'N'
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+        # Diff in altitude causes change
+        other.values[0].altitude = a.values[0].altitude
+        other.values[0].altitude = -10
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+
+        # __repr__ doesn't blow up
+        a.__repr__()
 
     def test_mx(self):
         a_values = [{
@@ -1126,6 +1219,93 @@ class TestRecord(TestCase):
         self.assertTrue(d <= c)
         self.assertTrue(d >= d)
         self.assertTrue(d <= d)
+
+    def test_loc_value(self):
+        a = LocValue({
+            'lat_degrees': 31,
+            'lat_minutes': 58,
+            'lat_seconds': 52.1,
+            'lat_direction': 'S',
+            'long_degrees': 115,
+            'long_minutes': 49,
+            'long_seconds': 11.7,
+            'long_direction': 'E',
+            'altitude': 20,
+            'size': 10,
+            'precision_horz': 10,
+            'precision_vert': 2,
+        })
+        b = LocValue({
+            'lat_degrees': 32,
+            'lat_minutes': 7,
+            'lat_seconds': 19,
+            'lat_direction': 'S',
+            'long_degrees': 116,
+            'long_minutes': 2,
+            'long_seconds': 25,
+            'long_direction': 'E',
+            'altitude': 10,
+            'size': 1,
+            'precision_horz': 10000,
+            'precision_vert': 10,
+        })
+        c = LocValue({
+            'lat_degrees': 53,
+            'lat_minutes': 14,
+            'lat_seconds': 10,
+            'lat_direction': 'N',
+            'long_degrees': 2,
+            'long_minutes': 18,
+            'long_seconds': 26,
+            'long_direction': 'W',
+            'altitude': 10,
+            'size': 1,
+            'precision_horz': 1000,
+            'precision_vert': 10,
+        })
+
+        self.assertEqual(a, a)
+        self.assertEqual(b, b)
+        self.assertEqual(c, c)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+
+        self.assertTrue(a < b)
+        self.assertTrue(a < c)
+
+        self.assertTrue(b > a)
+        self.assertTrue(b < c)
+
+        self.assertTrue(c > a)
+        self.assertTrue(c > b)
+
+        self.assertTrue(a <= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(a <= a)
+        self.assertTrue(a >= a)
+
+        self.assertTrue(b >= a)
+        self.assertTrue(b <= c)
+        self.assertTrue(b >= b)
+        self.assertTrue(b <= b)
+
+        self.assertTrue(c >= a)
+        self.assertTrue(c >= b)
+        self.assertTrue(c >= c)
+        self.assertTrue(c <= c)
+
+        # Hash
+        values = set()
+        values.add(a)
+        self.assertTrue(a in values)
+        self.assertFalse(b in values)
+        values.add(b)
+        self.assertTrue(b in values)
 
     def test_mx_value(self):
         a = MxValue({'preference': 0, 'priority': 'a', 'exchange': 'v',
@@ -1958,6 +2138,306 @@ class TestRecordValidation(TestCase):
                 'value': 'foo.bar.com',
             })
         self.assertEquals(['DNAME value "foo.bar.com" missing trailing .'],
+                          ctx.exception.reasons)
+
+    def test_LOC(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'LOC',
+            'ttl': 600,
+            'value': {
+                'lat_degrees': 31,
+                'lat_minutes': 58,
+                'lat_seconds': 52.1,
+                'lat_direction': 'S',
+                'long_degrees': 115,
+                'long_minutes': 49,
+                'long_seconds': 11.7,
+                'long_direction': 'E',
+                'altitude': 20,
+                'size': 10,
+                'precision_horz': 10,
+                'precision_vert': 2,
+            }
+        })
+
+        # missing int key
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['missing lat_degrees'], ctx.exception.reasons)
+
+        # missing float key
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['missing lat_seconds'], ctx.exception.reasons)
+
+        # missing text key
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['missing lat_direction'], ctx.exception.reasons)
+
+        # invalid direction
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'U',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid direction for lat_direction "U"'],
+                          ctx.exception.reasons)
+
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'N',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid direction for long_direction "N"'],
+                          ctx.exception.reasons)
+
+        # invalid degrees
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 360,
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid value for lat_degrees "360"'],
+                          ctx.exception.reasons)
+
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 'nope',
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid lat_degrees "nope"'],
+                          ctx.exception.reasons)
+
+        # invalid minutes
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 60,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid value for lat_minutes "60"'],
+                          ctx.exception.reasons)
+
+        # invalid seconds
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 60,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid value for lat_seconds "60"'],
+                          ctx.exception.reasons)
+
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 'nope',
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid lat_seconds "nope"'],
+                          ctx.exception.reasons)
+
+        # invalid altitude
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': -666666,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid value for altitude "-666666"'],
+                          ctx.exception.reasons)
+
+        # invalid size
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 99999999.99,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid value for size "99999999.99"'],
                           ctx.exception.reasons)
 
     def test_MX(self):

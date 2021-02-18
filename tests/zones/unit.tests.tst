@@ -32,6 +32,10 @@ mx          300   IN  MX  20  smtp-2.unit.tests.
 mx          300   IN  MX  30  smtp-3.unit.tests.
 mx          300   IN  MX  40  smtp-1.unit.tests.
 
+; LOC Records
+loc         300   IN  LOC 31 58 52.1 S 115 49 11.7 E 20m 10m 10m 2m
+loc         300   IN  LOC 53 14 10 N 2 18 26 W 20m 10m 1000m 2m
+
 ; A Records
 @           300   IN  A   1.2.3.4
 @           300   IN  A   1.2.3.5

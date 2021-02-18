@@ -26,8 +26,8 @@ class AxfrBaseSource(BaseSource):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR', 'SPF',
-                    'SRV', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'LOC', 'MX', 'NS', 'PTR',
+                    'SPF', 'SRV', 'TXT'))
 
     def __init__(self, id):
         super(AxfrBaseSource, self).__init__(id)
@@ -51,6 +51,33 @@ class AxfrBaseSource(BaseSource):
                 'flags': flags,
                 'tag': tag,
                 'value': value.replace('"', '')
+            })
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values
+        }
+
+    def _data_for_LOC(self, _type, records):
+        values = []
+        for record in records:
+            lat_degrees, lat_minutes, lat_seconds, lat_direction, \
+                long_degrees, long_minutes, long_seconds, long_direction, \
+                altitude, size, precision_horz, precision_vert = \
+                record['value'].replace('m', '').split(' ', 11)
+            values.append({
+                'lat_degrees': lat_degrees,
+                'lat_minutes': lat_minutes,
+                'lat_seconds': lat_seconds,
+                'lat_direction': lat_direction,
+                'long_degrees': long_degrees,
+                'long_minutes': long_minutes,
+                'long_seconds': long_seconds,
+                'long_direction': long_direction,
+                'altitude': altitude,
+                'size': size,
+                'precision_horz': precision_horz,
+                'precision_vert': precision_vert,
             })
         return {
             'ttl': records[0]['ttl'],

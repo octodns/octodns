@@ -35,7 +35,7 @@ class TestYamlProvider(TestCase):
 
         # without it we see everything
         source.populate(zone)
-        self.assertEquals(19, len(zone.records))
+        self.assertEquals(20, len(zone.records))
 
         source.populate(dynamic_zone)
         self.assertEquals(5, len(dynamic_zone.records))
@@ -58,12 +58,12 @@ class TestYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(16, len([c for c in plan.changes
+            self.assertEquals(17, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
             self.assertFalse(isfile(yaml_file))
 
             # Now actually do it
-            self.assertEquals(16, target.apply(plan))
+            self.assertEquals(17, target.apply(plan))
             self.assertTrue(isfile(yaml_file))
 
             # Dynamic plan
@@ -87,7 +87,7 @@ class TestYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(16, len([c for c in plan.changes
+            self.assertEquals(17, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
 
             with open(yaml_file) as fh:
@@ -106,6 +106,7 @@ class TestYamlProvider(TestCase):
                 self.assertTrue('values' in data.pop('naptr'))
                 self.assertTrue('values' in data.pop('sub'))
                 self.assertTrue('values' in data.pop('txt'))
+                self.assertTrue('values' in data.pop('loc'))
                 # these are stored as singular 'value'
                 self.assertTrue('value' in data.pop('aaaa'))
                 self.assertTrue('value' in data.pop('cname'))
