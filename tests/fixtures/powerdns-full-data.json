@@ -77,6 +77,30 @@
         },
         {
             "comments": [],
+            "name": "_imap._tcp.unit.tests.",
+            "records": [
+                {
+                    "content": "0 0 0 .",
+                    "disabled": false
+                }
+            ],
+            "ttl": 600,
+            "type": "SRV"
+        },
+        {
+            "comments": [],
+            "name": "_pop3._tcp.unit.tests.",
+            "records": [
+                {
+                    "content": "0 0 0 .",
+                    "disabled": false
+                }
+            ],
+            "ttl": 600,
+            "type": "SRV"
+        },
+        {
+            "comments": [],
             "name": "_srv._tcp.unit.tests.",
             "records": [
                 {

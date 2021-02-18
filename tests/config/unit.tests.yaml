@@ -36,6 +36,22 @@
     - flags: 0
       tag: issue
       value: ca.unit.tests
+_imap._tcp:
+  ttl: 600
+  type: SRV
+  values:
+  - port: 0
+    priority: 0
+    target: .
+    weight: 0
+_pop3._tcp:
+  ttl: 600
+  type: SRV
+  values:
+  - port: 0
+    priority: 0
+    target: .
+    weight: 0
 _srv._tcp:
   ttl: 600
   type: SRV

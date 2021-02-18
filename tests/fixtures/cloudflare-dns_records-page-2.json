@@ -173,6 +173,56 @@
       "meta": {
         "auto_added": false
       }
+    },
+    {
+      "id": "fc12ab34cd5611334422ab3322997656",
+      "type": "SRV",
+      "name": "_imap._tcp.unit.tests",
+      "data": {
+        "service": "_imap",
+        "proto": "_tcp",
+        "name": "unit.tests",
+        "priority": 0,
+        "weight": 0,
+        "port": 0,
+        "target": "."
+      },
+      "proxiable": true,
+      "proxied": false,
+      "ttl": 600,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "modified_on": "2017-03-11T18:01:43.940682Z",
+      "created_on": "2017-03-11T18:01:43.940682Z",
+      "meta": {
+        "auto_added": false
+      }
+    },
+    {
+      "id": "fc12ab34cd5611334422ab3322997656",
+      "type": "SRV",
+      "name": "_pop3._tcp.unit.tests",
+      "data": {
+        "service": "_imap",
+        "proto": "_pop3",
+        "name": "unit.tests",
+        "priority": 0,
+        "weight": 0,
+        "port": 0,
+        "target": "."
+      },
+      "proxiable": true,
+      "proxied": false,
+      "ttl": 600,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "modified_on": "2017-03-11T18:01:43.940682Z",
+      "created_on": "2017-03-11T18:01:43.940682Z",
+      "meta": {
+        "auto_added": false
+      }
     }
   ],
   "result_info": {
