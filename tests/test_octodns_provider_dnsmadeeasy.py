@@ -134,7 +134,7 @@ class TestDnsMadeEasyProvider(TestCase):
         plan = provider.plan(self.expected)
 
         # No root NS, no ignored, no excluded, no unsupported
-        n = len(self.expected.records) - 8
+        n = len(self.expected.records) - 9
         self.assertEquals(n, len(plan.changes))
         self.assertEquals(n, provider.apply(plan))
 

@@ -97,6 +97,7 @@ class Record(EqualityTupleMixin):
                 'CAA': CaaRecord,
                 'CNAME': CnameRecord,
                 'DNAME': DnameRecord,
+                'LOC': LocRecord,
                 'MX': MxRecord,
                 'NAPTR': NaptrRecord,
                 'NS': NsRecord,
@@ -877,6 +878,195 @@ class CnameRecord(_DynamicMixin, _ValueMixin, Record):
 class DnameRecord(_DynamicMixin, _ValueMixin, Record):
     _type = 'DNAME'
     _value_type = DnameValue
+
+
+class LocValue(EqualityTupleMixin):
+    # TODO: work out how to do defaults per RFC
+
+    @classmethod
+    def validate(cls, data, _type):
+        int_keys = [
+            'lat_degrees',
+            'lat_minutes',
+            'long_degrees',
+            'long_minutes',
+        ]
+
+        float_keys = [
+            'lat_seconds',
+            'long_seconds',
+            'altitude',
+            'size',
+            'precision_horz',
+            'precision_vert',
+        ]
+
+        direction_keys = [
+            'lat_direction',
+            'long_direction',
+        ]
+
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
+        reasons = []
+        for value in data:
+            for key in int_keys:
+                try:
+                    int(value[key])
+                    if (
+                        (
+                            key == 'lat_degrees' and
+                            not 0 <= int(value[key]) <= 90
+                        ) or (
+                            key == 'long_degrees' and
+                            not 0 <= int(value[key]) <= 180
+                        ) or (
+                            key in ['lat_minutes', 'long_minutes'] and
+                            not 0 <= int(value[key]) <= 59
+                        )
+                    ):
+                        reasons.append('invalid value for {} "{}"'
+                                       .format(key, value[key]))
+                except KeyError:
+                    reasons.append('missing {}'.format(key))
+                except ValueError:
+                    reasons.append('invalid {} "{}"'
+                                   .format(key, value[key]))
+
+            for key in float_keys:
+                try:
+                    float(value[key])
+                    if (
+                        (
+                            key in ['lat_seconds', 'long_seconds'] and
+                            not 0 <= float(value[key]) <= 59.999
+                        ) or (
+                            key == 'altitude' and
+                            not -100000.00 <= float(value[key]) <= 42849672.95
+                        ) or (
+                            key in ['size',
+                                    'precision_horz',
+                                    'precision_vert'] and
+                            not 0 <= float(value[key]) <= 90000000.00
+                        )
+                    ):
+                        reasons.append('invalid value for {} "{}"'
+                                       .format(key, value[key]))
+                except KeyError:
+                    reasons.append('missing {}'.format(key))
+                except ValueError:
+                    reasons.append('invalid {} "{}"'
+                                   .format(key, value[key]))
+
+            for key in direction_keys:
+                try:
+                    str(value[key])
+                    if (
+                        key == 'lat_direction' and
+                        value[key] not in ['N', 'S']
+                    ):
+                        reasons.append('invalid direction for {} "{}"'
+                                       .format(key, value[key]))
+                    if (
+                        key == 'long_direction' and
+                        value[key] not in ['E', 'W']
+                    ):
+                        reasons.append('invalid direction for {} "{}"'
+                                       .format(key, value[key]))
+                except KeyError:
+                    reasons.append('missing {}'.format(key))
+        return reasons
+
+    @classmethod
+    def process(cls, values):
+        return [LocValue(v) for v in values]
+
+    def __init__(self, value):
+        self.lat_degrees = int(value['lat_degrees'])
+        self.lat_minutes = int(value['lat_minutes'])
+        self.lat_seconds = float(value['lat_seconds'])
+        self.lat_direction = value['lat_direction'].upper()
+        self.long_degrees = int(value['long_degrees'])
+        self.long_minutes = int(value['long_minutes'])
+        self.long_seconds = float(value['long_seconds'])
+        self.long_direction = value['long_direction'].upper()
+        self.altitude = float(value['altitude'])
+        self.size = float(value['size'])
+        self.precision_horz = float(value['precision_horz'])
+        self.precision_vert = float(value['precision_vert'])
+
+    @property
+    def data(self):
+        return {
+            'lat_degrees': self.lat_degrees,
+            'lat_minutes': self.lat_minutes,
+            'lat_seconds': self.lat_seconds,
+            'lat_direction': self.lat_direction,
+            'long_degrees': self.long_degrees,
+            'long_minutes': self.long_minutes,
+            'long_seconds': self.long_seconds,
+            'long_direction': self.long_direction,
+            'altitude': self.altitude,
+            'size': self.size,
+            'precision_horz': self.precision_horz,
+            'precision_vert': self.precision_vert,
+        }
+
+    def __hash__(self):
+        return hash((
+            self.lat_degrees,
+            self.lat_minutes,
+            self.lat_seconds,
+            self.lat_direction,
+            self.long_degrees,
+            self.long_minutes,
+            self.long_seconds,
+            self.long_direction,
+            self.altitude,
+            self.size,
+            self.precision_horz,
+            self.precision_vert,
+        ))
+
+    def _equality_tuple(self):
+        return (
+            self.lat_degrees,
+            self.lat_minutes,
+            self.lat_seconds,
+            self.lat_direction,
+            self.long_degrees,
+            self.long_minutes,
+            self.long_seconds,
+            self.long_direction,
+            self.altitude,
+            self.size,
+            self.precision_horz,
+            self.precision_vert,
+        )
+
+    def __repr__(self):
+        loc_format = "'{0} {1} {2:.3f} {3} " + \
+            "{4} {5} {6:.3f} {7} " + \
+            "{8:.2f}m {9:.2f}m {10:.2f}m {11:.2f}m'"
+        return loc_format.format(
+            self.lat_degrees,
+            self.lat_minutes,
+            self.lat_seconds,
+            self.lat_direction,
+            self.long_degrees,
+            self.long_minutes,
+            self.long_seconds,
+            self.long_direction,
+            self.altitude,
+            self.size,
+            self.precision_horz,
+            self.precision_vert,
+        )
+
+
+class LocRecord(_ValuesMixin, Record):
+    _type = 'LOC'
+    _value_type = LocValue
 
 
 class MxValue(EqualityTupleMixin):

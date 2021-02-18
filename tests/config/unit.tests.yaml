@@ -93,6 +93,34 @@ included:
     - test
   type: CNAME
   value: unit.tests.
+loc:
+  ttl: 300
+  type: LOC
+  values:
+  - altitude: 20
+    lat_degrees: 31
+    lat_direction: S
+    lat_minutes: 58
+    lat_seconds: 52.1
+    long_degrees: 115
+    long_direction: E
+    long_minutes: 49
+    long_seconds: 11.7
+    precision_horz: 10
+    precision_vert: 2
+    size: 10
+  - altitude: 20
+    lat_degrees: 53
+    lat_direction: N
+    lat_minutes: 13
+    lat_seconds: 10
+    long_degrees: 2
+    long_direction: W
+    long_minutes: 18
+    long_seconds: 26
+    precision_horz: 1000
+    precision_vert: 2
+    size: 10
 mx:
   ttl: 300
   type: MX

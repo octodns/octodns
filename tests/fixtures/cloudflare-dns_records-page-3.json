@@ -1,0 +1,128 @@
+{
+  "result": [
+    {
+      "id": "fc12ab34cd5611334422ab3322997656",
+      "type": "SRV",
+      "name": "_srv._tcp.unit.tests",
+      "data": {
+        "service": "_srv",
+        "proto": "_tcp",
+        "name": "unit.tests",
+        "priority": 12,
+        "weight": 20,
+        "port": 30,
+        "target": "foo-2.unit.tests"
+      },
+      "proxiable": true,
+      "proxied": false,
+      "ttl": 600,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "modified_on": "2017-03-11T18:01:43.940682Z",
+      "created_on": "2017-03-11T18:01:43.940682Z",
+      "meta": {
+        "auto_added": false
+      }
+    },
+    {
+      "id": "fc12ab34cd5611334422ab3322997656",
+      "type": "SRV",
+      "name": "_srv._tcp.unit.tests",
+      "data": {
+        "service": "_srv",
+        "proto": "_tcp",
+        "name": "unit.tests",
+        "priority": 10,
+        "weight": 20,
+        "port": 30,
+        "target": "foo-1.unit.tests"
+      },
+      "proxiable": true,
+      "proxied": false,
+      "ttl": 600,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "modified_on": "2017-03-11T18:01:43.940682Z",
+      "created_on": "2017-03-11T18:01:43.940682Z",
+      "meta": {
+        "auto_added": false
+      }
+    },
+    {
+      "id": "372e67954025e0ba6aaa6d586b9e0b59",
+      "type": "LOC",
+      "name": "loc.unit.tests",
+      "content": "IN LOC 31 58 52.1 S 115 49 11.7 E 20m 10m 10m 2m",
+      "proxiable": true,
+      "proxied": false,
+      "ttl": 300,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "created_on": "2020-01-28T05:20:00.12345Z",
+      "modified_on": "2020-01-28T05:20:00.12345Z",
+      "data": {
+        "lat_degrees": 31,
+        "lat_minutes": 58,
+        "lat_seconds": 52.1,
+        "lat_direction": "S",
+        "long_degrees": 115,
+        "long_minutes": 49,
+        "long_seconds": 11.7,
+        "long_direction": "E",
+        "altitude": 20,
+        "size": 10,
+        "precision_horz": 10,
+        "precision_vert": 2
+      },
+      "meta": {
+         "auto_added": true,
+         "source": "primary"
+      }
+    },
+    {
+      "id": "372e67954025e0ba6aaa6d586b9e0b59",
+      "type": "LOC",
+      "name": "loc.unit.tests",
+      "content": "IN LOC 53 14 10 N 2 18 26 W 20m 10m 1000m 2m",
+      "proxiable": true,
+      "proxied": false,
+      "ttl": 300,
+      "locked": false,
+      "zone_id": "ff12ab34cd5611334422ab3322997650",
+      "zone_name": "unit.tests",
+      "created_on": "2020-01-28T05:20:00.12345Z",
+      "modified_on": "2020-01-28T05:20:00.12345Z",
+      "data": {
+        "lat_degrees": 53,
+        "lat_minutes": 13,
+        "lat_seconds": 10,
+        "lat_direction": "N",
+        "long_degrees": 2,
+        "long_minutes": 18,
+        "long_seconds": 26,
+        "long_direction": "W",
+        "altitude": 20,
+        "size": 10,
+        "precision_horz": 1000,
+        "precision_vert": 2
+      },
+      "meta": {
+         "auto_added": true,
+         "source": "primary"
+      }
+    }
+  ],
+  "result_info": {
+    "page": 3,
+    "per_page": 10,
+    "total_pages": 3,
+    "count": 4,
+    "total_count": 24
+  },
+  "success": true,
+  "errors": [],
+  "messages": []
+}
