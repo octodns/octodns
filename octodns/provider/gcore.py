@@ -179,27 +179,39 @@ class GCoreProvider(BaseProvider):
     _params_for_AAAA = _params_for_single
 
     def _apply_create(self, change):
-        new = change.new
-        rrset_name = self._build_rrset_name(new)
-        data = getattr(self, "_params_for_{}".format(new._type))(new)
-        self._client.record_create(
-            new.zone.name[:-1], rrset_name, new._type, data
-        )
+        try:
+            new = change.new
+            rrset_name = self._build_rrset_name(new)
+            data = getattr(self, "_params_for_{}".format(new._type))(new)
+            self._client.record_create(
+                new.zone.name[:-1], rrset_name, new._type, data
+            )
+        except:
+            self.log.exception("failed to create RR: %s", change)
+            rai
 
     def _apply_update(self, change):
-        new = change.new
-        rrset_name = self._build_rrset_name(new)
-        data = getattr(self, "_params_for_{}".format(new._type))(new)
-        self._client.record_update(
-            new.zone.name[:-1], rrset_name, new._type, data
-        )
+        try:
+            new = change.new
+            rrset_name = self._build_rrset_name(new)
+            data = getattr(self, "_params_for_{}".format(new._type))(new)
+            self._client.record_update(
+                new.zone.name[:-1], rrset_name, new._type, data
+            )
+        except:
+            self.log.exception("failed to update RR: %s", change)
+            raise
 
     def _apply_delete(self, change):
-        existing = change.existing
-        rrset_name = self._build_rrset_name(existing)
-        self._client.record_delete(
-            existing.zone.name[:-1], rrset_name, existing._type
-        )
+        try:
+            existing = change.existing
+            rrset_name = self._build_rrset_name(existing)
+            self._client.record_delete(
+                existing.zone.name[:-1], rrset_name, existing._type
+            )
+        except:
+            self.log.exception("failed to delete RR: %s", change)
+            raise
 
     def _apply(self, plan):
         desired = plan.desired
