@@ -141,7 +141,7 @@ class GCoreProvider(BaseProvider):
         values = defaultdict(defaultdict)
         records, exists = self.zone_records(zone)
         for record in records:
-            _type = record["type"]
+            _type = record["type"].upper()
             if _type not in self.SUPPORTS:
                 continue
             rr_name = record["name"].replace(zone.name, "")
