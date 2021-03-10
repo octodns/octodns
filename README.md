@@ -294,7 +294,7 @@ If you have a problem or suggestion, please [open an issue](https://github.com/o
 - **GitHub Action:** [OctoDNS-Sync](https://github.com/marketplace/actions/octodns-sync)
 - **Sample Implementations.** See how others are using it
   - [`hackclub/dns`](https://github.com/hackclub/dns)
-  - [`kubernetes/k8s.io:/dns`](https://github.com/kubernetes/k8s.io/tree/master/dns)
+  - [`kubernetes/k8s.io:/dns`](https://github.com/kubernetes/k8s.io/tree/main/dns)
   - [`g0v-network/domains`](https://github.com/g0v-network/domains)
   - [`jekyll/dns`](https://github.com/jekyll/dns)
 - **Custom Sources & Providers.**
