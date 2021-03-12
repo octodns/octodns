@@ -222,7 +222,7 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         provider._client = MockDomainService('unittest', self.bogus_key)
         plan = provider.plan(_expected)
 
-        self.assertEqual(12, plan.change_counts['Create'])
+        self.assertEqual(14, plan.change_counts['Create'])
         self.assertEqual(0, plan.change_counts['Update'])
         self.assertEqual(0, plan.change_counts['Delete'])
 
@@ -235,7 +235,7 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         provider = TransipProvider('test', 'unittest', self.bogus_key)
         provider._client = MockDomainService('unittest', self.bogus_key)
         plan = provider.plan(_expected)
-        self.assertEqual(12, len(plan.changes))
+        self.assertEqual(14, len(plan.changes))
         changes = provider.apply(plan)
         self.assertEqual(changes, len(plan.changes))
 

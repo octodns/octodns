@@ -186,10 +186,14 @@ class DigitalOceanProvider(BaseProvider):
     def _data_for_SRV(self, _type, records):
         values = []
         for record in records:
+            target = (
+                '{}.'.format(record['data'])
+                if record['data'] != "." else "."
+            )
             values.append({
                 'port': record['port'],
                 'priority': record['priority'],
-                'target': '{}.'.format(record['data']),
+                'target': target,
                 'weight': record['weight']
             })
         return {

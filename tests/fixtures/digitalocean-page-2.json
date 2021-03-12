@@ -76,6 +76,28 @@
 		"weight": null,
 		"flags": null,
 		"tag": null
+	}, {
+		"id": 11189896,
+		"type": "SRV",
+		"name": "_imap._tcp",
+		"data": ".",
+		"priority": 0,
+		"port": 0,
+		"ttl": 600,
+		"weight": 0,
+		"flags": null,
+		"tag": null
+	}, {
+		"id": 11189897,
+		"type": "SRV",
+		"name": "_pop3._tcp",
+		"data": ".",
+		"priority": 0,
+		"port": 0,
+		"ttl": 600,
+		"weight": 0,
+		"flags": null,
+		"tag": null
 	}],
 	"links": {
 		"pages": {

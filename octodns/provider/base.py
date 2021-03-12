@@ -94,7 +94,10 @@ class BaseProvider(BaseSource):
             self.log.info('apply: disabled')
             return 0
 
-        self.log.info('apply: making changes')
+        zone_name = plan.desired.name
+        num_changes = len(plan.changes)
+        self.log.info('apply: making %d changes to %s', num_changes,
+                      zone_name)
         self._apply(plan)
         return len(plan.changes)
 

@@ -1,0 +1,12 @@
+$ORIGIN ext.unit.tests.
+@           3600 IN	SOA	ns1.ext.unit.tests. root.ext.unit.tests. (
+                        2018071501		; Serial
+                        3600    ; Refresh (1 hour)
+                        600     ; Retry (10 minutes)
+                        604800  ; Expire (1 week)
+                        3600    ; NXDOMAIN ttl (1 hour)
+                    )
+
+; NS Records
+@           3600  IN  NS  ns1.ext.unit.tests.
+@           3600  IN  NS  ns2.ext.unit.tests.

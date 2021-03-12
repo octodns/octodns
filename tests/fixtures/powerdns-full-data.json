@@ -34,6 +34,22 @@
         },
         {
             "comments": [],
+            "name": "loc.unit.tests.",
+            "records": [
+                {
+		    "content": "31 58 52.100 S 115 49 11.700 E 20.00m 10.00m 10.00m 2.00m",
+                    "disabled": false
+                },
+                {
+		    "content": "53 13 10.000 N 2 18 26.000 W 20.00m 10.00m 1000.00m 2.00m",
+                    "disabled": false
+                }
+            ],
+            "ttl": 300,
+            "type": "LOC"
+        },
+        {
+            "comments": [],
             "name": "sub.unit.tests.",
             "records": [
                 {
@@ -58,6 +74,30 @@
             ],
             "ttl": 300,
             "type": "A"
+        },
+        {
+            "comments": [],
+            "name": "_imap._tcp.unit.tests.",
+            "records": [
+                {
+                    "content": "0 0 0 .",
+                    "disabled": false
+                }
+            ],
+            "ttl": 600,
+            "type": "SRV"
+        },
+        {
+            "comments": [],
+            "name": "_pop3._tcp.unit.tests.",
+            "records": [
+                {
+                    "content": "0 0 0 .",
+                    "disabled": false
+                }
+            ],
+            "ttl": 600,
+            "type": "SRV"
         },
         {
             "comments": [],

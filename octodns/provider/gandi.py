@@ -357,7 +357,7 @@ class GandiProvider(BaseProvider):
                 # We suppress existing exception before raising
                 # GandiClientUnknownDomainName.
                 e = GandiClientUnknownDomainName('This domain is not '
-                                                 'registred at Gandi. '
+                                                 'registered at Gandi. '
                                                  'Please register or '
                                                  'transfer it here '
                                                  'to be able to manage its '

@@ -118,12 +118,12 @@ class TestManager(TestCase):
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False)
-            self.assertEquals(22, tc)
+            self.assertEquals(25, tc)
 
             # try with just one of the zones
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, eligible_zones=['unit.tests.'])
-            self.assertEquals(16, tc)
+            self.assertEquals(19, tc)
 
             # the subzone, with 2 targets
             tc = Manager(get_config_filename('simple.yaml')) \
@@ -138,18 +138,18 @@ class TestManager(TestCase):
             # Again with force
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(22, tc)
+            self.assertEquals(25, tc)
 
             # Again with max_workers = 1
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(22, tc)
+            self.assertEquals(25, tc)
 
             # Include meta
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1,
                          include_meta=True) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(26, tc)
+            self.assertEquals(29, tc)
 
     def test_eligible_sources(self):
         with TemporaryDirectory() as tmpdir:
@@ -180,7 +180,7 @@ class TestManager(TestCase):
                 tc = Manager(get_config_filename('unknown-source-zone.yaml')) \
                     .sync()
             self.assertEquals('Invalid alias zone alias.tests.: source zone '
-                              'does-not-exists.tests. does not exist',
+                              'does-not-exists.tests. does not exist',
                               text_type(ctx.exception))
 
             # Alias zone that points to another alias zone.
@@ -188,7 +188,15 @@ class TestManager(TestCase):
                 tc = Manager(get_config_filename('alias-zone-loop.yaml')) \
                     .sync()
             self.assertEquals('Invalid alias zone alias-loop.tests.: source '
-                              'zone alias.tests. is an alias zone',
+                              'zone alias.tests. is an alias zone',
+                              text_type(ctx.exception))
+
+            # Sync an alias without the zone it refers to
+            with self.assertRaises(ManagerException) as ctx:
+                tc = Manager(get_config_filename('simple-alias-zone.yaml')) \
+                    .sync(eligible_zones=["alias.tests."])
+            self.assertEquals('Zone alias.tests. cannot be sync without zone '
+                              'unit.tests. sinced it is aliased',
                               text_type(ctx.exception))
 
     def test_compare(self):
@@ -207,13 +215,13 @@ class TestManager(TestCase):
                 fh.write('---\n{}')
 
             changes = manager.compare(['in'], ['dump'], 'unit.tests.')
-            self.assertEquals(16, len(changes))
+            self.assertEquals(19, len(changes))
 
             # Compound sources with varying support
             changes = manager.compare(['in', 'nosshfp'],
                                       ['dump'],
                                       'unit.tests.')
-            self.assertEquals(15, len(changes))
+            self.assertEquals(18, len(changes))
 
             with self.assertRaises(ManagerException) as ctx:
                 manager.compare(['nope'], ['dump'], 'unit.tests.')

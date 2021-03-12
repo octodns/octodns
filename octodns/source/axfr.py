@@ -26,8 +26,8 @@ class AxfrBaseSource(BaseSource):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR', 'SPF',
-                    'SRV', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'LOC', 'MX', 'NS', 'PTR',
+                    'SPF', 'SRV', 'TXT'))
 
     def __init__(self, id):
         super(AxfrBaseSource, self).__init__(id)
@@ -51,6 +51,33 @@ class AxfrBaseSource(BaseSource):
                 'flags': flags,
                 'tag': tag,
                 'value': value.replace('"', '')
+            })
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values
+        }
+
+    def _data_for_LOC(self, _type, records):
+        values = []
+        for record in records:
+            lat_degrees, lat_minutes, lat_seconds, lat_direction, \
+                long_degrees, long_minutes, long_seconds, long_direction, \
+                altitude, size, precision_horz, precision_vert = \
+                record['value'].replace('m', '').split(' ', 11)
+            values.append({
+                'lat_degrees': lat_degrees,
+                'lat_minutes': lat_minutes,
+                'lat_seconds': lat_seconds,
+                'lat_direction': lat_direction,
+                'long_degrees': long_degrees,
+                'long_minutes': long_minutes,
+                'long_seconds': long_seconds,
+                'long_direction': long_direction,
+                'altitude': altitude,
+                'size': size,
+                'precision_horz': precision_horz,
+                'precision_vert': precision_vert,
             })
         return {
             'ttl': records[0]['ttl'],
@@ -206,26 +233,34 @@ class ZoneFileSource(AxfrBaseSource):
         class: octodns.source.axfr.ZoneFileSource
         # The directory holding the zone files
         # Filenames should match zone name (eg. example.com.)
+        # with optional extension specified with file_extension
         directory: ./zonefiles
+        # File extension on zone files
+        # Appended to zone name to locate file
+        # (optional, default None)
+        file_extension: zone
         # Should sanity checks of the origin node be done
         # (optional, default true)
         check_origin: false
     '''
-    def __init__(self, id, directory, check_origin=True):
+    def __init__(self, id, directory, file_extension='.', check_origin=True):
         self.log = logging.getLogger('ZoneFileSource[{}]'.format(id))
-        self.log.debug('__init__: id=%s, directory=%s, check_origin=%s', id,
-                       directory, check_origin)
+        self.log.debug('__init__: id=%s, directory=%s, file_extension=%s, '
+                       'check_origin=%s', id,
+                       directory, file_extension, check_origin)
         super(ZoneFileSource, self).__init__(id)
         self.directory = directory
+        self.file_extension = file_extension
         self.check_origin = check_origin
 
         self._zone_records = {}
 
     def _load_zone_file(self, zone_name):
+        zone_filename = '{}{}'.format(zone_name[:-1], self.file_extension)
         zonefiles = listdir(self.directory)
-        if zone_name in zonefiles:
+        if zone_filename in zonefiles:
             try:
-                z = dns.zone.from_file(join(self.directory, zone_name),
+                z = dns.zone.from_file(join(self.directory, zone_filename),
                                        zone_name, relativize=False,
                                        check_origin=self.check_origin)
             except DNSException as error:

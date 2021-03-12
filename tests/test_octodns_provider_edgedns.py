@@ -77,14 +77,14 @@ class TestEdgeDnsProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(16, len(zone.records))
+            self.assertEquals(18, len(zone.records))
             changes = self.expected.changes(zone, provider)
             self.assertEquals(0, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])
         provider.populate(again)
-        self.assertEquals(16, len(again.records))
+        self.assertEquals(18, len(again.records))
 
         # bust the cache
         del provider._zone_records[zone.name]
@@ -105,7 +105,7 @@ class TestEdgeDnsProvider(TestCase):
             mock.delete(ANY, status_code=204)
 
             changes = provider.apply(plan)
-            self.assertEquals(29, changes)
+            self.assertEquals(31, changes)
 
         # Test against a zone that doesn't exist yet
         with requests_mock() as mock:
@@ -118,7 +118,7 @@ class TestEdgeDnsProvider(TestCase):
             mock.delete(ANY, status_code=204)
 
             changes = provider.apply(plan)
-            self.assertEquals(14, changes)
+            self.assertEquals(16, changes)
 
         # Test against a zone that doesn't exist yet, but gid not provided
         with requests_mock() as mock:
@@ -132,7 +132,7 @@ class TestEdgeDnsProvider(TestCase):
             mock.delete(ANY, status_code=204)
 
             changes = provider.apply(plan)
-            self.assertEquals(14, changes)
+            self.assertEquals(16, changes)
 
         # Test against a zone that doesn't exist, but cid not provided
 

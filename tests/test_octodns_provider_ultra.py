@@ -285,12 +285,12 @@ class TestUltraProvider(TestCase):
         provider._request.side_effect = [
             UltraNoZonesExistException('No Zones'),
             None,  # zone create
-        ] + [None] * 13  # individual record creates
+        ] + [None] * 15  # individual record creates
 
         # non-existent zone, create everything
         plan = provider.plan(self.expected)
-        self.assertEquals(13, len(plan.changes))
-        self.assertEquals(13, provider.apply(plan))
+        self.assertEquals(15, len(plan.changes))
+        self.assertEquals(15, provider.apply(plan))
         self.assertFalse(plan.exists)
 
         provider._request.assert_has_calls([
@@ -320,7 +320,7 @@ class TestUltraProvider(TestCase):
                                  'p=A/kinda+of/long/string+with+numb3rs']}),
         ], True)
         # expected number of total calls
-        self.assertEquals(15, provider._request.call_count)
+        self.assertEquals(17, provider._request.call_count)
 
         # Create sample rrset payload to attempt to alter
         page1 = json_load(open('tests/fixtures/ultra-records-page-1.json'))

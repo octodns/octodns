@@ -19,7 +19,7 @@
                 "dnssecStatus": "UNSIGNED",
                 "status": "ACTIVE",
                 "owner": "phelpstest",
-                "resourceRecordCount": 5,
+                "resourceRecordCount": 6,
                 "lastModifiedDateTime": "2020-06-19T01:05Z"
             }
         },
