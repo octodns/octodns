@@ -378,8 +378,8 @@ class TestMythicBeastsProvider(TestCase):
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
 
-            self.assertEquals(15, len(zone.records))
-            self.assertEquals(15, len(self.expected.records))
+            self.assertEquals(17, len(zone.records))
+            self.assertEquals(17, len(self.expected.records))
             changes = self.expected.changes(zone, provider)
             self.assertEquals(0, len(changes))
 
@@ -445,7 +445,7 @@ class TestMythicBeastsProvider(TestCase):
                                       if isinstance(c, Update)]))
             self.assertEquals(1, len([c for c in plan.changes
                                       if isinstance(c, Delete)]))
-            self.assertEquals(14, len([c for c in plan.changes
+            self.assertEquals(16, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
-            self.assertEquals(16, provider.apply(plan))
+            self.assertEquals(18, provider.apply(plan))
             self.assertTrue(plan.exists)

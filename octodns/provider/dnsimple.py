@@ -218,12 +218,23 @@ class DnsimpleProvider(BaseProvider):
             try:
                 weight, port, target = record['content'].split(' ', 2)
             except ValueError:
-                # see _data_for_NAPTR's continue
+                # their api/website will let you create invalid records, this
+                # essentially handles that by ignoring them for values
+                # purposes. That will cause updates to happen to delete them if
+                # they shouldn't exist or update them if they're wrong
+                self.log.warning(
+                    '_data_for_SRV: unsupported %s record (%s)',
+                    _type,
+                    record['content']
+                )
                 continue
+
+            target = '{}.'.format(target) if target != "." else "."
+
             values.append({
                 'port': port,
                 'priority': record['priority'],
-                'target': '{}.'.format(target),
+                'target': target,
                 'weight': weight
             })
         return {
@@ -270,6 +281,10 @@ class DnsimpleProvider(BaseProvider):
         for record in self.zone_records(zone):
             _type = record['type']
             if _type not in self.SUPPORTS:
+                self.log.warning(
+                    'populate: skipping unsupported %s record',
+                    _type
+                )
                 continue
             elif _type == 'TXT' and record['content'].startswith('ALIAS for'):
                 # ALIAS has a "ride along" TXT record with 'ALIAS for XXXX',
@@ -289,6 +304,27 @@ class DnsimpleProvider(BaseProvider):
         self.log.info('populate:   found %s records, exists=%s',
                       len(zone.records) - before, exists)
         return exists
+
+    def supports(self, record):
+        # DNSimple does not support empty/NULL SRV records
+        #
+        # Fails silently and leaves a corrupt record
+        #
+        # Skip the record and continue
+        if record._type == "SRV":
+            if 'value' in record.data:
+                targets = (record.data['value']['target'],)
+            else:
+                targets = [value['target'] for value in record.data['values']]
+
+            if "." in targets:
+                self.log.warning(
+                    'supports: unsupported %s record with target (%s)',
+                    record._type, targets
+                )
+                return False
+
+        return super(DnsimpleProvider, self).supports(record)
 
     def _params_for_multiple(self, record):
         for value in record.values:
