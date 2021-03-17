@@ -93,7 +93,7 @@ The `max_workers` key in the `manager` section of the config enables threading t
 
 In this example, `example.net` is an alias of zone `example.com`, which means they share the same sources and targets. They will therefore have identical records.
 
-Now that we have something to tell OctoDNS about our providers & zones we need to tell it about or records. We'll keep it simple for now and just create a single `A` record at the top-level of the domain.
+Now that we have something to tell OctoDNS about our providers & zones we need to tell it about our records. We'll keep it simple for now and just create a single `A` record at the top-level of the domain.
 
 `config/example.com.yaml`
 
