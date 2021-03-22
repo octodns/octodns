@@ -172,7 +172,9 @@ class GCoreProvider(BaseProvider):
     def _params_for_single(self, record):
         return {
             "ttl": record.ttl,
-            "resource_records": [{"content": record.values}],
+            "resource_records": [
+                {"content": [value]} for value in record.values
+            ],
         }
 
     _params_for_A = _params_for_single

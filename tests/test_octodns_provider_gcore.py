@@ -192,7 +192,8 @@ class TestGCoreProvider(TestCase):
                     data={
                         "ttl": 300,
                         "resource_records": [
-                            {"content": ["1.2.3.4", "1.2.3.5"]}
+                            {"content": ["1.2.3.4"]},
+                            {"content": ["1.2.3.5"]},
                         ],
                     },
                 ),
