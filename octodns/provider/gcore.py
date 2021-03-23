@@ -68,7 +68,7 @@ class GCoreClient(object):
 
     def zone_records(self, zone_name):
         rrsets = self._request(
-            "GET", "{}/{}/rrsets".format(self.ROOT_ZONES, zone_name)
+            "GET", "{}/{}/rrsets?all=true".format(self.ROOT_ZONES, zone_name)
         ).json()
         records = rrsets["rrsets"]
         return records
