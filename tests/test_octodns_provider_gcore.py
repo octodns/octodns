@@ -153,7 +153,7 @@ class TestGCoreProvider(TestCase):
 
         provider._client._request.assert_has_calls(
             [
-                call("GET", "/zones/unit.tests/rrsets"),
+                call("GET", "/zones/unit.tests/rrsets?all=true"),
                 call("GET", "/zones/unit.tests"),
                 call("POST", "/zones", data={"name": "unit.tests"}),
                 call(
