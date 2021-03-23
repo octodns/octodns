@@ -28,6 +28,7 @@ It is similar to [Netflix/denominator](https://github.com/Netflix/denominator).
   - [Dynamic sources](#dynamic-sources)
 - [Contributing](#contributing)
 - [Getting help](#getting-help)
+- [Related Projects & Resources](#related-projects--resources)
 - [License](#license)
 - [Authors](#authors)
 
@@ -92,7 +93,7 @@ The `max_workers` key in the `manager` section of the config enables threading t
 
 In this example, `example.net` is an alias of zone `example.com`, which means they share the same sources and targets. They will therefore have identical records.
 
-Now that we have something to tell OctoDNS about our providers & zones we need to tell it about or records. We'll keep it simple for now and just create a single `A` record at the top-level of the domain.
+Now that we have something to tell OctoDNS about our providers & zones we need to tell it about our records. We'll keep it simple for now and just create a single `A` record at the top-level of the domain.
 
 `config/example.com.yaml`
 
@@ -185,7 +186,7 @@ The above command pulled the existing data out of Route53 and placed the results
 |--|--|--|--|--|
 | [AzureProvider](/octodns/provider/azuredns.py) | azure-mgmt-dns | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | No | |
 | [Akamai](/octodns/provider/edgedns.py) | edgegrid-python | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
-| [CloudflareProvider](/octodns/provider/cloudflare.py) | | A, AAAA, ALIAS, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
+| [CloudflareProvider](/octodns/provider/cloudflare.py) | | A, AAAA, ALIAS, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
 | [ConstellixProvider](/octodns/provider/constellix.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
 | [DigitalOceanProvider](/octodns/provider/digitalocean.py) | | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
 | [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
@@ -206,7 +207,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [Selectel](/octodns/provider/selectel.py) | | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | |
 | [Transip](/octodns/provider/transip.py) | transip | A, AAAA, CNAME, MX, SRV, SPF, TXT, SSHFP, CAA | No | |
 | [UltraDns](/octodns/provider/ultra.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | |
-| [AxfrSource](/octodns/source/axfr.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
+| [AxfrSource](/octodns/source/axfr.py) | | A, AAAA, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [ZoneFileSource](/octodns/source/axfr.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [TinyDnsFileSource](/octodns/source/tinydns.py) | | A, CNAME, MX, NS, PTR | No | read-only |
 | [YamlProvider](/octodns/provider/yaml.py) | | All | Yes | config |
@@ -225,6 +226,8 @@ You can check out the [source](/octodns/source/) and [provider](/octodns/provide
 Most of the things included in OctoDNS are providers, the obvious difference being that they can serve as both sources and targets of data. We'd really like to see this list grow over time so if you use an unsupported provider then PRs are welcome. The existing providers should serve as reasonable examples. Those that have no GeoDNS support are relatively straightforward. Unfortunately most of the APIs involved to do GeoDNS style traffic management are complex and somewhat inconsistent so adding support for that function would be nice, but is optional and best done in a separate pass.
 
 The `class` key in the providers config section can be used to point to arbitrary classes in the python path so internal or 3rd party providers can easily be included with no coordination beyond getting them into PYTHONPATH, most likely installed into the virtualenv with OctoDNS.
+
+For examples of building third-party sources and providers, see [Related Projects & Resources](#related-projects--resources).
 
 ## Other Uses
 
@@ -286,6 +289,29 @@ Please see our [contributing document](/CONTRIBUTING.md) if you would like to pa
 ## Getting help
 
 If you have a problem or suggestion, please [open an issue](https://github.com/octodns/octodns/issues/new) in this repository, and we will do our best to help. Please note that this project adheres to the [Contributor Covenant Code of Conduct](/CODE_OF_CONDUCT.md).
+
+## Related Projects & Resources
+
+- **GitHub Action:** [OctoDNS-Sync](https://github.com/marketplace/actions/octodns-sync)
+- **Sample Implementations.** See how others are using it
+  - [`hackclub/dns`](https://github.com/hackclub/dns)
+  - [`kubernetes/k8s.io:/dns`](https://github.com/kubernetes/k8s.io/tree/main/dns)
+  - [`g0v-network/domains`](https://github.com/g0v-network/domains)
+  - [`jekyll/dns`](https://github.com/jekyll/dns)
+- **Custom Sources & Providers.**
+  - [`octodns/octodns-ddns`](https://github.com/octodns/octodns-ddns): A simple Dynamic DNS source.
+  - [`doddo/octodns-lexicon`](https://github.com/doddo/octodns-lexicon): Use [Lexicon](https://github.com/AnalogJ/lexicon) providers as octoDNS providers.
+  - [`asyncon/octoblox`](https://github.com/asyncon/octoblox): [Infoblox](https://www.infoblox.com/) provider.
+  - [`sukiyaki/octodns-netbox`](https://github.com/sukiyaki/octodns-netbox): [NetBox](https://github.com/netbox-community/netbox) source.
+  - [`kompetenzbolzen/octodns-custom-provider`](https://github.com/kompetenzbolzen/octodns-custom-provider): zonefile provider & phpIPAM source.
+- **Resources.**
+  - Article: [Visualising DNS records with Neo4j](https://medium.com/@costask/querying-and-visualising-octodns-records-with-neo4j-f4f72ab2d474) + code
+  - Video: [FOSDEM 2019 - DNS as code with octodns](https://archive.fosdem.org/2019/schedule/event/dns_octodns/)
+  - GitHub Blog: [Enabling DNS split authority with OctoDNS](https://github.blog/2017-04-27-enabling-split-authority-dns-with-octodns/)
+  - Tutorial: [How To Deploy and Manage Your DNS using OctoDNS on Ubuntu 18.04](https://www.digitalocean.com/community/tutorials/how-to-deploy-and-manage-your-dns-using-octodns-on-ubuntu-18-04)
+  - Cloudflare Blog: [Improving the Resiliency of Our Infrastructure DNS Zone](https://blog.cloudflare.com/improving-the-resiliency-of-our-infrastructure-dns-zone/)
+
+If you know of any other resources, please do let us know!
 
 ## License
 

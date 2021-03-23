@@ -126,6 +126,24 @@
       {
         "rrset_type": "SRV",
         "rrset_ttl": 600,
+        "rrset_name": "_imap._tcp",
+        "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/_imap._tcp/SRV",
+        "rrset_values": [
+          "0 0 0 ."
+        ]
+      },
+      {
+        "rrset_type": "SRV",
+        "rrset_ttl": 600,
+        "rrset_name": "_pop3._tcp",
+        "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/_pop3._tcp/SRV",
+        "rrset_values": [
+          "0 0 0 ."
+        ]
+      },
+      {
+        "rrset_type": "SRV",
+        "rrset_ttl": 600,
         "rrset_name": "_srv._tcp",
         "rrset_href": "https://api.gandi.net/v5/livedns/domains/unit.tests/records/_srv._tcp/SRV",
         "rrset_values": [

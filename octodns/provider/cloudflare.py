@@ -75,8 +75,8 @@ class CloudflareProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR',
-                    'SRV', 'SPF', 'TXT'))
+    SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'LOC', 'MX', 'NS',
+                    'PTR', 'SRV', 'SPF', 'TXT'))
 
     MIN_TTL = 120
     TIMEOUT = 15
@@ -133,6 +133,7 @@ class CloudflareProvider(BaseProvider):
                                   timeout=self.TIMEOUT)
         self.log.debug('_request:   status=%d', resp.status_code)
         if resp.status_code == 400:
+            self.log.debug('_request:   data=%s', data)
             raise CloudflareError(resp.json())
         if resp.status_code == 403:
             raise CloudflareAuthenticationError(resp.json())
@@ -141,6 +142,11 @@ class CloudflareProvider(BaseProvider):
 
         resp.raise_for_status()
         return resp.json()
+
+    def _change_keyer(self, change):
+        key = change.__class__.__name__
+        order = {'Delete': 0, 'Create': 1, 'Update': 2}
+        return order[key]
 
     @property
     def zones(self):
@@ -216,6 +222,30 @@ class CloudflareProvider(BaseProvider):
     _data_for_ALIAS = _data_for_CNAME
     _data_for_PTR = _data_for_CNAME
 
+    def _data_for_LOC(self, _type, records):
+        values = []
+        for record in records:
+            r = record['data']
+            values.append({
+                'lat_degrees': int(r['lat_degrees']),
+                'lat_minutes': int(r['lat_minutes']),
+                'lat_seconds': float(r['lat_seconds']),
+                'lat_direction': r['lat_direction'],
+                'long_degrees': int(r['long_degrees']),
+                'long_minutes': int(r['long_minutes']),
+                'long_seconds': float(r['long_seconds']),
+                'long_direction': r['long_direction'],
+                'altitude': float(r['altitude']),
+                'size': float(r['size']),
+                'precision_horz': float(r['precision_horz']),
+                'precision_vert': float(r['precision_vert']),
+            })
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values
+        }
+
     def _data_for_MX(self, _type, records):
         values = []
         for r in records:
@@ -239,11 +269,13 @@ class CloudflareProvider(BaseProvider):
     def _data_for_SRV(self, _type, records):
         values = []
         for r in records:
+            target = ('{}.'.format(r['data']['target'])
+                      if r['data']['target'] != "." else ".")
             values.append({
                 'priority': r['data']['priority'],
                 'weight': r['data']['weight'],
                 'port': r['data']['port'],
-                'target': '{}.'.format(r['data']['target']),
+                'target': target,
             })
         return {
             'type': _type,
@@ -384,6 +416,25 @@ class CloudflareProvider(BaseProvider):
 
     _contents_for_PTR = _contents_for_CNAME
 
+    def _contents_for_LOC(self, record):
+        for value in record.values:
+            yield {
+                'data': {
+                    'lat_degrees': value.lat_degrees,
+                    'lat_minutes': value.lat_minutes,
+                    'lat_seconds': value.lat_seconds,
+                    'lat_direction': value.lat_direction,
+                    'long_degrees': value.long_degrees,
+                    'long_minutes': value.long_minutes,
+                    'long_seconds': value.long_seconds,
+                    'long_direction': value.long_direction,
+                    'altitude': value.altitude,
+                    'size': value.size,
+                    'precision_horz': value.precision_horz,
+                    'precision_vert': value.precision_vert,
+                }
+            }
+
     def _contents_for_MX(self, record):
         for value in record.values:
             yield {
@@ -405,6 +456,8 @@ class CloudflareProvider(BaseProvider):
             name = subdomain
 
         for value in record.values:
+            target = value.target[:-1] if value.target != "." else "."
+
             yield {
                 'data': {
                     'service': service,
@@ -413,7 +466,7 @@ class CloudflareProvider(BaseProvider):
                     'priority': value.priority,
                     'weight': value.weight,
                     'port': value.port,
-                    'target': value.target[:-1],
+                    'target': target,
                 }
             }
 
@@ -456,7 +509,7 @@ class CloudflareProvider(BaseProvider):
         # new records cleanly. In general when there are multiple records for a
         # name & type each will have a distinct/consistent `content` that can
         # serve as a unique identifier.
-        # BUT... there are exceptions. MX, CAA, and SRV don't have a simple
+        # BUT... there are exceptions. MX, CAA, LOC and SRV don't have a simple
         # content as things are currently implemented so we need to handle
         # those explicitly and create unique/hashable strings for them.
         _type = data['type']
@@ -468,6 +521,22 @@ class CloudflareProvider(BaseProvider):
         elif _type == 'SRV':
             data = data['data']
             return '{port} {priority} {target} {weight}'.format(**data)
+        elif _type == 'LOC':
+            data = data['data']
+            loc = (
+                '{lat_degrees}',
+                '{lat_minutes}',
+                '{lat_seconds}',
+                '{lat_direction}',
+                '{long_degrees}',
+                '{long_minutes}',
+                '{long_seconds}',
+                '{long_direction}',
+                '{altitude}',
+                '{size}',
+                '{precision_horz}',
+                '{precision_vert}')
+            return ' '.join(loc).format(**data)
         return data['content']
 
     def _apply_Create(self, change):
@@ -615,6 +684,11 @@ class CloudflareProvider(BaseProvider):
             zone_id = resp['result']['id']
             self.zones[name] = zone_id
             self._zone_records[name] = {}
+
+        # Force the operation order to be Delete() -> Create() -> Update()
+        # This will help avoid problems in updating a CNAME record into an
+        # A record and vice-versa
+        changes.sort(key=self._change_keyer)
 
         for change in changes:
             class_name = change.__class__.__name__

@@ -177,15 +177,15 @@
     {
       "id": "fc12ab34cd5611334422ab3322997656",
       "type": "SRV",
-      "name": "_srv._tcp.unit.tests",
+      "name": "_imap._tcp.unit.tests",
       "data": {
-        "service": "_srv",
+        "service": "_imap",
         "proto": "_tcp",
         "name": "unit.tests",
-        "priority": 12,
-        "weight": 20,
-        "port": 30,
-        "target": "foo-2.unit.tests"
+        "priority": 0,
+        "weight": 0,
+        "port": 0,
+        "target": "."
       },
       "proxiable": true,
       "proxied": false,
@@ -202,15 +202,15 @@
     {
       "id": "fc12ab34cd5611334422ab3322997656",
       "type": "SRV",
-      "name": "_srv._tcp.unit.tests",
+      "name": "_pop3._tcp.unit.tests",
       "data": {
-        "service": "_srv",
-        "proto": "_tcp",
+        "service": "_imap",
+        "proto": "_pop3",
         "name": "unit.tests",
-        "priority": 10,
-        "weight": 20,
-        "port": 30,
-        "target": "foo-1.unit.tests"
+        "priority": 0,
+        "weight": 0,
+        "port": 0,
+        "target": "."
       },
       "proxiable": true,
       "proxied": false,
@@ -227,10 +227,10 @@
   ],
   "result_info": {
     "page": 2,
-    "per_page": 11,
-    "total_pages": 2,
+    "per_page": 10,
+    "total_pages": 3,
     "count": 10,
-    "total_count": 20
+    "total_count": 24
   },
   "success": true,
   "errors": [],

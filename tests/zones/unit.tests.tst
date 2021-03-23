@@ -20,6 +20,9 @@ caa         1800  IN  CAA 0 iodef "mailto:admin@unit.tests"
 ; SRV Records
 _srv._tcp   600   IN  SRV 10 20 30 foo-1.unit.tests.
 _srv._tcp   600   IN  SRV 10 20 30 foo-2.unit.tests.
+; NULL SRV Records
+_pop3._tcp   600   IN  SRV 0 0 0 .
+_imap._tcp   600   IN  SRV 0 0 0 .
 
 ; TXT Records
 txt         600   IN  TXT "Bah bah black sheep"
@@ -31,6 +34,10 @@ mx          300   IN  MX  10  smtp-4.unit.tests.
 mx          300   IN  MX  20  smtp-2.unit.tests.
 mx          300   IN  MX  30  smtp-3.unit.tests.
 mx          300   IN  MX  40  smtp-1.unit.tests.
+
+; LOC Records
+loc         300   IN  LOC 31 58 52.1 S 115 49 11.7 E 20m 10m 10m 2m
+loc         300   IN  LOC 53 14 10 N 2 18 26 W 20m 10m 1000m 2m
 
 ; A Records
 @           300   IN  A   1.2.3.4
