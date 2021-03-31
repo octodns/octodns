@@ -56,10 +56,11 @@ class MockDomainService(DomainService):
 
                 _dns_entries.extend(entries_for(name, record))
 
-                # NS is not supported as a DNS Entry,
-                # so it should cover the if statement
+                # Add a non-supported type
+                # so it triggers the "is supported" (transip.py:115) check and
+                # give 100% code coverage
                 _dns_entries.append(
-                    DnsEntry('@', '3600', 'NS', 'ns01.transip.nl.'))
+                    DnsEntry('@', '3600', 'BOGUS', 'ns01.transip.nl.'))
 
         self.mockupEntries = _dns_entries
 
@@ -222,7 +223,7 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         provider._client = MockDomainService('unittest', self.bogus_key)
         plan = provider.plan(_expected)
 
-        self.assertEqual(14, plan.change_counts['Create'])
+        self.assertEqual(15, plan.change_counts['Create'])
         self.assertEqual(0, plan.change_counts['Update'])
         self.assertEqual(0, plan.change_counts['Delete'])
 
@@ -235,7 +236,7 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         provider = TransipProvider('test', 'unittest', self.bogus_key)
         provider._client = MockDomainService('unittest', self.bogus_key)
         plan = provider.plan(_expected)
-        self.assertEqual(14, len(plan.changes))
+        self.assertEqual(15, len(plan.changes))
         changes = provider.apply(plan)
         self.assertEqual(changes, len(plan.changes))
 
