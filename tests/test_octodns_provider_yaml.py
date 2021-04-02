@@ -35,7 +35,7 @@ class TestYamlProvider(TestCase):
 
         # without it we see everything
         source.populate(zone)
-        self.assertEquals(19, len(zone.records))
+        self.assertEquals(22, len(zone.records))
 
         source.populate(dynamic_zone)
         self.assertEquals(5, len(dynamic_zone.records))
@@ -58,12 +58,12 @@ class TestYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(16, len([c for c in plan.changes
+            self.assertEquals(19, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
             self.assertFalse(isfile(yaml_file))
 
             # Now actually do it
-            self.assertEquals(16, target.apply(plan))
+            self.assertEquals(19, target.apply(plan))
             self.assertTrue(isfile(yaml_file))
 
             # Dynamic plan
@@ -87,7 +87,7 @@ class TestYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(16, len([c for c in plan.changes
+            self.assertEquals(19, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
 
             with open(yaml_file) as fh:
@@ -106,7 +106,10 @@ class TestYamlProvider(TestCase):
                 self.assertTrue('values' in data.pop('naptr'))
                 self.assertTrue('values' in data.pop('sub'))
                 self.assertTrue('values' in data.pop('txt'))
+                self.assertTrue('values' in data.pop('loc'))
                 # these are stored as singular 'value'
+                self.assertTrue('value' in data.pop('_imap._tcp'))
+                self.assertTrue('value' in data.pop('_pop3._tcp'))
                 self.assertTrue('value' in data.pop('aaaa'))
                 self.assertTrue('value' in data.pop('cname'))
                 self.assertTrue('value' in data.pop('dname'))
@@ -207,18 +210,20 @@ class TestSplitYamlProvider(TestCase):
 
     def test_zone_directory(self):
         source = SplitYamlProvider(
-            'test', join(dirname(__file__), 'config/split'))
+            'test', join(dirname(__file__), 'config/split'),
+            extension='.tst')
 
         zone = Zone('unit.tests.', [])
 
         self.assertEqual(
-            join(dirname(__file__), 'config/split/unit.tests.'),
+            join(dirname(__file__), 'config/split', 'unit.tests.tst'),
             source._zone_directory(zone))
 
     def test_apply_handles_existing_zone_directory(self):
         with TemporaryDirectory() as td:
-            provider = SplitYamlProvider('test', join(td.dirname, 'config'))
-            makedirs(join(td.dirname, 'config', 'does.exist.'))
+            provider = SplitYamlProvider('test', join(td.dirname, 'config'),
+                                         extension='.tst')
+            makedirs(join(td.dirname, 'config', 'does.exist.tst'))
 
             zone = Zone('does.exist.', [])
             self.assertTrue(isdir(provider._zone_directory(zone)))
@@ -227,7 +232,8 @@ class TestSplitYamlProvider(TestCase):
 
     def test_provider(self):
         source = SplitYamlProvider(
-            'test', join(dirname(__file__), 'config/split'))
+            'test', join(dirname(__file__), 'config/split'),
+            extension='.tst')
 
         zone = Zone('unit.tests.', [])
         dynamic_zone = Zone('dynamic.tests.', [])
@@ -246,9 +252,10 @@ class TestSplitYamlProvider(TestCase):
         with TemporaryDirectory() as td:
             # Add some subdirs to make sure that it can create them
             directory = join(td.dirname, 'sub', 'dir')
-            zone_dir = join(directory, 'unit.tests.')
-            dynamic_zone_dir = join(directory, 'dynamic.tests.')
-            target = SplitYamlProvider('test', directory)
+            zone_dir = join(directory, 'unit.tests.tst')
+            dynamic_zone_dir = join(directory, 'dynamic.tests.tst')
+            target = SplitYamlProvider('test', directory,
+                                       extension='.tst')
 
             # We add everything
             plan = target.plan(zone)
@@ -335,7 +342,8 @@ class TestSplitYamlProvider(TestCase):
 
     def test_empty(self):
         source = SplitYamlProvider(
-            'test', join(dirname(__file__), 'config/split'))
+            'test', join(dirname(__file__), 'config/split'),
+            extension='.tst')
 
         zone = Zone('empty.', [])
 
@@ -345,7 +353,8 @@ class TestSplitYamlProvider(TestCase):
 
     def test_unsorted(self):
         source = SplitYamlProvider(
-            'test', join(dirname(__file__), 'config/split'))
+            'test', join(dirname(__file__), 'config/split'),
+            extension='.tst')
 
         zone = Zone('unordered.', [])
 
@@ -356,14 +365,15 @@ class TestSplitYamlProvider(TestCase):
 
         source = SplitYamlProvider(
             'test', join(dirname(__file__), 'config/split'),
-            enforce_order=False)
+            extension='.tst', enforce_order=False)
         # no exception
         source.populate(zone)
         self.assertEqual(2, len(zone.records))
 
     def test_subzone_handling(self):
         source = SplitYamlProvider(
-            'test', join(dirname(__file__), 'config/split'))
+            'test', join(dirname(__file__), 'config/split'),
+            extension='.tst')
 
         # If we add `sub` as a sub-zone we'll reject `www.sub`
         zone = Zone('unit.tests.', ['sub'])

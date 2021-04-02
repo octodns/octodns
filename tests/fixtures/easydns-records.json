@@ -264,10 +264,32 @@
       "rdata": "v=DKIM1;k=rsa;s=email;h=sha256;p=A\/kinda+of\/long\/string+with+numb3rs",
       "geozone_id": "0",
       "last_mod": "2020-01-01 01:01:01"
+    },
+    {
+      "id": "12340025",
+      "domain": "unit.tests",
+      "host": "_imap._tcp",
+      "ttl": "600",
+      "prio": "0",
+      "type": "SRV",
+      "rdata": "0 0 0 .",
+      "geozone_id": "0",
+      "last_mod": "2020-01-01 01:01:01"
+    },
+    {
+      "id": "12340026",
+      "domain": "unit.tests",
+      "host": "_pop3._tcp",
+      "ttl": "600",
+      "prio": "0",
+      "type": "SRV",
+      "rdata": "0 0 0 .",
+      "geozone_id": "0",
+      "last_mod": "2020-01-01 01:01:01"
     }
   ],
-  "count": 24,
-  "total": 24,
+  "count": 26,
+  "total": 26,
   "start": 0,
   "max": 1000,
   "status": 200

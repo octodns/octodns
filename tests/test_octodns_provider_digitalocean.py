@@ -83,14 +83,14 @@ class TestDigitalOceanProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(12, len(zone.records))
+            self.assertEquals(14, len(zone.records))
             changes = self.expected.changes(zone, provider)
             self.assertEquals(0, len(changes))
 
         # 2nd populate makes no network calls/all from cache
         again = Zone('unit.tests.', [])
         provider.populate(again)
-        self.assertEquals(12, len(again.records))
+        self.assertEquals(14, len(again.records))
 
         # bust the cache
         del provider._zone_records[zone.name]
@@ -163,7 +163,7 @@ class TestDigitalOceanProvider(TestCase):
         plan = provider.plan(self.expected)
 
         # No root NS, no ignored, no excluded, no unsupported
-        n = len(self.expected.records) - 8
+        n = len(self.expected.records) - 9
         self.assertEquals(n, len(plan.changes))
         self.assertEquals(n, provider.apply(plan))
         self.assertFalse(plan.exists)
@@ -191,6 +191,24 @@ class TestDigitalOceanProvider(TestCase):
                 'tag': 'issue',
                 'ttl': 3600, 'type': 'CAA'}),
             call('POST', '/domains/unit.tests/records', data={
+                'name': '_imap._tcp',
+                'weight': 0,
+                'data': '.',
+                'priority': 0,
+                'ttl': 600,
+                'type': 'SRV',
+                'port': 0
+            }),
+            call('POST', '/domains/unit.tests/records', data={
+                'name': '_pop3._tcp',
+                'weight': 0,
+                'data': '.',
+                'priority': 0,
+                'ttl': 600,
+                'type': 'SRV',
+                'port': 0
+            }),
+            call('POST', '/domains/unit.tests/records', data={
                 'name': '_srv._tcp',
                 'weight': 20,
                 'data': 'foo-1.unit.tests.',
@@ -200,7 +218,7 @@ class TestDigitalOceanProvider(TestCase):
                 'port': 30
             }),
         ])
-        self.assertEquals(24, provider._client._request.call_count)
+        self.assertEquals(26, provider._client._request.call_count)
 
         provider._client._request.reset_mock()
 
