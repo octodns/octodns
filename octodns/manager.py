@@ -270,8 +270,9 @@ class Manager(object):
     def sync(self, eligible_zones=[], eligible_sources=[], eligible_targets=[],
              dry_run=True, force=False, plan_output_fh=stdout):
         self.log.info('sync: eligible_zones=%s, eligible_targets=%s, '
-                      'dry_run=%s, force=%s', eligible_zones, eligible_targets,
-                      dry_run, force)
+                      'dry_run=%s, force=%s, plan_output_fh=%s',
+                      eligible_zones, eligible_targets, dry_run, force,
+                      plan_output_fh)
 
         zones = self.config['zones'].items()
         if eligible_zones:
