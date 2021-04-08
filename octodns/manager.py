@@ -269,10 +269,12 @@ class Manager(object):
 
     def sync(self, eligible_zones=[], eligible_sources=[], eligible_targets=[],
              dry_run=True, force=False, plan_output_fh=stdout):
-        self.log.info('sync: eligible_zones=%s, eligible_targets=%s, '
-                      'dry_run=%s, force=%s, plan_output_fh=%s',
-                      eligible_zones, eligible_targets, dry_run, force,
-                      getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__))
+
+        self.log.info(
+            'sync: eligible_zones=%s, eligible_targets=%s, dry_run=%s, '
+            'force=%s, plan_output_fh=%s',
+            eligible_zones, eligible_targets, dry_run, force,
+            getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__))
 
         zones = self.config['zones'].items()
         if eligible_zones:
