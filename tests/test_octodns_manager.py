@@ -18,7 +18,6 @@ from octodns.zone import Zone
 from mock import MagicMock, patch
 from unittest import TestCase
 
-
 from helpers import DynamicProvider, GeoProvider, NoSshFpProvider, \
     SimpleProvider, TemporaryDirectory
 
