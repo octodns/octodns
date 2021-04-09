@@ -36,9 +36,10 @@ class GCoreClient(object):
 
     ROOT_ZONES = "/zones"
 
-    def __init__(self, base_url, token):
+    def __init__(self, log, base_url, token):
         session = Session()
         session.headers.update({"Authorization": "Bearer {}".format(token)})
+        self.log = log
         self._session = session
         self._base_url = base_url
 
@@ -48,10 +49,19 @@ class GCoreClient(object):
             method, url, params=params, json=data, timeout=30.0
         )
         if r.status_code == 400:
+            self.log.error(
+                "bad request %r has been sent to %r: %s", data, url, r.text
+            )
             raise GCoreClientBadRequest(r)
         elif r.status_code == 404:
+            self.log.error(
+                "resource %r not found: %s", url, r.text
+            )
             raise GCoreClientNotFound(r)
         elif r.status_code == 500:
+            self.log.error(
+                "server error no %r to %r: %s", data, url, r.text
+            )
             raise GCoreClientException(r)
         r.raise_for_status()
         return r
@@ -112,13 +122,17 @@ class GCoreProvider(BaseProvider):
         self.log = logging.getLogger("GCoreProvider[{}]".format(id))
         self.log.debug("__init__: id=%s, token=***", id)
         super(GCoreProvider, self).__init__(id, *args, **kwargs)
-        self._client = GCoreClient(base_url, token)
+        self._client = GCoreClient(self.log, base_url, token)
 
     def _data_for_single(self, _type, record):
         return {
             "ttl": record["ttl"],
             "type": _type,
-            "values": record["resource_records"][0]["content"],
+            "values": [
+                rr_value
+                for resource_record in record["resource_records"]
+                for rr_value in resource_record["content"]
+            ],
         }
 
     _data_for_A = _data_for_single
