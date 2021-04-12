@@ -16,6 +16,15 @@ class HetznerClientNotFound(HetznerClientException):
 
 
 class HetznerClient(object):
+    '''
+    Hetzner DNS Public API v1 client class.
+
+    Zone and Record resources are (almost) fully supported, even if unnecessary
+    to future-proof this client. Bulk Record create/update is not supported.
+
+    No support for Primary Servers.
+    '''
+
     BASE_URL = 'https://dns.hetzner.com/api/v1'
 
     def __init__(self, token):
