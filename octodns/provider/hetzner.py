@@ -77,24 +77,34 @@ class HetznerClient(object):
     def zone_delete(self, zone_id):
         return self._do('DELETE', '/zones/' + zone_id)
 
+    def _replace_at(self, record):
+        record['name'] = '' if record['name'] == '@' else record['name']
+        return record
+
     def zone_records_get(self, zone_id):
         params = {'zone_id': zone_id}
         # No need to handle pagination as it returns all records by default.
-        return self._do('GET', '/records', params=params)['records']
+        return [
+            self._replace_at(record)
+            for record in self._do('GET', '/records', params=params)['records']
+        ]
 
     def zone_record_get(self, record_id):
-        return self._do('GET', '/records/' + record_id)['record']
+        record = self._do('GET', '/records/' + record_id)['record']
+        return self._replace_at(record)
 
     def zone_record_create(self, zone_id, name, _type, value, ttl=None):
-        data = {'name': name, 'ttl': ttl, 'type': _type, 'value': value,
+        data = {'name': name or '@', 'ttl': ttl, 'type': _type, 'value': value,
                 'zone_id': zone_id}
-        return self._do('POST', '/records', data=data)['record']
+        record = self._do('POST', '/records', data=data)['record']
+        return self._replace_at(record)
 
     def zone_record_update(self, zone_id, record_id, name, _type, value,
                            ttl=None):
-        data = {'name': name, 'ttl': ttl, 'type': _type, 'value': value,
+        data = {'name': name or '@', 'ttl': ttl, 'type': _type, 'value': value,
                 'zone_id': zone_id}
-        return self._do('PUT', '/records/' + record_id, data=data)['record']
+        record = self._do('PUT', '/records/' + record_id, data=data)['record']
+        return self._replace_at(record)
 
     def zone_record_delete(self, zone_id, record_id):
         return self._do('DELETE', '/records/' + record_id)
