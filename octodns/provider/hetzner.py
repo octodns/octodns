@@ -2,7 +2,16 @@
 #
 #
 
+from __future__ import absolute_import, division, print_function, \
+    unicode_literals
+
+import logging
+from collections import defaultdict
+
 from requests import Session
+
+from ..record import Record
+from .base import BaseProvider
 
 
 class HetznerClientException(Exception):
@@ -108,3 +117,248 @@ class HetznerClient(object):
 
     def zone_record_delete(self, zone_id, record_id):
         return self._do('DELETE', '/records/' + record_id)
+
+
+class HetznerProvider(BaseProvider):
+    '''
+    Hetzner DNS provider using API v1
+
+    hetzner:
+        class: octodns.provider.hetzner.HetznerProvider
+        # Your Hetzner API token (required)
+        token: foo
+    '''
+    SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
+    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SRV', 'TXT'))
+
+    def __init__(self, id, token, *args, **kwargs):
+        self.log = logging.getLogger('HetznerProvider[{}]'.format(id))
+        self.log.debug('__init__: id=%s, token=***', id)
+        super(HetznerProvider, self).__init__(id, *args, **kwargs)
+        self._client = HetznerClient(token)
+
+        self._zone_records = {}
+
+    def _append_dot(self, value):
+        return value if value[-1] == '.' else '{}.'.format(value)
+
+    def _data_for_multiple(self, _type, records):
+        values = [record['value'].replace(';', '\\;') for record in records]
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values
+        }
+
+    _data_for_A = _data_for_multiple
+    _data_for_AAAA = _data_for_multiple
+
+    def _data_for_CAA(self, _type, records):
+        values = []
+        for record in records:
+            value_without_spaces = record['value'].replace(' ', '')
+            flags = value_without_spaces[0]
+            tag = value_without_spaces[1:].split('"')[0]
+            value = record['value'].split('"')[1]
+            values.append({
+                'flags': int(flags),
+                'tag': tag,
+                'value': value,
+            })
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values
+        }
+
+    def _data_for_CNAME(self, _type, records):
+        record = records[0]
+        return {
+            'ttl': record['ttl'],
+            'type': _type,
+            'value': self._append_dot(record['value'])
+        }
+
+    def _data_for_MX(self, _type, records):
+        values = []
+        for record in records:
+            value_stripped_split = record['value'].strip().split(' ')
+            preference = value_stripped_split[0]
+            exchange = value_stripped_split[-1]
+            values.append({
+                'preference': int(preference),
+                'exchange': self._append_dot(exchange)
+            })
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values
+        }
+
+    def _data_for_NS(self, _type, records):
+        values = []
+        for record in records:
+            values.append(self._append_dot(record['value']))
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values,
+        }
+
+    def _data_for_SRV(self, _type, records):
+        values = []
+        for record in records:
+            value_stripped = record['value'].strip()
+            priority = value_stripped.split(' ')[0]
+            weight = value_stripped[len(priority):].strip().split(' ')[0]
+            target = value_stripped.split(' ')[-1]
+            port = value_stripped[:-len(target)].strip().split(' ')[-1]
+            values.append({
+                'port': int(port),
+                'priority': int(priority),
+                'target': self._append_dot(target),
+                'weight': int(weight)
+            })
+        return {
+            'ttl': records[0]['ttl'],
+            'type': _type,
+            'values': values
+        }
+
+    _data_for_TXT = _data_for_multiple
+
+    def zone_records(self, zone):
+        if zone.name not in self._zone_records:
+            try:
+                zone_id = self._client.zones_get(name=zone.name[:-1])[0]['id']
+                self._zone_records[zone.name] = \
+                    self._client.zone_records_get(zone_id)
+            except HetznerClientNotFound:
+                return []
+
+        return self._zone_records[zone.name]
+
+    def populate(self, zone, target=False, lenient=False):
+        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
+                       target, lenient)
+
+        values = defaultdict(lambda: defaultdict(list))
+        for record in self.zone_records(zone):
+            _type = record['type']
+            if _type not in self.SUPPORTS:
+                self.log.warning('populate: skipping unsupported %s record',
+                                 _type)
+                continue
+            values[record['name']][record['type']].append(record)
+
+        before = len(zone.records)
+        for name, types in values.items():
+            for _type, records in types.items():
+                data_for = getattr(self, '_data_for_{}'.format(_type))
+                record = Record.new(zone, name, data_for(_type, records),
+                                    source=self, lenient=lenient)
+                zone.add_record(record, lenient=lenient)
+
+        exists = zone.name in self._zone_records
+        self.log.info('populate:   found %s records, exists=%s',
+                      len(zone.records) - before, exists)
+        return exists
+
+    def _params_for_multiple(self, record):
+        for value in record.values:
+            yield {
+                'value': value.replace('\\;', ';'),
+                'name': record.name,
+                'ttl': record.ttl,
+                'type': record._type
+            }
+
+    _params_for_A = _params_for_multiple
+    _params_for_AAAA = _params_for_multiple
+
+    def _params_for_CAA(self, record):
+        for value in record.values:
+            data = '{} {} "{}"'.format(value.flags, value.tag, value.value)
+            yield {
+                'value': data,
+                'name': record.name,
+                'ttl': record.ttl,
+                'type': record._type
+            }
+
+    def _params_for_single(self, record):
+        yield {
+            'value': record.value,
+            'name': record.name,
+            'ttl': record.ttl,
+            'type': record._type
+        }
+
+    _params_for_CNAME = _params_for_single
+
+    def _params_for_MX(self, record):
+        for value in record.values:
+            data = '{} {}'.format(value.preference, value.exchange)
+            yield {
+                'value': data,
+                'name': record.name,
+                'ttl': record.ttl,
+                'type': record._type
+            }
+
+    _params_for_NS = _params_for_multiple
+
+    def _params_for_SRV(self, record):
+        for value in record.values:
+            data = '{} {} {} {}'.format(value.priority, value.weight,
+                                        value.port, value.target)
+            yield {
+                'value': data,
+                'name': record.name,
+                'ttl': record.ttl,
+                'type': record._type
+            }
+
+    _params_for_TXT = _params_for_multiple
+
+    def _apply_Create(self, zone_id, change):
+        new = change.new
+        params_for = getattr(self, '_params_for_{}'.format(new._type))
+        for params in params_for(new):
+            self._client.zone_record_create(zone_id, params['name'],
+                                            params['type'], params['value'],
+                                            params['ttl'])
+
+    def _apply_Update(self, zone_id, change):
+        # It's way simpler to delete-then-recreate than to update
+        self._apply_Delete(zone_id, change)
+        self._apply_Create(zone_id, change)
+
+    def _apply_Delete(self, zone_id, change):
+        existing = change.existing
+        zone = existing.zone
+        for record in self.zone_records(zone):
+            if existing.name == record['name'] and \
+               existing._type == record['type']:
+                self._client.zone_record_delete(zone_id, record['id'])
+
+    def _apply(self, plan):
+        desired = plan.desired
+        changes = plan.changes
+        self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
+                       len(changes))
+
+        zone_name = desired.name[:-1]
+        try:
+            zone_id = self._client.zones_get(name=zone_name)[0]['id']
+        except HetznerClientNotFound:
+            self.log.debug('_apply:   no matching zone, creating domain')
+            zone_id = self._client.zone_create(zone_name)['id']
+
+        for change in changes:
+            class_name = change.__class__.__name__
+            getattr(self, '_apply_{}'.format(class_name))(zone_id, change)
+
+        # Clear out the cache if any
+        self._zone_records.pop(desired.name, None)
