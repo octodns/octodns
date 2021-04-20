@@ -11,7 +11,9 @@ from __future__ import (
 
 from collections import defaultdict
 from requests import Session
+import http
 import logging
+import urllib.parse
 
 from ..record import Record
 from .base import BaseProvider
@@ -34,51 +36,82 @@ class GCoreClientNotFound(GCoreClientException):
 
 class GCoreClient(object):
 
-    ROOT_ZONES = "/zones"
+    ROOT_ZONES = "zones"
 
-    def __init__(self, log, base_url, token):
-        session = Session()
-        session.headers.update({"Authorization": "Bearer {}".format(token)})
+    def __init__(
+        self,
+        log,
+        api_url,
+        auth_url,
+        token=None,
+        login=None,
+        password=None,
+    ):
         self.log = log
-        self._session = session
-        self._base_url = base_url
+        self._session = Session()
+        self._api_url = api_url
+        if token is not None:
+            self._session.headers.update(
+                {"Authorization": "APIKey {}".format(token)}
+            )
+        elif login is not None and password is not None:
+            token = self._auth(auth_url, login, password)
+            self._session.headers.update(
+                {"Authorization": "Bearer {}".format(token)}
+            )
+        else:
+            raise ValueError("either token or login & password must be set")
 
-    def _request(self, method, path, params={}, data=None):
-        url = "{}{}".format(self._base_url, path)
+    def _auth(self, url, login, password):
+        # well, can't use _request, since API returns 400 if credentials
+        # invalid which will be logged, but we don't want do this
+        r = self._session.request(
+            "POST",
+            self._build_url(url, "auth", "jwt", "login"),
+            json={"username": login, "password": password},
+        )
+        r.raise_for_status()
+        return r.json()["access"]
+
+    def _request(self, method, url, params=None, data=None):
         r = self._session.request(
             method, url, params=params, json=data, timeout=30.0
         )
-        if r.status_code == 400:
+        if r.status_code == http.HTTPStatus.BAD_REQUEST:
             self.log.error(
                 "bad request %r has been sent to %r: %s", data, url, r.text
             )
             raise GCoreClientBadRequest(r)
-        elif r.status_code == 404:
-            self.log.error(
-                "resource %r not found: %s", url, r.text
-            )
+        elif r.status_code == http.HTTPStatus.NOT_FOUND:
+            self.log.error("resource %r not found: %s", url, r.text)
             raise GCoreClientNotFound(r)
-        elif r.status_code == 500:
-            self.log.error(
-                "server error no %r to %r: %s", data, url, r.text
-            )
+        elif r.status_code == http.HTTPStatus.INTERNAL_SERVER_ERROR:
+            self.log.error("server error no %r to %r: %s", data, url, r.text)
             raise GCoreClientException(r)
         r.raise_for_status()
         return r
 
     def zone(self, zone_name):
         return self._request(
-            "GET", "{}/{}".format(self.ROOT_ZONES, zone_name)
+            "GET", self._build_url(self._api_url, self.ROOT_ZONES, zone_name)
         ).json()
 
     def zone_create(self, zone_name):
         return self._request(
-            "POST", self.ROOT_ZONES, data={"name": zone_name}
+            "POST",
+            self._build_url(self._api_url, self.ROOT_ZONES),
+            data={"name": zone_name},
         ).json()
 
     def zone_records(self, zone_name):
         rrsets = self._request(
-            "GET", "{}/{}/rrsets?all=true".format(self.ROOT_ZONES, zone_name)
+            "GET",
+            "{}".format(
+                self._build_url(
+                    self._api_url, self.ROOT_ZONES, zone_name, "rrsets"
+                )
+            ),
+            params={"all": "true"},
         ).json()
         records = rrsets["rrsets"]
         return records
@@ -97,9 +130,16 @@ class GCoreClient(object):
         self._request("DELETE", self._rrset_url(zone_name, rrset_name, type_))
 
     def _rrset_url(self, zone_name, rrset_name, type_):
-        return "{}/{}/{}/{}".format(
-            self.ROOT_ZONES, zone_name, rrset_name, type_
+        return self._build_url(
+            self._api_url, self.ROOT_ZONES, zone_name, rrset_name, type_
         )
+
+    @staticmethod
+    def _build_url(base, *items):
+        for i in items:
+            base = base.strip("/") + "/"
+            base = urllib.parse.urljoin(base, i)
+        return base
 
 
 class GCoreProvider(BaseProvider):
@@ -108,8 +148,12 @@ class GCoreProvider(BaseProvider):
 
     gcore:
         class: octodns.provider.gcore.GCoreProvider
-        # Your API key (required)
+        # Your API key
         token: XXXXXXXXXXXX
+        # or login + password
+        login: XXXXXXXXXXXX
+        password: XXXXXXXXXXXX
+        # auth_url: https://api.gcdn.co
         # url: https://dnsapi.gcorelabs.com/v2
     """
 
@@ -117,12 +161,18 @@ class GCoreProvider(BaseProvider):
     SUPPORTS_DYNAMIC = False
     SUPPORTS = set(("A", "AAAA"))
 
-    def __init__(self, id, token, *args, **kwargs):
-        base_url = kwargs.pop("url", "https://dnsapi.gcorelabs.com/v2")
+    def __init__(self, id, *args, **kwargs):
+        token = kwargs.pop("token", None)
+        login = kwargs.pop("login", None)
+        password = kwargs.pop("password", None)
+        api_url = kwargs.pop("url", "https://dnsapi.gcorelabs.com/v2")
+        auth_url = kwargs.pop("auth_url", "https://api.gcdn.co")
         self.log = logging.getLogger("GCoreProvider[{}]".format(id))
-        self.log.debug("__init__: id=%s, token=***", id)
+        self.log.debug("__init__: id=%s", id)
         super(GCoreProvider, self).__init__(id, *args, **kwargs)
-        self._client = GCoreClient(self.log, base_url, token)
+        self._client = GCoreClient(
+            self.log, api_url, auth_url, token, login, password
+        )
 
     def _data_for_single(self, _type, record):
         return {

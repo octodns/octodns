@@ -33,7 +33,7 @@ class TestGCoreProvider(TestCase):
 
     def test_populate(self):
 
-        provider = GCoreProvider("test_id", "token")
+        provider = GCoreProvider("test_id", token="token")
 
         # 400 - Bad Request.
         with requests_mock() as mock:
@@ -52,7 +52,7 @@ class TestGCoreProvider(TestCase):
 
             with self.assertRaises(GCoreClientNotFound) as ctx:
                 zone = Zone("unit.tests.", [])
-                provider._client.zone(zone)
+                provider._client.zone(zone.name)
             self.assertIn(
                 '"error":"zone is not found"', text_type(ctx.exception)
             )
@@ -65,6 +65,48 @@ class TestGCoreProvider(TestCase):
                 zone = Zone("unit.tests.", [])
                 provider.populate(zone)
             self.assertEquals("Things caught fire", text_type(ctx.exception))
+
+        # No credentials or token error
+        with requests_mock() as mock:
+            with self.assertRaises(ValueError) as ctx:
+                GCoreProvider("test_id")
+            self.assertEquals(
+                "either token or login & password must be set",
+                text_type(ctx.exception),
+            )
+
+        # Auth with login password
+        with requests_mock() as mock:
+
+            def match_body(request):
+                return {"username": "foo", "password": "bar"} == request.json()
+
+            auth_url = "http://api/auth/jwt/login"
+            mock.post(
+                auth_url,
+                additional_matcher=match_body,
+                status_code=200,
+                json={"access": "access"},
+            )
+
+            providerPassword = GCoreProvider(
+                "test_id",
+                url="http://dns",
+                auth_url="http://api",
+                login="foo",
+                password="bar",
+            )
+            assert mock.called
+
+            # make sure token passed in header
+            zone_rrset_url = "http://dns/zones/unit.tests/rrsets?all=true"
+            mock.get(
+                zone_rrset_url,
+                request_headers={"Authorization": "Bearer access"},
+                status_code=404,
+            )
+            zone = Zone("unit.tests.", [])
+            assert not providerPassword.populate(zone)
 
         # No diffs == no changes
         with requests_mock() as mock:
@@ -97,7 +139,7 @@ class TestGCoreProvider(TestCase):
             )
 
     def test_apply(self):
-        provider = GCoreProvider("test_id", "token")
+        provider = GCoreProvider("test_id", url="http://api", token="token")
 
         # Zone does not exists but can be created.
         with requests_mock() as mock:
@@ -153,12 +195,16 @@ class TestGCoreProvider(TestCase):
 
         provider._client._request.assert_has_calls(
             [
-                call("GET", "/zones/unit.tests/rrsets?all=true"),
-                call("GET", "/zones/unit.tests"),
-                call("POST", "/zones", data={"name": "unit.tests"}),
+                call(
+                    "GET",
+                    "http://api/zones/unit.tests/rrsets",
+                    params={"all": "true"},
+                ),
+                call("GET", "http://api/zones/unit.tests"),
+                call("POST", "http://api/zones", data={"name": "unit.tests"}),
                 call(
                     "POST",
-                    "/zones/unit.tests/www.sub.unit.tests./A",
+                    "http://api/zones/unit.tests/www.sub.unit.tests./A",
                     data={
                         "ttl": 300,
                         "resource_records": [{"content": ["2.2.3.6"]}],
@@ -166,7 +212,7 @@ class TestGCoreProvider(TestCase):
                 ),
                 call(
                     "POST",
-                    "/zones/unit.tests/www.unit.tests./A",
+                    "http://api/zones/unit.tests/www.unit.tests./A",
                     data={
                         "ttl": 300,
                         "resource_records": [{"content": ["2.2.3.6"]}],
@@ -174,7 +220,7 @@ class TestGCoreProvider(TestCase):
                 ),
                 call(
                     "POST",
-                    "/zones/unit.tests/aaaa.unit.tests./AAAA",
+                    "http://api/zones/unit.tests/aaaa.unit.tests./AAAA",
                     data={
                         "ttl": 600,
                         "resource_records": [
@@ -188,7 +234,7 @@ class TestGCoreProvider(TestCase):
                 ),
                 call(
                     "POST",
-                    "/zones/unit.tests/unit.tests./A",
+                    "http://api/zones/unit.tests/unit.tests./A",
                     data={
                         "ttl": 300,
                         "resource_records": [
@@ -239,10 +285,12 @@ class TestGCoreProvider(TestCase):
 
         provider._client._request.assert_has_calls(
             [
-                call("DELETE", "/zones/unit.tests/www.unit.tests./A"),
+                call(
+                    "DELETE", "http://api/zones/unit.tests/www.unit.tests./A"
+                ),
                 call(
                     "PUT",
-                    "/zones/unit.tests/ttl.unit.tests./A",
+                    "http://api/zones/unit.tests/ttl.unit.tests./A",
                     data={
                         "ttl": 300,
                         "resource_records": [{"content": ["3.2.3.4"]}],
