@@ -44,15 +44,16 @@ class GCoreClient(object):
         api_url,
         auth_url,
         token=None,
+        token_type=None,
         login=None,
         password=None,
     ):
         self.log = log
         self._session = Session()
         self._api_url = api_url
-        if token is not None:
+        if token is not None and token_type is not None:
             self._session.headers.update(
-                {"Authorization": "APIKey {}".format(token)}
+                {"Authorization": "{} {}".format(token_type, token)}
             )
         elif login is not None and password is not None:
             token = self._auth(auth_url, login, password)
@@ -150,6 +151,7 @@ class GCoreProvider(BaseProvider):
         class: octodns.provider.gcore.GCoreProvider
         # Your API key
         token: XXXXXXXXXXXX
+        # token_type: APIKey
         # or login + password
         login: XXXXXXXXXXXX
         password: XXXXXXXXXXXX
@@ -163,6 +165,7 @@ class GCoreProvider(BaseProvider):
 
     def __init__(self, id, *args, **kwargs):
         token = kwargs.pop("token", None)
+        token_type = kwargs.pop("token_type", "APIKey")
         login = kwargs.pop("login", None)
         password = kwargs.pop("password", None)
         api_url = kwargs.pop("url", "https://dnsapi.gcorelabs.com/v2")
@@ -171,7 +174,13 @@ class GCoreProvider(BaseProvider):
         self.log.debug("__init__: id=%s", id)
         super(GCoreProvider, self).__init__(id, *args, **kwargs)
         self._client = GCoreClient(
-            self.log, api_url, auth_url, token, login, password
+            self.log,
+            api_url,
+            auth_url,
+            token=token,
+            token_type=token_type,
+            login=login,
+            password=password,
         )
 
     def _data_for_single(self, _type, record):
