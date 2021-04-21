@@ -5,10 +5,9 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-import logging
 from collections import defaultdict
-
 from requests import Session
+import logging
 
 from ..record import Record
 from .base import BaseProvider
@@ -22,6 +21,12 @@ class HetznerClientNotFound(HetznerClientException):
 
     def __init__(self):
         super(HetznerClientNotFound, self).__init__('Not Found')
+
+
+class HetznerClientUnauthorized(HetznerClientException):
+
+    def __init__(self):
+        super(HetznerClientUnauthorized, self).__init__('Unauthorized')
 
 
 class HetznerClient(object):
@@ -44,6 +49,8 @@ class HetznerClient(object):
     def _do(self, method, path, params=None, data=None):
         url = self.BASE_URL + path
         response = self._session.request(method, url, params=params, json=data)
+        if response.status_code == 401:
+            raise HetznerClientUnauthorized()
         if response.status_code == 404:
             raise HetznerClientNotFound()
         response.raise_for_status()
@@ -139,14 +146,22 @@ class HetznerProvider(BaseProvider):
         self._client = HetznerClient(token)
 
         self._zone_records = {}
+        self._zone_metadata = {}
 
     def _append_dot(self, value):
-        return value if value[-1] == '.' else '{}.'.format(value)
+        if value == '@' or value[-1] == '.':
+            return value
+        return '{}.'.format(value)
+
+    def _record_ttl(self, record):
+        if 'ttl' in record:
+            return record['ttl']
+        return self._zone_metadata[record['zone_id']]['ttl']
 
     def _data_for_multiple(self, _type, records):
         values = [record['value'].replace(';', '\\;') for record in records]
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._record_ttl(records[0]),
             'type': _type,
             'values': values
         }
@@ -167,7 +182,7 @@ class HetznerProvider(BaseProvider):
                 'value': value,
             })
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._record_ttl(records[0]),
             'type': _type,
             'values': values
         }
@@ -175,7 +190,7 @@ class HetznerProvider(BaseProvider):
     def _data_for_CNAME(self, _type, records):
         record = records[0]
         return {
-            'ttl': record['ttl'],
+            'ttl': self._record_ttl(record),
             'type': _type,
             'value': self._append_dot(record['value'])
         }
@@ -191,7 +206,7 @@ class HetznerProvider(BaseProvider):
                 'exchange': self._append_dot(exchange)
             })
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._record_ttl(records[0]),
             'type': _type,
             'values': values
         }
@@ -201,7 +216,7 @@ class HetznerProvider(BaseProvider):
         for record in records:
             values.append(self._append_dot(record['value']))
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._record_ttl(records[0]),
             'type': _type,
             'values': values,
         }
@@ -221,7 +236,7 @@ class HetznerProvider(BaseProvider):
                 'weight': int(weight)
             })
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._record_ttl(records[0]),
             'type': _type,
             'values': values
         }
@@ -231,9 +246,10 @@ class HetznerProvider(BaseProvider):
     def zone_records(self, zone):
         if zone.name not in self._zone_records:
             try:
-                zone_id = self._client.zones_get(name=zone.name[:-1])[0]['id']
+                zone_metadata = self._client.zones_get(name=zone.name[:-1])[0]
+                self._zone_metadata[zone_metadata['id']] = zone_metadata
                 self._zone_records[zone.name] = \
-                    self._client.zone_records_get(zone_id)
+                    self._client.zone_records_get(zone_metadata['id'])
             except HetznerClientNotFound:
                 return []
 
