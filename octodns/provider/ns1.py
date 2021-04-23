@@ -479,16 +479,16 @@ class Ns1Provider(BaseProvider):
         # region.
         pools = defaultdict(lambda: {'fallback': None, 'values': []})
         for answer in record['answers']:
-            # region (group name in the UI) is the pool name
-            pool_name = answer['region']
-            # Get the actual pool name by removing the type
-            pool_name = self._parse_dynamic_pool_name(pool_name)
-            pool = pools[pool_name]
-
             meta = answer['meta']
             value = text_type(answer['answer'][0])
-            if meta['priority'] == 1:
-                # priority 1 means this answer is part of the pools own values
+            notes = self._parse_notes(meta.get('note', ''))
+            if notes.get('from', False) == '--default--':
+                # it's a final/default answer value
+                default.add(value)
+            else:
+                # it's a pool, build it from metadata and notes
+                pool_name = notes['name']
+                pool = pools[pool_name]
                 value_dict = {
                     'value': value,
                     'weight': int(meta.get('weight', 1)),
@@ -498,12 +498,7 @@ class Ns1Provider(BaseProvider):
                 # once
                 if value_dict not in pool['values']:
                     pool['values'].append(value_dict)
-            else:
-                # It's a fallback, we only care about it if it's a
-                # final/default
-                notes = self._parse_notes(meta.get('note', ''))
-                if notes.get('from', False) == '--default--':
-                    default.add(value)
+                pool['fallback'] = notes.get('fallback')
 
         # The regions objects map to rules, but it's a bit fuzzy since they're
         # tied to pools on the NS1 side, e.g. we can only have 1 rule per pool,
@@ -526,12 +521,6 @@ class Ns1Provider(BaseProvider):
                     '_order': rule_order,
                 }
                 rules[rule_order] = rule
-
-            # The group notes field in the UI is a `note` on the region here,
-            # that's where we can find our pool's fallback.
-            if 'fallback' in notes:
-                # set the fallback pool name
-                pools[pool_name]['fallback'] = notes['fallback']
 
             geos = set()
 
@@ -978,13 +967,18 @@ class Ns1Provider(BaseProvider):
             seen.add(current_pool_name)
             pool = pools[current_pool_name]
             for answer in pool_answers[current_pool_name]:
+                notes = {
+                    'from': pool_label,
+                    'name': current_pool_name,
+                }
+                fallback = pool.data.get('fallback')
+                if fallback:
+                    notes['fallback'] = fallback
                 answer = {
                     'answer': answer['answer'],
                     'meta': {
                         'priority': priority,
-                        'note': self._encode_notes({
-                            'from': pool_label,
-                        }),
+                        'note': self._encode_notes(notes),
                         'up': {
                             'feed': answer['feed_id'],
                         },

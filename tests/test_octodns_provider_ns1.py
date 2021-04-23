@@ -1122,20 +1122,23 @@ class TestNs1ProviderDynamic(TestCase):
         # well as both lhr georegion (for contients) and country. The first is
         # an example of a repeated target pool in a rule (only allowed when the
         # 2nd is a catchall.)
-        self.assertEquals(['from:--default--', 'from:iad__catchall',
-                           'from:iad__country', 'from:iad__georegion',
-                           'from:lhr__country', 'from:lhr__georegion'],
-                          sorted(notes.keys()))
+        self.assertEquals([
+            'fallback:iad from:lhr__country name:lhr',
+            'fallback:iad from:lhr__georegion name:lhr',
+            'from:--default--', 'from:iad__catchall name:iad',
+            'from:iad__country name:iad', 'from:iad__georegion name:iad',
+            'from:lhr__country name:iad', 'from:lhr__georegion name:iad',
+        ], sorted(notes.keys()))
 
         # All the iad's should match (after meta and region were removed)
-        self.assertEquals(notes['from:iad__catchall'],
-                          notes['from:iad__country'])
-        self.assertEquals(notes['from:iad__catchall'],
-                          notes['from:iad__georegion'])
+        self.assertEquals(notes['from:iad__catchall name:iad'],
+                          notes['from:iad__country name:iad'])
+        self.assertEquals(notes['from:iad__catchall name:iad'],
+                          notes['from:iad__georegion name:iad'])
 
         # The lhrs should match each other too
-        self.assertEquals(notes['from:lhr__georegion'],
-                          notes['from:lhr__country'])
+        self.assertEquals(notes['from:lhr__georegion name:lhr'],
+                          notes['from:lhr__country name:lhr'])
 
         # We have both country and region filter chain entries
         exp = Ns1Provider._FILTER_CHAIN_WITH_REGION_AND_COUNTRY(provider,
@@ -1311,7 +1314,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'answer': ['3.4.5.6'],
                 'meta': {
                     'priority': 1,
-                    'note': 'from:lhr__country',
+                    'note': 'fallback:iad from:lhr__country name:lhr',
                 },
                 'region': 'lhr',
             }, {
@@ -1319,7 +1322,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 2,
                     'weight': 12,
-                    'note': 'from:iad',
+                    'note': 'from:iad name:iad',
                 },
                 'region': 'lhr',
             }, {
@@ -1334,7 +1337,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 1,
                     'weight': 12,
-                    'note': 'from:iad',
+                    'note': 'from:iad name:iad',
                 },
                 'region': 'iad',
             }, {
@@ -1345,11 +1348,34 @@ class TestNs1ProviderDynamic(TestCase):
                 },
                 'region': 'iad',
             }, {
+                'answer': ['4.5.6.7'],
+                'meta': {
+                    'priority': 1,
+                    'weight': 23,
+                    'note': 'fallback:blr from:bom name:bom',
+                },
+                'region': 'bom',
+            }, {
+                'answer': ['5.6.7.8'],
+                'meta': {
+                    'priority': 2,
+                    'weight': 18,
+                    'note': 'from:blr name:blr',
+                },
+                'region': 'bom',
+            }, {
+                'answer': ['1.2.3.4'],
+                'meta': {
+                    'priority': 3,
+                    'note': 'from:--default--',
+                },
+                'region': 'iad',
+            }, {
                 'answer': ['2.3.4.5'],
                 'meta': {
                     'priority': 1,
                     'weight': 12,
-                    'note': 'from:{}'.format(catchall_pool_name),
+                    'note': 'from:{} name:iad'.format(catchall_pool_name),
                 },
                 'region': catchall_pool_name,
             }, {
@@ -1387,9 +1413,15 @@ class TestNs1ProviderDynamic(TestCase):
                         'country': ['ZW'],
                     },
                 },
-                catchall_pool_name: {
+                'bom__country': {
                     'meta': {
                         'note': 'rule-order:3',
+                        'country': ['IN'],
+                    },
+                },
+                catchall_pool_name: {
+                    'meta': {
+                        'note': 'rule-order:4',
                     },
                 }
             },
@@ -1397,6 +1429,7 @@ class TestNs1ProviderDynamic(TestCase):
             'ttl': 42,
         }
         data = provider._data_for_dynamic_A('A', ns1_record)
+        print(data)
         self.assertEquals({
             'dynamic': {
                 'pools': {
@@ -1412,6 +1445,20 @@ class TestNs1ProviderDynamic(TestCase):
                         'values': [{
                             'weight': 1,
                             'value': '3.4.5.6',
+                        }],
+                    },
+                    'bom': {
+                        'fallback': 'blr',
+                        'values': [{
+                            'weight': 23,
+                            'value': '4.5.6.7',
+                        }],
+                    },
+                    'blr': {
+                        'fallback': None,
+                        'values': [{
+                            'weight': 18,
+                            'value': '5.6.7.8',
                         }],
                     },
                 },
@@ -1431,6 +1478,12 @@ class TestNs1ProviderDynamic(TestCase):
                     'pool': 'iad',
                 }, {
                     '_order': '3',
+                    'geos': [
+                        'AS-IN',
+                    ],
+                    'pool': 'bom',
+                }, {
+                    '_order': '4',
                     'pool': 'iad',
                 }],
             },
