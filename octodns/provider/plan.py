@@ -50,7 +50,7 @@ class Plan(object):
         except AttributeError:
             existing_n = 0
 
-        self.log.debug('__init__: Creates=%d, Updates=%d, Deletes=%d'
+        self.log.debug('__init__: Creates=%d, Updates=%d, Deletes=%d '
                        'Existing=%d',
                        self.change_counts['Create'],
                        self.change_counts['Update'],
