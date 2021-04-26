@@ -46,7 +46,7 @@ class HetznerClient(object):
         session.headers.update({'Auth-API-Token': token})
         self._session = session
 
-    def _do(self, method, path, params=None, data=None):
+    def _do_raw(self, method, path, params=None, data=None):
         url = self.BASE_URL + path
         response = self._session.request(method, url, params=params, json=data)
         if response.status_code == 401:
@@ -54,7 +54,10 @@ class HetznerClient(object):
         if response.status_code == 404:
             raise HetznerClientNotFound()
         response.raise_for_status()
-        return response.json()
+        return response
+
+    def _do(self, method, path, params=None, data=None):
+        return self._do_raw(method, path, params, data).json()
 
     def _do_with_pagination(self, method, path, key, params=None, data=None,
                             per_page=100):
