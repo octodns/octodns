@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from os import environ
 from six import text_type
+from sys import stdout
 import logging
 
 from .provider.base import BaseProvider
@@ -267,16 +268,19 @@ class Manager(object):
         return plans, zone
 
     def sync(self, eligible_zones=[], eligible_sources=[], eligible_targets=[],
-             dry_run=True, force=False):
-        self.log.info('sync: eligible_zones=%s, eligible_targets=%s, '
-                      'dry_run=%s, force=%s', eligible_zones, eligible_targets,
-                      dry_run, force)
+             dry_run=True, force=False, plan_output_fh=stdout):
+
+        self.log.info(
+            'sync: eligible_zones=%s, eligible_targets=%s, dry_run=%s, '
+            'force=%s, plan_output_fh=%s',
+            eligible_zones, eligible_targets, dry_run, force,
+            getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__))
 
         zones = self.config['zones'].items()
         if eligible_zones:
             zones = [z for z in zones if z[0] in eligible_zones]
 
-        aliased_zones  = {}
+        aliased_zones = {}
         futures = []
         for zone_name, config in zones:
             self.log.info('sync:   zone=%s', zone_name)
@@ -402,7 +406,7 @@ class Manager(object):
         plans.sort(key=self._plan_keyer, reverse=True)
 
         for output in self.plan_outputs.values():
-            output.run(plans=plans, log=self.log)
+            output.run(plans=plans, log=self.log, fh=plan_output_fh)
 
         if not force:
             self.log.debug('sync:   checking safety')
