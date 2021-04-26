@@ -1117,14 +1117,21 @@ class TestNs1ProviderDynamic(TestCase):
         # finally has a catchall.  Those are examples of the two ways pools get
         # expanded.
         #
-        # lhr splits in two, with a region and country.
+        # lhr splits in two, with a region and country and includes a fallback
+        #
+        # All values now include their own `pool:` name
         #
         # well as both lhr georegion (for contients) and country. The first is
         # an example of a repeated target pool in a rule (only allowed when the
         # 2nd is a catchall.)
-        self.assertEquals(['from:--default--', 'from:iad__catchall',
-                           'from:iad__country', 'from:iad__georegion',
-                           'from:lhr__country', 'from:lhr__georegion'],
+        self.assertEquals(['fallback: from:iad__catchall pool:iad',
+                           'fallback: from:iad__country pool:iad',
+                           'fallback: from:iad__georegion pool:iad',
+                           'fallback: from:lhr__country pool:iad',
+                           'fallback: from:lhr__georegion pool:iad',
+                           'fallback:iad from:lhr__country pool:lhr',
+                           'fallback:iad from:lhr__georegion pool:lhr',
+                           'from:--default--'],
                           sorted(notes.keys()))
 
         # All the iad's should match (after meta and region were removed)
