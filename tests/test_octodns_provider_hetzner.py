@@ -17,7 +17,7 @@ from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
 
 
-class TestdHetznerProvider(TestCase):
+class TestHetznerProvider(TestCase):
     expected = Zone('unit.tests.', [])
     source = YamlProvider('test', join(dirname(__file__), 'config'))
     source.populate(expected)
