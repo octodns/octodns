@@ -628,7 +628,6 @@ class _DynamicMixin(object):
                     if pool not in pools:
                         reasons.append('rule {} undefined pool "{}"'
                                        .format(rule_num, pool))
-                        pools_seen.add(pool)
                     elif pool in pools_seen and geos:
                         reasons.append('rule {} invalid, target pool "{}" '
                                        'reused'.format(rule_num, pool))
