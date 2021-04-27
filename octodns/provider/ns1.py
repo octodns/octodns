@@ -542,7 +542,7 @@ class Ns1Provider(BaseProvider):
                 rules[rule_order] = rule
 
             # The group notes field in the UI is a `note` on the region here,
-            # that's where we can find our pool's fallback.
+            # that's where we can find our pool's fallback in < v0.9.11 anyway
             if 'fallback' in notes:
                 # set the fallback pool name
                 pools[pool_name]['fallback'] = notes['fallback']
