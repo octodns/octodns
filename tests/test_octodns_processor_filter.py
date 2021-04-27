@@ -5,8 +5,6 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from logging import getLogger
-from six import StringIO, text_type
 from unittest import TestCase
 
 from octodns.processor.filter import TypeAllowlistFilter, TypeRejectlistFilter
@@ -57,12 +55,12 @@ class TestTypeAllowListFilter(TestCase):
         self.assertEquals(['aaaa'], sorted([r.name for r in got.records]))
 
         filter_txt = TypeAllowlistFilter('only-txt', ['TXT'])
-        got = filter_txt.process_source_zone(zone)
+        got = filter_txt.process_target_zone(zone)
         self.assertEquals(['txt', 'txt2'],
                           sorted([r.name for r in got.records]))
 
         filter_a_aaaa = TypeAllowlistFilter('only-aaaa', set(('A', 'AAAA')))
-        got = filter_a_aaaa.process_source_zone(zone)
+        got = filter_a_aaaa.process_target_zone(zone)
         self.assertEquals(['a', 'a2', 'aaaa'],
                           sorted([r.name for r in got.records]))
 
@@ -82,11 +80,11 @@ class TestTypeRejectListFilter(TestCase):
                           sorted([r.name for r in got.records]))
 
         filter_txt = TypeRejectlistFilter('not-txt', ['TXT'])
-        got = filter_txt.process_source_zone(zone)
+        got = filter_txt.process_target_zone(zone)
         self.assertEquals(['a', 'a2', 'aaaa'],
                           sorted([r.name for r in got.records]))
 
         filter_a_aaaa = TypeRejectlistFilter('not-a-aaaa', set(('A', 'AAAA')))
-        got = filter_a_aaaa.process_source_zone(zone)
+        got = filter_a_aaaa.process_target_zone(zone)
         self.assertEquals(['txt', 'txt2'],
                           sorted([r.name for r in got.records]))

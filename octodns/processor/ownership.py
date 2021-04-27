@@ -6,12 +6,11 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from collections import defaultdict
-from pprint import pprint
 
 from ..provider.plan import Plan
 from ..record import Record
 
-from . import BaseProcessor
+from .base import BaseProcessor
 
 
 # Mark anything octoDNS is managing that way it can know it's safe to modify or
@@ -71,8 +70,6 @@ class OwnershipProcessor(BaseProcessor):
                     name = ''
                 owned[name][_type.upper()] = True
 
-        pprint(dict(owned))
-
         # Cases:
         # - Configured in source
         #   - We'll fully CRU/manage it adding ownership TXT,
@@ -83,16 +80,9 @@ class OwnershipProcessor(BaseProcessor):
         # - Special records like octodns-meta
         #   - Should be left alone and should not have ownerthis TXTs
 
-        pprint(plan.changes)
-
         filtered_changes = []
         for change in plan.changes:
             record = change.record
-
-            pprint([change,
-                    not self._is_ownership(record),
-                    record._type not in owned[record.name],
-                    record.name != 'octodns-meta'])
 
             if not self._is_ownership(record) and \
                record._type not in owned[record.name] and \
@@ -104,8 +94,6 @@ class OwnershipProcessor(BaseProcessor):
             # We own this record or owned it up until now so whatever the
             # change is we should do
             filtered_changes.append(change)
-
-        pprint(filtered_changes)
 
         if plan.changes != filtered_changes:
             return Plan(plan.existing, plan.desired, filtered_changes,
