@@ -96,16 +96,28 @@ class HetznerProvider(BaseProvider):
 
         self._zone_records = {}
         self._zone_metadata = {}
+        self._zone_name_to_id = {}
 
     def _append_dot(self, value):
         if value == '@' or value[-1] == '.':
             return value
         return '{}.'.format(value)
 
+    def zone_metadata(self, zone_id=None, zone_name=None):
+        if zone_name is not None:
+            if zone_name in self._zone_name_to_id:
+                zone_id = self._zone_name_to_id[zone_name]
+            else:
+                zone = self._client.zone_get(name=zone_name[:-1])
+                zone_id = zone['id']
+                self._zone_name_to_id[zone_name] = zone_id
+                self._zone_metadata[zone_id] = zone
+
+        return self._zone_metadata[zone_id]
+
     def _record_ttl(self, record):
-        if 'ttl' in record:
-            return record['ttl']
-        return self._zone_metadata[record['zone_id']]['ttl']
+        default_ttl = self.zone_metadata(zone_id=record['zone_id'])['ttl']
+        return record['ttl'] if 'ttl' in record else default_ttl
 
     def _data_for_multiple(self, _type, records):
         values = [record['value'].replace(';', '\\;') for record in records]
@@ -195,10 +207,9 @@ class HetznerProvider(BaseProvider):
     def zone_records(self, zone):
         if zone.name not in self._zone_records:
             try:
-                zone_metadata = self._client.zones_get(name=zone.name[:-1])[0]
-                self._zone_metadata[zone_metadata['id']] = zone_metadata
+                zone_id = self.zone_metadata(zone_name=zone.name)['id']
                 self._zone_records[zone.name] = \
-                    self._client.zone_records_get(zone_metadata['id'])
+                    self._client.zone_records_get(zone_id)
             except HetznerClientNotFound:
                 return []
 
@@ -314,12 +325,11 @@ class HetznerProvider(BaseProvider):
         self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
                        len(changes))
 
-        zone_name = desired.name[:-1]
         try:
-            zone_id = self._client.zones_get(name=zone_name)[0]['id']
+            zone_id = self.zone_metadata(zone_name=desired.name)['id']
         except HetznerClientNotFound:
             self.log.debug('_apply:   no matching zone, creating domain')
-            zone_id = self._client.zone_create(zone_name)['id']
+            zone_id = self._client.zone_create(desired.name[:-1])['id']
 
         for change in changes:
             class_name = change.__class__.__name__
