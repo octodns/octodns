@@ -30,10 +30,6 @@ class HetznerClientUnauthorized(HetznerClientException):
 
 
 class HetznerClient(object):
-    '''
-    Hetzner DNS Public API v1 client class.
-    '''
-
     BASE_URL = 'https://dns.hetzner.com/api/v1'
 
     def __init__(self, token):
@@ -54,22 +50,9 @@ class HetznerClient(object):
     def _do_json(self, method, path, params=None, data=None):
         return self._do(method, path, params, data).json()
 
-    def _do_json_paginate(self, method, path, key, params=None, data=None,
-                          per_page=100):
-        items = []
-        params = {**{'page': 1, 'per_page': per_page}, **params}
-        while True:
-            response = self._do_json(method, path, params, data)
-            items += response[key]
-            if response['meta']['pagination']['page'] >= \
-               response['meta']['pagination']['last_page']:
-                break
-            params['page'] += 1
-        return items
-
-    def zones_get(self, name=None, search_name=None):
-        params = {'name': name, 'search_name': search_name}
-        return self._do_json_paginate('GET', '/zones', 'zones', params=params)
+    def zone_get(self, name):
+        params = {'name': name}
+        return self._do_json('GET', '/zones', params)['zones'][0]
 
     def zone_create(self, name, ttl=None):
         data = {'name': name, 'ttl': ttl}
@@ -77,7 +60,6 @@ class HetznerClient(object):
 
     def zone_records_get(self, zone_id):
         params = {'zone_id': zone_id}
-        # No need to handle pagination as it returns all records by default.
         records = self._do_json('GET', '/records', params=params)['records']
         for record in records:
             if record['name'] == '@':
