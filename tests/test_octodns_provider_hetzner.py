@@ -6,13 +6,15 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from mock import Mock
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
 from six import text_type
 from unittest import TestCase
 
-from octodns.provider.hetzner import HetznerProvider
+from octodns.provider.hetzner import HetznerClientNotFound, \
+    HetznerProvider
 from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
 
@@ -82,3 +84,24 @@ class TestHetznerProvider(TestCase):
 
         # bust the cache
         del provider._zone_records[zone.name]
+
+    def test_apply(self):
+        provider = HetznerProvider('test', 'token')
+
+        resp = Mock()
+        resp.json = Mock()
+        provider._client._do = Mock(return_value=resp)
+
+        # non-existent domain, create everything
+        resp.json.side_effect = [
+            HetznerClientNotFound,  # no zone in populate
+            HetznerClientNotFound,  # no zone during apply
+            {"zone": {"id": "string"}}
+        ]
+        plan = provider.plan(self.expected)
+
+        # No root NS, no ignored, no excluded, no unsupported
+        n = len(self.expected.records) - 9
+        self.assertEquals(n, len(plan.changes))
+        self.assertEquals(n, provider.apply(plan))
+        self.assertFalse(plan.exists)
