@@ -26,7 +26,7 @@ class OwnershipProcessor(BaseProcessor):
         self._txt_values = [txt_value]
 
     def process_source_zone(self, zone, *args, **kwargs):
-        ret = self._create_zone(zone)
+        ret = self._clone_zone(zone)
         for record in zone.records:
             # Always copy over the source records
             ret.add_record(record)
