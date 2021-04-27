@@ -263,7 +263,7 @@ class Manager(object):
                 except TypeError as e:
                     if "keyword argument 'lenient'" not in text_type(e):
                         raise
-                    self.log.warn(': provider %s does not accept lenient '
+                    self.log.warn('provider %s does not accept lenient '
                                   'param', source.__class__.__name__)
                     source.populate(zone)
 
@@ -281,9 +281,15 @@ class Manager(object):
                     'value': 'provider={}'.format(target.id)
                 })
                 zone.add_record(meta, replace=True)
-            # TODO: if someone has overrriden plan already this will be a
-            # breaking change so we probably need to try both ways
-            plan = target.plan(zone, processors=processors)
+            try:
+                plan = target.plan(zone, processors=processors)
+            except TypeError as e:
+                if "keyword argument 'processors'" not in text_type(e):
+                    raise
+                self.log.warn('provider.plan %s does not accept processors '
+                              'param', target.__class__.__name__)
+                plan = target.plan(zone)
+
             for processor in processors:
                 plan = processor.process_plan(plan, sources=sources,
                                               target=target)
