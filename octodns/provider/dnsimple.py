@@ -51,8 +51,8 @@ class DnsimpleClient(object):
         resp.raise_for_status()
         return resp
 
-    def domain(self, name):
-        path = '/domains/{}'.format(name)
+    def zone(self, name):
+        path = '/zones/{}'.format(name)
         return self._request('GET', path).json()
 
     def domain_create(self, name):
@@ -442,7 +442,7 @@ class DnsimpleProvider(BaseProvider):
 
         domain_name = desired.name[:-1]
         try:
-            self._client.domain(domain_name)
+            self._client.zone(domain_name)
         except DnsimpleClientNotFound:
             self.log.debug('_apply:   no matching zone, creating domain')
             self._client.domain_create(domain_name)
