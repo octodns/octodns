@@ -66,7 +66,7 @@ class TestHetznerProvider(TestCase):
 
         # No diffs == no changes
         with requests_mock() as mock:
-            base = 'https://dns.hetzner.com/api/v1'
+            base = provider._client.BASE_URL
             with open('tests/fixtures/hetzner-zones.json') as fh:
                 mock.get('{}/zones'.format(base), text=fh.read())
             with open('tests/fixtures/hetzner-records.json') as fh:
@@ -93,11 +93,17 @@ class TestHetznerProvider(TestCase):
         resp.json = Mock()
         provider._client._do = Mock(return_value=resp)
 
+        domain_after_creation = {'zone': {
+            'id': 'unit.tests',
+            'name': 'unit.tests',
+            'ttl': 3600,
+        }}
+
         # non-existent domain, create everything
         resp.json.side_effect = [
             HetznerClientNotFound,  # no zone in populate
             HetznerClientNotFound,  # no zone during apply
-            {"zone": {"id": "string"}}
+            domain_after_creation,
         ]
         plan = provider.plan(self.expected)
 
