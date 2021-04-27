@@ -531,6 +531,7 @@ class _DynamicMixin(object):
 
         pools_exist = set()
         pools_seen = set()
+        pools_seen_as_fallback = set()
         if not isinstance(pools, dict):
             reasons.append('pools must be a dict')
         elif not pools:
@@ -573,9 +574,12 @@ class _DynamicMixin(object):
                                        'value {}'.format(_id, value_num))
 
                 fallback = pool.get('fallback', None)
-                if fallback is not None and fallback not in pools:
-                    reasons.append('undefined fallback "{}" for pool "{}"'
-                                   .format(fallback, _id))
+                if fallback is not None:
+                    if fallback in pools:
+                        pools_seen_as_fallback.add(fallback)
+                    else:
+                        reasons.append('undefined fallback "{}" for pool "{}"'
+                                       .format(fallback, _id))
 
                 # Check for loops
                 fallback = pools[_id].get('fallback', None)
@@ -644,7 +648,7 @@ class _DynamicMixin(object):
                         reasons.extend(GeoCodes.validate(geo, 'rule {} '
                                                          .format(rule_num)))
 
-        unused = pools_exist - pools_seen
+        unused = pools_exist - pools_seen - pools_seen_as_fallback
         if unused:
             unused = '", "'.join(sorted(unused))
             reasons.append('unused pools: "{}"'.format(unused))

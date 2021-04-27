@@ -93,7 +93,7 @@ The `max_workers` key in the `manager` section of the config enables threading t
 
 In this example, `example.net` is an alias of zone `example.com`, which means they share the same sources and targets. They will therefore have identical records.
 
-Now that we have something to tell OctoDNS about our providers & zones we need to tell it about or records. We'll keep it simple for now and just create a single `A` record at the top-level of the domain.
+Now that we have something to tell OctoDNS about our providers & zones we need to tell it about our records. We'll keep it simple for now and just create a single `A` record at the top-level of the domain.
 
 `config/example.com.yaml`
 
@@ -204,7 +204,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [Rackspace](/octodns/provider/rackspace.py) | | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
 | [Route53](/octodns/provider/route53.py) | boto3 | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Both | CNAME health checks don't support a Host header |
 | [Selectel](/octodns/provider/selectel.py) | | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | |
-| [Transip](/octodns/provider/transip.py) | transip | A, AAAA, CNAME, MX, SRV, SPF, TXT, SSHFP, CAA | No | |
+| [Transip](/octodns/provider/transip.py) | transip | A, AAAA, CNAME, MX, NS, SRV, SPF, TXT, SSHFP, CAA | No | |
 | [UltraDns](/octodns/provider/ultra.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | |
 | [AxfrSource](/octodns/source/axfr.py) | | A, AAAA, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [ZoneFileSource](/octodns/source/axfr.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
@@ -294,7 +294,7 @@ If you have a problem or suggestion, please [open an issue](https://github.com/o
 - **GitHub Action:** [OctoDNS-Sync](https://github.com/marketplace/actions/octodns-sync)
 - **Sample Implementations.** See how others are using it
   - [`hackclub/dns`](https://github.com/hackclub/dns)
-  - [`kubernetes/k8s.io:/dns`](https://github.com/kubernetes/k8s.io/tree/master/dns)
+  - [`kubernetes/k8s.io:/dns`](https://github.com/kubernetes/k8s.io/tree/main/dns)
   - [`g0v-network/domains`](https://github.com/g0v-network/domains)
   - [`jekyll/dns`](https://github.com/jekyll/dns)
 - **Custom Sources & Providers.**

@@ -1,0 +1,6 @@
+manager:
+  plan_outputs:
+    "doesntexist":
+      class: octodns.provider.plan.DoesntExist
+providers: {}
+zones: {}

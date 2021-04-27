@@ -8,13 +8,15 @@ from __future__ import absolute_import, division, print_function, \
 from os import environ
 from os.path import dirname, join
 from six import text_type
-from unittest import TestCase
 
 from octodns.record import Record
 from octodns.manager import _AggregateTarget, MainThreadExecutor, Manager, \
     ManagerException
 from octodns.yaml import safe_load
 from octodns.zone import Zone
+
+from mock import MagicMock, patch
+from unittest import TestCase
 
 from helpers import DynamicProvider, GeoProvider, NoSshFpProvider, \
     SimpleProvider, TemporaryDirectory
@@ -370,6 +372,24 @@ class TestManager(TestCase):
             # This will blow up, we don't fallback for source
             with self.assertRaises(TypeError):
                 manager._populate_and_plan('unit.tests.', [NoZone()], [])
+
+    @patch('octodns.manager.Manager._get_named_class')
+    def test_sync_passes_file_handle(self, mock):
+        plan_output_mock = MagicMock()
+        plan_output_class_mock = MagicMock()
+        plan_output_class_mock.return_value = plan_output_mock
+        mock.return_value = plan_output_class_mock
+        fh_mock = MagicMock()
+
+        Manager(get_config_filename('plan-output-filehandle.yaml')
+                ).sync(plan_output_fh=fh_mock)
+
+        # Since we only care about the fh kwarg, and different _PlanOutputs are
+        # are free to require arbitrary kwargs anyway, we concern ourselves
+        # with checking the value of fh only.
+        plan_output_mock.run.assert_called()
+        _, kwargs = plan_output_mock.run.call_args
+        self.assertEqual(fh_mock, kwargs.get('fh'))
 
 
 class TestMainThreadExecutor(TestCase):
