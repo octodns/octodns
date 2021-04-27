@@ -5,14 +5,14 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from . import BaseProcessor
+from .base import BaseProcessor
 
 
 class TypeAllowlistFilter(BaseProcessor):
 
     def __init__(self, name, allowlist):
         super(TypeAllowlistFilter, self).__init__(name)
-        self.allowlist = allowlist
+        self.allowlist = set(allowlist)
 
     def _process(self, zone, *args, **kwargs):
         ret = self._clone_zone(zone)
@@ -30,7 +30,7 @@ class TypeRejectlistFilter(BaseProcessor):
 
     def __init__(self, name, rejectlist):
         super(TypeRejectlistFilter, self).__init__(name)
-        self.rejectlist = rejectlist
+        self.rejectlist = set(rejectlist)
 
     def _process(self, zone, *args, **kwargs):
         ret = self._clone_zone(zone)
