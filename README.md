@@ -50,7 +50,7 @@ $ mkdir config
 
 ### Config
 
-We start by creating a config file to tell OctoDNS about our providers and the zone(s) we want it to manage. Below we're setting up a `YamlProvider` to source records from our config files and both a `Route53Provider` and `DynProvider` to serve as the targets for those records. You can have any number of zones set up and any number of sources of data and targets for records for each. You can also have multiple config files, that make use of separate accounts and each manage a distinct set of zones. A good example of this this might be `./config/staging.yaml` & `./config/production.yaml`. We'll focus on a `config/production.yaml`.
+We start by creating a config file to tell OctoDNS about our providers and the zone(s) we want it to manage. Below we're setting up a `YamlProvider` to source records from our config files and both a `Route53Provider` and `DynProvider` to serve as the targets for those records. You can have any number of zones set up and any number of sources of data and targets for records for each. You can also have multiple config files, that make use of separate accounts and each manage a distinct set of zones. A good example of this this might be `./env/staging.yaml` & `./env/production.yaml`. We'll focus on a `env/production.yaml`.
 
 ```yaml
 ---
@@ -60,7 +60,7 @@ manager:
 providers:
   config:
     class: octodns.provider.yaml.YamlProvider
-    directory: ./config
+    directory: ./zones
     default_ttl: 3600
     enforce_order: True
   dyn:
@@ -95,7 +95,7 @@ In this example, `example.net` is an alias of zone `example.com`, which means th
 
 Now that we have something to tell OctoDNS about our providers & zones we need to tell it about our records. We'll keep it simple for now and just create a single `A` record at the top-level of the domain.
 
-`config/example.com.yaml`
+`zones/example.com.yaml`
 
 ```yaml
 ---
@@ -114,7 +114,7 @@ Further information can be found in [Records Documentation](/docs/records.md).
 We're ready to do a dry-run with our new setup to see what changes it would make. Since we're pretending here we'll act like there are no existing records for `example.com.` in our accounts on either provider.
 
 ```
-$ octodns-sync --config-file=./config/production.yaml
+$ octodns-sync --config-file=./env/production.yaml
 ...
 ********************************************************************************
 * example.com.
@@ -138,7 +138,7 @@ There will be other logging information presented on the screen, but successful 
 Now it's time to tell OctoDNS to make things happen. We'll invoke it again with the same options and add a `--doit` on the end to tell it this time we actually want it to try and make the specified changes.
 
 ```
-$ octodns-sync --config-file=./config/production.yaml --doit
+$ octodns-sync --config-file=./env/production.yaml --doit
 ...
 ```
 
@@ -169,7 +169,7 @@ If that goes smoothly, you again see the expected changes, and verify them with 
 Very few situations will involve starting with a blank slate which is why there's tooling built in to pull existing data out of providers into a matching config file.
 
 ```
-$ octodns-dump --config-file=config/production.yaml --output-dir=tmp/ example.com. route53
+$ octodns-dump --config-file=env/production.yaml --output-dir=tmp/ example.com. route53
 2017-03-15T13:33:34  INFO  Manager __init__: config_file=tmp/production.yaml
 2017-03-15T13:33:34  INFO  Manager dump: zone=example.com., sources=('route53',)
 2017-03-15T13:33:36  INFO  Route53Provider[route53] populate:   found 64 records
@@ -178,7 +178,7 @@ $ octodns-dump --config-file=config/production.yaml --output-dir=tmp/ example.co
 2017-03-15T13:33:36  INFO  YamlProvider[dump] apply: making changes
 ```
 
-The above command pulled the existing data out of Route53 and placed the results into `tmp/example.com.yaml`. That file can be inspected and moved into `config/` to become the new source. If things are working as designed a subsequent noop sync should show zero changes.
+The above command pulled the existing data out of Route53 and placed the results into `tmp/example.com.yaml`. That file can be inspected and moved into `zones/` to become the new source. If things are working as designed a subsequent noop sync should show zero changes.
 
 ## Supported providers
 
