@@ -186,7 +186,7 @@ class TestDigitalOceanProvider(TestCase):
                 'name': '@',
                 'ttl': 300, 'type': 'A'}),
             call('POST', '/domains/unit.tests/records', data={
-                'data': 'ca.unit.tests.',
+                'data': 'ca.unit.tests',
                 'flags': 0, 'name': '@',
                 'tag': 'issue',
                 'ttl': 3600, 'type': 'CAA'}),
