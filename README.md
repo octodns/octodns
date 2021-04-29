@@ -38,7 +38,7 @@ It is similar to [Netflix/denominator](https://github.com/Netflix/denominator).
 
 Running through the following commands will install the latest release of OctoDNS and set up a place for your config files to live. To determine if provider specific requirements are necessary see the [Supported providers table](#supported-providers) below.
 
-```
+```shell
 $ mkdir dns
 $ cd dns
 $ virtualenv env
@@ -121,7 +121,7 @@ Further information can be found in [Records Documentation](/docs/records.md).
 
 We're ready to do a dry-run with our new setup to see what changes it would make. Since we're pretending here we'll act like there are no existing records for `example.com.` in our accounts on either provider.
 
-```
+```shell
 $ octodns-sync --config-file=./config/production.yaml
 ...
 ********************************************************************************
@@ -145,7 +145,7 @@ There will be other logging information presented on the screen, but successful 
 
 Now it's time to tell OctoDNS to make things happen. We'll invoke it again with the same options and add a `--doit` on the end to tell it this time we actually want it to try and make the specified changes.
 
-```
+```shell
 $ octodns-sync --config-file=./config/production.yaml --doit
 ...
 ```
@@ -176,7 +176,7 @@ If that goes smoothly, you again see the expected changes, and verify them with 
 
 Very few situations will involve starting with a blank slate which is why there's tooling built in to pull existing data out of providers into a matching config file.
 
-```
+```shell
 $ octodns-dump --config-file=config/production.yaml --output-dir=tmp/ example.com. route53
 2017-03-15T13:33:34  INFO  Manager __init__: config_file=tmp/production.yaml
 2017-03-15T13:33:34  INFO  Manager dump: zone=example.com., sources=('route53',)
