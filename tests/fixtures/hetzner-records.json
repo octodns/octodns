@@ -1,0 +1,223 @@
+{
+    "records": [
+        {
+            "id": "SOA",
+            "type": "SOA",
+            "name": "@",
+            "value": "hydrogen.ns.hetzner.com. dns.hetzner.com. 1 86400 10800 3600000 3600",
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "NS:sub:0",
+            "type": "NS",
+            "name": "sub",
+            "value": "6.2.3.4",
+            "ttl": 3600,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "NS:sub:1",
+            "type": "NS",
+            "name": "sub",
+            "value": "7.2.3.4",
+            "ttl": 3600,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "SRV:_srv._tcp:0",
+            "type": "SRV",
+            "name": "_srv._tcp",
+            "value": "10 20 30 foo-1.unit.tests",
+            "ttl": 600,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "SRV:_srv._tcp:1",
+            "type": "SRV",
+            "name": "_srv._tcp",
+            "value": "12 20 30 foo-2.unit.tests",
+            "ttl": 600,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "TXT:txt:0",
+            "type": "TXT",
+            "name": "txt",
+            "value": "\"Bah bah black sheep\"",
+            "ttl": 600,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "TXT:txt:1",
+            "type": "TXT",
+            "name": "txt",
+            "value": "\"have you any wool.\"",
+            "ttl": 600,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "A:@:0",
+            "type": "A",
+            "name": "@",
+            "value": "1.2.3.4",
+            "ttl": 300,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "A:@:1",
+            "type": "A",
+            "name": "@",
+            "value": "1.2.3.5",
+            "ttl": 300,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "A:www:0",
+            "type": "A",
+            "name": "www",
+            "value": "2.2.3.6",
+            "ttl": 300,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "MX:mx:0",
+            "type": "MX",
+            "name": "mx",
+            "value": "10 smtp-4.unit.tests",
+            "ttl": 300,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "MX:mx:1",
+            "type": "MX",
+            "name": "mx",
+            "value": "20 smtp-2.unit.tests",
+            "ttl": 300,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "MX:mx:2",
+            "type": "MX",
+            "name": "mx",
+            "value": "30 smtp-3.unit.tests",
+            "ttl": 300,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "MX:mx:3",
+            "type": "MX",
+            "name": "mx",
+            "value": "40 smtp-1.unit.tests",
+            "ttl": 300,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "AAAA:aaaa:0",
+            "type": "AAAA",
+            "name": "aaaa",
+            "value": "2601:644:500:e210:62f8:1dff:feb8:947a",
+            "ttl": 600,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "CNAME:cname:0",
+            "type": "CNAME",
+            "name": "cname",
+            "value": "unit.tests",
+            "ttl": 300,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "A:www.sub:0",
+            "type": "A",
+            "name": "www.sub",
+            "value": "2.2.3.6",
+            "ttl": 300,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "TXT:txt:2",
+            "type": "TXT",
+            "name": "txt",
+            "value": "v=DKIM1;k=rsa;s=email;h=sha256;p=A/kinda+of/long/string+with+numb3rs",
+            "ttl": 600,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "CAA:@:0",
+            "type": "CAA",
+            "name": "@",
+            "value": "0 issue \"ca.unit.tests\"",
+            "ttl": 3600,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "CNAME:included:0",
+            "type": "CNAME",
+            "name": "included",
+            "value": "unit.tests",
+            "ttl": 3600,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "SRV:_imap._tcp:0",
+            "type": "SRV",
+            "name": "_imap._tcp",
+            "value": "0 0 0 .",
+            "ttl": 600,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        },
+        {
+            "id": "SRV:_pop3._tcp:0",
+            "type": "SRV",
+            "name": "_pop3._tcp",
+            "value": "0 0 0 .",
+            "ttl": 600,
+            "zone_id": "unit.tests",
+            "created": "0000-00-00 00:00:00.000 +0000 UTC",
+            "modified": "0000-00-00 00:00:00.000 +0000 UTC"
+        }
+    ]
+}
