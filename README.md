@@ -48,6 +48,14 @@ $ pip install octodns <provider-specific-requirements>
 $ mkdir config
 ```
 
+#### Installing a specific commit SHA
+
+If you'd like to install a version that has not yet been released in a repetable/safe manner you can do the following. In general octoDNS is fairly stable inbetween releases thanks to the plan and apply process, but care should be taken regardless.
+
+```shell
+$ pip install -e git+https://git@github.com/github/octodns.git@<SHA>#egg=octodns
+```
+
 ### Config
 
 We start by creating a config file to tell OctoDNS about our providers and the zone(s) we want it to manage. Below we're setting up a `YamlProvider` to source records from our config files and both a `Route53Provider` and `DynProvider` to serve as the targets for those records. You can have any number of zones set up and any number of sources of data and targets for records for each. You can also have multiple config files, that make use of separate accounts and each manage a distinct set of zones. A good example of this this might be `./config/staging.yaml` & `./config/production.yaml`. We'll focus on a `config/production.yaml`.
