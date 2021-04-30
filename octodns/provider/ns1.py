@@ -588,15 +588,21 @@ class Ns1Provider(BaseProvider):
         rules = list(rules.values())
         rules.sort(key=lambda r: (r['_order'], r['pool']))
 
-        return {
+        data = {
             'dynamic': {
                 'pools': pools,
                 'rules': rules,
             },
             'ttl': record['ttl'],
             'type': _type,
-            'values': sorted(default),
         }
+
+        if _type == 'CNAME':
+            data['value'] = default[0]
+        else:
+            data['values'] = default
+
+        return data
 
     def _data_for_A(self, _type, record):
         if record.get('tier', 1) > 1:
@@ -646,6 +652,10 @@ class Ns1Provider(BaseProvider):
         }
 
     def _data_for_CNAME(self, _type, record):
+        if record.get('tier', 1) > 1:
+            # Advanced dynamic record
+            return self._data_for_dynamic_A(_type, record)
+
         try:
             value = record['short_answers'][0]
         except IndexError:
@@ -1114,10 +1124,14 @@ class Ns1Provider(BaseProvider):
                     'feed_id': feed_id,
                 })
 
+        if record._type == 'CNAME':
+            default_values = [record.value]
+        else:
+            default_values = record.values
         default_answers = [{
             'answer': [v],
             'weight': 1,
-        } for v in record.values]
+        } for v in default_values]
 
         # Build our list of answers
         # The regions dictionary built above already has the required pool
@@ -1171,8 +1185,10 @@ class Ns1Provider(BaseProvider):
         values = [(v.flags, v.tag, v.value) for v in record.values]
         return {'answers': values, 'ttl': record.ttl}, None
 
-    # TODO: dynamic CNAME support
     def _params_for_CNAME(self, record):
+        if getattr(record, 'dynamic', False):
+            return self._params_for_dynamic_A(record)
+
         return {'answers': [record.value], 'ttl': record.ttl}, None
 
     _params_for_ALIAS = _params_for_CNAME

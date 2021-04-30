@@ -1270,6 +1270,63 @@ class TestNs1ProviderDynamic(TestCase):
         params, _ = provider._params_for_geo_A(record)
         self.assertEquals([], params['filters'])
 
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_params_for_dynamic_CNAME(self, monitors_for_mock,
+                                      monitor_sync_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {
+            'mon-id': 'feed-id',
+        }
+
+        # provider._params_for_A() calls provider._monitors_for() and
+        # provider._monitor_sync(). Mock their return values so that we don't
+        # make NS1 API calls during tests
+        monitors_for_mock.reset_mock()
+        monitor_sync_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            'iad.unit.tests.': 'mid-1',
+        }]
+        monitor_sync_mock.side_effect = [
+            ('mid-1', 'fid-1'),
+        ]
+
+        record = Record.new(self.zone, 'foo', {
+            'dynamic': {
+                'pools': {
+                    'iad': {
+                        'values': [{
+                            'value': 'iad.unit.tests.',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'iad',
+                }],
+            },
+            'octodns': {
+                'healthcheck': {
+                    'host': 'send.me',
+                    'path': '/_ping',
+                    'port': 80,
+                    'protocol': 'HTTP',
+                }
+            },
+            'ttl': 32,
+            'type': 'CNAME',
+            'value': 'value.unit.tests.',
+            'meta': {},
+        })
+        ret, _ = provider._params_for_CNAME(record)
+
+        # Check if the default value was correctly read and populated
+        # All other dynamic record test cases are covered by dynamic_A tests
+        self.assertEquals(ret['answers'][1]['answer'][0], 'value.unit.tests.')
+
     def test_data_for_dynamic_A(self):
         provider = Ns1Provider('test', 'api-key')
 
@@ -1470,6 +1527,67 @@ class TestNs1ProviderDynamic(TestCase):
         for c in partial_oc_cntry_list:
             self.assertTrue(
                 'OC-{}'.format(c) in data4['dynamic']['rules'][0]['geos'])
+
+    def test_data_for_dynamic_CNAME(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        # Test out a small setup that just covers default value validation
+        # Everything else is same as dynamic A whose tests will cover all
+        # other options and test cases
+        # Not testing for geo/region specific cases
+        filters = provider._get_updated_filter_chain(False, False)
+        catchall_pool_name = 'iad__catchall'
+        ns1_record = {
+            'answers': [{
+                'answer': ['2.3.4.5.unit.tests.'],
+                'meta': {
+                    'priority': 1,
+                    'weight': 12,
+                    'note': 'from:{}'.format(catchall_pool_name),
+                },
+                'region': catchall_pool_name,
+            }, {
+                'answer': ['1.2.3.4.unit.tests.'],
+                'meta': {
+                    'priority': 2,
+                    'note': 'from:--default--',
+                },
+                'region': catchall_pool_name,
+            }],
+            'domain': 'foo.unit.tests',
+            'filters': filters,
+            'regions': {
+                catchall_pool_name: {
+                    'meta': {
+                        'note': 'rule-order:1',
+                    },
+                }
+            },
+            'tier': 3,
+            'ttl': 42,
+            'type': 'CNAME',
+        }
+        data = provider._data_for_CNAME('CNAME', ns1_record)
+        self.assertEquals({
+            'dynamic': {
+                'pools': {
+                    'iad': {
+                        'fallback': None,
+                        'values': [{
+                            'value': '2.3.4.5.unit.tests.',
+                            'weight': 12,
+                        }],
+                    },
+                },
+                'rules': [{
+                    '_order': '1',
+                    'pool': 'iad',
+                }],
+            },
+            'ttl': 42,
+            'type': 'CNAME',
+            'value': '1.2.3.4.unit.tests.',
+        }, data)
 
     @patch('ns1.rest.records.Records.retrieve')
     @patch('ns1.rest.zones.Zones.retrieve')
