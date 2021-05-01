@@ -832,6 +832,10 @@ class Ns1Provider(BaseProvider):
                     # This monitor does not belong to this record
                     config = monitor['config']
                     value = config['host']
+                    if record._type == 'CNAME':
+                        # Append a trailing dot for CNAME records so that
+                        # lookup by a CNAME answer works
+                        value = value + '.'
                     monitors[value] = monitor
 
         return monitors
@@ -881,6 +885,10 @@ class Ns1Provider(BaseProvider):
     def _monitor_gen(self, record, value):
         host = record.fqdn[:-1]
         _type = record._type
+
+        if _type == 'CNAME':
+            # NS1 does not accept a host value with a trailing dot
+            value = value[:-1]
 
         ret = {
             'active': True,
@@ -1266,8 +1274,7 @@ class Ns1Provider(BaseProvider):
                     extra.append(Update(record, record))
                     continue
 
-            for have in self._monitors_for(record).values():
-                value = have['config']['host']
+            for value, have in self._monitors_for(record).items():
                 expected = self._monitor_gen(record, value)
                 # TODO: find values which have missing monitors
                 if not self._monitor_is_match(expected, have):

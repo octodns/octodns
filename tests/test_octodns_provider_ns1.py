@@ -578,6 +578,34 @@ class TestNs1ProviderDynamic(TestCase):
             'meta': {},
         })
 
+    def cname_record(self):
+        return Record.new(self.zone, 'foo', {
+            'dynamic': {
+                'pools': {
+                    'iad': {
+                        'values': [{
+                            'value': 'iad.unit.tests.',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'iad',
+                }],
+            },
+            'octodns': {
+                'healthcheck': {
+                    'host': 'send.me',
+                    'path': '/_ping',
+                    'port': 80,
+                    'protocol': 'HTTP',
+                }
+            },
+            'ttl': 33,
+            'type': 'CNAME',
+            'value': 'value.unit.tests.',
+            'meta': {},
+        })
+
     def test_notes(self):
         provider = Ns1Provider('test', 'api-key')
 
@@ -609,6 +637,12 @@ class TestNs1ProviderDynamic(TestCase):
             },
             'notes': 'host:unit.tests type:A',
         }
+        monitor_five = {
+            'config': {
+                'host': 'iad.unit.tests',
+            },
+            'notes': 'host:foo.unit.tests type:CNAME',
+        }
         provider._client._monitors_cache = {
             'one': monitor_one,
             'two': {
@@ -624,6 +658,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'notes': 'host:other.unit.tests type:A',
             },
             'four': monitor_four,
+            'five': monitor_five,
         }
 
         # Would match, but won't get there b/c it's not dynamic
@@ -640,6 +675,11 @@ class TestNs1ProviderDynamic(TestCase):
             '1.2.3.4': monitor_one,
             '2.3.4.5': monitor_four,
         }, provider._monitors_for(self.record()))
+
+        # Check match for CNAME values
+        self.assertEquals({
+            'iad.unit.tests.': monitor_five,
+        }, provider._monitors_for(self.cname_record()))
 
     def test_uuid(self):
         # Just a smoke test/for coverage
@@ -727,6 +767,14 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertFalse('send' in monitor['config'])
         # No http response expected
         self.assertFalse('rules' in monitor)
+
+    def test_monitor_gen_CNAME(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        value = 'iad.unit.tests.'
+        record = self.cname_record()
+        monitor = provider._monitor_gen(record, value)
+        self.assertEquals(value[:-1], monitor['config']['host'])
 
     def test_monitor_is_match(self):
         provider = Ns1Provider('test', 'api-key')
@@ -1295,32 +1343,7 @@ class TestNs1ProviderDynamic(TestCase):
             ('mid-1', 'fid-1'),
         ]
 
-        record = Record.new(self.zone, 'foo', {
-            'dynamic': {
-                'pools': {
-                    'iad': {
-                        'values': [{
-                            'value': 'iad.unit.tests.',
-                        }],
-                    },
-                },
-                'rules': [{
-                    'pool': 'iad',
-                }],
-            },
-            'octodns': {
-                'healthcheck': {
-                    'host': 'send.me',
-                    'path': '/_ping',
-                    'port': 80,
-                    'protocol': 'HTTP',
-                }
-            },
-            'ttl': 32,
-            'type': 'CNAME',
-            'value': 'value.unit.tests.',
-            'meta': {},
-        })
+        record = self.cname_record()
         ret, _ = provider._params_for_CNAME(record)
 
         # Check if the default value was correctly read and populated
@@ -1539,7 +1562,7 @@ class TestNs1ProviderDynamic(TestCase):
         catchall_pool_name = 'iad__catchall'
         ns1_record = {
             'answers': [{
-                'answer': ['2.3.4.5.unit.tests.'],
+                'answer': ['iad.unit.tests.'],
                 'meta': {
                     'priority': 1,
                     'weight': 12,
@@ -1547,7 +1570,7 @@ class TestNs1ProviderDynamic(TestCase):
                 },
                 'region': catchall_pool_name,
             }, {
-                'answer': ['1.2.3.4.unit.tests.'],
+                'answer': ['value.unit.tests.'],
                 'meta': {
                     'priority': 2,
                     'note': 'from:--default--',
@@ -1564,7 +1587,7 @@ class TestNs1ProviderDynamic(TestCase):
                 }
             },
             'tier': 3,
-            'ttl': 42,
+            'ttl': 43,
             'type': 'CNAME',
         }
         data = provider._data_for_CNAME('CNAME', ns1_record)
@@ -1574,7 +1597,7 @@ class TestNs1ProviderDynamic(TestCase):
                     'iad': {
                         'fallback': None,
                         'values': [{
-                            'value': '2.3.4.5.unit.tests.',
+                            'value': 'iad.unit.tests.',
                             'weight': 12,
                         }],
                     },
@@ -1584,9 +1607,9 @@ class TestNs1ProviderDynamic(TestCase):
                     'pool': 'iad',
                 }],
             },
-            'ttl': 42,
+            'ttl': 43,
             'type': 'CNAME',
-            'value': '1.2.3.4.unit.tests.',
+            'value': 'value.unit.tests.',
         }, data)
 
     @patch('ns1.rest.records.Records.retrieve')
