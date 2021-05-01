@@ -1348,7 +1348,7 @@ class TestNs1ProviderDynamic(TestCase):
 
         # Check if the default value was correctly read and populated
         # All other dynamic record test cases are covered by dynamic_A tests
-        self.assertEquals(ret['answers'][1]['answer'][0], 'value.unit.tests.')
+        self.assertEquals(ret['answers'][-1]['answer'][0], 'value.unit.tests.')
 
     def test_data_for_dynamic_A(self):
         provider = Ns1Provider('test', 'api-key')
