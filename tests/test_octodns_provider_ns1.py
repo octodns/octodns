@@ -1290,7 +1290,7 @@ class TestNs1ProviderDynamic(TestCase):
             ('mid-2', 'fid-2'),
             ('mid-3', 'fid-3'),
         ]
-        # This indirectly calls into _params_for_dynamic_A and tests the
+        # This indirectly calls into _params_for_dynamic and tests the
         # handling to get there
         record = self.record()
         ret, _ = provider._params_for_A(record)
@@ -1350,7 +1350,7 @@ class TestNs1ProviderDynamic(TestCase):
         # All other dynamic record test cases are covered by dynamic_A tests
         self.assertEquals(ret['answers'][-1]['answer'][0], 'value.unit.tests.')
 
-    def test_data_for_dynamic_A(self):
+    def test_data_for_dynamic(self):
         provider = Ns1Provider('test', 'api-key')
 
         # Unexpected filters throws an error
@@ -1359,7 +1359,7 @@ class TestNs1ProviderDynamic(TestCase):
             'filters': [],
         }
         with self.assertRaises(Ns1Exception) as ctx:
-            provider._data_for_dynamic_A('A', ns1_record)
+            provider._data_for_dynamic('A', ns1_record)
         self.assertEquals('Unrecognized advanced record',
                           text_type(ctx.exception))
 
@@ -1371,7 +1371,7 @@ class TestNs1ProviderDynamic(TestCase):
             'regions': {},
             'ttl': 42,
         }
-        data = provider._data_for_dynamic_A('A', ns1_record)
+        data = provider._data_for_dynamic('A', ns1_record)
         self.assertEquals({
             'dynamic': {
                 'pools': {},
@@ -1476,7 +1476,7 @@ class TestNs1ProviderDynamic(TestCase):
             'tier': 3,
             'ttl': 42,
         }
-        data = provider._data_for_dynamic_A('A', ns1_record)
+        data = provider._data_for_dynamic('A', ns1_record)
         self.assertEquals({
             'dynamic': {
                 'pools': {
@@ -1520,7 +1520,7 @@ class TestNs1ProviderDynamic(TestCase):
         }, data)
 
         # Same answer if we go through _data_for_A which out sources the job to
-        # _data_for_dynamic_A
+        # _data_for_dynamic
         data2 = provider._data_for_A('A', ns1_record)
         self.assertEquals(data, data2)
 
@@ -1531,7 +1531,7 @@ class TestNs1ProviderDynamic(TestCase):
         ns1_record['regions'][old_style_catchall_pool_name] = \
             ns1_record['regions'][catchall_pool_name]
         del ns1_record['regions'][catchall_pool_name]
-        data3 = provider._data_for_dynamic_A('A', ns1_record)
+        data3 = provider._data_for_dynamic('A', ns1_record)
         self.assertEquals(data, data2)
 
         # Oceania test cases
