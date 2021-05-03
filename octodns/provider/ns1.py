@@ -464,10 +464,10 @@ class Ns1Provider(BaseProvider):
             pass
         return pool_name
 
-    def _data_for_dynamic_A(self, _type, record):
+    def _data_for_dynamic(self, _type, record):
         # First make sure we have the expected filters config
         if not self._valid_filter_config(record['filters'], record['domain']):
-            self.log.error('_data_for_dynamic_A: %s %s has unsupported '
+            self.log.error('_data_for_dynamic: %s %s has unsupported '
                            'filters', record['domain'], _type)
             raise Ns1Exception('Unrecognized advanced record')
 
@@ -588,15 +588,21 @@ class Ns1Provider(BaseProvider):
         rules = list(rules.values())
         rules.sort(key=lambda r: (r['_order'], r['pool']))
 
-        return {
+        data = {
             'dynamic': {
                 'pools': pools,
                 'rules': rules,
             },
             'ttl': record['ttl'],
             'type': _type,
-            'values': sorted(default),
         }
+
+        if _type == 'CNAME':
+            data['value'] = default[0]
+        else:
+            data['values'] = default
+
+        return data
 
     def _data_for_A(self, _type, record):
         if record.get('tier', 1) > 1:
@@ -607,7 +613,7 @@ class Ns1Provider(BaseProvider):
                 first_answer_note = ''
             # If that note includes a `from` (pool name) it's a dynamic record
             if 'from:' in first_answer_note:
-                return self._data_for_dynamic_A(_type, record)
+                return self._data_for_dynamic(_type, record)
             # If not it's an old geo record
             return self._data_for_geo_A(_type, record)
 
@@ -646,6 +652,10 @@ class Ns1Provider(BaseProvider):
         }
 
     def _data_for_CNAME(self, _type, record):
+        if record.get('tier', 1) > 1:
+            # Advanced dynamic record
+            return self._data_for_dynamic(_type, record)
+
         try:
             value = record['short_answers'][0]
         except IndexError:
@@ -822,6 +832,10 @@ class Ns1Provider(BaseProvider):
                     # This monitor does not belong to this record
                     config = monitor['config']
                     value = config['host']
+                    if record._type == 'CNAME':
+                        # Append a trailing dot for CNAME records so that
+                        # lookup by a CNAME answer works
+                        value = value + '.'
                     monitors[value] = monitor
 
         return monitors
@@ -871,6 +885,10 @@ class Ns1Provider(BaseProvider):
     def _monitor_gen(self, record, value):
         host = record.fqdn[:-1]
         _type = record._type
+
+        if _type == 'CNAME':
+            # NS1 does not accept a host value with a trailing dot
+            value = value[:-1]
 
         ret = {
             'active': True,
@@ -1013,7 +1031,7 @@ class Ns1Provider(BaseProvider):
             }
             answers.append(answer)
 
-    def _params_for_dynamic_A(self, record):
+    def _params_for_dynamic(self, record):
         pools = record.dynamic.pools
 
         # Convert rules to regions
@@ -1114,10 +1132,14 @@ class Ns1Provider(BaseProvider):
                     'feed_id': feed_id,
                 })
 
+        if record._type == 'CNAME':
+            default_values = [record.value]
+        else:
+            default_values = record.values
         default_answers = [{
             'answer': [v],
             'weight': 1,
-        } for v in record.values]
+        } for v in default_values]
 
         # Build our list of answers
         # The regions dictionary built above already has the required pool
@@ -1146,7 +1168,7 @@ class Ns1Provider(BaseProvider):
 
     def _params_for_A(self, record):
         if getattr(record, 'dynamic', False):
-            return self._params_for_dynamic_A(record)
+            return self._params_for_dynamic(record)
         elif hasattr(record, 'geo'):
             return self._params_for_geo_A(record)
 
@@ -1171,8 +1193,10 @@ class Ns1Provider(BaseProvider):
         values = [(v.flags, v.tag, v.value) for v in record.values]
         return {'answers': values, 'ttl': record.ttl}, None
 
-    # TODO: dynamic CNAME support
     def _params_for_CNAME(self, record):
+        if getattr(record, 'dynamic', False):
+            return self._params_for_dynamic(record)
+
         return {'answers': [record.value], 'ttl': record.ttl}, None
 
     _params_for_ALIAS = _params_for_CNAME
@@ -1250,8 +1274,7 @@ class Ns1Provider(BaseProvider):
                     extra.append(Update(record, record))
                     continue
 
-            for have in self._monitors_for(record).values():
-                value = have['config']['host']
+            for value, have in self._monitors_for(record).items():
                 expected = self._monitor_gen(record, value)
                 # TODO: find values which have missing monitors
                 if not self._monitor_is_match(expected, have):
