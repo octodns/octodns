@@ -406,7 +406,7 @@ class Ns1Provider(BaseProvider):
             for piece in note.split(' '):
                 try:
                     k, v = piece.split(':', 1)
-                    data[k] = v
+                    data[k] = v if v != '' else None
                 except ValueError:
                     pass
         return data
@@ -479,31 +479,45 @@ class Ns1Provider(BaseProvider):
         # region.
         pools = defaultdict(lambda: {'fallback': None, 'values': []})
         for answer in record['answers']:
-            # region (group name in the UI) is the pool name
-            pool_name = answer['region']
-            # Get the actual pool name by removing the type
-            pool_name = self._parse_dynamic_pool_name(pool_name)
-            pool = pools[pool_name]
-
             meta = answer['meta']
+            notes = self._parse_notes(meta.get('note', ''))
+
             value = text_type(answer['answer'][0])
-            if meta['priority'] == 1:
-                # priority 1 means this answer is part of the pools own values
-                value_dict = {
-                    'value': value,
-                    'weight': int(meta.get('weight', 1)),
-                }
-                # If we have the original pool name and the catchall pool name
-                # in the answers, they point at the same pool. Add values only
-                # once
-                if value_dict not in pool['values']:
-                    pool['values'].append(value_dict)
+            if notes.get('from', False) == '--default--':
+                # It's a final/default value, record it and move on
+                default.add(value)
+                continue
+
+            # NS1 pool names can be found in notes > v0.9.11, in order to allow
+            # us to find fallback-only pools/values. Before that we used
+            # `region` (group name in the UI) and only paid attention to
+            # priority=1 (first level)
+            notes_pool_name = notes.get('pool', None)
+            if notes_pool_name is None:
+                # < v0.9.11
+                if meta['priority'] != 1:
+                    # Ignore all but priority 1
+                    continue
+                # And use region's pool name as the pool name
+                pool_name = self._parse_dynamic_pool_name(answer['region'])
             else:
-                # It's a fallback, we only care about it if it's a
-                # final/default
-                notes = self._parse_notes(meta.get('note', ''))
-                if notes.get('from', False) == '--default--':
-                    default.add(value)
+                # > v0.9.11, use the notes-based name and consider all values
+                pool_name = notes_pool_name
+
+            pool = pools[pool_name]
+            value_dict = {
+                'value': value,
+                'weight': int(meta.get('weight', 1)),
+            }
+            if value_dict not in pool['values']:
+                # If we haven't seen this value before add it to the pool
+                pool['values'].append(value_dict)
+
+            # If there's a fallback recorded in the value for its pool go ahead
+            # and use it, another v0.9.11 thing
+            fallback = notes.get('fallback', None)
+            if fallback is not None:
+                pool['fallback'] = fallback
 
         # The regions objects map to rules, but it's a bit fuzzy since they're
         # tied to pools on the NS1 side, e.g. we can only have 1 rule per pool,
@@ -528,7 +542,7 @@ class Ns1Provider(BaseProvider):
                 rules[rule_order] = rule
 
             # The group notes field in the UI is a `note` on the region here,
-            # that's where we can find our pool's fallback.
+            # that's where we can find our pool's fallback in < v0.9.11 anyway
             if 'fallback' in notes:
                 # set the fallback pool name
                 pools[pool_name]['fallback'] = notes['fallback']
@@ -996,12 +1010,15 @@ class Ns1Provider(BaseProvider):
             seen.add(current_pool_name)
             pool = pools[current_pool_name]
             for answer in pool_answers[current_pool_name]:
+                fallback = pool.data['fallback']
                 answer = {
                     'answer': answer['answer'],
                     'meta': {
                         'priority': priority,
                         'note': self._encode_notes({
                             'from': pool_label,
+                            'pool': current_pool_name,
+                            'fallback': fallback or '',
                         }),
                         'up': {
                             'feed': answer['feed_id'],

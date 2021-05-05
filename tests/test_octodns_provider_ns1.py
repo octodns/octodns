@@ -1165,14 +1165,21 @@ class TestNs1ProviderDynamic(TestCase):
         # finally has a catchall.  Those are examples of the two ways pools get
         # expanded.
         #
-        # lhr splits in two, with a region and country.
+        # lhr splits in two, with a region and country and includes a fallback
+        #
+        # All values now include their own `pool:` name
         #
         # well as both lhr georegion (for contients) and country. The first is
         # an example of a repeated target pool in a rule (only allowed when the
         # 2nd is a catchall.)
-        self.assertEquals(['from:--default--', 'from:iad__catchall',
-                           'from:iad__country', 'from:iad__georegion',
-                           'from:lhr__country', 'from:lhr__georegion'],
+        self.assertEquals(['fallback: from:iad__catchall pool:iad',
+                           'fallback: from:iad__country pool:iad',
+                           'fallback: from:iad__georegion pool:iad',
+                           'fallback: from:lhr__country pool:iad',
+                           'fallback: from:lhr__georegion pool:iad',
+                           'fallback:iad from:lhr__country pool:lhr',
+                           'fallback:iad from:lhr__georegion pool:lhr',
+                           'from:--default--'],
                           sorted(notes.keys()))
 
         # All the iad's should match (after meta and region were removed)
@@ -1550,6 +1557,115 @@ class TestNs1ProviderDynamic(TestCase):
         for c in partial_oc_cntry_list:
             self.assertTrue(
                 'OC-{}'.format(c) in data4['dynamic']['rules'][0]['geos'])
+
+        # Test out fallback only pools and new-style notes
+        ns1_record = {
+            'answers': [{
+                'answer': ['1.1.1.1'],
+                'meta': {
+                    'priority': 1,
+                    'note': 'from:one__country pool:one fallback:two',
+                },
+                'region': 'one_country',
+            }, {
+                'answer': ['2.2.2.2'],
+                'meta': {
+                    'priority': 2,
+                    'note': 'from:one__country pool:two fallback:three',
+                },
+                'region': 'one_country',
+            }, {
+                'answer': ['3.3.3.3'],
+                'meta': {
+                    'priority': 3,
+                    'note': 'from:one__country pool:three fallback:',
+                },
+                'region': 'one_country',
+            }, {
+                'answer': ['5.5.5.5'],
+                'meta': {
+                    'priority': 4,
+                    'note': 'from:--default--',
+                },
+                'region': 'one_country',
+            }, {
+                'answer': ['4.4.4.4'],
+                'meta': {
+                    'priority': 1,
+                    'note': 'from:four__country pool:four fallback:',
+                },
+                'region': 'four_country',
+            }, {
+                'answer': ['5.5.5.5'],
+                'meta': {
+                    'priority': 2,
+                    'note': 'from:--default--',
+                },
+                'region': 'four_country',
+            }],
+            'domain': 'unit.tests',
+            'filters': filters,
+            'regions': {
+                'one__country': {
+                    'meta': {
+                        'note': 'rule-order:1 fallback:two',
+                        'country': ['CA'],
+                        'us_state': ['OR'],
+                    },
+                },
+                'four__country': {
+                    'meta': {
+                        'note': 'rule-order:2',
+                        'country': ['CA'],
+                        'us_state': ['OR'],
+                    },
+                },
+                catchall_pool_name: {
+                    'meta': {
+                        'note': 'rule-order:3',
+                    },
+                }
+            },
+            'tier': 3,
+            'ttl': 42,
+        }
+        data = provider._data_for_dynamic('A', ns1_record)
+        self.assertEquals({
+            'dynamic': {
+                'pools': {
+                    'four': {
+                        'fallback': None,
+                        'values': [{'value': '4.4.4.4', 'weight': 1}]
+                    },
+                    'one': {
+                        'fallback': 'two',
+                        'values': [{'value': '1.1.1.1', 'weight': 1}]
+                    },
+                    'three': {
+                        'fallback': None,
+                        'values': [{'value': '3.3.3.3', 'weight': 1}]
+                    },
+                    'two': {
+                        'fallback': 'three',
+                        'values': [{'value': '2.2.2.2', 'weight': 1}]
+                    },
+                },
+                'rules': [{
+                    '_order': '1',
+                    'geos': ['NA-CA', 'NA-US-OR'],
+                    'pool': 'one'
+                }, {
+                    '_order': '2',
+                    'geos': ['NA-CA', 'NA-US-OR'],
+                    'pool': 'four'
+                }, {
+                    '_order': '3', 'pool': 'iad'}
+                ]
+            },
+            'ttl': 42,
+            'type': 'A',
+            'values': ['5.5.5.5']
+        }, data)
 
     def test_data_for_dynamic_CNAME(self):
         provider = Ns1Provider('test', 'api-key')
