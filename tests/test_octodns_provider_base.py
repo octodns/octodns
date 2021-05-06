@@ -9,9 +9,10 @@ from logging import getLogger
 from six import text_type
 from unittest import TestCase
 
-from octodns.record import Create, Delete, Record, Update
+from octodns.processor.base import BaseProcessor
 from octodns.provider.base import BaseProvider
 from octodns.provider.plan import Plan, UnsafePlan
+from octodns.record import Create, Delete, Record, Update
 from octodns.zone import Zone
 
 
@@ -21,7 +22,7 @@ class HelperProvider(BaseProvider):
     SUPPORTS = set(('A',))
     id = 'test'
 
-    def __init__(self, extra_changes, apply_disabled=False,
+    def __init__(self, extra_changes=[], apply_disabled=False,
                  include_change_callback=None):
         self.__extra_changes = extra_changes
         self.apply_disabled = apply_disabled
@@ -41,6 +42,29 @@ class HelperProvider(BaseProvider):
 
     def _apply(self, plan):
         pass
+
+
+class TrickyProcessor(BaseProcessor):
+
+    def __init__(self, name, add_during_process_target_zone):
+        super(TrickyProcessor, self).__init__(name)
+        self.add_during_process_target_zone = add_during_process_target_zone
+        self.reset()
+
+    def reset(self):
+        self.existing = None
+        self.target = None
+
+    def process_target_zone(self, existing, target):
+        self.existing = existing
+        self.target = target
+
+        new = self._clone_zone(existing)
+        for record in existing.records:
+            new.add_record(record)
+        for record in self.add_during_process_target_zone:
+            new.add_record(record)
+        return new
 
 
 class TestBaseProvider(TestCase):
@@ -137,6 +161,45 @@ class TestBaseProvider(TestCase):
         plan = provider.plan(ignored)
         self.assertTrue(plan)
         self.assertEquals(1, len(plan.changes))
+
+    def test_plan_with_processors(self):
+        zone = Zone('unit.tests.', [])
+
+        record = Record.new(zone, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        provider = HelperProvider()
+        # Processor that adds a record to the zone, which planning will then
+        # delete since it won't know anything about it
+        tricky = TrickyProcessor('tricky', [record])
+        plan = provider.plan(zone, processors=[tricky])
+        self.assertTrue(plan)
+        self.assertEquals(1, len(plan.changes))
+        self.assertIsInstance(plan.changes[0], Delete)
+        # Called processor stored its params
+        self.assertTrue(tricky.existing)
+        self.assertEquals(zone.name, tricky.existing.name)
+
+        # Chain of processors happen one after the other
+        other = Record.new(zone, 'b', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '5.6.7.8',
+        })
+        # Another processor will add its record, thus 2 deletes
+        another = TrickyProcessor('tricky', [other])
+        plan = provider.plan(zone, processors=[tricky, another])
+        self.assertTrue(plan)
+        self.assertEquals(2, len(plan.changes))
+        self.assertIsInstance(plan.changes[0], Delete)
+        self.assertIsInstance(plan.changes[1], Delete)
+        # 2nd processor stored its params, and we'll see the record the
+        # first one added
+        self.assertTrue(another.existing)
+        self.assertEquals(zone.name, another.existing.name)
+        self.assertEquals(1, len(another.existing.records))
 
     def test_apply(self):
         ignored = Zone('unit.tests.', [])

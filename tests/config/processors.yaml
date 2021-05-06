@@ -1,0 +1,33 @@
+providers:
+  config:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+  geo:
+    class: helpers.GeoProvider
+  nosshfp:
+    class: helpers.NoSshFpProvider
+
+processors:
+  # Just testing config so any processor will do
+  noop:
+    class: octodns.processor.base.BaseProcessor
+
+zones:
+  unit.tests.:
+    processors:
+    - noop
+    sources:
+    - config
+    targets:
+    - dump
+
+  bad.unit.tests.:
+    processors:
+    - doesnt-exist
+    sources:
+    - in
+    targets:
+    - dump

@@ -7,6 +7,10 @@ from __future__ import absolute_import, division, print_function, \
 
 from shutil import rmtree
 from tempfile import mkdtemp
+from logging import getLogger
+
+from octodns.processor.base import BaseProcessor
+from octodns.provider.base import BaseProvider
 
 
 class SimpleSource(object):
@@ -90,3 +94,29 @@ class TemporaryDirectory(object):
             rmtree(self.dirname)
         else:
             raise Exception(self.dirname)
+
+
+class WantsConfigProcessor(BaseProcessor):
+
+    def __init__(self, name, some_config):
+        super(WantsConfigProcessor, self).__init__(name)
+
+
+class PlannableProvider(BaseProvider):
+    log = getLogger('PlannableProvider')
+
+    SUPPORTS_GEO = False
+    SUPPORTS_DYNAMIC = False
+    SUPPORTS = set(('A',))
+
+    def __init__(self, *args, **kwargs):
+        super(PlannableProvider, self).__init__(*args, **kwargs)
+
+    def populate(self, zone, source=False, target=False, lenient=False):
+        pass
+
+    def supports(self, record):
+        return True
+
+    def __repr__(self):
+        return self.__class__.__name__
