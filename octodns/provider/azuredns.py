@@ -71,7 +71,8 @@ class _AzureRecord(object):
         '''Constructor for _AzureRecord.
 
             Notes on Azure records: An Azure record set has the form
-            RecordSet(name=<...>, type=<...>, a_records=[...], aaaa_records, ..)
+            RecordSet(name=<...>, type=<...>, a_records=[...],
+            aaaa_records=[...], ...)
             When constructing an azure record as done in self._apply_Create,
             the argument parameters for an A record would be
             parameters={'ttl': <int>, 'a_records': [ARecord(<str ip>),]}.

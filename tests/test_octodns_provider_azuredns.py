@@ -152,8 +152,8 @@ _base0.zone_name = 'unit.tests'
 _base0.relative_record_set_name = '@'
 _base0.record_type = 'A'
 _base0.params['ttl'] = 0
-_base0.params['arecords'] = [ARecord(ipv4_address='1.2.3.4'),
-                             ARecord(ipv4_address='10.10.10.10')]
+_base0.params['a_records'] = [ARecord(ipv4_address='1.2.3.4'),
+                              ARecord(ipv4_address='10.10.10.10')]
 azure_records.append(_base0)
 
 _base1 = _AzureRecord('TestAzure', octo_records[1])
@@ -161,8 +161,8 @@ _base1.zone_name = 'unit.tests'
 _base1.relative_record_set_name = 'a'
 _base1.record_type = 'A'
 _base1.params['ttl'] = 1
-_base1.params['arecords'] = [ARecord(ipv4_address='1.2.3.4'),
-                             ARecord(ipv4_address='1.1.1.1')]
+_base1.params['a_records'] = [ARecord(ipv4_address='1.2.3.4'),
+                              ARecord(ipv4_address='1.1.1.1')]
 azure_records.append(_base1)
 
 _base2 = _AzureRecord('TestAzure', octo_records[2])
@@ -170,7 +170,7 @@ _base2.zone_name = 'unit.tests'
 _base2.relative_record_set_name = 'aa'
 _base2.record_type = 'A'
 _base2.params['ttl'] = 9001
-_base2.params['arecords'] = ARecord(ipv4_address='1.2.4.3')
+_base2.params['a_records'] = ARecord(ipv4_address='1.2.4.3')
 azure_records.append(_base2)
 
 _base3 = _AzureRecord('TestAzure', octo_records[3])
@@ -178,7 +178,7 @@ _base3.zone_name = 'unit.tests'
 _base3.relative_record_set_name = 'aaa'
 _base3.record_type = 'A'
 _base3.params['ttl'] = 2
-_base3.params['arecords'] = ARecord(ipv4_address='1.1.1.3')
+_base3.params['a_records'] = ARecord(ipv4_address='1.1.1.3')
 azure_records.append(_base3)
 
 _base4 = _AzureRecord('TestAzure', octo_records[4])
@@ -366,7 +366,7 @@ class Test_CheckAzureAlias(TestCase):
         alias_record = type('C', (object,), {})
         alias_record.target_resource = type('C', (object,), {})
         alias_record.target_resource.id = "/subscriptions/x/resourceGroups/y/z"
-        alias_record.arecords = None
+        alias_record.a_records = None
         alias_record.cname_record = None
 
         self.assertEquals(_check_for_alias(alias_record), True)
@@ -377,7 +377,7 @@ class TestAzureDnsProvider(TestCase):
         return self._get_provider('mock_spc', 'mock_dns_client')
 
     @patch('octodns.provider.azuredns.DnsManagementClient')
-    @patch('octodns.provider.azuredns.ServicePrincipalCredentials')
+    @patch('octodns.provider.azuredns.ClientSecretCredential')
     def _get_provider(self, mock_spc, mock_dns_client):
         '''Returns a mock AzureProvider object to use in testing.
 
@@ -399,12 +399,12 @@ class TestAzureDnsProvider(TestCase):
         provider = self._get_provider()
 
         rs = []
-        recordSet = RecordSet(arecords=[ARecord(ipv4_address='1.1.1.1')])
+        recordSet = RecordSet(a_records=[ARecord(ipv4_address='1.1.1.1')])
         recordSet.name, recordSet.ttl, recordSet.type = 'a1', 0, 'A'
         recordSet.target_resource = SubResource()
         rs.append(recordSet)
-        recordSet = RecordSet(arecords=[ARecord(ipv4_address='1.1.1.1'),
-                                        ARecord(ipv4_address='2.2.2.2')])
+        recordSet = RecordSet(a_records=[ARecord(ipv4_address='1.1.1.1'),
+                                         ARecord(ipv4_address='2.2.2.2')])
         recordSet.name, recordSet.ttl, recordSet.type = 'a2', 1, 'A'
         recordSet.target_resource = SubResource()
         rs.append(recordSet)
@@ -575,11 +575,11 @@ class TestAzureDnsProvider(TestCase):
         provider = self._get_provider()
 
         rs = []
-        recordSet = RecordSet(arecords=[ARecord(ipv4_address='1.1.1.1')])
+        recordSet = RecordSet(a_records=[ARecord(ipv4_address='1.1.1.1')])
         recordSet.name, recordSet.ttl, recordSet.type = 'a1', 0, 'A'
         rs.append(recordSet)
-        recordSet = RecordSet(arecords=[ARecord(ipv4_address='1.1.1.1'),
-                                        ARecord(ipv4_address='2.2.2.2')])
+        recordSet = RecordSet(a_records=[ARecord(ipv4_address='1.1.1.1'),
+                                         ARecord(ipv4_address='2.2.2.2')])
         recordSet.name, recordSet.ttl, recordSet.type = 'a2', 1, 'A'
         rs.append(recordSet)
 
