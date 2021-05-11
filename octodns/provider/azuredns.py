@@ -5,7 +5,7 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from azure.common.credentials import ServicePrincipalCredentials
+from azure.identity import ClientSecretCredential
 from azure.mgmt.dns import DnsManagementClient
 
 from azure.mgmt.dns.models import ARecord, AaaaRecord, CaaRecord, \
@@ -71,10 +71,11 @@ class _AzureRecord(object):
         '''Constructor for _AzureRecord.
 
             Notes on Azure records: An Azure record set has the form
-            RecordSet(name=<...>, type=<...>, arecords=[...], aaaa_records, ..)
+            RecordSet(name=<...>, type=<...>, a_records=[...],
+            aaaa_records=[...], ...)
             When constructing an azure record as done in self._apply_Create,
             the argument parameters for an A record would be
-            parameters={'ttl': <int>, 'arecords': [ARecord(<str ip>),]}.
+            parameters={'ttl': <int>, 'a_records': [ARecord(<str ip>),]}.
             As another example for CNAME record:
             parameters={'ttl': <int>, 'cname_record': CnameRecord(<str>)}.
 
@@ -101,8 +102,7 @@ class _AzureRecord(object):
             return
 
         # Refer to function docstring for key_name and class_name.
-        format_u_s = '' if record._type == 'A' else '_'
-        key_name = '{}{}records'.format(self.record_type, format_u_s).lower()
+        key_name = '{}_records'.format(self.record_type).lower()
         if record._type == 'CNAME':
             key_name = key_name[:len(key_name) - 1]
         azure_class = self.TYPE_MAP[self.record_type]
@@ -263,7 +263,7 @@ def _parse_azure_type(string):
 
 
 def _check_for_alias(azrecord):
-    if (azrecord.target_resource.id and not azrecord.arecords and not
+    if (azrecord.target_resource.id and not azrecord.a_records and not
             azrecord.cname_record):
         return True
     return False
@@ -343,14 +343,14 @@ class AzureProvider(BaseProvider):
     @property
     def _dns_client(self):
         if self.__dns_client is None:
-            credentials = ServicePrincipalCredentials(
-                self._dns_client_client_id,
-                secret=self._dns_client_key,
-                tenant=self._dns_client_directory_id
+            credential = ClientSecretCredential(
+                client_id=self._dns_client_client_id,
+                client_secret=self._dns_client_key,
+                tenant_id=self._dns_client_directory_id
             )
             self.__dns_client = DnsManagementClient(
-                credentials,
-                self._dns_client_subscription_id
+                credential=credential,
+                subscription_id=self._dns_client_subscription_id
             )
         return self.__dns_client
 
@@ -452,7 +452,7 @@ class AzureProvider(BaseProvider):
         return exists
 
     def _data_for_A(self, azrecord):
-        return {'values': [ar.ipv4_address for ar in azrecord.arecords]}
+        return {'values': [ar.ipv4_address for ar in azrecord.a_records]}
 
     def _data_for_AAAA(self, azrecord):
         return {'values': [ar.ipv6_address for ar in azrecord.aaaa_records]}
