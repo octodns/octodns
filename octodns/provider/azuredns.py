@@ -102,8 +102,7 @@ class _AzureRecord(object):
             return
 
         # Refer to function docstring for key_name and class_name.
-        format_u_s = '' if record._type == 'A' else '_'
-        key_name = '{}{}records'.format(self.record_type, format_u_s).lower()
+        key_name = '{}_records'.format(self.record_type).lower()
         if record._type == 'CNAME':
             key_name = key_name[:len(key_name) - 1]
         azure_class = self.TYPE_MAP[self.record_type]
