@@ -5,16 +5,26 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from collections import defaultdict
+
 from azure.identity import ClientSecretCredential
+from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.dns import DnsManagementClient
+from azure.mgmt.trafficmanager import TrafficManagerManagementClient
 
 from azure.mgmt.dns.models import ARecord, AaaaRecord, CaaRecord, \
     CnameRecord, MxRecord, SrvRecord, NsRecord, PtrRecord, TxtRecord, Zone
+from azure.mgmt.trafficmanager.models import Profile, DnsConfig, \
+    MonitorConfig, Endpoint, MonitorConfigCustomHeadersItem
 
 import logging
 from functools import reduce
-from ..record import Record
+from ..record import Record, Update, GeoCodes
 from .base import BaseProvider
+
+
+class AzureException(Exception):
+    pass
 
 
 def escape_semicolon(s):
@@ -67,7 +77,8 @@ class _AzureRecord(object):
         'TXT': TxtRecord
     }
 
-    def __init__(self, resource_group, record, delete=False):
+    def __init__(self, resource_group, record, delete=False,
+                 traffic_manager=None):
         '''Constructor for _AzureRecord.
 
             Notes on Azure records: An Azure record set has the form
@@ -94,9 +105,11 @@ class _AzureRecord(object):
         self.log = logging.getLogger('AzureRecord')
 
         self.resource_group = resource_group
-        self.zone_name = record.zone.name[:len(record.zone.name) - 1]
+        self.zone_name = record.zone.name[:-1]
         self.relative_record_set_name = record.name or '@'
         self.record_type = record._type
+        self._record = record
+        self.traffic_manager = traffic_manager
 
         if delete:
             return
@@ -104,11 +117,11 @@ class _AzureRecord(object):
         # Refer to function docstring for key_name and class_name.
         key_name = '{}_records'.format(self.record_type).lower()
         if record._type == 'CNAME':
-            key_name = key_name[:len(key_name) - 1]
+            key_name = key_name[:-1]
         azure_class = self.TYPE_MAP[self.record_type]
 
-        self.params = getattr(self, '_params_for_{}'.format(record._type))
-        self.params = self.params(record.data, key_name, azure_class)
+        params_for = getattr(self, '_params_for_{}'.format(record._type))
+        self.params = params_for(record.data, key_name, azure_class)
         self.params['ttl'] = record.ttl
 
     def _params_for_A(self, data, key_name, azure_class):
@@ -139,6 +152,9 @@ class _AzureRecord(object):
         return {key_name: params}
 
     def _params_for_CNAME(self, data, key_name, azure_class):
+        if self._record.dynamic and self.traffic_manager:
+            return {'target_resource': self.traffic_manager}
+
         return {key_name: azure_class(cname=data['value'])}
 
     def _params_for_MX(self, data, key_name, azure_class):
@@ -227,25 +243,6 @@ class _AzureRecord(object):
                (parse_dict(self.params) == parse_dict(b.params)) & \
                (self.relative_record_set_name == b.relative_record_set_name)
 
-    def __str__(self):
-        '''String representation of an _AzureRecord.
-            :type return: str
-        '''
-        string = 'Zone: {}; '.format(self.zone_name)
-        string += 'Name: {}; '.format(self.relative_record_set_name)
-        string += 'Type: {}; '.format(self.record_type)
-        if not hasattr(self, 'params'):
-            return string
-        string += 'Ttl: {}; '.format(self.params['ttl'])
-        for char in self.params:
-            if char != 'ttl':
-                try:
-                    for rec in self.params[char]:
-                        string += 'Record: {}; '.format(rec.__dict__)
-                except:
-                    string += 'Record: {}; '.format(self.params[char].__dict__)
-        return string
-
 
 def _check_endswith_dot(string):
     return string if string.endswith('.') else string + '.'
@@ -259,14 +256,88 @@ def _parse_azure_type(string):
 
         :type return: str
     '''
-    return string.split('/')[len(string.split('/')) - 1]
+    return string.split('/')[-1]
 
 
-def _check_for_alias(azrecord):
-    if (azrecord.target_resource.id and not azrecord.a_records and not
-            azrecord.cname_record):
-        return True
-    return False
+def _traffic_manager_suffix(record):
+    return record.fqdn[:-1].replace('.', '-')
+
+
+def _get_monitor(record):
+    monitor = MonitorConfig(
+        protocol=record.healthcheck_protocol,
+        port=record.healthcheck_port,
+        path=record.healthcheck_path,
+    )
+    host = record.healthcheck_host
+    if host:
+        monitor.custom_headers = [MonitorConfigCustomHeadersItem(
+            name='Host', value=host
+        )]
+    return monitor
+
+
+def _profile_is_match(have, desired):
+    if have is None or desired is None:
+        return False
+
+    # compare basic attributes
+    if have.name != desired.name or \
+       have.traffic_routing_method != desired.traffic_routing_method or \
+       have.dns_config.ttl != desired.dns_config.ttl or \
+       len(have.endpoints) != len(desired.endpoints):
+        return False
+
+    # compare monitoring configuration
+    monitor_have = have.monitor_config
+    monitor_desired = desired.monitor_config
+    if monitor_have.protocol != monitor_desired.protocol or \
+       monitor_have.port != monitor_desired.port or \
+       monitor_have.path != monitor_desired.path or \
+       monitor_have.custom_headers != monitor_desired.custom_headers:
+        return False
+
+    # compare endpoints
+    method = have.traffic_routing_method
+    if method == 'Priority':
+        have_endpoints = sorted(have.endpoints, key=lambda e: e.priority)
+        desired_endpoints = sorted(desired.endpoints,
+                                   key=lambda e: e.priority)
+    elif method == 'Weighted':
+        have_endpoints = sorted(have.endpoints, key=lambda e: e.target)
+        desired_endpoints = sorted(desired.endpoints, key=lambda e: e.target)
+    else:
+        have_endpoints = have.endpoints
+        desired_endpoints = desired.endpoints
+    endpoints = zip(have_endpoints, desired_endpoints)
+    for have_endpoint, desired_endpoint in endpoints:
+        if have_endpoint.name != desired_endpoint.name or \
+           have_endpoint.type != desired_endpoint.type:
+            return False
+        target_type = have_endpoint.type.split('/')[-1]
+        if target_type == 'externalEndpoints':
+            # compare value, weight, priority
+            if have_endpoint.target != desired_endpoint.target:
+                return False
+            if method == 'Weighted' and \
+               have_endpoint.weight != desired_endpoint.weight:
+                return False
+        elif target_type == 'nestedEndpoints':
+            # compare targets
+            if have_endpoint.target_resource_id != \
+               desired_endpoint.target_resource_id:
+                return False
+            # compare geos
+            if method == 'Geographic':
+                have_geos = sorted(have_endpoint.geo_mapping)
+                desired_geos = sorted(desired_endpoint.geo_mapping)
+                if have_geos != desired_geos:
+                    return False
+        else:
+            # unexpected, give up
+            return False
+
+    return True
 
 
 class AzureProvider(BaseProvider):
@@ -318,7 +389,7 @@ class AzureProvider(BaseProvider):
         possible to also hard-code into the config file: eg, resource_group.
     '''
     SUPPORTS_GEO = False
-    SUPPORTS_DYNAMIC = False
+    SUPPORTS_DYNAMIC = True
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR', 'SRV',
                     'TXT'))
 
@@ -336,23 +407,44 @@ class AzureProvider(BaseProvider):
         self._dns_client_directory_id = directory_id
         self._dns_client_subscription_id = sub_id
         self.__dns_client = None
+        self.__tm_client = None
 
         self._resource_group = resource_group
         self._azure_zones = set()
+        self._traffic_managers = dict()
 
     @property
     def _dns_client(self):
         if self.__dns_client is None:
-            credential = ClientSecretCredential(
-                client_id=self._dns_client_client_id,
-                client_secret=self._dns_client_key,
-                tenant_id=self._dns_client_directory_id
-            )
+            # Azure's logger spits out a lot of debug messages at 'INFO'
+            # level, override it by re-assigning `info` method to `debug`
+            # (ugly hack until I find a better way)
+            logger_name = 'azure.core.pipeline.policies.http_logging_policy'
+            logger = logging.getLogger(logger_name)
+            logger.info = logger.debug
             self.__dns_client = DnsManagementClient(
-                credential=credential,
-                subscription_id=self._dns_client_subscription_id
+                credential=ClientSecretCredential(
+                    client_id=self._dns_client_client_id,
+                    client_secret=self._dns_client_key,
+                    tenant_id=self._dns_client_directory_id,
+                    logger=logger,
+                ),
+                subscription_id=self._dns_client_subscription_id,
             )
         return self.__dns_client
+
+    @property
+    def _tm_client(self):
+        if self.__tm_client is None:
+            self.__tm_client = TrafficManagerManagementClient(
+                ServicePrincipalCredentials(
+                    self._dns_client_client_id,
+                    secret=self._dns_client_key,
+                    tenant=self._dns_client_directory_id,
+                ),
+                self._dns_client_subscription_id,
+            )
+        return self.__tm_client
 
     def _populate_zones(self):
         self.log.debug('azure_zones: loading')
@@ -388,6 +480,42 @@ class AzureProvider(BaseProvider):
             # Else return nothing (aka false)
             return
 
+    def _populate_traffic_managers(self):
+        self.log.debug('traffic managers: loading')
+        list_profiles = self._tm_client.profiles.list_by_resource_group
+        for profile in list_profiles(self._resource_group):
+            self._traffic_managers[profile.id] = profile
+        # link nested profiles in advance for convenience
+        for _, profile in self._traffic_managers.items():
+            self._populate_nested_profiles(profile)
+
+    def _populate_nested_profiles(self, profile):
+        for ep in profile.endpoints:
+            target_id = ep.target_resource_id
+            if target_id and target_id in self._traffic_managers:
+                target = self._traffic_managers[target_id]
+                ep.target_resource = self._populate_nested_profiles(target)
+        return profile
+
+    def _get_tm_profile_by_id(self, resource_id):
+        if not self._traffic_managers:
+            self._populate_traffic_managers()
+        return self._traffic_managers.get(resource_id)
+
+    def _profile_name_to_id(self, name):
+        return '/subscriptions/' + self._dns_client_subscription_id + \
+            '/resourceGroups/' + self._resource_group + \
+            '/providers/Microsoft.Network/trafficManagerProfiles/' + \
+            name
+
+    def _get_tm_profile_by_name(self, name):
+        profile_id = self._profile_name_to_id(name)
+        return self._get_tm_profile_by_id(profile_id)
+
+    def _get_tm_for_dynamic_record(self, record):
+        name = _traffic_manager_suffix(record)
+        return self._get_tm_profile_by_name(name)
+
     def populate(self, zone, target=False, lenient=False):
         '''Required function of manager.py to collect records from zone.
 
@@ -417,39 +545,34 @@ class AzureProvider(BaseProvider):
         exists = False
         before = len(zone.records)
 
-        zone_name = zone.name[:len(zone.name) - 1]
+        zone_name = zone.name[:-1]
         self._populate_zones()
-        self._check_zone(zone_name)
 
-        _records = []
         records = self._dns_client.record_sets.list_by_dns_zone
         if self._check_zone(zone_name):
             exists = True
             for azrecord in records(self._resource_group, zone_name):
-                if _parse_azure_type(azrecord.type) in self.SUPPORTS:
-                    _records.append(azrecord)
-            for azrecord in _records:
-                record_name = azrecord.name if azrecord.name != '@' else ''
                 typ = _parse_azure_type(azrecord.type)
+                if typ not in self.SUPPORTS:
+                    continue
 
-                if typ in ['A', 'CNAME']:
-                    if _check_for_alias(azrecord):
-                        self.log.debug(
-                            'Skipping - ALIAS. zone=%s record=%s, type=%s',
-                            zone_name, record_name, typ)  # pragma: no cover
-                        continue  # pragma: no cover
-
-                data = getattr(self, '_data_for_{}'.format(typ))
-                data = data(azrecord)
-                data['type'] = typ
-                data['ttl'] = azrecord.ttl
-                record = Record.new(zone, record_name, data, source=self)
-
+                record = self._populate_record(zone, azrecord, lenient)
                 zone.add_record(record, lenient=lenient)
 
         self.log.info('populate: found %s records, exists=%s',
                       len(zone.records) - before, exists)
         return exists
+
+    def _populate_record(self, zone, azrecord, lenient=False):
+        record_name = azrecord.name if azrecord.name != '@' else ''
+        typ = _parse_azure_type(azrecord.type)
+
+        data_for = getattr(self, '_data_for_{}'.format(typ))
+        data = data_for(azrecord)
+        data['type'] = typ
+        data['ttl'] = azrecord.ttl
+        return Record.new(zone, record_name, data, source=self,
+                          lenient=lenient)
 
     def _data_for_A(self, azrecord):
         return {'values': [ar.ipv4_address for ar in azrecord.a_records]}
@@ -470,6 +593,9 @@ class AzureProvider(BaseProvider):
 
             :type  return: dict
         '''
+        if azrecord.cname_record is None and azrecord.target_resource.id:
+            return self._data_for_dynamic(azrecord)
+
         return {'value': _check_endswith_dot(azrecord.cname_record.cname)}
 
     def _data_for_MX(self, azrecord):
@@ -495,6 +621,322 @@ class AzureProvider(BaseProvider):
                                                    ar.value))
                            for ar in azrecord.txt_records]}
 
+    def _data_for_dynamic(self, azrecord):
+        default = set()
+        pools = defaultdict(lambda: {'fallback': None, 'values': []})
+        rules = []
+
+        # top level geo profile
+        geo_profile = self._get_tm_profile_by_id(azrecord.target_resource.id)
+        for geo_ep in geo_profile.endpoints:
+            rule = {}
+
+            # resolve list of regions
+            geo_map = list(geo_ep.geo_mapping)
+            if geo_map != ['WORLD']:
+                if 'GEO-ME' in geo_map:
+                    # Azure treats Middle East as a separate group, but
+                    # its part of Asia in octoDNS, so we need to remove GEO-ME
+                    # if GEO-AS is also in the list
+                    # Throw exception otherwise, it should not happen if the
+                    # profile was generated by octoDNS
+                    if 'GEO-AS' not in geo_map:
+                        msg = '_data_for_dynamic: Profile={}: '.format(
+                            geo_profile.name)
+                        msg += 'Middle East (GEO-ME) is not supported by ' + \
+                               'octoDNS. It needs to be either paired ' + \
+                               'with Asia (GEO-AS) or expanded into ' + \
+                               'individual list of countries.'
+                        raise AzureException(msg)
+                    geo_map.remove('GEO-ME')
+                geos = rule.setdefault('geos', [])
+                for code in geo_map:
+                    if code.startswith('GEO-'):
+                        geos.append(code[len('GEO-'):])
+                    elif '-' in code:
+                        country, province = code.split('-', 1)
+                        country = GeoCodes.country_to_code(country)
+                        geos.append('{}-{}'.format(country, province))
+                    else:
+                        geos.append(GeoCodes.country_to_code(code))
+
+            # second level priority profile
+            pool = None
+            rule_endpoints = geo_ep.target_resource.endpoints
+            rule_endpoints = sorted(rule_endpoints, key=lambda e: e.priority)
+            for rule_ep in rule_endpoints:
+                pool_name = rule_ep.name
+
+                # third (and last) level weighted RR profile
+                # these should be leaf node profiles with no further nesting
+                pool_profile = rule_ep.target_resource
+
+                # last/default pool
+                if pool_name == '--default--':
+                    for pool_ep in pool_profile.endpoints:
+                        default.add(pool_ep.target)
+                    # this should be the last one, so let's break here
+                    break
+
+                # set first priority endpoint as the rule's primary pool
+                if 'pool' not in rule:
+                    rule['pool'] = pool_name
+
+                if pool:
+                    # set current pool as fallback of the previous pool
+                    pool['fallback'] = pool_name
+
+                pool = pools[pool_name]
+                for pool_ep in pool_profile.endpoints:
+                    val = pool_ep.target
+                    value_dict = {
+                        'value': _check_endswith_dot(val),
+                        'weight': pool_ep.weight,
+                    }
+                    if value_dict not in pool['values']:
+                        pool['values'].append(value_dict)
+
+            if 'pool' not in rule or not default:
+                # this will happen if the priority profile does not have
+                # enough endpoints
+                msg = 'Expected at least 2 endpoints in {}, got {}'.format(
+                    geo_ep.target_resource.name, len(rule_endpoints)
+                )
+                raise AzureException(msg)
+            rules.append(rule)
+
+        # Order and convert to a list
+        default = sorted(default)
+
+        data = {
+            'dynamic': {
+                'pools': pools,
+                'rules': rules,
+            },
+            'value': _check_endswith_dot(default[0]),
+        }
+
+        return data
+
+    def _extra_changes(self, existing, desired, changes):
+        changed = set()
+
+        # Abort if there are non-CNAME dynamic records
+        for change in changes:
+            record = change.record
+            changed.add(record)
+            typ = record._type
+            dynamic = getattr(record, 'dynamic', False)
+            if dynamic and typ != 'CNAME':
+                msg = '{}: Dynamic records in Azure must be of type CNAME'
+                msg = msg.format(record.fqdn)
+                raise AzureException(msg)
+
+        log = self.log.info
+        extra = []
+        for record in desired.records:
+            if not getattr(record, 'dynamic', False):
+                # Already changed, or not dynamic, no need to check it
+                continue
+
+            # let's walk through and show what will be changed even if
+            # the record is already be in list of changes
+            added = (record in changed)
+
+            active = set()
+            profiles = self._generate_traffic_managers(record)
+            for profile in profiles:
+                name = profile.name
+                active.add(name)
+                existing_profile = self._get_tm_profile_by_name(name)
+                if not _profile_is_match(existing_profile, profile):
+                    log('_extra_changes: Profile name=%s will be synced',
+                        name)
+                    if not added:
+                        extra.append(Update(record, record))
+                        added = True
+
+            existing_profiles = self._find_traffic_managers(record)
+            for name in existing_profiles - active:
+                log('_extra_changes: Profile name=%s will be destroyed', name)
+                if not added:
+                    extra.append(Update(record, record))
+                    added = True
+
+        return extra
+
+    def _generate_tm_profile(self, name, routing, endpoints, record):
+        # set appropriate endpoint types
+        endpoint_type_prefix = 'Microsoft.Network/trafficManagerProfiles/'
+        for ep in endpoints:
+            if ep.target_resource_id:
+                ep.type = endpoint_type_prefix + 'nestedEndpoints'
+            elif ep.target:
+                ep.type = endpoint_type_prefix + 'externalEndpoints'
+            else:
+                msg = ('_generate_tm_profile: Invalid endpoint {} ' +
+                       'in profile {}, needs to have either target or ' +
+                       'target_resource_id').format(ep.name, name)
+                raise AzureException(msg)
+
+        # build and return
+        return Profile(
+            id=self._profile_name_to_id(name),
+            name=name,
+            traffic_routing_method=routing,
+            dns_config=DnsConfig(
+                relative_name=name,
+                ttl=record.ttl,
+            ),
+            monitor_config=_get_monitor(record),
+            endpoints=endpoints,
+            location='global',
+        )
+
+    def _generate_traffic_managers(self, record):
+        traffic_managers = []
+        pools = record.dynamic.pools
+
+        tm_suffix = _traffic_manager_suffix(record)
+        profile = self._generate_tm_profile
+
+        # construct the default pool that will be used at the end of
+        # all rules
+        target = record.value[:-1]
+        default_endpoints = [Endpoint(
+            name=target,
+            target=target,
+            weight=1,
+        )]
+        default_profile_name = 'default--{}'.format(tm_suffix)
+        default_profile = profile(default_profile_name, 'Weighted',
+                                  default_endpoints, record)
+        traffic_managers.append(default_profile)
+
+        geo_endpoints = []
+
+        for rule in record.dynamic.rules:
+            pool_name = rule.data['pool']
+            rule_endpoints = []
+            priority = 1
+
+            while pool_name:
+                # iterate until we reach end of fallback chain
+                pool = pools[pool_name].data
+                profile_name = 'pool-{}--{}'.format(pool_name, tm_suffix)
+                endpoints = []
+                for val in pool['values']:
+                    target = val['value']
+                    # strip trailing dot from CNAME value
+                    target = target[:-1]
+                    endpoints.append(Endpoint(
+                        name=target,
+                        target=target,
+                        weight=val.get('weight', 1),
+                    ))
+                pool_profile = profile(profile_name, 'Weighted', endpoints,
+                                       record)
+                traffic_managers.append(pool_profile)
+
+                # append pool to endpoint list of fallback rule profile
+                rule_endpoints.append(Endpoint(
+                    name=pool_name,
+                    target_resource_id=pool_profile.id,
+                    priority=priority,
+                ))
+
+                priority += 1
+                pool_name = pool.get('fallback')
+
+            # append default profile to the end
+            rule_endpoints.append(Endpoint(
+                name='--default--',
+                target_resource_id=default_profile.id,
+                priority=priority,
+            ))
+            # create rule profile with fallback chain
+            rule_profile_name = 'rule-{}--{}'.format(rule.data['pool'],
+                                                     tm_suffix)
+            rule_profile = profile(rule_profile_name, 'Priority',
+                                   rule_endpoints, record)
+            traffic_managers.append(rule_profile)
+
+            # append rule profile to top-level geo profile
+            rule_geos = rule.data.get('geos', [])
+            geos = []
+            if len(rule_geos) > 0:
+                for geo in rule_geos:
+                    if '-' in geo:
+                        geos.append(geo.split('-', 1)[-1])
+                    else:
+                        geos.append('GEO-{}'.format(geo))
+                        if geo == 'AS':
+                            # Middle East is part of Asia in octoDNS, but
+                            # Azure treats it as a separate "group", so let's
+                            # add it in the list of geo mappings. We will drop
+                            # it when we later parse the list of regions.
+                            geos.append('GEO-ME')
+            else:
+                geos.append('WORLD')
+            geo_endpoints.append(Endpoint(
+                name='rule-{}'.format(rule.data['pool']),
+                target_resource_id=rule_profile.id,
+                geo_mapping=geos,
+            ))
+
+        geo_profile = profile(tm_suffix, 'Geographic', geo_endpoints, record)
+        traffic_managers.append(geo_profile)
+
+        return traffic_managers
+
+    def _sync_traffic_managers(self, record):
+        desired_profiles = self._generate_traffic_managers(record)
+        seen = set()
+
+        tm_sync = self._tm_client.profiles.create_or_update
+        populate = self._populate_nested_profiles
+
+        for desired in desired_profiles:
+            name = desired.name
+            if name in seen:
+                continue
+
+            existing = self._get_tm_profile_by_name(name)
+            if not _profile_is_match(existing, desired):
+                self.log.info(
+                    '_sync_traffic_managers: Syncing profile=%s', name)
+                profile = tm_sync(self._resource_group, name, desired)
+                self._traffic_managers[profile.id] = populate(profile)
+            else:
+                self.log.debug(
+                    '_sync_traffic_managers: Skipping profile=%s: up to date',
+                    name)
+            seen.add(name)
+
+        return seen
+
+    def _find_traffic_managers(self, record):
+        tm_suffix = _traffic_manager_suffix(record)
+
+        profiles = set()
+        for profile_id in self._traffic_managers:
+            # match existing profiles with record's suffix
+            name = profile_id.split('/')[-1]
+            if name == tm_suffix or \
+               name.endswith('--{}'.format(tm_suffix)):
+                profiles.add(name)
+
+        return profiles
+
+    def _traffic_managers_gc(self, record, active_profiles):
+        existing_profiles = self._find_traffic_managers(record)
+
+        # delete unused profiles
+        for profile_name in existing_profiles - active_profiles:
+            self.log.info('_traffic_managers_gc: Deleting profile=%s',
+                          profile_name)
+            self._tm_client.profiles.delete(self._resource_group, profile_name)
+
     def _apply_Create(self, change):
         '''A record from change must be created.
 
@@ -503,7 +945,15 @@ class AzureProvider(BaseProvider):
 
             :type return: void
         '''
-        ar = _AzureRecord(self._resource_group, change.new)
+        record = change.new
+
+        dynamic = getattr(record, 'dynamic', False)
+        if dynamic:
+            self._sync_traffic_managers(record)
+
+        profile = self._get_tm_for_dynamic_record(record)
+        ar = _AzureRecord(self._resource_group, record,
+                          traffic_manager=profile)
         create = self._dns_client.record_sets.create_or_update
 
         create(resource_group_name=ar.resource_group,
@@ -512,16 +962,70 @@ class AzureProvider(BaseProvider):
                record_type=ar.record_type,
                parameters=ar.params)
 
-        self.log.debug('*  Success Create/Update: {}'.format(ar))
+        self.log.debug('*  Success Create: {}'.format(record))
 
-    _apply_Update = _apply_Create
+    def _apply_Update(self, change):
+        '''A record from change must be created.
+
+            :param change: a change object
+            :type  change: octodns.record.Change
+
+            :type return: void
+        '''
+        existing = change.existing
+        new = change.new
+        existing_is_dynamic = getattr(existing, 'dynamic', False)
+        new_is_dynamic = getattr(new, 'dynamic', False)
+
+        update_record = True
+
+        if new_is_dynamic:
+            active = self._sync_traffic_managers(new)
+            # only TTL is configured in record, everything else goes inside
+            # traffic managers, so no need to update if TTL is unchanged
+            # and existing record is already aliased to its traffic manager
+            if existing.ttl == new.ttl and existing_is_dynamic:
+                update_record = False
+
+        if update_record:
+            profile = self._get_tm_for_dynamic_record(new)
+            ar = _AzureRecord(self._resource_group, new,
+                              traffic_manager=profile)
+            update = self._dns_client.record_sets.create_or_update
+
+            update(resource_group_name=ar.resource_group,
+                   zone_name=ar.zone_name,
+                   relative_record_set_name=ar.relative_record_set_name,
+                   record_type=ar.record_type,
+                   parameters=ar.params)
+
+        if new_is_dynamic:
+            # let's cleanup unused traffic managers
+            self._traffic_managers_gc(new, active)
+        elif existing_is_dynamic:
+            # cleanup traffic managers when a dynamic record gets
+            # changed to a simple record
+            self._traffic_managers_gc(existing, set())
+
+        self.log.debug('*  Success Update: {}'.format(new))
 
     def _apply_Delete(self, change):
-        ar = _AzureRecord(self._resource_group, change.existing, delete=True)
+        '''A record from change must be deleted.
+
+            :param change: a change object
+            :type  change: octodns.record.Change
+
+            :type return: void
+        '''
+        record = change.record
+        ar = _AzureRecord(self._resource_group, record, delete=True)
         delete = self._dns_client.record_sets.delete
 
         delete(self._resource_group, ar.zone_name, ar.relative_record_set_name,
                ar.record_type)
+
+        if getattr(record, 'dynamic', False):
+            self._traffic_managers_gc(record, set())
 
         self.log.debug('*  Success Delete: {}'.format(ar))
 
