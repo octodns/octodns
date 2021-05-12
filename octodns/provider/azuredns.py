@@ -667,14 +667,9 @@ class AzureProvider(BaseProvider):
             for rule_ep in rule_endpoints:
                 pool_name = rule_ep.name
 
-                # third (and last) level weighted RR profile
-                # these should be leaf node profiles with no further nesting
-                pool_profile = rule_ep.target_resource
-
                 # last/default pool
                 if pool_name == '--default--':
-                    for pool_ep in pool_profile.endpoints:
-                        default.add(pool_ep.target)
+                    default.add(rule_ep.target)
                     # this should be the last one, so let's break here
                     break
 
@@ -687,11 +682,20 @@ class AzureProvider(BaseProvider):
                     pool['fallback'] = pool_name
 
                 pool = pools[pool_name]
-                for pool_ep in pool_profile.endpoints:
+                endpoints = []
+                # these should be leaf node entries with no further nesting
+                if rule_ep.target_resource_id:
+                    # third (and last) level weighted RR profile
+                    endpoints = rule_ep.target_resource.endpoints
+                else:
+                    # single-value pool
+                    endpoints = [rule_ep]
+
+                for pool_ep in endpoints:
                     val = pool_ep.target
                     value_dict = {
                         'value': _check_endswith_dot(val),
-                        'weight': pool_ep.weight,
+                        'weight': pool_ep.weight or 1,
                     }
                     if value_dict not in pool['values']:
                         pool['values'].append(value_dict)
@@ -703,6 +707,7 @@ class AzureProvider(BaseProvider):
                     geo_ep.target_resource.name, len(rule_endpoints)
                 )
                 raise AzureException(msg)
+
             rules.append(rule)
 
         # Order and convert to a list
@@ -800,19 +805,6 @@ class AzureProvider(BaseProvider):
         tm_suffix = _traffic_manager_suffix(record)
         profile = self._generate_tm_profile
 
-        # construct the default pool that will be used at the end of
-        # all rules
-        target = record.value[:-1]
-        default_endpoints = [Endpoint(
-            name=target,
-            target=target,
-            weight=1,
-        )]
-        default_profile_name = 'default--{}'.format(tm_suffix)
-        default_profile = profile(default_profile_name, 'Weighted',
-                                  default_endpoints, record)
-        traffic_managers.append(default_profile)
-
         geo_endpoints = []
 
         for rule in record.dynamic.rules:
@@ -824,26 +816,36 @@ class AzureProvider(BaseProvider):
                 # iterate until we reach end of fallback chain
                 pool = pools[pool_name].data
                 profile_name = 'pool-{}--{}'.format(pool_name, tm_suffix)
-                endpoints = []
-                for val in pool['values']:
-                    target = val['value']
-                    # strip trailing dot from CNAME value
-                    target = target[:-1]
-                    endpoints.append(Endpoint(
-                        name=target,
-                        target=target,
-                        weight=val.get('weight', 1),
-                    ))
-                pool_profile = profile(profile_name, 'Weighted', endpoints,
-                                       record)
-                traffic_managers.append(pool_profile)
+                if len(pool['values']) > 1:
+                    # create Weighted profile for multi-value pool
+                    endpoints = []
+                    for val in pool['values']:
+                        target = val['value']
+                        # strip trailing dot from CNAME value
+                        target = target[:-1]
+                        endpoints.append(Endpoint(
+                            name=target,
+                            target=target,
+                            weight=val.get('weight', 1),
+                        ))
+                    pool_profile = profile(profile_name, 'Weighted', endpoints,
+                                           record)
+                    traffic_managers.append(pool_profile)
 
-                # append pool to endpoint list of fallback rule profile
-                rule_endpoints.append(Endpoint(
-                    name=pool_name,
-                    target_resource_id=pool_profile.id,
-                    priority=priority,
-                ))
+                    # append pool to endpoint list of fallback rule profile
+                    rule_endpoints.append(Endpoint(
+                        name=pool_name,
+                        target_resource_id=pool_profile.id,
+                        priority=priority,
+                    ))
+                else:
+                    # add single-value pool as an external endpoint
+                    target = pool['values'][0]['value'][:-1]
+                    rule_endpoints.append(Endpoint(
+                        name=pool_name,
+                        target=target,
+                        priority=priority,
+                    ))
 
                 priority += 1
                 pool_name = pool.get('fallback')
@@ -851,7 +853,7 @@ class AzureProvider(BaseProvider):
             # append default profile to the end
             rule_endpoints.append(Endpoint(
                 name='--default--',
-                target_resource_id=default_profile.id,
+                target=record.value[:-1],
                 priority=priority,
             ))
             # create rule profile with fallback chain

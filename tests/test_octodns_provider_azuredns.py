@@ -574,7 +574,7 @@ class TestAzureDnsProvider(TestCase):
                 },
                 'rules': [
                     {'geos': ['AF', 'EU-DE', 'NA-US-CA'], 'pool': 'one'},
-                    {'pool': 'three'},
+                    {'pool': 'two'},
                 ],
             },
             'octodns': {
@@ -606,36 +606,6 @@ class TestAzureDnsProvider(TestCase):
 
         return [
             Profile(
-                id=id_format.format('default'),
-                name=name_format.format('default'),
-                traffic_routing_method='Weighted',
-                dns_config=dns,
-                monitor_config=monitor,
-                endpoints=[
-                    Endpoint(
-                        name='default.unit.tests',
-                        type=external,
-                        target='default.unit.tests',
-                        weight=1,
-                    ),
-                ],
-            ),
-            Profile(
-                id=id_format.format('pool-one'),
-                name=name_format.format('pool-one'),
-                traffic_routing_method='Weighted',
-                dns_config=dns,
-                monitor_config=monitor,
-                endpoints=[
-                    Endpoint(
-                        name='one.unit.tests',
-                        type=external,
-                        target='one.unit.tests',
-                        weight=11,
-                    ),
-                ],
-            ),
-            Profile(
                 id=id_format.format('pool-two'),
                 name=name_format.format('pool-two'),
                 traffic_routing_method='Weighted',
@@ -657,21 +627,6 @@ class TestAzureDnsProvider(TestCase):
                 ],
             ),
             Profile(
-                id=id_format.format('pool-three'),
-                name=name_format.format('pool-three'),
-                traffic_routing_method='Weighted',
-                dns_config=dns,
-                monitor_config=monitor,
-                endpoints=[
-                    Endpoint(
-                        name='three.unit.tests',
-                        type=external,
-                        target='three.unit.tests',
-                        weight=13,
-                    ),
-                ],
-            ),
-            Profile(
                 id=id_format.format('rule-one'),
                 name=name_format.format('rule-one'),
                 traffic_routing_method='Priority',
@@ -680,8 +635,8 @@ class TestAzureDnsProvider(TestCase):
                 endpoints=[
                     Endpoint(
                         name='one',
-                        type=nested,
-                        target_resource_id=id_format.format('pool-one'),
+                        type=external,
+                        target='one.unit.tests',
                         priority=1,
                     ),
                     Endpoint(
@@ -692,36 +647,42 @@ class TestAzureDnsProvider(TestCase):
                     ),
                     Endpoint(
                         name='three',
-                        type=nested,
-                        target_resource_id=id_format.format('pool-three'),
+                        type=external,
+                        target='three.unit.tests',
                         priority=3,
                     ),
                     Endpoint(
                         name='--default--',
-                        type=nested,
-                        target_resource_id=id_format.format('default'),
+                        type=external,
+                        target='default.unit.tests',
                         priority=4,
                     ),
                 ],
             ),
             Profile(
-                id=id_format.format('rule-three'),
-                name=name_format.format('rule-three'),
+                id=id_format.format('rule-two'),
+                name=name_format.format('rule-two'),
                 traffic_routing_method='Priority',
                 dns_config=dns,
                 monitor_config=monitor,
                 endpoints=[
                     Endpoint(
-                        name='three',
+                        name='two',
                         type=nested,
-                        target_resource_id=id_format.format('pool-three'),
+                        target_resource_id=id_format.format('pool-two'),
                         priority=1,
                     ),
                     Endpoint(
-                        name='--default--',
-                        type=nested,
-                        target_resource_id=id_format.format('default'),
+                        name='three',
+                        type=external,
+                        target='three.unit.tests',
                         priority=2,
+                    ),
+                    Endpoint(
+                        name='--default--',
+                        type=external,
+                        target='default.unit.tests',
+                        priority=3,
                     ),
                 ],
             ),
@@ -740,9 +701,9 @@ class TestAzureDnsProvider(TestCase):
                     ),
                     Endpoint(
                         geo_mapping=['WORLD'],
-                        name='rule-three',
+                        name='rule-two',
                         type=nested,
-                        target_resource_id=id_format.format('rule-three'),
+                        target_resource_id=id_format.format('rule-two'),
                     ),
                 ],
             ),
@@ -964,7 +925,7 @@ class TestAzureDnsProvider(TestCase):
             'pools': {
                 'one': {
                     'values': [
-                        {'value': 'one.unit.tests.', 'weight': 11},
+                        {'value': 'one.unit.tests.', 'weight': 1},
                     ],
                     'fallback': 'two',
                 },
@@ -977,14 +938,14 @@ class TestAzureDnsProvider(TestCase):
                 },
                 'three': {
                     'values': [
-                        {'value': 'three.unit.tests.', 'weight': 13},
+                        {'value': 'three.unit.tests.', 'weight': 1},
                     ],
                     'fallback': None,
                 },
             },
             'rules': [
                 {'geos': ['AF', 'EU-DE', 'NA-US-CA'], 'pool': 'one'},
-                {'pool': 'three'},
+                {'pool': 'two'},
             ],
         })
 
@@ -1196,10 +1157,8 @@ class TestAzureDnsProvider(TestCase):
 
         suffix = 'foo-unit-tests'
         expected_seen = {
-            suffix, 'default--{}'.format(suffix),
-            'rule-one--{}'.format(suffix), 'rule-three--{}'.format(suffix),
-            'pool-one--{}'.format(suffix), 'pool-two--{}'.format(suffix),
-            'pool-three--{}'.format(suffix),
+            suffix, 'pool-two--{}'.format(suffix),
+            'rule-one--{}'.format(suffix), 'rule-two--{}'.format(suffix),
         }
 
         # test no change
@@ -1209,7 +1168,7 @@ class TestAzureDnsProvider(TestCase):
 
         # test that changing weight causes update API call
         dynamic = record.dynamic._data()
-        dynamic['pools']['one']['values'][0]['weight'] = 14
+        dynamic['pools']['two']['values'][0]['weight'] = 14
         data = {
             'type': 'CNAME',
             'ttl': record.ttl,
@@ -1225,7 +1184,7 @@ class TestAzureDnsProvider(TestCase):
 
         # test that new profile was successfully inserted in cache
         new_profile = provider._get_tm_profile_by_name(
-            'pool-one--{}'.format(suffix)
+            'pool-two--{}'.format(suffix)
         )
         self.assertEqual(new_profile.endpoints[0].weight, 14)
 
@@ -1257,10 +1216,8 @@ class TestAzureDnsProvider(TestCase):
         # implicitly asserts that non-matching profile is not included
         suffix = _traffic_manager_suffix(record)
         self.assertEqual(provider._find_traffic_managers(record), {
-            suffix, 'default--{}'.format(suffix),
-            'rule-one--{}'.format(suffix), 'rule-three--{}'.format(suffix),
-            'pool-one--{}'.format(suffix), 'pool-two--{}'.format(suffix),
-            'pool-three--{}'.format(suffix),
+            suffix, 'pool-two--{}'.format(suffix),
+            'rule-one--{}'.format(suffix), 'rule-two--{}'.format(suffix),
         })
 
     def test_traffic_manager_gc(self):
