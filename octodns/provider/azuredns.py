@@ -387,6 +387,9 @@ class AzureProvider(BaseProvider):
         The first four variables above can be hidden in environment variables
         and octoDNS will automatically search for them in the shell. It is
         possible to also hard-code into the config file: eg, resource_group.
+
+        Please read https://github.com/octodns/octodns/pull/706 for an overview
+        of how dynamic records are designed and caveats of using them.
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = True
