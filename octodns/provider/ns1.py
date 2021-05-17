@@ -934,10 +934,11 @@ class Ns1Provider(BaseProvider):
                 r'User-agent: NS1\r\n\r\n'.format(path=path, host=host)
             ret['config']['send'] = request
             # We'll also expect a HTTP response
+            ns1_hc = record._octodns.get('ns1', {}).get('healthcheck', {})
             ret['rules'] = [{
-                'comparison': 'contains',
-                'key': 'output',
-                'value': '200 OK',
+                'comparison': ns1_hc.get('comparison', 'contains'),
+                'key': ns1_hc.get('key', 'output'),
+                'value': ns1_hc.get('value', '200 OK')
             }]
 
         return ret
