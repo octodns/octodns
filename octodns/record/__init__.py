@@ -417,6 +417,7 @@ class _ValueMixin(object):
 
 
 class _DynamicPool(object):
+    log = getLogger('_DynamicPool')
 
     def __init__(self, _id, data):
         self._id = _id
@@ -431,7 +432,12 @@ class _DynamicPool(object):
 
         # normalize weight of a single-value pool
         if len(values) == 1:
-            values[0]['weight'] = 1
+            weight = data['values'][0].get('weight', 1)
+            if weight != 1:
+                self.log.warn(
+                    'Using weight=1 instead of %s for single-value pool %s',
+                    weight, _id)
+                values[0]['weight'] = 1
 
         fallback = data.get('fallback', None)
         self.data = {
