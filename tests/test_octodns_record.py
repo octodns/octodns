@@ -1018,6 +1018,7 @@ class TestRecord(TestCase):
         self.assertEquals('bleep.bloop', new.healthcheck_host)
         self.assertEquals('HTTP', new.healthcheck_protocol)
         self.assertEquals(8080, new.healthcheck_port)
+        self.assertEquals({'contains': '200 OK'}, new.healthcheck_response)
 
         new = Record.new(self.zone, 'a', {
             'ttl': 44,
@@ -1047,6 +1048,7 @@ class TestRecord(TestCase):
         self.assertIsNone(new.healthcheck_host)
         self.assertEquals('TCP', new.healthcheck_protocol)
         self.assertEquals(8080, new.healthcheck_port)
+        self.assertIsNone(new.healthcheck_response)
 
         new = Record.new(self.zone, 'a', {
             'ttl': 44,

@@ -217,6 +217,16 @@ class Record(EqualityTupleMixin):
         except KeyError:
             return 443
 
+    @property
+    def healthcheck_response(self):
+        healthcheck = self._octodns.get('healthcheck', {})
+        if healthcheck.get('protocol', None) == 'TCP':
+            return None
+        try:
+            return healthcheck['response']
+        except KeyError:
+            return {'contains': '200 OK'}
+
     def changes(self, other, target):
         # We're assuming we have the same name and type if we're being compared
         if self.ttl != other.ttl:

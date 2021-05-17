@@ -937,7 +937,7 @@ class Ns1Provider(BaseProvider):
             ret['rules'] = [{
                 'comparison': 'contains',
                 'key': 'output',
-                'value': '200 OK',
+                'value': record.healthcheck_response['contains']
             }]
 
         return ret
