@@ -3013,6 +3013,7 @@ class TestDynamicRecords(TestCase):
                 'pools': {
                     'one': {
                         'values': [{
+                            'weight': 10,
                             'value': '3.3.3.3',
                         }],
                     },
@@ -3412,7 +3413,7 @@ class TestDynamicRecords(TestCase):
         self.assertEquals(['pool "one" is missing values'],
                           ctx.exception.reasons)
 
-        # pool valu not a dict
+        # pool value not a dict
         a_data = {
             'dynamic': {
                 'pools': {
@@ -3594,6 +3595,33 @@ class TestDynamicRecords(TestCase):
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
         self.assertEquals(['invalid weight "foo" in pool "three" value 2'],
+                          ctx.exception.reasons)
+
+        # single value with weight!=1
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'weight': 12,
+                            'value': '6.6.6.6',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['pool "one" has single value with weight!=1'],
                           ctx.exception.reasons)
 
         # invalid fallback
