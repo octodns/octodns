@@ -573,7 +573,7 @@ class TestAzureDnsProvider(TestCase):
                     },
                 },
                 'rules': [
-                    {'geos': ['AF', 'EU-DE', 'NA-US-CA'], 'pool': 'one'},
+                    {'geos': ['AF', 'EU-DE', 'NA-US-CA', 'OC'], 'pool': 'one'},
                     {'pool': 'two'},
                 ],
             },
@@ -694,7 +694,7 @@ class TestAzureDnsProvider(TestCase):
                 monitor_config=monitor,
                 endpoints=[
                     Endpoint(
-                        geo_mapping=['GEO-AF', 'DE', 'US-CA'],
+                        geo_mapping=['GEO-AF', 'DE', 'US-CA', 'GEO-AP'],
                         name='rule-one',
                         type=nested,
                         target_resource_id=id_format.format('rule-one'),
@@ -944,7 +944,7 @@ class TestAzureDnsProvider(TestCase):
                 },
             },
             'rules': [
-                {'geos': ['AF', 'EU-DE', 'NA-US-CA'], 'pool': 'one'},
+                {'geos': ['AF', 'EU-DE', 'NA-US-CA', 'OC'], 'pool': 'one'},
                 {'pool': 'two'},
             ],
         })
