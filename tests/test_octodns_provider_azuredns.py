@@ -555,7 +555,7 @@ class TestAzureDnsProvider(TestCase):
                 'pools': {
                     'one': {
                         'values': [
-                            {'value': 'one.unit.tests.', 'weight': 11},
+                            {'value': 'one.unit.tests.', 'weight': 1},
                         ],
                         'fallback': 'two',
                     },
@@ -568,7 +568,7 @@ class TestAzureDnsProvider(TestCase):
                     },
                     'three': {
                         'values': [
-                            {'value': 'three.unit.tests.', 'weight': 13},
+                            {'value': 'three.unit.tests.', 'weight': 1},
                         ],
                     },
                 },
