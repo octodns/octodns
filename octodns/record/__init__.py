@@ -573,6 +573,10 @@ class _DynamicMixin(object):
                         reasons.append('missing value in pool "{}" '
                                        'value {}'.format(_id, value_num))
 
+                if len(values) == 1 and values[0].get('weight', 1) != 1:
+                    reasons.append('pool "{}" has single value with '
+                                   'weight!=1'.format(_id))
+
                 fallback = pool.get('fallback', None)
                 if fallback is not None:
                     if fallback in pools:
