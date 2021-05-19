@@ -933,12 +933,19 @@ class Ns1Provider(BaseProvider):
             request = r'GET {path} HTTP/1.0\r\nHost: {host}\r\n' \
                 r'User-agent: NS1\r\n\r\n'.format(path=path, host=host)
             ret['config']['send'] = request
-            # We'll also expect a HTTP response
-            ret['rules'] = [{
-                'comparison': 'contains',
-                'key': 'output',
-                'value': record.healthcheck_response['contains']
-            }]
+            rules = ret.setdefault('rules', [])
+            if record.healthcheck_statuscode is not None:
+                rules.append({
+                    'comparison': 'contains',
+                    'key': 'output',
+                    'value': '200 OK'
+                })
+            if record.healthcheck_responsebody is not None:
+                rules.append({
+                    'comparison': 'contains',
+                    'key': 'output',
+                    'value': record.healthcheck_responsebody,
+                })
 
         return ret
 

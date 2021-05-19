@@ -1011,6 +1011,8 @@ class TestRecord(TestCase):
                     'host': 'bleep.bloop',
                     'protocol': 'HTTP',
                     'port': 8080,
+                    'status_code': 301,
+                    'response_body': 'redirect'
                 }
             }
         })
@@ -1018,7 +1020,8 @@ class TestRecord(TestCase):
         self.assertEquals('bleep.bloop', new.healthcheck_host)
         self.assertEquals('HTTP', new.healthcheck_protocol)
         self.assertEquals(8080, new.healthcheck_port)
-        self.assertEquals({'contains': '200 OK'}, new.healthcheck_response)
+        self.assertEquals(301, new.healthcheck_statuscode)
+        self.assertEquals('redirect', new.healthcheck_responsebody)
 
         new = Record.new(self.zone, 'a', {
             'ttl': 44,
@@ -1041,6 +1044,8 @@ class TestRecord(TestCase):
                     'host': 'completely.ignored',
                     'protocol': 'TCP',
                     'port': 8080,
+                    'status_code': 200,
+                    'response_body': None
                 }
             }
         })
@@ -1048,7 +1053,8 @@ class TestRecord(TestCase):
         self.assertIsNone(new.healthcheck_host)
         self.assertEquals('TCP', new.healthcheck_protocol)
         self.assertEquals(8080, new.healthcheck_port)
-        self.assertIsNone(new.healthcheck_response)
+        self.assertIsNone(new.healthcheck_statuscode)
+        self.assertIsNone(new.healthcheck_responsebody)
 
         new = Record.new(self.zone, 'a', {
             'ttl': 44,
@@ -3015,6 +3021,7 @@ class TestDynamicRecords(TestCase):
                 'pools': {
                     'one': {
                         'values': [{
+                            'weight': 10,
                             'value': '3.3.3.3',
                         }],
                     },
@@ -3414,7 +3421,7 @@ class TestDynamicRecords(TestCase):
         self.assertEquals(['pool "one" is missing values'],
                           ctx.exception.reasons)
 
-        # pool valu not a dict
+        # pool value not a dict
         a_data = {
             'dynamic': {
                 'pools': {
@@ -3596,6 +3603,33 @@ class TestDynamicRecords(TestCase):
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
         self.assertEquals(['invalid weight "foo" in pool "three" value 2'],
+                          ctx.exception.reasons)
+
+        # single value with weight!=1
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'weight': 12,
+                            'value': '6.6.6.6',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['pool "one" has single value with weight!=1'],
                           ctx.exception.reasons)
 
         # invalid fallback

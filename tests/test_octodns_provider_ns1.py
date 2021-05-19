@@ -570,6 +570,8 @@ class TestNs1ProviderDynamic(TestCase):
                     'path': '/_ping',
                     'port': 80,
                     'protocol': 'HTTP',
+                    'status_code': None,
+                    'response_body': "check this string"
                 }
             },
             'ttl': 32,
@@ -756,6 +758,7 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertTrue('\\nHost: send.me\\r' in monitor['config']['send'])
         self.assertFalse(monitor['config']['ssl'])
         self.assertEquals('host:unit.tests type:A', monitor['notes'])
+        self.assertEquals('check this string', monitor['rules'][0]['value'])
 
         record._octodns['healthcheck']['protocol'] = 'HTTPS'
         monitor = provider._monitor_gen(record, value)

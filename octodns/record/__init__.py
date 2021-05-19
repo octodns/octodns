@@ -218,14 +218,25 @@ class Record(EqualityTupleMixin):
             return 443
 
     @property
-    def healthcheck_response(self):
+    def healthcheck_statuscode(self):
         healthcheck = self._octodns.get('healthcheck', {})
         if healthcheck.get('protocol', None) == 'TCP':
             return None
         try:
-            return healthcheck['response']
+            return healthcheck['status_code']
         except KeyError:
-            return {'contains': '200 OK'}
+            return 200
+
+    # string to check in response body
+    @property
+    def healthcheck_responsebody(self):
+        healthcheck = self._octodns.get('healthcheck', {})
+        if healthcheck.get('protocol', None) == 'TCP':
+            return None
+        try:
+            return healthcheck['response_body']
+        except KeyError:
+            return None
 
     def changes(self, other, target):
         # We're assuming we have the same name and type if we're being compared
@@ -427,6 +438,7 @@ class _ValueMixin(object):
 
 
 class _DynamicPool(object):
+    log = getLogger('_DynamicPool')
 
     def __init__(self, _id, data):
         self._id = _id
@@ -438,6 +450,15 @@ class _DynamicPool(object):
             } for d in data['values']
         ]
         values.sort(key=lambda d: d['value'])
+
+        # normalize weight of a single-value pool
+        if len(values) == 1:
+            weight = data['values'][0].get('weight', 1)
+            if weight != 1:
+                self.log.warn(
+                    'Using weight=1 instead of %s for single-value pool %s',
+                    weight, _id)
+                values[0]['weight'] = 1
 
         fallback = data.get('fallback', None)
         self.data = {
@@ -582,6 +603,10 @@ class _DynamicMixin(object):
                     except KeyError:
                         reasons.append('missing value in pool "{}" '
                                        'value {}'.format(_id, value_num))
+
+                if len(values) == 1 and values[0].get('weight', 1) != 1:
+                    reasons.append('pool "{}" has single value with '
+                                   'weight!=1'.format(_id))
 
                 fallback = pool.get('fallback', None)
                 if fallback is not None:
