@@ -655,12 +655,22 @@ class AzureProvider(BaseProvider):
                 geos = rule.setdefault('geos', [])
                 for code in geo_map:
                     if code.startswith('GEO-'):
-                        geos.append(code[len('GEO-'):])
+                        # continent
+                        if code == 'GEO-AP':
+                            # Azure uses Australia/Pacific (AP) instead of
+                            # Oceania https://docs.microsoft.com/en-us/azure/
+                            #                                traffic-manager/
+                            #              traffic-manager-geographic-regions
+                            geos.append('OC')
+                        else:
+                            geos.append(code[len('GEO-'):])
                     elif '-' in code:
+                        # state
                         country, province = code.split('-', 1)
                         country = GeoCodes.country_to_code(country)
                         geos.append('{}-{}'.format(country, province))
                     else:
+                        # country
                         geos.append(GeoCodes.country_to_code(code))
 
             # second level priority profile
@@ -872,15 +882,22 @@ class AzureProvider(BaseProvider):
             if len(rule_geos) > 0:
                 for geo in rule_geos:
                     if '-' in geo:
+                        # country or state
                         geos.append(geo.split('-', 1)[-1])
                     else:
-                        geos.append('GEO-{}'.format(geo))
+                        # continent
                         if geo == 'AS':
                             # Middle East is part of Asia in octoDNS, but
                             # Azure treats it as a separate "group", so let's
                             # add it in the list of geo mappings. We will drop
                             # it when we later parse the list of regions.
                             geos.append('GEO-ME')
+                        elif geo == 'OC':
+                            # Azure uses Australia/Pacific (AP) instead of
+                            # Oceania
+                            geo = 'AP'
+
+                        geos.append('GEO-{}'.format(geo))
             else:
                 geos.append('WORLD')
             geo_endpoints.append(Endpoint(
