@@ -1253,15 +1253,11 @@ class Route53Provider(BaseProvider):
         return self._gen_mods('DELETE', existing_records, existing_rrsets)
 
     def _extra_changes_update_needed(self, record, rrset):
-        value = rrset['ResourceRecords'][0]['Value']
-
-        try:
-            ip_address(text_type(value))
-            # We're working with an IP
+        if record._type == 'CNAME':
+            # For CNAME, healthcheck host by default points to the CNAME value
+            healthcheck_host = rrset['ResourceRecords'][0]['Value']
+        else:
             healthcheck_host = record.healthcheck_host
-        except (AddressValueError, ValueError):
-            # This isn't an IP, host is the value
-            healthcheck_host = value
 
         healthcheck_path = record.healthcheck_path
         healthcheck_protocol = record.healthcheck_protocol
