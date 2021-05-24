@@ -117,6 +117,9 @@ class TestGCoreProvider(TestCase):
             zone = Zone("unit.tests.", [])
             provider.populate(zone)
             self.assertEquals(4, len(zone.records))
+            self.assertEquals(
+                {"aaaa", "www", "www.sub", ""}, {r.name for r in zone.records}
+            )
             changes = self.expected.changes(zone, provider)
             self.assertEquals(0, len(changes))
 

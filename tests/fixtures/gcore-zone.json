@@ -11,7 +11,7 @@
     "records": [
       {
         "id": 12419,
-        "name": "unit.test.",
+        "name": "unit.test",
         "type": "ns",
         "ttl": 300,
         "short_answers": [

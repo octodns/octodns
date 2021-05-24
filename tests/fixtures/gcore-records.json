@@ -1,6 +1,6 @@
 {
     "rrsets": [{
-        "name": "unit.tests.",
+        "name": "unit.tests",
         "type": "A",
         "ttl": 300,
         "resource_records": [{
@@ -9,7 +9,7 @@
             ]
         }]
     }, {
-        "name": "unit.tests.",
+        "name": "unit.tests",
         "type": "ns",
         "ttl": 300,
         "resource_records": [{

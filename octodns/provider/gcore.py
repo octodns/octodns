@@ -217,9 +217,7 @@ class GCoreProvider(BaseProvider):
             _type = record["type"].upper()
             if _type not in self.SUPPORTS:
                 continue
-            rr_name = record["name"].replace(zone.name, "")
-            if len(rr_name) > 0 and rr_name.endswith("."):
-                rr_name = rr_name[:-1]
+            rr_name = zone.hostname_from_fqdn(record["name"])
             values[rr_name][_type] = record
 
         before = len(zone.records)
@@ -256,27 +254,24 @@ class GCoreProvider(BaseProvider):
     def _apply_create(self, change):
         self.log.info("creating: %s", change)
         new = change.new
-        rrset_name = self._build_rrset_name(new)
         data = getattr(self, "_params_for_{}".format(new._type))(new)
         self._client.record_create(
-            new.zone.name[:-1], rrset_name, new._type, data
+            new.zone.name[:-1], new.fqdn, new._type, data
         )
 
     def _apply_update(self, change):
         self.log.info("updating: %s", change)
         new = change.new
-        rrset_name = self._build_rrset_name(new)
         data = getattr(self, "_params_for_{}".format(new._type))(new)
         self._client.record_update(
-            new.zone.name[:-1], rrset_name, new._type, data
+            new.zone.name[:-1], new.fqdn, new._type, data
         )
 
     def _apply_delete(self, change):
         self.log.info("deleting: %s", change)
         existing = change.existing
-        rrset_name = self._build_rrset_name(existing)
         self._client.record_delete(
-            existing.zone.name[:-1], rrset_name, existing._type
+            existing.zone.name[:-1], existing.fqdn, existing._type
         )
 
     def _apply(self, plan):
@@ -299,9 +294,3 @@ class GCoreProvider(BaseProvider):
         for change in changes:
             class_name = change.__class__.__name__
             getattr(self, "_apply_{}".format(class_name.lower()))(change)
-
-    @staticmethod
-    def _build_rrset_name(record):
-        if len(record.name) > 0:
-            return "{}.{}".format(record.name, record.zone.name)
-        return record.zone.name
