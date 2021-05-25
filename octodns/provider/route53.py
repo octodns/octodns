@@ -1131,7 +1131,7 @@ class Route53Provider(BaseProvider):
             'Type': healthcheck_protocol,
         }
         if healthcheck_protocol != 'TCP':
-            config['FullyQualifiedDomainName'] = healthcheck_host
+            config['FullyQualifiedDomainName'] = healthcheck_host or value
             config['ResourcePath'] = healthcheck_path
         if value:
             config['IPAddress'] = value
