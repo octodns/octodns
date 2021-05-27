@@ -459,7 +459,7 @@ class UltraProvider(BaseProvider):
                 if existing_type == "ALIAS":
                     existing_type = "APEXALIAS"
 
-                path = '/v2/zones/{}/rrsets/{}/{    }'.format(zone_name,
+                path = '/v2/zones/{}/rrsets/{}/{}'.format(zone_name,
                                                           existing_type,
                                                           existing.fqdn)
                 self._delete(path, json_response=False)
