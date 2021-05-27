@@ -163,7 +163,7 @@ class TestDigitalOceanProvider(TestCase):
         plan = provider.plan(self.expected)
 
         # No root NS, no ignored, no excluded, no unsupported
-        n = len(self.expected.records) - 9
+        n = len(self.expected.records) - 10
         self.assertEquals(n, len(plan.changes))
         self.assertEquals(n, provider.apply(plan))
         self.assertFalse(plan.exists)
