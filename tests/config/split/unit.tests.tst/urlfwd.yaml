@@ -1,0 +1,15 @@
+---
+urlfwd:
+  ttl: 300
+  type: URLFWD
+  values:
+  - code: 302
+    masking: 2
+    path: '/'
+    query: 0
+    target: 'http://www.unit.tests'
+  - code: 301
+    masking: 2
+    path: '/target'
+    query: 0
+    target: 'http://target.unit.tests'
