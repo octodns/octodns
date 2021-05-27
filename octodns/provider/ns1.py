@@ -234,7 +234,7 @@ class Ns1Provider(BaseProvider):
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR',
-                    'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
+                    'NS', 'PTR', 'SPF', 'SRV', 'TXT', 'URLFWD'))
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
@@ -749,6 +749,23 @@ class Ns1Provider(BaseProvider):
             'values': values,
         }
 
+    def _data_for_URLFWD(self, _type, record):
+        values = []
+        for answer in record['short_answers']:
+            path, target, code, masking, query  = answer.split(' ', 4)
+            values.append({
+                'path': path,
+                'target': target,
+                'code': code,
+                'masking': masking,
+                'query': query,
+            })
+        return {
+            'ttl': record['ttl'],
+            'type': _type,
+            'values': values,
+        }
+
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s',
                        zone.name,
@@ -1241,6 +1258,11 @@ class Ns1Provider(BaseProvider):
 
     def _params_for_SRV(self, record):
         values = [(v.priority, v.weight, v.port, v.target)
+                  for v in record.values]
+        return {'answers': values, 'ttl': record.ttl}, None
+
+    def _params_for_URLFWD(self, record):
+        values = [(v.path, v.target, v.code, v.masking, v.query)
                   for v in record.values]
         return {'answers': values, 'ttl': record.ttl}, None
 
