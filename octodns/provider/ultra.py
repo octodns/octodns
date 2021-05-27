@@ -455,10 +455,11 @@ class UltraProvider(BaseProvider):
                                                 existing.name + '.')
 
                 # UltraDNS treats the `APEXALIAS` type as the octodns `ALIAS`.
-                if existing._type == "ALIAS":
-                    existing._type = "APEXALIAS"
+                existing_type = existing._type
+                if existing_type == "ALIAS":
+                    existing_type = "APEXALIAS"
 
                 path = '/v2/zones/{}/rrsets/{}/{    }'.format(zone_name,
-                                                          existing._type,
+                                                          existing_type,
                                                           existing.fqdn)
                 self._delete(path, json_response=False)
