@@ -169,6 +169,20 @@ txt:
     - Bah bah black sheep
     - have you any wool.
     - 'v=DKIM1\;k=rsa\;s=email\;h=sha256\;p=A/kinda+of/long/string+with+numb3rs'
+urlfwd:
+  ttl: 300
+  type: URLFWD
+  values:
+  - code: 302
+    masking: 2
+    path: '/'
+    query: 0
+    target: 'http://www.unit.tests'
+  - code: 301
+    masking: 2
+    path: '/target'
+    query: 0
+    target: 'http://target.unit.tests'
 www:
   ttl: 300
   type: A
