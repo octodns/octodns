@@ -453,6 +453,7 @@ class Test_ProfileIsMatch(TestCase):
             name = 'foo-unit-tests',
             ttl = 60,
             method = 'Geographic',
+            dns_name = None,
             monitor_proto = 'HTTPS',
             monitor_port = 4443,
             monitor_path = '/_ping',
@@ -465,7 +466,7 @@ class Test_ProfileIsMatch(TestCase):
             weight = 1,
             priority = 1,
         ):
-            dns = DnsConfig(ttl=ttl)
+            dns = DnsConfig(relative_name=(dns_name or name), ttl=ttl)
             return Profile(
                 name=name, traffic_routing_method=method, dns_config=dns,
                 monitor_config=MonitorConfig(
@@ -488,6 +489,7 @@ class Test_ProfileIsMatch(TestCase):
 
         self.assertFalse(is_match(profile(), profile(name='two')))
         self.assertFalse(is_match(profile(), profile(endpoints=2)))
+        self.assertFalse(is_match(profile(), profile(dns_name='two')))
         self.assertFalse(is_match(profile(), profile(monitor_proto='HTTP')))
         self.assertFalse(is_match(profile(), profile(endpoint_name='a')))
         self.assertFalse(is_match(profile(), profile(endpoint_type='b')))
@@ -596,7 +598,6 @@ class TestAzureDnsProvider(TestCase):
         id_format = base_id + '{}--' + suffix
         name_format = '{}--' + suffix
 
-        dns = DnsConfig(ttl=60)
         header = MonitorConfigCustomHeadersItem(name='Host',
                                                 value='foo.unit.tests')
         monitor = MonitorConfig(protocol='HTTPS', port=4443, path='/_ping',
@@ -604,12 +605,12 @@ class TestAzureDnsProvider(TestCase):
         external = 'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
         nested = 'Microsoft.Network/trafficManagerProfiles/nestedEndpoints'
 
-        return [
+        profiles = [
             Profile(
                 id=id_format.format('pool-two'),
                 name=name_format.format('pool-two'),
                 traffic_routing_method='Weighted',
-                dns_config=dns,
+                dns_config=DnsConfig(ttl=60),
                 monitor_config=monitor,
                 endpoints=[
                     Endpoint(
@@ -630,7 +631,7 @@ class TestAzureDnsProvider(TestCase):
                 id=id_format.format('rule-one'),
                 name=name_format.format('rule-one'),
                 traffic_routing_method='Priority',
-                dns_config=dns,
+                dns_config=DnsConfig(ttl=60),
                 monitor_config=monitor,
                 endpoints=[
                     Endpoint(
@@ -663,7 +664,7 @@ class TestAzureDnsProvider(TestCase):
                 id=id_format.format('rule-two'),
                 name=name_format.format('rule-two'),
                 traffic_routing_method='Priority',
-                dns_config=dns,
+                dns_config=DnsConfig(ttl=60),
                 monitor_config=monitor,
                 endpoints=[
                     Endpoint(
@@ -690,7 +691,7 @@ class TestAzureDnsProvider(TestCase):
                 id=base_id + suffix,
                 name=suffix,
                 traffic_routing_method='Geographic',
-                dns_config=dns,
+                dns_config=DnsConfig(ttl=60),
                 monitor_config=monitor,
                 endpoints=[
                     Endpoint(
@@ -708,6 +709,11 @@ class TestAzureDnsProvider(TestCase):
                 ],
             ),
         ]
+
+        for profile in profiles:
+            profile.dns_config.relative_name = profile.name
+
+        return profiles
 
     def _get_dynamic_package(self):
         '''Convenience function to setup a sample dynamic record.

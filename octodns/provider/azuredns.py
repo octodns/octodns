@@ -284,8 +284,16 @@ def _profile_is_match(have, desired):
     # compare basic attributes
     if have.name != desired.name or \
        have.traffic_routing_method != desired.traffic_routing_method or \
-       have.dns_config.ttl != desired.dns_config.ttl or \
        len(have.endpoints) != len(desired.endpoints):
+        return False
+
+    # compare dns config
+    dns_have = have.dns_config
+    dns_desired = desired.dns_config
+    if dns_have.ttl != dns_desired.ttl or \
+       dns_have.relative_name is None or \
+       dns_desired.relative_name is None or \
+       dns_have.relative_name != dns_desired.relative_name:
         return False
 
     # compare monitoring configuration
