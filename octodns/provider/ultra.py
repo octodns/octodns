@@ -73,7 +73,7 @@ class UltraProvider(BaseProvider):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
     TIMEOUT = 5
-    ZONE_REQUEST_LIMIT = 1000
+    ZONE_REQUEST_LIMIT = 100
 
     def _request(self, method, path, params=None,
                  data=None, json=None, json_response=True):
@@ -213,6 +213,7 @@ class UltraProvider(BaseProvider):
 
     _data_for_PTR = _data_for_single
     _data_for_CNAME = _data_for_single
+    _data_for_ALIAS = _data_for_single
 
     def _data_for_CAA(self, _type, records):
         return {
@@ -376,6 +377,7 @@ class UltraProvider(BaseProvider):
         }
 
     _contents_for_PTR = _contents_for_CNAME
+    _contents_for_ALIAS = _contents_for_CNAME
 
     def _contents_for_SRV(self, record):
         return {
