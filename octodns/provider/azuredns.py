@@ -281,11 +281,20 @@ def _profile_is_match(have, desired):
     if have is None or desired is None:
         return False
 
+    log = logging.getLogger('azuredns._profile_is_match').debug
+
+    def false(have, desired, name=None):
+        prefix = 'profile={}'.format(name) if name else ''
+        attr = have.__class__.__name__
+        log('%s have.%s = %s', prefix, attr, have)
+        log('%s desired.%s = %s', prefix, attr, desired)
+        return False
+
     # compare basic attributes
     if have.name != desired.name or \
        have.traffic_routing_method != desired.traffic_routing_method or \
        len(have.endpoints) != len(desired.endpoints):
-        return False
+        return false(have, desired)
 
     # compare dns config
     dns_have = have.dns_config
@@ -294,7 +303,7 @@ def _profile_is_match(have, desired):
        dns_have.relative_name is None or \
        dns_desired.relative_name is None or \
        dns_have.relative_name != dns_desired.relative_name:
-        return False
+        return false(dns_have, dns_desired, have.name)
 
     # compare monitoring configuration
     monitor_have = have.monitor_config
@@ -303,7 +312,7 @@ def _profile_is_match(have, desired):
        monitor_have.port != monitor_desired.port or \
        monitor_have.path != monitor_desired.path or \
        monitor_have.custom_headers != monitor_desired.custom_headers:
-        return False
+        return false(monitor_have, monitor_desired, have.name)
 
     # compare endpoints
     method = have.traffic_routing_method
@@ -321,26 +330,26 @@ def _profile_is_match(have, desired):
     for have_endpoint, desired_endpoint in endpoints:
         if have_endpoint.name != desired_endpoint.name or \
            have_endpoint.type != desired_endpoint.type:
-            return False
+            return false(have_endpoint, desired_endpoint, have.name)
         target_type = have_endpoint.type.split('/')[-1]
         if target_type == 'externalEndpoints':
             # compare value, weight, priority
             if have_endpoint.target != desired_endpoint.target:
-                return False
+                return false(have_endpoint, desired_endpoint, have.name)
             if method == 'Weighted' and \
                have_endpoint.weight != desired_endpoint.weight:
-                return False
+                return false(have_endpoint, desired_endpoint, have.name)
         elif target_type == 'nestedEndpoints':
             # compare targets
             if have_endpoint.target_resource_id != \
                desired_endpoint.target_resource_id:
-                return False
+                return false(have_endpoint, desired_endpoint, have.name)
             # compare geos
             if method == 'Geographic':
                 have_geos = sorted(have_endpoint.geo_mapping)
                 desired_geos = sorted(desired_endpoint.geo_mapping)
                 if have_geos != desired_geos:
-                    return False
+                    return false(have_endpoint, desired_endpoint, have.name)
         else:
             # unexpected, give up
             return False
