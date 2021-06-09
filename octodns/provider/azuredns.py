@@ -613,8 +613,13 @@ class AzureProvider(BaseProvider):
 
             :type  return: dict
         '''
-        if azrecord.cname_record is None and azrecord.target_resource.id:
-            return self._data_for_dynamic(azrecord)
+        if azrecord.cname_record is None:
+            if azrecord.target_resource.id:
+                return self._data_for_dynamic(azrecord)
+            else:
+                # dynamic record alias is broken, return dummy value and apply
+                # will likely overwrite/fix it
+                return {'value': 'iam.invalid.'}
 
         return {'value': _check_endswith_dot(azrecord.cname_record.cname)}
 

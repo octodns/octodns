@@ -1677,6 +1677,27 @@ class TestAzureDnsProvider(TestCase):
         dns_update.assert_not_called()
         tm_delete.assert_called_once()
 
+        # both are dynamic but alias is broken
+        provider, existing, record1 = self._get_dynamic_package()
+        azrecord = RecordSet(
+            ttl=record1.ttl, target_resource=SubResource(id=None))
+        azrecord.name = record1.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record1._type)
+
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record2.value, 'iam.invalid.')
+
+        change = Update(record2, record1)
+        provider._apply_Update(change)
+        tm_sync, dns_update, tm_delete = (
+            provider._tm_client.profiles.create_or_update,
+            provider._dns_client.record_sets.create_or_update,
+            provider._tm_client.profiles.delete
+        )
+        tm_sync.assert_not_called()
+        dns_update.assert_called_once()
+        tm_delete.assert_not_called()
+
     def test_apply_delete_dynamic(self):
         provider, existing, record = self._get_dynamic_package()
         provider._populate_traffic_managers()
