@@ -259,8 +259,21 @@ def _parse_azure_type(string):
     return string.split('/')[-1]
 
 
-def _traffic_manager_suffix(record):
-    return record.fqdn[:-1].replace('.', '-')
+def _root_traffic_manager_name(record):
+    # ATM names can only have letters, numbers and hyphens
+    # replace dots with double hyphens to ensure unique mapping,
+    # hoping that real life FQDNs won't have double hyphens
+    return record.fqdn[:-1].replace('.', '--')
+
+
+def _rule_traffic_manager_name(pool, record):
+    prefix = _root_traffic_manager_name(record)
+    return '{}-rule-{}'.format(prefix, pool)
+
+
+def _pool_traffic_manager_name(pool, record):
+    prefix = _root_traffic_manager_name(record)
+    return '{}-pool-{}'.format(prefix, pool)
 
 
 def _get_monitor(record):
@@ -533,7 +546,7 @@ class AzureProvider(BaseProvider):
         return self._get_tm_profile_by_id(profile_id)
 
     def _get_tm_for_dynamic_record(self, record):
-        name = _traffic_manager_suffix(record)
+        name = _root_traffic_manager_name(record)
         return self._get_tm_profile_by_name(name)
 
     def populate(self, zone, target=False, lenient=False):
@@ -799,6 +812,7 @@ class AzureProvider(BaseProvider):
                 raise AzureException(msg)
 
         log = self.log.info
+        seen_profiles = {}
         extra = []
         for record in desired.records:
             if not getattr(record, 'dynamic', False):
@@ -813,6 +827,16 @@ class AzureProvider(BaseProvider):
             profiles = self._generate_traffic_managers(record)
             for profile in profiles:
                 name = profile.name
+                if name in seen_profiles:
+                    # exit if a possible collision is detected, even though
+                    # we've tried to ensure unique mapping
+                    msg = 'Collision in Traffic Manager names detected'
+                    msg = '{}: {} and {} both want to use {}'.format(
+                        msg, seen_profiles[name], record.fqdn, name)
+                    raise AzureException(msg)
+                else:
+                    seen_profiles[name] = record.fqdn
+
                 active.add(name)
                 existing_profile = self._get_tm_profile_by_name(name)
                 if not _profile_is_match(existing_profile, profile):
@@ -831,7 +855,14 @@ class AzureProvider(BaseProvider):
 
         return extra
 
-    def _generate_tm_profile(self, name, routing, endpoints, record):
+    def _generate_tm_profile(self, routing, endpoints, record, label=None):
+        # figure out profile name and Traffic Manager FQDN
+        name = _root_traffic_manager_name(record)
+        if routing == 'Weighted':
+            name = _pool_traffic_manager_name(label, record)
+        elif routing == 'Priority':
+            name = _rule_traffic_manager_name(label, record)
+
         # set appropriate endpoint types
         endpoint_type_prefix = 'Microsoft.Network/trafficManagerProfiles/'
         for ep in endpoints:
@@ -859,10 +890,10 @@ class AzureProvider(BaseProvider):
             location='global',
         )
 
-    def _update_tm_name(self, profile, new_name):
-        profile.name = new_name
-        profile.id = self._profile_name_to_id(new_name)
-        profile.dns_config.relative_name = new_name
+    def _convert_tm_to_root(self, profile, record):
+        profile.name = _root_traffic_manager_name(record)
+        profile.id = self._profile_name_to_id(profile.name)
+        profile.dns_config.relative_name = profile.name
 
         return profile
 
@@ -871,7 +902,6 @@ class AzureProvider(BaseProvider):
         pools = record.dynamic.pools
 
         default = record.value[:-1]
-        tm_suffix = _traffic_manager_suffix(record)
         profile = self._generate_tm_profile
 
         geo_endpoints = []
@@ -930,10 +960,8 @@ class AzureProvider(BaseProvider):
                                 target=target,
                                 weight=val.get('weight', 1),
                             ))
-                        profile_name = 'pool-{}--{}'.format(
-                            pool_name, tm_suffix)
-                        pool_profile = profile(profile_name, 'Weighted',
-                                               endpoints, record)
+                        pool_profile = profile(
+                            'Weighted', endpoints, record, pool_name)
                         traffic_managers.append(pool_profile)
                         pool_profiles[pool_name] = pool_profile
 
@@ -973,10 +1001,8 @@ class AzureProvider(BaseProvider):
 
             if len(rule_endpoints) > 1:
                 # create rule profile with fallback chain
-                rule_profile_name = 'rule-{}--{}'.format(
-                    rule.data['pool'], tm_suffix)
-                rule_profile = profile(rule_profile_name, 'Priority',
-                                       rule_endpoints, record)
+                rule_profile = profile(
+                    'Priority', rule_endpoints, record, rule.data['pool'])
                 traffic_managers.append(rule_profile)
 
                 # append rule profile to top-level geo profile
@@ -1009,13 +1035,9 @@ class AzureProvider(BaseProvider):
            geo_endpoints[0].target_resource_id:
             # Single WORLD rule does not require a Geographic profile, use
             # the target profile as the root profile
-            target_profile_id = geo_endpoints[0].target_resource_id
-            profile_map = dict((tm.id, tm) for tm in traffic_managers)
-            target_profile = profile_map[target_profile_id]
-            self._update_tm_name(target_profile, tm_suffix)
+            self._convert_tm_to_root(traffic_managers[-1], record)
         else:
-            geo_profile = profile(tm_suffix, 'Geographic', geo_endpoints,
-                                  record)
+            geo_profile = profile('Geographic', geo_endpoints, record)
             traffic_managers.append(geo_profile)
 
         return traffic_managers
@@ -1047,14 +1069,15 @@ class AzureProvider(BaseProvider):
         return seen
 
     def _find_traffic_managers(self, record):
-        tm_suffix = _traffic_manager_suffix(record)
+        tm_prefix = _root_traffic_manager_name(record)
 
         profiles = set()
         for profile_id in self._traffic_managers:
-            # match existing profiles with record's suffix
+            # match existing profiles with record's prefix
             name = profile_id.split('/')[-1]
-            if name == tm_suffix or \
-               name.endswith('--{}'.format(tm_suffix)):
+            if name == tm_prefix or \
+               name.startswith('{}-pool-'.format(tm_prefix)) or \
+               name.startswith('{}-rule-'.format(tm_prefix)):
                 profiles.add(name)
 
         return profiles

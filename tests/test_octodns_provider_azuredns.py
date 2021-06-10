@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from octodns.record import Create, Update, Delete, Record
 from octodns.provider.azuredns import _AzureRecord, AzureProvider, \
-    _check_endswith_dot, _parse_azure_type, _traffic_manager_suffix, \
+    _check_endswith_dot, _parse_azure_type, _root_traffic_manager_name, \
     _get_monitor, _profile_is_match, AzureException
 from octodns.zone import Zone
 from octodns.provider.base import Plan
@@ -402,12 +402,12 @@ class Test_CheckEndswithDot(TestCase):
             self.assertEquals(expected, _check_endswith_dot(test))
 
 
-class Test_TrafficManagerSuffix(TestCase):
-    def test_traffic_manager_suffix(self):
+class Test_RootTrafficManagerName(TestCase):
+    def test_root_traffic_manager_name(self):
         test = Record.new(zone, 'foo', data={
             'ttl': 60, 'type': 'CNAME', 'value': 'default.unit.tests.',
         })
-        self.assertEqual(_traffic_manager_suffix(test), 'foo-unit-tests')
+        self.assertEqual(_root_traffic_manager_name(test), 'foo--unit--tests')
 
 
 class Test_GetMonitor(TestCase):
@@ -594,9 +594,9 @@ class TestAzureDnsProvider(TestCase):
         base_id = '/subscriptions/' + sub + \
             '/resourceGroups/' + rg + \
             '/providers/Microsoft.Network/trafficManagerProfiles/'
-        suffix = 'foo-unit-tests'
-        id_format = base_id + '{}--' + suffix
-        name_format = '{}--' + suffix
+        prefix = 'foo--unit--tests'
+        name_format = prefix + '-{}'
+        id_format = base_id + name_format
 
         header = MonitorConfigCustomHeadersItem(name='Host',
                                                 value='foo.unit.tests')
@@ -688,8 +688,8 @@ class TestAzureDnsProvider(TestCase):
                 ],
             ),
             Profile(
-                id=base_id + suffix,
-                name=suffix,
+                id=base_id + prefix,
+                name=prefix,
                 traffic_routing_method='Geographic',
                 dns_config=DnsConfig(ttl=60),
                 monitor_config=monitor,
@@ -899,10 +899,10 @@ class TestAzureDnsProvider(TestCase):
         # test unused TM produces the extra change for clean up
         sample_profile = self._get_tm_profiles(provider)[0]
         tm_id = provider._profile_name_to_id
-        root_profile_name = _traffic_manager_suffix(record)
+        root_profile_name = _root_traffic_manager_name(record)
         extra_profile = Profile(
-            id=tm_id('random--{}'.format(root_profile_name)),
-            name='random--{}'.format(root_profile_name),
+            id=tm_id('{}-pool-random'.format(root_profile_name)),
+            name='{}-pool-random'.format(root_profile_name),
             traffic_routing_method='Weighted',
             dns_config=sample_profile.dns_config,
             monitor_config=sample_profile.monitor_config,
@@ -968,14 +968,40 @@ class TestAzureDnsProvider(TestCase):
         })
         desired.add_record(a_dynamic)
         changes.append(Create(a_dynamic))
-        with self.assertRaises(AzureException):
+        with self.assertRaises(AzureException) as ctx:
             provider._extra_changes(existing, desired, changes)
+            self.assertTrue(text_type(ctx).endswith(
+                'must be of type CNAME'
+            ))
+        desired._remove_record(a_dynamic)
+
+        # test colliding ATM names throws exception
+        record1 = Record.new(desired, 'sub.www', data={
+            'type': record._type,
+            'ttl': record.ttl,
+            'value': record.value,
+            'dynamic': record.dynamic._data(),
+        })
+        record2 = Record.new(desired, 'sub--www', data={
+            'type': record._type,
+            'ttl': record.ttl,
+            'value': record.value,
+            'dynamic': record.dynamic._data(),
+        })
+        desired.add_record(record1)
+        desired.add_record(record2)
+        changes = [Create(record1), Create(record2)]
+        with self.assertRaises(AzureException) as ctx:
+            provider._extra_changes(existing, desired, changes)
+            self.assertTrue(text_type(ctx).startswith(
+                'Collision in Traffic Manager'
+            ))
 
     def test_generate_tm_profile(self):
         provider, zone, record = self._get_dynamic_package()
         profile_gen = provider._generate_tm_profile
 
-        name = 'foobar'
+        label = 'foobar'
         routing = 'Priority'
         endpoints = [
             Endpoint(target='one.unit.tests'),
@@ -985,20 +1011,22 @@ class TestAzureDnsProvider(TestCase):
 
         # invalid endpoint raises exception
         with self.assertRaises(AzureException):
-            profile_gen(name, routing, endpoints, record)
+            profile_gen(routing, endpoints, record, label)
 
         # regular test
         endpoints.pop()
-        profile = profile_gen(name, routing, endpoints, record)
+        profile = profile_gen(routing, endpoints, record, label)
 
         # implicitly tests _profile_name_to_id
         sub = provider._dns_client_subscription_id
         rg = provider._resource_group
+        expected_name = 'foo--unit--tests-rule-foobar'
         expected_id = '/subscriptions/' + sub + \
             '/resourceGroups/' + rg + \
-            '/providers/Microsoft.Network/trafficManagerProfiles/' + name
+            '/providers/Microsoft.Network/trafficManagerProfiles/' + \
+            expected_name
         self.assertEqual(profile.id, expected_id)
-        self.assertEqual(profile.name, name)
+        self.assertEqual(profile.name, expected_name)
         self.assertEqual(profile.name, profile.dns_config.relative_name)
         self.assertEqual(profile.traffic_routing_method, routing)
         self.assertEqual(profile.dns_config.ttl, record.ttl)
@@ -1044,7 +1072,7 @@ class TestAzureDnsProvider(TestCase):
     def test_populate_dynamic_middle_east(self):
         # Middle east without Asia raises exception
         provider, zone, record = self._get_dynamic_package()
-        tm_suffix = _traffic_manager_suffix(record)
+        tm_suffix = _root_traffic_manager_name(record)
         tm_id = provider._profile_name_to_id
         tm_list = provider._tm_client.profiles.list_by_resource_group
         tm_list.return_value = [
@@ -1105,10 +1133,10 @@ class TestAzureDnsProvider(TestCase):
 
         self.assertEqual(len(profiles), 1)
         self.assertTrue(_profile_is_match(profiles[0], Profile(
-            name='foo-unit-tests',
+            name='foo--unit--tests',
             traffic_routing_method='Priority',
             dns_config=DnsConfig(
-                relative_name='foo-unit-tests', ttl=60),
+                relative_name='foo--unit--tests', ttl=60),
             monitor_config=_get_monitor(record),
             endpoints=[
                 Endpoint(
@@ -1164,10 +1192,10 @@ class TestAzureDnsProvider(TestCase):
 
         self.assertEqual(len(profiles), 1)
         self.assertTrue(_profile_is_match(profiles[0], Profile(
-            name='foo-unit-tests',
+            name='foo--unit--tests',
             traffic_routing_method='Geographic',
             dns_config=DnsConfig(
-                relative_name='foo-unit-tests', ttl=60),
+                relative_name='foo--unit--tests', ttl=60),
             monitor_config=_get_monitor(record),
             endpoints=[
                 Endpoint(
@@ -1222,10 +1250,10 @@ class TestAzureDnsProvider(TestCase):
 
         self.assertEqual(len(profiles), 2)
         self.assertTrue(_profile_is_match(profiles[0], Profile(
-            name='pool-rr--foo-unit-tests',
+            name='foo--unit--tests-pool-rr',
             traffic_routing_method='Weighted',
             dns_config=DnsConfig(
-                relative_name='pool-rr--foo-unit-tests', ttl=60),
+                relative_name='foo--unit--tests-pool-rr', ttl=60),
             monitor_config=_get_monitor(record),
             endpoints=[
                 Endpoint(
@@ -1255,16 +1283,16 @@ class TestAzureDnsProvider(TestCase):
             ],
         )))
         self.assertTrue(_profile_is_match(profiles[1], Profile(
-            name='foo-unit-tests',
+            name='foo--unit--tests',
             traffic_routing_method='Geographic',
             dns_config=DnsConfig(
-                relative_name='foo-unit-tests', ttl=60),
+                relative_name='foo--unit--tests', ttl=60),
             monitor_config=_get_monitor(record),
             endpoints=[
                 Endpoint(
                     name='rule-rr',
                     type=nested,
-                    target_resource_id=tm_id('pool-rr--foo-unit-tests'),
+                    target_resource_id=tm_id(profiles[0].name),
                     geo_mapping=['GEO-AF'],
                 ),
             ],
@@ -1311,10 +1339,10 @@ class TestAzureDnsProvider(TestCase):
 
         self.assertEqual(len(profiles), 1)
         self.assertTrue(_profile_is_match(profiles[0], Profile(
-            name='foo-unit-tests',
+            name='foo--unit--tests',
             traffic_routing_method='Weighted',
             dns_config=DnsConfig(
-                relative_name='foo-unit-tests', ttl=60),
+                relative_name='foo--unit--tests', ttl=60),
             monitor_config=_get_monitor(record),
             endpoints=[
                 Endpoint(
@@ -1393,10 +1421,10 @@ class TestAzureDnsProvider(TestCase):
 
         self.assertEqual(len(profiles), 2)
         self.assertTrue(_profile_is_match(profiles[0], Profile(
-            name='pool-rr--foo-unit-tests',
+            name='foo--unit--tests-pool-rr',
             traffic_routing_method='Weighted',
             dns_config=DnsConfig(
-                relative_name='pool-rr--foo-unit-tests', ttl=60),
+                relative_name='foo--unit--tests-pool-rr', ttl=60),
             monitor_config=_get_monitor(record),
             endpoints=[
                 Endpoint(
@@ -1426,10 +1454,10 @@ class TestAzureDnsProvider(TestCase):
             ],
         )))
         self.assertTrue(_profile_is_match(profiles[1], Profile(
-            name='foo-unit-tests',
+            name='foo--unit--tests',
             traffic_routing_method='Priority',
             dns_config=DnsConfig(
-                relative_name='foo-unit-tests', ttl=60),
+                relative_name='foo--unit--tests', ttl=60),
             monitor_config=_get_monitor(record),
             endpoints=[
                 Endpoint(
@@ -1441,7 +1469,7 @@ class TestAzureDnsProvider(TestCase):
                 Endpoint(
                     name='rr',
                     type=nested,
-                    target_resource_id=tm_id('pool-rr--foo-unit-tests'),
+                    target_resource_id=tm_id(profiles[0].name),
                     priority=2,
                 ),
             ],
@@ -1459,16 +1487,37 @@ class TestAzureDnsProvider(TestCase):
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
+    def test_dynamic_unique_traffic_managers(self):
+        record = self._get_dynamic_record(zone)
+        data = {
+            'type': record._type,
+            'ttl': record.ttl,
+            'value': record.value,
+            'dynamic': record.dynamic._data()
+        }
+        record_names = [
+            'www.foo', 'www-foo'
+        ]
+        provider = self._get_provider()
+
+        seen = set()
+        for name in record_names:
+            record = Record.new(zone, name, data=data)
+            tms = provider._generate_traffic_managers(record)
+            for tm in tms:
+                self.assertNotIn(tm.name, seen)
+                seen.add(tm.name)
+
     def test_sync_traffic_managers(self):
         provider, zone, record = self._get_dynamic_package()
         provider._populate_traffic_managers()
 
         tm_sync = provider._tm_client.profiles.create_or_update
 
-        suffix = 'foo-unit-tests'
+        prefix = 'foo--unit--tests'
         expected_seen = {
-            suffix, 'pool-two--{}'.format(suffix),
-            'rule-one--{}'.format(suffix), 'rule-two--{}'.format(suffix),
+            prefix, '{}-pool-two'.format(prefix),
+            '{}-rule-one'.format(prefix), '{}-rule-two'.format(prefix),
         }
 
         # test no change
@@ -1494,7 +1543,7 @@ class TestAzureDnsProvider(TestCase):
 
         # test that new profile was successfully inserted in cache
         new_profile = provider._get_tm_profile_by_name(
-            'pool-two--{}'.format(suffix)
+            '{}-pool-two'.format(prefix)
         )
         self.assertEqual(new_profile.endpoints[0].weight, 14)
 
@@ -1524,11 +1573,11 @@ class TestAzureDnsProvider(TestCase):
             'ttl': record.ttl,
             'value': record.value,
         })
-        suffix2 = _traffic_manager_suffix(record2)
+        prefix2 = _root_traffic_manager_name(record2)
         tm_id = provider._profile_name_to_id
         extra_profile = Profile(
-            id=tm_id('random--{}'.format(suffix2)),
-            name='random--{}'.format(suffix2),
+            id=tm_id('{}-pool-random'.format(prefix2)),
+            name='{}-pool-random'.format(prefix2),
             traffic_routing_method='Weighted',
             dns_config=sample_profile.dns_config,
             monitor_config=sample_profile.monitor_config,
@@ -1539,10 +1588,10 @@ class TestAzureDnsProvider(TestCase):
         provider._populate_traffic_managers()
 
         # implicitly asserts that non-matching profile is not included
-        suffix = _traffic_manager_suffix(record)
+        prefix = _root_traffic_manager_name(record)
         self.assertEqual(provider._find_traffic_managers(record), {
-            suffix, 'pool-two--{}'.format(suffix),
-            'rule-one--{}'.format(suffix), 'rule-two--{}'.format(suffix),
+            prefix, '{}-pool-two'.format(prefix),
+            '{}-rule-one'.format(prefix), '{}-rule-two'.format(prefix),
         })
 
     def test_traffic_manager_gc(self):
@@ -1655,10 +1704,10 @@ class TestAzureDnsProvider(TestCase):
         provider, existing, dynamic_record = self._get_dynamic_package()
         sample_profile = self._get_tm_profiles(provider)[0]
         tm_id = provider._profile_name_to_id
-        root_profile_name = _traffic_manager_suffix(dynamic_record)
+        root_profile_name = _root_traffic_manager_name(dynamic_record)
         extra_profile = Profile(
-            id=tm_id('random--{}'.format(root_profile_name)),
-            name='random--{}'.format(root_profile_name),
+            id=tm_id('{}-pool-random'.format(root_profile_name)),
+            name='{}-pool-random'.format(root_profile_name),
             traffic_routing_method='Weighted',
             dns_config=sample_profile.dns_config,
             monitor_config=sample_profile.monitor_config,
