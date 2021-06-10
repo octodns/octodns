@@ -1084,7 +1084,7 @@ class Route53Provider(BaseProvider):
         try:
             ip_address(text_type(value))
             # We're working with an IP, host is the Host header
-            healthcheck_host = record.healthcheck_host
+            healthcheck_host = record.healthcheck_host(value=value)
         except (AddressValueError, ValueError):
             # This isn't an IP, host is the value, value should be None
             healthcheck_host = value
@@ -1131,7 +1131,7 @@ class Route53Provider(BaseProvider):
             'Type': healthcheck_protocol,
         }
         if healthcheck_protocol != 'TCP':
-            config['FullyQualifiedDomainName'] = healthcheck_host or value
+            config['FullyQualifiedDomainName'] = healthcheck_host
             config['ResourcePath'] = healthcheck_path
         if value:
             config['IPAddress'] = value
@@ -1257,7 +1257,7 @@ class Route53Provider(BaseProvider):
             # For CNAME, healthcheck host by default points to the CNAME value
             healthcheck_host = rrset['ResourceRecords'][0]['Value']
         else:
-            healthcheck_host = record.healthcheck_host
+            healthcheck_host = record.healthcheck_host()
 
         healthcheck_path = record.healthcheck_path
         healthcheck_protocol = record.healthcheck_protocol

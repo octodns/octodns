@@ -183,15 +183,11 @@ class Record(EqualityTupleMixin):
     def included(self):
         return self._octodns.get('included', [])
 
-    @property
-    def healthcheck_host(self):
+    def healthcheck_host(self, value=None):
         healthcheck = self._octodns.get('healthcheck', {})
         if healthcheck.get('protocol', None) == 'TCP':
             return None
-        try:
-            return healthcheck['host']
-        except KeyError:
-            return self.fqdn[:-1]
+        return healthcheck.get('host', self.fqdn[:-1]) or value
 
     @property
     def healthcheck_path(self):
