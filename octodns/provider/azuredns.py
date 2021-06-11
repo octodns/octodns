@@ -632,6 +632,10 @@ class AzureProvider(BaseProvider):
             else:
                 # dynamic record alias is broken, return dummy value and apply
                 # will likely overwrite/fix it
+                self.log.warn('_data_for_CNAME: Missing Traffic Manager '
+                              'alias for dynamic CNAME record %s, forcing '
+                              're-link by setting an invalid value',
+                              azrecord.fqdn)
                 return {'value': 'iam.invalid.'}
 
         return {'value': _check_endswith_dot(azrecord.cname_record.cname)}
