@@ -1506,6 +1506,73 @@ class TestAzureDnsProvider(TestCase):
                 self.assertNotIn(tm.name, seen)
                 seen.add(tm.name)
 
+    def test_dynamic_reused_pool(self):
+        # test that traffic managers are generated as expected
+        provider = self._get_provider()
+        nested = 'Microsoft.Network/trafficManagerProfiles/nestedEndpoints'
+
+        record = Record.new(zone, 'foo', data={
+            'type': 'CNAME',
+            'ttl': 60,
+            'value': 'default.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'iad': {
+                        'values': [
+                            {'value': 'iad.unit.tests.'},
+                        ],
+                        'fallback': 'lhr',
+                    },
+                    'lhr': {
+                        'values': [
+                            {'value': 'lhr.unit.tests.'},
+                        ],
+                    },
+                },
+                'rules': [
+                    {'geos': ['EU'], 'pool': 'iad'},
+                    {'geos': ['EU-GB'], 'pool': 'lhr'},
+                    {'pool': 'lhr'},
+                ],
+            }
+        })
+        profiles = provider._generate_traffic_managers(record)
+
+        self.assertEqual(len(profiles), 3)
+        self.assertTrue(_profile_is_match(profiles[-1], Profile(
+            name='foo--unit--tests',
+            traffic_routing_method='Geographic',
+            dns_config=DnsConfig(
+                relative_name='foo--unit--tests', ttl=record.ttl),
+            monitor_config=_get_monitor(record),
+            endpoints=[
+                Endpoint(
+                    name='rule-iad',
+                    type=nested,
+                    target_resource_id=profiles[0].id,
+                    geo_mapping=['GEO-EU'],
+                ),
+                Endpoint(
+                    name='rule-lhr',
+                    type=nested,
+                    target_resource_id=profiles[1].id,
+                    geo_mapping=['GB', 'WORLD'],
+                ),
+            ],
+        )))
+
+        # test that same record gets populated back from traffic managers
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = profiles
+        azrecord = RecordSet(
+            ttl=60,
+            target_resource=SubResource(id=profiles[-1].id),
+        )
+        azrecord.name = record.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
     def test_sync_traffic_managers(self):
         provider, zone, record = self._get_dynamic_package()
         provider._populate_traffic_managers()
