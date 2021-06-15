@@ -1166,6 +1166,31 @@ class TestRoute53Provider(TestCase):
         })
         stubber.add_response('change_tags_for_resource', {})
 
+        health_check_config = {
+            'EnableSNI': False,
+            'FailureThreshold': 6,
+            'FullyQualifiedDomainName': '4.2.3.4',
+            'IPAddress': '4.2.3.4',
+            'MeasureLatency': True,
+            'Port': 8080,
+            'RequestInterval': 10,
+            'ResourcePath': '/_status',
+            'Type': 'HTTP'
+        }
+        stubber.add_response('create_health_check', {
+            'HealthCheck': {
+                'Id': '43',
+                'CallerReference': self.caller_ref,
+                'HealthCheckConfig': health_check_config,
+                'HealthCheckVersion': 1,
+            },
+            'Location': 'http://url',
+        }, {
+            'CallerReference': ANY,
+            'HealthCheckConfig': health_check_config,
+        })
+        stubber.add_response('change_tags_for_resource', {})
+
         record = Record.new(self.expected, '', {
             'ttl': 61,
             'type': 'A',
@@ -1191,6 +1216,11 @@ class TestRoute53Provider(TestCase):
         # when allowed to create we do
         id = provider.get_health_check_id(record, value, True)
         self.assertEquals('42', id)
+
+        # when allowed to create and when host is None
+        record._octodns['healthcheck']['host'] = None
+        id = provider.get_health_check_id(record, value, True)
+        self.assertEquals('43', id)
         stubber.assert_no_pending_responses()
 
         # A CNAME style healthcheck, without a value

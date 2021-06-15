@@ -705,7 +705,7 @@ class DynProvider(BaseProvider):
                               label)
                 extra.append(Update(record, record))
                 continue
-            if _monitor_doesnt_match(monitor, record.healthcheck_host,
+            if _monitor_doesnt_match(monitor, record.healthcheck_host(),
                                      record.healthcheck_path,
                                      record.healthcheck_protocol,
                                      record.healthcheck_port):
@@ -828,13 +828,13 @@ class DynProvider(BaseProvider):
                 self.traffic_director_monitors[label] = \
                     self.traffic_director_monitors[fqdn]
                 del self.traffic_director_monitors[fqdn]
-            if _monitor_doesnt_match(monitor, record.healthcheck_host,
+            if _monitor_doesnt_match(monitor, record.healthcheck_host(),
                                      record.healthcheck_path,
                                      record.healthcheck_protocol,
                                      record.healthcheck_port):
                 self.log.info('_traffic_director_monitor: updating monitor '
                               'for %s', label)
-                monitor.update(record.healthcheck_host,
+                monitor.update(record.healthcheck_host(),
                                record.healthcheck_path,
                                record.healthcheck_protocol,
                                record.healthcheck_port)
@@ -845,7 +845,7 @@ class DynProvider(BaseProvider):
             monitor = DSFMonitor(label, protocol=record.healthcheck_protocol,
                                  response_count=2, probe_interval=60,
                                  retries=2, port=record.healthcheck_port,
-                                 active='Y', host=record.healthcheck_host,
+                                 active='Y', host=record.healthcheck_host(),
                                  timeout=self.MONITOR_TIMEOUT,
                                  header=self.MONITOR_HEADER,
                                  path=record.healthcheck_path)
