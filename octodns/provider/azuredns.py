@@ -717,6 +717,8 @@ class AzureProvider(BaseProvider):
                         country, province = code.split('-', 1)
                         country = GeoCodes.country_to_code(country)
                         geos.append('{}-{}'.format(country, province))
+                    elif code == 'WORLD':
+                        geos.append(code)
                     else:
                         # country
                         geos.append(GeoCodes.country_to_code(code))
@@ -787,6 +789,13 @@ class AzureProvider(BaseProvider):
                         default.add(val)
 
             rules.append(rule)
+
+        # add separate rule for re-used world pool
+        for rule in list(rules):
+            geos = rule.get('geos', [])
+            if len(geos) > 1 and 'WORLD' in geos:
+                geos.remove('WORLD')
+                rules.append({'pool': rule['pool']})
 
         # Order and convert to a list
         default = sorted(default)
@@ -904,14 +913,29 @@ class AzureProvider(BaseProvider):
     def _generate_traffic_managers(self, record):
         traffic_managers = []
         pools = record.dynamic.pools
+        rules = record.dynamic.rules
 
         default = record.value[:-1]
         profile = self._generate_tm_profile
+
+        # a pool can be re-used only with a world pool, record the pool
+        # to later consolidate it with a geo pool if one exists since we
+        # can't have multiple endpoints with the same target in ATM
+        world_pool = None
+        for rule in rules:
+            if not rule.data.get('geos', []):
+                world_pool = rule.data['pool']
+        world_seen = False
 
         geo_endpoints = []
         pool_profiles = {}
 
         for rule in record.dynamic.rules:
+            pool_name = rule.data['pool']
+            if pool_name == world_pool and world_seen:
+                # this world pool is already mentioned in another geo rule
+                continue
+
             # Prepare the list of Traffic manager geos
             rule_geos = rule.data.get('geos', [])
             geos = []
@@ -933,10 +957,10 @@ class AzureProvider(BaseProvider):
                         geo = 'AP'
 
                     geos.append('GEO-{}'.format(geo))
-            if not geos:
+            if not geos or pool_name == world_pool:
                 geos.append('WORLD')
+                world_seen = True
 
-            pool_name = rule.data['pool']
             rule_endpoints = []
             priority = 1
             default_seen = False
