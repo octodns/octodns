@@ -757,6 +757,10 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertFalse(monitor['config']['ssl'])
         self.assertEquals('host:unit.tests type:A', monitor['notes'])
 
+        record._octodns['healthcheck']['host'] = None
+        monitor = provider._monitor_gen(record, value)
+        self.assertTrue(r'\nHost: 3.4.5.6\r' in monitor['config']['send'])
+
         record._octodns['healthcheck']['protocol'] = 'HTTPS'
         monitor = provider._monitor_gen(record, value)
         self.assertTrue(monitor['config']['ssl'])

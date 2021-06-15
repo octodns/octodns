@@ -282,7 +282,7 @@ def _get_monitor(record):
         port=record.healthcheck_port,
         path=record.healthcheck_path,
     )
-    host = record.healthcheck_host
+    host = record.healthcheck_host()
     if host:
         monitor.custom_headers = [MonitorConfigCustomHeadersItem(
             name='Host', value=host

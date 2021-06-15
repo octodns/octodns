@@ -432,7 +432,7 @@ class Test_GetMonitor(TestCase):
         self.assertEquals(len(headers), 1)
         headers = headers[0]
         self.assertEqual(headers.name, 'Host')
-        self.assertEqual(headers.value, record.healthcheck_host)
+        self.assertEqual(headers.value, record.healthcheck_host())
 
         # test TCP monitor
         record._octodns['healthcheck']['protocol'] = 'TCP'

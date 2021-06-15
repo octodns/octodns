@@ -929,7 +929,7 @@ class Ns1Provider(BaseProvider):
         if record.healthcheck_protocol != 'TCP':
             # IF it's HTTP we need to send the request string
             path = record.healthcheck_path
-            host = record.healthcheck_host
+            host = record.healthcheck_host(value=value)
             request = r'GET {path} HTTP/1.0\r\nHost: {host}\r\n' \
                 r'User-agent: NS1\r\n\r\n'.format(path=path, host=host)
             ret['config']['send'] = request
