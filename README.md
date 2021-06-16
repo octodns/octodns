@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/octodns/octodns/master/docs/logos/octodns-logo.png?" height=251 width=404>
+<img src="https://raw.githubusercontent.com/octodns/octodns/master/docs/logos/octodns-logo.png?" alt="OctoDNS Logo" height=251 width=404>
 
 ## DNS as code - Tools for managing DNS across multiple providers
 
@@ -158,17 +158,17 @@ In the above case we manually ran OctoDNS from the command line. That works and 
 
 The first step is to create a PR with your changes.
 
-![](/docs/assets/pr.png)
+![GitHub user interface of a pull request](/docs/assets/pr.png)
 
 Assuming the code tests and config validation statuses are green the next step is to do a noop deploy and verify that the changes OctoDNS plans to make are the ones you expect.
 
-![](/docs/assets/noop.png)
+![Output of a noop deployment command](/docs/assets/noop.png)
 
 After that comes a set of reviews. One from a teammate who should have full context on what you're trying to accomplish and visibility in to the changes you're making to do it. The other is from a member of the team here at GitHub that owns DNS, mostly as a sanity check and to make sure that best practices are being followed. As much of that as possible is baked into `octodns-validate`.
 
 After the reviews it's time to branch deploy the change.
 
-![](/docs/assets/deploy.png)
+![Output of a deployment command](/docs/assets/deploy.png)
 
 If that goes smoothly, you again see the expected changes, and verify them with `dig` and/or `octodns-report` you're good to hit the merge button. If there are problems you can quickly do a `.deploy dns/master` to go back to the previous state.
 
