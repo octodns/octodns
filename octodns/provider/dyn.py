@@ -604,7 +604,7 @@ class DynProvider(BaseProvider):
 
         return record
 
-    def _is_traffic_director_dyanmic(self, td, rulesets):
+    def _is_traffic_director_dynamic(self, td, rulesets):
         for ruleset in rulesets:
             try:
                 pieces = ruleset.label.split(':')
@@ -632,7 +632,7 @@ class DynProvider(BaseProvider):
                     continue
                 # critical to call rulesets once, each call loads them :-(
                 rulesets = td.rulesets
-                if self._is_traffic_director_dyanmic(td, rulesets):
+                if self._is_traffic_director_dynamic(td, rulesets):
                     record = \
                         self._populate_dynamic_traffic_director(zone, fqdn,
                                                                 _type, td,
