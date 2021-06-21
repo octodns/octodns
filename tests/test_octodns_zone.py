@@ -8,7 +8,8 @@ from __future__ import absolute_import, division, print_function, \
 from unittest import TestCase
 from six import text_type
 
-from octodns.record import ARecord, AaaaRecord, Create, Delete, Record, Update
+from octodns.record import ARecord, AaaaRecord, TxtRecord, \
+    Create, Delete, Record, Update
 from octodns.zone import DuplicateRecordException, InvalidNodeException, \
     SubzoneRecordException, Zone
 
@@ -58,6 +59,38 @@ class TestZone(TestCase):
         # Can add dup name, with different type
         zone.add_record(b)
         self.assertEquals(zone.records, set([a, b]))
+
+    def test_merge_values(self):
+        zone = Zone('unit.tests.', [])
+
+        common = TxtRecord(zone, 'a', {'ttl': 60, 'value': 'Hello'})
+        ams_a = ARecord(zone, 'a', {'ttl': 60, 'value': '1.1.1.1'})
+        ams_aaaa = AaaaRecord(zone, 'a', {'ttl': 60, 'value': '1:1:1::1'})
+        fra_a = ARecord(zone, 'a', {'ttl': 60, 'value': '2.2.2.2'})
+        fra_aaaa = AaaaRecord(zone, 'a', {'ttl': 60, 'value': '1:1:1::2'})
+        skip = TxtRecord(zone, 'a', {'ttl': 60, 'value': 'not appended'})
+
+        # can append values of defined merge_types
+        zone.add_record(common)
+        zone.add_record(ams_a, merge_types=['A', 'AAAA'])
+        zone.add_record(ams_aaaa, merge_types=['A', 'AAAA'])
+        zone.add_record(fra_a, merge_types=['A', 'AAAA'])
+        zone.add_record(fra_aaaa, merge_types=['A', 'AAAA'])
+        zone_result = sorted(zone.records)
+        self.assertEquals(zone.records, set([common, ams_a, ams_aaaa]))
+        self.assertEquals(2, len(list(zone_result)[0].values))
+        self.assertEquals('1.1.1.1', list(zone_result)[0].values[0])
+        self.assertEquals('2.2.2.2', list(zone_result)[0].values[1])
+        self.assertEquals(2, len(list(zone_result)[1].values))
+        self.assertEquals('1:1:1::1', list(zone_result)[1].values[0])
+        self.assertEquals('1:1:1::2', list(zone_result)[1].values[1])
+
+        # can skip appending, with defined merge_skip_types
+        zone.add_record(skip, merge_skip_types=['TXT'])
+        self.assertEquals(zone.records, set([common, ams_a, ams_aaaa]))
+        zone_result = sorted(zone.records)
+        self.assertEquals(1, len(list(zone_result)[2].values))
+        self.assertEquals('Hello', list(zone_result)[2].values[0])
 
     def test_changes(self):
         before = Zone('unit.tests.', [])

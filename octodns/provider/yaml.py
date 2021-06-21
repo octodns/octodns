@@ -30,8 +30,22 @@ class YamlProvider(BaseProvider):
         # (optional, default True)
         enforce_order: true
         # Whether duplicate records should replace rather than error
-        # (optiona, default False)
+        # (optional, default False)
         populate_should_replace: false
+        # Each config can be merged with previous configuration
+        # by specifying with which type (like: A, AAAA, ... records)
+        # Keep in mind: the order of the sources is important.
+        # (optional, default [])
+        merge_types:
+          - A
+          - AAAA
+        # Each config can skip the merging with previous configuration
+        # for a dedicated type (like: A, AAAA, ... records)
+        # this option might be helpful if you wish to continue without merging
+        # and skip "duplicate detection", that would kick-in.
+        # (optional, default [])
+        merge_skip_types:
+          - TXT
 
     Overriding values can be accomplished using multiple yaml providers in the
     `sources` list where subsequent providers have `populate_should_replace`
@@ -101,6 +115,84 @@ class YamlProvider(BaseProvider):
     and internally (with the custom overrides) with
     `--config-file=internal.yaml`
 
+
+    For providers that do not support dynamic dns,
+    merging config values of the same type is a handy feature.
+    With that, enabling/disabling traffic for a particular region/datacenter
+    becomes very simple and code duplication is being avoided.
+
+    common/octodns.com.yaml
+    ---
+    '':
+      - ttl: 60
+        type: TXT
+        value: "this stays"
+
+    ams/octodns.com.yaml
+    ---
+    '':
+      - ttl: 60
+        type: A
+        values:
+          - 192.30.252.115
+    'www':
+      - ttl: 60
+        type: A
+        values:
+          - 192.30.252.113
+      - ttl: 60
+        type: TXT
+        value: "this gonna be skipped if you wish"
+
+    fra/octodns.com.yaml
+    ---
+    '':
+      - ttl: 60
+        type: A
+        values:
+          - 192.30.252.116
+    'www':
+      - ttl: 60
+        type: A
+        values:
+          - 192.30.252.114
+      - ttl: 60
+        type: TXT
+        value: "this gonna be skipped if you wish too"
+
+    dual_dc.yaml
+    ---
+    providers:
+      common:
+        class: octodns.provider.yaml.YamlProvider
+        directory: ./common
+
+      ams:
+        class: octodns.provider.yaml.YamlProvider
+        directory: ./ams
+        merge_types:
+          - A
+        merge_skip_types:
+          - TXT
+
+      fra:
+        class: octodns.provider.yaml.YamlProvider
+        directory: ./fra
+        merge_types:
+          - A
+        merge_skip_types:
+          - TXT
+
+    zones:
+      octodns.com.:
+        sources:
+          - common
+          - ams
+          - fra
+        targets:
+          - pdns
+
+
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
@@ -108,18 +200,23 @@ class YamlProvider(BaseProvider):
                     'NAPTR', 'NS', 'PTR', 'SSHFP', 'SPF', 'SRV', 'TXT'))
 
     def __init__(self, id, directory, default_ttl=3600, enforce_order=True,
-                 populate_should_replace=False, *args, **kwargs):
+                 populate_should_replace=False,
+                 merge_types=[],
+                 merge_skip_types=[], *args, **kwargs):
         self.log = logging.getLogger('{}[{}]'.format(
             self.__class__.__name__, id))
         self.log.debug('__init__: id=%s, directory=%s, default_ttl=%d, '
-                       'enforce_order=%d, populate_should_replace=%d',
+                       'enforce_order=%d, populate_should_replace=%d, '
+                       'merge_types=%s, merge_skip_types=%s',
                        id, directory, default_ttl, enforce_order,
-                       populate_should_replace)
+                       populate_should_replace, merge_types, merge_skip_types)
         super(YamlProvider, self).__init__(id, *args, **kwargs)
         self.directory = directory
         self.default_ttl = default_ttl
         self.enforce_order = enforce_order
         self.populate_should_replace = populate_should_replace
+        self.merge_types = merge_types
+        self.merge_skip_types = merge_skip_types
 
     def _populate_from_file(self, filename, zone, lenient):
         with open(filename, 'r') as fh:
@@ -134,7 +231,9 @@ class YamlProvider(BaseProvider):
                         record = Record.new(zone, name, d, source=self,
                                             lenient=lenient)
                         zone.add_record(record, lenient=lenient,
-                                        replace=self.populate_should_replace)
+                                        replace=self.populate_should_replace,
+                                        merge_types=self.merge_types,
+                                        merge_skip_types=self.merge_skip_types)
             self.log.debug('_populate_from_file: successfully loaded "%s"',
                            filename)
 

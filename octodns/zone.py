@@ -58,7 +58,9 @@ class Zone(object):
     def hostname_from_fqdn(self, fqdn):
         return self._name_re.sub('', fqdn)
 
-    def add_record(self, record, replace=False, lenient=False):
+    def add_record(self, record, replace=False, lenient=False,
+                   merge_types=[], merge_skip_types=[]):
+
         name = record.name
         last = name.split('.')[-1]
 
@@ -80,10 +82,22 @@ class Zone(object):
 
         node = self._records[name]
         if record in node:
-            # We already have a record at this node of this type
-            raise DuplicateRecordException('Duplicate record {}, type {}'
-                                           .format(record.fqdn,
-                                                   record._type))
+            if record._type in merge_types:
+                for elem in node:
+                    if elem._type == record._type:
+                        for value in elem.values:
+                            record.values.append(value)
+                            record.values.sort()
+                # we remove old record,
+                # since a new record with appended values is prepared
+                node.discard(record)
+            elif record._type in merge_skip_types:
+                return
+            else:
+                # We already have a record at this node of this type
+                raise DuplicateRecordException('Duplicate record {}, type {}'
+                                               .format(record.fqdn,
+                                                       record._type))
         elif not lenient and ((record._type == 'CNAME' and len(node) > 0) or
                               ('CNAME' in [r._type for r in node])):
             # We're adding a CNAME to existing records or adding to an existing

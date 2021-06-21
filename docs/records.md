@@ -135,3 +135,121 @@ dyn:
     update_pcent_threshold: 0.4
     delete_pcent_threshold: 0.4
 ````
+
+#### Merge records of defined types
+
+For some simple providers (like Google DNS) it is not possible to do dynamic DNS.
+If you wish to keep your configuration simple and regions (or datacenters) separated
+(so you can manually switch regions quite fast) this feature might help you.
+
+Merging is done in a very simple way: ONLY values are being appended,
+the rest of the parameters (like ttl) are overwritten
+
+Which means you should be able to make a bit sophisticated configuration for edge cases:
+
+common/octodns.com.yaml
+````yaml
+---
+'':
+  - ttl: 60
+    type: TXT
+    value: "this stays untouched"
+````
+
+
+ams/octodns.com.yaml
+
+````yaml
+---
+'':
+  - ttl: 60
+    type: A
+    values:
+      - 1.1.1.1
+'www':
+  - ttl: 60
+    type: A
+    values:
+      - 2.2.2.2
+  - ttl: 60
+    type: TXT
+    value: "can be skipped if desired"
+````
+
+fra/octodns.com.yaml
+````yaml
+---
+'':
+  - ttl: 60
+    type: A
+    values:
+      - 1.1.1.2
+'www':
+  - ttl: 60
+    type: A
+    values:
+      - 2.2.2.3
+  - ttl: 60
+    type: TXT
+    value: "can be skipped if desired too"
+````
+
+dual_dc.yaml
+```yaml
+---
+providers:
+  common:
+    class: octodns.provider.yaml.YamlProvider
+    directory: ./common
+
+  ams:
+    class: octodns.provider.yaml.YamlProvider
+    directory: ./ams
+    merge_types:
+      - A
+    merge_skip_types:
+      - TXT
+
+  fra:
+    class: octodns.provider.yaml.YamlProvider
+    directory: ./fra
+    merge_types:
+      - A
+    merge_skip_types:
+      - TXT
+
+zones:
+  octodns.com.:
+    sources:
+      - common
+      - ams
+      - fra
+    targets:
+      - pdns
+
+````
+
+single_dc_ams.yml
+```yaml
+---
+providers:
+  common:
+    class: octodns.provider.yaml.YamlProvider
+    directory: ./common
+
+  ams:
+    class: octodns.provider.yaml.YamlProvider
+    directory: ./ams
+    merge_types:
+      - A
+    merge_skip_types:
+      - TXT
+zones:
+  octodns.com.:
+    sources:
+      - common
+      - ams
+    targets:
+      - pdns
+
+````
