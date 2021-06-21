@@ -1010,7 +1010,7 @@ class AzureProvider(BaseProvider):
                         ep_name += '--default--'
                         default_seen = True
                     rule_endpoints.append(Endpoint(
-                        name=pool_name,
+                        name=ep_name,
                         target=target,
                         priority=priority,
                     ))
@@ -1053,7 +1053,7 @@ class AzureProvider(BaseProvider):
                 else:
                     # just add the value of single-value pool
                     geo_endpoints.append(Endpoint(
-                        name=rule_ep.name + '--default--',
+                        name=rule_ep.name,
                         target=rule_ep.target,
                         geo_mapping=geos,
                     ))
