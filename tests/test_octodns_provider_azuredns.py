@@ -1120,8 +1120,7 @@ class TestAzureDnsProvider(TestCase):
         })
         desired.add_record(record)
         with self.assertRaises(AzureException) as ctx:
-            # bypass above check by setting changes to empty
-            provider._extra_changes(zone, desired, [])
+            provider._extra_changes(zone, desired, [Create(record)])
             self.assertTrue('more than 1 Traffic Managers' in text_type(ctx))
 
     def test_generate_tm_profile(self):
