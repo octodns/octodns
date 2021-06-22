@@ -1084,8 +1084,7 @@ class TestAzureDnsProvider(TestCase):
                 else:
                     self.assertTrue('at most one of' in msg)
 
-    @patch(
-        'octodns.provider.azuredns._check_valid_dynamic')
+    @patch('octodns.provider.azuredns._check_valid_dynamic')
     def test_extra_changes_dynamic_a_multiple_profiles(self, mock_cvd):
         provider = self._get_provider()
 
