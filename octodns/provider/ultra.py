@@ -36,12 +36,12 @@ class UltraProvider(BaseProvider):
     '''
     Neustar UltraDNS provider
 
-    Documentation for Ultra REST API requires a login:
-    https://portal.ultradns.com/static/docs/REST-API_User_Guide.pdf
-    Implemented to the May 20, 2020 version of the document (dated on page ii)
-    Also described as Version 2.83.0 (title page)
+    Documentation for Ultra REST API:
+    https://ultra-portalstatic.ultradns.com/static/docs/REST-API_User_Guide.pdf
+    Implemented to the May 26, 2021 version of the document (dated on page ii)
+    Also described as Version 3.18.0 (title page)
 
-    Tested against 3.0.0-20200627220036.81047f5
+    Tested against 3.20.1-20210521075351.36b9297
     As determined by querying https://api.ultradns.com/version
 
     ultra:
@@ -57,6 +57,7 @@ class UltraProvider(BaseProvider):
     RECORDS_TO_TYPE = {
         'A (1)': 'A',
         'AAAA (28)': 'AAAA',
+        'APEXALIAS (65282)': 'ALIAS',
         'CAA (257)': 'CAA',
         'CNAME (5)': 'CNAME',
         'MX (15)': 'MX',
@@ -72,6 +73,7 @@ class UltraProvider(BaseProvider):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
     TIMEOUT = 5
+    ZONE_REQUEST_LIMIT = 100
 
     def _request(self, method, path, params=None,
                  data=None, json=None, json_response=True):
@@ -151,7 +153,7 @@ class UltraProvider(BaseProvider):
     def zones(self):
         if self._zones is None:
             offset = 0
-            limit = 100
+            limit = self.ZONE_REQUEST_LIMIT
             zones = []
             paging = True
             while paging:
@@ -211,6 +213,7 @@ class UltraProvider(BaseProvider):
 
     _data_for_PTR = _data_for_single
     _data_for_CNAME = _data_for_single
+    _data_for_ALIAS = _data_for_single
 
     def _data_for_CAA(self, _type, records):
         return {
@@ -374,6 +377,7 @@ class UltraProvider(BaseProvider):
         }
 
     _contents_for_PTR = _contents_for_CNAME
+    _contents_for_ALIAS = _contents_for_CNAME
 
     def _contents_for_SRV(self, record):
         return {
@@ -401,8 +405,15 @@ class UltraProvider(BaseProvider):
 
     def _gen_data(self, record):
         zone_name = self._remove_prefix(record.fqdn, record.name + '.')
+
+        # UltraDNS treats the `APEXALIAS` type as the octodns `ALIAS`.
+        if record._type == "ALIAS":
+            record_type = "APEXALIAS"
+        else:
+            record_type = record._type
+
         path = '/v2/zones/{}/rrsets/{}/{}'.format(zone_name,
-                                                  record._type,
+                                                  record_type,
                                                   record.fqdn)
         contents_for = getattr(self, '_contents_for_{}'.format(record._type))
         return path, contents_for(record)
@@ -444,7 +455,13 @@ class UltraProvider(BaseProvider):
                existing._type == self.RECORDS_TO_TYPE[record['rrtype']]:
                 zone_name = self._remove_prefix(existing.fqdn,
                                                 existing.name + '.')
+
+                # UltraDNS treats the `APEXALIAS` type as the octodns `ALIAS`.
+                existing_type = existing._type
+                if existing_type == "ALIAS":
+                    existing_type = "APEXALIAS"
+
                 path = '/v2/zones/{}/rrsets/{}/{}'.format(zone_name,
-                                                          existing._type,
+                                                          existing_type,
                                                           existing.fqdn)
                 self._delete(path, json_response=False)

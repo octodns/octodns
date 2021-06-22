@@ -114,8 +114,7 @@ If you'd like to enable lenience for a whole zone you can do so with the followi
 
 ```yaml
   non-compliant-zone.com.:
-    octodns:
-      lenient: true
+    lenient: true
     sources:
     - route53
     targets:

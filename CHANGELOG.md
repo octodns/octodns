@@ -1,6 +1,29 @@
+## v0.9.12 - 2021-04-30 - Enough time has passed
+
+#### Noteworthy changes
+
+* Formal Python 2.7 support removed, deps and tooling were becoming
+  unmaintainable
+* octodns/octodns move, from github/octodns, more to come
+
+#### Stuff
+
+* ZoneFileSource supports specifying an extension & no files end in . to better
+  support Windows
+* LOC record type support added
+* Support for pre-release versions of PowerDNS
+* PowerDNS delete before create which allows A <-> CNAME etc.
+* Improved validation of fqdn's in ALIAS, CNAME, etc.
+* Transip support for NS records
+* Support for sending plan output to a file
+* DNSimple uses zone api rather than domain to support non-registered stuff,
+  e.g. reverse zones.
+* Support for fallback-only dynamic pools and related fixes to NS1 provider
+* Initial Hetzner provider
+
 ## v0.9.11 - 2020-11-05 - We still don't know edition
 
-#### Noteworthy changtes
+#### Noteworthy changes
 
 * ALIAS records only allowed at the root of zones - see `leient` in record docs
   for work-arounds if you really need them.
