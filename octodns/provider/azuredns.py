@@ -299,6 +299,47 @@ def _get_monitor(record):
     return monitor
 
 
+def _check_valid_dynamic(record):
+    typ = record._type
+    dynamic = record.dynamic
+    if typ in ['A', 'AAAA']:
+        # A/AAAA records cannot be aliased to Traffic Managers that contain
+        # other nested Traffic Managers. Due to this limitation, A/AAAA
+        # dynamic records can do only one of geo-fencing, fallback and
+        # weighted RR. So let's validate that the record adheres to this
+        # limitation.
+        data = dynamic._data()
+        values = set(record.values)
+        pools = data['pools'].values()
+        seen_values = set()
+        rr = False
+        fallback = False
+        for pool in pools:
+            vals = pool['values']
+            if len(vals) > 1:
+                rr = True
+            pool_values = set(val['value'] for val in vals)
+            if pool.get('fallback'):
+                fallback = True
+            seen_values.update(pool_values)
+
+        if values != seen_values:
+            msg = ('{} {}: All pool values of A/AAAA dynamic records must be '
+                   'included in top-level \'values\'.')
+            raise AzureException(msg.format(record.fqdn, record._type))
+
+        geo = any(r.get('geos') for r in data['rules'])
+
+        if [rr, fallback, geo].count(True) > 1:
+            msg = ('{} {}: A/AAAA dynamic records must use at most one  of '
+                   'round-robin, fallback and geo-fencing')
+            raise AzureException(msg.format(record.fqdn, record._type))
+    elif typ != 'CNAME':
+        # dynamic records of unsupported type
+        msg = '{}: Dynamic records in Azure must be of type A/AAAA/CNAME'
+        raise AzureException(msg.format(record.fqdn))
+
+
 def _profile_is_match(have, desired):
     if have is None or desired is None:
         return False
@@ -851,49 +892,7 @@ class AzureProvider(BaseProvider):
         return data
 
     def _extra_changes(self, existing, desired, changes):
-        changed = set()
-
-        # Abort if there are unsupported dynamic records
-        for change in changes:
-            record = change.record
-            changed.add(record)
-            typ = record._type
-            dynamic = getattr(record, 'dynamic', False)
-            if not dynamic:
-                continue
-            if typ in ['A', 'AAAA']:
-                data = dynamic._data()
-                values = set(record.values)
-                pools = data['pools'].values()
-                seen_values = set()
-                rr = False
-                fallback = False
-                for pool in pools:
-                    vals = pool['values']
-                    if len(vals) > 1:
-                        rr = True
-                    pool_values = set(val['value'] for val in vals)
-                    if pool.get('fallback'):
-                        fallback = True
-                    seen_values.update(pool_values)
-
-                if values != seen_values:
-                    msg = ('{} {}: All pool values of A/AAAA dynamic records '
-                           'must be included in top-level \'values\'.'
-                           .format(record.fqdn, record._type))
-                    raise AzureException(msg)
-
-                geo = any(r.get('geos') for r in data['rules'])
-
-                if [rr, fallback, geo].count(True) > 1:
-                    msg = ('{} {}: A/AAAA dynamic records must use at most '
-                           'one of round-robin, fallback and geo-fencing')
-                    msg = msg.format(record.fqdn, record._type)
-                    raise AzureException(msg)
-            elif typ != 'CNAME':
-                msg = ('{}: Dynamic records in Azure must be of type '
-                       'A/AAAA/CNAME').format(record.fqdn)
-                raise AzureException(msg)
+        changed = set(c.record for c in changes)
 
         log = self.log.info
         seen_profiles = {}
@@ -903,6 +902,9 @@ class AzureProvider(BaseProvider):
                 # Already changed, or not dynamic, no need to check it
                 continue
 
+            # Abort if there are unsupported dynamic record configurations
+            _check_valid_dynamic(record)
+
             # let's walk through and show what will be changed even if
             # the record is already in list of changes
             added = (record in changed)
@@ -910,8 +912,8 @@ class AzureProvider(BaseProvider):
             active = set()
             profiles = self._generate_traffic_managers(record)
 
-            # this should not happen with above checks, still adding to block
-            # undesired changes
+            # this should not happen with above check, check again here to
+            # prevent undesired changes
             if record._type in ['A', 'AAAA'] and len(profiles) > 1:
                 msg = ('Unknown error: {} {} needs more than 1 Traffic '
                        'Managers which is not supported for A/AAAA dynamic '

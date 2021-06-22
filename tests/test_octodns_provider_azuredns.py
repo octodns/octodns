@@ -1002,8 +1002,6 @@ class TestAzureDnsProvider(TestCase):
     def test_extra_changes_invalid_dynamic_a(self):
         provider = self._get_provider()
 
-        desired = Zone(name=zone.name, sub_zones=[])
-
         # too many test case combinations, here's a method to generate them
         def record_data(all_values=True, rr=True, fallback=True, geo=True):
             data = {
@@ -1068,7 +1066,9 @@ class TestAzureDnsProvider(TestCase):
 
             debug('[all_values, rr, fallback, geo] = %s', args)
             data = record_data(*args)
+            desired = Zone(name=zone.name, sub_zones=[])
             record = Record.new(desired, 'foo', data)
+            desired.add_record(record)
 
             features = args[1:]
             if all_values and features.count(True) <= 1:
@@ -1084,9 +1084,40 @@ class TestAzureDnsProvider(TestCase):
                 else:
                     self.assertTrue('at most one of' in msg)
 
-        # multiple profiles should also raise
-        record = Record.new(desired, 'foo',
-                            record_data(True, True, True, True))
+    @patch(
+        'octodns.provider.azuredns._check_valid_dynamic')
+    def test_extra_changes_dynamic_a_multiple_profiles(self, mock_cvd):
+        provider = self._get_provider()
+
+        # bypass validity check to trigger mutliple-profiles check
+        mock_cvd.return_value = True
+
+        desired = Zone(name=zone.name, sub_zones=[])
+        record = Record.new(desired, 'foo', {
+            'type': 'A',
+            'ttl': 60,
+            'values': ['11.11.11.11', '12.12.12.12', '2.2.2.2'],
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [
+                            {'value': '11.11.11.11'},
+                            {'value': '12.12.12.12'},
+                        ],
+                        'fallback': 'two',
+                    },
+                    'two': {
+                        'values': [
+                            {'value': '2.2.2.2'},
+                        ],
+                    },
+                },
+                'rules': [
+                    {'geos': ['EU'], 'pool': 'two'},
+                    {'pool': 'one'},
+                ],
+            }
+        })
         desired.add_record(record)
         with self.assertRaises(AzureException) as ctx:
             # bypass above check by setting changes to empty
