@@ -999,7 +999,7 @@ class TestAzureDnsProvider(TestCase):
                 'Collision in Traffic Manager'
             ))
 
-    def test_extra_changes_invalid_dynamic_a(self):
+    def test_extra_changes_invalid_dynamic_A(self):
         provider = self._get_provider()
 
         # too many test case combinations, here's a method to generate them
@@ -1085,7 +1085,7 @@ class TestAzureDnsProvider(TestCase):
                     self.assertTrue('at most one of' in msg)
 
     @patch('octodns.provider.azuredns._check_valid_dynamic')
-    def test_extra_changes_dynamic_a_multiple_profiles(self, mock_cvd):
+    def test_extra_changes_dynamic_A_multiple_profiles(self, mock_cvd):
         provider = self._get_provider()
 
         # bypass validity check to trigger mutliple-profiles check
@@ -1698,7 +1698,7 @@ class TestAzureDnsProvider(TestCase):
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
-    def test_dynamic_a_geo(self):
+    def test_dynamic_A_geo(self):
         provider = self._get_provider()
         external = 'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
 
@@ -1795,7 +1795,7 @@ class TestAzureDnsProvider(TestCase):
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
-    def test_dynamic_a_fallback(self):
+    def test_dynamic_A_fallback(self):
         provider = self._get_provider()
         external = 'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
 
@@ -1865,7 +1865,7 @@ class TestAzureDnsProvider(TestCase):
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
-    def test_dynamic_a_weighted_rr(self):
+    def test_dynamic_A_weighted_rr(self):
         provider = self._get_provider()
         external = 'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
 
@@ -1924,7 +1924,7 @@ class TestAzureDnsProvider(TestCase):
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
-    def test_dynamic_aaaa(self):
+    def test_dynamic_AAAA(self):
         provider = self._get_provider()
         external = 'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
 
