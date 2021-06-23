@@ -170,6 +170,9 @@ class CloudflareProvider(BaseProvider):
 
         return self._zones
 
+    def _ttl_data(self, ttl):
+        return 300 if ttl == 1 else ttl
+
     def _data_for_cdn(self, name, _type, records):
         self.log.info('CDN rewrite for %s', records[0]['name'])
         _type = "CNAME"
@@ -177,14 +180,14 @@ class CloudflareProvider(BaseProvider):
             _type = "ALIAS"
 
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'value': '{}.cdn.cloudflare.net.'.format(records[0]['name']),
         }
 
     def _data_for_multiple(self, _type, records):
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': [r['content'] for r in records],
         }
@@ -195,7 +198,7 @@ class CloudflareProvider(BaseProvider):
 
     def _data_for_TXT(self, _type, records):
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': [r['content'].replace(';', '\\;') for r in records],
         }
@@ -206,7 +209,7 @@ class CloudflareProvider(BaseProvider):
             data = r['data']
             values.append(data)
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': values,
         }
@@ -214,7 +217,7 @@ class CloudflareProvider(BaseProvider):
     def _data_for_CNAME(self, _type, records):
         only = records[0]
         return {
-            'ttl': only['ttl'],
+            'ttl': self._ttl_data(only['ttl']),
             'type': _type,
             'value': '{}.'.format(only['content'])
         }
@@ -241,7 +244,7 @@ class CloudflareProvider(BaseProvider):
                 'precision_vert': float(r['precision_vert']),
             })
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': values
         }
@@ -254,14 +257,14 @@ class CloudflareProvider(BaseProvider):
                 'exchange': '{}.'.format(r['content']),
             })
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': values,
         }
 
     def _data_for_NS(self, _type, records):
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': ['{}.'.format(r['content']) for r in records],
         }
@@ -279,7 +282,7 @@ class CloudflareProvider(BaseProvider):
             })
         return {
             'type': _type,
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'values': values
         }
 

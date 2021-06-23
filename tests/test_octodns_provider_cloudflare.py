@@ -1410,3 +1410,11 @@ class TestCloudflareProvider(TestCase):
         with self.assertRaises(CloudflareRateLimitError) as ctx:
             provider.zone_records(zone)
             self.assertEquals('last', text_type(ctx.exception))
+
+    def test_ttl_mapping(self):
+        provider = CloudflareProvider('test', 'email', 'token')
+
+        self.assertEquals(120, provider._ttl_data(120))
+        self.assertEquals(120, provider._ttl_data(120))
+        self.assertEquals(3600, provider._ttl_data(3600))
+        self.assertEquals(300, provider._ttl_data(1))
