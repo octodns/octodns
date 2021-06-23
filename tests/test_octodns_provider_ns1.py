@@ -1034,7 +1034,7 @@ class TestNs1ProviderDynamic(TestCase):
         rule0 = record.data['dynamic']['rules'][0]
         rule1 = record.data['dynamic']['rules'][1]
         rule0['geos'] = ['AF', 'EU']
-        rule1['geos'] = ['NA']
+        rule1['geos'] = ['AS']
         ret, monitor_ids = provider._params_for_A(record)
         self.assertEquals(10, len(ret['answers']))
         self.assertEquals(ret['filters'],
@@ -1048,7 +1048,7 @@ class TestNs1ProviderDynamic(TestCase):
             },
             'iad__georegion': {
                 'meta': {
-                    'georegion': ['US-CENTRAL', 'US-EAST', 'US-WEST'],
+                    'georegion': ['ASIAPAC'],
                     'note': 'rule-order:1'
                 }
             },
@@ -1150,7 +1150,7 @@ class TestNs1ProviderDynamic(TestCase):
         rule0 = record.data['dynamic']['rules'][0]
         rule1 = record.data['dynamic']['rules'][1]
         rule0['geos'] = ['AF', 'EU', 'NA-US-CA']
-        rule1['geos'] = ['NA', 'NA-US']
+        rule1['geos'] = ['AS', 'AS-IN']
         ret, _ = provider._params_for_A(record)
 
         self.assertEquals(17, len(ret['answers']))
@@ -1210,13 +1210,13 @@ class TestNs1ProviderDynamic(TestCase):
             },
             'iad__country': {
                 'meta': {
-                    'country': ['US'],
+                    'country': ['IN'],
                     'note': 'rule-order:1'
                 }
             },
             'iad__georegion': {
                 'meta': {
-                    'georegion': ['US-CENTRAL', 'US-EAST', 'US-WEST'],
+                    'georegion': ['ASIAPAC'],
                     'note': 'rule-order:1'
                 }
             },
@@ -1561,6 +1561,24 @@ class TestNs1ProviderDynamic(TestCase):
         for c in partial_oc_cntry_list:
             self.assertTrue(
                 'OC-{}'.format(c) in data4['dynamic']['rules'][0]['geos'])
+
+        # NA test cases
+        # 1. Full list of countries should return 'NA' in geos
+        na_countries = Ns1Provider._CONTINENT_TO_LIST_OF_COUNTRIES['NA']
+        del ns1_record['regions']['lhr__country']['meta']['us_state']
+        ns1_record['regions']['lhr__country']['meta']['country'] = \
+            list(na_countries)
+        data5 = provider._data_for_A('A', ns1_record)
+        self.assertTrue('NA' in data5['dynamic']['rules'][0]['geos'])
+
+        # 2. Partial list of countries should return just those
+        partial_na_cntry_list = list(na_countries)[:5]
+        ns1_record['regions']['lhr__country']['meta']['country'] = \
+            partial_na_cntry_list
+        data6 = provider._data_for_A('A', ns1_record)
+        for c in partial_na_cntry_list:
+            self.assertTrue(
+                'NA-{}'.format(c) in data6['dynamic']['rules'][0]['geos'])
 
         # Test out fallback only pools and new-style notes
         ns1_record = {
