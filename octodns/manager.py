@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from os import environ
 from six import text_type
+from sys import stdout
 import logging
 
 from .provider.base import BaseProvider
@@ -121,6 +122,25 @@ class Manager(object):
                 raise ManagerException('Incorrect provider config for {}'
                                        .format(provider_name))
 
+        self.processors = {}
+        for processor_name, processor_config in \
+                self.config.get('processors', {}).items():
+            try:
+                _class = processor_config.pop('class')
+            except KeyError:
+                self.log.exception('Invalid processor class')
+                raise ManagerException('Processor {} is missing class'
+                                       .format(processor_name))
+            _class = self._get_named_class('processor', _class)
+            kwargs = self._build_kwargs(processor_config)
+            try:
+                self.processors[processor_name] = _class(processor_name,
+                                                         **kwargs)
+            except TypeError:
+                self.log.exception('Invalid processor config')
+                raise ManagerException('Incorrect processor config for {}'
+                                       .format(processor_name))
+
         zone_tree = {}
         # sort by reversed strings so that parent zones always come first
         for name in sorted(self.config['zones'].keys(), key=lambda s: s[::-1]):
@@ -222,8 +242,8 @@ class Manager(object):
         self.log.debug('configured_sub_zones: subs=%s', sub_zone_names)
         return set(sub_zone_names)
 
-    def _populate_and_plan(self, zone_name, sources, targets, desired=None,
-                           lenient=False):
+    def _populate_and_plan(self, zone_name, processors, sources, targets,
+                           desired=None, lenient=False):
 
         self.log.debug('sync:   populating, zone=%s, lenient=%s',
                        zone_name, lenient)
@@ -236,7 +256,6 @@ class Manager(object):
             for _, records in desired._records.items():
                 for record in records:
                     zone.add_record(record.copy(zone=zone), lenient=lenient)
-
         else:
             for source in sources:
                 try:
@@ -244,9 +263,12 @@ class Manager(object):
                 except TypeError as e:
                     if "keyword argument 'lenient'" not in text_type(e):
                         raise
-                    self.log.warn(': provider %s does not accept lenient '
+                    self.log.warn('provider %s does not accept lenient '
                                   'param', source.__class__.__name__)
                     source.populate(zone)
+
+        for processor in processors:
+            zone = processor.process_source_zone(zone, sources=sources)
 
         self.log.debug('sync:   planning, zone=%s', zone_name)
         plans = []
@@ -259,7 +281,18 @@ class Manager(object):
                     'value': 'provider={}'.format(target.id)
                 })
                 zone.add_record(meta, replace=True)
-            plan = target.plan(zone)
+            try:
+                plan = target.plan(zone, processors=processors)
+            except TypeError as e:
+                if "keyword argument 'processors'" not in text_type(e):
+                    raise
+                self.log.warn('provider.plan %s does not accept processors '
+                              'param', target.__class__.__name__)
+                plan = target.plan(zone)
+
+            for processor in processors:
+                plan = processor.process_plan(plan, sources=sources,
+                                              target=target)
             if plan:
                 plans.append((target, plan))
 
@@ -267,16 +300,19 @@ class Manager(object):
         return plans, zone
 
     def sync(self, eligible_zones=[], eligible_sources=[], eligible_targets=[],
-             dry_run=True, force=False):
-        self.log.info('sync: eligible_zones=%s, eligible_targets=%s, '
-                      'dry_run=%s, force=%s', eligible_zones, eligible_targets,
-                      dry_run, force)
+             dry_run=True, force=False, plan_output_fh=stdout):
+
+        self.log.info(
+            'sync: eligible_zones=%s, eligible_targets=%s, dry_run=%s, '
+            'force=%s, plan_output_fh=%s',
+            eligible_zones, eligible_targets, dry_run, force,
+            getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__))
 
         zones = self.config['zones'].items()
         if eligible_zones:
             zones = [z for z in zones if z[0] in eligible_zones]
 
-        aliased_zones  = {}
+        aliased_zones = {}
         futures = []
         for zone_name, config in zones:
             self.log.info('sync:   zone=%s', zone_name)
@@ -315,6 +351,8 @@ class Manager(object):
                 raise ManagerException('Zone {} is missing targets'
                                        .format(zone_name))
 
+            processors = config.get('processors', [])
+
             if (eligible_sources and not
                     [s for s in sources if s in eligible_sources]):
                 self.log.info('sync:   no eligible sources, skipping')
@@ -331,6 +369,15 @@ class Manager(object):
                 continue
 
             self.log.info('sync:   sources=%s -> targets=%s', sources, targets)
+
+            try:
+                collected = []
+                for processor in processors:
+                    collected.append(self.processors[processor])
+                processors = collected
+            except KeyError:
+                raise ManagerException('Zone {}, unknown processor: {}'
+                                       .format(zone_name, processor))
 
             try:
                 # rather than using a list comprehension, we break this loop
@@ -358,8 +405,9 @@ class Manager(object):
                                        .format(zone_name, target))
 
             futures.append(self._executor.submit(self._populate_and_plan,
-                                                 zone_name, sources,
-                                                 targets, lenient=lenient))
+                                                 zone_name, processors,
+                                                 sources, targets,
+                                                 lenient=lenient))
 
         # Wait on all results and unpack/flatten the plans and store the
         # desired states in case we need them below
@@ -384,6 +432,7 @@ class Manager(object):
             futures.append(self._executor.submit(
                 self._populate_and_plan,
                 zone_name,
+                processors,
                 [],
                 [self.providers[t] for t in source_config['targets']],
                 desired=desired_config,
@@ -402,7 +451,7 @@ class Manager(object):
         plans.sort(key=self._plan_keyer, reverse=True)
 
         for output in self.plan_outputs.values():
-            output.run(plans=plans, log=self.log)
+            output.run(plans=plans, log=self.log, fh=plan_output_fh)
 
         if not force:
             self.log.debug('sync:   checking safety')
@@ -523,6 +572,16 @@ class Manager(object):
             for source in sources:
                 if isinstance(source, YamlProvider):
                     source.populate(zone)
+
+            # check that processors are in order if any are specified
+            processors = config.get('processors', [])
+            try:
+                # same as above, but for processors this time
+                for processor in processors:
+                    collected.append(self.processors[processor])
+            except KeyError:
+                raise ManagerException('Zone {}, unknown processor: {}'
+                                       .format(zone_name, processor))
 
     def get_zone(self, zone_name):
         if not zone_name[-1] == '.':

@@ -578,6 +578,34 @@ class TestNs1ProviderDynamic(TestCase):
             'meta': {},
         })
 
+    def cname_record(self):
+        return Record.new(self.zone, 'foo', {
+            'dynamic': {
+                'pools': {
+                    'iad': {
+                        'values': [{
+                            'value': 'iad.unit.tests.',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'iad',
+                }],
+            },
+            'octodns': {
+                'healthcheck': {
+                    'host': 'send.me',
+                    'path': '/_ping',
+                    'port': 80,
+                    'protocol': 'HTTP',
+                }
+            },
+            'ttl': 33,
+            'type': 'CNAME',
+            'value': 'value.unit.tests.',
+            'meta': {},
+        })
+
     def test_notes(self):
         provider = Ns1Provider('test', 'api-key')
 
@@ -609,6 +637,12 @@ class TestNs1ProviderDynamic(TestCase):
             },
             'notes': 'host:unit.tests type:A',
         }
+        monitor_five = {
+            'config': {
+                'host': 'iad.unit.tests',
+            },
+            'notes': 'host:foo.unit.tests type:CNAME',
+        }
         provider._client._monitors_cache = {
             'one': monitor_one,
             'two': {
@@ -624,6 +658,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'notes': 'host:other.unit.tests type:A',
             },
             'four': monitor_four,
+            'five': monitor_five,
         }
 
         # Would match, but won't get there b/c it's not dynamic
@@ -640,6 +675,11 @@ class TestNs1ProviderDynamic(TestCase):
             '1.2.3.4': monitor_one,
             '2.3.4.5': monitor_four,
         }, provider._monitors_for(self.record()))
+
+        # Check match for CNAME values
+        self.assertEquals({
+            'iad.unit.tests.': monitor_five,
+        }, provider._monitors_for(self.cname_record()))
 
     def test_uuid(self):
         # Just a smoke test/for coverage
@@ -717,6 +757,10 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertFalse(monitor['config']['ssl'])
         self.assertEquals('host:unit.tests type:A', monitor['notes'])
 
+        record._octodns['healthcheck']['host'] = None
+        monitor = provider._monitor_gen(record, value)
+        self.assertTrue(r'\nHost: 3.4.5.6\r' in monitor['config']['send'])
+
         record._octodns['healthcheck']['protocol'] = 'HTTPS'
         monitor = provider._monitor_gen(record, value)
         self.assertTrue(monitor['config']['ssl'])
@@ -727,6 +771,14 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertFalse('send' in monitor['config'])
         # No http response expected
         self.assertFalse('rules' in monitor)
+
+    def test_monitor_gen_CNAME(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        value = 'iad.unit.tests.'
+        record = self.cname_record()
+        monitor = provider._monitor_gen(record, value)
+        self.assertEquals(value[:-1], monitor['config']['host'])
 
     def test_monitor_is_match(self):
         provider = Ns1Provider('test', 'api-key')
@@ -1117,14 +1169,21 @@ class TestNs1ProviderDynamic(TestCase):
         # finally has a catchall.  Those are examples of the two ways pools get
         # expanded.
         #
-        # lhr splits in two, with a region and country.
+        # lhr splits in two, with a region and country and includes a fallback
+        #
+        # All values now include their own `pool:` name
         #
         # well as both lhr georegion (for contients) and country. The first is
         # an example of a repeated target pool in a rule (only allowed when the
         # 2nd is a catchall.)
-        self.assertEquals(['from:--default--', 'from:iad__catchall',
-                           'from:iad__country', 'from:iad__georegion',
-                           'from:lhr__country', 'from:lhr__georegion'],
+        self.assertEquals(['fallback: from:iad__catchall pool:iad',
+                           'fallback: from:iad__country pool:iad',
+                           'fallback: from:iad__georegion pool:iad',
+                           'fallback: from:lhr__country pool:iad',
+                           'fallback: from:lhr__georegion pool:iad',
+                           'fallback:iad from:lhr__country pool:lhr',
+                           'fallback:iad from:lhr__georegion pool:lhr',
+                           'from:--default--'],
                           sorted(notes.keys()))
 
         # All the iad's should match (after meta and region were removed)
@@ -1242,7 +1301,7 @@ class TestNs1ProviderDynamic(TestCase):
             ('mid-2', 'fid-2'),
             ('mid-3', 'fid-3'),
         ]
-        # This indirectly calls into _params_for_dynamic_A and tests the
+        # This indirectly calls into _params_for_dynamic and tests the
         # handling to get there
         record = self.record()
         ret, _ = provider._params_for_A(record)
@@ -1270,7 +1329,39 @@ class TestNs1ProviderDynamic(TestCase):
         params, _ = provider._params_for_geo_A(record)
         self.assertEquals([], params['filters'])
 
-    def test_data_for_dynamic_A(self):
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_params_for_dynamic_CNAME(self, monitors_for_mock,
+                                      monitor_sync_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {
+            'mon-id': 'feed-id',
+        }
+
+        # provider._params_for_A() calls provider._monitors_for() and
+        # provider._monitor_sync(). Mock their return values so that we don't
+        # make NS1 API calls during tests
+        monitors_for_mock.reset_mock()
+        monitor_sync_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            'iad.unit.tests.': 'mid-1',
+        }]
+        monitor_sync_mock.side_effect = [
+            ('mid-1', 'fid-1'),
+        ]
+
+        record = self.cname_record()
+        ret, _ = provider._params_for_CNAME(record)
+
+        # Check if the default value was correctly read and populated
+        # All other dynamic record test cases are covered by dynamic_A tests
+        self.assertEquals(ret['answers'][-1]['answer'][0], 'value.unit.tests.')
+
+    def test_data_for_dynamic(self):
         provider = Ns1Provider('test', 'api-key')
 
         # Unexpected filters throws an error
@@ -1279,7 +1370,7 @@ class TestNs1ProviderDynamic(TestCase):
             'filters': [],
         }
         with self.assertRaises(Ns1Exception) as ctx:
-            provider._data_for_dynamic_A('A', ns1_record)
+            provider._data_for_dynamic('A', ns1_record)
         self.assertEquals('Unrecognized advanced record',
                           text_type(ctx.exception))
 
@@ -1291,7 +1382,7 @@ class TestNs1ProviderDynamic(TestCase):
             'regions': {},
             'ttl': 42,
         }
-        data = provider._data_for_dynamic_A('A', ns1_record)
+        data = provider._data_for_dynamic('A', ns1_record)
         self.assertEquals({
             'dynamic': {
                 'pools': {},
@@ -1396,7 +1487,7 @@ class TestNs1ProviderDynamic(TestCase):
             'tier': 3,
             'ttl': 42,
         }
-        data = provider._data_for_dynamic_A('A', ns1_record)
+        data = provider._data_for_dynamic('A', ns1_record)
         self.assertEquals({
             'dynamic': {
                 'pools': {
@@ -1440,7 +1531,7 @@ class TestNs1ProviderDynamic(TestCase):
         }, data)
 
         # Same answer if we go through _data_for_A which out sources the job to
-        # _data_for_dynamic_A
+        # _data_for_dynamic
         data2 = provider._data_for_A('A', ns1_record)
         self.assertEquals(data, data2)
 
@@ -1451,7 +1542,7 @@ class TestNs1ProviderDynamic(TestCase):
         ns1_record['regions'][old_style_catchall_pool_name] = \
             ns1_record['regions'][catchall_pool_name]
         del ns1_record['regions'][catchall_pool_name]
-        data3 = provider._data_for_dynamic_A('A', ns1_record)
+        data3 = provider._data_for_dynamic('A', ns1_record)
         self.assertEquals(data, data2)
 
         # Oceania test cases
@@ -1470,6 +1561,176 @@ class TestNs1ProviderDynamic(TestCase):
         for c in partial_oc_cntry_list:
             self.assertTrue(
                 'OC-{}'.format(c) in data4['dynamic']['rules'][0]['geos'])
+
+        # Test out fallback only pools and new-style notes
+        ns1_record = {
+            'answers': [{
+                'answer': ['1.1.1.1'],
+                'meta': {
+                    'priority': 1,
+                    'note': 'from:one__country pool:one fallback:two',
+                },
+                'region': 'one_country',
+            }, {
+                'answer': ['2.2.2.2'],
+                'meta': {
+                    'priority': 2,
+                    'note': 'from:one__country pool:two fallback:three',
+                },
+                'region': 'one_country',
+            }, {
+                'answer': ['3.3.3.3'],
+                'meta': {
+                    'priority': 3,
+                    'note': 'from:one__country pool:three fallback:',
+                },
+                'region': 'one_country',
+            }, {
+                'answer': ['5.5.5.5'],
+                'meta': {
+                    'priority': 4,
+                    'note': 'from:--default--',
+                },
+                'region': 'one_country',
+            }, {
+                'answer': ['4.4.4.4'],
+                'meta': {
+                    'priority': 1,
+                    'note': 'from:four__country pool:four fallback:',
+                },
+                'region': 'four_country',
+            }, {
+                'answer': ['5.5.5.5'],
+                'meta': {
+                    'priority': 2,
+                    'note': 'from:--default--',
+                },
+                'region': 'four_country',
+            }],
+            'domain': 'unit.tests',
+            'filters': filters,
+            'regions': {
+                'one__country': {
+                    'meta': {
+                        'note': 'rule-order:1 fallback:two',
+                        'country': ['CA'],
+                        'us_state': ['OR'],
+                    },
+                },
+                'four__country': {
+                    'meta': {
+                        'note': 'rule-order:2',
+                        'country': ['CA'],
+                        'us_state': ['OR'],
+                    },
+                },
+                catchall_pool_name: {
+                    'meta': {
+                        'note': 'rule-order:3',
+                    },
+                }
+            },
+            'tier': 3,
+            'ttl': 42,
+        }
+        data = provider._data_for_dynamic('A', ns1_record)
+        self.assertEquals({
+            'dynamic': {
+                'pools': {
+                    'four': {
+                        'fallback': None,
+                        'values': [{'value': '4.4.4.4', 'weight': 1}]
+                    },
+                    'one': {
+                        'fallback': 'two',
+                        'values': [{'value': '1.1.1.1', 'weight': 1}]
+                    },
+                    'three': {
+                        'fallback': None,
+                        'values': [{'value': '3.3.3.3', 'weight': 1}]
+                    },
+                    'two': {
+                        'fallback': 'three',
+                        'values': [{'value': '2.2.2.2', 'weight': 1}]
+                    },
+                },
+                'rules': [{
+                    '_order': '1',
+                    'geos': ['NA-CA', 'NA-US-OR'],
+                    'pool': 'one'
+                }, {
+                    '_order': '2',
+                    'geos': ['NA-CA', 'NA-US-OR'],
+                    'pool': 'four'
+                }, {
+                    '_order': '3', 'pool': 'iad'}
+                ]
+            },
+            'ttl': 42,
+            'type': 'A',
+            'values': ['5.5.5.5']
+        }, data)
+
+    def test_data_for_dynamic_CNAME(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        # Test out a small setup that just covers default value validation
+        # Everything else is same as dynamic A whose tests will cover all
+        # other options and test cases
+        # Not testing for geo/region specific cases
+        filters = provider._get_updated_filter_chain(False, False)
+        catchall_pool_name = 'iad__catchall'
+        ns1_record = {
+            'answers': [{
+                'answer': ['iad.unit.tests.'],
+                'meta': {
+                    'priority': 1,
+                    'weight': 12,
+                    'note': 'from:{}'.format(catchall_pool_name),
+                },
+                'region': catchall_pool_name,
+            }, {
+                'answer': ['value.unit.tests.'],
+                'meta': {
+                    'priority': 2,
+                    'note': 'from:--default--',
+                },
+                'region': catchall_pool_name,
+            }],
+            'domain': 'foo.unit.tests',
+            'filters': filters,
+            'regions': {
+                catchall_pool_name: {
+                    'meta': {
+                        'note': 'rule-order:1',
+                    },
+                }
+            },
+            'tier': 3,
+            'ttl': 43,
+            'type': 'CNAME',
+        }
+        data = provider._data_for_CNAME('CNAME', ns1_record)
+        self.assertEquals({
+            'dynamic': {
+                'pools': {
+                    'iad': {
+                        'fallback': None,
+                        'values': [{
+                            'value': 'iad.unit.tests.',
+                            'weight': 12,
+                        }],
+                    },
+                },
+                'rules': [{
+                    '_order': '1',
+                    'pool': 'iad',
+                }],
+            },
+            'ttl': 43,
+            'type': 'CNAME',
+            'value': 'value.unit.tests.',
+        }, data)
 
     @patch('ns1.rest.records.Records.retrieve')
     @patch('ns1.rest.zones.Zones.retrieve')

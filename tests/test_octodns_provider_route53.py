@@ -1166,6 +1166,31 @@ class TestRoute53Provider(TestCase):
         })
         stubber.add_response('change_tags_for_resource', {})
 
+        health_check_config = {
+            'EnableSNI': False,
+            'FailureThreshold': 6,
+            'FullyQualifiedDomainName': '4.2.3.4',
+            'IPAddress': '4.2.3.4',
+            'MeasureLatency': True,
+            'Port': 8080,
+            'RequestInterval': 10,
+            'ResourcePath': '/_status',
+            'Type': 'HTTP'
+        }
+        stubber.add_response('create_health_check', {
+            'HealthCheck': {
+                'Id': '43',
+                'CallerReference': self.caller_ref,
+                'HealthCheckConfig': health_check_config,
+                'HealthCheckVersion': 1,
+            },
+            'Location': 'http://url',
+        }, {
+            'CallerReference': ANY,
+            'HealthCheckConfig': health_check_config,
+        })
+        stubber.add_response('change_tags_for_resource', {})
+
         record = Record.new(self.expected, '', {
             'ttl': 61,
             'type': 'A',
@@ -1191,6 +1216,11 @@ class TestRoute53Provider(TestCase):
         # when allowed to create we do
         id = provider.get_health_check_id(record, value, True)
         self.assertEquals('42', id)
+
+        # when allowed to create and when host is None
+        record._octodns['healthcheck']['host'] = None
+        id = provider.get_health_check_id(record, value, True)
+        self.assertEquals('43', id)
         stubber.assert_no_pending_responses()
 
         # A CNAME style healthcheck, without a value
@@ -1960,6 +1990,163 @@ class TestRoute53Provider(TestCase):
         }
         extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals(1, len(extra))
+        stubber.assert_no_pending_responses()
+
+    def test_extra_change_dynamic_has_health_check_cname(self):
+        provider, stubber = self._get_stubbed_provider()
+
+        list_hosted_zones_resp = {
+            'HostedZones': [{
+                'Name': 'unit.tests.',
+                'Id': 'z42',
+                'CallerReference': 'abc',
+            }],
+            'Marker': 'm',
+            'IsTruncated': False,
+            'MaxItems': '100',
+        }
+        stubber.add_response('list_hosted_zones', list_hosted_zones_resp, {})
+
+        # record with geo and no health check returns change
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, 'cname', {
+            'ttl': 30,
+            'type': 'CNAME',
+            'value': 'cname.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': 'one.cname.unit.tests.',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+        })
+        desired.add_record(record)
+        list_resource_record_sets_resp = {
+            'ResourceRecordSets': [{
+                # Not dynamic value and other name
+                'Name': 'unit.tests.',
+                'Type': 'CNAME',
+                'GeoLocation': {
+                    'CountryCode': '*',
+                },
+                'ResourceRecords': [{
+                    'Value': 'cname.unit.tests.',
+                }],
+                'TTL': 61,
+                # All the non-matches have a different Id so we'll fail if they
+                # match
+                'HealthCheckId': '33',
+            }, {
+                # Not dynamic value, matching name, other type
+                'Name': 'cname.unit.tests.',
+                'Type': 'AAAA',
+                'ResourceRecords': [{
+                    'Value': '2001:0db8:3c4d:0015:0000:0000:1a2f:1a4b'
+                }],
+                'TTL': 61,
+                'HealthCheckId': '33',
+            }, {
+                # default value pool
+                'Name': '_octodns-default-value.cname.unit.tests.',
+                'Type': 'CNAME',
+                'GeoLocation': {
+                    'CountryCode': '*',
+                },
+                'ResourceRecords': [{
+                    'Value': 'cname.unit.tests.',
+                }],
+                'TTL': 61,
+                'HealthCheckId': '33',
+            }, {
+                # different record
+                'Name': '_octodns-two-value.other.unit.tests.',
+                'Type': 'CNAME',
+                'GeoLocation': {
+                    'CountryCode': '*',
+                },
+                'ResourceRecords': [{
+                    'Value': 'cname.unit.tests.',
+                }],
+                'TTL': 61,
+                'HealthCheckId': '33',
+            }, {
+                # same everything, but different type
+                'Name': '_octodns-one-value.cname.unit.tests.',
+                'Type': 'AAAA',
+                'ResourceRecords': [{
+                    'Value': '2001:0db8:3c4d:0015:0000:0000:1a2f:1a4b'
+                }],
+                'TTL': 61,
+                'HealthCheckId': '33',
+            }, {
+                # same everything, sub
+                'Name': '_octodns-one-value.sub.cname.unit.tests.',
+                'Type': 'CNAME',
+                'ResourceRecords': [{
+                    'Value': 'cname.unit.tests.',
+                }],
+                'TTL': 61,
+                'HealthCheckId': '33',
+            }, {
+                # match
+                'Name': '_octodns-one-value.cname.unit.tests.',
+                'Type': 'CNAME',
+                'ResourceRecords': [{
+                    'Value': 'one.cname.unit.tests.',
+                }],
+                'TTL': 61,
+                'HealthCheckId': '42',
+            }],
+            'IsTruncated': False,
+            'MaxItems': '100',
+        }
+        stubber.add_response('list_resource_record_sets',
+                             list_resource_record_sets_resp,
+                             {'HostedZoneId': 'z42'})
+
+        stubber.add_response('list_health_checks', {
+            'HealthChecks': [{
+                'Id': '42',
+                'CallerReference': self.caller_ref,
+                'HealthCheckConfig': {
+                    'Type': 'HTTPS',
+                    'FullyQualifiedDomainName': 'one.cname.unit.tests.',
+                    'ResourcePath': '/_dns',
+                    'Type': 'HTTPS',
+                    'Port': 443,
+                    'MeasureLatency': True,
+                    'RequestInterval': 10,
+                },
+                'HealthCheckVersion': 2,
+            }],
+            'IsTruncated': False,
+            'MaxItems': '100',
+            'Marker': '',
+        })
+        extra = provider._extra_changes(desired=desired, changes=[])
+        self.assertEquals(0, len(extra))
+        stubber.assert_no_pending_responses()
+
+        # change b/c of healthcheck path
+        record._octodns['healthcheck'] = {
+            'path': '/_ready'
+        }
+        extra = provider._extra_changes(desired=desired, changes=[])
+        self.assertEquals(1, len(extra))
+        stubber.assert_no_pending_responses()
+
+        # no change b/c healthcheck host ignored for dynamic cname
+        record._octodns['healthcheck'] = {
+            'host': 'foo.bar.io'
+        }
+        extra = provider._extra_changes(desired=desired, changes=[])
+        self.assertEquals(0, len(extra))
         stubber.assert_no_pending_responses()
 
     def _get_test_plan(self, max_changes):

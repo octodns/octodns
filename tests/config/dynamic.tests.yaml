@@ -109,6 +109,29 @@ cname:
       - pool: iad
   type: CNAME
   value: target.unit.tests.
+pool-only-in-fallback:
+  dynamic:
+    pools:
+      one:
+        fallback: two
+        values:
+          - value: 1.1.1.1
+      three:
+        values:
+          - value: 3.3.3.3
+      two:
+        values:
+          - value: 2.2.2.2
+    rules:
+      - geos:
+        - NA-US
+        pool: one
+      - geos:
+        - AS-SG
+        pool: three
+  ttl: 300
+  type: A
+  values: [4.4.4.4]
 real-ish-a:
   dynamic:
     pools:
