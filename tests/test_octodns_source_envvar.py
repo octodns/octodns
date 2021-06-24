@@ -1,12 +1,6 @@
+from mock import patch
 from six import text_type
 from unittest import TestCase
-
-try:
-    # Python 3
-    from unittest.mock import patch
-except ImportError:
-    # Python 2
-    from mock import patch
 
 from octodns.source.envvar import EnvVarSource
 from octodns.source.envvar import EnvironmentVariableNotFoundException
