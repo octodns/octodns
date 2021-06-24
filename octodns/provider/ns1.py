@@ -341,6 +341,9 @@ class Ns1Provider(BaseProvider):
         'ASIAPAC': 'AS',
         'EUROPE': 'EU',
         'SOUTH-AMERICA': 'SA',
+        # continent NA has been handled as part of Geofence Country filter
+        # starting from v0.9.13. These below US-* just need to continue to
+        # exist here so it doesn't break the ugrade path
         'US-CENTRAL': 'NA',
         'US-EAST': 'NA',
         'US-WEST': 'NA',
