@@ -7,6 +7,9 @@
   to data. See the [octodns/processor/](/octodns/processor) directory for
   examples. The change has been designed to have no impact on the process
   unless the `processors` key is present in zone configs.
+* Fixes NS1 provider's geotarget limitation of using `NA` continent. Now, when
+  `NA` is used in geos it considers **all** the countries of `North America`
+  insted of just `us-east`, `us-west` and `us-central` regions
 
 ## v0.9.12 - 2021-04-30 - Enough time has passed
 
