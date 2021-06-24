@@ -1,3 +1,12 @@
+from __future__ import unicode_literals
+
+try:
+    # Python 3
+    from urllib.parse import parse_qs
+except ImportError:
+    # Python 2
+    from urlparse import parse_qs
+
 from mock import Mock, call
 from os.path import dirname, join
 from requests import HTTPError
@@ -55,7 +64,8 @@ class TestUltraProvider(TestCase):
             self.assertEquals(1, mock.call_count)
             expected_payload = "grant_type=password&username=user&"\
                                "password=rightpass"
-            self.assertEquals(mock.last_request.text, expected_payload)
+            self.assertEquals(parse_qs(mock.last_request.text),
+                              parse_qs(expected_payload))
 
     def test_get_zones(self):
         provider = _get_provider()
