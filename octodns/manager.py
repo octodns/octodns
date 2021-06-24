@@ -573,8 +573,15 @@ class Manager(object):
                 if isinstance(source, YamlProvider):
                     source.populate(zone)
 
-            # TODO: validate
-            # processors = config.get('processors', [])
+            # check that processors are in order if any are specified
+            processors = config.get('processors', [])
+            try:
+                # same as above, but for processors this time
+                for processor in processors:
+                    collected.append(self.processors[processor])
+            except KeyError:
+                raise ManagerException('Zone {}, unknown processor: {}'
+                                       .format(zone_name, processor))
 
     def get_zone(self, zone_name):
         if not zone_name[-1] == '.':

@@ -339,6 +339,11 @@ class TestManager(TestCase):
         Manager(get_config_filename('simple-alias-zone.yaml')) \
             .validate_configs()
 
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('unknown-processor.yaml')) \
+                .validate_configs()
+        self.assertTrue('unknown processor' in text_type(ctx.exception))
+
     def test_get_zone(self):
         Manager(get_config_filename('simple.yaml')).get_zone('unit.tests.')
 

@@ -1,0 +1,17 @@
+manager:
+  max_workers: 2
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+zones:
+  unit.tests.:
+    sources:
+      - in
+    processors:
+      - missing
+    targets:
+      - dump
