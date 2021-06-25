@@ -125,6 +125,9 @@ class _AzureRecord(object):
         self.params['ttl'] = record.ttl
 
     def _params_for_A(self, data, key_name, azure_class):
+        if self._record.dynamic and self.traffic_manager:
+            return {'target_resource': self.traffic_manager}
+
         try:
             values = data['values']
         except KeyError:
@@ -132,6 +135,9 @@ class _AzureRecord(object):
         return {key_name: [azure_class(ipv4_address=v) for v in values]}
 
     def _params_for_AAAA(self, data, key_name, azure_class):
+        if self._record.dynamic and self.traffic_manager:
+            return {'target_resource': self.traffic_manager}
+
         try:
             values = data['values']
         except KeyError:
@@ -263,7 +269,10 @@ def _root_traffic_manager_name(record):
     # ATM names can only have letters, numbers and hyphens
     # replace dots with double hyphens to ensure unique mapping,
     # hoping that real life FQDNs won't have double hyphens
-    return record.fqdn[:-1].replace('.', '--')
+    name = record.fqdn[:-1].replace('.', '--')
+    if record._type != 'CNAME':
+        name += '-{}'.format(record._type)
+    return name
 
 
 def _rule_traffic_manager_name(pool, record):
@@ -288,6 +297,47 @@ def _get_monitor(record):
             name='Host', value=host
         )]
     return monitor
+
+
+def _check_valid_dynamic(record):
+    typ = record._type
+    dynamic = record.dynamic
+    if typ in ['A', 'AAAA']:
+        # A/AAAA records cannot be aliased to Traffic Managers that contain
+        # other nested Traffic Managers. Due to this limitation, A/AAAA
+        # dynamic records can do only one of geo-fencing, fallback and
+        # weighted RR. So let's validate that the record adheres to this
+        # limitation.
+        data = dynamic._data()
+        values = set(record.values)
+        pools = data['pools'].values()
+        seen_values = set()
+        rr = False
+        fallback = False
+        for pool in pools:
+            vals = pool['values']
+            if len(vals) > 1:
+                rr = True
+            pool_values = set(val['value'] for val in vals)
+            if pool.get('fallback'):
+                fallback = True
+            seen_values.update(pool_values)
+
+        if values != seen_values:
+            msg = ('{} {}: All pool values of A/AAAA dynamic records must be '
+                   'included in top-level \'values\'.')
+            raise AzureException(msg.format(record.fqdn, record._type))
+
+        geo = any(r.get('geos') for r in data['rules'])
+
+        if [rr, fallback, geo].count(True) > 1:
+            msg = ('{} {}: A/AAAA dynamic records must use at most one  of '
+                   'round-robin, fallback and geo-fencing')
+            raise AzureException(msg.format(record.fqdn, record._type))
+    elif typ != 'CNAME':
+        # dynamic records of unsupported type
+        msg = '{}: Dynamic records in Azure must be of type A/AAAA/CNAME'
+        raise AzureException(msg.format(record.fqdn))
 
 
 def _profile_is_match(have, desired):
@@ -608,9 +658,33 @@ class AzureProvider(BaseProvider):
                           lenient=lenient)
 
     def _data_for_A(self, azrecord):
+        if azrecord.a_records is None:
+            if azrecord.target_resource.id:
+                return self._data_for_dynamic(azrecord)
+            else:
+                # dynamic record alias is broken, return dummy value and apply
+                # will likely overwrite/fix it
+                self.log.warn('_data_for_A: Missing Traffic Manager '
+                              'alias for dynamic A record %s, forcing '
+                              're-link by setting an invalid value',
+                              azrecord.fqdn)
+                return {'values': ['255.255.255.255']}
+
         return {'values': [ar.ipv4_address for ar in azrecord.a_records]}
 
     def _data_for_AAAA(self, azrecord):
+        if azrecord.aaaa_records is None:
+            if azrecord.target_resource.id:
+                return self._data_for_dynamic(azrecord)
+            else:
+                # dynamic record alias is broken, return dummy value and apply
+                # will likely overwrite/fix it
+                self.log.warn('_data_for_AAAA: Missing Traffic Manager '
+                              'alias for dynamic AAAA record %s, forcing '
+                              're-link by setting an invalid value',
+                              azrecord.fqdn)
+                return {'values': ['::1']}
+
         return {'values': [ar.ipv6_address for ar in azrecord.aaaa_records]}
 
     def _data_for_CAA(self, azrecord):
@@ -667,6 +741,7 @@ class AzureProvider(BaseProvider):
         default = set()
         pools = defaultdict(lambda: {'fallback': None, 'values': []})
         rules = []
+        typ = _parse_azure_type(azrecord.type)
 
         # top level profile
         root_profile = self._get_tm_profile_by_id(azrecord.target_resource.id)
@@ -762,8 +837,8 @@ class AzureProvider(BaseProvider):
                     pool['fallback'] = pool_name
 
                 if pool_name in pools:
-                    # we've already populated the pool
-                    continue
+                    # we've already populated this and subsequent pools
+                    break
 
                 # populate the pool from Weighted profile
                 # these should be leaf node entries with no further nesting
@@ -781,8 +856,10 @@ class AzureProvider(BaseProvider):
 
                 for pool_ep in endpoints:
                     val = pool_ep.target
+                    if typ == 'CNAME':
+                        val = _check_endswith_dot(val)
                     pool['values'].append({
-                        'value': _check_endswith_dot(val),
+                        'value': val,
                         'weight': pool_ep.weight or 1,
                     })
                     if pool_ep.name.endswith('--default--'):
@@ -805,24 +882,17 @@ class AzureProvider(BaseProvider):
                 'pools': pools,
                 'rules': rules,
             },
-            'value': _check_endswith_dot(default[0]),
         }
+
+        if typ == 'CNAME':
+            data['value'] = _check_endswith_dot(default[0])
+        else:
+            data['values'] = default
 
         return data
 
     def _extra_changes(self, existing, desired, changes):
-        changed = set()
-
-        # Abort if there are non-CNAME dynamic records
-        for change in changes:
-            record = change.record
-            changed.add(record)
-            typ = record._type
-            dynamic = getattr(record, 'dynamic', False)
-            if dynamic and typ != 'CNAME':
-                msg = '{}: Dynamic records in Azure must be of type CNAME'
-                msg = msg.format(record.fqdn)
-                raise AzureException(msg)
+        changed = set(c.record for c in changes)
 
         log = self.log.info
         seen_profiles = {}
@@ -832,14 +902,36 @@ class AzureProvider(BaseProvider):
                 # Already changed, or not dynamic, no need to check it
                 continue
 
+            # Abort if there are unsupported dynamic record configurations
+            _check_valid_dynamic(record)
+
             # let's walk through and show what will be changed even if
-            # the record is already be in list of changes
+            # the record is already in list of changes
             added = (record in changed)
 
             active = set()
             profiles = self._generate_traffic_managers(record)
+
+            # this should not happen with above check, check again here to
+            # prevent undesired changes
+            if record._type in ['A', 'AAAA'] and len(profiles) > 1:
+                msg = ('Unknown error: {} {} needs more than 1 Traffic '
+                       'Managers which is not supported for A/AAAA dynamic '
+                       'records').format(record.fqdn, record._type)
+                raise AzureException(msg)
+
             for profile in profiles:
                 name = profile.name
+
+                endpoints = set()
+                for ep in profile.endpoints:
+                    if not ep.target:
+                        continue
+                    if ep.target in endpoints:
+                        msg = '{} contains duplicate endpoint {}'
+                        raise AzureException(msg.format(name, ep.target))
+                    endpoints.add(ep.target)
+
                 if name in seen_profiles:
                     # exit if a possible collision is detected, even though
                     # we've tried to ensure unique mapping
@@ -871,9 +963,9 @@ class AzureProvider(BaseProvider):
     def _generate_tm_profile(self, routing, endpoints, record, label=None):
         # figure out profile name and Traffic Manager FQDN
         name = _root_traffic_manager_name(record)
-        if routing == 'Weighted':
+        if routing == 'Weighted' and label:
             name = _pool_traffic_manager_name(label, record)
-        elif routing == 'Priority':
+        elif routing == 'Priority' and label:
             name = _rule_traffic_manager_name(label, record)
 
         # set appropriate endpoint types
@@ -895,7 +987,7 @@ class AzureProvider(BaseProvider):
             name=name,
             traffic_routing_method=routing,
             dns_config=DnsConfig(
-                relative_name=name,
+                relative_name=name.lower(),
                 ttl=record.ttl,
             ),
             monitor_config=_get_monitor(record),
@@ -906,7 +998,7 @@ class AzureProvider(BaseProvider):
     def _convert_tm_to_root(self, profile, record):
         profile.name = _root_traffic_manager_name(record)
         profile.id = self._profile_name_to_id(profile.name)
-        profile.dns_config.relative_name = profile.name
+        profile.dns_config.relative_name = profile.name.lower()
 
         return profile
 
@@ -914,8 +1006,12 @@ class AzureProvider(BaseProvider):
         traffic_managers = []
         pools = record.dynamic.pools
         rules = record.dynamic.rules
+        typ = record._type
 
-        default = record.value[:-1]
+        if typ == 'CNAME':
+            defaults = [record.value[:-1]]
+        else:
+            defaults = record.values
         profile = self._generate_tm_profile
 
         # a pool can be re-used only with a world pool, record the pool
@@ -967,7 +1063,6 @@ class AzureProvider(BaseProvider):
 
             while pool_name:
                 # iterate until we reach end of fallback chain
-                default_seen = False
                 pool = pools[pool_name].data
                 if len(pool['values']) > 1:
                     # create Weighted profile for multi-value pool
@@ -977,9 +1072,10 @@ class AzureProvider(BaseProvider):
                         for val in pool['values']:
                             target = val['value']
                             # strip trailing dot from CNAME value
-                            target = target[:-1]
+                            if typ == 'CNAME':
+                                target = target[:-1]
                             ep_name = '{}--{}'.format(pool_name, target)
-                            if target == default:
+                            if target in defaults:
                                 # mark default
                                 ep_name += '--default--'
                                 default_seen = True
@@ -1003,14 +1099,16 @@ class AzureProvider(BaseProvider):
                     # Skip Weighted profile hop for single-value pool
                     # append its value as an external endpoint to fallback
                     # rule profile
-                    target = pool['values'][0]['value'][:-1]
+                    target = pool['values'][0]['value']
+                    if typ == 'CNAME':
+                        target = target[:-1]
                     ep_name = pool_name
-                    if target == default:
+                    if target in defaults:
                         # mark default
                         ep_name += '--default--'
                         default_seen = True
                     rule_endpoints.append(Endpoint(
-                        name=pool_name,
+                        name=ep_name,
                         target=target,
                         priority=priority,
                     ))
@@ -1023,7 +1121,7 @@ class AzureProvider(BaseProvider):
             if not default_seen:
                 rule_endpoints.append(Endpoint(
                     name='--default--',
-                    target=default,
+                    target=defaults[0],
                     priority=priority,
                 ))
 
@@ -1053,7 +1151,7 @@ class AzureProvider(BaseProvider):
                 else:
                     # just add the value of single-value pool
                     geo_endpoints.append(Endpoint(
-                        name=rule_ep.name + '--default--',
+                        name=rule_ep.name,
                         target=rule_ep.target,
                         geo_mapping=geos,
                     ))

@@ -1,3 +1,13 @@
+## v0.9.13 - 2021-..-.. -
+
+#### Noteworthy changes
+
+* Alpha support for Processors has been added. Processors allow for hooking
+  into the source, target, and planing process to make nearly arbitrary changes
+  to data. See the [octodns/processor/](/octodns/processor) directory for
+  examples. The change has been designed to have no impact on the process
+  unless the `processors` key is present in zone configs.
+
 ## v0.9.12 - 2021-04-30 - Enough time has passed
 
 #### Noteworthy changes
