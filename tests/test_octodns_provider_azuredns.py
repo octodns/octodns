@@ -1687,6 +1687,12 @@ class TestAzureDnsProvider(TestCase):
             'value': 'default.unit.tests.',
             'dynamic': {
                 'pools': {
+                    'sto': {
+                        'values': [
+                            {'value': 'sto.unit.tests.'},
+                        ],
+                        'fallback': 'iad',
+                    },
                     'iad': {
                         'values': [
                             {'value': 'iad.unit.tests.'},
@@ -1702,13 +1708,14 @@ class TestAzureDnsProvider(TestCase):
                 'rules': [
                     {'geos': ['EU'], 'pool': 'iad'},
                     {'geos': ['EU-GB'], 'pool': 'lhr'},
+                    {'geos': ['EU-SE'], 'pool': 'sto'},
                     {'pool': 'lhr'},
                 ],
             }
         })
         profiles = provider._generate_traffic_managers(record)
 
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertTrue(_profile_is_match(profiles[-1], Profile(
             name='foo--unit--tests',
             traffic_routing_method='Geographic',
@@ -1727,6 +1734,12 @@ class TestAzureDnsProvider(TestCase):
                     type=nested,
                     target_resource_id=profiles[1].id,
                     geo_mapping=['GB', 'WORLD'],
+                ),
+                Endpoint(
+                    name='rule-sto',
+                    type=nested,
+                    target_resource_id=profiles[2].id,
+                    geo_mapping=['SE'],
                 ),
             ],
         )))

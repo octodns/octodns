@@ -837,8 +837,8 @@ class AzureProvider(BaseProvider):
                     pool['fallback'] = pool_name
 
                 if pool_name in pools:
-                    # we've already populated the pool
-                    continue
+                    # we've already populated this and subsequent pools
+                    break
 
                 # populate the pool from Weighted profile
                 # these should be leaf node entries with no further nesting
