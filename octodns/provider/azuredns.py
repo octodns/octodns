@@ -922,6 +922,16 @@ class AzureProvider(BaseProvider):
 
             for profile in profiles:
                 name = profile.name
+
+                endpoints = set()
+                for ep in profile.endpoints:
+                    if not ep.target:
+                        continue
+                    if ep.target in endpoints:
+                        msg = '{} contains duplicate endpoint {}'
+                        raise AzureException(msg.format(name, ep.target))
+                    endpoints.add(ep.target)
+
                 if name in seen_profiles:
                     # exit if a possible collision is detected, even though
                     # we've tried to ensure unique mapping
@@ -1053,7 +1063,6 @@ class AzureProvider(BaseProvider):
 
             while pool_name:
                 # iterate until we reach end of fallback chain
-                default_seen = False
                 pool = pools[pool_name].data
                 if len(pool['values']) > 1:
                     # create Weighted profile for multi-value pool

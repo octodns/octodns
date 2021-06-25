@@ -999,6 +999,51 @@ class TestAzureDnsProvider(TestCase):
                 'Collision in Traffic Manager'
             ))
 
+    @patch(
+        'octodns.provider.azuredns.AzureProvider._generate_traffic_managers')
+    def test_extra_changes_non_last_fallback_contains_default(self, mock_gtm):
+        provider = self._get_provider()
+
+        desired = Zone(zone.name, sub_zones=[])
+        record = Record.new(desired, 'foo', {
+            'type': 'CNAME',
+            'ttl': 60,
+            'value': 'default.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{'value': 'one.unit.tests.'}],
+                        'fallback': 'def',
+                    },
+                    'def': {
+                        'values': [{'value': 'default.unit.tests.'}],
+                        'fallback': 'two',
+                    },
+                    'two': {
+                        'values': [{'value': 'two.unit.tests.'}],
+                    },
+                },
+                'rules': [
+                    {'pool': 'one'},
+                ]
+            }
+        })
+        desired.add_record(record)
+        changes = [Create(record)]
+
+        # assert that no exception is raised
+        provider._extra_changes(zone, desired, changes)
+
+        # simulate duplicate endpoint and assert exception
+        endpoint = Endpoint(target='dup.unit.tests.')
+        mock_gtm.return_value = [Profile(
+            name='test-profile',
+            endpoints=[endpoint, endpoint],
+        )]
+        with self.assertRaises(AzureException) as ctx:
+            provider._extra_changes(zone, desired, changes)
+            self.assertTrue('duplicate endpoint' in text_type(ctx))
+
     def test_extra_changes_invalid_dynamic_A(self):
         provider = self._get_provider()
 
