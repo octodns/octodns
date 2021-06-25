@@ -999,6 +999,51 @@ class TestAzureDnsProvider(TestCase):
                 'Collision in Traffic Manager'
             ))
 
+    @patch(
+        'octodns.provider.azuredns.AzureProvider._generate_traffic_managers')
+    def test_extra_changes_non_last_fallback_contains_default(self, mock_gtm):
+        provider = self._get_provider()
+
+        desired = Zone(zone.name, sub_zones=[])
+        record = Record.new(desired, 'foo', {
+            'type': 'CNAME',
+            'ttl': 60,
+            'value': 'default.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{'value': 'one.unit.tests.'}],
+                        'fallback': 'def',
+                    },
+                    'def': {
+                        'values': [{'value': 'default.unit.tests.'}],
+                        'fallback': 'two',
+                    },
+                    'two': {
+                        'values': [{'value': 'two.unit.tests.'}],
+                    },
+                },
+                'rules': [
+                    {'pool': 'one'},
+                ]
+            }
+        })
+        desired.add_record(record)
+        changes = [Create(record)]
+
+        # assert that no exception is raised
+        provider._extra_changes(zone, desired, changes)
+
+        # simulate duplicate endpoint and assert exception
+        endpoint = Endpoint(target='dup.unit.tests.')
+        mock_gtm.return_value = [Profile(
+            name='test-profile',
+            endpoints=[endpoint, endpoint],
+        )]
+        with self.assertRaises(AzureException) as ctx:
+            provider._extra_changes(zone, desired, changes)
+            self.assertTrue('duplicate endpoint' in text_type(ctx))
+
     def test_extra_changes_invalid_dynamic_A(self):
         provider = self._get_provider()
 
@@ -1642,6 +1687,12 @@ class TestAzureDnsProvider(TestCase):
             'value': 'default.unit.tests.',
             'dynamic': {
                 'pools': {
+                    'sto': {
+                        'values': [
+                            {'value': 'sto.unit.tests.'},
+                        ],
+                        'fallback': 'iad',
+                    },
                     'iad': {
                         'values': [
                             {'value': 'iad.unit.tests.'},
@@ -1657,13 +1708,14 @@ class TestAzureDnsProvider(TestCase):
                 'rules': [
                     {'geos': ['EU'], 'pool': 'iad'},
                     {'geos': ['EU-GB'], 'pool': 'lhr'},
+                    {'geos': ['EU-SE'], 'pool': 'sto'},
                     {'pool': 'lhr'},
                 ],
             }
         })
         profiles = provider._generate_traffic_managers(record)
 
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertTrue(_profile_is_match(profiles[-1], Profile(
             name='foo--unit--tests',
             traffic_routing_method='Geographic',
@@ -1682,6 +1734,12 @@ class TestAzureDnsProvider(TestCase):
                     type=nested,
                     target_resource_id=profiles[1].id,
                     geo_mapping=['GB', 'WORLD'],
+                ),
+                Endpoint(
+                    name='rule-sto',
+                    type=nested,
+                    target_resource_id=profiles[2].id,
+                    geo_mapping=['SE'],
                 ),
             ],
         )))
