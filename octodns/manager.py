@@ -261,7 +261,8 @@ class Manager(object):
                 try:
                     source.populate(zone, lenient=lenient)
                 except TypeError as e:
-                    if "keyword argument 'lenient'" not in text_type(e):
+                    if ("unexpected keyword argument 'lenient'"
+                            not in text_type(e)):
                         raise
                     self.log.warn('provider %s does not accept lenient '
                                   'param', source.__class__.__name__)

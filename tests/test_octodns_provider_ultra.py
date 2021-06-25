@@ -1,8 +1,11 @@
+from __future__ import unicode_literals
+
 from mock import Mock, call
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
 from six import text_type
+from six.moves.urllib import parse
 from unittest import TestCase
 from json import load as json_load
 
@@ -55,7 +58,8 @@ class TestUltraProvider(TestCase):
             self.assertEquals(1, mock.call_count)
             expected_payload = "grant_type=password&username=user&"\
                                "password=rightpass"
-            self.assertEquals(mock.last_request.text, expected_payload)
+            self.assertEquals(parse.parse_qs(mock.last_request.text),
+                              parse.parse_qs(expected_payload))
 
     def test_get_zones(self):
         provider = _get_provider()
