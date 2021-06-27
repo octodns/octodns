@@ -1572,7 +1572,7 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertTrue('NA' in data5['dynamic']['rules'][0]['geos'])
 
         # 2. Partial list of countries should return just those
-        partial_na_cntry_list = list(na_countries)[:5]
+        partial_na_cntry_list = list(na_countries)[:5] + ['SX', 'UM']
         ns1_record['regions']['lhr__country']['meta']['country'] = \
             partial_na_cntry_list
         data6 = provider._data_for_A('A', ns1_record)

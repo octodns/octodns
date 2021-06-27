@@ -363,8 +363,7 @@ class Ns1Provider(BaseProvider):
         'NA': {'DO', 'DM', 'BB', 'BL', 'BM', 'HT', 'KN', 'JM', 'VC', 'HN',
                'BS', 'BZ', 'PR', 'NI', 'LC', 'TT', 'VG', 'PA', 'TC', 'PM',
                'GT', 'AG', 'GP', 'AI', 'VI', 'CA', 'GD', 'AW', 'CR', 'GL',
-               'CU', 'MF', 'SV', 'US', 'UM', 'MQ', 'MS', 'KY', 'MX', 'CW',
-               'BQ', 'SX'}
+               'CU', 'MF', 'SV', 'US', 'MQ', 'MS', 'KY', 'MX', 'CW', 'BQ'}
     }
 
     def __init__(self, id, api_key, retry_count=4, monitor_regions=None,
