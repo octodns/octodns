@@ -10,8 +10,9 @@
 * Fixes NS1 provider's geotarget limitation of using `NA` continent. Now, when
   `NA` is used in geos it considers **all** the countries of `North America`
   insted of just `us-east`, `us-west` and `us-central` regions
-* `SX' &amp; 'UM` country support added, not yet in the North America list for 
-   backwards compatibility reasons. They will be added in the next releaser.
+* `SX' &amp; 'UM` country support added to NS1Provider, not yet in the North 
+   America list for backwards compatibility reasons. They will be added in the
+   next releaser.
 
 ## v0.9.12 - 2021-04-30 - Enough time has passed
 
