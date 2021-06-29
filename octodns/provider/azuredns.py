@@ -1074,6 +1074,9 @@ class AzureProvider(BaseProvider):
                             if typ == 'CNAME':
                                 target = target[:-1]
                             ep_name = '{}--{}'.format(pool_name, target)
+                            # Endpoint names cannot have colons, drop them
+                            # from IPv6 addresses
+                            ep_name = ep_name.replace(':', '-')
                             if target in defaults:
                                 # mark default
                                 ep_name += '--default--'
