@@ -697,13 +697,13 @@ class TestAzureDnsProvider(TestCase):
                 endpoints=[
                     Endpoint(
                         geo_mapping=['GEO-AF', 'DE', 'US-CA', 'GEO-AP'],
-                        name='rule-one',
+                        name='one',
                         type=nested,
                         target_resource_id=id_format.format('rule-one'),
                     ),
                     Endpoint(
                         geo_mapping=['WORLD'],
-                        name='rule-two',
+                        name='two',
                         type=nested,
                         target_resource_id=id_format.format('rule-two'),
                     ),
@@ -1231,6 +1231,12 @@ class TestAzureDnsProvider(TestCase):
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
+
     def test_generate_traffic_managers_middle_east(self):
         # check Asia/Middle East test case
         provider, zone, record = self._get_dynamic_package()
@@ -1336,6 +1342,12 @@ class TestAzureDnsProvider(TestCase):
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
+
     def test_dynamic_fallback_is_default(self):
         # test that traffic managers are generated as expected
         provider = self._get_provider()
@@ -1388,6 +1400,12 @@ class TestAzureDnsProvider(TestCase):
         azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
 
     def test_dynamic_pool_contains_default(self):
         # test that traffic managers are generated as expected
@@ -1459,7 +1477,7 @@ class TestAzureDnsProvider(TestCase):
             monitor_config=_get_monitor(record),
             endpoints=[
                 Endpoint(
-                    name='rule-rr',
+                    name='rr',
                     type=nested,
                     target_resource_id=profiles[0].id,
                     geo_mapping=['GEO-AF'],
@@ -1478,6 +1496,12 @@ class TestAzureDnsProvider(TestCase):
         azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
 
     def test_dynamic_pool_contains_default_no_geo(self):
         # test that traffic managers are generated as expected
@@ -1552,6 +1576,12 @@ class TestAzureDnsProvider(TestCase):
         azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
 
     def test_dynamic_last_pool_contains_default_no_geo(self):
         # test that traffic managers are generated as expected
@@ -1655,6 +1685,12 @@ class TestAzureDnsProvider(TestCase):
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
+
     def test_dynamic_unique_traffic_managers(self):
         record = self._get_dynamic_record(zone)
         data = {
@@ -1724,19 +1760,19 @@ class TestAzureDnsProvider(TestCase):
             monitor_config=_get_monitor(record),
             endpoints=[
                 Endpoint(
-                    name='rule-iad',
+                    name='iad',
                     type=nested,
                     target_resource_id=profiles[0].id,
                     geo_mapping=['GEO-EU'],
                 ),
                 Endpoint(
-                    name='rule-lhr',
+                    name='lhr',
                     type=nested,
                     target_resource_id=profiles[1].id,
                     geo_mapping=['GB', 'WORLD'],
                 ),
                 Endpoint(
-                    name='rule-sto',
+                    name='sto',
                     type=nested,
                     target_resource_id=profiles[2].id,
                     geo_mapping=['SE'],
@@ -1755,6 +1791,12 @@ class TestAzureDnsProvider(TestCase):
         azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
 
     def test_dynamic_A_geo(self):
         provider = self._get_provider()
@@ -1790,10 +1832,6 @@ class TestAzureDnsProvider(TestCase):
             }
         })
 
-        # test that extra_changes doesn't complain
-        changes = [Create(record)]
-        provider._extra_changes(zone, zone, changes)
-
         profiles = provider._generate_traffic_managers(record)
 
         self.assertEqual(len(profiles), 1)
@@ -1828,7 +1866,7 @@ class TestAzureDnsProvider(TestCase):
         # test that the record and ATM profile gets created
         tm_sync = provider._tm_client.profiles.create_or_update
         create = provider._dns_client.record_sets.create_or_update
-        provider._apply_Create(changes[0])
+        provider._apply_Create(Create(record))
         # A dynamic record can only have 1 profile
         tm_sync.assert_called_once()
         create.assert_called_once()
@@ -1853,6 +1891,12 @@ class TestAzureDnsProvider(TestCase):
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
+
     def test_dynamic_A_fallback(self):
         provider = self._get_provider()
         external = 'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
@@ -1860,7 +1904,7 @@ class TestAzureDnsProvider(TestCase):
         record = Record.new(zone, 'foo', data={
             'type': 'A',
             'ttl': 60,
-            'values': ['8.8.8.8'],
+            'values': ['1.1.1.1', '2.2.2.2'],
             'dynamic': {
                 'pools': {
                     'one': {
@@ -1891,22 +1935,16 @@ class TestAzureDnsProvider(TestCase):
             monitor_config=_get_monitor(record),
             endpoints=[
                 Endpoint(
-                    name='one',
+                    name='one--default--',
                     type=external,
                     target='1.1.1.1',
                     priority=1,
                 ),
                 Endpoint(
-                    name='two',
+                    name='two--default--',
                     type=external,
                     target='2.2.2.2',
                     priority=2,
-                ),
-                Endpoint(
-                    name='--default--',
-                    type=external,
-                    target='8.8.8.8',
-                    priority=3,
                 ),
             ],
         )))
@@ -1922,6 +1960,12 @@ class TestAzureDnsProvider(TestCase):
         azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
 
     def test_dynamic_A_weighted_rr(self):
         provider = self._get_provider()
@@ -1981,6 +2025,12 @@ class TestAzureDnsProvider(TestCase):
         azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
 
     def test_dynamic_AAAA(self):
         provider = self._get_provider()
@@ -2049,6 +2099,12 @@ class TestAzureDnsProvider(TestCase):
         azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
 
     def test_sync_traffic_managers(self):
         provider, zone, record = self._get_dynamic_package()
