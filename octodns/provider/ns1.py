@@ -341,6 +341,9 @@ class Ns1Provider(BaseProvider):
         'ASIAPAC': 'AS',
         'EUROPE': 'EU',
         'SOUTH-AMERICA': 'SA',
+        # continent NA has been handled as part of Geofence Country filter
+        # starting from v0.9.13. These below US-* just need to continue to
+        # exist here so it doesn't break the ugrade path
         'US-CENTRAL': 'NA',
         'US-EAST': 'NA',
         'US-WEST': 'NA',
@@ -350,8 +353,6 @@ class Ns1Provider(BaseProvider):
         'AS': ('ASIAPAC',),
         'EU': ('EUROPE',),
         'SA': ('SOUTH-AMERICA',),
-        # TODO: what about CA, MX, and all the other NA countries?
-        'NA': ('US-CENTRAL', 'US-EAST', 'US-WEST'),
     }
 
     # Necessary for handling unsupported continents in _CONTINENT_TO_REGIONS
@@ -359,6 +360,10 @@ class Ns1Provider(BaseProvider):
         'OC': {'FJ', 'NC', 'PG', 'SB', 'VU', 'AU', 'NF', 'NZ', 'FM', 'GU',
                'KI', 'MH', 'MP', 'NR', 'PW', 'AS', 'CK', 'NU', 'PF', 'PN',
                'TK', 'TO', 'TV', 'WF', 'WS'},
+        'NA': {'DO', 'DM', 'BB', 'BL', 'BM', 'HT', 'KN', 'JM', 'VC', 'HN',
+               'BS', 'BZ', 'PR', 'NI', 'LC', 'TT', 'VG', 'PA', 'TC', 'PM',
+               'GT', 'AG', 'GP', 'AI', 'VI', 'CA', 'GD', 'AW', 'CR', 'GL',
+               'CU', 'MF', 'SV', 'US', 'MQ', 'MS', 'KY', 'MX', 'CW', 'BQ'}
     }
 
     def __init__(self, id, api_key, retry_count=4, monitor_regions=None,
@@ -549,42 +554,45 @@ class Ns1Provider(BaseProvider):
 
             geos = set()
 
-            # continents are mapped (imperfectly) to regions, but what about
-            # Canada/North America
             for georegion in meta.get('georegion', []):
                 geos.add(self._REGION_TO_CONTINENT[georegion])
 
             # Countries are easy enough to map, we just have to find their
             # continent
             #
-            # NOTE: Special handling for Oceania
-            # NS1 doesn't support Oceania as a region. So the Oceania countries
-            # will be present in meta['country']. If all the countries in the
-            # Oceania countries list are found, set the region to OC and remove
-            # individual oceania country entries
+            # NOTE: Some continents need special handling since NS1
+            # does not supprt them as regions. These are defined under
+            # _CONTINENT_TO_LIST_OF_COUNTRIES. So the countries for these
+            # regions will be present in meta['country']. If all the countries
+            # in _CONTINENT_TO_LIST_OF_COUNTRIES[<region>] list are found,
+            # set the continent as the region and remove individual countries
 
-            oc_countries = set()
+            special_continents = dict()
             for country in meta.get('country', []):
-                # country_alpha2_to_continent_code fails for Pitcairn ('PN')
+                # country_alpha2_to_continent_code fails for Pitcairn ('PN'),
+                # United States Minor Outlying Islands ('UM') and
+                # Sint Maarten ('SX')
                 if country == 'PN':
                     con = 'OC'
+                elif country in ['SX', 'UM']:
+                    con = 'NA'
                 else:
                     con = country_alpha2_to_continent_code(country)
 
-                if con == 'OC':
-                    oc_countries.add(country)
+                if con in self._CONTINENT_TO_LIST_OF_COUNTRIES:
+                    special_continents.setdefault(con, set()).add(country)
                 else:
-                    # Adding only non-OC countries here to geos
                     geos.add('{}-{}'.format(con, country))
 
-            if oc_countries:
-                if oc_countries == self._CONTINENT_TO_LIST_OF_COUNTRIES['OC']:
-                    # All OC countries found, so add 'OC' to geos
-                    geos.add('OC')
+            for continent, countries in special_continents.items():
+                if countries == self._CONTINENT_TO_LIST_OF_COUNTRIES[
+                        continent]:
+                    # All countries found, so add it to geos
+                    geos.add(continent)
                 else:
-                    # Partial OC countries found, just add them as-is to geos
-                    for c in oc_countries:
-                        geos.add('{}-{}'.format('OC', c))
+                    # Partial countries found, so just add them as-is to geos
+                    for c in countries:
+                        geos.add('{}-{}'.format(continent, c))
 
             # States are easy too, just assume NA-US (CA providences aren't
             # supported by octoDNS currently)

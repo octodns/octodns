@@ -208,7 +208,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
 | [HetznerProvider](/octodns/provider/hetzner.py) | | A, AAAA, CAA, CNAME, MX, NS, SRV, TXT | No | |
 | [MythicBeastsProvider](/octodns/provider/mythicbeasts.py) | Mythic Beasts | A, AAAA, ALIAS, CNAME, MX, NS, SRV, SSHFP, CAA, TXT | No | |
-| [Ns1Provider](/octodns/provider/ns1.py) | ns1-python | All | Yes | Missing `NA` geo target |
+| [Ns1Provider](/octodns/provider/ns1.py) | ns1-python | All | Yes | |
 | [OVH](/octodns/provider/ovh.py) | ovh | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
 | [PowerDnsProvider](/octodns/provider/powerdns.py) | | All | No | |
 | [Rackspace](/octodns/provider/rackspace.py) | | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
