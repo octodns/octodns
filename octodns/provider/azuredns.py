@@ -748,7 +748,10 @@ class AzureProvider(BaseProvider):
         if root_profile.traffic_routing_method != 'Geographic':
             # This record does not use geo fencing, so we skip the Geographic
             # profile hop; let's pretend to be a geo-profile's only endpoint
-            geo_ep = Endpoint(target_resource_id=root_profile.id)
+            geo_ep = Endpoint(
+                name=root_profile.endpoints[0].name.split('--', 1)[0],
+                target_resource_id=root_profile.id
+            )
             geo_ep.target_resource = root_profile
             endpoints = [geo_ep]
         else:
@@ -799,18 +802,14 @@ class AzureProvider(BaseProvider):
                         geos.append(GeoCodes.country_to_code(code))
 
             # build fallback chain from second level priority profile
-            if geo_ep.target_resource_id:
-                target = geo_ep.target_resource
-                if target.traffic_routing_method == 'Priority':
-                    rule_endpoints = target.endpoints
-                    rule_endpoints.sort(key=lambda e: e.priority)
-                else:
-                    # Weighted
-                    geo_ep.name = target.endpoints[0].name.split('--', 1)[0]
-                    rule_endpoints = [geo_ep]
+            if geo_ep.target_resource_id and \
+               geo_ep.target_resource.traffic_routing_method == 'Priority':
+                rule_endpoints = geo_ep.target_resource.endpoints
+                rule_endpoints.sort(key=lambda e: e.priority)
             else:
-                # this geo directly points to the default, so we skip the
-                # Priority profile hop and directly use an external endpoint;
+                # this geo directly points to a pool containing the default
+                # so we skip the Priority profile hop and directly use an
+                # external endpoint or Weighted profile
                 # let's pretend to be a Priority profile's only endpoint
                 rule_endpoints = [geo_ep]
 
@@ -1075,6 +1074,9 @@ class AzureProvider(BaseProvider):
                             if typ == 'CNAME':
                                 target = target[:-1]
                             ep_name = '{}--{}'.format(pool_name, target)
+                            # Endpoint names cannot have colons, drop them
+                            # from IPv6 addresses
+                            ep_name = ep_name.replace(':', '-')
                             if target in defaults:
                                 # mark default
                                 ep_name += '--default--'
@@ -1133,7 +1135,7 @@ class AzureProvider(BaseProvider):
 
                 # append rule profile to top-level geo profile
                 geo_endpoints.append(Endpoint(
-                    name='rule-{}'.format(rule.data['pool']),
+                    name=rule.data['pool'],
                     target_resource_id=rule_profile.id,
                     geo_mapping=geos,
                 ))
@@ -1144,7 +1146,7 @@ class AzureProvider(BaseProvider):
                 if rule_ep.target_resource_id:
                     # point directly to the Weighted pool profile
                     geo_endpoints.append(Endpoint(
-                        name='rule-{}'.format(rule.data['pool']),
+                        name=rule_ep.name,
                         target_resource_id=rule_ep.target_resource_id,
                         geo_mapping=geos,
                     ))
