@@ -849,6 +849,8 @@ class Ns1Provider(BaseProvider):
 
             for monitor in self._client.monitors.values():
                 data = self._parse_notes(monitor['notes'])
+                if not data:
+                    continue
                 if expected_host == data['host'] and \
                    expected_type == data['type']:
                     # This monitor does not belong to this record
