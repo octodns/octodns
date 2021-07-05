@@ -1246,7 +1246,6 @@ class AzureProvider(BaseProvider):
         '''
         existing = change.existing
         new = change.new
-        typ = new._type
         existing_is_dynamic = getattr(existing, 'dynamic', False)
         new_is_dynamic = getattr(new, 'dynamic', False)
 
@@ -1257,7 +1256,7 @@ class AzureProvider(BaseProvider):
             profiles = self._generate_traffic_managers(new)
             root_profile = profiles[-1]
 
-            if typ in ['A', 'AAAA']:
+            if new._type in ['A', 'AAAA']:
                 if existing_is_dynamic:
                     # update to the record is not needed
                     update_record = False
