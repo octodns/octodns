@@ -302,10 +302,21 @@ def _get_monitor(record):
 def _check_valid_dynamic(record):
     typ = record._type
     if typ in ['A', 'AAAA']:
-        if len(record.values) > 1:
-            # we don't yet support multi-value defaults
-            msg = '{} {}: A/AAAA dynamic records can only have a single value'
-            raise AzureException(msg.format(record.fqdn, record._type))
+        defaults = set(record.values)
+        if len(defaults) > 1:
+            pools = record.dynamic.pools
+            vals = set(
+                v['value']
+                for _, pool in pools.items()
+                for v in pool._data()['values']
+            )
+            if defaults != vals:
+                # we don't yet support multi-value defaults, specifying all
+                # pool values allows for Traffic Manager profile optimization
+                msg = ('{} {}: Values of A/AAAA dynamic records must either '
+                       'have a single value or contain all values from all '
+                       'pools')
+                raise AzureException(msg.format(record.fqdn, record._type))
     elif typ != 'CNAME':
         # dynamic records of unsupported type
         msg = '{}: Dynamic records in Azure must be of type A/AAAA/CNAME'

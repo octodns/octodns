@@ -1873,12 +1873,13 @@ class TestAzureDnsProvider(TestCase):
         record = Record.new(zone, 'foo', data={
             'type': 'AAAA',
             'ttl': 60,
-            'values': ['1::1'],
+            'values': ['1::1', '2::2'],
             'dynamic': {
                 'pools': {
                     'one': {
                         'values': [
                             {'value': '1::1'},
+                            {'value': '2::2'},
                         ],
                     },
                 },
@@ -1892,16 +1893,22 @@ class TestAzureDnsProvider(TestCase):
         self.assertEqual(len(profiles), 1)
         self.assertTrue(_profile_is_match(profiles[0], Profile(
             name='foo--unit--tests-AAAA',
-            traffic_routing_method='Geographic',
+            traffic_routing_method='Weighted',
             dns_config=DnsConfig(
                 relative_name='foo--unit--tests-aaaa', ttl=record.ttl),
             monitor_config=_get_monitor(record),
             endpoints=[
                 Endpoint(
-                    name='one--default--',
+                    name='one--1--1--default--',
                     type=external,
                     target='1::1',
-                    geo_mapping=['WORLD'],
+                    weight=1,
+                ),
+                Endpoint(
+                    name='one--2--2--default--',
+                    type=external,
+                    target='2::2',
+                    weight=1,
                 ),
             ],
         )))
