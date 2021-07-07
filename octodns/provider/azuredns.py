@@ -301,39 +301,22 @@ def _get_monitor(record):
 
 def _check_valid_dynamic(record):
     typ = record._type
-    dynamic = record.dynamic
     if typ in ['A', 'AAAA']:
-        # A/AAAA records cannot be aliased to Traffic Managers that contain
-        # other nested Traffic Managers. Due to this limitation, A/AAAA
-        # dynamic records can do only one of geo-fencing, fallback and
-        # weighted RR. So let's validate that the record adheres to this
-        # limitation.
-        data = dynamic._data()
-        values = set(record.values)
-        pools = data['pools'].values()
-        seen_values = set()
-        rr = False
-        fallback = False
-        for pool in pools:
-            vals = pool['values']
-            if len(vals) > 1:
-                rr = True
-            pool_values = set(val['value'] for val in vals)
-            if pool.get('fallback'):
-                fallback = True
-            seen_values.update(pool_values)
-
-        if values != seen_values:
-            msg = ('{} {}: All pool values of A/AAAA dynamic records must be '
-                   'included in top-level \'values\'.')
-            raise AzureException(msg.format(record.fqdn, record._type))
-
-        geo = any(r.get('geos') for r in data['rules'])
-
-        if [rr, fallback, geo].count(True) > 1:
-            msg = ('{} {}: A/AAAA dynamic records must use at most one  of '
-                   'round-robin, fallback and geo-fencing')
-            raise AzureException(msg.format(record.fqdn, record._type))
+        defaults = set(record.values)
+        if len(defaults) > 1:
+            pools = record.dynamic.pools
+            vals = set(
+                v['value']
+                for _, pool in pools.items()
+                for v in pool._data()['values']
+            )
+            if defaults != vals:
+                # we don't yet support multi-value defaults, specifying all
+                # pool values allows for Traffic Manager profile optimization
+                msg = ('{} {}: Values of A/AAAA dynamic records must either '
+                       'have a single value or contain all values from all '
+                       'pools')
+                raise AzureException(msg.format(record.fqdn, record._type))
     elif typ != 'CNAME':
         # dynamic records of unsupported type
         msg = '{}: Dynamic records in Azure must be of type A/AAAA/CNAME'
@@ -911,14 +894,6 @@ class AzureProvider(BaseProvider):
             active = set()
             profiles = self._generate_traffic_managers(record)
 
-            # this should not happen with above check, check again here to
-            # prevent undesired changes
-            if record._type in ['A', 'AAAA'] and len(profiles) > 1:
-                msg = ('Unknown error: {} {} needs more than 1 Traffic '
-                       'Managers which is not supported for A/AAAA dynamic '
-                       'records').format(record.fqdn, record._type)
-                raise AzureException(msg)
-
             for profile in profiles:
                 name = profile.name
 
@@ -1170,8 +1145,7 @@ class AzureProvider(BaseProvider):
 
         return traffic_managers
 
-    def _sync_traffic_managers(self, record):
-        desired_profiles = self._generate_traffic_managers(record)
+    def _sync_traffic_managers(self, desired_profiles):
         seen = set()
 
         tm_sync = self._tm_client.profiles.create_or_update
@@ -1230,12 +1204,22 @@ class AzureProvider(BaseProvider):
         record = change.new
 
         dynamic = getattr(record, 'dynamic', False)
+        root_profile = None
+        endpoints = []
         if dynamic:
-            self._sync_traffic_managers(record)
+            profiles = self._generate_traffic_managers(record)
+            root_profile = profiles[-1]
+            if record._type in ['A', 'AAAA'] and len(profiles) > 1:
+                # A/AAAA records cannot be aliased to Traffic Managers that
+                # contain other nested Traffic Managers. To work around this
+                # limitation, we remove nesting before adding the record, and
+                # then add the nested endpoints later.
+                endpoints = root_profile.endpoints
+                root_profile.endpoints = []
+            self._sync_traffic_managers(profiles)
 
-        profile = self._get_tm_for_dynamic_record(record)
         ar = _AzureRecord(self._resource_group, record,
-                          traffic_manager=profile)
+                          traffic_manager=root_profile)
         create = self._dns_client.record_sets.create_or_update
 
         create(resource_group_name=ar.resource_group,
@@ -1243,6 +1227,12 @@ class AzureProvider(BaseProvider):
                relative_record_set_name=ar.relative_record_set_name,
                record_type=ar.record_type,
                parameters=ar.params)
+
+        if endpoints:
+            # add nested endpoints for A/AAAA dynamic record limitation after
+            # record creation
+            root_profile.endpoints = endpoints
+            self._sync_traffic_managers([root_profile])
 
         self.log.debug('*  Success Create: {}'.format(record))
 
@@ -1262,12 +1252,27 @@ class AzureProvider(BaseProvider):
         update_record = True
 
         if new_is_dynamic:
-            active = self._sync_traffic_managers(new)
-            # only TTL is configured in record, everything else goes inside
-            # traffic managers, so no need to update if TTL is unchanged
-            # and existing record is already aliased to its traffic manager
-            if existing.ttl == new.ttl and existing_is_dynamic:
+            endpoints = []
+            profiles = self._generate_traffic_managers(new)
+            root_profile = profiles[-1]
+
+            if new._type in ['A', 'AAAA']:
+                if existing_is_dynamic:
+                    # update to the record is not needed
+                    update_record = False
+                elif len(profiles) > 1:
+                    # record needs to aliased; remove nested endpoints, we
+                    # will add them at the end
+                    endpoints = root_profile.endpoints
+                    root_profile.endpoints = []
+            elif existing.ttl == new.ttl and existing_is_dynamic:
+                # CNAME dynamic records only have TTL in them, everything else
+                # goes inside the aliased traffic managers; skip update if TTL
+                # is unchanged and existing record is already aliased to its
+                # traffic manager
                 update_record = False
+
+            active = self._sync_traffic_managers(profiles)
 
         if update_record:
             profile = self._get_tm_for_dynamic_record(new)
@@ -1282,6 +1287,10 @@ class AzureProvider(BaseProvider):
                    parameters=ar.params)
 
         if new_is_dynamic:
+            # add any pending nested endpoints
+            if endpoints:
+                root_profile.endpoints = endpoints
+                self._sync_traffic_managers([root_profile])
             # let's cleanup unused traffic managers
             self._traffic_managers_gc(new, active)
         elif existing_is_dynamic:
