@@ -89,7 +89,7 @@ zones:
       - dyn
       - route53
 
-  example.net:
+  example.net.:
     alias: example.com.
 ```
 
