@@ -53,7 +53,7 @@ $ mkdir config
 If you'd like to install a version that has not yet been released in a repetable/safe manner you can do the following. In general octoDNS is fairly stable inbetween releases thanks to the plan and apply process, but care should be taken regardless.
 
 ```shell
-$ pip install -e git+https://git@github.com/github/octodns.git@<SHA>#egg=octodns
+$ pip install -e git+https://git@github.com/octodns/octodns.git@<SHA>#egg=octodns
 ```
 
 ### Config
