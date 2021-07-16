@@ -6,14 +6,17 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from collections import defaultdict
+from operator import attrgetter
 
 from azure.identity import ClientSecretCredential
 from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.dns import DnsManagementClient
+from azure.mgmt.privatedns import PrivateDnsManagementClient
 from azure.mgmt.trafficmanager import TrafficManagerManagementClient
 
 from azure.mgmt.dns.models import ARecord, AaaaRecord, CaaRecord, \
     CnameRecord, MxRecord, SrvRecord, NsRecord, PtrRecord, TxtRecord, Zone
+from azure.mgmt.privatedns.models import PrivateZone
 from azure.mgmt.trafficmanager.models import Profile, DnsConfig, \
     MonitorConfig, Endpoint, MonitorConfigCustomHeadersItem
 
@@ -423,7 +426,8 @@ class AzureProvider(BaseProvider):
         sub_id:
         # Resource Group name:
         resource_group:
-        # All are required to authenticate.
+        # Use Private Zones (bool), defaults to public.
+        private:
 
         Example config file with variables:
             "
@@ -439,6 +443,7 @@ class AzureProvider(BaseProvider):
                 directory_id: env/AZURE_DIRECTORY_ID
                 sub_id: env/AZURE_SUBSCRIPTION_ID
                 resource_group: 'TestResource1'
+                private: true
 
             zones:
               example.com.:
@@ -452,18 +457,20 @@ class AzureProvider(BaseProvider):
         possible to also hard-code into the config file: eg, resource_group.
 
         Please read https://github.com/octodns/octodns/pull/706 for an overview
-        of how dynamic records are designed and caveats of using them.
+        of how dynamic records are designed and caveats of using them. Dynamic
+        records are not supported when using private zones.
+
+        CAA and NS records are not supported when using private zones.
     '''
     SUPPORTS_GEO = False
-    SUPPORTS_DYNAMIC = True
-    SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR', 'SRV',
-                    'TXT'))
 
     def __init__(self, id, client_id, key, directory_id, sub_id,
-                 resource_group, *args, **kwargs):
+                 resource_group, private=False, *args, **kwargs):
         self.log = logging.getLogger('AzureProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, client_id=%s, '
                        'key=***, directory_id:%s', id, client_id, directory_id)
+        # Init _private before super because supports params depend on it
+        self._private = private
         super(AzureProvider, self).__init__(id, *args, **kwargs)
 
         # Store necessary initialization params
@@ -480,6 +487,20 @@ class AzureProvider(BaseProvider):
         self._traffic_managers = dict()
 
     @property
+    def SUPPORTS_DYNAMIC(self):
+        return not self._private
+
+    @property
+    def SUPPORTS(self):
+        pub = ('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR', 'SRV',
+               'TXT')
+
+        if self._private:
+            return {t for t in pub if t not in ('NS', 'CAA')}
+        else:
+            return set(pub)
+
+    @property
     def _dns_client(self):
         if self.__dns_client is None:
             # Azure's logger spits out a lot of debug messages at 'INFO'
@@ -488,7 +509,9 @@ class AzureProvider(BaseProvider):
             logger_name = 'azure.core.pipeline.policies.http_logging_policy'
             logger = logging.getLogger(logger_name)
             logger.info = logger.debug
-            self.__dns_client = DnsManagementClient(
+            client_obj = (PrivateDnsManagementClient if self._private
+                          else DnsManagementClient)
+            self.__dns_client = client_obj(
                 credential=ClientSecretCredential(
                     client_id=self._dns_client_client_id,
                     client_secret=self._dns_client_key,
@@ -512,9 +535,18 @@ class AzureProvider(BaseProvider):
             )
         return self.__tm_client
 
+    @property
+    def _zone_type(self):
+        return 'private_zones' if self._private else 'zones'
+
+    @property
+    def _zone_name_param(self):
+        return 'private_zone_name' if self._private else 'zone_name'
+
     def _populate_zones(self):
         self.log.debug('azure_zones: loading')
-        list_zones = self._dns_client.zones.list_by_resource_group
+        list_zones = attrgetter('_dns_client.{}.list_by_resource_group'
+                                .format(self._zone_type))(self)
         for zone in list_zones(self._resource_group):
             self._azure_zones.add(zone.name.rstrip('.'))
 
@@ -538,8 +570,19 @@ class AzureProvider(BaseProvider):
         # If not, and its time to create, lets do it.
         if create:
             self.log.debug('_check_zone:no matching zone; creating %s', name)
-            create_zone = self._dns_client.zones.create_or_update
-            create_zone(self._resource_group, name, Zone(location='global'))
+
+            if (self._private):
+                zone_model = PrivateZone
+                create_method = 'begin_create_or_update'
+            else:
+                zone_model = Zone
+                create_method = 'create_or_update'
+
+            create_zone = attrgetter('_dns_client.{}.{}'.format(
+                                     self._zone_type, create_method))(self)
+            poller = create_zone(self._resource_group, name,
+                                 zone_model(location='global'))
+            self._private and poller.result()  # wait for zone creation
             self._azure_zones.add(name)
             return name
         else:
@@ -614,7 +657,9 @@ class AzureProvider(BaseProvider):
         zone_name = zone.name[:-1]
         self._populate_zones()
 
-        records = self._dns_client.record_sets.list_by_dns_zone
+        list_method = 'list' if self._private else 'list_by_dns_zone'
+        records = attrgetter('_dns_client.record_sets.{}'
+                             .format(list_method))(self)
         if self._check_zone(zone_name):
             exists = True
             for azrecord in records(self._resource_group, zone_name):
@@ -1222,11 +1267,15 @@ class AzureProvider(BaseProvider):
                           traffic_manager=root_profile)
         create = self._dns_client.record_sets.create_or_update
 
-        create(resource_group_name=ar.resource_group,
-               zone_name=ar.zone_name,
-               relative_record_set_name=ar.relative_record_set_name,
-               record_type=ar.record_type,
-               parameters=ar.params)
+        create_args = {
+            'resource_group_name': ar.resource_group,
+            self._zone_name_param: ar.zone_name,
+            'relative_record_set_name': ar.relative_record_set_name,
+            'record_type': ar.record_type,
+            'parameters': ar.params
+        }
+
+        create(**create_args)
 
         if endpoints:
             # add nested endpoints for A/AAAA dynamic record limitation after
@@ -1279,12 +1328,15 @@ class AzureProvider(BaseProvider):
             ar = _AzureRecord(self._resource_group, new,
                               traffic_manager=profile)
             update = self._dns_client.record_sets.create_or_update
+            update_params = {
+                'resource_group_name': ar.resource_group,
+                self._zone_name_param: ar.zone_name,
+                'relative_record_set_name': ar.relative_record_set_name,
+                'record_type': ar.record_type,
+                'parameters': ar.params
+            }
 
-            update(resource_group_name=ar.resource_group,
-                   zone_name=ar.zone_name,
-                   relative_record_set_name=ar.relative_record_set_name,
-                   record_type=ar.record_type,
-                   parameters=ar.params)
+            update(**update_params)
 
         if new_is_dynamic:
             # add any pending nested endpoints
@@ -1311,9 +1363,14 @@ class AzureProvider(BaseProvider):
         record = change.record
         ar = _AzureRecord(self._resource_group, record, delete=True)
         delete = self._dns_client.record_sets.delete
+        delete_params = {
+            'resource_group_name': self._resource_group,
+            self._zone_name_param: ar.zone_name,
+            'relative_record_set_name': ar.relative_record_set_name,
+            'record_type': ar.record_type
+        }
 
-        delete(self._resource_group, ar.zone_name, ar.relative_record_set_name,
-               ar.record_type)
+        delete(**delete_params)
 
         if getattr(record, 'dynamic', False):
             self._traffic_managers_gc(record, set())

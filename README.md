@@ -15,6 +15,7 @@ It is similar to [Netflix/denominator](https://github.com/Netflix/denominator).
 - [Table of Contents](#table-of-contents)
 - [Getting started](#getting-started)
   - [Workspace](#workspace)
+    - [Installing a specific commit SHA](#installing-a-specific-commit-sha)
   - [Config](#config)
   - [Noop](#noop)
   - [Making changes](#making-changes)
@@ -192,7 +193,7 @@ The above command pulled the existing data out of Route53 and placed the results
 
 | Provider | Requirements | Record Support | Dynamic | Notes |
 |--|--|--|--|--|
-| [AzureProvider](/octodns/provider/azuredns.py) | azure-identity, azure-mgmt-dns, azure-mgmt-trafficmanager | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | Alpha (A, AAAA, CNAME) | |
+| [AzureProvider](/octodns/provider/azuredns.py) | azure-identity, azure-mgmt-dns, azure-mgmt-privatedns, azure-mgmt-trafficmanager | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | Alpha (A, AAAA, CNAME) | |
 | [Akamai](/octodns/provider/edgedns.py) | edgegrid-python | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
 | [CloudflareProvider](/octodns/provider/cloudflare.py) | | A, AAAA, ALIAS, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
 | [ConstellixProvider](/octodns/provider/constellix.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
