@@ -1,3 +1,10 @@
+## v0.9.14 - 2021-??-?? - ...
+
+#### Noteworthy changes
+
+* NS1 NA target now includes `SX` and `UM`. If `NA` continent is in use in
+  dynamic records care must be taken to upgrade/downgrade to v0.9.13.
+
 ## v0.9.13 - 2021-07-18 - Processors Alpha
 
 #### Noteworthy changes
