@@ -659,6 +659,18 @@ class TestNs1ProviderDynamic(TestCase):
             },
             'four': monitor_four,
             'five': monitor_five,
+            'six': {
+                'config': {
+                    'host': '10.10.10.10',
+                },
+                'notes': 'non-conforming notes',
+            },
+            'seven': {
+                'config': {
+                    'host': '11.11.11.11',
+                },
+                'notes': None,
+            },
         }
 
         # Would match, but won't get there b/c it's not dynamic

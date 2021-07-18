@@ -53,7 +53,7 @@ $ mkdir config
 If you'd like to install a version that has not yet been released in a repetable/safe manner you can do the following. In general octoDNS is fairly stable inbetween releases thanks to the plan and apply process, but care should be taken regardless.
 
 ```shell
-$ pip install -e git+https://git@github.com/github/octodns.git@<SHA>#egg=octodns
+$ pip install -e git+https://git@github.com/octodns/octodns.git@<SHA>#egg=octodns
 ```
 
 ### Config
@@ -89,7 +89,7 @@ zones:
       - dyn
       - route53
 
-  example.net:
+  example.net.:
     alias: example.com.
 ```
 
@@ -192,7 +192,7 @@ The above command pulled the existing data out of Route53 and placed the results
 
 | Provider | Requirements | Record Support | Dynamic | Notes |
 |--|--|--|--|--|
-| [AzureProvider](/octodns/provider/azuredns.py) | azure-identity, azure-mgmt-dns, azure-mgmt-trafficmanager | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | Alpha (CNAMEs and partial A/AAAA) | |
+| [AzureProvider](/octodns/provider/azuredns.py) | azure-identity, azure-mgmt-dns, azure-mgmt-trafficmanager | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | Alpha (A, AAAA, CNAME) | |
 | [Akamai](/octodns/provider/edgedns.py) | edgegrid-python | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
 | [CloudflareProvider](/octodns/provider/cloudflare.py) | | A, AAAA, ALIAS, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
 | [ConstellixProvider](/octodns/provider/constellix.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
