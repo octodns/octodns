@@ -1,4 +1,4 @@
-## v0.9.13 - 2021-..-.. -
+## v0.9.13 - 2021-07-18 - Processors Alpha
 
 #### Noteworthy changes
 
@@ -13,6 +13,16 @@
 * `SX' &amp; 'UM` country support added to NS1Provider, not yet in the North 
    America list for backwards compatibility reasons. They will be added in the
    next releaser.
+
+#### Stuff
+
+* Lots of progress on the partial/beta support for dynamic records in Azure,
+  still not production ready.
+* NS1 fix for when a pool only exists as a fallback
+* Zone level lenient flag
+* Validate weight makes sense for pools with a single record
+* UltraDNS support for aliases and general fixes/improvements
+* Misc doc fixes and improvements
 
 ## v0.9.12 - 2021-04-30 - Enough time has passed
 
