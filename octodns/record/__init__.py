@@ -618,7 +618,6 @@ class _DynamicMixin(object):
         else:
             seen_default = False
 
-            # TODO: don't allow 'default' as a pool name, reserved
             for i, rule in enumerate(rules):
                 rule_num = i + 1
                 try:
