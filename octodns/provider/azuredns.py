@@ -925,8 +925,8 @@ class AzureProvider(BaseProvider):
         seen_profiles = {}
         extra = []
         for record in desired.records:
-            if not getattr(record, 'dynamic', False):
-                # Already changed, or not dynamic, no need to check it
+            if not getattr(record, 'dynamic', False) or self._private:
+                # Already changed, private, or not dynamic; don't check
                 continue
 
             # Abort if there are unsupported dynamic record configurations
@@ -1251,7 +1251,7 @@ class AzureProvider(BaseProvider):
         dynamic = getattr(record, 'dynamic', False)
         root_profile = None
         endpoints = []
-        if dynamic:
+        if dynamic and not self._private:
             profiles = self._generate_traffic_managers(record)
             root_profile = profiles[-1]
             if record._type in ['A', 'AAAA'] and len(profiles) > 1:
