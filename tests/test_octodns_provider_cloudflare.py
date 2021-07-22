@@ -166,9 +166,15 @@ class TestCloudflareProvider(TestCase):
                      json={'result': [], 'result_info': {'count': 0,
                                                          'per_page': 0}})
 
+            base = '{}/234234243423aaabb334342aaa343435'.format(base)
+
+            # pagerules/URLFWD
+            with open('tests/fixtures/cloudflare-pagerules.json') as fh:
+                mock.get('{}/pagerules?status=active'.format(base),
+                         status_code=200, text=fh.read())
+
             # records
-            base = '{}/234234243423aaabb334342aaa343435/dns_records' \
-                .format(base)
+            base = '{}/dns_records'.format(base)
             with open('tests/fixtures/cloudflare-dns_records-'
                       'page-1.json') as fh:
                 mock.get('{}?page=1'.format(base), status_code=200,
@@ -184,16 +190,16 @@ class TestCloudflareProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(16, len(zone.records))
+            self.assertEquals(19, len(zone.records))
 
             changes = self.expected.changes(zone, provider)
 
-            self.assertEquals(0, len(changes))
+            self.assertEquals(4, len(changes))
 
         # re-populating the same zone/records comes out of cache, no calls
         again = Zone('unit.tests.', [])
         provider.populate(again)
-        self.assertEquals(16, len(again.records))
+        self.assertEquals(19, len(again.records))
 
     def test_apply(self):
         provider = CloudflareProvider('test', 'email', 'token', retry_period=0)
@@ -207,12 +213,12 @@ class TestCloudflareProvider(TestCase):
                     'id': 42,
                 }
             },  # zone create
-        ] + [None] * 25  # individual record creates
+        ] + [None] * 27  # individual record creates
 
         # non-existent zone, create everything
         plan = provider.plan(self.expected)
-        self.assertEquals(16, len(plan.changes))
-        self.assertEquals(16, provider.apply(plan))
+        self.assertEquals(17, len(plan.changes))
+        self.assertEquals(17, provider.apply(plan))
         self.assertFalse(plan.exists)
 
         provider._request.assert_has_calls([
@@ -236,9 +242,31 @@ class TestCloudflareProvider(TestCase):
                 'name': 'txt.unit.tests',
                 'ttl': 600
             }),
+            # create at least one pagerules
+            call('POST', '/zones/42/pagerules', data={
+                'targets': [
+                    {
+                        'target': 'url',
+                        'constraint': {
+                            'operator': 'matches',
+                            'value': 'urlfwd.unit.tests/'
+                        }
+                    }
+                ],
+                'actions': [
+                    {
+                        'id': 'forwarding_url',
+                        'value': {
+                            'url': 'http://www.unit.tests',
+                            'status_code': 302
+                        }
+                    }
+                ],
+                'status': 'active'
+            }),
         ], True)
         # expected number of total calls
-        self.assertEquals(27, provider._request.call_count)
+        self.assertEquals(29, provider._request.call_count)
 
         provider._request.reset_mock()
 
@@ -311,6 +339,56 @@ class TestCloudflareProvider(TestCase):
                     "auto_added": False
                 }
             },
+            {
+                "id": "2a9140b17ffb0e6aed826049eec970b7",
+                "targets": [
+                    {
+                        "target": "url",
+                        "constraint": {
+                            "operator": "matches",
+                            "value": "urlfwd.unit.tests/"
+                        }
+                    }
+                ],
+                "actions": [
+                    {
+                        "id": "forwarding_url",
+                        "value": {
+                            "url": "https://www.unit.tests",
+                            "status_code": 302
+                        }
+                    }
+                ],
+                "priority": 1,
+                "status": "active",
+                "created_on": "2021-06-25T20:10:50.000000Z",
+                "modified_on": "2021-06-28T22:38:10.000000Z"
+            },
+            {
+                "id": "2a9141b18ffb0e6aed826050eec970b8",
+                "targets": [
+                    {
+                        "target": "url",
+                        "constraint": {
+                            "operator": "matches",
+                            "value": "urlfwdother.unit.tests/target"
+                        }
+                    }
+                ],
+                "actions": [
+                    {
+                        "id": "forwarding_url",
+                        "value": {
+                            "url": "https://target.unit.tests",
+                            "status_code": 301
+                        }
+                    }
+                ],
+                "priority": 2,
+                "status": "active",
+                "created_on": "2021-06-25T20:10:50.000000Z",
+                "modified_on": "2021-06-28T22:38:10.000000Z"
+            },
         ])
 
         # we don't care about the POST/create return values
@@ -319,7 +397,7 @@ class TestCloudflareProvider(TestCase):
         # Test out the create rate-limit handling, then 9 successes
         provider._request.side_effect = [
             CloudflareRateLimitError('{}'),
-        ] + ([None] * 3)
+        ] + ([None] * 5)
 
         wanted = Zone('unit.tests.', [])
         wanted.add_record(Record.new(wanted, 'nc', {
@@ -332,14 +410,27 @@ class TestCloudflareProvider(TestCase):
             'type': 'A',
             'value': '3.2.3.4'
         }))
+        wanted.add_record(Record.new(wanted, 'urlfwd', {
+            'ttl': 3600,
+            'type': 'URLFWD',
+            'value': {
+                'path': '/*',  # path change
+                'target': 'https://www.unit.tests/',  # target change
+                'code': 301,  # status_code change
+                'masking': '2',
+                'query': 0,
+            }
+        }))
 
         plan = provider.plan(wanted)
         # only see the delete & ttl update, below min-ttl is filtered out
-        self.assertEquals(2, len(plan.changes))
-        self.assertEquals(2, provider.apply(plan))
+        self.assertEquals(4, len(plan.changes))
+        self.assertEquals(4, provider.apply(plan))
         self.assertTrue(plan.exists)
         # creates a the new value and then deletes all the old
         provider._request.assert_has_calls([
+            call('DELETE', '/zones/42/'
+                 'pagerules/2a9141b18ffb0e6aed826050eec970b8'),
             call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
                  'dns_records/fc12ab34cd5611334422ab3322997653'),
             call('DELETE', '/zones/ff12ab34cd5611334422ab3322997650/'
@@ -351,7 +442,29 @@ class TestCloudflareProvider(TestCase):
                      'name': 'ttl.unit.tests',
                      'proxied': False,
                      'ttl': 300
-                 })
+                 }),
+            call('PUT', '/zones/42/pagerules/'
+                 '2a9140b17ffb0e6aed826049eec970b7', data={
+                     'targets': [
+                         {
+                             'target': 'url',
+                             'constraint': {
+                                 'operator': 'matches',
+                                 'value': 'urlfwd.unit.tests/*'
+                             }
+                         }
+                     ],
+                     'actions': [
+                         {
+                             'id': 'forwarding_url',
+                             'value': {
+                                 'url': 'https://www.unit.tests/',
+                                 'status_code': 301
+                             }
+                         }
+                     ],
+                     'status': 'active',
+                 }),
         ])
 
     def test_update_add_swap(self):
@@ -500,6 +613,56 @@ class TestCloudflareProvider(TestCase):
                     "auto_added": False
                 }
             },
+            {
+                "id": "2a9140b17ffb0e6aed826049eec974b7",
+                "targets": [
+                    {
+                        "target": "url",
+                        "constraint": {
+                            "operator": "matches",
+                            "value": "urlfwd1.unit.tests/"
+                        }
+                    }
+                ],
+                "actions": [
+                    {
+                        "id": "forwarding_url",
+                        "value": {
+                            "url": "https://www.unit.tests",
+                            "status_code": 302
+                        }
+                    }
+                ],
+                "priority": 1,
+                "status": "active",
+                "created_on": "2021-06-25T20:10:50.000000Z",
+                "modified_on": "2021-06-28T22:38:10.000000Z"
+            },
+            {
+                "id": "2a9141b18ffb0e6aed826054eec970b8",
+                "targets": [
+                    {
+                        "target": "url",
+                        "constraint": {
+                            "operator": "matches",
+                            "value": "urlfwd1.unit.tests/target"
+                        }
+                    }
+                ],
+                "actions": [
+                    {
+                        "id": "forwarding_url",
+                        "value": {
+                            "url": "https://target.unit.tests",
+                            "status_code": 301
+                        }
+                    }
+                ],
+                "priority": 2,
+                "status": "active",
+                "created_on": "2021-06-25T20:10:50.000000Z",
+                "modified_on": "2021-06-28T22:38:10.000000Z"
+            },
         ])
 
         provider._request = Mock()
@@ -513,6 +676,8 @@ class TestCloudflareProvider(TestCase):
             },  # zone create
             None,
             None,
+            None,
+            None,
         ]
 
         # Add something and delete something
@@ -523,14 +688,46 @@ class TestCloudflareProvider(TestCase):
             # This matches the zone data above, one to delete, one to leave
             'values': ['ns1.foo.bar.', 'ns2.foo.bar.'],
         })
+        exstingurlfwd = Record.new(zone, 'urlfwd1', {
+            'ttl': 3600,
+            'type': 'URLFWD',
+            'values': [
+                {
+                    'path': '/',
+                    'target': 'https://www.unit.tests',
+                    'code': 302,
+                    'masking': '2',
+                    'query': 0,
+                },
+                {
+                    'path': '/target',
+                    'target': 'https://target.unit.tests',
+                    'code': 301,
+                    'masking': '2',
+                    'query': 0,
+                }
+            ]
+        })
         new = Record.new(zone, '', {
             'ttl': 300,
             'type': 'NS',
             # This leaves one and deletes one
             'value': 'ns2.foo.bar.',
         })
+        newurlfwd = Record.new(zone, 'urlfwd1', {
+            'ttl': 3600,
+            'type': 'URLFWD',
+            'value': {
+                'path': '/',
+                'target': 'https://www.unit.tests',
+                'code': 302,
+                'masking': '2',
+                'query': 0,
+            }
+        })
         change = Update(existing, new)
-        plan = Plan(zone, zone, [change], True)
+        changeurlfwd = Update(exstingurlfwd, newurlfwd)
+        plan = Plan(zone, zone, [change, changeurlfwd], True)
         provider._apply(plan)
 
         # Get zones, create zone, create a record, delete a record
@@ -548,7 +745,31 @@ class TestCloudflareProvider(TestCase):
                      'ttl': 300
                  }),
             call('DELETE', '/zones/42/dns_records/'
-                 'fc12ab34cd5611334422ab3322997653')
+                 'fc12ab34cd5611334422ab3322997653'),
+            call('PUT', '/zones/42/pagerules/'
+                 '2a9140b17ffb0e6aed826049eec974b7', data={
+                     'targets': [
+                         {
+                             'target': 'url',
+                             'constraint': {
+                                 'operator': 'matches',
+                                 'value': 'urlfwd1.unit.tests/'
+                             }
+                         }
+                     ],
+                     'actions': [
+                         {
+                             'id': 'forwarding_url',
+                             'value': {
+                                 'url': 'https://www.unit.tests',
+                                 'status_code': 302
+                             }
+                         }
+                     ],
+                     'status': 'active'
+                 }),
+            call('DELETE', '/zones/42/pagerules/'
+                 '2a9141b18ffb0e6aed826054eec970b8'),
         ])
 
     def test_ptr(self):
