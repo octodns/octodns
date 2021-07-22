@@ -324,7 +324,10 @@ class CloudflareProvider(BaseProvider):
 
             path = '/zones/{}/pagerules'.format(zone_id)
             resp = self._try_request('GET', path, params={'status': 'active'})
-            records += resp['result']
+            for r in resp['result']:
+                # assumption, base on API guide, will only contain 1 action
+                if r['actions'][0]['id'] == 'forwarding_url':
+                    records += [r]
 
             self._zone_records[zone.name] = records
 
@@ -373,12 +376,11 @@ class CloudflareProvider(BaseProvider):
                     _path = parsed_uri.path
                     _type = 'URLFWD'
                     # assumption, actions will always contain 1 action
-                    if record['actions'][0]['id'] == 'forwarding_url':
-                        _values = record['actions'][0]['value']
-                        _values['path'] = _path
-                        # no ttl set by pagerule, creating one
-                        _values['ttl'] = 3600
-                        values[name][_type].append(_values)
+                    _values = record['actions'][0]['value']
+                    _values['path'] = _path
+                    # no ttl set by pagerule, creating one
+                    _values['ttl'] = 3600
+                    values[name][_type].append(_values)
                 # the dns_records branch
                 # elif 'name' in record:
                 else:
@@ -655,8 +657,7 @@ class CloudflareProvider(BaseProvider):
                 parsed_uri = urlsplit(uri)
                 name = zone.hostname_from_fqdn(parsed_uri.netloc)
                 _path = parsed_uri.path
-                # assumption, populate will catch this contition
-                # if record['actions'][0]['id'] == 'forwarding_url':
+                # assumption, actions will always contain 1 action
                 _values = record['actions'][0]['value']
                 _values['path'] = _path
                 _values['ttl'] = 3600
