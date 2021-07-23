@@ -373,13 +373,13 @@ class CloudflareProvider(BaseProvider):
                     uri = '//' + uri if not uri.startswith('http') else uri
                     parsed_uri = urlsplit(uri)
                     name = zone.hostname_from_fqdn(parsed_uri.netloc)
-                    _path = parsed_uri.path
+                    path = parsed_uri.path
                     _type = 'URLFWD'
                     # assumption, actions will always contain 1 action
-                    _values = record['actions'][0]['value']
-                    _values['path'] = _path
+                    values = record['actions'][0]['value']
+                    values['path'] = path
                     # no ttl set by pagerule, creating one
-                    _values['ttl'] = 3600
+                    values['ttl'] = 3600
                     values[name][_type].append(_values)
                 # the dns_records branch
                 # elif 'name' in record:
@@ -589,10 +589,7 @@ class CloudflareProvider(BaseProvider):
         # content as things are currently implemented so we need to handle
         # those explicitly and create unique/hashable strings for them.
         # AND... for URLFWD/Redirects additional adventures are created.
-        if 'targets' in data:
-            _type = 'URLFWD'
-        else:
-            _type = data['type']
+        _type = data.get('type', 'URLFWD')
         if _type == 'MX':
             return '{priority} {content}'.format(**data)
         elif _type == 'CAA':
@@ -621,15 +618,9 @@ class CloudflareProvider(BaseProvider):
             uri = data['targets'][0]['constraint']['value']
             uri = '//' + uri if not uri.startswith('http') else uri
             parsed_uri = urlsplit(uri)
-            ret = {}
-            ret.update(data['actions'][0]['value'])
-            ret.update({'name': parsed_uri.netloc, 'path': parsed_uri.path})
-            urlfwd = (
-                '{name}',
-                '{path}',
-                '{url}',
-                '{status_code}')
-            return ' '.join(urlfwd).format(**ret)
+            return '{name} {path} {url} {status_code}'.format(name=parsed_uri.netloc, 
+                                                              path=parsed_uri.path, 
+                                                              **data['actions'][0]['value'])
         return data['content']
 
     def _apply_Create(self, change):
@@ -656,13 +647,13 @@ class CloudflareProvider(BaseProvider):
                 uri = '//' + uri if not uri.startswith('http') else uri
                 parsed_uri = urlsplit(uri)
                 name = zone.hostname_from_fqdn(parsed_uri.netloc)
-                _path = parsed_uri.path
+                path = parsed_uri.path
                 # assumption, actions will always contain 1 action
-                _values = record['actions'][0]['value']
-                _values['path'] = _path
-                _values['ttl'] = 3600
-                _values['type'] = 'URLFWD'
-                record.update(_values)
+                values = record['actions'][0]['value']
+                values['path'] = path
+                values['ttl'] = 3600
+                values['type'] = 'URLFWD'
+                record.update(values)
             else:
                 name = zone.hostname_from_fqdn(record['name'])
             # Use the _record_for so that we include all of standard
