@@ -419,6 +419,11 @@ class CloudflareProvider(BaseProvider):
                 existing.update({
                     'ttl': new['ttl']
                 })
+            elif change.new._type == 'URLFWD':
+                existing = deepcopy(change.existing.data)
+                existing.update({
+                    'ttl': new['ttl']
+                })
             else:
                 existing = change.existing.data
 
