@@ -1470,8 +1470,6 @@ class TxtRecord(_ChunkedValuesMixin, Record):
 
 
 class UrlfwdValue(EqualityTupleMixin):
-    # TODO: should have defaults for path, code, masking, and query
-
     VALID_CODES = (301, 302)
     VALID_MASKS = (0, 1, 2)
     VALID_QUERY = (0, 1)

@@ -299,7 +299,7 @@ class CloudflareProvider(BaseProvider):
             })
         return {
             'type': _type,
-            'ttl': 3600,  # ttl does not exist for this type, forcing a setting
+            'ttl': 300,  # ttl does not exist for this type, forcing a setting
             'values': values
         }
 
@@ -376,10 +376,10 @@ class CloudflareProvider(BaseProvider):
                     path = parsed_uri.path
                     _type = 'URLFWD'
                     # assumption, actions will always contain 1 action
-                    values = record['actions'][0]['value']
-                    values['path'] = path
+                    _values = record['actions'][0]['value']
+                    _values['path'] = path
                     # no ttl set by pagerule, creating one
-                    values['ttl'] = 3600
+                    _values['ttl'] = 300
                     values[name][_type].append(_values)
                 # the dns_records branch
                 # elif 'name' in record:
@@ -618,9 +618,10 @@ class CloudflareProvider(BaseProvider):
             uri = data['targets'][0]['constraint']['value']
             uri = '//' + uri if not uri.startswith('http') else uri
             parsed_uri = urlsplit(uri)
-            return '{name} {path} {url} {status_code}'.format(name=parsed_uri.netloc, 
-                                                              path=parsed_uri.path, 
-                                                              **data['actions'][0]['value'])
+            return '{name} {path} {url} {status_code}' \
+                .format(name=parsed_uri.netloc,
+                        path=parsed_uri.path,
+                        **data['actions'][0]['value'])
         return data['content']
 
     def _apply_Create(self, change):
@@ -649,11 +650,11 @@ class CloudflareProvider(BaseProvider):
                 name = zone.hostname_from_fqdn(parsed_uri.netloc)
                 path = parsed_uri.path
                 # assumption, actions will always contain 1 action
-                values = record['actions'][0]['value']
-                values['path'] = path
-                values['ttl'] = 3600
-                values['type'] = 'URLFWD'
-                record.update(values)
+                _values = record['actions'][0]['value']
+                _values['path'] = path
+                _values['ttl'] = 300
+                _values['type'] = 'URLFWD'
+                record.update(_values)
             else:
                 name = zone.hostname_from_fqdn(record['name'])
             # Use the _record_for so that we include all of standard

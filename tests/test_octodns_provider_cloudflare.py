@@ -411,7 +411,7 @@ class TestCloudflareProvider(TestCase):
             'value': '3.2.3.4'
         }))
         wanted.add_record(Record.new(wanted, 'urlfwd', {
-            'ttl': 3600,
+            'ttl': 300,
             'type': 'URLFWD',
             'value': {
                 'path': '/*',  # path change
@@ -689,7 +689,7 @@ class TestCloudflareProvider(TestCase):
             'values': ['ns1.foo.bar.', 'ns2.foo.bar.'],
         })
         exstingurlfwd = Record.new(zone, 'urlfwd1', {
-            'ttl': 3600,
+            'ttl': 300,
             'type': 'URLFWD',
             'values': [
                 {
@@ -715,7 +715,7 @@ class TestCloudflareProvider(TestCase):
             'value': 'ns2.foo.bar.',
         })
         newurlfwd = Record.new(zone, 'urlfwd1', {
-            'ttl': 3600,
+            'ttl': 300,
             'type': 'URLFWD',
             'value': {
                 'path': '/',
