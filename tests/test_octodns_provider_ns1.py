@@ -109,6 +109,17 @@ class TestNs1Provider(TestCase):
             'value': 'ca.unit.tests',
         },
     }))
+    expected.add(Record.new(zone, 'urlfwd', {
+        'ttl': 41,
+        'type': 'URLFWD',
+        'value': {
+            'path': '/',
+            'target': 'http://foo.unit.tests',
+            'code': 301,
+            'masking': 2,
+            'query': 0,
+        },
+    }))
 
     ns1_records = [{
         'type': 'A',
@@ -164,6 +175,11 @@ class TestNs1Provider(TestCase):
         'ttl': 40,
         'short_answers': ['0 issue ca.unit.tests'],
         'domain': 'unit.tests.',
+    }, {
+        'type': 'URLFWD',
+        'ttl': 41,
+        'short_answers': ['/ http://foo.unit.tests 301 2 0'],
+        'domain': 'urlfwd.unit.tests.',
     }]
 
     @patch('ns1.rest.records.Records.retrieve')
@@ -345,7 +361,7 @@ class TestNs1Provider(TestCase):
         # Test out the create rate-limit handling, then 9 successes
         record_create_mock.side_effect = [
             RateLimitException('boo', period=0),
-        ] + ([None] * 9)
+        ] + ([None] * 10)
 
         got_n = provider.apply(plan)
         self.assertEquals(expected_n, got_n)

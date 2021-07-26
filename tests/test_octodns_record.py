@@ -12,8 +12,8 @@ from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
     CaaValue, CnameRecord, DnameRecord, Create, Delete, GeoValue, LocRecord, \
     LocValue, MxRecord, MxValue, NaptrRecord, NaptrValue, NsRecord, \
     PtrRecord, Record, SshfpRecord, SshfpValue, SpfRecord, SrvRecord, \
-    SrvValue, TxtRecord, Update, ValidationError, _Dynamic, _DynamicPool, \
-    _DynamicRule
+    SrvValue, TxtRecord, Update, UrlfwdRecord, UrlfwdValue, ValidationError, \
+    _Dynamic, _DynamicPool, _DynamicRule
 from octodns.zone import Zone
 
 from helpers import DynamicProvider, GeoProvider, SimpleProvider
@@ -883,6 +883,112 @@ class TestRecord(TestCase):
         a_values = ['a one', 'a two']
         b_value = 'b other'
         self.assertMultipleValues(TxtRecord, a_values, b_value)
+
+    def test_urlfwd(self):
+        a_values = [{
+            'path': '/',
+            'target': 'http://foo',
+            'code': 301,
+            'masking': 2,
+            'query': 0,
+        }, {
+            'path': '/target',
+            'target': 'http://target',
+            'code': 302,
+            'masking': 2,
+            'query': 0,
+        }]
+        a_data = {'ttl': 30, 'values': a_values}
+        a = UrlfwdRecord(self.zone, 'a', a_data)
+        self.assertEquals('a', a.name)
+        self.assertEquals('a.unit.tests.', a.fqdn)
+        self.assertEquals(30, a.ttl)
+        self.assertEquals(a_values[0]['path'], a.values[0].path)
+        self.assertEquals(a_values[0]['target'], a.values[0].target)
+        self.assertEquals(a_values[0]['code'], a.values[0].code)
+        self.assertEquals(a_values[0]['masking'], a.values[0].masking)
+        self.assertEquals(a_values[0]['query'], a.values[0].query)
+        self.assertEquals(a_values[1]['path'], a.values[1].path)
+        self.assertEquals(a_values[1]['target'], a.values[1].target)
+        self.assertEquals(a_values[1]['code'], a.values[1].code)
+        self.assertEquals(a_values[1]['masking'], a.values[1].masking)
+        self.assertEquals(a_values[1]['query'], a.values[1].query)
+        self.assertEquals(a_data, a.data)
+
+        b_value = {
+            'path': '/',
+            'target': 'http://location',
+            'code': 301,
+            'masking': 2,
+            'query': 0,
+        }
+        b_data = {'ttl': 30, 'value': b_value}
+        b = UrlfwdRecord(self.zone, 'b', b_data)
+        self.assertEquals(b_value['path'], b.values[0].path)
+        self.assertEquals(b_value['target'], b.values[0].target)
+        self.assertEquals(b_value['code'], b.values[0].code)
+        self.assertEquals(b_value['masking'], b.values[0].masking)
+        self.assertEquals(b_value['query'], b.values[0].query)
+        self.assertEquals(b_data, b.data)
+
+        target = SimpleProvider()
+        # No changes with self
+        self.assertFalse(a.changes(a, target))
+        # Diff in path causes change
+        other = UrlfwdRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other.values[0].path = '/change'
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+        # Diff in target causes change
+        other = UrlfwdRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other.values[0].target = 'http://target'
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+        # Diff in code causes change
+        other = UrlfwdRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other.values[0].code = 302
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+        # Diff in masking causes change
+        other = UrlfwdRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other.values[0].masking = 0
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+        # Diff in query causes change
+        other = UrlfwdRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other.values[0].query = 1
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+
+        # hash
+        v = UrlfwdValue({
+            'path': '/',
+            'target': 'http://place',
+            'code': 301,
+            'masking': 2,
+            'query': 0,
+        })
+        o = UrlfwdValue({
+            'path': '/location',
+            'target': 'http://redirect',
+            'code': 302,
+            'masking': 2,
+            'query': 0,
+        })
+        values = set()
+        values.add(v)
+        self.assertTrue(v in values)
+        self.assertFalse(o in values)
+        values.add(o)
+        self.assertTrue(o in values)
+
+        # __repr__ doesn't blow up
+        a.__repr__()
 
     def test_record_new(self):
         txt = Record.new(self.zone, 'txt', {
@@ -3018,6 +3124,203 @@ class TestRecordValidation(TestCase):
         self.assertEquals(single.values, chunked.values)
         # should be chunked values, with quoting
         self.assertEquals(single.chunked_values, chunked.chunked_values)
+
+    def test_URLFWD(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'URLFWD',
+            'ttl': 600,
+            'value': {
+                'path': '/',
+                'target': 'http://foo',
+                'code': 301,
+                'masking': 2,
+                'query': 0,
+            }
+        })
+        Record.new(self.zone, '', {
+            'type': 'URLFWD',
+            'ttl': 600,
+            'values': [{
+                'path': '/',
+                'target': 'http://foo',
+                'code': 301,
+                'masking': 2,
+                'query': 0,
+            }, {
+                'path': '/target',
+                'target': 'http://target',
+                'code': 302,
+                'masking': 2,
+                'query': 0,
+            }]
+        })
+
+        # missing path
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'target': 'http://foo',
+                    'code': 301,
+                    'masking': 2,
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['missing path'], ctx.exception.reasons)
+
+        # missing target
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'code': 301,
+                    'masking': 2,
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['missing target'], ctx.exception.reasons)
+
+        # missing code
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'masking': 2,
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['missing code'], ctx.exception.reasons)
+
+        # invalid code
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 'nope',
+                    'masking': 2,
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['invalid return code "nope"'],
+                          ctx.exception.reasons)
+
+        # unrecognized code
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 3,
+                    'masking': 2,
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['unrecognized return code "3"'],
+                          ctx.exception.reasons)
+
+        # missing masking
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 301,
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['missing masking'], ctx.exception.reasons)
+
+        # invalid masking
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 301,
+                    'masking': 'nope',
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['invalid masking setting "nope"'],
+                          ctx.exception.reasons)
+
+        # unrecognized masking
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 301,
+                    'masking': 3,
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['unrecognized masking setting "3"'],
+                          ctx.exception.reasons)
+
+        # missing query
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 301,
+                    'masking': 2,
+                }
+            })
+        self.assertEquals(['missing query'], ctx.exception.reasons)
+
+        # invalid query
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 301,
+                    'masking': 2,
+                    'query': 'nope',
+                }
+            })
+        self.assertEquals(['invalid query setting "nope"'],
+                          ctx.exception.reasons)
+
+        # unrecognized query
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 301,
+                    'masking': 2,
+                    'query': 3,
+                }
+            })
+        self.assertEquals(['unrecognized query setting "3"'],
+                          ctx.exception.reasons)
 
 
 class TestDynamicRecords(TestCase):
