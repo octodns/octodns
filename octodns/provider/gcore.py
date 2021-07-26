@@ -161,7 +161,7 @@ class GCoreProvider(BaseProvider):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(("A", "AAAA"))
+    SUPPORTS = set(("A", "AAAA", "NS", "MX", "TXT", "SRV", "CNAME", "PTR"))
 
     def __init__(self, id, *args, **kwargs):
         token = kwargs.pop("token", None)
@@ -183,7 +183,22 @@ class GCoreProvider(BaseProvider):
             password=password,
         )
 
+    def _add_dot_if_need(self, value):
+        return "{}.".format(value) if not value.endswith(".") else value
+
     def _data_for_single(self, _type, record):
+        return {
+            "ttl": record["ttl"],
+            "type": _type,
+            "value": self._add_dot_if_need(
+                record["resource_records"][0]["content"][0]
+            ),
+        }
+
+    _data_for_CNAME = _data_for_single
+    _data_for_PTR = _data_for_single
+
+    def _data_for_multiple(self, _type, record):
         return {
             "ttl": record["ttl"],
             "type": _type,
@@ -194,8 +209,62 @@ class GCoreProvider(BaseProvider):
             ],
         }
 
-    _data_for_A = _data_for_single
-    _data_for_AAAA = _data_for_single
+    _data_for_A = _data_for_multiple
+    _data_for_AAAA = _data_for_multiple
+
+    def _data_for_TXT(self, _type, record):
+        return {
+            "ttl": record["ttl"],
+            "type": _type,
+            "values": [
+                rr_value.replace(";", "\\;")
+                for resource_record in record["resource_records"]
+                for rr_value in resource_record["content"]
+            ],
+        }
+
+    def _data_for_MX(self, _type, record):
+        return {
+            "ttl": record["ttl"],
+            "type": _type,
+            "values": [
+                dict(
+                    preference=preference,
+                    exchange=self._add_dot_if_need(exchange),
+                )
+                for preference, exchange in map(
+                    lambda x: x["content"], record["resource_records"]
+                )
+            ],
+        }
+
+    def _data_for_NS(self, _type, record):
+        return {
+            "ttl": record["ttl"],
+            "type": _type,
+            "values": [
+                self._add_dot_if_need(rr_value)
+                for resource_record in record["resource_records"]
+                for rr_value in resource_record["content"]
+            ],
+        }
+
+    def _data_for_SRV(self, _type, record):
+        return {
+            "ttl": record["ttl"],
+            "type": _type,
+            "values": [
+                dict(
+                    priority=priority,
+                    weight=weight,
+                    port=port,
+                    target=self._add_dot_if_need(target),
+                )
+                for priority, weight, port, target in map(
+                    lambda x: x["content"], record["resource_records"]
+                )
+            ],
+        }
 
     def zone_records(self, zone):
         try:
@@ -243,13 +312,51 @@ class GCoreProvider(BaseProvider):
     def _params_for_single(self, record):
         return {
             "ttl": record.ttl,
+            "resource_records": [{"content": [record.value]}],
+        }
+
+    _params_for_CNAME = _params_for_single
+    _params_for_PTR = _params_for_single
+
+    def _params_for_multiple(self, record):
+        return {
+            "ttl": record.ttl,
             "resource_records": [
                 {"content": [value]} for value in record.values
             ],
         }
 
-    _params_for_A = _params_for_single
-    _params_for_AAAA = _params_for_single
+    _params_for_A = _params_for_multiple
+    _params_for_AAAA = _params_for_multiple
+    _params_for_NS = _params_for_multiple
+
+    def _params_for_TXT(self, record):
+        # print(record.values)
+        return {
+            "ttl": record.ttl,
+            "resource_records": [
+                {"content": [value.replace("\\;", ";")]}
+                for value in record.values
+            ],
+        }
+
+    def _params_for_MX(self, record):
+        return {
+            "ttl": record.ttl,
+            "resource_records": [
+                {"content": [rec.preference, rec.exchange]}
+                for rec in record.values
+            ],
+        }
+
+    def _params_for_SRV(self, record):
+        return {
+            "ttl": record.ttl,
+            "resource_records": [
+                {"content": [rec.priority, rec.weight, rec.port, rec.target]}
+                for rec in record.values
+            ],
+        }
 
     def _apply_create(self, change):
         self.log.info("creating: %s", change)

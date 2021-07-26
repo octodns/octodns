@@ -64,13 +64,13 @@ class TestGCoreProvider(TestCase):
             with self.assertRaises(GCoreClientException) as ctx:
                 zone = Zone("unit.tests.", [])
                 provider.populate(zone)
-            self.assertEquals("Things caught fire", text_type(ctx.exception))
+            self.assertEqual("Things caught fire", text_type(ctx.exception))
 
         # No credentials or token error
         with requests_mock() as mock:
             with self.assertRaises(ValueError) as ctx:
                 GCoreProvider("test_id")
-            self.assertEquals(
+            self.assertEqual(
                 "either token or login & password must be set",
                 text_type(ctx.exception),
             )
@@ -116,14 +116,29 @@ class TestGCoreProvider(TestCase):
 
             zone = Zone("unit.tests.", [])
             provider.populate(zone)
-            self.assertEquals(4, len(zone.records))
-            self.assertEquals(
-                {"aaaa", "www", "www.sub", ""}, {r.name for r in zone.records}
+            self.assertEqual(14, len(zone.records))
+            self.assertEqual(
+                {
+                    "",
+                    "_imap._tcp",
+                    "_pop3._tcp",
+                    "_srv._tcp",
+                    "aaaa",
+                    "cname",
+                    "excluded",
+                    "mx",
+                    "ptr",
+                    "sub",
+                    "txt",
+                    "www",
+                    "www.sub",
+                },
+                {r.name for r in zone.records},
             )
             changes = self.expected.changes(zone, provider)
-            self.assertEquals(0, len(changes))
+            self.assertEqual(0, len(changes))
 
-        # 3 removed + 1 modified
+        # 1 removed + 7 modified
         with requests_mock() as mock:
             base = "https://dnsapi.gcorelabs.com/v2/zones/unit.tests/rrsets"
             with open("tests/fixtures/gcore-records.json") as fh:
@@ -131,14 +146,14 @@ class TestGCoreProvider(TestCase):
 
             zone = Zone("unit.tests.", [])
             provider.populate(zone)
-            self.assertEquals(1, len(zone.records))
+            self.assertEqual(13, len(zone.records))
             changes = self.expected.changes(zone, provider)
-            self.assertEquals(4, len(changes))
-            self.assertEquals(
-                3, len([c for c in changes if isinstance(c, Delete)])
+            self.assertEqual(8, len(changes))
+            self.assertEqual(
+                1, len([c for c in changes if isinstance(c, Delete)])
             )
-            self.assertEquals(
-                1, len([c for c in changes if isinstance(c, Update)])
+            self.assertEqual(
+                7, len([c for c in changes if isinstance(c, Update)])
             )
 
     def test_apply(self):
@@ -192,8 +207,8 @@ class TestGCoreProvider(TestCase):
         plan = provider.plan(self.expected)
 
         # create all
-        self.assertEquals(4, len(plan.changes))
-        self.assertEquals(4, provider.apply(plan))
+        self.assertEqual(13, len(plan.changes))
+        self.assertEqual(13, provider.apply(plan))
         self.assertFalse(plan.exists)
 
         provider._client._request.assert_has_calls(
@@ -223,6 +238,73 @@ class TestGCoreProvider(TestCase):
                 ),
                 call(
                     "POST",
+                    "http://api/zones/unit.tests/txt.unit.tests./TXT",
+                    data={
+                        "ttl": 600,
+                        "resource_records": [
+                            {"content": ["Bah bah black sheep"]},
+                            {"content": ["have you any wool."]},
+                            {
+                                "content": [
+                                    "v=DKIM1;k=rsa;s=email;h=sha256;p=A/kinda+"
+                                    "of/long/string+with+numb3rs"
+                                ]
+                            },
+                        ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/unit.tests/sub.unit.tests./NS",
+                    data={
+                        "ttl": 3600,
+                        "resource_records": [
+                            {"content": ["6.2.3.4."]},
+                            {"content": ["7.2.3.4."]},
+                        ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/unit.tests/ptr.unit.tests./PTR",
+                    data={
+                        "ttl": 300,
+                        "resource_records": [
+                            {"content": ["foo.bar.com."]},
+                        ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/unit.tests/mx.unit.tests./MX",
+                    data={
+                        "ttl": 300,
+                        "resource_records": [
+                            {"content": [10, "smtp-4.unit.tests."]},
+                            {"content": [20, "smtp-2.unit.tests."]},
+                            {"content": [30, "smtp-3.unit.tests."]},
+                            {"content": [40, "smtp-1.unit.tests."]},
+                        ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/unit.tests/excluded.unit.tests./CNAME",
+                    data={
+                        "ttl": 3600,
+                        "resource_records": [{"content": ["unit.tests."]}],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/unit.tests/cname.unit.tests./CNAME",
+                    data={
+                        "ttl": 300,
+                        "resource_records": [{"content": ["unit.tests."]}],
+                    },
+                ),
+                call(
+                    "POST",
                     "http://api/zones/unit.tests/aaaa.unit.tests./AAAA",
                     data={
                         "ttl": 600,
@@ -233,6 +315,33 @@ class TestGCoreProvider(TestCase):
                                 ]
                             }
                         ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/unit.tests/_srv._tcp.unit.tests./SRV",
+                    data={
+                        "ttl": 600,
+                        "resource_records": [
+                            {"content": [10, 20, 30, "foo-1.unit.tests."]},
+                            {"content": [12, 20, 30, "foo-2.unit.tests."]},
+                        ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/unit.tests/_pop3._tcp.unit.tests./SRV",
+                    data={
+                        "ttl": 600,
+                        "resource_records": [{"content": [0, 0, 0, "."]}],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/unit.tests/_imap._tcp.unit.tests./SRV",
+                    data={
+                        "ttl": 600,
+                        "resource_records": [{"content": [0, 0, 0, "."]}],
                     },
                 ),
                 call(
@@ -249,7 +358,7 @@ class TestGCoreProvider(TestCase):
             ]
         )
         # expected number of total calls
-        self.assertEquals(7, provider._client._request.call_count)
+        self.assertEqual(16, provider._client._request.call_count)
 
         provider._client._request.reset_mock()
 
@@ -283,8 +392,8 @@ class TestGCoreProvider(TestCase):
 
         plan = provider.plan(wanted)
         self.assertTrue(plan.exists)
-        self.assertEquals(2, len(plan.changes))
-        self.assertEquals(2, provider.apply(plan))
+        self.assertEqual(2, len(plan.changes))
+        self.assertEqual(2, provider.apply(plan))
 
         provider._client._request.assert_has_calls(
             [
