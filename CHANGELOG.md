@@ -1,6 +1,45 @@
+## v0.9.13 - 2021-..-.. -
+
+#### Noteworthy changes
+
+* Alpha support for Processors has been added. Processors allow for hooking
+  into the source, target, and planing process to make nearly arbitrary changes
+  to data. See the [octodns/processor/](/octodns/processor) directory for
+  examples. The change has been designed to have no impact on the process
+  unless the `processors` key is present in zone configs.
+* Fixes NS1 provider's geotarget limitation of using `NA` continent. Now, when
+  `NA` is used in geos it considers **all** the countries of `North America`
+  insted of just `us-east`, `us-west` and `us-central` regions
+* `SX' &amp; 'UM` country support added to NS1Provider, not yet in the North 
+   America list for backwards compatibility reasons. They will be added in the
+   next releaser.
+
+## v0.9.12 - 2021-04-30 - Enough time has passed
+
+#### Noteworthy changes
+
+* Formal Python 2.7 support removed, deps and tooling were becoming
+  unmaintainable
+* octodns/octodns move, from github/octodns, more to come
+
+#### Stuff
+
+* ZoneFileSource supports specifying an extension & no files end in . to better
+  support Windows
+* LOC record type support added
+* Support for pre-release versions of PowerDNS
+* PowerDNS delete before create which allows A <-> CNAME etc.
+* Improved validation of fqdn's in ALIAS, CNAME, etc.
+* Transip support for NS records
+* Support for sending plan output to a file
+* DNSimple uses zone api rather than domain to support non-registered stuff,
+  e.g. reverse zones.
+* Support for fallback-only dynamic pools and related fixes to NS1 provider
+* Initial Hetzner provider
+
 ## v0.9.11 - 2020-11-05 - We still don't know edition
 
-#### Noteworthy changtes
+#### Noteworthy changes
 
 * ALIAS records only allowed at the root of zones - see `leient` in record docs
   for work-arounds if you really need them.

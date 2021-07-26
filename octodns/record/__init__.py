@@ -183,15 +183,11 @@ class Record(EqualityTupleMixin):
     def included(self):
         return self._octodns.get('included', [])
 
-    @property
-    def healthcheck_host(self):
+    def healthcheck_host(self, value=None):
         healthcheck = self._octodns.get('healthcheck', {})
         if healthcheck.get('protocol', None) == 'TCP':
             return None
-        try:
-            return healthcheck['host']
-        except KeyError:
-            return self.fqdn[:-1]
+        return healthcheck.get('host', self.fqdn[:-1]) or value
 
     @property
     def healthcheck_path(self):
@@ -417,6 +413,7 @@ class _ValueMixin(object):
 
 
 class _DynamicPool(object):
+    log = getLogger('_DynamicPool')
 
     def __init__(self, _id, data):
         self._id = _id
@@ -428,6 +425,15 @@ class _DynamicPool(object):
             } for d in data['values']
         ]
         values.sort(key=lambda d: d['value'])
+
+        # normalize weight of a single-value pool
+        if len(values) == 1:
+            weight = data['values'][0].get('weight', 1)
+            if weight != 1:
+                self.log.warn(
+                    'Using weight=1 instead of %s for single-value pool %s',
+                    weight, _id)
+                values[0]['weight'] = 1
 
         fallback = data.get('fallback', None)
         self.data = {
@@ -531,6 +537,7 @@ class _DynamicMixin(object):
 
         pools_exist = set()
         pools_seen = set()
+        pools_seen_as_fallback = set()
         if not isinstance(pools, dict):
             reasons.append('pools must be a dict')
         elif not pools:
@@ -572,10 +579,17 @@ class _DynamicMixin(object):
                         reasons.append('missing value in pool "{}" '
                                        'value {}'.format(_id, value_num))
 
+                if len(values) == 1 and values[0].get('weight', 1) != 1:
+                    reasons.append('pool "{}" has single value with '
+                                   'weight!=1'.format(_id))
+
                 fallback = pool.get('fallback', None)
-                if fallback is not None and fallback not in pools:
-                    reasons.append('undefined fallback "{}" for pool "{}"'
-                                   .format(fallback, _id))
+                if fallback is not None:
+                    if fallback in pools:
+                        pools_seen_as_fallback.add(fallback)
+                    else:
+                        reasons.append('undefined fallback "{}" for pool "{}"'
+                                       .format(fallback, _id))
 
                 # Check for loops
                 fallback = pools[_id].get('fallback', None)
@@ -624,7 +638,6 @@ class _DynamicMixin(object):
                     if pool not in pools:
                         reasons.append('rule {} undefined pool "{}"'
                                        .format(rule_num, pool))
-                        pools_seen.add(pool)
                     elif pool in pools_seen and geos:
                         reasons.append('rule {} invalid, target pool "{}" '
                                        'reused'.format(rule_num, pool))
@@ -644,7 +657,7 @@ class _DynamicMixin(object):
                         reasons.extend(GeoCodes.validate(geo, 'rule {} '
                                                          .format(rule_num)))
 
-        unused = pools_exist - pools_seen
+        unused = pools_exist - pools_seen - pools_seen_as_fallback
         if unused:
             unused = '", "'.join(sorted(unused))
             reasons.append('unused pools: "{}"'.format(unused))

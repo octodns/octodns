@@ -341,6 +341,9 @@ class Ns1Provider(BaseProvider):
         'ASIAPAC': 'AS',
         'EUROPE': 'EU',
         'SOUTH-AMERICA': 'SA',
+        # continent NA has been handled as part of Geofence Country filter
+        # starting from v0.9.13. These below US-* just need to continue to
+        # exist here so it doesn't break the ugrade path
         'US-CENTRAL': 'NA',
         'US-EAST': 'NA',
         'US-WEST': 'NA',
@@ -350,8 +353,6 @@ class Ns1Provider(BaseProvider):
         'AS': ('ASIAPAC',),
         'EU': ('EUROPE',),
         'SA': ('SOUTH-AMERICA',),
-        # TODO: what about CA, MX, and all the other NA countries?
-        'NA': ('US-CENTRAL', 'US-EAST', 'US-WEST'),
     }
 
     # Necessary for handling unsupported continents in _CONTINENT_TO_REGIONS
@@ -359,6 +360,10 @@ class Ns1Provider(BaseProvider):
         'OC': {'FJ', 'NC', 'PG', 'SB', 'VU', 'AU', 'NF', 'NZ', 'FM', 'GU',
                'KI', 'MH', 'MP', 'NR', 'PW', 'AS', 'CK', 'NU', 'PF', 'PN',
                'TK', 'TO', 'TV', 'WF', 'WS'},
+        'NA': {'DO', 'DM', 'BB', 'BL', 'BM', 'HT', 'KN', 'JM', 'VC', 'HN',
+               'BS', 'BZ', 'PR', 'NI', 'LC', 'TT', 'VG', 'PA', 'TC', 'PM',
+               'GT', 'AG', 'GP', 'AI', 'VI', 'CA', 'GD', 'AW', 'CR', 'GL',
+               'CU', 'MF', 'SV', 'US', 'MQ', 'MS', 'KY', 'MX', 'CW', 'BQ'}
     }
 
     def __init__(self, id, api_key, retry_count=4, monitor_regions=None,
@@ -406,7 +411,7 @@ class Ns1Provider(BaseProvider):
             for piece in note.split(' '):
                 try:
                     k, v = piece.split(':', 1)
-                    data[k] = v
+                    data[k] = v if v != '' else None
                 except ValueError:
                     pass
         return data
@@ -464,10 +469,10 @@ class Ns1Provider(BaseProvider):
             pass
         return pool_name
 
-    def _data_for_dynamic_A(self, _type, record):
+    def _data_for_dynamic(self, _type, record):
         # First make sure we have the expected filters config
         if not self._valid_filter_config(record['filters'], record['domain']):
-            self.log.error('_data_for_dynamic_A: %s %s has unsupported '
+            self.log.error('_data_for_dynamic: %s %s has unsupported '
                            'filters', record['domain'], _type)
             raise Ns1Exception('Unrecognized advanced record')
 
@@ -479,31 +484,45 @@ class Ns1Provider(BaseProvider):
         # region.
         pools = defaultdict(lambda: {'fallback': None, 'values': []})
         for answer in record['answers']:
-            # region (group name in the UI) is the pool name
-            pool_name = answer['region']
-            # Get the actual pool name by removing the type
-            pool_name = self._parse_dynamic_pool_name(pool_name)
-            pool = pools[pool_name]
-
             meta = answer['meta']
+            notes = self._parse_notes(meta.get('note', ''))
+
             value = text_type(answer['answer'][0])
-            if meta['priority'] == 1:
-                # priority 1 means this answer is part of the pools own values
-                value_dict = {
-                    'value': value,
-                    'weight': int(meta.get('weight', 1)),
-                }
-                # If we have the original pool name and the catchall pool name
-                # in the answers, they point at the same pool. Add values only
-                # once
-                if value_dict not in pool['values']:
-                    pool['values'].append(value_dict)
+            if notes.get('from', False) == '--default--':
+                # It's a final/default value, record it and move on
+                default.add(value)
+                continue
+
+            # NS1 pool names can be found in notes > v0.9.11, in order to allow
+            # us to find fallback-only pools/values. Before that we used
+            # `region` (group name in the UI) and only paid attention to
+            # priority=1 (first level)
+            notes_pool_name = notes.get('pool', None)
+            if notes_pool_name is None:
+                # < v0.9.11
+                if meta['priority'] != 1:
+                    # Ignore all but priority 1
+                    continue
+                # And use region's pool name as the pool name
+                pool_name = self._parse_dynamic_pool_name(answer['region'])
             else:
-                # It's a fallback, we only care about it if it's a
-                # final/default
-                notes = self._parse_notes(meta.get('note', ''))
-                if notes.get('from', False) == '--default--':
-                    default.add(value)
+                # > v0.9.11, use the notes-based name and consider all values
+                pool_name = notes_pool_name
+
+            pool = pools[pool_name]
+            value_dict = {
+                'value': value,
+                'weight': int(meta.get('weight', 1)),
+            }
+            if value_dict not in pool['values']:
+                # If we haven't seen this value before add it to the pool
+                pool['values'].append(value_dict)
+
+            # If there's a fallback recorded in the value for its pool go ahead
+            # and use it, another v0.9.11 thing
+            fallback = notes.get('fallback', None)
+            if fallback is not None:
+                pool['fallback'] = fallback
 
         # The regions objects map to rules, but it's a bit fuzzy since they're
         # tied to pools on the NS1 side, e.g. we can only have 1 rule per pool,
@@ -528,49 +547,52 @@ class Ns1Provider(BaseProvider):
                 rules[rule_order] = rule
 
             # The group notes field in the UI is a `note` on the region here,
-            # that's where we can find our pool's fallback.
+            # that's where we can find our pool's fallback in < v0.9.11 anyway
             if 'fallback' in notes:
                 # set the fallback pool name
                 pools[pool_name]['fallback'] = notes['fallback']
 
             geos = set()
 
-            # continents are mapped (imperfectly) to regions, but what about
-            # Canada/North America
             for georegion in meta.get('georegion', []):
                 geos.add(self._REGION_TO_CONTINENT[georegion])
 
             # Countries are easy enough to map, we just have to find their
             # continent
             #
-            # NOTE: Special handling for Oceania
-            # NS1 doesn't support Oceania as a region. So the Oceania countries
-            # will be present in meta['country']. If all the countries in the
-            # Oceania countries list are found, set the region to OC and remove
-            # individual oceania country entries
+            # NOTE: Some continents need special handling since NS1
+            # does not supprt them as regions. These are defined under
+            # _CONTINENT_TO_LIST_OF_COUNTRIES. So the countries for these
+            # regions will be present in meta['country']. If all the countries
+            # in _CONTINENT_TO_LIST_OF_COUNTRIES[<region>] list are found,
+            # set the continent as the region and remove individual countries
 
-            oc_countries = set()
+            special_continents = dict()
             for country in meta.get('country', []):
-                # country_alpha2_to_continent_code fails for Pitcairn ('PN')
+                # country_alpha2_to_continent_code fails for Pitcairn ('PN'),
+                # United States Minor Outlying Islands ('UM') and
+                # Sint Maarten ('SX')
                 if country == 'PN':
                     con = 'OC'
+                elif country in ['SX', 'UM']:
+                    con = 'NA'
                 else:
                     con = country_alpha2_to_continent_code(country)
 
-                if con == 'OC':
-                    oc_countries.add(country)
+                if con in self._CONTINENT_TO_LIST_OF_COUNTRIES:
+                    special_continents.setdefault(con, set()).add(country)
                 else:
-                    # Adding only non-OC countries here to geos
                     geos.add('{}-{}'.format(con, country))
 
-            if oc_countries:
-                if oc_countries == self._CONTINENT_TO_LIST_OF_COUNTRIES['OC']:
-                    # All OC countries found, so add 'OC' to geos
-                    geos.add('OC')
+            for continent, countries in special_continents.items():
+                if countries == self._CONTINENT_TO_LIST_OF_COUNTRIES[
+                        continent]:
+                    # All countries found, so add it to geos
+                    geos.add(continent)
                 else:
-                    # Partial OC countries found, just add them as-is to geos
-                    for c in oc_countries:
-                        geos.add('{}-{}'.format('OC', c))
+                    # Partial countries found, so just add them as-is to geos
+                    for c in countries:
+                        geos.add('{}-{}'.format(continent, c))
 
             # States are easy too, just assume NA-US (CA providences aren't
             # supported by octoDNS currently)
@@ -588,15 +610,21 @@ class Ns1Provider(BaseProvider):
         rules = list(rules.values())
         rules.sort(key=lambda r: (r['_order'], r['pool']))
 
-        return {
+        data = {
             'dynamic': {
                 'pools': pools,
                 'rules': rules,
             },
             'ttl': record['ttl'],
             'type': _type,
-            'values': sorted(default),
         }
+
+        if _type == 'CNAME':
+            data['value'] = default[0]
+        else:
+            data['values'] = default
+
+        return data
 
     def _data_for_A(self, _type, record):
         if record.get('tier', 1) > 1:
@@ -607,7 +635,7 @@ class Ns1Provider(BaseProvider):
                 first_answer_note = ''
             # If that note includes a `from` (pool name) it's a dynamic record
             if 'from:' in first_answer_note:
-                return self._data_for_dynamic_A(_type, record)
+                return self._data_for_dynamic(_type, record)
             # If not it's an old geo record
             return self._data_for_geo_A(_type, record)
 
@@ -646,6 +674,10 @@ class Ns1Provider(BaseProvider):
         }
 
     def _data_for_CNAME(self, _type, record):
+        if record.get('tier', 1) > 1:
+            # Advanced dynamic record
+            return self._data_for_dynamic(_type, record)
+
         try:
             value = record['short_answers'][0]
         except IndexError:
@@ -817,11 +849,17 @@ class Ns1Provider(BaseProvider):
 
             for monitor in self._client.monitors.values():
                 data = self._parse_notes(monitor['notes'])
+                if not data:
+                    continue
                 if expected_host == data['host'] and \
                    expected_type == data['type']:
                     # This monitor does not belong to this record
                     config = monitor['config']
                     value = config['host']
+                    if record._type == 'CNAME':
+                        # Append a trailing dot for CNAME records so that
+                        # lookup by a CNAME answer works
+                        value = value + '.'
                     monitors[value] = monitor
 
         return monitors
@@ -872,6 +910,10 @@ class Ns1Provider(BaseProvider):
         host = record.fqdn[:-1]
         _type = record._type
 
+        if _type == 'CNAME':
+            # NS1 does not accept a host value with a trailing dot
+            value = value[:-1]
+
         ret = {
             'active': True,
             'config': {
@@ -897,7 +939,7 @@ class Ns1Provider(BaseProvider):
         if record.healthcheck_protocol != 'TCP':
             # IF it's HTTP we need to send the request string
             path = record.healthcheck_path
-            host = record.healthcheck_host
+            host = record.healthcheck_host(value=value)
             request = r'GET {path} HTTP/1.0\r\nHost: {host}\r\n' \
                 r'User-agent: NS1\r\n\r\n'.format(path=path, host=host)
             ret['config']['send'] = request
@@ -978,12 +1020,15 @@ class Ns1Provider(BaseProvider):
             seen.add(current_pool_name)
             pool = pools[current_pool_name]
             for answer in pool_answers[current_pool_name]:
+                fallback = pool.data['fallback']
                 answer = {
                     'answer': answer['answer'],
                     'meta': {
                         'priority': priority,
                         'note': self._encode_notes({
                             'from': pool_label,
+                            'pool': current_pool_name,
+                            'fallback': fallback or '',
                         }),
                         'up': {
                             'feed': answer['feed_id'],
@@ -1013,7 +1058,7 @@ class Ns1Provider(BaseProvider):
             }
             answers.append(answer)
 
-    def _params_for_dynamic_A(self, record):
+    def _params_for_dynamic(self, record):
         pools = record.dynamic.pools
 
         # Convert rules to regions
@@ -1114,10 +1159,14 @@ class Ns1Provider(BaseProvider):
                     'feed_id': feed_id,
                 })
 
+        if record._type == 'CNAME':
+            default_values = [record.value]
+        else:
+            default_values = record.values
         default_answers = [{
             'answer': [v],
             'weight': 1,
-        } for v in record.values]
+        } for v in default_values]
 
         # Build our list of answers
         # The regions dictionary built above already has the required pool
@@ -1146,7 +1195,7 @@ class Ns1Provider(BaseProvider):
 
     def _params_for_A(self, record):
         if getattr(record, 'dynamic', False):
-            return self._params_for_dynamic_A(record)
+            return self._params_for_dynamic(record)
         elif hasattr(record, 'geo'):
             return self._params_for_geo_A(record)
 
@@ -1171,8 +1220,10 @@ class Ns1Provider(BaseProvider):
         values = [(v.flags, v.tag, v.value) for v in record.values]
         return {'answers': values, 'ttl': record.ttl}, None
 
-    # TODO: dynamic CNAME support
     def _params_for_CNAME(self, record):
+        if getattr(record, 'dynamic', False):
+            return self._params_for_dynamic(record)
+
         return {'answers': [record.value], 'ttl': record.ttl}, None
 
     _params_for_ALIAS = _params_for_CNAME
@@ -1250,8 +1301,7 @@ class Ns1Provider(BaseProvider):
                     extra.append(Update(record, record))
                     continue
 
-            for have in self._monitors_for(record).values():
-                value = have['config']['host']
+            for value, have in self._monitors_for(record).items():
                 expected = self._monitor_gen(record, value)
                 # TODO: find values which have missing monitors
                 if not self._monitor_is_match(expected, have):
