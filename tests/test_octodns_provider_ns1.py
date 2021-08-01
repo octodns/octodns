@@ -768,11 +768,69 @@ class TestNs1ProviderDynamic(TestCase):
         monitor = {
             'name': 'test monitor',
         }
+        provider._client._notifylists_cache = {}
         monitor_id, feed_id = provider._monitor_create(monitor)
         self.assertEquals('mon-id', monitor_id)
         self.assertEquals('feed-id', feed_id)
         monitors_create_mock.assert_has_calls([call(name='test monitor',
                                                     notify_list='nl-id')])
+
+    @patch('octodns.provider.ns1.Ns1Provider._feed_create')
+    @patch('octodns.provider.ns1.Ns1Client.monitors_create')
+    @patch('octodns.provider.ns1.Ns1Client._try')
+    def test_monitor_create_shared_notifylist(self, try_mock,
+                                              monitors_create_mock,
+                                              feed_create_mock):
+        provider = Ns1Provider('test', 'api-key', shared_notifylist=True)
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {}
+
+        # First time we'll need to create the share list
+        provider._client._notifylists_cache = {}
+        try_mock.reset_mock()
+        monitors_create_mock.reset_mock()
+        feed_create_mock.reset_mock()
+        try_mock.side_effect = [{
+            'id': 'nl-id',
+            'name': provider.SHARED_NOTIFYLIST_NAME,
+        }]
+        monitors_create_mock.side_effect = [{
+            'id': 'mon-id',
+        }]
+        feed_create_mock.side_effect = ['feed-id']
+        monitor = {
+            'name': 'test monitor',
+        }
+        monitor_id, feed_id = provider._monitor_create(monitor)
+        self.assertEquals('mon-id', monitor_id)
+        self.assertEquals('feed-id', feed_id)
+        monitors_create_mock.assert_has_calls([call(name='test monitor',
+                                                    notify_list='nl-id')])
+        try_mock.assert_called_once()
+        # The shared notifylist should be cached now
+        self.assertEquals([provider.SHARED_NOTIFYLIST_NAME],
+                          list(provider._client._notifylists_cache.keys()))
+
+        # Second time we'll use the cached version
+        try_mock.reset_mock()
+        monitors_create_mock.reset_mock()
+        feed_create_mock.reset_mock()
+        monitors_create_mock.side_effect = [{
+            'id': 'mon-id',
+        }]
+        feed_create_mock.side_effect = ['feed-id']
+        monitor = {
+            'name': 'test monitor',
+        }
+        monitor_id, feed_id = provider._monitor_create(monitor)
+        self.assertEquals('mon-id', monitor_id)
+        self.assertEquals('feed-id', feed_id)
+        monitors_create_mock.assert_has_calls([call(name='test monitor',
+                                                    notify_list='nl-id')])
+        try_mock.assert_not_called()
 
     def test_monitor_gen(self):
         provider = Ns1Provider('test', 'api-key')
@@ -986,6 +1044,12 @@ class TestNs1ProviderDynamic(TestCase):
                 'notify_list': 'nl-id',
             }
         }]
+        provider._client._notifylists_cache = {
+            'not shared': {
+                'id': 'nl-id',
+                'name': 'not shared',
+            }
+        }
         provider._monitors_gc(record)
         monitors_for_mock.assert_has_calls([call(record)])
         datafeed_delete_mock.assert_has_calls([call('foo', 'feed-id')])
@@ -1025,11 +1089,74 @@ class TestNs1ProviderDynamic(TestCase):
                 'notify_list': 'nl-id2',
             },
         }]
+        provider._client._notifylists_cache = {
+            'not shared': {
+                'id': 'nl-id',
+                'name': 'not shared',
+            },
+            'not shared 2': {
+                'id': 'nl-id2',
+                'name': 'not shared 2',
+            }
+        }
         provider._monitors_gc(record, {'mon-id'})
         monitors_for_mock.assert_has_calls([call(record)])
         datafeed_delete_mock.assert_not_called()
         monitors_delete_mock.assert_has_calls([call('mon-id2')])
         notifylists_delete_mock.assert_has_calls([call('nl-id2')])
+
+        # Non-active monitor w/o a notifylist, generally shouldn't happen, but
+        # code should handle it just in case someone gets clicky in the UI
+        monitors_for_mock.reset_mock()
+        datafeed_delete_mock.reset_mock()
+        monitors_delete_mock.reset_mock()
+        notifylists_delete_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            'y': {
+                'id': 'mon-id2',
+                'notify_list': 'nl-id2',
+            },
+        }]
+        provider._client._notifylists_cache = {
+            'not shared a': {
+                'id': 'nl-ida',
+                'name': 'not shared a',
+            },
+            'not shared b': {
+                'id': 'nl-idb',
+                'name': 'not shared b',
+            }
+        }
+        provider._monitors_gc(record, {'mon-id'})
+        monitors_for_mock.assert_has_calls([call(record)])
+        datafeed_delete_mock.assert_not_called()
+        monitors_delete_mock.assert_has_calls([call('mon-id2')])
+        notifylists_delete_mock.assert_not_called()
+
+        # Non-active monitor with a shared notifylist, monitor deleted, but
+        # notifylist is left alone
+        provider.shared_notifylist = True
+        monitors_for_mock.reset_mock()
+        datafeed_delete_mock.reset_mock()
+        monitors_delete_mock.reset_mock()
+        notifylists_delete_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            'y': {
+                'id': 'mon-id2',
+                'notify_list': 'shared',
+            },
+        }]
+        provider._client._notifylists_cache = {
+            'shared': {
+                'id': 'shared',
+                'name': provider.SHARED_NOTIFYLIST_NAME,
+            },
+        }
+        provider._monitors_gc(record, {'mon-id'})
+        monitors_for_mock.assert_has_calls([call(record)])
+        datafeed_delete_mock.assert_not_called()
+        monitors_delete_mock.assert_has_calls([call('mon-id2')])
+        notifylists_delete_mock.assert_not_called()
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
@@ -2325,17 +2452,22 @@ class TestNs1Client(TestCase):
         notifylists_list_mock.reset_mock()
         notifylists_create_mock.reset_mock()
         notifylists_delete_mock.reset_mock()
-        notifylists_create_mock.side_effect = ['bar']
+        notifylists_list_mock.side_effect = [{}]
+        expected = {
+            'id': 'nl-id',
+            'name': 'bar',
+        }
+        notifylists_create_mock.side_effect = [expected]
         notify_list = [{
             'config': {
                 'sourceid': 'foo',
             },
             'type': 'datafeed',
         }]
-        nl = client.notifylists_create(name='some name',
-                                       notify_list=notify_list)
-        self.assertEquals('bar', nl)
-        notifylists_list_mock.assert_not_called()
+        got = client.notifylists_create(name='some name',
+                                        notify_list=notify_list)
+        self.assertEquals(expected, got)
+        notifylists_list_mock.assert_called_once()
         notifylists_create_mock.assert_has_calls([
             call({'name': 'some name', 'notify_list': notify_list})
         ])
@@ -2348,6 +2480,29 @@ class TestNs1Client(TestCase):
         notifylists_list_mock.assert_not_called()
         notifylists_create_mock.assert_not_called()
         notifylists_delete_mock.assert_has_calls([call('nlid')])
+
+        # Delete again, this time with a cache item that needs cleaned out and
+        # another that needs to be ignored
+        notifylists_list_mock.reset_mock()
+        notifylists_create_mock.reset_mock()
+        notifylists_delete_mock.reset_mock()
+        client._notifylists_cache = {
+            'another': {
+                'id': 'notid',
+                'name': 'another',
+            },
+            # This one comes 2nd on purpose
+            'the-one': {
+                'id': 'nlid',
+                'name': 'the-one',
+            },
+        }
+        client.notifylists_delete('nlid')
+        notifylists_list_mock.assert_not_called()
+        notifylists_create_mock.assert_not_called()
+        notifylists_delete_mock.assert_has_calls([call('nlid')])
+        # Only another left
+        self.assertEquals(['another'], list(client._notifylists_cache.keys()))
 
         notifylists_list_mock.reset_mock()
         notifylists_create_mock.reset_mock()
