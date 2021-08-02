@@ -199,6 +199,230 @@
                     ]
                 }
             ]
+        },
+        {
+            "name": "geo-A-single.unit.tests.",
+            "type": "A",
+            "ttl": 300,
+            "filters": [
+                {
+                    "type": "geodns"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "limit": 1,
+                    "strict": false,
+                    "type": "default"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ],
+                    "meta": {
+                        "countries": [
+                            "RU"
+                        ]
+                    }
+                },
+                {
+                    "content": [
+                        "8.8.8.8"
+                    ],
+                    "meta": {
+                        "countries": [
+                            "RU"
+                        ]
+                    }
+                },
+                {
+                    "content": [
+                        "9.9.9.9"
+                    ],
+                    "meta": {
+                        "continents": [
+                            "EU"
+                        ]
+                    }
+                },
+                {
+                    "content": [
+                        "10.10.10.10"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                }
+            ]
+        },
+        {
+            "name": "geo-no-def.unit.tests.",
+            "type": "A",
+            "ttl": 300,
+            "filters": [
+                {
+                    "type": "geodns"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "limit": 1,
+                    "strict": false,
+                    "type": "default"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ],
+                    "meta": {
+                        "countries": [
+                            "RU"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "geo-CNAME.unit.tests.",
+            "type": "CNAME",
+            "ttl": 300,
+            "filters": [
+                {
+                    "type": "geodns"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "limit": 1,
+                    "strict": false,
+                    "type": "default"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "ru-1.unit.tests"
+                    ],
+                    "meta": {
+                        "countries": [
+                            "RU"
+                        ]
+                    }
+                },
+                {
+                    "content": [
+                        "ru-2.unit.tests"
+                    ],
+                    "meta": {
+                        "countries": [
+                            "RU"
+                        ]
+                    }
+                },
+                {
+                    "content": [
+                        "eu.unit.tests"
+                    ],
+                    "meta": {
+                        "continents": [
+                            "EU"
+                        ]
+                    }
+                },
+                {
+                    "content": [
+                        "any.unit.tests."
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                }
+            ]
+        },
+        {
+            "name": "geo-ignore-len-filters.unit.tests.",
+            "type": "A",
+            "ttl": 300,
+            "filters": [
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "limit": 1,
+                    "strict": false,
+                    "type": "default"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "geo-ignore-types.unit.tests.",
+            "type": "A",
+            "ttl": 300,
+            "filters": [
+                {
+                    "type": "geodistance"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "limit": 1,
+                    "strict": false,
+                    "type": "default"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "geo-ignore-limits.unit.tests.",
+            "type": "A",
+            "ttl": 300,
+            "filters": [
+                {
+                    "type": "geodns"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "limit": 2,
+                    "strict": false,
+                    "type": "default"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ]
+                }
+            ]
         }
     ]
 }

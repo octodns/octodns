@@ -15,7 +15,7 @@ from requests_mock import ANY, mock as requests_mock
 from six import text_type
 from unittest import TestCase
 
-from octodns.record import Record, Update, Delete
+from octodns.record import Record, Update, Delete, Create
 from octodns.provider.gcore import (
     GCoreProvider,
     GCoreClientBadRequest,
@@ -35,7 +35,7 @@ class TestGCoreProvider(TestCase):
 
         provider = GCoreProvider("test_id", token="token")
 
-        # 400 - Bad Request.
+        # TC: 400 - Bad Request.
         with requests_mock() as mock:
             mock.get(ANY, status_code=400, text='{"error":"bad body"}')
 
@@ -44,7 +44,7 @@ class TestGCoreProvider(TestCase):
                 provider.populate(zone)
             self.assertIn('"error":"bad body"', text_type(ctx.exception))
 
-        # 404 - Not Found.
+        # TC: 404 - Not Found.
         with requests_mock() as mock:
             mock.get(
                 ANY, status_code=404, text='{"error":"zone is not found"}'
@@ -57,7 +57,7 @@ class TestGCoreProvider(TestCase):
                 '"error":"zone is not found"', text_type(ctx.exception)
             )
 
-        # General error
+        # TC: General error
         with requests_mock() as mock:
             mock.get(ANY, status_code=500, text="Things caught fire")
 
@@ -66,7 +66,7 @@ class TestGCoreProvider(TestCase):
                 provider.populate(zone)
             self.assertEqual("Things caught fire", text_type(ctx.exception))
 
-        # No credentials or token error
+        # TC: No credentials or token error
         with requests_mock() as mock:
             with self.assertRaises(ValueError) as ctx:
                 GCoreProvider("test_id")
@@ -75,7 +75,7 @@ class TestGCoreProvider(TestCase):
                 text_type(ctx.exception),
             )
 
-        # Auth with login password
+        # TC: Auth with login password
         with requests_mock() as mock:
 
             def match_body(request):
@@ -108,7 +108,7 @@ class TestGCoreProvider(TestCase):
             zone = Zone("unit.tests.", [])
             assert not providerPassword.populate(zone)
 
-        # No diffs == no changes
+        # TC: No diffs == no changes
         with requests_mock() as mock:
             base = "https://dnsapi.gcorelabs.com/v2/zones/unit.tests/rrsets"
             with open("tests/fixtures/gcore-no-changes.json") as fh:
@@ -138,7 +138,7 @@ class TestGCoreProvider(TestCase):
             changes = self.expected.changes(zone, provider)
             self.assertEqual(0, len(changes))
 
-        # 1 removed + 7 modified
+        # TC: 4 create (dynamic) + 1 removed + 7 modified
         with requests_mock() as mock:
             base = "https://dnsapi.gcorelabs.com/v2/zones/unit.tests/rrsets"
             with open("tests/fixtures/gcore-records.json") as fh:
@@ -146,9 +146,12 @@ class TestGCoreProvider(TestCase):
 
             zone = Zone("unit.tests.", [])
             provider.populate(zone)
-            self.assertEqual(13, len(zone.records))
+            self.assertEqual(16, len(zone.records))
             changes = self.expected.changes(zone, provider)
-            self.assertEqual(8, len(changes))
+            self.assertEqual(11, len(changes))
+            self.assertEqual(
+                3, len([c for c in changes if isinstance(c, Create)])
+            )
             self.assertEqual(
                 1, len([c for c in changes if isinstance(c, Delete)])
             )
@@ -156,10 +159,47 @@ class TestGCoreProvider(TestCase):
                 7, len([c for c in changes if isinstance(c, Update)])
             )
 
+        # TC: no pools can be built
+        with requests_mock() as mock:
+            base = "https://dnsapi.gcorelabs.com/v2/zones/unit.tests/rrsets"
+            mock.get(
+                base,
+                json={
+                    "rrsets": [
+                        {
+                            "name": "unit.tests.",
+                            "type": "A",
+                            "ttl": 300,
+                            "filters": [
+                                {"type": "geodns"},
+                                {"limit": 1, "type": "first_n"},
+                                {
+                                    "limit": 1,
+                                    "strict": False,
+                                    "type": "default",
+                                },
+                            ],
+                            "resource_records": [{"content": ["7.7.7.7"]}],
+                        }
+                    ]
+                },
+            )
+
+            zone = Zone("unit.tests.", [])
+            with self.assertRaises(RuntimeError) as ctx:
+                provider.populate(zone)
+
+            self.assertTrue(
+                str(ctx.exception).startswith(
+                    "filter is enabled, but no pools where built for"
+                ),
+                "{} - is not start from desired text".format(ctx.exception),
+            )
+
     def test_apply(self):
         provider = GCoreProvider("test_id", url="http://api", token="token")
 
-        # Zone does not exists but can be created.
+        # TC: Zone does not exists but can be created.
         with requests_mock() as mock:
             mock.get(
                 ANY, status_code=404, text='{"error":"zone is not found"}'
@@ -169,7 +209,7 @@ class TestGCoreProvider(TestCase):
             plan = provider.plan(self.expected)
             provider.apply(plan)
 
-        # Zone does not exists and can't be created.
+        # TC: Zone does not exists and can't be created.
         with requests_mock() as mock:
             mock.get(
                 ANY, status_code=404, text='{"error":"zone is not found"}'
@@ -206,7 +246,7 @@ class TestGCoreProvider(TestCase):
         ]
         plan = provider.plan(self.expected)
 
-        # create all
+        # TC: create all
         self.assertEqual(13, len(plan.changes))
         self.assertEqual(13, provider.apply(plan))
         self.assertFalse(plan.exists)
@@ -360,9 +400,8 @@ class TestGCoreProvider(TestCase):
         # expected number of total calls
         self.assertEqual(16, provider._client._request.call_count)
 
+        # TC: delete 1 and update 1
         provider._client._request.reset_mock()
-
-        # delete 1 and update 1
         provider._client.zone_records = Mock(
             return_value=[
                 {
@@ -406,6 +445,257 @@ class TestGCoreProvider(TestCase):
                     data={
                         "ttl": 300,
                         "resource_records": [{"content": ["3.2.3.4"]}],
+                    },
+                ),
+            ]
+        )
+
+        # TC: create dynamics
+        provider._client._request.reset_mock()
+        provider._client.zone_records = Mock(return_value=[])
+
+        # Domain exists, we don't care about return
+        resp.json.side_effect = ["{}"]
+
+        wanted = Zone("unit.tests.", [])
+        wanted.add_record(
+            Record.new(
+                wanted,
+                "geo-simple",
+                {
+                    "ttl": 300,
+                    "type": "A",
+                    "value": "3.3.3.3",
+                    "dynamic": {
+                        "pools": {
+                            "pool-1": {
+                                "fallback": "other",
+                                "values": [
+                                    {"value": "1.1.1.1"},
+                                    {"value": "1.1.1.2"},
+                                ],
+                            },
+                            "pool-2": {
+                                "fallback": "other",
+                                "values": [
+                                    {"value": "2.2.2.1"},
+                                ],
+                            },
+                            "other": {"values": [{"value": "3.3.3.3"}]},
+                        },
+                        "rules": [
+                            {"pool": "pool-1", "geos": ["EU-RU"]},
+                            {"pool": "pool-2", "geos": ["EU"]},
+                            {"pool": "other"},
+                        ],
+                    },
+                },
+            ),
+        )
+        wanted.add_record(
+            Record.new(
+                wanted,
+                "geo-defaults",
+                {
+                    "ttl": 300,
+                    "type": "A",
+                    "value": "3.2.3.4",
+                    "dynamic": {
+                        "pools": {
+                            "pool-1": {
+                                "values": [
+                                    {"value": "2.2.2.1"},
+                                ],
+                            },
+                        },
+                        "rules": [
+                            {"pool": "pool-1", "geos": ["EU"]},
+                        ],
+                    },
+                },
+            ),
+        )
+        wanted.add_record(
+            Record.new(
+                wanted,
+                "geo-cname-simple",
+                {
+                    "ttl": 300,
+                    "type": "CNAME",
+                    "value": "en.unit.tests.",
+                    "dynamic": {
+                        "pools": {
+                            "pool-1": {
+                                "fallback": "other",
+                                "values": [
+                                    {"value": "ru-1.unit.tests."},
+                                    {"value": "ru-2.unit.tests."},
+                                ],
+                            },
+                            "pool-2": {
+                                "fallback": "other",
+                                "values": [
+                                    {"value": "eu.unit.tests."},
+                                ],
+                            },
+                            "other": {"values": [{"value": "en.unit.tests."}]},
+                        },
+                        "rules": [
+                            {"pool": "pool-1", "geos": ["EU-RU"]},
+                            {"pool": "pool-2", "geos": ["EU"]},
+                            {"pool": "other"},
+                        ],
+                    },
+                },
+            ),
+        )
+        wanted.add_record(
+            Record.new(
+                wanted,
+                "geo-cname-defaults",
+                {
+                    "ttl": 300,
+                    "type": "CNAME",
+                    "value": "en.unit.tests.",
+                    "dynamic": {
+                        "pools": {
+                            "pool-1": {
+                                "values": [
+                                    {"value": "eu.unit.tests."},
+                                ],
+                            },
+                        },
+                        "rules": [
+                            {"pool": "pool-1", "geos": ["EU"]},
+                        ],
+                    },
+                },
+            ),
+        )
+
+        plan = provider.plan(wanted)
+        self.assertTrue(plan.exists)
+        self.assertEqual(4, len(plan.changes))
+        self.assertEqual(4, provider.apply(plan))
+
+        provider._client._request.assert_has_calls(
+            [
+                call(
+                    "POST",
+                    "http://api/zones/unit.tests/geo-simple.unit.tests./A",
+                    data={
+                        "ttl": 300,
+                        "filters": [
+                            {"type": "geodns"},
+                            {"type": "first_n", "limit": 1},
+                            {
+                                "type": "default",
+                                "limit": 1,
+                                "strict": False,
+                            },
+                        ],
+                        "resource_records": [
+                            {
+                                "content": ["1.1.1.1"],
+                                "meta": {"countries": ["RU"]},
+                            },
+                            {
+                                "content": ["1.1.1.2"],
+                                "meta": {"countries": ["RU"]},
+                            },
+                            {
+                                "content": ["2.2.2.1"],
+                                "meta": {"continents": ["EU"]},
+                            },
+                            {
+                                "content": ["3.3.3.3"],
+                                "meta": {"default": True},
+                            },
+                        ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/unit.tests/geo-defaults.unit.tests./A",
+                    data={
+                        "ttl": 300,
+                        "filters": [
+                            {"type": "geodns"},
+                            {"type": "first_n", "limit": 1},
+                            {
+                                "type": "default",
+                                "limit": 1,
+                                "strict": False,
+                            },
+                        ],
+                        "resource_records": [
+                            {
+                                "content": ["2.2.2.1"],
+                                "meta": {"continents": ["EU"]},
+                            },
+                            {
+                                "content": ["3.2.3.4"],
+                            },
+                        ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/unit.tests/geo-cname-simple.unit.tests./CNAME",
+                    data={
+                        "ttl": 300,
+                        "filters": [
+                            {"type": "geodns"},
+                            {"type": "first_n", "limit": 1},
+                            {
+                                "type": "default",
+                                "limit": 1,
+                                "strict": False,
+                            },
+                        ],
+                        "resource_records": [
+                            {
+                                "content": ["ru-1.unit.tests."],
+                                "meta": {"countries": ["RU"]},
+                            },
+                            {
+                                "content": ["ru-2.unit.tests."],
+                                "meta": {"countries": ["RU"]},
+                            },
+                            {
+                                "content": ["eu.unit.tests."],
+                                "meta": {"continents": ["EU"]},
+                            },
+                            {
+                                "content": ["en.unit.tests."],
+                                "meta": {"default": True},
+                            },
+                        ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/unit.tests/geo-cname-defaults.unit.tests./CNAME",
+                    data={
+                        "ttl": 300,
+                        "filters": [
+                            {"type": "geodns"},
+                            {"type": "first_n", "limit": 1},
+                            {
+                                "type": "default",
+                                "limit": 1,
+                                "strict": False,
+                            },
+                        ],
+                        "resource_records": [
+                            {
+                                "content": ["eu.unit.tests."],
+                                "meta": {"continents": ["EU"]},
+                            },
+                            {
+                                "content": ["en.unit.tests."],
+                            },
+                        ],
                     },
                 ),
             ]

@@ -15,6 +15,7 @@ import http
 import logging
 import urllib.parse
 
+from ..record import GeoCodes
 from ..record import Record
 from .base import BaseProvider
 
@@ -157,10 +158,11 @@ class GCoreProvider(BaseProvider):
         password: XXXXXXXXXXXX
         # auth_url: https://api.gcdn.co
         # url: https://dnsapi.gcorelabs.com/v2
+        # records_per_response: 1
     """
 
     SUPPORTS_GEO = False
-    SUPPORTS_DYNAMIC = False
+    SUPPORTS_DYNAMIC = True
     SUPPORTS = set(("A", "AAAA", "NS", "MX", "TXT", "SRV", "CNAME", "PTR"))
 
     def __init__(self, id, *args, **kwargs):
@@ -170,6 +172,7 @@ class GCoreProvider(BaseProvider):
         password = kwargs.pop("password", None)
         api_url = kwargs.pop("url", "https://dnsapi.gcorelabs.com/v2")
         auth_url = kwargs.pop("auth_url", "https://api.gcdn.co")
+        self.records_per_response = kwargs.pop("records_per_response", 1)
         self.log = logging.getLogger("GCoreProvider[{}]".format(id))
         self.log.debug("__init__: id=%s", id)
         super(GCoreProvider, self).__init__(id, *args, **kwargs)
@@ -186,6 +189,86 @@ class GCoreProvider(BaseProvider):
     def _add_dot_if_need(self, value):
         return "{}.".format(value) if not value.endswith(".") else value
 
+    def _build_pools(self, record, default_pool_name, value_transform_fn):
+        defaults = []
+        geo_sets, pool_idx = dict(), 0
+        pools = defaultdict(lambda: {"values": []})
+        for rr in record["resource_records"]:
+            meta = rr.get("meta", {})
+            value = {"value": value_transform_fn(rr["content"][0])}
+            countries = meta.get("countries", [])
+            continents = meta.get("continents", [])
+
+            if meta.get("default", False):
+                pools[default_pool_name]["values"].append(value)
+                defaults.append(value["value"])
+                continue
+            # defaults is false or missing and no conties or continents
+            elif len(continents) == 0 and len(countries) == 0:
+                defaults.append(value["value"])
+                continue
+
+            # RR with the same set of countries and continents are
+            # combined in single pool
+            geo_set = frozenset(
+                [GeoCodes.country_to_code(cc.upper()) for cc in countries]
+            ) | frozenset(cc.upper() for cc in continents)
+            if geo_set not in geo_sets:
+                geo_sets[geo_set] = "pool-{}".format(pool_idx)
+                pool_idx += 1
+
+            pools[geo_sets[geo_set]]["values"].append(value)
+
+        return pools, geo_sets, defaults
+
+    def _build_rules(self, pools, geo_sets):
+        rules = []
+        for name, _ in pools.items():
+            rule = {"pool": name}
+            geo_set = next(
+                (
+                    geo_set
+                    for geo_set, pool_name in geo_sets.items()
+                    if pool_name == name
+                ),
+                {},
+            )
+            if len(geo_set) > 0:
+                rule["geos"] = list(geo_set)
+            rules.append(rule)
+
+        return sorted(rules, key=lambda x: x["pool"])
+
+    def _data_for_dynamic(self, record, value_transform_fn=lambda x: x):
+        default_pool = "other"
+        pools, geo_sets, defaults = self._build_pools(
+            record, default_pool, value_transform_fn
+        )
+        if len(pools) == 0:
+            raise RuntimeError(
+                "filter is enabled, but no pools where built for {}".format(
+                    record
+                )
+            )
+
+        # defaults can't be empty, so use first pool values
+        if len(defaults) == 0:
+            defaults = [
+                value_transform_fn(v["value"])
+                for v in next(iter(pools.values()))["values"]
+            ]
+
+        # if at least one default RR was found then setup fallback for
+        # other pools to default
+        if default_pool in pools:
+            for pool_name, pool in pools.items():
+                if pool_name == default_pool:
+                    continue
+                pool["fallback"] = default_pool
+
+        rules = self._build_rules(pools, geo_sets)
+        return pools, rules, defaults
+
     def _data_for_single(self, _type, record):
         return {
             "ttl": record["ttl"],
@@ -195,18 +278,42 @@ class GCoreProvider(BaseProvider):
             ),
         }
 
-    _data_for_CNAME = _data_for_single
     _data_for_PTR = _data_for_single
 
-    def _data_for_multiple(self, _type, record):
+    def _data_for_CNAME(self, _type, record):
+        if record.get("filters") is None:
+            return self._data_for_single(_type, record)
+
+        pools, rules, defaults = self._data_for_dynamic(
+            record, self._add_dot_if_need
+        )
         return {
             "ttl": record["ttl"],
             "type": _type,
-            "values": [
-                rr_value
-                for resource_record in record["resource_records"]
-                for rr_value in resource_record["content"]
-            ],
+            "dynamic": {"pools": pools, "rules": rules},
+            "value": self._add_dot_if_need(defaults[0]),
+        }
+
+    def _data_for_multiple(self, _type, record):
+        extra = dict()
+        if record.get("filters") is not None:
+            pools, rules, defaults = self._data_for_dynamic(record)
+            extra = {
+                "dynamic": {"pools": pools, "rules": rules},
+                "values": defaults,
+            }
+        else:
+            extra = {
+                "values": [
+                    rr_value
+                    for resource_record in record["resource_records"]
+                    for rr_value in resource_record["content"]
+                ]
+            }
+        return {
+            "ttl": record["ttl"],
+            "type": _type,
+            **extra,
         }
 
     _data_for_A = _data_for_multiple
@@ -286,6 +393,8 @@ class GCoreProvider(BaseProvider):
             _type = record["type"].upper()
             if _type not in self.SUPPORTS:
                 continue
+            if self._should_ignore(record):
+                continue
             rr_name = zone.hostname_from_fqdn(record["name"])
             values[rr_name][_type] = record
 
@@ -309,16 +418,132 @@ class GCoreProvider(BaseProvider):
         )
         return exists
 
+    def _should_ignore(self, record):
+        name = record.get("name", "name-not-defined")
+        if record.get("filters") is None:
+            return False
+        want_filters = 3
+        filters = record.get("filters", [])
+        if len(filters) != want_filters:
+            self.log.info(
+                "ignore %s has filters and their count is not %d",
+                name,
+                want_filters,
+            )
+            return True
+        types = [v.get("type") for v in filters]
+        for i, want_type in enumerate(["geodns", "first_n", "default"]):
+            if types[i] != want_type:
+                self.log.info(
+                    "ignore %s, filters.%d.type is %s, want %s",
+                    name,
+                    i,
+                    types[i],
+                    want_type,
+                )
+                return True
+        limits = [filters[i].get("limit", 1) for i in [1, 2]]
+        if limits[0] != limits[1]:
+            self.log.info(
+                "ignore %s, filters.1.limit (%d) != filters.2.limit (%d)",
+                name,
+                limits[0],
+                limits[1],
+            )
+            return True
+        return False
+
+    def _params_for_dymanic(self, record):
+        records = []
+        default_pool_found = False
+        default_values = set(
+            record.values if hasattr(record, "values") else [record.value]
+        )
+        for rule in record.dynamic.rules:
+            meta = dict()
+            # build meta tags if geos information present
+            if len(rule.data.get("geos", [])) > 0:
+                for geo_code in rule.data["geos"]:
+                    geo = GeoCodes.parse(geo_code)
+
+                    country = geo["country_code"]
+                    continent = geo["continent_code"]
+                    if country is not None:
+                        meta.setdefault("countries", []).append(country)
+                    else:
+                        meta.setdefault("continents", []).append(continent)
+            else:
+                meta["default"] = True
+
+            pool_values = set()
+            pool_name = rule.data["pool"]
+            for value in record.dynamic.pools[pool_name].data["values"]:
+                v = value["value"]
+                records.append({"content": [v], "meta": meta})
+                pool_values.add(v)
+
+            default_pool_found |= default_values == pool_values
+
+        # if default values doesn't match any pool values, then just add this
+        # values with no any meta
+        if not default_pool_found:
+            for value in default_values:
+                records.append({"content": [value]})
+
+        return records
+
     def _params_for_single(self, record):
         return {
             "ttl": record.ttl,
             "resource_records": [{"content": [record.value]}],
         }
 
-    _params_for_CNAME = _params_for_single
     _params_for_PTR = _params_for_single
 
+    def _params_for_CNAME(self, record):
+        if not record.dynamic:
+            return self._params_for_single(record)
+
+        return {
+            "ttl": record.ttl,
+            "resource_records": self._params_for_dymanic(record),
+            "filters": [
+                {"type": "geodns"},
+                {"type": "first_n", "limit": self.records_per_response},
+                {
+                    "type": "default",
+                    "limit": self.records_per_response,
+                    "strict": False,
+                },
+            ],
+        }
+
     def _params_for_multiple(self, record):
+        extra = dict()
+        if record.dynamic:
+            extra["resource_records"] = self._params_for_dymanic(record)
+            extra["filters"] = [
+                {"type": "geodns"},
+                {"type": "first_n", "limit": self.records_per_response},
+                {
+                    "type": "default",
+                    "limit": self.records_per_response,
+                    "strict": False,
+                },
+            ]
+        else:
+            extra["resource_records"] = [
+                {"content": [value]} for value in record.values
+            ]
+        return {
+            "ttl": record.ttl,
+            **extra,
+        }
+
+    _params_for_A = _params_for_multiple
+    _params_for_AAAA = _params_for_multiple
+
+    def _params_for_NS(self, record):
         return {
             "ttl": record.ttl,
             "resource_records": [
@@ -326,12 +551,7 @@ class GCoreProvider(BaseProvider):
             ],
         }
 
-    _params_for_A = _params_for_multiple
-    _params_for_AAAA = _params_for_multiple
-    _params_for_NS = _params_for_multiple
-
     def _params_for_TXT(self, record):
-        # print(record.values)
         return {
             "ttl": record.ttl,
             "resource_records": [
