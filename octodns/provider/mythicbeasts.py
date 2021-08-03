@@ -70,13 +70,13 @@ class MythicBeastsProvider(BaseProvider):
       ...
       mythicbeasts:
         class: octodns.provider.mythicbeasts.MythicBeastsProvider
-          passwords:
-            my.domain.: 'password'
+        passwords:
+          my.domain.: 'DNS API v1 password'
 
     zones:
       my.domain.:
         targets:
-          - mythic
+          - mythicbeasts
     '''
 
     RE_MX = re.compile(r'^(?P<preference>[0-9]+)\s+(?P<exchange>\S+)$',
