@@ -913,7 +913,6 @@ class Ns1Provider(BaseProvider):
     def _feed_create(self, monitor):
         monitor_id = monitor['id']
         self.log.debug('_feed_create: monitor=%s', monitor_id)
-        # TODO: looks like length limit is 64 char
         name = '{} - {}'.format(monitor['name'], self._uuid()[:6])
 
         # Create the data feed
