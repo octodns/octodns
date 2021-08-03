@@ -4,6 +4,14 @@
 
 * NS1 NA target now includes `SX` and `UM`. If `NA` continent is in use in
   dynamic records care must be taken to upgrade/downgrade to v0.9.13.
+* Ns1Provider now supports a new parameter, shared_notifylist, which results in
+  all dynamic record monitors using a shared notify list named 'octoDNS NS1
+  Notify List'. Only newly created record values will use the shared notify
+  list. It should be safe to enable this functionality, but existing records
+  will not be converted. Note: Once this option is enabled downgrades to
+  previous versions of octoDNS are discouraged and may result in undefined
+  behavior and broken records. See https://github.com/octodns/octodns/pull/749
+  for related discussion.
 
 ## v0.9.13 - 2021-07-18 - Processors Alpha
 
@@ -17,7 +25,7 @@
 * Fixes NS1 provider's geotarget limitation of using `NA` continent. Now, when
   `NA` is used in geos it considers **all** the countries of `North America`
   insted of just `us-east`, `us-west` and `us-central` regions
-* `SX' &amp; 'UM` country support added to NS1Provider, not yet in the North 
+* `SX' &amp; 'UM` country support added to NS1Provider, not yet in the North
    America list for backwards compatibility reasons. They will be added in the
    next releaser.
 
