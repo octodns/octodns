@@ -234,7 +234,7 @@ class Ns1Provider(BaseProvider):
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR',
-                    'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
+                    'NS', 'PTR', 'SPF', 'SRV', 'TXT', 'URLFWD'))
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
 
@@ -363,7 +363,8 @@ class Ns1Provider(BaseProvider):
         'NA': {'DO', 'DM', 'BB', 'BL', 'BM', 'HT', 'KN', 'JM', 'VC', 'HN',
                'BS', 'BZ', 'PR', 'NI', 'LC', 'TT', 'VG', 'PA', 'TC', 'PM',
                'GT', 'AG', 'GP', 'AI', 'VI', 'CA', 'GD', 'AW', 'CR', 'GL',
-               'CU', 'MF', 'SV', 'US', 'MQ', 'MS', 'KY', 'MX', 'CW', 'BQ'}
+               'CU', 'MF', 'SV', 'US', 'MQ', 'MS', 'KY', 'MX', 'CW', 'BQ',
+               'SX', 'UM'}
     }
 
     def __init__(self, id, api_key, retry_count=4, monitor_regions=None,
@@ -741,6 +742,23 @@ class Ns1Provider(BaseProvider):
                 'weight': weight,
                 'port': port,
                 'target': target,
+            })
+        return {
+            'ttl': record['ttl'],
+            'type': _type,
+            'values': values,
+        }
+
+    def _data_for_URLFWD(self, _type, record):
+        values = []
+        for answer in record['short_answers']:
+            path, target, code, masking, query  = answer.split(' ', 4)
+            values.append({
+                'path': path,
+                'target': target,
+                'code': code,
+                'masking': masking,
+                'query': query,
             })
         return {
             'ttl': record['ttl'],
@@ -1240,6 +1258,11 @@ class Ns1Provider(BaseProvider):
 
     def _params_for_SRV(self, record):
         values = [(v.priority, v.weight, v.port, v.target)
+                  for v in record.values]
+        return {'answers': values, 'ttl': record.ttl}, None
+
+    def _params_for_URLFWD(self, record):
+        values = [(v.path, v.target, v.code, v.masking, v.query)
                   for v in record.values]
         return {'answers': values, 'ttl': record.ttl}, None
 

@@ -106,6 +106,7 @@ class Record(EqualityTupleMixin):
                 'SRV': SrvRecord,
                 'SSHFP': SshfpRecord,
                 'TXT': TxtRecord,
+                'URLFWD': UrlfwdRecord,
             }[_type]
         except KeyError:
             raise Exception('Unknown record type: "{}"'.format(_type))
@@ -617,7 +618,6 @@ class _DynamicMixin(object):
         else:
             seen_default = False
 
-            # TODO: don't allow 'default' as a pool name, reserved
             for i, rule in enumerate(rules):
                 rule_num = i + 1
                 try:
@@ -1467,3 +1467,86 @@ class _TxtValue(_ChunkedValue):
 class TxtRecord(_ChunkedValuesMixin, Record):
     _type = 'TXT'
     _value_type = _TxtValue
+
+
+class UrlfwdValue(EqualityTupleMixin):
+    VALID_CODES = (301, 302)
+    VALID_MASKS = (0, 1, 2)
+    VALID_QUERY = (0, 1)
+
+    @classmethod
+    def validate(cls, data, _type):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
+        reasons = []
+        for value in data:
+            try:
+                code = int(value['code'])
+                if code not in cls.VALID_CODES:
+                    reasons.append('unrecognized return code "{}"'
+                                   .format(code))
+            except KeyError:
+                reasons.append('missing code')
+            except ValueError:
+                reasons.append('invalid return code "{}"'
+                               .format(value['code']))
+            try:
+                masking = int(value['masking'])
+                if masking not in cls.VALID_MASKS:
+                    reasons.append('unrecognized masking setting "{}"'
+                                   .format(masking))
+            except KeyError:
+                reasons.append('missing masking')
+            except ValueError:
+                reasons.append('invalid masking setting "{}"'
+                               .format(value['masking']))
+            try:
+                query = int(value['query'])
+                if query not in cls.VALID_QUERY:
+                    reasons.append('unrecognized query setting "{}"'
+                                   .format(query))
+            except KeyError:
+                reasons.append('missing query')
+            except ValueError:
+                reasons.append('invalid query setting "{}"'
+                               .format(value['query']))
+            for k in ('path', 'target'):
+                if k not in value:
+                    reasons.append('missing {}'.format(k))
+        return reasons
+
+    @classmethod
+    def process(cls, values):
+        return [UrlfwdValue(v) for v in values]
+
+    def __init__(self, value):
+        self.path = value['path']
+        self.target = value['target']
+        self.code = int(value['code'])
+        self.masking = int(value['masking'])
+        self.query = int(value['query'])
+
+    @property
+    def data(self):
+        return {
+            'path': self.path,
+            'target': self.target,
+            'code': self.code,
+            'masking': self.masking,
+            'query': self.query,
+        }
+
+    def __hash__(self):
+        return hash(self.__repr__())
+
+    def _equality_tuple(self):
+        return (self.path, self.target, self.code, self.masking, self.query)
+
+    def __repr__(self):
+        return '"{}" "{}" {} {} {}'.format(self.path, self.target, self.code,
+                                           self.masking, self.query)
+
+
+class UrlfwdRecord(_ValuesMixin, Record):
+    _type = 'URLFWD'
+    _value_type = UrlfwdValue
