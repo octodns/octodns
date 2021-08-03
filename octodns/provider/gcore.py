@@ -194,10 +194,10 @@ class GCoreProvider(BaseProvider):
         geo_sets, pool_idx = dict(), 0
         pools = defaultdict(lambda: {"values": []})
         for rr in record["resource_records"]:
-            meta = rr.get("meta", {})
+            meta = rr.get("meta", {}) or {}
             value = {"value": value_transform_fn(rr["content"][0])}
-            countries = meta.get("countries", [])
-            continents = meta.get("continents", [])
+            countries = meta.get("countries", []) or []
+            continents = meta.get("continents", []) or []
 
             if meta.get("default", False):
                 pools[default_pool_name]["values"].append(value)
@@ -432,7 +432,7 @@ class GCoreProvider(BaseProvider):
             )
             return True
         types = [v.get("type") for v in filters]
-        for i, want_type in enumerate(["geodns", "first_n", "default"]):
+        for i, want_type in enumerate(["geodns", "default", "first_n"]):
             if types[i] != want_type:
                 self.log.info(
                     "ignore %s, filters.%d.type is %s, want %s",
@@ -509,12 +509,12 @@ class GCoreProvider(BaseProvider):
             "resource_records": self._params_for_dymanic(record),
             "filters": [
                 {"type": "geodns"},
-                {"type": "first_n", "limit": self.records_per_response},
                 {
                     "type": "default",
                     "limit": self.records_per_response,
                     "strict": False,
                 },
+                {"type": "first_n", "limit": self.records_per_response},
             ],
         }
 
@@ -524,12 +524,12 @@ class GCoreProvider(BaseProvider):
             extra["resource_records"] = self._params_for_dymanic(record)
             extra["filters"] = [
                 {"type": "geodns"},
-                {"type": "first_n", "limit": self.records_per_response},
                 {
                     "type": "default",
                     "limit": self.records_per_response,
                     "strict": False,
                 },
+                {"type": "first_n", "limit": self.records_per_response},
             ]
         else:
             extra["resource_records"] = [

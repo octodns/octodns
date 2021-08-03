@@ -31,6 +31,16 @@ class TestGCoreProvider(TestCase):
     source = YamlProvider("test", join(dirname(__file__), "config"))
     source.populate(expected)
 
+    default_filters = [
+        {"type": "geodns"},
+        {
+            "type": "default",
+            "limit": 1,
+            "strict": False,
+        },
+        {"type": "first_n", "limit": 1},
+    ]
+
     def test_populate(self):
 
         provider = GCoreProvider("test_id", token="token")
@@ -170,15 +180,7 @@ class TestGCoreProvider(TestCase):
                             "name": "unit.tests.",
                             "type": "A",
                             "ttl": 300,
-                            "filters": [
-                                {"type": "geodns"},
-                                {"limit": 1, "type": "first_n"},
-                                {
-                                    "limit": 1,
-                                    "strict": False,
-                                    "type": "default",
-                                },
-                            ],
+                            "filters": self.default_filters,
                             "resource_records": [{"content": ["7.7.7.7"]}],
                         }
                     ]
@@ -518,7 +520,7 @@ class TestGCoreProvider(TestCase):
         wanted.add_record(
             Record.new(
                 wanted,
-                "geo-cname-simple",
+                "cname-smpl",
                 {
                     "ttl": 300,
                     "type": "CNAME",
@@ -552,7 +554,7 @@ class TestGCoreProvider(TestCase):
         wanted.add_record(
             Record.new(
                 wanted,
-                "geo-cname-defaults",
+                "cname-dflt",
                 {
                     "ttl": 300,
                     "type": "CNAME",
@@ -585,15 +587,7 @@ class TestGCoreProvider(TestCase):
                     "http://api/zones/unit.tests/geo-simple.unit.tests./A",
                     data={
                         "ttl": 300,
-                        "filters": [
-                            {"type": "geodns"},
-                            {"type": "first_n", "limit": 1},
-                            {
-                                "type": "default",
-                                "limit": 1,
-                                "strict": False,
-                            },
-                        ],
+                        "filters": self.default_filters,
                         "resource_records": [
                             {
                                 "content": ["1.1.1.1"],
@@ -619,15 +613,7 @@ class TestGCoreProvider(TestCase):
                     "http://api/zones/unit.tests/geo-defaults.unit.tests./A",
                     data={
                         "ttl": 300,
-                        "filters": [
-                            {"type": "geodns"},
-                            {"type": "first_n", "limit": 1},
-                            {
-                                "type": "default",
-                                "limit": 1,
-                                "strict": False,
-                            },
-                        ],
+                        "filters": self.default_filters,
                         "resource_records": [
                             {
                                 "content": ["2.2.2.1"],
@@ -641,18 +627,10 @@ class TestGCoreProvider(TestCase):
                 ),
                 call(
                     "POST",
-                    "http://api/zones/unit.tests/geo-cname-simple.unit.tests./CNAME",
+                    "http://api/zones/unit.tests/cname-smpl.unit.tests./CNAME",
                     data={
                         "ttl": 300,
-                        "filters": [
-                            {"type": "geodns"},
-                            {"type": "first_n", "limit": 1},
-                            {
-                                "type": "default",
-                                "limit": 1,
-                                "strict": False,
-                            },
-                        ],
+                        "filters": self.default_filters,
                         "resource_records": [
                             {
                                 "content": ["ru-1.unit.tests."],
@@ -675,18 +653,10 @@ class TestGCoreProvider(TestCase):
                 ),
                 call(
                     "POST",
-                    "http://api/zones/unit.tests/geo-cname-defaults.unit.tests./CNAME",
+                    "http://api/zones/unit.tests/cname-dflt.unit.tests./CNAME",
                     data={
                         "ttl": 300,
-                        "filters": [
-                            {"type": "geodns"},
-                            {"type": "first_n", "limit": 1},
-                            {
-                                "type": "default",
-                                "limit": 1,
-                                "strict": False,
-                            },
-                        ],
+                        "filters": self.default_filters,
                         "resource_records": [
                             {
                                 "content": ["eu.unit.tests."],
