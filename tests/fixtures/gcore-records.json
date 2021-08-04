@@ -1,0 +1,428 @@
+{
+    "rrsets": [
+        {
+            "name": "unit.tests",
+            "type": "A",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "1.2.3.4"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "unit.tests",
+            "type": "NS",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "ns2.gcdn.services"
+                    ]
+                },
+                {
+                    "content": [
+                        "ns1.gcorelabs.net"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "_imap._tcp",
+            "type": "SRV",
+            "ttl": 1200,
+            "resource_records": [
+                {
+                    "content": [
+                        0,
+                        0,
+                        0,
+                        "."
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "_pop3._tcp",
+            "type": "SRV",
+            "ttl": 1200,
+            "resource_records": [
+                {
+                    "content": [
+                        0,
+                        0,
+                        0,
+                        "."
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "_srv._tcp",
+            "type": "SRV",
+            "ttl": 1200,
+            "resource_records": [
+                {
+                    "content": [
+                        12,
+                        20,
+                        30,
+                        "foo-2.unit.tests."
+                    ]
+                },
+                {
+                    "content": [
+                        10,
+                        20,
+                        30,
+                        "foo-1.unit.tests."
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "aaaa.unit.tests",
+            "type": "AAAA",
+            "ttl": 600,
+            "resource_records": [
+                {
+                    "content": [
+                        "2601:644:500:e210:62f8:1dff:feb8:947a"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "cname.unit.tests",
+            "type": "CNAME",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "unit.tests."
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "mx.unit.tests",
+            "type": "MX",
+            "ttl": 600,
+            "resource_records": [
+                {
+                    "content": [
+                        40,
+                        "smtp-1.unit.tests."
+                    ]
+                },
+                {
+                    "content": [
+                        20,
+                        "smtp-2.unit.tests."
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ptr.unit.tests.",
+            "type": "PTR",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "foo.bar.com"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "sub.unit.tests",
+            "type": "NS",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "6.2.3.4"
+                    ]
+                },
+                {
+                    "content": [
+                        "7.2.3.4"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "txt.unit.tests",
+            "type": "TXT",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "\"Bah bah black sheep\""
+                    ]
+                },
+                {
+                    "content": [
+                        "\"have you any wool.\""
+                    ]
+                },
+                {
+                    "content": [
+                        "\"v=DKIM1;k=rsa;s=email;h=sha256;p=A/kinda+of/long/string+with+numb3rs\""
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "www.unit.tests.",
+            "type": "A",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "2.2.3.6"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "www.sub.unit.tests.",
+            "type": "A",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "2.2.3.6"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "geo-A-single.unit.tests.",
+            "type": "A",
+            "ttl": 300,
+            "filters": [
+                {
+                    "type": "geodns"
+                },
+                {
+                    "limit": 1,
+                    "strict": false,
+                    "type": "default"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ],
+                    "meta": {
+                        "countries": [
+                            "RU"
+                        ]
+                    }
+                },
+                {
+                    "content": [
+                        "8.8.8.8"
+                    ],
+                    "meta": {
+                        "countries": [
+                            "RU"
+                        ]
+                    }
+                },
+                {
+                    "content": [
+                        "9.9.9.9"
+                    ],
+                    "meta": {
+                        "continents": [
+                            "EU"
+                        ]
+                    }
+                },
+                {
+                    "content": [
+                        "10.10.10.10"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                }
+            ]
+        },
+        {
+            "name": "geo-no-def.unit.tests.",
+            "type": "A",
+            "ttl": 300,
+            "filters": [
+                {
+                    "type": "geodns"
+                },
+                {
+                    "limit": 1,
+                    "strict": false,
+                    "type": "default"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ],
+                    "meta": {
+                        "countries": [
+                            "RU"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "geo-CNAME.unit.tests.",
+            "type": "CNAME",
+            "ttl": 300,
+            "filters": [
+                {
+                    "type": "geodns"
+                },
+                {
+                    "limit": 1,
+                    "strict": false,
+                    "type": "default"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "ru-1.unit.tests"
+                    ],
+                    "meta": {
+                        "countries": [
+                            "RU"
+                        ]
+                    }
+                },
+                {
+                    "content": [
+                        "ru-2.unit.tests"
+                    ],
+                    "meta": {
+                        "countries": [
+                            "RU"
+                        ]
+                    }
+                },
+                {
+                    "content": [
+                        "eu.unit.tests"
+                    ],
+                    "meta": {
+                        "continents": [
+                            "EU"
+                        ]
+                    }
+                },
+                {
+                    "content": [
+                        "any.unit.tests."
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                }
+            ]
+        },
+        {
+            "name": "geo-ignore-len-filters.unit.tests.",
+            "type": "A",
+            "ttl": 300,
+            "filters": [
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "limit": 1,
+                    "strict": false,
+                    "type": "default"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "geo-ignore-types.unit.tests.",
+            "type": "A",
+            "ttl": 300,
+            "filters": [
+                {
+                    "type": "geodistance"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "limit": 1,
+                    "strict": false,
+                    "type": "default"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "geo-ignore-limits.unit.tests.",
+            "type": "A",
+            "ttl": 300,
+            "filters": [
+                {
+                    "type": "geodns"
+                },
+                {
+                    "limit": 2,
+                    "strict": false,
+                    "type": "default"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ]
+                }
+            ]
+        }
+    ]
+}
