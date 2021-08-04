@@ -1358,7 +1358,9 @@ class Ns1Provider(BaseProvider):
         params, active_monitor_ids = \
             getattr(self, '_params_for_{}'.format(_type))(new)
         self._client.records_update(zone, domain, _type, **params)
-        self._monitors_gc(new, active_monitor_ids)
+        # If we're cleaning up we need to send in the old record since it'd
+        # have anything that needs cleaning up
+        self._monitors_gc(change.existing, active_monitor_ids)
 
     def _apply_Delete(self, ns1_zone, change):
         existing = change.existing
