@@ -236,8 +236,9 @@ class Ns1Provider(BaseProvider):
         # Optional. Default: false. true is Recommended, but not the default
         # for backwards compatibility reasons. If true, all NS1 monitors will
         # use a shared notify list rather than one per record & value
-        # combination. See CHANGELOG for more information before enabling this
-        # behavior.
+        # combination. See CHANGELOG,
+        # https://github.com/octodns/octodns/blob/master/CHANGELOG.md, for more
+        # information before enabling this behavior.
         shared_notifylist: false
         # Optional. Default: None. If set, back off in advance to avoid 429s
         # from rate-limiting. Generally this should be set to the number
