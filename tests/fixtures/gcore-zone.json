@@ -1,0 +1,27 @@
+{
+    "id": 27757,
+    "name": "unit.test",
+    "nx_ttl": 300,
+    "retry": 5400,
+    "refresh": 0,
+    "expiry": 1209600,
+    "contact": "support@gcorelabs.com",
+    "serial": 1614752868,
+    "primary_server": "ns1.gcorelabs.net",
+    "records": [
+      {
+        "id": 12419,
+        "name": "unit.test",
+        "type": "ns",
+        "ttl": 300,
+        "short_answers": [
+          "[ns2.gcdn.services]",
+          "[ns1.gcorelabs.net]"
+        ]
+      }
+    ],
+    "dns_servers": [
+      "ns1.gcorelabs.net",
+      "ns2.gcdn.services"
+    ]
+}
