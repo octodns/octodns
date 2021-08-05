@@ -77,8 +77,10 @@ class Ns1Client(object):
         self._datafeed = client.datafeed()
 
         self._datasource_id = None
+
         self._feeds_for_monitors = None
         self._monitors_cache = None
+        self._notifylists_cache = None
 
     @property
     def datasource_id(self):
@@ -120,6 +122,14 @@ class Ns1Client(object):
             self._monitors_cache = \
                 {m['id']: m for m in self.monitors_list()}
         return self._monitors_cache
+
+    @property
+    def notifylists(self):
+        if self._notifylists_cache is None:
+            self.log.debug('notifylists: fetching & building')
+            self._notifylists_cache = \
+                {l['name']: l for l in self.notifylists_list()}
+        return self._notifylists_cache
 
     def datafeed_create(self, sourceid, name, config):
         ret = self._try(self._datafeed.create, sourceid, name, config)
@@ -163,10 +173,17 @@ class Ns1Client(object):
         return ret
 
     def notifylists_delete(self, nlid):
+        for name, nl in self.notifylists.items():
+            if nl['id'] == nlid:
+                del self._notifylists_cache[name]
+                break
         return self._try(self._notifylists.delete, nlid)
 
     def notifylists_create(self, **body):
-        return self._try(self._notifylists.create, body)
+        nl = self._try(self._notifylists.create, body)
+        # cache it
+        self.notifylists[nl['name']] = nl
+        return nl
 
     def notifylists_list(self):
         return self._try(self._notifylists.list)
@@ -216,6 +233,13 @@ class Ns1Provider(BaseProvider):
         # Only required if using dynamic records
         monitor_regions:
           - lga
+        # Optional. Default: false. true is Recommended, but not the default
+        # for backwards compatibility reasons. If true, all NS1 monitors will
+        # use a shared notify list rather than one per record & value
+        # combination. See CHANGELOG,
+        # https://github.com/octodns/octodns/blob/master/CHANGELOG.md, for more
+        # information before enabling this behavior.
+        shared_notifylist: false
         # Optional. Default: None. If set, back off in advance to avoid 429s
         # from rate-limiting. Generally this should be set to the number
         # of processes or workers hitting the API, e.g. the value of
@@ -237,6 +261,7 @@ class Ns1Provider(BaseProvider):
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT', 'URLFWD'))
 
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
+    SHARED_NOTIFYLIST_NAME = 'octoDNS NS1 Notify List'
 
     def _update_filter(self, filter, with_disabled):
         if with_disabled:
@@ -368,7 +393,8 @@ class Ns1Provider(BaseProvider):
     }
 
     def __init__(self, id, api_key, retry_count=4, monitor_regions=None,
-                 parallelism=None, client_config=None, *args, **kwargs):
+                 parallelism=None, client_config=None, shared_notifylist=False,
+                 *args, **kwargs):
         self.log = getLogger('Ns1Provider[{}]'.format(id))
         self.log.debug('__init__: id=%s, api_key=***, retry_count=%d, '
                        'monitor_regions=%s, parallelism=%s, client_config=%s',
@@ -376,6 +402,7 @@ class Ns1Provider(BaseProvider):
                        client_config)
         super(Ns1Provider, self).__init__(id, *args, **kwargs)
         self.monitor_regions = monitor_regions
+        self.shared_notifylist = shared_notifylist
         self._client = Ns1Client(api_key, parallelism, retry_count,
                                  client_config)
 
@@ -888,7 +915,6 @@ class Ns1Provider(BaseProvider):
     def _feed_create(self, monitor):
         monitor_id = monitor['id']
         self.log.debug('_feed_create: monitor=%s', monitor_id)
-        # TODO: looks like length limit is 64 char
         name = '{} - {}'.format(monitor['name'], self._uuid()[:6])
 
         # Create the data feed
@@ -902,22 +928,36 @@ class Ns1Provider(BaseProvider):
 
         return feed_id
 
+    def _notifylists_find_or_create(self, name):
+        self.log.debug('_notifylists_find_or_create: name="%s"', name)
+        try:
+            nl = self._client.notifylists[name]
+            self.log.debug('_notifylists_find_or_create:   existing=%s',
+                           nl['id'])
+        except KeyError:
+            notify_list = [{
+                'config': {
+                    'sourceid': self._client.datasource_id,
+                },
+                'type': 'datafeed',
+            }]
+            nl = self._client.notifylists_create(name=name,
+                                                 notify_list=notify_list)
+            self.log.debug('_notifylists_find_or_create:   created=%s',
+                           nl['id'])
+
+        return nl
+
     def _monitor_create(self, monitor):
         self.log.debug('_monitor_create: monitor="%s"', monitor['name'])
-        # Create the notify list
-        notify_list = [{
-            'config': {
-                'sourceid': self._client.datasource_id,
-            },
-            'type': 'datafeed',
-        }]
-        nl = self._client.notifylists_create(name=monitor['name'],
-                                             notify_list=notify_list)
-        nl_id = nl['id']
-        self.log.debug('_monitor_create:   notify_list=%s', nl_id)
+
+        # Find the right notifylist
+        nl_name = self.SHARED_NOTIFYLIST_NAME \
+            if self.shared_notifylist else monitor['name']
+        nl = self._notifylists_find_or_create(nl_name)
 
         # Create the monitor
-        monitor['notify_list'] = nl_id
+        monitor['notify_list'] = nl['id']
         monitor = self._client.monitors_create(**monitor)
         monitor_id = monitor['id']
         self.log.debug('_monitor_create:   monitor=%s', monitor_id)
@@ -1028,7 +1068,13 @@ class Ns1Provider(BaseProvider):
             self._client.monitors_delete(monitor_id)
 
             notify_list_id = monitor['notify_list']
-            self._client.notifylists_delete(notify_list_id)
+            for nl_name, nl in self._client.notifylists.items():
+                if nl['id'] == notify_list_id:
+                    # We've found the that might need deleting
+                    if nl['name'] != self.SHARED_NOTIFYLIST_NAME:
+                        # It's not shared so is safe to delete
+                        self._client.notifylists_delete(notify_list_id)
+                    break
 
     def _add_answers_for_pool(self, answers, default_answers, pool_name,
                               pool_label, pool_answers, pools, priority):
