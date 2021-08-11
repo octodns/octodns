@@ -16,6 +16,8 @@ class AcmeIgnoringProcessor(BaseProcessor):
     def __init__(self, name):
         super(AcmeIgnoringProcessor, self).__init__(name)
 
+        self._owned = set()
+
     def process_source_zone(self, zone, *args, **kwargs):
         ret = self._clone_zone(zone)
         for record in zone.records:
@@ -26,6 +28,7 @@ class AcmeIgnoringProcessor(BaseProcessor):
                 record = record.copy()
                 record.values.append('*octoDNS*')
                 record.values.sort()
+                self._owned.add(record)
             ret.add_record(record)
         return ret
 
@@ -36,7 +39,8 @@ class AcmeIgnoringProcessor(BaseProcessor):
             # e.g. _acme-challenge.foo.domain.com when managing domain.com
             if record._type == 'TXT' and \
                record.name.startswith('_acme-challenge') and \
-               '*octoDNS*' not in record.values:
+               '*octoDNS*' not in record.values and \
+               record not in self._owned:
                 self.log.info('_process: ignoring %s', record.fqdn)
                 continue
             ret.add_record(record)
