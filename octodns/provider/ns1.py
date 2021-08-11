@@ -1208,15 +1208,21 @@ class Ns1Provider(BaseProvider):
 
         # Build a list of primary values for each pool, including their
         # feed_id (monitor)
+        value_feed = dict()
         pool_answers = defaultdict(list)
         for pool_name, pool in sorted(pools.items()):
             for value in pool.data['values']:
                 weight = value['weight']
                 value = value['value']
-                existing = existing_monitors.get(value)
-                monitor_id, feed_id = self._monitor_sync(record, value,
-                                                         existing)
-                active_monitors.add(monitor_id)
+                feed_id = value_feed.get(value)
+                # check for identical monitor and skip creating one if found
+                if not feed_id:
+                    existing = existing_monitors.get(value)
+                    monitor_id, feed_id = self._monitor_sync(record, value,
+                                                             existing)
+                    value_feed[value] = feed_id
+                    active_monitors.add(monitor_id)
+
                 pool_answers[pool_name].append({
                     'answer': [value],
                     'weight': weight,

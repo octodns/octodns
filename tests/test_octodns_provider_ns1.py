@@ -1459,6 +1459,10 @@ class TestNs1ProviderDynamic(TestCase):
         # This indirectly calls into _params_for_dynamic and tests the
         # handling to get there
         record = self.record()
+        # copy an existing answer from a different pool to 'lhr' so
+        # in order to test answer repetition across pools (monitor reuse)
+        record.dynamic._data()['pools']['lhr']['values'].append(
+            record.dynamic._data()['pools']['iad']['values'][0])
         ret, _ = provider._params_for_A(record)
 
         # Given that record has both country and region in the rules,
