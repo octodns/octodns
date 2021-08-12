@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from unittest import TestCase
 
-from octodns.processor.acme import AcmeIgnoringProcessor
+from octodns.processor.acme import AcmeMangingProcessor
 from octodns.record import Record
 from octodns.zone import Zone
 
@@ -51,10 +51,10 @@ records = {
 }
 
 
-class TestAcmeIgnoringProcessor(TestCase):
+class TestAcmeMangingProcessor(TestCase):
 
     def test_process_zones(self):
-        acme = AcmeIgnoringProcessor('acme')
+        acme = AcmeMangingProcessor('acme')
 
         source = Zone(zone.name, [])
         # Unrelated stuff that should be untouched

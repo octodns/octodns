@@ -10,11 +10,25 @@ from logging import getLogger
 from .base import BaseProcessor
 
 
-class AcmeIgnoringProcessor(BaseProcessor):
-    log = getLogger('AcmeIgnoringProcessor')
+class AcmeMangingProcessor(BaseProcessor):
+    log = getLogger('AcmeMangingProcessor')
 
     def __init__(self, name):
-        super(AcmeIgnoringProcessor, self).__init__(name)
+        '''
+        processors:
+          acme:
+            class: octodns.processor.acme.AcmeMangingProcessor
+
+        ...
+
+        zones:
+          something.com.:
+          ...
+          processors:
+            - acme
+          ...
+        '''
+        super(AcmeMangingProcessor, self).__init__(name)
 
         self._owned = set()
 
@@ -28,6 +42,8 @@ class AcmeIgnoringProcessor(BaseProcessor):
                 record = record.copy()
                 record.values.append('*octoDNS*')
                 record.values.sort()
+                # This assumes we'll see things as sources before targets,
+                # which is the case...
                 self._owned.add(record)
             ret.add_record(record)
         return ret
