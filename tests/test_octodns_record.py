@@ -2733,7 +2733,7 @@ class TestRecordValidation(TestCase):
                 'type': 'PTR',
                 'ttl': 600,
             })
-        self.assertEquals(['missing value'], ctx.exception.reasons)
+        self.assertEquals(['missing values'], ctx.exception.reasons)
 
         # not a valid FQDN
         with self.assertRaises(ValidationError) as ctx:
@@ -2754,6 +2754,16 @@ class TestRecordValidation(TestCase):
             })
         self.assertEquals(['PTR value "foo.bar" missing trailing .'],
                           ctx.exception.reasons)
+
+        # multi-value requesting single-value
+        with self.assertRaises(AttributeError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'PTR',
+                'ttl': 600,
+                'values': ['foo.com.', 'bar.net.'],
+            }).value
+        self.assertEquals("Multi-value PTR record has no attribute 'value'",
+                          text_type(ctx.exception))
 
     def test_SSHFP(self):
         # doesn't blow up

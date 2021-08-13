@@ -20,6 +20,10 @@ from ..record import Record, Update
 from .base import BaseProvider
 
 
+def _check_endswith_dot(string):
+    return string if string.endswith('.') else '{}.'.format(string)
+
+
 class Ns1Exception(Exception):
     pass
 
@@ -717,7 +721,6 @@ class Ns1Provider(BaseProvider):
         }
 
     _data_for_ALIAS = _data_for_CNAME
-    _data_for_PTR = _data_for_CNAME
 
     def _data_for_MX(self, _type, record):
         values = []
@@ -756,9 +759,10 @@ class Ns1Provider(BaseProvider):
         return {
             'ttl': record['ttl'],
             'type': _type,
-            'values': [a if a.endswith('.') else '{}.'.format(a)
-                       for a in record['short_answers']],
+            'values': record['short_answers'],
         }
+
+    _data_for_PTR = _data_for_NS
 
     def _data_for_SRV(self, _type, record):
         values = []
@@ -809,9 +813,10 @@ class Ns1Provider(BaseProvider):
             for record in ns1_zone['records']:
                 if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'PTR',
                                       'SRV']:
-                    for i, a in enumerate(record['short_answers']):
-                        if not a.endswith('.'):
-                            record['short_answers'][i] = '{}.'.format(a)
+                    record['short_answers'] = [
+                        _check_endswith_dot(a)
+                        for a in record['short_answers']
+                    ]
 
                 if record.get('tier', 1) > 1:
                     # Need to get the full record data for geo records
@@ -1297,7 +1302,6 @@ class Ns1Provider(BaseProvider):
         return {'answers': [record.value], 'ttl': record.ttl}, None
 
     _params_for_ALIAS = _params_for_CNAME
-    _params_for_PTR = _params_for_CNAME
 
     def _params_for_MX(self, record):
         values = [(v.preference, v.exchange) for v in record.values]
@@ -1307,6 +1311,12 @@ class Ns1Provider(BaseProvider):
         values = [(v.order, v.preference, v.flags, v.service, v.regexp,
                    v.replacement) for v in record.values]
         return {'answers': values, 'ttl': record.ttl}, None
+
+    def _params_for_PTR(self, record):
+        return {
+            'answers': record.values,
+            'ttl': record.ttl,
+        }, None
 
     def _params_for_SRV(self, record):
         values = [(v.priority, v.weight, v.port, v.target)
