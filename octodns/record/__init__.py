@@ -1286,7 +1286,7 @@ class PtrRecord(_ValuesMixin, Record):
     @property
     def value(self):
         if len(self.values) == 1:
-            return self.values[0]
+            return self.data['value']
 
         raise AttributeError("Multi-value PTR record has no attribute 'value'")
 
