@@ -622,10 +622,13 @@ class Ns1Provider(BaseProvider):
                     for c in countries:
                         geos.add('{}-{}'.format(continent, c))
 
-            # States are easy too, just assume NA-US (CA providences aren't
-            # supported by octoDNS currently)
+            # States and provinces are easy too,
+            # just assume NA-US or NA-CA
             for state in meta.get('us_state', []):
                 geos.add('NA-US-{}'.format(state))
+
+            for province in meta.get('ca_province', []):
+                geos.add('NA-CA-{}'.format(province))
 
             if geos:
                 # There are geos, combine them with any existing geos for this
@@ -1144,12 +1147,15 @@ class Ns1Provider(BaseProvider):
             country = set()
             georegion = set()
             us_state = set()
+            ca_province = set()
 
             for geo in rule.data.get('geos', []):
                 n = len(geo)
                 if n == 8:
                     # US state, e.g. NA-US-KY
-                    us_state.add(geo[-2:])
+                    # CA province, e.g. NA-CA-NL
+                    us_state.add(geo[-2:]) if "NA-US" in geo \
+                        else ca_province.add(geo[-2:])
                     # For filtering. State filtering is done by the country
                     # filter
                     has_country = True
@@ -1182,7 +1188,7 @@ class Ns1Provider(BaseProvider):
                     'meta': georegion_meta,
                 }
 
-            if country or us_state:
+            if country or us_state or ca_province:
                 # If there's country and/or states its a country pool,
                 # countries and states can coexist as they're handled by the
                 # same step in the filterchain (countries and georegions
@@ -1193,11 +1199,12 @@ class Ns1Provider(BaseProvider):
                     country_state_meta['country'] = sorted(country)
                 if us_state:
                     country_state_meta['us_state'] = sorted(us_state)
+                if ca_province:
+                    country_state_meta['ca_province'] = sorted(ca_province)
                 regions['{}__country'.format(pool_name)] = {
                     'meta': country_state_meta,
                 }
-
-            if not georegion and not country and not us_state:
+            elif not georegion:
                 # If there's no targeting it's a catchall
                 regions['{}__catchall'.format(pool_name)] = {
                     'meta': meta,

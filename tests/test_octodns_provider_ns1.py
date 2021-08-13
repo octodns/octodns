@@ -1247,7 +1247,7 @@ class TestNs1ProviderDynamic(TestCase):
         rule0 = record.data['dynamic']['rules'][0]
         rule1 = record.data['dynamic']['rules'][1]
         rule0['geos'] = ['AF', 'EU']
-        rule1['geos'] = ['NA-US-CA']
+        rule1['geos'] = ['NA-US-CA', 'NA-CA-NL']
         ret, _ = provider._params_for_A(record)
         self.assertEquals(10, len(ret['answers']))
         exp = Ns1Provider._FILTER_CHAIN_WITH_REGION_AND_COUNTRY(provider,
@@ -1262,7 +1262,8 @@ class TestNs1ProviderDynamic(TestCase):
             'iad__country': {
                 'meta': {
                     'note': 'rule-order:1',
-                    'us_state': ['CA']
+                    'us_state': ['CA'],
+                    'ca_province': ['NL']
                 }
             },
             'lhr__georegion': {
@@ -1624,8 +1625,9 @@ class TestNs1ProviderDynamic(TestCase):
                 'lhr__country': {
                     'meta': {
                         'note': 'rule-order:1 fallback:iad',
-                        'country': ['CA'],
+                        'country': ['MX'],
                         'us_state': ['OR'],
+                        'ca_province': ['NL']
                     },
                 },
                 # iad will use the old style "plain" region naming. We won't
@@ -1669,8 +1671,9 @@ class TestNs1ProviderDynamic(TestCase):
                     '_order': '1',
                     'geos': [
                         'AF',
-                        'NA-CA',
-                        'NA-US-OR',
+                        'NA-CA-NL',
+                        'NA-MX',
+                        'NA-US-OR'
                     ],
                     'pool': 'lhr',
                 }, {
