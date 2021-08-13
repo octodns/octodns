@@ -20,7 +20,7 @@ from ..record import Record, Update
 from .base import BaseProvider
 
 
-def _check_endswith_dot(string):
+def _ensure_endswith_dot(string):
     return string if string.endswith('.') else '{}.'.format(string)
 
 
@@ -814,7 +814,7 @@ class Ns1Provider(BaseProvider):
                 if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'PTR',
                                       'SRV']:
                     record['short_answers'] = [
-                        _check_endswith_dot(a)
+                        _ensure_endswith_dot(a)
                         for a in record['short_answers']
                     ]
 
