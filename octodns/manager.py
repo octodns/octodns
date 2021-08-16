@@ -294,8 +294,30 @@ class Manager(object):
             for processor in processors:
                 plan = processor.process_plan(plan, sources=sources,
                                               target=target)
-            if plan:
-                plans.append((target, plan))
+            if not plan:
+                continue
+
+            # Multi value PTR check
+            for change in plan.changes:
+                record = change.new
+                if not record:
+                    # Delete - doesn't need to be checked
+                    continue
+
+                if record._type == 'PTR' and len(record.values) > 1 and not \
+                   target.SUPPORTS_MUTLIVALUE_PTR:
+                    self.log.warn('target=%s does not support multi-value PTR '
+                                  'record %s; using %s as its only answer',
+                                  target, record.fqdn, record.value)
+                    # Make a new copy of the record so as to not change a
+                    # potentially shared object
+                    change.new = Record.new(record.zone, record.name, {
+                        'type': record._type,
+                        'ttl': record.ttl,
+                        'value': record.value,
+                    }, source=record.source, lenient=lenient)
+
+            plans.append((target, plan))
 
         # Return the zone as it's the desired state
         return plans, zone

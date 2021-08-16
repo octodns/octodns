@@ -1285,10 +1285,7 @@ class PtrRecord(_ValuesMixin, Record):
     # multi-value PTR records.
     @property
     def value(self):
-        if len(self.values) == 1:
-            return self.data['value']
-
-        raise AttributeError("Multi-value PTR record has no attribute 'value'")
+        return self.values[0]
 
 
 class SshfpValue(EqualityTupleMixin):
