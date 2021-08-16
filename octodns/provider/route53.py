@@ -31,6 +31,7 @@ def _octal_replace(s):
 
 
 class _Route53Record(EqualityTupleMixin):
+    log = logging.getLogger('Route53Record')
 
     @classmethod
     def _new_dynamic(cls, provider, record, hosted_zone_id, creating):
@@ -90,7 +91,21 @@ class _Route53Record(EqualityTupleMixin):
             pool_name = rule.data['pool']
             geos = rule.data.get('geos', [])
             if geos:
-                for geo in geos:
+                # Filter out NA-CA-*
+                filtered_geos = [g for g in geos
+                                 if not g.startswith('NA-CA-')]
+                if not filtered_geos:
+                    # We've removed all geos, we'll have to skip this rule
+                    cls.log.warning('NA-CA-* not supported resulting in '
+                                    'empty geo target, skipping rule %d', i)
+                    continue
+                elif geos != filtered_geos:
+                    # We've removed some geos
+                    cls.log.warning('NA-CA-* not supported, using remaining '
+                                    'geos resulting in rule %d', i)
+                # if not filtered geos, warn & continue
+                # if geos != filtered geos, warn
+                for geo in filtered_geos:
                     # Create a RRSet for each geo in each rule that uses the
                     # desired target pool
                     ret.add(_Route53DynamicRule(provider, hosted_zone_id,

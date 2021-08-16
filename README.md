@@ -212,7 +212,7 @@ The above command pulled the existing data out of Route53 and placed the results
 | [OVH](/octodns/provider/ovh.py) | ovh | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
 | [PowerDnsProvider](/octodns/provider/powerdns.py) | | All | No | |
 | [Rackspace](/octodns/provider/rackspace.py) | | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
-| [Route53](/octodns/provider/route53.py) | boto3 | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Both | CNAME health checks don't support a Host header |
+| [Route53](/octodns/provider/route53.py) | boto3 | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Both | CNAME health checks don't support a Host header, NA-CA-* geos not supported |
 | [Selectel](/octodns/provider/selectel.py) | | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | |
 | [Transip](/octodns/provider/transip.py) | transip | A, AAAA, CNAME, MX, NS, SRV, SPF, TXT, SSHFP, CAA | No | |
 | [UltraDns](/octodns/provider/ultra.py) | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | |

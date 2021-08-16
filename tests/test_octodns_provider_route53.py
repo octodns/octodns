@@ -2823,6 +2823,75 @@ class TestRoute53Records(TestCase):
             # Smoke test stringification
             route53_record.__repr__()
 
+    def test_dynamic_na_ca_filtering(self):
+        provider = Route53Provider('test', 'abc', '123')
+
+        # Just so boto won't try and make any calls
+        stubber = Stubber(provider._conn)
+        stubber.activate()
+
+        # We'll assume we create all healthchecks here, this functionality is
+        # thoroughly tested elsewhere
+        provider._health_checks = {}
+        # When asked for a healthcheck return dummy info
+        provider.get_health_check_id = lambda r, v, c: 'hc42'
+
+        with_ca_data = {
+            'dynamic': {
+                'pools': {
+                    'ap-southeast-1': {
+                        'fallback': 'us-east-1',
+                        'values': [{
+                            'weight': 2, 'value': '1.4.1.1'
+                        }, {
+                            'weight': 2, 'value': '1.4.1.2'
+                        }]
+                    },
+                    'eu-central-1': {
+                        'fallback': 'us-east-1',
+                        'values': [{
+                            'weight': 1, 'value': '1.3.1.1'
+                        }, {
+                            'weight': 1, 'value': '1.3.1.2'
+                        }],
+                    },
+                    'us-east-1': {
+                        'values': [{
+                            'weight': 1, 'value': '1.5.1.1'
+                        }, {
+                            'weight': 1, 'value': '1.5.1.2'
+                        }],
+                    }
+                },
+                'rules': [{
+                    # This one will go away completely
+                    'geos': ['NA-CA-NL'],
+                    'pool': 'ap-southeast-1',
+                }, {
+                    # This one will just have the CA bit removed
+                    'geos': ['EU', 'NA-CA-BC', 'NA-US-FL'],
+                    'pool': 'eu-central-1',
+                }, {
+                    'pool': 'us-east-1',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.2.1',
+                '1.1.2.2',
+            ],
+        }
+
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, '', with_ca_data)
+
+        route53_records = _Route53Record.new(provider, record, 'z45',
+                                             creating=True)
+        # Checking the number of things should be enough to know the CA bits
+        # went away
+        self.assertEquals(16, len(route53_records))
+
 
 class TestModKeyer(TestCase):
 
