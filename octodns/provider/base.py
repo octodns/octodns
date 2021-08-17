@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from six import text_type
 
+from ..record import Record
 from ..source.base import BaseSource
 from ..zone import Zone
 from .plan import Plan
@@ -44,6 +45,35 @@ class BaseProvider(BaseSource):
         '''
         return []
 
+    def _process_change(self, change):
+        '''
+        Process/manipulate each change for feature-specific corner cases
+        '''
+        if not self._include_change(change):
+            return False
+
+        # Multi value PTR records
+        record = change.new
+        if record and record._type == 'PTR' and len(record.values) > 1 and \
+           not self.SUPPORTS_MUTLIVALUE_PTR:
+            # replace with a single-value copy
+            change.new = Record.new(record.zone, record.name, {
+                'type': 'PTR',
+                'ttl': record.ttl,
+                'values': [record.value],
+            }, source=record.source)
+
+            existing = change.existing
+            if existing and not existing.changes(change.new, self):
+                # if new single-value replacement turns out to be the same,
+                # skip the change
+                return False
+
+            self.log.warn('does not support multi-value PTR records; will '
+                          'use only %s for %s', record.value, record.fqdn)
+
+        return True
+
     def plan(self, desired, processors=[]):
         self.log.info('plan: desired=%s', desired.name)
 
@@ -63,7 +93,7 @@ class BaseProvider(BaseSource):
 
         # allow the provider to filter out false positives
         before = len(changes)
-        changes = [c for c in changes if self._include_change(c)]
+        changes = [c for c in changes if self._process_change(c)]
         after = len(changes)
         if before != after:
             self.log.info('plan:   filtered out %s changes', before - after)
