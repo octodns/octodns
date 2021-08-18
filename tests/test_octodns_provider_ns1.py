@@ -120,6 +120,11 @@ class TestNs1Provider(TestCase):
             'query': 0,
         },
     }))
+    expected.add(Record.new(zone, '1.2.3.4', {
+        'ttl': 42,
+        'type': 'PTR',
+        'values': ['one.one.one.one.', 'two.two.two.two.'],
+    }))
 
     ns1_records = [{
         'type': 'A',
@@ -180,6 +185,11 @@ class TestNs1Provider(TestCase):
         'ttl': 41,
         'short_answers': ['/ http://foo.unit.tests 301 2 0'],
         'domain': 'urlfwd.unit.tests.',
+    }, {
+        'type': 'PTR',
+        'ttl': 42,
+        'short_answers': ['one.one.one.one.', 'two.two.two.two.'],
+        'domain': '1.2.3.4.unit.tests.',
     }]
 
     @patch('ns1.rest.records.Records.retrieve')
@@ -358,10 +368,10 @@ class TestNs1Provider(TestCase):
             ResourceException('server error: zone not found')
 
         zone_create_mock.side_effect = ['foo']
-        # Test out the create rate-limit handling, then 9 successes
+        # Test out the create rate-limit handling, then successes for the rest
         record_create_mock.side_effect = [
             RateLimitException('boo', period=0),
-        ] + ([None] * 10)
+        ] + ([None] * len(self.expected))
 
         got_n = provider.apply(plan)
         self.assertEquals(expected_n, got_n)
@@ -379,6 +389,9 @@ class TestNs1Provider(TestCase):
             call('unit.tests', 'unit.tests', 'MX', answers=[
                 (10, 'mx1.unit.tests.'), (20, 'mx2.unit.tests.')
             ], ttl=35),
+            call('unit.tests', '1.2.3.4.unit.tests', 'PTR', answers=[
+                'one.one.one.one.', 'two.two.two.two.',
+            ], ttl=42),
         ])
 
         # Update & delete

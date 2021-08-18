@@ -2733,7 +2733,7 @@ class TestRecordValidation(TestCase):
                 'type': 'PTR',
                 'ttl': 600,
             })
-        self.assertEquals(['missing value'], ctx.exception.reasons)
+        self.assertEquals(['missing values'], ctx.exception.reasons)
 
         # not a valid FQDN
         with self.assertRaises(ValidationError) as ctx:

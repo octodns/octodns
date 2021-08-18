@@ -230,6 +230,20 @@ class TestBaseProvider(TestCase):
         # We filtered out the only change
         self.assertFalse(plan)
 
+    def test_process_desired_zone(self):
+        zone1 = Zone('unit.tests.', [])
+        record1 = Record.new(zone1, 'ptr', {
+            'type': 'PTR',
+            'ttl': 3600,
+            'values': ['foo.com.', 'bar.com.'],
+        })
+        zone1.add_record(record1)
+
+        zone2 = HelperProvider('hasptr')._process_desired_zone(zone1)
+        record2 = list(zone2.records)[0]
+
+        self.assertEqual(len(record2.values), 1)
+
     def test_safe_none(self):
         # No changes is safe
         Plan(None, None, [], True).raise_if_unsafe()
