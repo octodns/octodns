@@ -61,7 +61,7 @@ class BaseProvider(BaseSource):
                               'will use only %s for %s', record.value,
                               record.fqdn)
                 record = record.copy()
-                record.values = [record.values[0]]
+                record.values = [record.value]
 
             new_desired.add_record(record)
 
