@@ -1256,12 +1256,36 @@ class NsRecord(_ValuesMixin, Record):
 
 
 class PtrValue(_TargetValue):
-    pass
+
+    @classmethod
+    def validate(cls, values, _type):
+        if not isinstance(values, list):
+            values = [values]
+
+        reasons = []
+
+        if not values:
+            reasons.append('missing values')
+
+        for value in values:
+            reasons.extend(super(PtrValue, cls).validate(value, _type))
+
+        return reasons
+
+    @classmethod
+    def process(cls, values):
+        return [super(PtrValue, cls).process(v) for v in values]
 
 
-class PtrRecord(_ValueMixin, Record):
+class PtrRecord(_ValuesMixin, Record):
     _type = 'PTR'
     _value_type = PtrValue
+
+    # This is for backward compatibility with providers that don't support
+    # multi-value PTR records.
+    @property
+    def value(self):
+        return self.values[0]
 
 
 class SshfpValue(EqualityTupleMixin):

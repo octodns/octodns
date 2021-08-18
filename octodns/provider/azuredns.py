@@ -456,6 +456,7 @@ class AzureProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = True
+    SUPPORTS_MUTLIVALUE_PTR = True
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR', 'SRV',
                     'TXT'))
 
@@ -707,8 +708,8 @@ class AzureProvider(BaseProvider):
         return {'values': [_check_endswith_dot(val) for val in vals]}
 
     def _data_for_PTR(self, azrecord):
-        ptrdname = azrecord.ptr_records[0].ptrdname
-        return {'value': _check_endswith_dot(ptrdname)}
+        vals = [ar.ptrdname for ar in azrecord.ptr_records]
+        return {'values': [_check_endswith_dot(val) for val in vals]}
 
     def _data_for_SRV(self, azrecord):
         return {'values': [{'priority': ar.priority, 'weight': ar.weight,

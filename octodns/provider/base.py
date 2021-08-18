@@ -44,7 +44,23 @@ class BaseProvider(BaseSource):
           that are made to have them logged or throw errors depending on the
           configuration
         '''
-        return desired
+        if self.SUPPORTS_MUTLIVALUE_PTR:
+            # nothing do here
+            return desired
+
+        new_desired = Zone(desired.name, desired.sub_zones)
+        for record in desired.records:
+            if record._type == 'PTR' and len(record.values) > 1:
+                # replace with a single-value copy
+                self.log.warn('does not support multi-value PTR records; '
+                              'will use only %s for %s', record.value,
+                              record.fqdn)
+                record = record.copy()
+                record.values = [record.value]
+
+            new_desired.add_record(record)
+
+        return new_desired
 
     def _include_change(self, change):
         '''
@@ -69,6 +85,7 @@ class BaseProvider(BaseSource):
     def plan(self, desired, processors=[]):
         self.log.info('plan: desired=%s', desired.name)
 
+        # process desired zone for any custom zone/record modification
         desired = self._process_desired_zone(desired)
 
         existing = Zone(desired.name, desired.sub_zones)
