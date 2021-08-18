@@ -931,8 +931,6 @@ class Route53Provider(BaseProvider):
             if getattr(record, 'dynamic', False):
                 # Make a copy of the record in case we have to muck with it
                 record = record.copy()
-                from pprint import pprint
-                pprint((record, record.data))
                 dynamic = record.dynamic
                 rules = []
                 for i, rule in enumerate(dynamic.rules):
@@ -956,8 +954,6 @@ class Route53Provider(BaseProvider):
                     rules.append(rule)
 
                 dynamic.rules = rules
-
-                pprint((record, record.data))
 
             ret.add_record(record)
 
