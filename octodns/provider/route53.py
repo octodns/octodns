@@ -925,7 +925,7 @@ class Route53Provider(BaseProvider):
 
         return data
 
-    def process_desired_zone(self, desired):
+    def _process_desired_zone(self, desired):
         ret = Zone(desired.name, desired.sub_zones)
         for record in desired.records:
             if getattr(record, 'dynamic', False):
@@ -957,7 +957,7 @@ class Route53Provider(BaseProvider):
 
             ret.add_record(record)
 
-        return super(Route53Provider, self).process_desired_zone(ret)
+        return super(Route53Provider, self)._process_desired_zone(ret)
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,

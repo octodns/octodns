@@ -10,17 +10,15 @@ from six import text_type
 from ..source.base import BaseSource
 from ..zone import Zone
 from .plan import Plan
-
-
-class ProviderException(Exception):
-    pass
+from . import ProviderException
 
 
 class BaseProvider(BaseSource):
 
     def __init__(self, id, apply_disabled=False,
                  update_pcent_threshold=Plan.MAX_SAFE_UPDATE_PCENT,
-                 delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT):
+                 delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT,
+                 strict_supports=False):
         super(BaseProvider, self).__init__(id)
         self.log.debug('__init__: id=%s, apply_disabled=%s, '
                        'update_pcent_threshold=%.2f, '
@@ -32,6 +30,21 @@ class BaseProvider(BaseSource):
         self.apply_disabled = apply_disabled
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
+        self.strict_supports = strict_supports
+
+    def _process_desired_zone(self, desired):
+        '''
+        An opportunity for providers to modify that desired zone records before
+        planning.
+
+        - Must do their work and then call super with the results of that work
+        - Must not modify the `desired` parameter or its records and should
+          make a copy of anything it's modifying
+        - Must call supports_warn_or_except with information about any changes
+          that are made to have them logged or throw errors depending on the
+          configuration
+        '''
+        return desired
 
     def _include_change(self, change):
         '''
@@ -49,18 +62,14 @@ class BaseProvider(BaseSource):
         return []
 
     def supports_warn_or_except(self, msg):
-        # TODO: base class param to control warn vs except
-        if False:
-            raise ProviderException(msg)
+        if self.strict_supports:
+            raise ProviderException('{}: {}'.format(self.id, msg))
         self.log.warning(msg)
-
-    def process_desired_zone(self, desired):
-        return desired
 
     def plan(self, desired, processors=[]):
         self.log.info('plan: desired=%s', desired.name)
 
-        desired = self.process_desired_zone(desired)
+        desired = self._process_desired_zone(desired)
 
         existing = Zone(desired.name, desired.sub_zones)
         exists = self.populate(existing, target=True, lenient=True)

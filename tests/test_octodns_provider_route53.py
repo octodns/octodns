@@ -399,7 +399,7 @@ class TestRoute53Provider(TestCase):
 
         # No records, essentially a no-op
         desired = Zone('unit.tests.', [])
-        got = provider.process_desired_zone(desired)
+        got = provider._process_desired_zone(desired)
         self.assertEquals(desired.records, got.records)
 
         # Record without any geos
@@ -422,7 +422,7 @@ class TestRoute53Provider(TestCase):
             },
         })
         desired.add_record(record)
-        got = provider.process_desired_zone(desired)
+        got = provider._process_desired_zone(desired)
         self.assertEquals(desired.records, got.records)
         self.assertEquals(1, len(list(got.records)[0].dynamic.rules))
         self.assertFalse('geos' in list(got.records)[0].dynamic.rules[0].data)
@@ -455,7 +455,7 @@ class TestRoute53Provider(TestCase):
             },
         })
         desired.add_record(record)
-        got = provider.process_desired_zone(desired)
+        got = provider._process_desired_zone(desired)
         self.assertEquals(2, len(list(got.records)[0].dynamic.rules))
         self.assertEquals(['EU', 'NA-US-OR'],
                           list(got.records)[0].dynamic.rules[0].data['geos'])
@@ -489,7 +489,7 @@ class TestRoute53Provider(TestCase):
             },
         })
         desired.add_record(record)
-        got = provider.process_desired_zone(desired)
+        got = provider._process_desired_zone(desired)
         self.assertEquals(1, len(list(got.records)[0].dynamic.rules))
         self.assertFalse('geos' in list(got.records)[0].dynamic.rules[0].data)
 
@@ -521,7 +521,7 @@ class TestRoute53Provider(TestCase):
             },
         })
         desired.add_record(record)
-        got = provider.process_desired_zone(desired)
+        got = provider._process_desired_zone(desired)
         self.assertEquals(2, len(list(got.records)[0].dynamic.rules))
         self.assertEquals(['EU', 'NA-US-OR'],
                           list(got.records)[0].dynamic.rules[0].data['geos'])
