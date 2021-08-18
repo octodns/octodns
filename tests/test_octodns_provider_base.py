@@ -457,15 +457,15 @@ class TestBaseProvider(TestCase):
 
         normal = MinimalProvider(strict_supports=False)
         # Should log and not expect
-        normal.supports_warn_or_except('Hello World!')
+        normal.supports_warn_or_except('Hello World!', 'Goodbye')
         normal.log.warning.assert_called_once()
         normal.log.warning.assert_has_calls([
-            call('Hello World!')
+            call('Hello World!; Goodbye')
         ])
 
         strict = MinimalProvider(strict_supports=True)
         # Should log and not expect
         with self.assertRaises(ProviderException) as ctx:
-            strict.supports_warn_or_except('Hello World!')
+            strict.supports_warn_or_except('Hello World!', 'Will not see')
         self.assertEquals('minimal: Hello World!', text_type(ctx.exception))
         strict.log.warning.assert_not_called()

@@ -942,14 +942,18 @@ class Route53Provider(BaseProvider):
                                      if not g.startswith('NA-CA-')]
                     if not filtered_geos:
                         # We've removed all geos, we'll have to skip this rule
-                        msg = 'NA-CA-* not supported resulting in ' \
-                            'empty geo target, skipping rule {}'.format(i)
-                        self.supports_warn_or_except(msg)
+                        msg = 'NA-CA-* not supported for {}' \
+                            .format(record.fqdn)
+                        fallback = 'skipping rule {}'.format(i)
+                        self.supports_warn_or_except(msg, fallback)
                         continue
                     elif geos != filtered_geos:
-                        msg = 'NA-CA-* not supported resulting in ' \
-                            'empty geo target, skipping rule {}'.format(i)
-                        self.supports_warn_or_except(msg)
+                        msg = 'NA-CA-* not supported for {}' \
+                            .format(record.fqdn)
+                        fallback = 'filtering rule {} from ({}) to ({})' \
+                            .format(i, ', '.join(geos),
+                                    ', '.join(filtered_geos))
+                        self.supports_warn_or_except(msg, fallback)
                         rule.data['geos'] = filtered_geos
                     rules.append(rule)
 
