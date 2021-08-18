@@ -19,6 +19,7 @@ from six import text_type
 from ..equality import EqualityTupleMixin
 from ..record import Record, Update
 from ..record.geo import GeoCodes
+from ..zone import Zone
 from .base import BaseProvider
 
 octal_re = re.compile(r'\\(\d\d\d)')
@@ -923,6 +924,44 @@ class Route53Provider(BaseProvider):
             data['dynamic']['rules'].append(r)
 
         return data
+
+    def process_desired_zone(self, desired):
+        ret = Zone(desired.name, desired.sub_zones)
+        for record in desired.records:
+            if getattr(record, 'dynamic', False):
+                # Make a copy of the record in case we have to muck with it
+                record = record.copy()
+                from pprint import pprint
+                pprint((record, record.data))
+                dynamic = record.dynamic
+                rules = []
+                for i, rule in enumerate(dynamic.rules):
+                    geos = rule.data.get('geos', [])
+                    if not geos:
+                        rules.append(rule)
+                        continue
+                    filtered_geos = [g for g in geos
+                                     if not g.startswith('NA-CA-')]
+                    if not filtered_geos:
+                        # We've removed all geos, we'll have to skip this rule
+                        msg = 'NA-CA-* not supported resulting in ' \
+                            'empty geo target, skipping rule {}'.format(i)
+                        self.supports_warn_or_except(msg)
+                        continue
+                    elif geos != filtered_geos:
+                        msg = 'NA-CA-* not supported resulting in ' \
+                            'empty geo target, skipping rule {}'.format(i)
+                        self.supports_warn_or_except(msg)
+                        rule.data['geos'] = filtered_geos
+                    rules.append(rule)
+
+                dynamic.rules = rules
+
+                pprint((record, record.data))
+
+            ret.add_record(record)
+
+        return super(Route53Provider, self).process_desired_zone(ret)
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,

@@ -394,6 +394,139 @@ class TestRoute53Provider(TestCase):
 
         return (provider, stubber)
 
+    def test_process_desired_zone(self):
+        provider, stubber = self._get_stubbed_fallback_auth_provider()
+
+        # No records, essentially a no-op
+        desired = Zone('unit.tests.', [])
+        got = provider.process_desired_zone(desired)
+        self.assertEquals(desired.records, got.records)
+
+        # Record without any geos
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '2.2.3.4',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+        })
+        desired.add_record(record)
+        got = provider.process_desired_zone(desired)
+        self.assertEquals(desired.records, got.records)
+        self.assertEquals(1, len(list(got.records)[0].dynamic.rules))
+        self.assertFalse('geos' in list(got.records)[0].dynamic.rules[0].data)
+
+        # Record where all geos are supported
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '1.2.3.4',
+                        }],
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '2.2.3.4',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['EU', 'NA-US-OR'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+        })
+        desired.add_record(record)
+        got = provider.process_desired_zone(desired)
+        self.assertEquals(2, len(list(got.records)[0].dynamic.rules))
+        self.assertEquals(['EU', 'NA-US-OR'],
+                          list(got.records)[0].dynamic.rules[0].data['geos'])
+        self.assertFalse('geos' in list(got.records)[0].dynamic.rules[1].data)
+
+        # Record with NA-CA-* only rule which is removed
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '1.2.3.4',
+                        }],
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '2.2.3.4',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['NA-CA-BC'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+        })
+        desired.add_record(record)
+        got = provider.process_desired_zone(desired)
+        self.assertEquals(1, len(list(got.records)[0].dynamic.rules))
+        self.assertFalse('geos' in list(got.records)[0].dynamic.rules[0].data)
+
+        # Record with NA-CA-* rule combined with other geos, filtered
+        desired = Zone('unit.tests.', [])
+        record = Record.new(desired, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '1.2.3.4',
+                        }],
+                    },
+                    'two': {
+                        'values': [{
+                            'value': '2.2.3.4',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': ['EU', 'NA-CA-NB', 'NA-US-OR'],
+                    'pool': 'two',
+                }, {
+                    'pool': 'one',
+                }],
+            },
+        })
+        desired.add_record(record)
+        got = provider.process_desired_zone(desired)
+        self.assertEquals(2, len(list(got.records)[0].dynamic.rules))
+        self.assertEquals(['EU', 'NA-US-OR'],
+                          list(got.records)[0].dynamic.rules[0].data['geos'])
+        self.assertFalse('geos' in list(got.records)[0].dynamic.rules[1].data)
+
     def test_populate_with_fallback(self):
         provider, stubber = self._get_stubbed_fallback_auth_provider()
 

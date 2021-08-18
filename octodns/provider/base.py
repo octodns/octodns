@@ -12,6 +12,10 @@ from ..zone import Zone
 from .plan import Plan
 
 
+class ProviderException(Exception):
+    pass
+
+
 class BaseProvider(BaseSource):
 
     def __init__(self, id, apply_disabled=False,
@@ -43,6 +47,12 @@ class BaseProvider(BaseSource):
         base NS records.
         '''
         return []
+
+    def supports_warn_or_except(self, msg):
+        # TODO: base class param to control warn vs except
+        if False:
+            raise ProviderException(msg)
+        self.log.warning(msg)
 
     def process_desired_zone(self, desired):
         return desired
