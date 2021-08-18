@@ -44,8 +44,13 @@ class BaseProvider(BaseSource):
         '''
         return []
 
+    def process_desired_zone(self, desired):
+        return desired
+
     def plan(self, desired, processors=[]):
         self.log.info('plan: desired=%s', desired.name)
+
+        desired = self.process_desired_zone(desired)
 
         existing = Zone(desired.name, desired.sub_zones)
         exists = self.populate(existing, target=True, lenient=True)
