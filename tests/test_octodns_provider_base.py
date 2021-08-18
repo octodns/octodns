@@ -22,6 +22,7 @@ class HelperProvider(BaseProvider):
 
     SUPPORTS = set(('A',))
     id = 'test'
+    strict_supports = False
 
     def __init__(self, extra_changes=[], apply_disabled=False,
                  include_change_callback=None):

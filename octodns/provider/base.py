@@ -52,9 +52,10 @@ class BaseProvider(BaseSource):
         for record in desired.records:
             if record._type == 'PTR' and len(record.values) > 1:
                 # replace with a single-value copy
-                self.log.warn('does not support multi-value PTR records; '
-                              'will use only %s for %s', record.value,
-                              record.fqdn)
+                self.supports_warn_or_except('does not support multi-value '
+                                             'PTR records; will use only {} '
+                                             'for {}'.format(record.value,
+                                                             record.fqdn))
                 record = record.copy()
                 record.values = [record.value]
 
