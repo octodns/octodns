@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function, \
 
 from six import text_type
 
-from ..record import Record
 from ..source.base import BaseSource
 from ..zone import Zone
 from .plan import Plan
@@ -45,34 +44,28 @@ class BaseProvider(BaseSource):
         '''
         return []
 
-    def _process_change(self, change):
+    def _process_desired_zone(self, desired):
         '''
-        Process/manipulate each change for feature-specific corner cases
+        Providers can use this method to make any custom changes to the
+        desired zone.
         '''
-        if not self._include_change(change):
-            return False
+        if self.SUPPORTS_MUTLIVALUE_PTR:
+            # nothing do here
+            return desired
 
-        # Multi value PTR records
-        record = change.new
-        if record and record._type == 'PTR' and len(record.values) > 1 and \
-           not self.SUPPORTS_MUTLIVALUE_PTR:
-            # replace with a single-value copy
-            change.new = Record.new(record.zone, record.name, {
-                'type': 'PTR',
-                'ttl': record.ttl,
-                'values': [record.value],
-            }, source=record.source)
+        new_desired = Zone(desired.name, desired.sub_zones)
+        for record in desired.records:
+            if record._type == 'PTR' and len(record.values) > 1:
+                # replace with a single-value copy
+                self.log.warn('does not support multi-value PTR records; '
+                              'will use only %s for %s', record.value,
+                              record.fqdn)
+                record = record.copy()
+                record.values = [record.values[0]]
 
-            existing = change.existing
-            if existing and not existing.changes(change.new, self):
-                # if new single-value replacement turns out to be the same,
-                # skip the change
-                return False
+            new_desired.add_record(record)
 
-            self.log.warn('does not support multi-value PTR records; will '
-                          'use only %s for %s', record.value, record.fqdn)
-
-        return True
+        return new_desired
 
     def plan(self, desired, processors=[]):
         self.log.info('plan: desired=%s', desired.name)
@@ -88,12 +81,15 @@ class BaseProvider(BaseSource):
         for processor in processors:
             existing = processor.process_target_zone(existing, target=self)
 
+        # process desired zone for any custom zone/record modification
+        desired = self._process_desired_zone(desired)
+
         # compute the changes at the zone/record level
         changes = existing.changes(desired, self)
 
         # allow the provider to filter out false positives
         before = len(changes)
-        changes = [c for c in changes if self._process_change(c)]
+        changes = [c for c in changes if self._include_change(c)]
         after = len(changes)
         if before != after:
             self.log.info('plan:   filtered out %s changes', before - after)
