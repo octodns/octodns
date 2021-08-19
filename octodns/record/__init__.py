@@ -304,7 +304,14 @@ class _ValuesMixin(object):
         self.values = sorted(self._value_type.process(values))
 
     def changes(self, other, target):
-        if self.values != other.values:
+        self_values = self.values
+        other_values = other.values
+        # compare IPv6 addresses separately since they could be
+        # in short/long format
+        if self._type == 'AAAA':
+            self_values = [IPv6Address(x) for x in self_values]
+            other_values = [IPv6Address(x) for x in other_values]
+        if self_values != other_values:
             return Update(self, other)
         return super(_ValuesMixin, self).changes(other, target)
 
