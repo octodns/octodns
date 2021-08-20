@@ -85,6 +85,8 @@ class Ns1Client(object):
         self._feeds_for_monitors = None
         self._monitors_cache = None
         self._notifylists_cache = None
+        self._zones_cache = {}
+        self._records_cache = {}
 
     @property
     def datasource_id(self):
@@ -196,19 +198,43 @@ class Ns1Client(object):
         return self._try(self._records.create, zone, domain, _type, **params)
 
     def records_delete(self, zone, domain, _type):
+        try:
+            # remove record from cache
+            del self._records_cache[zone][domain][_type]
+            # remove record's zone from cache
+            del self._zones_cache[zone]
+        except KeyError:
+            # never mind if record is not found in cache
+            pass
         return self._try(self._records.delete, zone, domain, _type)
 
     def records_retrieve(self, zone, domain, _type):
-        return self._try(self._records.retrieve, zone, domain, _type)
+        cached = self._records_cache.setdefault(zone, {}) \
+            .setdefault(domain, {})
+        if _type not in cached:
+            cached[_type] = self._try(self._records.retrieve, zone, domain,
+                                      _type)
+        return cached[_type]
 
     def records_update(self, zone, domain, _type, **params):
+        try:
+            # remove record from cache
+            del self._records_cache[zone][domain][_type]
+            # remove record's zone from cache
+            del self._zones_cache[zone]
+        except KeyError:
+            # never mind if record is not found in cache
+            pass
         return self._try(self._records.update, zone, domain, _type, **params)
 
     def zones_create(self, name):
         return self._try(self._zones.create, name)
 
     def zones_retrieve(self, name):
-        return self._try(self._zones.retrieve, name)
+        if name not in self._zones_cache:
+            self._zones_cache[name] = self._try(self._zones.retrieve, name)
+            print(f'insert {name} to cache with val {self._zones_cache[name]}')
+        return self._zones_cache[name]
 
     def _try(self, method, *args, **kwargs):
         tries = self.retry_count
