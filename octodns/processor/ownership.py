@@ -25,10 +25,8 @@ class OwnershipProcessor(BaseProcessor):
         self._txt_values = [txt_value]
 
     def process_source_zone(self, zone, *args, **kwargs):
-        ret = self._clone_zone(zone)
+        ret = zone.copy()
         for record in zone.records:
-            # Always copy over the source records
-            ret.add_record(record)
             # Then create and add an ownership TXT for each of them
             record_name = record.name.replace('*', '_wildcard')
             if record.name:

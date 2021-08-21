@@ -13,9 +13,6 @@ class BaseProcessor(object):
     def __init__(self, name):
         self.name = name
 
-    def _clone_zone(self, zone):
-        return Zone(zone.name, sub_zones=zone.sub_zones)
-
     def process_source_zone(self, zone, sources):
         # sources may be empty, as will be the case for aliased zones
         return zone

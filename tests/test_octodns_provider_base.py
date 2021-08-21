@@ -61,11 +61,11 @@ class TrickyProcessor(BaseProcessor):
         self.existing = existing
         self.target = target
 
-        new = self._clone_zone(existing)
+        new = existing.copy()
         for record in existing.records:
-            new.add_record(record)
+            new.add_record(record, replace=True)
         for record in self.add_during_process_target_zone:
-            new.add_record(record)
+            new.add_record(record, replace=True)
         return new
 
 

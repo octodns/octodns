@@ -33,7 +33,7 @@ class AcmeMangingProcessor(BaseProcessor):
         self._owned = set()
 
     def process_source_zone(self, zone, *args, **kwargs):
-        ret = self._clone_zone(zone)
+        ret = zone.copy()
         for record in zone.records:
             if record._type == 'TXT' and \
                record.name.startswith('_acme-challenge'):
@@ -45,11 +45,11 @@ class AcmeMangingProcessor(BaseProcessor):
                 # This assumes we'll see things as sources before targets,
                 # which is the case...
                 self._owned.add(record)
-            ret.add_record(record)
+                ret.add_record(record, replace=True)
         return ret
 
     def process_target_zone(self, zone, *args, **kwargs):
-        ret = self._clone_zone(zone)
+        ret = zone.copy()
         for record in zone.records:
             # Uses a startswith rather than == to ignore subdomain challenges,
             # e.g. _acme-challenge.foo.domain.com when managing domain.com
@@ -58,7 +58,6 @@ class AcmeMangingProcessor(BaseProcessor):
                '*octoDNS*' not in record.values and \
                record not in self._owned:
                 self.log.info('_process: ignoring %s', record.fqdn)
-                continue
-            ret.add_record(record)
+                ret.remove_record(record)
 
         return ret
