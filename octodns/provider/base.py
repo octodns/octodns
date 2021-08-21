@@ -10,13 +10,15 @@ from six import text_type
 from ..source.base import BaseSource
 from ..zone import Zone
 from .plan import Plan
+from . import ProviderException
 
 
 class BaseProvider(BaseSource):
 
     def __init__(self, id, apply_disabled=False,
                  update_pcent_threshold=Plan.MAX_SAFE_UPDATE_PCENT,
-                 delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT):
+                 delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT,
+                 strict_supports=False):
         super(BaseProvider, self).__init__(id)
         self.log.debug('__init__: id=%s, apply_disabled=%s, '
                        'update_pcent_threshold=%.2f, '
@@ -28,6 +30,39 @@ class BaseProvider(BaseSource):
         self.apply_disabled = apply_disabled
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
+        self.strict_supports = strict_supports
+
+    def _process_desired_zone(self, desired):
+        '''
+        An opportunity for providers to modify that desired zone records before
+        planning.
+
+        - Must do their work and then call super with the results of that work
+        - Must not modify the `desired` parameter or its records and should
+          make a copy of anything it's modifying
+        - Must call supports_warn_or_except with information about any changes
+          that are made to have them logged or throw errors depending on the
+          configuration
+        '''
+        if self.SUPPORTS_MUTLIVALUE_PTR:
+            # nothing do here
+            return desired
+
+        new_desired = Zone(desired.name, desired.sub_zones)
+        for record in desired.records:
+            if record._type == 'PTR' and len(record.values) > 1:
+                # replace with a single-value copy
+                msg = 'multi-value PTR records not supported for {}' \
+                    .format(record.fqdn)
+                fallback = 'falling back to single value, {}' \
+                    .format(record.value)
+                self.supports_warn_or_except(msg, fallback)
+                record = record.copy()
+                record.values = [record.value]
+
+            new_desired.add_record(record)
+
+        return new_desired
 
     def _include_change(self, change):
         '''
@@ -44,31 +79,16 @@ class BaseProvider(BaseSource):
         '''
         return []
 
-    def _process_desired_zone(self, desired):
-        '''
-        Providers can use this method to make any custom changes to the
-        desired zone.
-        '''
-        if self.SUPPORTS_MUTLIVALUE_PTR:
-            # nothing do here
-            return desired
-
-        new_desired = Zone(desired.name, desired.sub_zones)
-        for record in desired.records:
-            if record._type == 'PTR' and len(record.values) > 1:
-                # replace with a single-value copy
-                self.log.warn('does not support multi-value PTR records; '
-                              'will use only %s for %s', record.value,
-                              record.fqdn)
-                record = record.copy()
-                record.values = [record.value]
-
-            new_desired.add_record(record)
-
-        return new_desired
+    def supports_warn_or_except(self, msg, fallback):
+        if self.strict_supports:
+            raise ProviderException('{}: {}'.format(self.id, msg))
+        self.log.warning('{}; {}'.format(msg, fallback))
 
     def plan(self, desired, processors=[]):
         self.log.info('plan: desired=%s', desired.name)
+
+        # process desired zone for any custom zone/record modification
+        desired = self._process_desired_zone(desired)
 
         existing = Zone(desired.name, desired.sub_zones)
         exists = self.populate(existing, target=True, lenient=True)
@@ -80,9 +100,6 @@ class BaseProvider(BaseSource):
 
         for processor in processors:
             existing = processor.process_target_zone(existing, target=self)
-
-        # process desired zone for any custom zone/record modification
-        desired = self._process_desired_zone(desired)
 
         # compute the changes at the zone/record level
         changes = existing.changes(desired, self)
