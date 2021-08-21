@@ -19,7 +19,6 @@ from six import text_type
 from ..equality import EqualityTupleMixin
 from ..record import Record, Update
 from ..record.geo import GeoCodes
-from ..zone import Zone
 from .base import BaseProvider
 
 octal_re = re.compile(r'\\(\d\d\d)')
@@ -926,11 +925,10 @@ class Route53Provider(BaseProvider):
         return data
 
     def _process_desired_zone(self, desired):
-        ret = Zone(desired.name, desired.sub_zones)
+        ret = desired.copy()
         for record in desired.records:
             if getattr(record, 'dynamic', False):
                 # Make a copy of the record in case we have to muck with it
-                record = record.copy()
                 dynamic = record.dynamic
                 rules = []
                 for i, rule in enumerate(dynamic.rules):
@@ -957,9 +955,10 @@ class Route53Provider(BaseProvider):
                         rule.data['geos'] = filtered_geos
                     rules.append(rule)
 
-                dynamic.rules = rules
-
-            ret.add_record(record)
+                if rules != dynamic.rules:
+                    record = record.copy()
+                    record.dynamic.rules = rules
+                    ret.add_record(record, replace=True)
 
         return super(Route53Provider, self)._process_desired_zone(ret)
 

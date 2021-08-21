@@ -34,21 +34,29 @@ class BaseProvider(BaseSource):
 
     def _process_desired_zone(self, desired):
         '''
-        An opportunity for providers to modify that desired zone records before
-        planning.
+        An opportunity for providers to modify the desired zone records before
+        planning. `desired` is a "shallow" copy, see `Zone.copy` for more
+        information
 
-        - Must do their work and then call super with the results of that work
-        - Must not modify the `desired` parameter or its records and should
-          make a copy of anything it's modifying
+        - Must do their work and then call `super` with the results of that
+          work, returning the result of the `super` call.
+        - Must not modify `desired` directly, should call `desired.copy` and
+          modify the shallow copy returned from that.
+        - Must not modify records directly, `record.copy` should be called,
+          the results of which can be modified, and then `Zone.add_record` may
+          be used with `replace=True`
+        - Must call `Zone.remove_record` to remove records from the copy of
+          `desired`
         - Must call supports_warn_or_except with information about any changes
           that are made to have them logged or throw errors depending on the
-          configuration
+          provider configuration
         '''
         if self.SUPPORTS_MUTLIVALUE_PTR:
             # nothing do here
             return desired
 
-        new_desired = Zone(desired.name, desired.sub_zones)
+        # Shallow copy
+        new_desired = desired.copy()
         for record in desired.records:
             if record._type == 'PTR' and len(record.values) > 1:
                 # replace with a single-value copy
@@ -59,8 +67,7 @@ class BaseProvider(BaseSource):
                 self.supports_warn_or_except(msg, fallback)
                 record = record.copy()
                 record.values = [record.value]
-
-            new_desired.add_record(record)
+                new_desired.add_record(record, replace=True)
 
         return new_desired
 
