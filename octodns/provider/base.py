@@ -38,25 +38,22 @@ class BaseProvider(BaseSource):
         planning. `desired` is a "shallow" copy, see `Zone.copy` for more
         information
 
-        - Must do their work and then call `super` with the results of that
-          work, returning the result of the `super` call.
-        - Must not modify `desired` directly, should call `desired.copy` and
-          modify the shallow copy returned from that.
+        - Must call `super` at an appropriate point for their work, generally
+          that means as the final step of the method, returning the result of
+          the `super` call.
+        - May modify `desired` directly.
         - Must not modify records directly, `record.copy` should be called,
           the results of which can be modified, and then `Zone.add_record` may
-          be used with `replace=True`
-        - Must call `Zone.remove_record` to remove records from the copy of
-          `desired`
+          be used with `replace=True`.
+        - May call `Zone.remove_record` to remove records from `desired`.
         - Must call supports_warn_or_except with information about any changes
           that are made to have them logged or throw errors depending on the
-          provider configuration
+          provider configuration.
         '''
         if self.SUPPORTS_MUTLIVALUE_PTR:
             # nothing do here
             return desired
 
-        # Shallow copy
-        new_desired = desired.copy()
         for record in desired.records:
             if record._type == 'PTR' and len(record.values) > 1:
                 # replace with a single-value copy
@@ -67,9 +64,9 @@ class BaseProvider(BaseSource):
                 self.supports_warn_or_except(msg, fallback)
                 record = record.copy()
                 record.values = [record.value]
-                new_desired.add_record(record, replace=True)
+                desired.add_record(record, replace=True)
 
-        return new_desired
+        return desired
 
     def _include_change(self, change):
         '''
@@ -94,7 +91,11 @@ class BaseProvider(BaseSource):
     def plan(self, desired, processors=[]):
         self.log.info('plan: desired=%s', desired.name)
 
-        # process desired zone for any custom zone/record modification
+        # Make a (shallow) copy of the desired state so that everything from
+        # now on (in this target) can modify it as they see fit without
+        # worrying about impacting other targets.
+        desired = desired.copy()
+
         desired = self._process_desired_zone(desired)
 
         existing = Zone(desired.name, desired.sub_zones)

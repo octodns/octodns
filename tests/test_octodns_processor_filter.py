@@ -47,20 +47,20 @@ class TestTypeAllowListFilter(TestCase):
     def test_basics(self):
         filter_a = TypeAllowlistFilter('only-a', set(('A')))
 
-        got = filter_a.process_source_zone(zone)
+        got = filter_a.process_source_zone(zone.copy())
         self.assertEquals(['a', 'a2'], sorted([r.name for r in got.records]))
 
         filter_aaaa = TypeAllowlistFilter('only-aaaa', ('AAAA',))
-        got = filter_aaaa.process_source_zone(zone)
+        got = filter_aaaa.process_source_zone(zone.copy())
         self.assertEquals(['aaaa'], sorted([r.name for r in got.records]))
 
         filter_txt = TypeAllowlistFilter('only-txt', ['TXT'])
-        got = filter_txt.process_target_zone(zone)
+        got = filter_txt.process_target_zone(zone.copy())
         self.assertEquals(['txt', 'txt2'],
                           sorted([r.name for r in got.records]))
 
         filter_a_aaaa = TypeAllowlistFilter('only-aaaa', set(('A', 'AAAA')))
-        got = filter_a_aaaa.process_target_zone(zone)
+        got = filter_a_aaaa.process_target_zone(zone.copy())
         self.assertEquals(['a', 'a2', 'aaaa'],
                           sorted([r.name for r in got.records]))
 
@@ -70,21 +70,21 @@ class TestTypeRejectListFilter(TestCase):
     def test_basics(self):
         filter_a = TypeRejectlistFilter('not-a', set(('A')))
 
-        got = filter_a.process_source_zone(zone)
+        got = filter_a.process_source_zone(zone.copy())
         self.assertEquals(['aaaa', 'txt', 'txt2'],
                           sorted([r.name for r in got.records]))
 
         filter_aaaa = TypeRejectlistFilter('not-aaaa', ('AAAA',))
-        got = filter_aaaa.process_source_zone(zone)
+        got = filter_aaaa.process_source_zone(zone.copy())
         self.assertEquals(['a', 'a2', 'txt', 'txt2'],
                           sorted([r.name for r in got.records]))
 
         filter_txt = TypeRejectlistFilter('not-txt', ['TXT'])
-        got = filter_txt.process_target_zone(zone)
+        got = filter_txt.process_target_zone(zone.copy())
         self.assertEquals(['a', 'a2', 'aaaa'],
                           sorted([r.name for r in got.records]))
 
         filter_a_aaaa = TypeRejectlistFilter('not-a-aaaa', set(('A', 'AAAA')))
-        got = filter_a_aaaa.process_target_zone(zone)
+        got = filter_a_aaaa.process_target_zone(zone.copy())
         self.assertEquals(['txt', 'txt2'],
                           sorted([r.name for r in got.records]))

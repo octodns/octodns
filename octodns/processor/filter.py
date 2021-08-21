@@ -15,12 +15,11 @@ class TypeAllowlistFilter(BaseProcessor):
         self.allowlist = set(allowlist)
 
     def _process(self, zone, *args, **kwargs):
-        ret = zone.copy()
         for record in zone.records:
             if record._type not in self.allowlist:
-                ret.remove_record(record)
+                zone.remove_record(record)
 
-        return ret
+        return zone
 
     process_source_zone = _process
     process_target_zone = _process
@@ -33,12 +32,11 @@ class TypeRejectlistFilter(BaseProcessor):
         self.rejectlist = set(rejectlist)
 
     def _process(self, zone, *args, **kwargs):
-        ret = zone.copy()
         for record in zone.records:
             if record._type in self.rejectlist:
-                ret.remove_record(record)
+                zone.remove_record(record)
 
-        return ret
+        return zone
 
     process_source_zone = _process
     process_target_zone = _process

@@ -24,9 +24,8 @@ class OwnershipProcessor(BaseProcessor):
         self.txt_value = txt_value
         self._txt_values = [txt_value]
 
-    def process_source_zone(self, zone, *args, **kwargs):
-        ret = zone.copy()
-        for record in zone.records:
+    def process_source_zone(self, desired, *args, **kwargs):
+        for record in desired.records:
             # Then create and add an ownership TXT for each of them
             record_name = record.name.replace('*', '_wildcard')
             if record.name:
@@ -34,14 +33,14 @@ class OwnershipProcessor(BaseProcessor):
                                          record_name)
             else:
                 name = '{}.{}'.format(self.txt_name, record._type)
-            txt = Record.new(zone, name, {
+            txt = Record.new(desired, name, {
                 'type': 'TXT',
                 'ttl': 60,
                 'value': self.txt_value,
             })
-            ret.add_record(txt)
+            desired.add_record(txt)
 
-        return ret
+        return desired
 
     def _is_ownership(self, record):
         return record._type == 'TXT' and \

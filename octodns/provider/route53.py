@@ -925,7 +925,6 @@ class Route53Provider(BaseProvider):
         return data
 
     def _process_desired_zone(self, desired):
-        ret = desired.copy()
         for record in desired.records:
             if getattr(record, 'dynamic', False):
                 # Make a copy of the record in case we have to muck with it
@@ -958,9 +957,9 @@ class Route53Provider(BaseProvider):
                 if rules != dynamic.rules:
                     record = record.copy()
                     record.dynamic.rules = rules
-                    ret.add_record(record, replace=True)
+                    desired.add_record(record, replace=True)
 
-        return super(Route53Provider, self)._process_desired_zone(ret)
+        return super(Route53Provider, self)._process_desired_zone(desired)
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,

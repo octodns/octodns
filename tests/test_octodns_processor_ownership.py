@@ -55,7 +55,7 @@ class TestOwnershipProcessor(TestCase):
     def test_process_source_zone(self):
         ownership = OwnershipProcessor('ownership')
 
-        got = ownership.process_source_zone(zone)
+        got = ownership.process_source_zone(zone.copy())
         self.assertEquals([
             '',
             '*',
@@ -88,7 +88,7 @@ class TestOwnershipProcessor(TestCase):
         self.assertFalse(ownership.process_plan(None))
 
         # Nothing exists create both records and ownership
-        ownership_added = ownership.process_source_zone(zone)
+        ownership_added = ownership.process_source_zone(zone.copy())
         plan = provider.plan(ownership_added)
         self.assertTrue(plan)
         # Double the number of records
