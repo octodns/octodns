@@ -1,5 +1,4 @@
 from collections import defaultdict
-from ipaddress import ip_address
 from logging import getLogger
 from requests import Session
 
@@ -196,8 +195,6 @@ class UltraProvider(BaseProvider):
         }
 
     def _data_for_AAAA(self, _type, records):
-        for i, v in enumerate(records['rdata']):
-            records['rdata'][i] = str(ip_address(v))
         return {
             'ttl': records['ttl'],
             'type': _type,
