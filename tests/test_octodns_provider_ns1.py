@@ -202,7 +202,6 @@ class TestNs1Provider(TestCase):
             zone_retrieve_mock.reset_mock()
             record_retrieve_mock.reset_mock()
 
-
         # Bad auth
         reset()
         zone_retrieve_mock.side_effect = AuthException('unauthorized')
@@ -2507,3 +2506,111 @@ class TestNs1Client(TestCase):
         notifylists_list_mock.assert_has_calls([call()])
         notifylists_create_mock.assert_not_called()
         notifylists_delete_mock.assert_not_called()
+
+    @patch('ns1.rest.records.Records.delete')
+    @patch('ns1.rest.records.Records.update')
+    @patch('ns1.rest.records.Records.create')
+    @patch('ns1.rest.records.Records.retrieve')
+    @patch('ns1.rest.zones.Zones.create')
+    @patch('ns1.rest.zones.Zones.delete')
+    @patch('ns1.rest.zones.Zones.retrieve')
+    def test_client_caching(self, zone_retrieve_mock, zone_delete_mock,
+                            zone_create_mock, record_retrieve_mock,
+                            record_create_mock, record_update_mock,
+                            record_delete_mock):
+        client = Ns1Client('dummy-key')
+
+        def reset():
+            zone_retrieve_mock.reset_mock()
+            zone_delete_mock.reset_mock()
+            zone_create_mock.reset_mock()
+            record_retrieve_mock.reset_mock()
+            record_create_mock.reset_mock()
+            record_update_mock.reset_mock()
+            record_delete_mock.reset_mock()
+            # Testing caches so we don't reset those
+
+        # Initial zone get fetches and caches
+        reset()
+        zone_retrieve_mock.side_effect = ['foo']
+        self.assertEquals('foo', client.zones_retrieve('unit.tests'))
+        zone_retrieve_mock.assert_has_calls([call('unit.tests')])
+        self.assertEquals({
+            'unit.tests': 'foo',
+        }, client._zones_cache)
+
+        # Subsequent zone get does not fetch and returns from cache
+        reset()
+        self.assertEquals('foo', client.zones_retrieve('unit.tests'))
+        zone_retrieve_mock.assert_not_called()
+
+        # Zone create stores in cache
+        reset()
+        zone_create_mock.side_effect = ['bar']
+        self.assertEquals('bar', client.zones_create('sub.unit.tests'))
+        zone_create_mock.assert_has_calls([call('sub.unit.tests')])
+        self.assertEquals({
+            'sub.unit.tests': 'bar',
+            'unit.tests': 'foo',
+        }, client._zones_cache)
+
+        # Initial record get fetches and caches
+        reset()
+        record_retrieve_mock.side_effect = ['baz']
+        self.assertEquals('baz', client.records_retrieve('unit.tests',
+                                                         'a.unit.tests', 'A'))
+        record_retrieve_mock.assert_has_calls([call('unit.tests',
+                                                    'a.unit.tests', 'A')])
+        self.assertEquals({
+            'unit.tests': {
+                'a.unit.tests': {
+                    'A': 'baz'
+                }
+            }
+        }, client._records_cache)
+
+        # Subsequent record get does not fetch and returns from cache
+        reset()
+        self.assertEquals('baz', client.records_retrieve('unit.tests',
+                                                         'a.unit.tests', 'A'))
+        record_retrieve_mock.assert_not_called()
+
+        # Record create stores in cache
+        reset()
+        record_create_mock.side_effect = ['boo']
+        self.assertEquals('boo', client.records_create('unit.tests',
+                                                       'aaaa.unit.tests',
+                                                       'AAAA', key='val'))
+        record_create_mock.assert_has_calls([call('unit.tests',
+                                                  'aaaa.unit.tests', 'AAAA',
+                                                  key='val')])
+        self.assertEquals({
+            'unit.tests': {
+                'a.unit.tests': {
+                    'A': 'baz'
+                },
+                'aaaa.unit.tests': {
+                    'AAAA': 'boo'
+                },
+            }
+        }, client._records_cache)
+
+        # Record delete removes from cache and removes zone
+        reset()
+        record_delete_mock.side_effect = ['hoo']
+        self.assertEquals('hoo', client.records_delete('unit.tests',
+                                                       'aaaa.unit.tests',
+                                                       'AAAA'))
+        record_delete_mock.assert_has_calls([call('unit.tests',
+                                                  'aaaa.unit.tests', 'AAAA')])
+        self.assertEquals({
+            'unit.tests': {
+                'a.unit.tests': {
+                    'A': 'baz'
+                },
+                'aaaa.unit.tests': {},
+            }
+        }, client._records_cache)
+        self.assertEquals({
+            'sub.unit.tests': 'bar',
+        }, client._zones_cache)

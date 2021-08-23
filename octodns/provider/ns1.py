@@ -197,7 +197,11 @@ class Ns1Client(object):
         return self._try(self._notifylists.list)
 
     def records_create(self, zone, domain, _type, **params):
-        return self._try(self._records.create, zone, domain, _type, **params)
+        cached = self._records_cache.setdefault(zone, {}) \
+            .setdefault(domain, {})
+        cached[_type] = self._try(self._records.create, zone, domain, _type,
+                                  **params)
+        return cached[_type]
 
     def records_delete(self, zone, domain, _type):
         try:
@@ -230,7 +234,8 @@ class Ns1Client(object):
         return self._try(self._records.update, zone, domain, _type, **params)
 
     def zones_create(self, name):
-        return self._try(self._zones.create, name)
+        self._zones_cache[name] = self._try(self._zones.create, name)
+        return self._zones_cache[name]
 
     def zones_retrieve(self, name):
         if name not in self._zones_cache:
