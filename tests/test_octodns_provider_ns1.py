@@ -197,8 +197,14 @@ class TestNs1Provider(TestCase):
     def test_populate(self, zone_retrieve_mock, record_retrieve_mock):
         provider = Ns1Provider('test', 'api-key')
 
+        def reset():
+            provider._client.reset_caches()
+            zone_retrieve_mock.reset_mock()
+            record_retrieve_mock.reset_mock()
+
+
         # Bad auth
-        provider._client.reset_caches()
+        reset()
         zone_retrieve_mock.side_effect = AuthException('unauthorized')
         zone = Zone('unit.tests.', [])
         with self.assertRaises(AuthException) as ctx:
@@ -206,8 +212,7 @@ class TestNs1Provider(TestCase):
         self.assertEquals(zone_retrieve_mock.side_effect, ctx.exception)
 
         # General error
-        provider._client.reset_caches()
-        zone_retrieve_mock.reset_mock()
+        reset()
         zone_retrieve_mock.side_effect = ResourceException('boom')
         zone = Zone('unit.tests.', [])
         with self.assertRaises(ResourceException) as ctx:
@@ -216,8 +221,7 @@ class TestNs1Provider(TestCase):
         self.assertEquals(('unit.tests',), zone_retrieve_mock.call_args[0])
 
         # Non-existent zone doesn't populate anything
-        provider._client.reset_caches()
-        zone_retrieve_mock.reset_mock()
+        reset()
         zone_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
         zone = Zone('unit.tests.', [])
@@ -227,9 +231,7 @@ class TestNs1Provider(TestCase):
         self.assertFalse(exists)
 
         # Existing zone w/o records
-        provider._client.reset_caches()
-        zone_retrieve_mock.reset_mock()
-        record_retrieve_mock.reset_mock()
+        reset()
         ns1_zone = {
             'records': [{
                 "domain": "geo.unit.tests",
@@ -259,9 +261,7 @@ class TestNs1Provider(TestCase):
                                                     'geo.unit.tests', 'A')])
 
         # Existing zone w/records
-        provider._client.reset_caches()
-        zone_retrieve_mock.reset_mock()
-        record_retrieve_mock.reset_mock()
+        reset()
         ns1_zone = {
             'records': self.ns1_records + [{
                 "domain": "geo.unit.tests",
@@ -291,9 +291,7 @@ class TestNs1Provider(TestCase):
                                                     'geo.unit.tests', 'A')])
 
         # Test skipping unsupported record type
-        provider._client.reset_caches()
-        zone_retrieve_mock.reset_mock()
-        record_retrieve_mock.reset_mock()
+        reset()
         ns1_zone = {
             'records': self.ns1_records + [{
                 'type': 'UNSUPPORTED',
@@ -346,21 +344,21 @@ class TestNs1Provider(TestCase):
         self.assertEquals(expected_n, len(plan.changes))
         self.assertTrue(plan.exists)
 
+        def reset():
+            provider._client.reset_caches()
+            record_retrieve_mock.reset_mock()
+            zone_create_mock.reset_mock()
+            zone_retrieve_mock.reset_mock()
+
         # Fails, general error
-        provider._client.reset_caches()
-        zone_retrieve_mock.reset_mock()
-        record_retrieve_mock.reset_mock()
-        zone_create_mock.reset_mock()
+        reset()
         zone_retrieve_mock.side_effect = ResourceException('boom')
         with self.assertRaises(ResourceException) as ctx:
             provider.apply(plan)
         self.assertEquals(zone_retrieve_mock.side_effect, ctx.exception)
 
         # Fails, bad auth
-        provider._client.reset_caches()
-        zone_retrieve_mock.reset_mock()
-        record_retrieve_mock.reset_mock()
-        zone_create_mock.reset_mock()
+        reset()
         zone_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
         zone_create_mock.side_effect = AuthException('unauthorized')
@@ -369,10 +367,7 @@ class TestNs1Provider(TestCase):
         self.assertEquals(zone_create_mock.side_effect, ctx.exception)
 
         # non-existent zone, create
-        provider._client.reset_caches()
-        zone_retrieve_mock.reset_mock()
-        record_retrieve_mock.reset_mock()
-        zone_create_mock.reset_mock()
+        reset()
         zone_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
 
@@ -404,10 +399,7 @@ class TestNs1Provider(TestCase):
         ])
 
         # Update & delete
-        provider._client.reset_caches()
-        zone_retrieve_mock.reset_mock()
-        record_retrieve_mock.reset_mock()
-        zone_create_mock.reset_mock()
+        reset()
 
         ns1_zone = {
             'records': self.ns1_records + [{
@@ -947,11 +939,14 @@ class TestNs1ProviderDynamic(TestCase):
             'mon-id': 'feed-id',
         }
 
+        def reset():
+            feed_create_mock.reset_mock()
+            monitor_create_mock.reset_mock()
+            monitor_gen_mock.reset_mock()
+            monitors_update_mock.reset_mock()
+
         # No existing monitor
-        monitor_gen_mock.reset_mock()
-        monitor_create_mock.reset_mock()
-        monitors_update_mock.reset_mock()
-        feed_create_mock.reset_mock()
+        reset()
         monitor_gen_mock.side_effect = [{'key': 'value'}]
         monitor_create_mock.side_effect = [('mon-id', 'feed-id')]
         value = '1.2.3.4'
@@ -965,10 +960,7 @@ class TestNs1ProviderDynamic(TestCase):
         feed_create_mock.assert_not_called()
 
         # Existing monitor that doesn't need updates
-        monitor_gen_mock.reset_mock()
-        monitor_create_mock.reset_mock()
-        monitors_update_mock.reset_mock()
-        feed_create_mock.reset_mock()
+        reset()
         monitor = {
             'id': 'mon-id',
             'key': 'value',
@@ -985,10 +977,7 @@ class TestNs1ProviderDynamic(TestCase):
         feed_create_mock.assert_not_called()
 
         # Existing monitor that doesn't need updates, but is missing its feed
-        monitor_gen_mock.reset_mock()
-        monitor_create_mock.reset_mock()
-        monitors_update_mock.reset_mock()
-        feed_create_mock.reset_mock()
+        reset()
         monitor = {
             'id': 'mon-id2',
             'key': 'value',
@@ -1006,10 +995,7 @@ class TestNs1ProviderDynamic(TestCase):
         feed_create_mock.assert_has_calls([call(monitor)])
 
         # Existing monitor that needs updates
-        monitor_gen_mock.reset_mock()
-        monitor_create_mock.reset_mock()
-        monitors_update_mock.reset_mock()
-        feed_create_mock.reset_mock()
+        reset()
         monitor = {
             'id': 'mon-id',
             'key': 'value',
@@ -1043,11 +1029,14 @@ class TestNs1ProviderDynamic(TestCase):
             'mon-id': 'feed-id',
         }
 
+        def reset():
+            datafeed_delete_mock.reset_mock()
+            monitors_delete_mock.reset_mock()
+            monitors_for_mock.reset_mock()
+            notifylists_delete_mock.reset_mock()
+
         # No active monitors and no existing, nothing will happen
-        monitors_for_mock.reset_mock()
-        datafeed_delete_mock.reset_mock()
-        monitors_delete_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        reset()
         monitors_for_mock.side_effect = [{}]
         record = self.record()
         provider._monitors_gc(record)
@@ -1057,10 +1046,7 @@ class TestNs1ProviderDynamic(TestCase):
         notifylists_delete_mock.assert_not_called()
 
         # No active monitors and one existing, delete all the things
-        monitors_for_mock.reset_mock()
-        datafeed_delete_mock.reset_mock()
-        monitors_delete_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        reset()
         monitors_for_mock.side_effect = [{
             'x': {
                 'id': 'mon-id',
@@ -1080,10 +1066,7 @@ class TestNs1ProviderDynamic(TestCase):
         notifylists_delete_mock.assert_has_calls([call('nl-id')])
 
         # Same existing, this time in active list, should be noop
-        monitors_for_mock.reset_mock()
-        datafeed_delete_mock.reset_mock()
-        monitors_delete_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        reset()
         monitors_for_mock.side_effect = [{
             'x': {
                 'id': 'mon-id',
@@ -1098,10 +1081,7 @@ class TestNs1ProviderDynamic(TestCase):
 
         # Non-active monitor w/o a feed, and another monitor that's left alone
         # b/c it's active
-        monitors_for_mock.reset_mock()
-        datafeed_delete_mock.reset_mock()
-        monitors_delete_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        reset()
         monitors_for_mock.side_effect = [{
             'x': {
                 'id': 'mon-id',
@@ -1130,10 +1110,7 @@ class TestNs1ProviderDynamic(TestCase):
 
         # Non-active monitor w/o a notifylist, generally shouldn't happen, but
         # code should handle it just in case someone gets clicky in the UI
-        monitors_for_mock.reset_mock()
-        datafeed_delete_mock.reset_mock()
-        monitors_delete_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        reset()
         monitors_for_mock.side_effect = [{
             'y': {
                 'id': 'mon-id2',
@@ -1158,11 +1135,8 @@ class TestNs1ProviderDynamic(TestCase):
 
         # Non-active monitor with a shared notifylist, monitor deleted, but
         # notifylist is left alone
+        reset()
         provider.shared_notifylist = True
-        monitors_for_mock.reset_mock()
-        datafeed_delete_mock.reset_mock()
-        monitors_delete_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
         monitors_for_mock.side_effect = [{
             'y': {
                 'id': 'mon-id2',
@@ -1945,37 +1919,35 @@ class TestNs1ProviderDynamic(TestCase):
 
         desired = Zone('unit.tests.', [])
 
+        def reset():
+            monitors_for_mock.reset_mock()
+            provider._client.reset_caches()
+            records_retrieve_mock.reset_mock()
+            zones_retrieve_mock.reset_mock()
+
         # Empty zone and no changes
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
 
         extra = provider._extra_changes(desired, [])
         self.assertFalse(extra)
         monitors_for_mock.assert_not_called()
 
         # Non-existent zone. No changes
-        provider._client.reset_caches()
-        monitors_for_mock.reset_mock()
+        reset()
         zones_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
-        records_retrieve_mock.reset_mock()
         extra = provider._extra_changes(desired, [])
         self.assertFalse(extra)
 
         # Unexpected exception message
-        provider._client.reset_caches()
-        zones_retrieve_mock.reset_mock()
+        reset()
         zones_retrieve_mock.side_effect = ResourceException('boom')
         with self.assertRaises(ResourceException) as ctx:
             extra = provider._extra_changes(desired, [])
         self.assertEquals(zones_retrieve_mock.side_effect, ctx.exception)
 
         # Simple record, ignored, filter update lookups ignored
-        provider._client.reset_caches()
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         zones_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
 
@@ -2020,10 +1992,7 @@ class TestNs1ProviderDynamic(TestCase):
         desired.add_record(dynamic)
 
         # untouched, but everything in sync so no change needed
-        provider._client.reset_caches()
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         # Generate what we expect to have
         gend = provider._monitor_gen(dynamic, '1.2.3.4')
         gend.update({
@@ -2041,10 +2010,7 @@ class TestNs1ProviderDynamic(TestCase):
 
         # If we don't have a notify list we're broken and we'll expect to see
         # an Update
-        provider._client.reset_caches()
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         del gend['notify_list']
         monitors_for_mock.side_effect = [{
             '1.2.3.4': gend,
@@ -2058,10 +2024,7 @@ class TestNs1ProviderDynamic(TestCase):
 
         # Add notify_list back and change the healthcheck protocol, we'll still
         # expect to see an update
-        provider._client.reset_caches()
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         gend['notify_list'] = 'xyz'
         dynamic._octodns['healthcheck']['protocol'] = 'HTTPS'
         del gend['notify_list']
@@ -2076,10 +2039,7 @@ class TestNs1ProviderDynamic(TestCase):
         monitors_for_mock.assert_has_calls([call(dynamic)])
 
         # If it's in the changed list, it'll be ignored
-        provider._client.reset_caches()
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         extra = provider._extra_changes(desired, [update])
         self.assertFalse(extra)
         monitors_for_mock.assert_not_called()
@@ -2087,10 +2047,7 @@ class TestNs1ProviderDynamic(TestCase):
         # Test changes in filters
 
         # No change in filters
-        provider._client.reset_caches()
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         ns1_zone = {
             'records': [{
                 "domain": "dyn.unit.tests",
@@ -2107,10 +2064,7 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertFalse(extra)
 
         # filters need an update
-        provider._client.reset_caches()
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         ns1_zone = {
             'records': [{
                 "domain": "dyn.unit.tests",
@@ -2127,10 +2081,7 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertTrue(extra)
 
         # Mixed disabled in filters. Raise Ns1Exception
-        provider._client.reset_caches()
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         ns1_zone = {
             'records': [{
                 "domain": "dyn.unit.tests",
@@ -2494,9 +2445,12 @@ class TestNs1Client(TestCase):
                          notifylists_delete_mock):
         client = Ns1Client('dummy-key')
 
-        notifylists_list_mock.reset_mock()
-        notifylists_create_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        def reset():
+            notifylists_create_mock.reset_mock()
+            notifylists_delete_mock.reset_mock()
+            notifylists_list_mock.reset_mock()
+
+        reset()
         notifylists_list_mock.side_effect = [{}]
         expected = {
             'id': 'nl-id',
@@ -2518,9 +2472,7 @@ class TestNs1Client(TestCase):
         ])
         notifylists_delete_mock.assert_not_called()
 
-        notifylists_list_mock.reset_mock()
-        notifylists_create_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        reset()
         client.notifylists_delete('nlid')
         notifylists_list_mock.assert_not_called()
         notifylists_create_mock.assert_not_called()
@@ -2528,9 +2480,7 @@ class TestNs1Client(TestCase):
 
         # Delete again, this time with a cache item that needs cleaned out and
         # another that needs to be ignored
-        notifylists_list_mock.reset_mock()
-        notifylists_create_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        reset()
         client._notifylists_cache = {
             'another': {
                 'id': 'notid',
@@ -2549,9 +2499,7 @@ class TestNs1Client(TestCase):
         # Only another left
         self.assertEquals(['another'], list(client._notifylists_cache.keys()))
 
-        notifylists_list_mock.reset_mock()
-        notifylists_create_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        reset()
         expected = ['one', 'two', 'three']
         notifylists_list_mock.side_effect = [expected]
         nls = client.notifylists_list()
