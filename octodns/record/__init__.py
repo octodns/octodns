@@ -749,8 +749,13 @@ class _IpList(object):
 
     @classmethod
     def process(cls, values):
-        # Translating None into '' so that the list will be sortable in python3
-        return [v if v is not None else '' for v in values]
+        # Translating None into '' so that the list will be sortable in
+        # python3, get everything to str first
+        values = [text_type(v) if v is not None else '' for v in values]
+        # Now round trip all non-'' through the address type and back to a str
+        # to normalize the address representation.
+        return [text_type(cls._address_type(v)) if v != '' else ''
+                for v in values]
 
 
 class Ipv4List(_IpList):
