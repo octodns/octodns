@@ -8,7 +8,6 @@ from __future__ import absolute_import, division, print_function, \
 from collections import defaultdict
 from requests import Session
 from base64 import b64encode
-from ipaddress import ip_address
 from six import string_types
 import hashlib
 import hmac
@@ -137,11 +136,6 @@ class ConstellixClient(object):
                     for v in value:
                         v['value'] = self._absolutize_value(v['value'],
                                                             zone_name)
-
-            # compress IPv6 addresses
-            if record['type'] == 'AAAA':
-                for i, v in enumerate(value):
-                    value[i] = str(ip_address(v))
 
         return resp
 
