@@ -6,11 +6,12 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from logging import getLogger
+from mock import MagicMock, call
 from six import text_type
 from unittest import TestCase
 
 from octodns.processor.base import BaseProcessor
-from octodns.provider.base import BaseProvider
+from octodns.provider.base import BaseProvider, ProviderException
 from octodns.provider.plan import Plan, UnsafePlan
 from octodns.record import Create, Delete, Record, Update
 from octodns.zone import Zone
@@ -21,6 +22,7 @@ class HelperProvider(BaseProvider):
 
     SUPPORTS = set(('A',))
     id = 'test'
+    strict_supports = False
 
     def __init__(self, extra_changes=[], apply_disabled=False,
                  include_change_callback=None):
@@ -443,3 +445,27 @@ class TestBaseProvider(TestCase):
                  delete_pcent_threshold=safe_pcent).raise_if_unsafe()
 
         self.assertTrue('Too many deletes' in text_type(ctx.exception))
+
+    def test_supports_warn_or_except(self):
+        class MinimalProvider(BaseProvider):
+            SUPPORTS = set()
+            SUPPORTS_GEO = False
+
+            def __init__(self, **kwargs):
+                self.log = MagicMock()
+                super(MinimalProvider, self).__init__('minimal', **kwargs)
+
+        normal = MinimalProvider(strict_supports=False)
+        # Should log and not expect
+        normal.supports_warn_or_except('Hello World!', 'Goodbye')
+        normal.log.warning.assert_called_once()
+        normal.log.warning.assert_has_calls([
+            call('Hello World!; Goodbye')
+        ])
+
+        strict = MinimalProvider(strict_supports=True)
+        # Should log and not expect
+        with self.assertRaises(ProviderException) as ctx:
+            strict.supports_warn_or_except('Hello World!', 'Will not see')
+        self.assertEquals('minimal: Hello World!', text_type(ctx.exception))
+        strict.log.warning.assert_not_called()
