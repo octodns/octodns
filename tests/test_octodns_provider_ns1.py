@@ -198,6 +198,7 @@ class TestNs1Provider(TestCase):
         provider = Ns1Provider('test', 'api-key')
 
         # Bad auth
+        provider._client.reset_caches()
         zone_retrieve_mock.side_effect = AuthException('unauthorized')
         zone = Zone('unit.tests.', [])
         with self.assertRaises(AuthException) as ctx:
@@ -205,6 +206,7 @@ class TestNs1Provider(TestCase):
         self.assertEquals(zone_retrieve_mock.side_effect, ctx.exception)
 
         # General error
+        provider._client.reset_caches()
         zone_retrieve_mock.reset_mock()
         zone_retrieve_mock.side_effect = ResourceException('boom')
         zone = Zone('unit.tests.', [])
@@ -214,6 +216,7 @@ class TestNs1Provider(TestCase):
         self.assertEquals(('unit.tests',), zone_retrieve_mock.call_args[0])
 
         # Non-existent zone doesn't populate anything
+        provider._client.reset_caches()
         zone_retrieve_mock.reset_mock()
         zone_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
@@ -224,6 +227,7 @@ class TestNs1Provider(TestCase):
         self.assertFalse(exists)
 
         # Existing zone w/o records
+        provider._client.reset_caches()
         zone_retrieve_mock.reset_mock()
         record_retrieve_mock.reset_mock()
         ns1_zone = {
@@ -255,6 +259,7 @@ class TestNs1Provider(TestCase):
                                                     'geo.unit.tests', 'A')])
 
         # Existing zone w/records
+        provider._client.reset_caches()
         zone_retrieve_mock.reset_mock()
         record_retrieve_mock.reset_mock()
         ns1_zone = {
@@ -286,6 +291,7 @@ class TestNs1Provider(TestCase):
                                                     'geo.unit.tests', 'A')])
 
         # Test skipping unsupported record type
+        provider._client.reset_caches()
         zone_retrieve_mock.reset_mock()
         record_retrieve_mock.reset_mock()
         ns1_zone = {
@@ -341,6 +347,7 @@ class TestNs1Provider(TestCase):
         self.assertTrue(plan.exists)
 
         # Fails, general error
+        provider._client.reset_caches()
         zone_retrieve_mock.reset_mock()
         record_retrieve_mock.reset_mock()
         zone_create_mock.reset_mock()
@@ -350,6 +357,7 @@ class TestNs1Provider(TestCase):
         self.assertEquals(zone_retrieve_mock.side_effect, ctx.exception)
 
         # Fails, bad auth
+        provider._client.reset_caches()
         zone_retrieve_mock.reset_mock()
         record_retrieve_mock.reset_mock()
         zone_create_mock.reset_mock()
@@ -361,6 +369,7 @@ class TestNs1Provider(TestCase):
         self.assertEquals(zone_create_mock.side_effect, ctx.exception)
 
         # non-existent zone, create
+        provider._client.reset_caches()
         zone_retrieve_mock.reset_mock()
         record_retrieve_mock.reset_mock()
         zone_create_mock.reset_mock()
@@ -395,6 +404,7 @@ class TestNs1Provider(TestCase):
         ])
 
         # Update & delete
+        provider._client.reset_caches()
         zone_retrieve_mock.reset_mock()
         record_retrieve_mock.reset_mock()
         zone_create_mock.reset_mock()
@@ -1304,6 +1314,7 @@ class TestNs1ProviderDynamic(TestCase):
         # provider._params_for_A() calls provider._monitors_for() and
         # provider._monitor_sync(). Mock their return values so that we don't
         # make NS1 API calls during tests
+        provider._client.reset_caches()
         monitors_for_mock.reset_mock()
         monitor_sync_mock.reset_mock()
         monitors_for_mock.side_effect = [{
@@ -1944,6 +1955,7 @@ class TestNs1ProviderDynamic(TestCase):
         monitors_for_mock.assert_not_called()
 
         # Non-existent zone. No changes
+        provider._client.reset_caches()
         monitors_for_mock.reset_mock()
         zones_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
@@ -1952,6 +1964,7 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertFalse(extra)
 
         # Unexpected exception message
+        provider._client.reset_caches()
         zones_retrieve_mock.reset_mock()
         zones_retrieve_mock.side_effect = ResourceException('boom')
         with self.assertRaises(ResourceException) as ctx:
@@ -1959,6 +1972,7 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertEquals(zones_retrieve_mock.side_effect, ctx.exception)
 
         # Simple record, ignored, filter update lookups ignored
+        provider._client.reset_caches()
         monitors_for_mock.reset_mock()
         zones_retrieve_mock.reset_mock()
         records_retrieve_mock.reset_mock()
@@ -2006,6 +2020,7 @@ class TestNs1ProviderDynamic(TestCase):
         desired.add_record(dynamic)
 
         # untouched, but everything in sync so no change needed
+        provider._client.reset_caches()
         monitors_for_mock.reset_mock()
         zones_retrieve_mock.reset_mock()
         records_retrieve_mock.reset_mock()
@@ -2026,6 +2041,7 @@ class TestNs1ProviderDynamic(TestCase):
 
         # If we don't have a notify list we're broken and we'll expect to see
         # an Update
+        provider._client.reset_caches()
         monitors_for_mock.reset_mock()
         zones_retrieve_mock.reset_mock()
         records_retrieve_mock.reset_mock()
@@ -2042,6 +2058,7 @@ class TestNs1ProviderDynamic(TestCase):
 
         # Add notify_list back and change the healthcheck protocol, we'll still
         # expect to see an update
+        provider._client.reset_caches()
         monitors_for_mock.reset_mock()
         zones_retrieve_mock.reset_mock()
         records_retrieve_mock.reset_mock()
@@ -2059,6 +2076,7 @@ class TestNs1ProviderDynamic(TestCase):
         monitors_for_mock.assert_has_calls([call(dynamic)])
 
         # If it's in the changed list, it'll be ignored
+        provider._client.reset_caches()
         monitors_for_mock.reset_mock()
         zones_retrieve_mock.reset_mock()
         records_retrieve_mock.reset_mock()
@@ -2069,6 +2087,7 @@ class TestNs1ProviderDynamic(TestCase):
         # Test changes in filters
 
         # No change in filters
+        provider._client.reset_caches()
         monitors_for_mock.reset_mock()
         zones_retrieve_mock.reset_mock()
         records_retrieve_mock.reset_mock()
@@ -2088,6 +2107,7 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertFalse(extra)
 
         # filters need an update
+        provider._client.reset_caches()
         monitors_for_mock.reset_mock()
         zones_retrieve_mock.reset_mock()
         records_retrieve_mock.reset_mock()
@@ -2107,6 +2127,7 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertTrue(extra)
 
         # Mixed disabled in filters. Raise Ns1Exception
+        provider._client.reset_caches()
         monitors_for_mock.reset_mock()
         zones_retrieve_mock.reset_mock()
         records_retrieve_mock.reset_mock()
@@ -2234,12 +2255,14 @@ class TestNs1Client(TestCase):
         client = Ns1Client('dummy-key')
 
         # No retry required, just calls and is returned
+        client.reset_caches()
         zone_retrieve_mock.reset_mock()
         zone_retrieve_mock.side_effect = ['foo']
         self.assertEquals('foo', client.zones_retrieve('unit.tests'))
         zone_retrieve_mock.assert_has_calls([call('unit.tests')])
 
         # One retry required
+        client.reset_caches()
         zone_retrieve_mock.reset_mock()
         zone_retrieve_mock.side_effect = [
             RateLimitException('boo', period=0),
@@ -2249,6 +2272,7 @@ class TestNs1Client(TestCase):
         zone_retrieve_mock.assert_has_calls([call('unit.tests')])
 
         # Two retries required
+        client.reset_caches()
         zone_retrieve_mock.reset_mock()
         zone_retrieve_mock.side_effect = [
             RateLimitException('boo', period=0),
@@ -2258,6 +2282,7 @@ class TestNs1Client(TestCase):
         zone_retrieve_mock.assert_has_calls([call('unit.tests')])
 
         # Exhaust our retries
+        client.reset_caches()
         zone_retrieve_mock.reset_mock()
         zone_retrieve_mock.side_effect = [
             RateLimitException('first', period=0),

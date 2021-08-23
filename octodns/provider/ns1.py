@@ -80,8 +80,10 @@ class Ns1Client(object):
         self._datasource = client.datasource()
         self._datafeed = client.datafeed()
 
-        self._datasource_id = None
+        self.reset_caches()
 
+    def reset_caches(self):
+        self._datasource_id = None
         self._feeds_for_monitors = None
         self._monitors_cache = None
         self._notifylists_cache = None
