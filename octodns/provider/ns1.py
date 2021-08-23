@@ -240,7 +240,6 @@ class Ns1Client(object):
     def zones_retrieve(self, name):
         if name not in self._zones_cache:
             self._zones_cache[name] = self._try(self._zones.retrieve, name)
-            print(f'insert {name} to cache with val {self._zones_cache[name]}')
         return self._zones_cache[name]
 
     def _try(self, method, *args, **kwargs):
