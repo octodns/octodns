@@ -1090,10 +1090,11 @@ class Route53Provider(BaseProvider):
                                  health_check, value=None):
         config = health_check['HealthCheckConfig']
 
-        # So interestingly Route53 normalizes IPAddress which will cause us to
-        # fail to find see things as equivalent. To work around this we'll
-        # ip_address's returned object for equivalence
-        # E.g 2001:4860:4860::8842 -> 2001:4860:4860:0:0:0:0:8842
+        # So interestingly Route53 normalizes IPv6 addresses to a funky, but
+        # valid, form which will cause us to fail to find see things as
+        # equivalent. To work around this we'll ip_address's returned objects
+        # for equivalence.
+        # E.g 2001:4860:4860:0:0:0:0:8842 -> 2001:4860:4860::8842
         if value:
             value = ip_address(text_type(value))
             config_ip_address = ip_address(text_type(config['IPAddress']))

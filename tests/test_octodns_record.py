@@ -259,10 +259,20 @@ class TestRecord(TestCase):
         self.assertEquals(b_data, b.data)
 
     def test_aaaa(self):
-        a_values = ['2001:0db8:3c4d:0015:0000:0000:1a2f:1a2b',
-                    '2001:0db8:3c4d:0015:0000:0000:1a2f:1a3b']
-        b_value = '2001:0db8:3c4d:0015:0000:0000:1a2f:1a4b'
+        a_values = ['2001:db8:3c4d:15::1a2f:1a2b',
+                    '2001:db8:3c4d:15::1a2f:1a3b']
+        b_value = '2001:db8:3c4d:15::1a2f:1a4b'
         self.assertMultipleValues(AaaaRecord, a_values, b_value)
+
+        # Specifically validate that we normalize IPv6 addresses
+        values = ['2001:db8:3c4d:15:0000:0000:1a2f:1a2b',
+                  '2001:0db8:3c4d:0015::1a2f:1a3b']
+        data = {
+            'ttl': 30,
+            'values': values,
+        }
+        record = AaaaRecord(self.zone, 'aaaa', data)
+        self.assertEquals(a_values, record.values)
 
     def assertSingleValue(self, _type, a_value, b_value):
         a_data = {'ttl': 30, 'value': a_value}
