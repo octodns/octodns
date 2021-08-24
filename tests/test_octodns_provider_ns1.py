@@ -2615,6 +2615,24 @@ class TestNs1Client(TestCase):
             'sub.unit.tests': 'bar',
         }, client._zones_cache)
 
+        # Delete the other record, no zone this time, record should still go
+        # away
+        reset()
+        record_delete_mock.side_effect = [{}]
+        self.assertEquals({}, client.records_delete('unit.tests',
+                                                    'a.unit.tests', 'A'))
+        record_delete_mock.assert_has_calls([call('unit.tests', 'a.unit.tests',
+                                                  'A')])
+        self.assertEquals({
+            'unit.tests': {
+                'a.unit.tests': {},
+                'aaaa.unit.tests': {},
+            }
+        }, client._records_cache)
+        self.assertEquals({
+            'sub.unit.tests': 'bar',
+        }, client._zones_cache)
+
         # Record update removes zone and caches result
         record_update_mock.side_effect = ['done']
         self.assertEquals('done', client.records_update('sub.unit.tests',
@@ -2625,9 +2643,7 @@ class TestNs1Client(TestCase):
                                                   'AAAA', key='val')])
         self.assertEquals({
             'unit.tests': {
-                'a.unit.tests': {
-                    'A': 'baz'
-                },
+                'a.unit.tests': {},
                 'aaaa.unit.tests': {},
             },
             'sub.unit.tests': {
