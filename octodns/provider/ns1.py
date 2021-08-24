@@ -205,10 +205,11 @@ class Ns1Client(object):
 
     def records_delete(self, zone, domain, _type):
         try:
-            # remove record from cache
-            del self._records_cache[zone][domain][_type]
             # remove record's zone from cache
             del self._zones_cache[zone]
+            # remove record from cache, after zone since we may not have
+            # fetched the record details
+            del self._records_cache[zone][domain][_type]
         except KeyError:
             # never mind if record is not found in cache
             pass
@@ -224,10 +225,11 @@ class Ns1Client(object):
 
     def records_update(self, zone, domain, _type, **params):
         try:
-            # remove record from cache
-            del self._records_cache[zone][domain][_type]
             # remove record's zone from cache
             del self._zones_cache[zone]
+            # remove record from cache, after zone since we may not have
+            # fetched the record details
+            del self._records_cache[zone][domain][_type]
         except KeyError:
             # never mind if record is not found in cache
             pass
