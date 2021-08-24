@@ -90,6 +90,34 @@ class Ns1Client(object):
         self._zones_cache = {}
         self._records_cache = {}
 
+    def reset_record_cache(self, zone, domain, _type):
+        try:
+            # remove record's zone from cache
+            del self._zones_cache[zone]
+        except KeyError:
+            # never mind if zone is not found in cache
+            pass
+
+        try:
+            # remove record from cache
+            del self._records_cache[zone][domain][_type]
+        except KeyError:
+            # never mind if record is not found in cache
+            pass
+
+    def update_record_cache(func):
+        def call(self, zone, domain, _type, **params):
+            self.reset_record_cache(zone, domain, _type)
+            new_record = func(self, zone, domain, _type, **params)
+            if new_record:
+                cached = self._records_cache.setdefault(zone, {}) \
+                    .setdefault(domain, {})
+                cached[_type] = new_record
+
+            return new_record
+
+        return call
+
     @property
     def datasource_id(self):
         if self._datasource_id is None:
@@ -196,23 +224,12 @@ class Ns1Client(object):
     def notifylists_list(self):
         return self._try(self._notifylists.list)
 
+    @update_record_cache
     def records_create(self, zone, domain, _type, **params):
-        cached = self._records_cache.setdefault(zone, {}) \
-            .setdefault(domain, {})
-        cached[_type] = self._try(self._records.create, zone, domain, _type,
-                                  **params)
-        return cached[_type]
+        return self._try(self._records.create, zone, domain, _type, **params)
 
+    @update_record_cache
     def records_delete(self, zone, domain, _type):
-        try:
-            # remove record's zone from cache
-            del self._zones_cache[zone]
-            # remove record from cache, after zone since we may not have
-            # fetched the record details
-            del self._records_cache[zone][domain][_type]
-        except KeyError:
-            # never mind if record is not found in cache
-            pass
         return self._try(self._records.delete, zone, domain, _type)
 
     def records_retrieve(self, zone, domain, _type):
@@ -223,21 +240,9 @@ class Ns1Client(object):
                                       _type)
         return cached[_type]
 
+    @update_record_cache
     def records_update(self, zone, domain, _type, **params):
-        cached = self._records_cache.setdefault(zone, {}) \
-            .setdefault(domain, {})
-        try:
-            # remove record's zone from cache
-            del self._zones_cache[zone]
-            # remove record from cache, after zone since we may not have
-            # fetched the record details
-            del cached[_type]
-        except KeyError:
-            # never mind if record is not found in cache
-            pass
-        cached[_type] = self._try(self._records.update, zone, domain, _type,
-                                  **params)
-        return cached[_type]
+        return self._try(self._records.update, zone, domain, _type, **params)
 
     def zones_create(self, name):
         self._zones_cache[name] = self._try(self._zones.create, name)

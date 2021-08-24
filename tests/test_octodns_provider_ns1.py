@@ -2597,10 +2597,10 @@ class TestNs1Client(TestCase):
 
         # Record delete removes from cache and removes zone
         reset()
-        record_delete_mock.side_effect = ['hoo']
-        self.assertEquals('hoo', client.records_delete('unit.tests',
-                                                       'aaaa.unit.tests',
-                                                       'AAAA'))
+        record_delete_mock.side_effect = [{}]
+        self.assertEquals({}, client.records_delete('unit.tests',
+                                                    'aaaa.unit.tests',
+                                                    'AAAA'))
         record_delete_mock.assert_has_calls([call('unit.tests',
                                                   'aaaa.unit.tests', 'AAAA')])
         self.assertEquals({
