@@ -90,31 +90,34 @@ class Ns1Client(object):
         self._zones_cache = {}
         self._records_cache = {}
 
-    def reset_record_cache(self, zone, domain, _type):
-        try:
-            # remove record's zone from cache
-            del self._zones_cache[zone]
-        except KeyError:
-            # never mind if zone is not found in cache
-            pass
-
-        try:
-            # remove record from cache
-            del self._records_cache[zone][domain][_type]
-        except KeyError:
-            # never mind if record is not found in cache
-            pass
-
     def update_record_cache(func):
         def call(self, zone, domain, _type, **params):
-            self.reset_record_cache(zone, domain, _type)
+            if zone in self._zones_cache:
+                # remove record's zone from cache
+                del self._zones_cache[zone]
+
+            cached = self._records_cache.setdefault(zone, {}) \
+                .setdefault(domain, {})
             new_record = func(self, zone, domain, _type, **params)
             if new_record:
-                cached = self._records_cache.setdefault(zone, {}) \
-                    .setdefault(domain, {})
+                # record is created/updated
                 cached[_type] = new_record
+            elif _type in cached:
+                # record is deleted
+                del cached[_type]
 
             return new_record
+
+        return call
+
+    def read_or_set_record_cache(func):
+        def call(self, zone, domain, _type):
+            cached = self._records_cache.setdefault(zone, {}) \
+                .setdefault(domain, {})
+            if _type not in cached:
+                cached[_type] = func(self, zone, domain, _type)
+
+            return cached[_type]
 
         return call
 
@@ -232,13 +235,9 @@ class Ns1Client(object):
     def records_delete(self, zone, domain, _type):
         return self._try(self._records.delete, zone, domain, _type)
 
+    @read_or_set_record_cache
     def records_retrieve(self, zone, domain, _type):
-        cached = self._records_cache.setdefault(zone, {}) \
-            .setdefault(domain, {})
-        if _type not in cached:
-            cached[_type] = self._try(self._records.retrieve, zone, domain,
-                                      _type)
-        return cached[_type]
+        return self._try(self._records.retrieve, zone, domain, _type)
 
     @update_record_cache
     def records_update(self, zone, domain, _type, **params):
