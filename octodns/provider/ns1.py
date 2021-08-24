@@ -96,6 +96,7 @@ class Ns1Client(object):
                 # remove record's zone from cache
                 del self._zones_cache[zone]
 
+            # write to (or delete) record cache
             cached = self._records_cache.setdefault(zone, {}) \
                 .setdefault(domain, {})
             new_record = func(self, zone, domain, _type, **params)
