@@ -96,16 +96,17 @@ class Ns1Client(object):
                 # remove record's zone from cache
                 del self._zones_cache[zone]
 
-            # write to (or delete) record cache
             cached = self._records_cache.setdefault(zone, {}) \
                 .setdefault(domain, {})
+
+            if _type in cached:
+                # remove record from cache
+                del cached[_type]
+
+            # write record to cache if its not a delete
             new_record = func(self, zone, domain, _type, **params)
             if new_record:
-                # record is created/updated
                 cached[_type] = new_record
-            elif _type in cached:
-                # record is deleted
-                del cached[_type]
 
             return new_record
 
