@@ -224,16 +224,20 @@ class Ns1Client(object):
         return cached[_type]
 
     def records_update(self, zone, domain, _type, **params):
+        cached = self._records_cache.setdefault(zone, {}) \
+            .setdefault(domain, {})
         try:
             # remove record's zone from cache
             del self._zones_cache[zone]
             # remove record from cache, after zone since we may not have
             # fetched the record details
-            del self._records_cache[zone][domain][_type]
+            del cached[_type]
         except KeyError:
             # never mind if record is not found in cache
             pass
-        return self._try(self._records.update, zone, domain, _type, **params)
+        cached[_type] = self._try(self._records.update, zone, domain, _type,
+                                  **params)
+        return cached[_type]
 
     def zones_create(self, name):
         self._zones_cache[name] = self._try(self._zones.create, name)

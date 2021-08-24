@@ -2614,3 +2614,26 @@ class TestNs1Client(TestCase):
         self.assertEquals({
             'sub.unit.tests': 'bar',
         }, client._zones_cache)
+
+        # Record update removes zone and caches result
+        record_update_mock.side_effect = ['done']
+        self.assertEquals('done', client.records_update('sub.unit.tests',
+                                                        'aaaa.sub.unit.tests',
+                                                        'AAAA', key='val'))
+        record_update_mock.assert_has_calls([call('sub.unit.tests',
+                                                  'aaaa.sub.unit.tests',
+                                                  'AAAA', key='val')])
+        self.assertEquals({
+            'unit.tests': {
+                'a.unit.tests': {
+                    'A': 'baz'
+                },
+                'aaaa.unit.tests': {},
+            },
+            'sub.unit.tests': {
+                'aaaa.sub.unit.tests': {
+                    'AAAA': 'done',
+                },
+            }
+        }, client._records_cache)
+        self.assertEquals({}, client._zones_cache)
