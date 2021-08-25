@@ -1047,6 +1047,9 @@ class Ns1Provider(BaseProvider):
             'regions': self.monitor_regions,
         }
 
+        if _type == 'AAAA':
+            ret['config']['v6'] = True
+
         if record.healthcheck_protocol != 'TCP':
             # IF it's HTTP we need to send the request string
             path = record.healthcheck_path
