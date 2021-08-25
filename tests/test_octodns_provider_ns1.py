@@ -926,7 +926,7 @@ class TestNs1ProviderDynamic(TestCase):
         value = '::ffff:3.4.5.6'
         record = self.aaaa_record()
         monitor = provider._monitor_gen(record, value)
-        self.assertTrue(monitor['config']['v6'])
+        self.assertTrue(monitor['config']['ipv6'])
 
     def test_monitor_gen_CNAME(self):
         provider = Ns1Provider('test', 'api-key')
