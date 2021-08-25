@@ -608,6 +608,54 @@ class TestNs1ProviderDynamic(TestCase):
             'meta': {},
         })
 
+    def aaaa_record(self):
+        return Record.new(self.zone, '', {
+            'dynamic': {
+                'pools': {
+                    'lhr': {
+                        'fallback': 'iad',
+                        'values': [{
+                            'value': '::ffff:3.4.5.6',
+                        }],
+                    },
+                    'iad': {
+                        'values': [{
+                            'value': '::ffff:1.2.3.4',
+                        }, {
+                            'value': '::ffff:2.3.4.5',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': [
+                        'AF',
+                        'EU-GB',
+                        'NA-US-FL'
+                    ],
+                    'pool': 'lhr',
+                }, {
+                    'geos': [
+                        'AF-ZW',
+                    ],
+                    'pool': 'iad',
+                }, {
+                    'pool': 'iad',
+                }],
+            },
+            'octodns': {
+                'healthcheck': {
+                    'host': 'send.me',
+                    'path': '/_ping',
+                    'port': 80,
+                    'protocol': 'HTTP',
+                }
+            },
+            'ttl': 32,
+            'type': 'AAAA',
+            'value': '::ffff:1.2.3.4',
+            'meta': {},
+        })
+
     def cname_record(self):
         return Record.new(self.zone, 'foo', {
             'dynamic': {
@@ -871,6 +919,14 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertFalse('send' in monitor['config'])
         # No http response expected
         self.assertFalse('rules' in monitor)
+
+    def test_monitor_gen_AAAA(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        value = '::ffff:3.4.5.6'
+        record = self.aaaa_record()
+        monitor = provider._monitor_gen(record, value)
+        self.assertTrue(monitor['config']['v6'])
 
     def test_monitor_gen_CNAME(self):
         provider = Ns1Provider('test', 'api-key')
