@@ -1048,7 +1048,7 @@ class Ns1Provider(BaseProvider):
         }
 
         if _type == 'AAAA':
-            ret['config']['v6'] = True
+            ret['config']['ipv6'] = True
 
         if record.healthcheck_protocol != 'TCP':
             # IF it's HTTP we need to send the request string
