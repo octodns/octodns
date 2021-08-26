@@ -71,7 +71,6 @@ class TestAcmeMangingProcessor(TestCase):
         ], sorted([r.name for r in got.records]))
         managed = None
         for record in got.records:
-            print(record.name)
             if record.name.endswith('managed'):
                 managed = record
                 break

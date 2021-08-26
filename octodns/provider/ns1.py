@@ -80,11 +80,48 @@ class Ns1Client(object):
         self._datasource = client.datasource()
         self._datafeed = client.datafeed()
 
-        self._datasource_id = None
+        self.reset_caches()
 
+    def reset_caches(self):
+        self._datasource_id = None
         self._feeds_for_monitors = None
         self._monitors_cache = None
         self._notifylists_cache = None
+        self._zones_cache = {}
+        self._records_cache = {}
+
+    def update_record_cache(func):
+        def call(self, zone, domain, _type, **params):
+            if zone in self._zones_cache:
+                # remove record's zone from cache
+                del self._zones_cache[zone]
+
+            cached = self._records_cache.setdefault(zone, {}) \
+                .setdefault(domain, {})
+
+            if _type in cached:
+                # remove record from cache
+                del cached[_type]
+
+            # write record to cache if its not a delete
+            new_record = func(self, zone, domain, _type, **params)
+            if new_record:
+                cached[_type] = new_record
+
+            return new_record
+
+        return call
+
+    def read_or_set_record_cache(func):
+        def call(self, zone, domain, _type):
+            cached = self._records_cache.setdefault(zone, {}) \
+                .setdefault(domain, {})
+            if _type not in cached:
+                cached[_type] = func(self, zone, domain, _type)
+
+            return cached[_type]
+
+        return call
 
     @property
     def datasource_id(self):
@@ -192,23 +229,30 @@ class Ns1Client(object):
     def notifylists_list(self):
         return self._try(self._notifylists.list)
 
+    @update_record_cache
     def records_create(self, zone, domain, _type, **params):
         return self._try(self._records.create, zone, domain, _type, **params)
 
+    @update_record_cache
     def records_delete(self, zone, domain, _type):
         return self._try(self._records.delete, zone, domain, _type)
 
+    @read_or_set_record_cache
     def records_retrieve(self, zone, domain, _type):
         return self._try(self._records.retrieve, zone, domain, _type)
 
+    @update_record_cache
     def records_update(self, zone, domain, _type, **params):
         return self._try(self._records.update, zone, domain, _type, **params)
 
     def zones_create(self, name):
-        return self._try(self._zones.create, name)
+        self._zones_cache[name] = self._try(self._zones.create, name)
+        return self._zones_cache[name]
 
     def zones_retrieve(self, name):
-        return self._try(self._zones.retrieve, name)
+        if name not in self._zones_cache:
+            self._zones_cache[name] = self._try(self._zones.retrieve, name)
+        return self._zones_cache[name]
 
     def _try(self, method, *args, **kwargs):
         tries = self.retry_count
@@ -1002,6 +1046,9 @@ class Ns1Provider(BaseProvider):
             'region_scope': 'fixed',
             'regions': self.monitor_regions,
         }
+
+        if _type == 'AAAA':
+            ret['config']['ipv6'] = True
 
         if record.healthcheck_protocol != 'TCP':
             # IF it's HTTP we need to send the request string
