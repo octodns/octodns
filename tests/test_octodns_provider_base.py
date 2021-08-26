@@ -11,7 +11,8 @@ from six import text_type
 from unittest import TestCase
 
 from octodns.processor.base import BaseProcessor
-from octodns.provider.base import BaseProvider, ProviderException
+from octodns.provider import SupportsException
+from octodns.provider.base import BaseProvider
 from octodns.provider.plan import Plan, UnsafePlan
 from octodns.record import Create, Delete, Record, Update
 from octodns.zone import Zone
@@ -465,7 +466,7 @@ class TestBaseProvider(TestCase):
 
         strict = MinimalProvider(strict_supports=True)
         # Should log and not expect
-        with self.assertRaises(ProviderException) as ctx:
+        with self.assertRaises(SupportsException) as ctx:
             strict.supports_warn_or_except('Hello World!', 'Will not see')
         self.assertEquals('minimal: Hello World!', text_type(ctx.exception))
         strict.log.warning.assert_not_called()

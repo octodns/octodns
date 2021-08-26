@@ -1,7 +1,16 @@
-## v0.9.14 - 2021-??-?? - ...
+## v0.9.14 - 2021-??-?? - A new supports system
 
 #### Noteworthy changes
 
+* Provider `strict_supports` param added, currently defaults to `false`, along
+  with Provider._process_desired_zone this forms the foundations of a new
+  "supports" system where providers will warn or error (depending on the value
+  of `strict_supports` during planning about their inability to do what they're
+  being asked. When `false` they will warn and "adjust" the desired records.
+  When true they will abort with an error indicating the problem. Over time it
+  is expected that all "supports" checking/handling will move into this
+  paradigm and `strict_supports` will likely be changed to default to `true`.
+* Zone shallow copy support, reworking of Processors (alpha) semantics
 * NS1 NA target now includes `SX` and `UM`. If `NA` continent is in use in
   dynamic records care must be taken to upgrade/downgrade to v0.9.13.
 * Ns1Provider now supports a new parameter, shared_notifylist, which results in

@@ -10,7 +10,7 @@ from six import text_type
 from ..source.base import BaseSource
 from ..zone import Zone
 from .plan import Plan
-from . import ProviderException
+from . import SupportsException
 
 
 class BaseProvider(BaseSource):
@@ -85,7 +85,7 @@ class BaseProvider(BaseSource):
 
     def supports_warn_or_except(self, msg, fallback):
         if self.strict_supports:
-            raise ProviderException('{}: {}'.format(self.id, msg))
+            raise SupportsException('{}: {}'.format(self.id, msg))
         self.log.warning('{}; {}'.format(msg, fallback))
 
     def plan(self, desired, processors=[]):
