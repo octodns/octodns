@@ -264,12 +264,6 @@ class TransipProvider(BaseProvider):
 
         return _entries
 
-    def _get_lowest_ttl(self, records):
-        _ttl = 100000
-        for record in records:
-            _ttl = min(_ttl, record.expire)
-        return _ttl
-
     def _data_for_multiple(self, _type, records):
 
         _values = []
@@ -277,7 +271,7 @@ class TransipProvider(BaseProvider):
             _values.append(record.content)
 
         return {
-            "ttl": self._get_lowest_ttl(records),
+            "ttl": _get_lowest_ttl(records),
             "type": _type,
             "values": _values,
         }
@@ -305,7 +299,7 @@ class TransipProvider(BaseProvider):
                 }
             )
         return {
-            "ttl": self._get_lowest_ttl(records),
+            "ttl": _get_lowest_ttl(records),
             "type": _type,
             "values": _values,
         }
@@ -325,7 +319,7 @@ class TransipProvider(BaseProvider):
 
         return {
             "type": _type,
-            "ttl": self._get_lowest_ttl(records),
+            "ttl": _get_lowest_ttl(records),
             "values": _values,
         }
 
@@ -343,7 +337,7 @@ class TransipProvider(BaseProvider):
 
         return {
             "type": _type,
-            "ttl": self._get_lowest_ttl(records),
+            "ttl": _get_lowest_ttl(records),
             "values": _values,
         }
 
@@ -355,7 +349,7 @@ class TransipProvider(BaseProvider):
 
         return {
             "type": _type,
-            "ttl": self._get_lowest_ttl(records),
+            "ttl": _get_lowest_ttl(records),
             "values": _values,
         }
 
@@ -366,7 +360,7 @@ class TransipProvider(BaseProvider):
 
         return {
             "type": _type,
-            "ttl": self._get_lowest_ttl(records),
+            "ttl": _get_lowest_ttl(records),
             "values": _values,
         }
 
@@ -378,8 +372,9 @@ def parse_to_fqdn(value, current_zone):
         value = current_zone.name
 
     if value[-1] != ".":
-        # self.log.debug('parseToFQDN: changed %s to %s', value,
-        #                 '{}.{}'.format(value, current_zone.name))
         value = "{}.{}".format(value, current_zone.name)
 
     return value
+
+def _get_lowest_ttl(records):
+    return min([r.expire for r in records] + [100000])
