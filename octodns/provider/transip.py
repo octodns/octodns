@@ -164,16 +164,12 @@ class TransipProvider(BaseProvider):
         records = []
         for record in plan.desired.records:
             if record._type in self.SUPPORTS:
-                entries_for = getattr(
-                    self, "_entries_for_{}".format(record._type)
-                )
-
                 # Root records have '@' as name
                 name = record.name
                 if name == "":
                     name = self.ROOT_RECORD
 
-                records.extend(entries_for(name, record))
+                records.extend(_entries_for(name, record))
 
         # Transform DNSEntry namedtuples into transip.v6.objects.DnsEntry
         # objects, which is a bit ugly because it's quite a magical object.
@@ -189,80 +185,6 @@ class TransipProvider(BaseProvider):
             )
 
         self._currentZone = {}
-
-    @classmethod
-    def _entries_for_multiple(cls, name, record):
-        _entries = []
-
-        for value in record.values:
-            _entries.append(DNSEntry(name, record.ttl, record._type, value))
-
-        return _entries
-
-    @classmethod
-    def _entries_for_single(cls, name, record):
-
-        return [DNSEntry(name, record.ttl, record._type, record.value)]
-
-    _entries_for_A = _entries_for_multiple
-    _entries_for_AAAA = _entries_for_multiple
-    _entries_for_NS = _entries_for_multiple
-    _entries_for_SPF = _entries_for_multiple
-    _entries_for_CNAME = _entries_for_single
-
-    @classmethod
-    def _entries_for_MX(cls, name, record):
-        _entries = []
-
-        for value in record.values:
-            content = "{} {}".format(value.preference, value.exchange)
-            _entries.append(DNSEntry(name, record.ttl, record._type, content))
-
-        return _entries
-
-    @classmethod
-    def _entries_for_SRV(cls, name, record):
-        _entries = []
-
-        for value in record.values:
-            content = "{} {} {} {}".format(
-                value.priority, value.weight, value.port, value.target
-            )
-            _entries.append(DNSEntry(name, record.ttl, record._type, content))
-
-        return _entries
-
-    @classmethod
-    def _entries_for_SSHFP(cls, name, record):
-        _entries = []
-
-        for value in record.values:
-            content = "{} {} {}".format(
-                value.algorithm, value.fingerprint_type, value.fingerprint
-            )
-            _entries.append(DNSEntry(name, record.ttl, record._type, content))
-
-        return _entries
-
-    @classmethod
-    def _entries_for_CAA(cls, name, record):
-        _entries = []
-
-        for value in record.values:
-            content = "{} {} {}".format(value.flags, value.tag, value.value)
-            _entries.append(DNSEntry(name, record.ttl, record._type, content))
-
-        return _entries
-
-    @classmethod
-    def _entries_for_TXT(cls, name, record):
-        _entries = []
-
-        for value in record.values:
-            value = value.replace("\\;", ";")
-            _entries.append(DNSEntry(name, record.ttl, record._type, value))
-
-        return _entries
 
     def _data_for_multiple(self, _type, records):
 
@@ -285,7 +207,7 @@ class TransipProvider(BaseProvider):
         return {
             "ttl": records[0].expire,
             "type": _type,
-            "value": parse_to_fqdn(records[0].content, self._currentZone),
+            "value": _parse_to_fqdn(records[0].content, self._currentZone),
         }
 
     def _data_for_MX(self, _type, records):
@@ -295,7 +217,7 @@ class TransipProvider(BaseProvider):
             _values.append(
                 {
                     "preference": preference,
-                    "exchange": parse_to_fqdn(exchange, self._currentZone),
+                    "exchange": _parse_to_fqdn(exchange, self._currentZone),
                 }
             )
         return {
@@ -312,7 +234,7 @@ class TransipProvider(BaseProvider):
                 {
                     "port": port,
                     "priority": priority,
-                    "target": parse_to_fqdn(target, self._currentZone),
+                    "target": _parse_to_fqdn(target, self._currentZone),
                     "weight": weight,
                 }
             )
@@ -365,7 +287,7 @@ class TransipProvider(BaseProvider):
         }
 
 
-def parse_to_fqdn(value, current_zone):
+def _parse_to_fqdn(value, current_zone):
     # TransIP allows '@' as value to alias the root record.
     # this provider won't set an '@' value, but can be an existing record
     if value == TransipProvider.ROOT_RECORD:
@@ -376,5 +298,23 @@ def parse_to_fqdn(value, current_zone):
 
     return value
 
+
 def _get_lowest_ttl(records):
     return min([r.expire for r in records] + [100000])
+
+
+def _entries_for(name, record):
+    values = record.values if hasattr(record, "values") else [record.value]
+    formatter = {
+        "MX": lambda v: f"{v.preference} {v.exchange}",
+        "SRV": lambda v: f"{v.priority} {v.weight} {v.port} {v.target}",
+        "SSHFP": lambda v: (
+            f"{v.algorithm} {v.fingerprint_type} {v.fingerprint}"
+        ),
+        "CAA": lambda v: f"{v.flags} {v.tag} {v.value}",
+        "TXT": lambda v: v.replace("\\;", ";"),
+    }.get(record._type, lambda r: r)
+    return [
+        DNSEntry(name, record.ttl, record._type, formatter(value))
+        for value in values
+    ]

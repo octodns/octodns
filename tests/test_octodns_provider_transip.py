@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 from octodns.provider.transip import (TransipConfigException, TransipException,
                                       TransipNewZoneException, TransipProvider,
-                                      parse_to_fqdn)
+                                      _entries_for, _parse_to_fqdn)
 from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
 from transip.exceptions import TransIPHTTPError
@@ -28,15 +28,12 @@ def make_mock():
     api_entries = []
     for record in zone.records:
         if record._type in TransipProvider.SUPPORTS:
-            entries_for = getattr(
-                TransipProvider, "_entries_for_{}".format(record._type)
-            )
             # Root records have '@' as name
             name = record.name
             if name == "":
                 name = TransipProvider.ROOT_RECORD
 
-            api_entries.extend(entries_for(name, record))
+            api_entries.extend(_entries_for(name, record))
 
     return zone, api_entries
 
@@ -113,9 +110,8 @@ class TestTransipProvider(TestCase):
     def test_populate_zone_exists_not_target(self, mock_client):
         # Happy Plan - Populate
         source_zone, api_records = make_mock()
-        mock_client.return_value.domains.get.return_value.dns.list.return_value = (
-            api_records
-        )
+        mock_client.return_value.domains.get.return_value.dns.list.\
+            return_value = api_records
         provider = TransipProvider("test", "unittest", self.bogus_key)
         zone = Zone("unit.tests.", [])
 
@@ -366,12 +362,12 @@ class TestTransipProvider(TestCase):
 class TestParseFQDN(TestCase):
     def test_parse_fqdn(self):
         zone = Zone("unit.tests.", [])
-        self.assertEquals("www.unit.tests.", parse_to_fqdn("www", zone))
+        self.assertEquals("www.unit.tests.", _parse_to_fqdn("www", zone))
         self.assertEquals(
-            "www.unit.tests.", parse_to_fqdn("www.unit.tests.", zone)
+            "www.unit.tests.", _parse_to_fqdn("www.unit.tests.", zone)
         )
         self.assertEquals(
             "www.sub.sub.sub.unit.tests.",
-            parse_to_fqdn("www.sub.sub.sub", zone),
+            _parse_to_fqdn("www.sub.sub.sub", zone),
         )
-        self.assertEquals("unit.tests.", parse_to_fqdn("@", zone))
+        self.assertEquals("unit.tests.", _parse_to_fqdn("@", zone))
