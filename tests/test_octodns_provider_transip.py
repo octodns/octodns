@@ -6,7 +6,8 @@ from os.path import dirname, join
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-from octodns.provider.transip import (TransipConfigException, TransipException,
+from octodns.provider.transip import (DNSEntry, TransipConfigException,
+                                      TransipException,
                                       TransipNewZoneException, TransipProvider,
                                       _entries_for, _parse_to_fqdn)
 from octodns.provider.yaml import YamlProvider
@@ -34,6 +35,10 @@ def make_mock():
                 name = TransipProvider.ROOT_RECORD
 
             api_entries.extend(_entries_for(name, record))
+
+    # Append bogus entry so test for record type not being in SUPPORTS is
+    # executed. For 100% test coverage.
+    api_entries.append(DNSEntry("@", "3600", "BOGUS", "ns.transip.nl"))
 
     return zone, api_entries
 
