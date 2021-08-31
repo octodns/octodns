@@ -71,13 +71,10 @@ class TransipProvider(BaseProvider):
                 "Missing `key` of `key_file` parameter in config"
             )
 
-        self._currentZone = {}  # TODO: Remove
-
     def populate(self, zone, target=False, lenient=False):
         """
         Populate the zone with records in-place.
         """
-        self._currentZone = zone
         self.log.debug(
             "populate: name=%s, target=%s, lenient=%s",
             zone.name,
@@ -128,11 +125,10 @@ class TransipProvider(BaseProvider):
 
             for name, types in values.items():
                 for _type, records in types.items():
-                    data_for = getattr(self, "_data_for_{}".format(_type))
                     record = Record.new(
                         zone,
                         name,
-                        data_for(_type, records),
+                        _data_for(_type, records, zone),
                         source=self,
                         lenient=lenient,
                     )
@@ -142,7 +138,6 @@ class TransipProvider(BaseProvider):
             len(zone.records) - before,
         )
 
-        self._currentZone = {}
         return True
 
     def _apply(self, plan):
@@ -152,7 +147,6 @@ class TransipProvider(BaseProvider):
             "apply: zone=%s, changes=%d", desired.name, len(changes)
         )
 
-        self._currentZone = plan.desired
         try:
             domain = self._client.domains.get(plan.desired.name[:-1])
         except TransIPHTTPError as e:
@@ -184,107 +178,59 @@ class TransipProvider(BaseProvider):
                 "Unhandled error: ({}) {}".format(e.response_code, e.message)
             )
 
-        self._currentZone = {}
 
-    def _data_for_multiple(self, _type, records):
-
-        _values = []
-        for record in records:
-            _values.append(record.content)
-
+def _data_for(type_, records, current_zone):
+    if type_ == "CNAME":
         return {
-            "ttl": _get_lowest_ttl(records),
-            "type": _type,
-            "values": _values,
-        }
-
-    _data_for_A = _data_for_multiple
-    _data_for_AAAA = _data_for_multiple
-    _data_for_NS = _data_for_multiple
-    _data_for_SPF = _data_for_multiple
-
-    def _data_for_CNAME(self, _type, records):
-        return {
+            "type": type_,
             "ttl": records[0].expire,
-            "type": _type,
-            "value": _parse_to_fqdn(records[0].content, self._currentZone),
+            "value": _parse_to_fqdn(records[0].content, current_zone),
         }
 
-    def _data_for_MX(self, _type, records):
-        _values = []
-        for record in records:
-            preference, exchange = record.content.split(" ", 1)
-            _values.append(
-                {
-                    "preference": preference,
-                    "exchange": _parse_to_fqdn(exchange, self._currentZone),
-                }
-            )
+    def format_mx(record):
+        preference, exchange = record.content.split(" ", 1)
         return {
-            "ttl": _get_lowest_ttl(records),
-            "type": _type,
-            "values": _values,
+            "preference": preference,
+            "exchange": _parse_to_fqdn(exchange, current_zone),
         }
 
-    def _data_for_SRV(self, _type, records):
-        _values = []
-        for record in records:
-            priority, weight, port, target = record.content.split(" ", 3)
-            _values.append(
-                {
-                    "port": port,
-                    "priority": priority,
-                    "target": _parse_to_fqdn(target, self._currentZone),
-                    "weight": weight,
-                }
-            )
-
+    def format_srv(record):
+        priority, weight, port, target = record.content.split(" ", 3)
         return {
-            "type": _type,
-            "ttl": _get_lowest_ttl(records),
-            "values": _values,
+            "port": port,
+            "priority": priority,
+            "target": _parse_to_fqdn(target, current_zone),
+            "weight": weight,
         }
 
-    def _data_for_SSHFP(self, _type, records):
-        _values = []
-        for record in records:
-            algorithm, fp_type, fingerprint = record.content.split(" ", 2)
-            _values.append(
-                {
-                    "algorithm": algorithm,
-                    "fingerprint": fingerprint.lower(),
-                    "fingerprint_type": fp_type,
-                }
-            )
-
+    def format_sshfp(record):
+        algorithm, fp_type, fingerprint = record.content.split(" ", 2)
         return {
-            "type": _type,
-            "ttl": _get_lowest_ttl(records),
-            "values": _values,
+            "algorithm": algorithm,
+            "fingerprint": fingerprint.lower(),
+            "fingerprint_type": fp_type,
         }
 
-    def _data_for_CAA(self, _type, records):
-        _values = []
-        for record in records:
-            flags, tag, value = record.content.split(" ", 2)
-            _values.append({"flags": flags, "tag": tag, "value": value})
+    def format_caa(record):
+        flags, tag, value = record.content.split(" ", 2)
+        return {"flags": flags, "tag": tag, "value": value}
 
-        return {
-            "type": _type,
-            "ttl": _get_lowest_ttl(records),
-            "values": _values,
-        }
+    def format_txt(record):
+        return record.content.replace(";", "\\;")
 
-    def _data_for_TXT(self, _type, records):
-        _values = []
-        for record in records:
-            _values.append(record.content.replace(";", "\\;"))
+    value_formatter = {
+        "MX": format_mx,
+        "SRV": format_srv,
+        "SSHFP": format_sshfp,
+        "CAA": format_caa,
+        "TXT": format_txt,
+    }.get(type_, lambda r: r.content)
 
-        return {
-            "type": _type,
-            "ttl": _get_lowest_ttl(records),
-            "values": _values,
-        }
+    return {
+        "type": type_,
+        "ttl": _get_lowest_ttl(records),
+        "values": [value_formatter(r) for r in records],
+    }
 
 
 def _parse_to_fqdn(value, current_zone):
