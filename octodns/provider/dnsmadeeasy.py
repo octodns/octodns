@@ -13,10 +13,11 @@ import hmac
 import logging
 
 from ..record import Record
+from . import ProviderException
 from .base import BaseProvider
 
 
-class DnsMadeEasyClientException(Exception):
+class DnsMadeEasyClientException(ProviderException):
     pass
 
 
@@ -283,6 +284,30 @@ class DnsMadeEasyProvider(BaseProvider):
         self.log.info('populate:   found %s records, exists=%s',
                       len(zone.records) - before, exists)
         return exists
+
+    def supports(self, record):
+        # DNS Made Easy does not support empty/NULL SRV records
+        #
+        # Attempting to sync such a record would generate the following error
+        #
+        # octodns.provider.dnsmadeeasy.DnsMadeEasyClientBadRequest:
+        #      - Record value may not be a standalone dot.
+        #
+        # Skip the record and continue
+        if record._type == "SRV":
+            if 'value' in record.data:
+                targets = (record.data['value']['target'],)
+            else:
+                targets = [value['target'] for value in record.data['values']]
+
+            if "." in targets:
+                self.log.warning(
+                    'supports: unsupported %s record with target (%s)',
+                    record._type, targets
+                )
+                return False
+
+        return super(DnsMadeEasyProvider, self).supports(record)
 
     def _params_for_multiple(self, record):
         for value in record.values:

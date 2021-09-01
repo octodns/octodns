@@ -82,6 +82,20 @@ class TestPowerDnsProvider(TestCase):
             provider._powerdns_version = None
             self.assertNotEquals(provider.powerdns_version, [4, 1, 10])
 
+        # Test version detection with pre-releases
+        with requests_mock() as mock:
+            # Reset version, so detection will try again
+            provider._powerdns_version = None
+            mock.get('http://non.existent:8081/api/v1/servers/localhost',
+                     status_code=200, json={'version': "4.4.0-alpha1"})
+            self.assertEquals(provider.powerdns_version, [4, 4, 0])
+
+            provider._powerdns_version = None
+            mock.get('http://non.existent:8081/api/v1/servers/localhost',
+                     status_code=200,
+                     json={'version': "4.5.0-alpha0.435.master.gcb114252b"})
+            self.assertEquals(provider.powerdns_version, [4, 5, 0])
+
     def test_provider_version_config(self):
         provider = PowerDnsProvider('test', 'non.existent', 'api-key',
                                     nameserver_values=['8.8.8.8.',
@@ -171,8 +185,8 @@ class TestPowerDnsProvider(TestCase):
         expected = Zone('unit.tests.', [])
         source = YamlProvider('test', join(dirname(__file__), 'config'))
         source.populate(expected)
-        expected_n = len(expected.records) - 2
-        self.assertEquals(16, expected_n)
+        expected_n = len(expected.records) - 4
+        self.assertEquals(19, expected_n)
 
         # No diffs == no changes
         with requests_mock() as mock:
@@ -180,7 +194,7 @@ class TestPowerDnsProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(16, len(zone.records))
+            self.assertEquals(19, len(zone.records))
             changes = expected.changes(zone, provider)
             self.assertEquals(0, len(changes))
 
@@ -277,7 +291,7 @@ class TestPowerDnsProvider(TestCase):
         expected = Zone('unit.tests.', [])
         source = YamlProvider('test', join(dirname(__file__), 'config'))
         source.populate(expected)
-        self.assertEquals(18, len(expected.records))
+        self.assertEquals(23, len(expected.records))
 
         # A small change to a single record
         with requests_mock() as mock:

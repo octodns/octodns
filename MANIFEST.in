@@ -1,7 +1,11 @@
-include README.md
+include CHANGELOG.md
+include CODE_OF_CONDUCT.md
 include CONTRIBUTING.md
 include LICENSE
-include docs/*
-include octodns/*
+include README.md
+include requirements-dev.txt
+include requirements.txt
 include script/*
-include tests/*
+recursive-include docs *.png *.md
+recursive-include tests *.json *.py *.txt *.yaml
+recursive-include tests/zones *

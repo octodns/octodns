@@ -1,6 +1,104 @@
-## v0.9.11 - 2020-??-?? - ???????????????
+## v0.9.14 - 2021-??-?? - A new supports system
 
-* Added support for TCP health checking to dynamic records
+#### Noteworthy changes
+
+* Provider `strict_supports` param added, currently defaults to `false`, along
+  with Provider._process_desired_zone this forms the foundations of a new
+  "supports" system where providers will warn or error (depending on the value
+  of `strict_supports`) during planning about their inability to do what
+  they're being asked. When `false` they will warn and "adjust" the desired
+  records. When true they will abort with an error indicating the problem. Over
+  time it is expected that all "supports" checking/handling will move into this
+  paradigm and `strict_supports` will likely be changed to default to `true`.
+* Zone shallow copy support, reworking of Processors (alpha) semantics
+* NS1 NA target now includes `SX` and `UM`. If `NA` continent is in use in
+  dynamic records care must be taken to upgrade/downgrade to v0.9.13.
+* Ns1Provider now supports a new parameter, shared_notifylist, which results in
+  all dynamic record monitors using a shared notify list named 'octoDNS NS1
+  Notify List'. Only newly created record values will use the shared notify
+  list. It should be safe to enable this functionality, but existing records
+  will not be converted. Note: Once this option is enabled downgrades to
+  previous versions of octoDNS are discouraged and may result in undefined
+  behavior and broken records. See https://github.com/octodns/octodns/pull/749
+  for related discussion.
+
+## v0.9.13 - 2021-07-18 - Processors Alpha
+
+#### Noteworthy changes
+
+* Alpha support for Processors has been added. Processors allow for hooking
+  into the source, target, and planing process to make nearly arbitrary changes
+  to data. See the [octodns/processor/](/octodns/processor) directory for
+  examples. The change has been designed to have no impact on the process
+  unless the `processors` key is present in zone configs.
+* Fixes NS1 provider's geotarget limitation of using `NA` continent. Now, when
+  `NA` is used in geos it considers **all** the countries of `North America`
+  insted of just `us-east`, `us-west` and `us-central` regions
+* `SX' &amp; 'UM` country support added to NS1Provider, not yet in the North
+   America list for backwards compatibility reasons. They will be added in the
+   next releaser.
+
+#### Stuff
+
+* Lots of progress on the partial/beta support for dynamic records in Azure,
+  still not production ready.
+* NS1 fix for when a pool only exists as a fallback
+* Zone level lenient flag
+* Validate weight makes sense for pools with a single record
+* UltraDNS support for aliases and general fixes/improvements
+* Misc doc fixes and improvements
+
+## v0.9.12 - 2021-04-30 - Enough time has passed
+
+#### Noteworthy changes
+
+* Formal Python 2.7 support removed, deps and tooling were becoming
+  unmaintainable
+* octodns/octodns move, from github/octodns, more to come
+
+#### Stuff
+
+* ZoneFileSource supports specifying an extension & no files end in . to better
+  support Windows
+* LOC record type support added
+* Support for pre-release versions of PowerDNS
+* PowerDNS delete before create which allows A <-> CNAME etc.
+* Improved validation of fqdn's in ALIAS, CNAME, etc.
+* Transip support for NS records
+* Support for sending plan output to a file
+* DNSimple uses zone api rather than domain to support non-registered stuff,
+  e.g. reverse zones.
+* Support for fallback-only dynamic pools and related fixes to NS1 provider
+* Initial Hetzner provider
+
+## v0.9.11 - 2020-11-05 - We still don't know edition
+
+#### Noteworthy changes
+
+* ALIAS records only allowed at the root of zones - see `leient` in record docs
+  for work-arounds if you really need them.
+
+#### New Providers
+
+* Gandi LiveDNS
+* UltraDNS
+* easyDNS
+
+#### Stuff
+
+* Add support for zones aliases
+* octodns-compare: Prefix filtering and status code on on mismatch
+* Implement octodns-sync --source
+* Adding environment variable record injection
+* Add support for wildcard SRV records, as shown in RFC 2782
+* Add healthcheck option 'request_interval' for Route53 provider
+* NS1 georegion, country, and catchall need to be separate groups
+* Add the ability to mark a zone as lenient
+* Add support for geo-targeting of CA provinces
+* Update geo_data to pick up a couple renames
+* Cloudflare: Add PTR Support, update rate-limit handling and pagination
+* Support PowerDNS 4.3.x
+* Added support for TCP health checking of dynamic records
 
 ## v0.9.10 - 2020-04-20 - Dynamic NS1 and lots of misc
 
@@ -30,7 +128,7 @@
    * Explicit ordering of changes by (name, type) to address inconsistent
      ordering for a number of providers that just convert changes into API
      calls as they come. Python 2 sets ordered consistently, Python 3 they do
-     not. https://github.com/github/octodns/pull/384/commits/7958233fccf9ea22d95e2fd06c48d7d0a4529e26
+     not. https://github.com/octodns/octodns/pull/384/commits/7958233fccf9ea22d95e2fd06c48d7d0a4529e26
    * Route53 `_mod_keyer` ordering wasn't 100% complete and thus unreliable and
      random in Python 3. This has been addressed and may result in value
      reordering on next plan, no actual changes in behavior should occur.
@@ -127,10 +225,10 @@ recreating all health checks. This process has been tested pretty thoroughly to
 try and ensure a seemless upgrade without any traffic shifting around. It's
 probably best to take extra care when updating and to try and make sure that
 all health checks are passing before the first sync with `--doit`. See
-[#67](https://github.com/github/octodns/pull/67) for more information.
+[#67](https://github.com/octodns/octodns/pull/67) for more information.
 
 * Major update to geo healthchecks to allow configuring host (header), path,
-  protocol, and port [#67](https://github.com/github/octodns/pull/67)
+  protocol, and port [#67](https://github.com/octodns/octodns/pull/67)
 * SSHFP algorithm type 4
 * NS1 and DNSimple support skipping unsupported record types
 * Revert back to old style setup.py &amp; requirements.txt, setup.cfg was

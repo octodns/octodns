@@ -19,6 +19,7 @@ from six import text_type
 from ..equality import EqualityTupleMixin
 from ..record import Record, Update
 from ..record.geo import GeoCodes
+from . import ProviderException
 from .base import BaseProvider
 
 octal_re = re.compile(r'\\(\d\d\d)')
@@ -512,7 +513,7 @@ class _Route53GeoRecord(_Route53Record):
                                                           self.values)
 
 
-class Route53ProviderException(Exception):
+class Route53ProviderException(ProviderException):
     pass
 
 
@@ -924,6 +925,43 @@ class Route53Provider(BaseProvider):
 
         return data
 
+    def _process_desired_zone(self, desired):
+        for record in desired.records:
+            if getattr(record, 'dynamic', False):
+                # Make a copy of the record in case we have to muck with it
+                dynamic = record.dynamic
+                rules = []
+                for i, rule in enumerate(dynamic.rules):
+                    geos = rule.data.get('geos', [])
+                    if not geos:
+                        rules.append(rule)
+                        continue
+                    filtered_geos = [g for g in geos
+                                     if not g.startswith('NA-CA-')]
+                    if not filtered_geos:
+                        # We've removed all geos, we'll have to skip this rule
+                        msg = 'NA-CA-* not supported for {}' \
+                            .format(record.fqdn)
+                        fallback = 'skipping rule {}'.format(i)
+                        self.supports_warn_or_except(msg, fallback)
+                        continue
+                    elif geos != filtered_geos:
+                        msg = 'NA-CA-* not supported for {}' \
+                            .format(record.fqdn)
+                        fallback = 'filtering rule {} from ({}) to ({})' \
+                            .format(i, ', '.join(geos),
+                                    ', '.join(filtered_geos))
+                        self.supports_warn_or_except(msg, fallback)
+                        rule.data['geos'] = filtered_geos
+                    rules.append(rule)
+
+                if rules != dynamic.rules:
+                    record = record.copy()
+                    record.dynamic.rules = rules
+                    desired.add_record(record, replace=True)
+
+        return super(Route53Provider, self)._process_desired_zone(desired)
+
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
                        target, lenient)
@@ -1051,10 +1089,11 @@ class Route53Provider(BaseProvider):
                                  health_check, value=None):
         config = health_check['HealthCheckConfig']
 
-        # So interestingly Route53 normalizes IPAddress which will cause us to
-        # fail to find see things as equivalent. To work around this we'll
-        # ip_address's returned object for equivalence
-        # E.g 2001:4860:4860::8842 -> 2001:4860:4860:0:0:0:0:8842
+        # So interestingly Route53 normalizes IPv6 addresses to a funky, but
+        # valid, form which will cause us to fail to find see things as
+        # equivalent. To work around this we'll ip_address's returned objects
+        # for equivalence.
+        # E.g 2001:4860:4860:0:0:0:0:8842 -> 2001:4860:4860::8842
         if value:
             value = ip_address(text_type(value))
             config_ip_address = ip_address(text_type(config['IPAddress']))
@@ -1084,7 +1123,7 @@ class Route53Provider(BaseProvider):
         try:
             ip_address(text_type(value))
             # We're working with an IP, host is the Host header
-            healthcheck_host = record.healthcheck_host
+            healthcheck_host = record.healthcheck_host(value=value)
         except (AddressValueError, ValueError):
             # This isn't an IP, host is the value, value should be None
             healthcheck_host = value
@@ -1253,7 +1292,12 @@ class Route53Provider(BaseProvider):
         return self._gen_mods('DELETE', existing_records, existing_rrsets)
 
     def _extra_changes_update_needed(self, record, rrset):
-        healthcheck_host = record.healthcheck_host
+        if record._type == 'CNAME':
+            # For CNAME, healthcheck host by default points to the CNAME value
+            healthcheck_host = rrset['ResourceRecords'][0]['Value']
+        else:
+            healthcheck_host = record.healthcheck_host()
+
         healthcheck_path = record.healthcheck_path
         healthcheck_protocol = record.healthcheck_protocol
         healthcheck_port = record.healthcheck_port

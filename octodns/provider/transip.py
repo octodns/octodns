@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 from suds import WebFault
 
 from collections import defaultdict
+from . import ProviderException
 from .base import BaseProvider
 from logging import getLogger
 from ..record import Record
@@ -15,7 +16,7 @@ from transip.service.domain import DomainService
 from transip.service.objects import DnsEntry
 
 
-class TransipException(Exception):
+class TransipException(ProviderException):
     pass
 
 
@@ -49,8 +50,8 @@ class TransipProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(
-        ('A', 'AAAA', 'CNAME', 'MX', 'SRV', 'SPF', 'TXT', 'SSHFP', 'CAA'))
+    SUPPORTS = set(('A', 'AAAA', 'CNAME', 'MX', 'NS', 'SRV', 'SPF', 'TXT',
+                    'SSHFP', 'CAA'))
     # unsupported by OctoDNS: 'TLSA'
     MIN_TTL = 120
     TIMEOUT = 15

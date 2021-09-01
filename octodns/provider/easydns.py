@@ -12,10 +12,11 @@ import logging
 import base64
 
 from ..record import Record
+from . import ProviderException
 from .base import BaseProvider
 
 
-class EasyDNSClientException(Exception):
+class EasyDNSClientException(ProviderException):
     pass
 
 
@@ -59,7 +60,7 @@ class EasyDNSClient(object):
         self.base_path = self.SANDBOX if sandbox else self.LIVE
         sess = Session()
         sess.headers.update({'Authorization': 'Basic {}'
-                             .format(self.auth_key)})
+                             .format(self.auth_key.decode('utf-8'))})
         sess.headers.update({'accept': 'application/json'})
         self._sess = sess
 

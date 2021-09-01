@@ -69,6 +69,7 @@ setup(
         'PyYaml>=4.2b1',
         'dnspython>=1.15.0',
         'futures>=3.2.0; python_version<"3.2"',
+        'fqdn>=1.5.0',
         'ipaddress>=1.0.22; python_version<"3.3"',
         'natsort>=5.5.0',
         'pycountry>=19.8.18',
@@ -81,6 +82,6 @@ setup(
     long_description_content_type='text/markdown',
     name='octodns',
     packages=find_packages(),
-    url='https://github.com/github/octodns',
+    url='https://github.com/octodns/octodns',
     version=octodns.__VERSION__,
 )

@@ -9,10 +9,11 @@ from six import text_type
 from unittest import TestCase
 
 from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
-    CaaValue, CnameRecord, Create, Delete, GeoValue, MxRecord, MxValue, \
-    NaptrRecord, NaptrValue, NsRecord, PtrRecord, Record, SshfpRecord, \
-    SshfpValue, SpfRecord, SrvRecord, SrvValue, TxtRecord, Update, \
-    ValidationError, _Dynamic, _DynamicPool, _DynamicRule
+    CaaValue, CnameRecord, DnameRecord, Create, Delete, GeoValue, LocRecord, \
+    LocValue, MxRecord, MxValue, NaptrRecord, NaptrValue, NsRecord, \
+    PtrRecord, Record, SshfpRecord, SshfpValue, SpfRecord, SrvRecord, \
+    SrvValue, TxtRecord, Update, UrlfwdRecord, UrlfwdValue, ValidationError, \
+    _Dynamic, _DynamicPool, _DynamicRule
 from octodns.zone import Zone
 
 from helpers import DynamicProvider, GeoProvider, SimpleProvider
@@ -51,6 +52,19 @@ class TestRecord(TestCase):
         lower_record = CnameRecord(self.zone, 'CnameLowerValue', {
             'ttl': 30,
             'type': 'CNAME',
+            'value': 'github.com',
+        })
+        self.assertEquals(upper_record.value, lower_record.value)
+
+    def test_dname_lowering_value(self):
+        upper_record = DnameRecord(self.zone, 'DnameUppwerValue', {
+            'ttl': 30,
+            'type': 'DNAME',
+            'value': 'GITHUB.COM',
+        })
+        lower_record = DnameRecord(self.zone, 'DnameLowerValue', {
+            'ttl': 30,
+            'type': 'DNAME',
             'value': 'github.com',
         })
         self.assertEquals(upper_record.value, lower_record.value)
@@ -245,10 +259,20 @@ class TestRecord(TestCase):
         self.assertEquals(b_data, b.data)
 
     def test_aaaa(self):
-        a_values = ['2001:0db8:3c4d:0015:0000:0000:1a2f:1a2b',
-                    '2001:0db8:3c4d:0015:0000:0000:1a2f:1a3b']
-        b_value = '2001:0db8:3c4d:0015:0000:0000:1a2f:1a4b'
+        a_values = ['2001:db8:3c4d:15::1a2f:1a2b',
+                    '2001:db8:3c4d:15::1a2f:1a3b']
+        b_value = '2001:db8:3c4d:15::1a2f:1a4b'
         self.assertMultipleValues(AaaaRecord, a_values, b_value)
+
+        # Specifically validate that we normalize IPv6 addresses
+        values = ['2001:db8:3c4d:15:0000:0000:1a2f:1a2b',
+                  '2001:0db8:3c4d:0015::1a2f:1a3b']
+        data = {
+            'ttl': 30,
+            'values': values,
+        }
+        record = AaaaRecord(self.zone, 'aaaa', data)
+        self.assertEquals(a_values, record.values)
 
     def assertSingleValue(self, _type, a_value, b_value):
         a_data = {'ttl': 30, 'value': a_value}
@@ -361,6 +385,102 @@ class TestRecord(TestCase):
     def test_cname(self):
         self.assertSingleValue(CnameRecord, 'target.foo.com.',
                                'other.foo.com.')
+
+    def test_dname(self):
+        self.assertSingleValue(DnameRecord, 'target.foo.com.',
+                               'other.foo.com.')
+
+    def test_loc(self):
+        a_values = [{
+            'lat_degrees': 31,
+            'lat_minutes': 58,
+            'lat_seconds': 52.1,
+            'lat_direction': 'S',
+            'long_degrees': 115,
+            'long_minutes': 49,
+            'long_seconds': 11.7,
+            'long_direction': 'E',
+            'altitude': 20,
+            'size': 10,
+            'precision_horz': 10,
+            'precision_vert': 2,
+        }]
+        a_data = {'ttl': 30, 'values': a_values}
+        a = LocRecord(self.zone, 'a', a_data)
+        self.assertEquals('a', a.name)
+        self.assertEquals('a.unit.tests.', a.fqdn)
+        self.assertEquals(30, a.ttl)
+        self.assertEquals(a_values[0]['lat_degrees'], a.values[0].lat_degrees)
+        self.assertEquals(a_values[0]['lat_minutes'], a.values[0].lat_minutes)
+        self.assertEquals(a_values[0]['lat_seconds'], a.values[0].lat_seconds)
+        self.assertEquals(a_values[0]['lat_direction'],
+                          a.values[0].lat_direction)
+        self.assertEquals(a_values[0]['long_degrees'],
+                          a.values[0].long_degrees)
+        self.assertEquals(a_values[0]['long_minutes'],
+                          a.values[0].long_minutes)
+        self.assertEquals(a_values[0]['long_seconds'],
+                          a.values[0].long_seconds)
+        self.assertEquals(a_values[0]['long_direction'],
+                          a.values[0].long_direction)
+        self.assertEquals(a_values[0]['altitude'], a.values[0].altitude)
+        self.assertEquals(a_values[0]['size'], a.values[0].size)
+        self.assertEquals(a_values[0]['precision_horz'],
+                          a.values[0].precision_horz)
+        self.assertEquals(a_values[0]['precision_vert'],
+                          a.values[0].precision_vert)
+
+        b_value = {
+            'lat_degrees': 32,
+            'lat_minutes': 7,
+            'lat_seconds': 19,
+            'lat_direction': 'S',
+            'long_degrees': 116,
+            'long_minutes': 2,
+            'long_seconds': 25,
+            'long_direction': 'E',
+            'altitude': 10,
+            'size': 1,
+            'precision_horz': 10000,
+            'precision_vert': 10,
+        }
+        b_data = {'ttl': 30, 'value': b_value}
+        b = LocRecord(self.zone, 'b', b_data)
+        self.assertEquals(b_value['lat_degrees'], b.values[0].lat_degrees)
+        self.assertEquals(b_value['lat_minutes'], b.values[0].lat_minutes)
+        self.assertEquals(b_value['lat_seconds'], b.values[0].lat_seconds)
+        self.assertEquals(b_value['lat_direction'], b.values[0].lat_direction)
+        self.assertEquals(b_value['long_degrees'], b.values[0].long_degrees)
+        self.assertEquals(b_value['long_minutes'], b.values[0].long_minutes)
+        self.assertEquals(b_value['long_seconds'], b.values[0].long_seconds)
+        self.assertEquals(b_value['long_direction'],
+                          b.values[0].long_direction)
+        self.assertEquals(b_value['altitude'], b.values[0].altitude)
+        self.assertEquals(b_value['size'], b.values[0].size)
+        self.assertEquals(b_value['precision_horz'],
+                          b.values[0].precision_horz)
+        self.assertEquals(b_value['precision_vert'],
+                          b.values[0].precision_vert)
+        self.assertEquals(b_data, b.data)
+
+        target = SimpleProvider()
+        # No changes with self
+        self.assertFalse(a.changes(a, target))
+        # Diff in lat_direction causes change
+        other = LocRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other.values[0].lat_direction = 'N'
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+        # Diff in altitude causes change
+        other.values[0].altitude = a.values[0].altitude
+        other.values[0].altitude = -10
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+
+        # __repr__ doesn't blow up
+        a.__repr__()
 
     def test_mx(self):
         a_values = [{
@@ -774,6 +894,112 @@ class TestRecord(TestCase):
         b_value = 'b other'
         self.assertMultipleValues(TxtRecord, a_values, b_value)
 
+    def test_urlfwd(self):
+        a_values = [{
+            'path': '/',
+            'target': 'http://foo',
+            'code': 301,
+            'masking': 2,
+            'query': 0,
+        }, {
+            'path': '/target',
+            'target': 'http://target',
+            'code': 302,
+            'masking': 2,
+            'query': 0,
+        }]
+        a_data = {'ttl': 30, 'values': a_values}
+        a = UrlfwdRecord(self.zone, 'a', a_data)
+        self.assertEquals('a', a.name)
+        self.assertEquals('a.unit.tests.', a.fqdn)
+        self.assertEquals(30, a.ttl)
+        self.assertEquals(a_values[0]['path'], a.values[0].path)
+        self.assertEquals(a_values[0]['target'], a.values[0].target)
+        self.assertEquals(a_values[0]['code'], a.values[0].code)
+        self.assertEquals(a_values[0]['masking'], a.values[0].masking)
+        self.assertEquals(a_values[0]['query'], a.values[0].query)
+        self.assertEquals(a_values[1]['path'], a.values[1].path)
+        self.assertEquals(a_values[1]['target'], a.values[1].target)
+        self.assertEquals(a_values[1]['code'], a.values[1].code)
+        self.assertEquals(a_values[1]['masking'], a.values[1].masking)
+        self.assertEquals(a_values[1]['query'], a.values[1].query)
+        self.assertEquals(a_data, a.data)
+
+        b_value = {
+            'path': '/',
+            'target': 'http://location',
+            'code': 301,
+            'masking': 2,
+            'query': 0,
+        }
+        b_data = {'ttl': 30, 'value': b_value}
+        b = UrlfwdRecord(self.zone, 'b', b_data)
+        self.assertEquals(b_value['path'], b.values[0].path)
+        self.assertEquals(b_value['target'], b.values[0].target)
+        self.assertEquals(b_value['code'], b.values[0].code)
+        self.assertEquals(b_value['masking'], b.values[0].masking)
+        self.assertEquals(b_value['query'], b.values[0].query)
+        self.assertEquals(b_data, b.data)
+
+        target = SimpleProvider()
+        # No changes with self
+        self.assertFalse(a.changes(a, target))
+        # Diff in path causes change
+        other = UrlfwdRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other.values[0].path = '/change'
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+        # Diff in target causes change
+        other = UrlfwdRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other.values[0].target = 'http://target'
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+        # Diff in code causes change
+        other = UrlfwdRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other.values[0].code = 302
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+        # Diff in masking causes change
+        other = UrlfwdRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other.values[0].masking = 0
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+        # Diff in query causes change
+        other = UrlfwdRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other.values[0].query = 1
+        change = a.changes(other, target)
+        self.assertEqual(change.existing, a)
+        self.assertEqual(change.new, other)
+
+        # hash
+        v = UrlfwdValue({
+            'path': '/',
+            'target': 'http://place',
+            'code': 301,
+            'masking': 2,
+            'query': 0,
+        })
+        o = UrlfwdValue({
+            'path': '/location',
+            'target': 'http://redirect',
+            'code': 302,
+            'masking': 2,
+            'query': 0,
+        })
+        values = set()
+        values.add(v)
+        self.assertTrue(v in values)
+        self.assertFalse(o in values)
+        values.add(o)
+        self.assertTrue(o in values)
+
+        # __repr__ doesn't blow up
+        a.__repr__()
+
     def test_record_new(self):
         txt = Record.new(self.zone, 'txt', {
             'ttl': 44,
@@ -795,6 +1021,39 @@ class TestRecord(TestCase):
                 'type': 'XXX',
             })
         self.assertTrue('Unknown record type' in text_type(ctx.exception))
+
+    def test_record_copy(self):
+        a = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+
+        # Identical copy.
+        b = a.copy()
+        self.assertIsInstance(b, ARecord)
+        self.assertEquals('unit.tests.', b.zone.name)
+        self.assertEquals('a', b.name)
+        self.assertEquals('A', b._type)
+        self.assertEquals(['1.2.3.4'], b.values)
+
+        # Copy with another zone object.
+        c_zone = Zone('other.tests.', [])
+        c = a.copy(c_zone)
+        self.assertIsInstance(c, ARecord)
+        self.assertEquals('other.tests.', c.zone.name)
+        self.assertEquals('a', c.name)
+        self.assertEquals('A', c._type)
+        self.assertEquals(['1.2.3.4'], c.values)
+
+        # Record with no record type specified in data.
+        d_data = {
+            'ttl': 600,
+            'values': ['just a test']
+        }
+        d = TxtRecord(self.zone, 'txt', d_data)
+        d.copy()
+        self.assertEquals('TXT', d._type)
 
     def test_change(self):
         existing = Record.new(self.zone, 'txt', {
@@ -872,9 +1131,25 @@ class TestRecord(TestCase):
             }
         })
         self.assertEquals('/_ready', new.healthcheck_path)
-        self.assertEquals('bleep.bloop', new.healthcheck_host)
+        self.assertEquals('bleep.bloop', new.healthcheck_host())
         self.assertEquals('HTTP', new.healthcheck_protocol)
         self.assertEquals(8080, new.healthcheck_port)
+
+        # empty host value in healthcheck
+        new = Record.new(self.zone, 'a', {
+            'ttl': 44,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'octodns': {
+                'healthcheck': {
+                    'path': '/_ready',
+                    'host': None,
+                    'protocol': 'HTTP',
+                    'port': 8080,
+                }
+            }
+        })
+        self.assertEquals('1.2.3.4', new.healthcheck_host(value="1.2.3.4"))
 
         new = Record.new(self.zone, 'a', {
             'ttl': 44,
@@ -882,7 +1157,7 @@ class TestRecord(TestCase):
             'value': '1.2.3.4',
         })
         self.assertEquals('/_dns', new.healthcheck_path)
-        self.assertEquals('a.unit.tests', new.healthcheck_host)
+        self.assertEquals('a.unit.tests', new.healthcheck_host())
         self.assertEquals('HTTPS', new.healthcheck_protocol)
         self.assertEquals(443, new.healthcheck_port)
 
@@ -901,7 +1176,7 @@ class TestRecord(TestCase):
             }
         })
         self.assertIsNone(new.healthcheck_path)
-        self.assertIsNone(new.healthcheck_host)
+        self.assertIsNone(new.healthcheck_host())
         self.assertEquals('TCP', new.healthcheck_protocol)
         self.assertEquals(8080, new.healthcheck_port)
 
@@ -916,7 +1191,7 @@ class TestRecord(TestCase):
             }
         })
         self.assertIsNone(new.healthcheck_path)
-        self.assertIsNone(new.healthcheck_host)
+        self.assertIsNone(new.healthcheck_host())
         self.assertEquals('TCP', new.healthcheck_protocol)
         self.assertEquals(443, new.healthcheck_port)
 
@@ -1076,6 +1351,93 @@ class TestRecord(TestCase):
         self.assertTrue(d <= c)
         self.assertTrue(d >= d)
         self.assertTrue(d <= d)
+
+    def test_loc_value(self):
+        a = LocValue({
+            'lat_degrees': 31,
+            'lat_minutes': 58,
+            'lat_seconds': 52.1,
+            'lat_direction': 'S',
+            'long_degrees': 115,
+            'long_minutes': 49,
+            'long_seconds': 11.7,
+            'long_direction': 'E',
+            'altitude': 20,
+            'size': 10,
+            'precision_horz': 10,
+            'precision_vert': 2,
+        })
+        b = LocValue({
+            'lat_degrees': 32,
+            'lat_minutes': 7,
+            'lat_seconds': 19,
+            'lat_direction': 'S',
+            'long_degrees': 116,
+            'long_minutes': 2,
+            'long_seconds': 25,
+            'long_direction': 'E',
+            'altitude': 10,
+            'size': 1,
+            'precision_horz': 10000,
+            'precision_vert': 10,
+        })
+        c = LocValue({
+            'lat_degrees': 53,
+            'lat_minutes': 14,
+            'lat_seconds': 10,
+            'lat_direction': 'N',
+            'long_degrees': 2,
+            'long_minutes': 18,
+            'long_seconds': 26,
+            'long_direction': 'W',
+            'altitude': 10,
+            'size': 1,
+            'precision_horz': 1000,
+            'precision_vert': 10,
+        })
+
+        self.assertEqual(a, a)
+        self.assertEqual(b, b)
+        self.assertEqual(c, c)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+
+        self.assertTrue(a < b)
+        self.assertTrue(a < c)
+
+        self.assertTrue(b > a)
+        self.assertTrue(b < c)
+
+        self.assertTrue(c > a)
+        self.assertTrue(c > b)
+
+        self.assertTrue(a <= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(a <= a)
+        self.assertTrue(a >= a)
+
+        self.assertTrue(b >= a)
+        self.assertTrue(b <= c)
+        self.assertTrue(b >= b)
+        self.assertTrue(b <= b)
+
+        self.assertTrue(c >= a)
+        self.assertTrue(c >= b)
+        self.assertTrue(c >= c)
+        self.assertTrue(c <= c)
+
+        # Hash
+        values = set()
+        values.add(a)
+        self.assertTrue(a in values)
+        self.assertFalse(b in values)
+        values.add(b)
+        self.assertTrue(b in values)
 
     def test_mx_value(self):
         a = MxValue({'preference': 0, 'priority': 'a', 'exchange': 'v',
@@ -1265,7 +1627,7 @@ class TestRecordValidation(TestCase):
         self.assertTrue(reason.endswith('.unit.tests." is too long at 254'
                                         ' chars, max is 253'))
 
-        # label length, DNS defins max as 63
+        # label length, DNS defines max as 63
         with self.assertRaises(ValidationError) as ctx:
             # The . will put this over the edge
             name = 'x' * 64
@@ -1275,9 +1637,29 @@ class TestRecordValidation(TestCase):
                 'value': '1.2.3.4',
             })
         reason = ctx.exception.reasons[0]
-        self.assertTrue(reason.startswith('invalid name, "xxxx'))
+        self.assertTrue(reason.startswith('invalid label, "xxxx'))
         self.assertTrue(reason.endswith('xxx" is too long at 64'
                                         ' chars, max is 63'))
+
+        with self.assertRaises(ValidationError) as ctx:
+            name = 'foo.' + 'x' * 64 + '.bar'
+            Record.new(self.zone, name, {
+                'ttl': 300,
+                'type': 'A',
+                'value': '1.2.3.4',
+            })
+        reason = ctx.exception.reasons[0]
+        self.assertTrue(reason.startswith('invalid label, "xxxx'))
+        self.assertTrue(reason.endswith('xxx" is too long at 64'
+                                        ' chars, max is 63'))
+
+        # should not raise with dots
+        name = 'xxxxxxxx.' * 10
+        Record.new(self.zone, name, {
+            'ttl': 300,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
 
         # no ttl
         with self.assertRaises(ValidationError) as ctx:
@@ -1693,6 +2075,16 @@ class TestRecordValidation(TestCase):
             'value': 'foo.bar.com.',
         })
 
+        # root only
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'nope', {
+                'type': 'ALIAS',
+                'ttl': 600,
+                'value': 'foo.bar.com.',
+            })
+        self.assertEquals(['non-root ALIAS not allowed'],
+                          ctx.exception.reasons)
+
         # missing value
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
@@ -1703,7 +2095,7 @@ class TestRecordValidation(TestCase):
 
         # missing value
         with self.assertRaises(ValidationError) as ctx:
-            Record.new(self.zone, 'www', {
+            Record.new(self.zone, '', {
                 'type': 'ALIAS',
                 'ttl': 600,
                 'value': None
@@ -1712,12 +2104,22 @@ class TestRecordValidation(TestCase):
 
         # empty value
         with self.assertRaises(ValidationError) as ctx:
-            Record.new(self.zone, 'www', {
+            Record.new(self.zone, '', {
                 'type': 'ALIAS',
                 'ttl': 600,
                 'value': ''
             })
         self.assertEquals(['empty value'], ctx.exception.reasons)
+
+        # not a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'ALIAS',
+                'ttl': 600,
+                'value': '__.',
+            })
+        self.assertEquals(['ALIAS value "__." is not a valid FQDN'],
+                          ctx.exception.reasons)
 
         # missing trailing .
         with self.assertRaises(ValidationError) as ctx:
@@ -1815,6 +2217,16 @@ class TestRecordValidation(TestCase):
             })
         self.assertEquals(['root CNAME not allowed'], ctx.exception.reasons)
 
+        # not a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'CNAME',
+                'ttl': 600,
+                'value': '___.',
+            })
+        self.assertEquals(['CNAME value "___." is not a valid FQDN'],
+                          ctx.exception.reasons)
+
         # missing trailing .
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'www', {
@@ -1823,6 +2235,341 @@ class TestRecordValidation(TestCase):
                 'value': 'foo.bar.com',
             })
         self.assertEquals(['CNAME value "foo.bar.com" missing trailing .'],
+                          ctx.exception.reasons)
+
+    def test_DNAME(self):
+        # A valid DNAME record.
+        Record.new(self.zone, 'sub', {
+            'type': 'DNAME',
+            'ttl': 600,
+            'value': 'foo.bar.com.',
+        })
+
+        # A DNAME record can be present at the zone APEX.
+        Record.new(self.zone, '', {
+            'type': 'DNAME',
+            'ttl': 600,
+            'value': 'foo.bar.com.',
+        })
+
+        # not a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'DNAME',
+                'ttl': 600,
+                'value': '.',
+            })
+        self.assertEquals(['DNAME value "." is not a valid FQDN'],
+                          ctx.exception.reasons)
+
+        # missing trailing .
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'DNAME',
+                'ttl': 600,
+                'value': 'foo.bar.com',
+            })
+        self.assertEquals(['DNAME value "foo.bar.com" missing trailing .'],
+                          ctx.exception.reasons)
+
+    def test_LOC(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'LOC',
+            'ttl': 600,
+            'value': {
+                'lat_degrees': 31,
+                'lat_minutes': 58,
+                'lat_seconds': 52.1,
+                'lat_direction': 'S',
+                'long_degrees': 115,
+                'long_minutes': 49,
+                'long_seconds': 11.7,
+                'long_direction': 'E',
+                'altitude': 20,
+                'size': 10,
+                'precision_horz': 10,
+                'precision_vert': 2,
+            }
+        })
+
+        # missing int key
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['missing lat_degrees'], ctx.exception.reasons)
+
+        # missing float key
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['missing lat_seconds'], ctx.exception.reasons)
+
+        # missing text key
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['missing lat_direction'], ctx.exception.reasons)
+
+        # invalid direction
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'U',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid direction for lat_direction "U"'],
+                          ctx.exception.reasons)
+
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'N',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid direction for long_direction "N"'],
+                          ctx.exception.reasons)
+
+        # invalid degrees
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 360,
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid value for lat_degrees "360"'],
+                          ctx.exception.reasons)
+
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 'nope',
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid lat_degrees "nope"'],
+                          ctx.exception.reasons)
+
+        # invalid minutes
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 60,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid value for lat_minutes "60"'],
+                          ctx.exception.reasons)
+
+        # invalid seconds
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 60,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid value for lat_seconds "60"'],
+                          ctx.exception.reasons)
+
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 'nope',
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid lat_seconds "nope"'],
+                          ctx.exception.reasons)
+
+        # invalid altitude
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': -666666,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid value for altitude "-666666"'],
+                          ctx.exception.reasons)
+
+        # invalid size
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'LOC',
+                'ttl': 600,
+                'value': {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 99999999.99,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            })
+
+        self.assertEquals(['invalid value for size "99999999.99"'],
                           ctx.exception.reasons)
 
     def test_MX(self):
@@ -1996,7 +2743,17 @@ class TestRecordValidation(TestCase):
                 'type': 'PTR',
                 'ttl': 600,
             })
-        self.assertEquals(['missing value'], ctx.exception.reasons)
+        self.assertEquals(['missing values'], ctx.exception.reasons)
+
+        # not a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'PTR',
+                'ttl': 600,
+                'value': '_.',
+            })
+        self.assertEquals(['PTR value "_." is not a valid FQDN'],
+                          ctx.exception.reasons)
 
         # no trailing .
         with self.assertRaises(ValidationError) as ctx:
@@ -2378,6 +3135,203 @@ class TestRecordValidation(TestCase):
         # should be chunked values, with quoting
         self.assertEquals(single.chunked_values, chunked.chunked_values)
 
+    def test_URLFWD(self):
+        # doesn't blow up
+        Record.new(self.zone, '', {
+            'type': 'URLFWD',
+            'ttl': 600,
+            'value': {
+                'path': '/',
+                'target': 'http://foo',
+                'code': 301,
+                'masking': 2,
+                'query': 0,
+            }
+        })
+        Record.new(self.zone, '', {
+            'type': 'URLFWD',
+            'ttl': 600,
+            'values': [{
+                'path': '/',
+                'target': 'http://foo',
+                'code': 301,
+                'masking': 2,
+                'query': 0,
+            }, {
+                'path': '/target',
+                'target': 'http://target',
+                'code': 302,
+                'masking': 2,
+                'query': 0,
+            }]
+        })
+
+        # missing path
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'target': 'http://foo',
+                    'code': 301,
+                    'masking': 2,
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['missing path'], ctx.exception.reasons)
+
+        # missing target
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'code': 301,
+                    'masking': 2,
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['missing target'], ctx.exception.reasons)
+
+        # missing code
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'masking': 2,
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['missing code'], ctx.exception.reasons)
+
+        # invalid code
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 'nope',
+                    'masking': 2,
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['invalid return code "nope"'],
+                          ctx.exception.reasons)
+
+        # unrecognized code
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 3,
+                    'masking': 2,
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['unrecognized return code "3"'],
+                          ctx.exception.reasons)
+
+        # missing masking
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 301,
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['missing masking'], ctx.exception.reasons)
+
+        # invalid masking
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 301,
+                    'masking': 'nope',
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['invalid masking setting "nope"'],
+                          ctx.exception.reasons)
+
+        # unrecognized masking
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 301,
+                    'masking': 3,
+                    'query': 0,
+                }
+            })
+        self.assertEquals(['unrecognized masking setting "3"'],
+                          ctx.exception.reasons)
+
+        # missing query
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 301,
+                    'masking': 2,
+                }
+            })
+        self.assertEquals(['missing query'], ctx.exception.reasons)
+
+        # invalid query
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 301,
+                    'masking': 2,
+                    'query': 'nope',
+                }
+            })
+        self.assertEquals(['invalid query setting "nope"'],
+                          ctx.exception.reasons)
+
+        # unrecognized query
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'URLFWD',
+                'ttl': 600,
+                'value': {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 301,
+                    'masking': 2,
+                    'query': 3,
+                }
+            })
+        self.assertEquals(['unrecognized query setting "3"'],
+                          ctx.exception.reasons)
+
 
 class TestDynamicRecords(TestCase):
     zone = Zone('unit.tests.', [])
@@ -2388,6 +3342,7 @@ class TestDynamicRecords(TestCase):
                 'pools': {
                     'one': {
                         'values': [{
+                            'weight': 10,
                             'value': '3.3.3.3',
                         }],
                     },
@@ -2787,7 +3742,7 @@ class TestDynamicRecords(TestCase):
         self.assertEquals(['pool "one" is missing values'],
                           ctx.exception.reasons)
 
-        # pool valu not a dict
+        # pool value not a dict
         a_data = {
             'dynamic': {
                 'pools': {
@@ -2969,6 +3924,33 @@ class TestDynamicRecords(TestCase):
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
         self.assertEquals(['invalid weight "foo" in pool "three" value 2'],
+                          ctx.exception.reasons)
+
+        # single value with weight!=1
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'weight': 12,
+                            'value': '6.6.6.6',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['pool "one" has single value with weight!=1'],
                           ctx.exception.reasons)
 
         # invalid fallback

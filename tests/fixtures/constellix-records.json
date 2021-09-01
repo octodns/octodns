@@ -65,6 +65,62 @@
 	"pools": [],
 	"poolsDetail": []
 }, {
+	"id": 1898527,
+	"type": "SRV",
+	"recordType": "srv",
+	"name": "_imap._tcp",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 600,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565149714387,
+	"value": [{
+		"value": ".",
+		"priority": 0,
+		"weight": 0,
+		"port": 0,
+		"disableFlag": false
+	}],
+	"roundRobin": [{
+		"value": ".",
+		"priority": 0,
+		"weight": 0,
+		"port": 0,
+		"disableFlag": false
+	}]
+}, {
+	"id": 1898528,
+	"type": "SRV",
+	"recordType": "srv",
+	"name": "_pop3._tcp",
+	"recordOption": "roundRobin",
+	"noAnswer": false,
+	"note": "",
+	"ttl": 600,
+	"gtdRegion": 1,
+	"parentId": 123123,
+	"parent": "domain",
+	"source": "Domain",
+	"modifiedTs": 1565149714387,
+	"value": [{
+		"value": ".",
+		"priority": 0,
+		"weight": 0,
+		"port": 0,
+		"disableFlag": false
+	}],
+	"roundRobin": [{
+		"value": ".",
+		"priority": 0,
+		"weight": 0,
+		"port": 0,
+		"disableFlag": false
+	}]
+}, {
 	"id": 1808527,
 	"type": "SRV",
 	"recordType": "srv",
@@ -521,43 +577,6 @@
 		"values": []
 	},
 	"roundRobinFailover": [],
-	"pools": [],
-	"poolsDetail": []
-}, {
-	"id": 1808603,
-	"type": "ANAME",
-	"recordType": "aname",
-	"name": "sub",
-	"recordOption": "roundRobin",
-	"noAnswer": false,
-	"note": "",
-	"ttl": 1800,
-	"gtdRegion": 1,
-	"parentId": 123123,
-	"parent": "domain",
-	"source": "Domain",
-	"modifiedTs": 1565153387855,
-	"value": [{
-		"value": "aname.unit.tests.",
-		"disableFlag": false
-	}],
-	"roundRobin": [{
-		"value": "aname.unit.tests.",
-		"disableFlag": false
-	}],
-	"geolocation": null,
-	"recordFailover": {
-		"disabled": false,
-		"failoverType": 1,
-		"failoverTypeStr": "Normal (always lowest level)",
-		"values": []
-	},
-	"failover": {
-		"disabled": false,
-		"failoverType": 1,
-		"failoverTypeStr": "Normal (always lowest level)",
-		"values": []
-	},
 	"pools": [],
 	"poolsDetail": []
 }, {

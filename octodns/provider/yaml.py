@@ -104,8 +104,10 @@ class YamlProvider(BaseProvider):
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
-    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
-                    'PTR', 'SSHFP', 'SPF', 'SRV', 'TXT'))
+    SUPPORTS_MUTLIVALUE_PTR = True
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'DNAME', 'LOC', 'MX',
+                    'NAPTR', 'NS', 'PTR', 'SSHFP', 'SPF', 'SRV', 'TXT',
+                    'URLFWD'))
 
     def __init__(self, id, directory, default_ttl=3600, enforce_order=True,
                  populate_should_replace=False, *args, **kwargs):
@@ -239,11 +241,13 @@ class SplitYamlProvider(YamlProvider):
     # instead of a file matching the record name.
     CATCHALL_RECORD_NAMES = ('*', '')
 
-    def __init__(self, id, directory, *args, **kwargs):
+    def __init__(self, id, directory, extension='.', *args, **kwargs):
         super(SplitYamlProvider, self).__init__(id, directory, *args, **kwargs)
+        self.extension = extension
 
     def _zone_directory(self, zone):
-        return join(self.directory, zone.name)
+        filename = '{}{}'.format(zone.name[:-1], self.extension)
+        return join(self.directory, filename)
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,

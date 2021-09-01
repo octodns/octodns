@@ -10,6 +10,7 @@ from logging import getLogger
 import re
 
 from six import string_types, text_type
+from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
 from .geo import GeoCodes
@@ -95,6 +96,8 @@ class Record(EqualityTupleMixin):
                 'ALIAS': AliasRecord,
                 'CAA': CaaRecord,
                 'CNAME': CnameRecord,
+                'DNAME': DnameRecord,
+                'LOC': LocRecord,
                 'MX': MxRecord,
                 'NAPTR': NaptrRecord,
                 'NS': NsRecord,
@@ -103,6 +106,7 @@ class Record(EqualityTupleMixin):
                 'SRV': SrvRecord,
                 'SSHFP': SshfpRecord,
                 'TXT': TxtRecord,
+                'URLFWD': UrlfwdRecord,
             }[_type]
         except KeyError:
             raise Exception('Unknown record type: "{}"'.format(_type))
@@ -125,10 +129,11 @@ class Record(EqualityTupleMixin):
         if n > 253:
             reasons.append('invalid fqdn, "{}" is too long at {} chars, max '
                            'is 253'.format(fqdn, n))
-        n = len(name)
-        if n > 63:
-            reasons.append('invalid name, "{}" is too long at {} chars, max '
-                           'is 63'.format(name, n))
+        for label in name.split('.'):
+            n = len(label)
+            if n > 63:
+                reasons.append('invalid label, "{}" is too long at {} chars, '
+                               'max is 63'.format(label, n))
         try:
             ttl = int(data['ttl'])
             if ttl < 0:
@@ -179,15 +184,11 @@ class Record(EqualityTupleMixin):
     def included(self):
         return self._octodns.get('included', [])
 
-    @property
-    def healthcheck_host(self):
+    def healthcheck_host(self, value=None):
         healthcheck = self._octodns.get('healthcheck', {})
         if healthcheck.get('protocol', None) == 'TCP':
             return None
-        try:
-            return healthcheck['host']
-        except KeyError:
-            return self.fqdn[:-1]
+        return healthcheck.get('host', self.fqdn[:-1]) or value
 
     @property
     def healthcheck_path(self):
@@ -217,6 +218,18 @@ class Record(EqualityTupleMixin):
         # We're assuming we have the same name and type if we're being compared
         if self.ttl != other.ttl:
             return Update(self, other)
+
+    def copy(self, zone=None):
+        data = self.data
+        data['type'] = self._type
+
+        return Record.new(
+            zone if zone else self.zone,
+            self.name,
+            data,
+            self.source,
+            lenient=True
+        )
 
     # NOTE: we're using __hash__ and ordering methods that consider Records
     # equivalent if they have the same name & _type. Values are ignored. This
@@ -401,6 +414,7 @@ class _ValueMixin(object):
 
 
 class _DynamicPool(object):
+    log = getLogger('_DynamicPool')
 
     def __init__(self, _id, data):
         self._id = _id
@@ -412,6 +426,15 @@ class _DynamicPool(object):
             } for d in data['values']
         ]
         values.sort(key=lambda d: d['value'])
+
+        # normalize weight of a single-value pool
+        if len(values) == 1:
+            weight = data['values'][0].get('weight', 1)
+            if weight != 1:
+                self.log.warn(
+                    'Using weight=1 instead of %s for single-value pool %s',
+                    weight, _id)
+                values[0]['weight'] = 1
 
         fallback = data.get('fallback', None)
         self.data = {
@@ -515,6 +538,7 @@ class _DynamicMixin(object):
 
         pools_exist = set()
         pools_seen = set()
+        pools_seen_as_fallback = set()
         if not isinstance(pools, dict):
             reasons.append('pools must be a dict')
         elif not pools:
@@ -556,10 +580,17 @@ class _DynamicMixin(object):
                         reasons.append('missing value in pool "{}" '
                                        'value {}'.format(_id, value_num))
 
+                if len(values) == 1 and values[0].get('weight', 1) != 1:
+                    reasons.append('pool "{}" has single value with '
+                                   'weight!=1'.format(_id))
+
                 fallback = pool.get('fallback', None)
-                if fallback is not None and fallback not in pools:
-                    reasons.append('undefined fallback "{}" for pool "{}"'
-                                   .format(fallback, _id))
+                if fallback is not None:
+                    if fallback in pools:
+                        pools_seen_as_fallback.add(fallback)
+                    else:
+                        reasons.append('undefined fallback "{}" for pool "{}"'
+                                       .format(fallback, _id))
 
                 # Check for loops
                 fallback = pools[_id].get('fallback', None)
@@ -587,7 +618,6 @@ class _DynamicMixin(object):
         else:
             seen_default = False
 
-            # TODO: don't allow 'default' as a pool name, reserved
             for i, rule in enumerate(rules):
                 rule_num = i + 1
                 try:
@@ -608,7 +638,6 @@ class _DynamicMixin(object):
                     if pool not in pools:
                         reasons.append('rule {} undefined pool "{}"'
                                        .format(rule_num, pool))
-                        pools_seen.add(pool)
                     elif pool in pools_seen and geos:
                         reasons.append('rule {} invalid, target pool "{}" '
                                        'reused'.format(rule_num, pool))
@@ -628,7 +657,7 @@ class _DynamicMixin(object):
                         reasons.extend(GeoCodes.validate(geo, 'rule {} '
                                                          .format(rule_num)))
 
-        unused = pools_exist - pools_seen
+        unused = pools_exist - pools_seen - pools_seen_as_fallback
         if unused:
             unused = '", "'.join(sorted(unused))
             reasons.append('unused pools: "{}"'.format(unused))
@@ -720,8 +749,13 @@ class _IpList(object):
 
     @classmethod
     def process(cls, values):
-        # Translating None into '' so that the list will be sortable in python3
-        return [v if v is not None else '' for v in values]
+        # Translating None into '' so that the list will be sortable in
+        # python3, get everything to str first
+        values = [text_type(v) if v is not None else '' for v in values]
+        # Now round trip all non-'' through the address type and back to a str
+        # to normalize the address representation.
+        return [text_type(cls._address_type(v)) if v != '' else ''
+                for v in values]
 
 
 class Ipv4List(_IpList):
@@ -743,6 +777,11 @@ class _TargetValue(object):
             reasons.append('empty value')
         elif not data:
             reasons.append('missing value')
+        # NOTE: FQDN complains if the data it receives isn't a str, it doesn't
+        # allow unicode... This is likely specific to 2.7
+        elif not FQDN(str(data), allow_underscores=True).is_valid:
+            reasons.append('{} value "{}" is not a valid FQDN'
+                           .format(_type, data))
         elif not data.endswith('.'):
             reasons.append('{} value "{}" missing trailing .'
                            .format(_type, data))
@@ -756,6 +795,10 @@ class _TargetValue(object):
 
 
 class CnameValue(_TargetValue):
+    pass
+
+
+class DnameValue(_TargetValue):
     pass
 
 
@@ -776,6 +819,14 @@ class AliasValue(_TargetValue):
 class AliasRecord(_ValueMixin, Record):
     _type = 'ALIAS'
     _value_type = AliasValue
+
+    @classmethod
+    def validate(cls, name, fqdn, data):
+        reasons = []
+        if name != '':
+            reasons.append('non-root ALIAS not allowed')
+        reasons.extend(super(AliasRecord, cls).validate(name, fqdn, data))
+        return reasons
 
 
 class CaaValue(EqualityTupleMixin):
@@ -840,6 +891,200 @@ class CnameRecord(_DynamicMixin, _ValueMixin, Record):
             reasons.append('root CNAME not allowed')
         reasons.extend(super(CnameRecord, cls).validate(name, fqdn, data))
         return reasons
+
+
+class DnameRecord(_DynamicMixin, _ValueMixin, Record):
+    _type = 'DNAME'
+    _value_type = DnameValue
+
+
+class LocValue(EqualityTupleMixin):
+    # TODO: work out how to do defaults per RFC
+
+    @classmethod
+    def validate(cls, data, _type):
+        int_keys = [
+            'lat_degrees',
+            'lat_minutes',
+            'long_degrees',
+            'long_minutes',
+        ]
+
+        float_keys = [
+            'lat_seconds',
+            'long_seconds',
+            'altitude',
+            'size',
+            'precision_horz',
+            'precision_vert',
+        ]
+
+        direction_keys = [
+            'lat_direction',
+            'long_direction',
+        ]
+
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
+        reasons = []
+        for value in data:
+            for key in int_keys:
+                try:
+                    int(value[key])
+                    if (
+                        (
+                            key == 'lat_degrees' and
+                            not 0 <= int(value[key]) <= 90
+                        ) or (
+                            key == 'long_degrees' and
+                            not 0 <= int(value[key]) <= 180
+                        ) or (
+                            key in ['lat_minutes', 'long_minutes'] and
+                            not 0 <= int(value[key]) <= 59
+                        )
+                    ):
+                        reasons.append('invalid value for {} "{}"'
+                                       .format(key, value[key]))
+                except KeyError:
+                    reasons.append('missing {}'.format(key))
+                except ValueError:
+                    reasons.append('invalid {} "{}"'
+                                   .format(key, value[key]))
+
+            for key in float_keys:
+                try:
+                    float(value[key])
+                    if (
+                        (
+                            key in ['lat_seconds', 'long_seconds'] and
+                            not 0 <= float(value[key]) <= 59.999
+                        ) or (
+                            key == 'altitude' and
+                            not -100000.00 <= float(value[key]) <= 42849672.95
+                        ) or (
+                            key in ['size',
+                                    'precision_horz',
+                                    'precision_vert'] and
+                            not 0 <= float(value[key]) <= 90000000.00
+                        )
+                    ):
+                        reasons.append('invalid value for {} "{}"'
+                                       .format(key, value[key]))
+                except KeyError:
+                    reasons.append('missing {}'.format(key))
+                except ValueError:
+                    reasons.append('invalid {} "{}"'
+                                   .format(key, value[key]))
+
+            for key in direction_keys:
+                try:
+                    str(value[key])
+                    if (
+                        key == 'lat_direction' and
+                        value[key] not in ['N', 'S']
+                    ):
+                        reasons.append('invalid direction for {} "{}"'
+                                       .format(key, value[key]))
+                    if (
+                        key == 'long_direction' and
+                        value[key] not in ['E', 'W']
+                    ):
+                        reasons.append('invalid direction for {} "{}"'
+                                       .format(key, value[key]))
+                except KeyError:
+                    reasons.append('missing {}'.format(key))
+        return reasons
+
+    @classmethod
+    def process(cls, values):
+        return [LocValue(v) for v in values]
+
+    def __init__(self, value):
+        self.lat_degrees = int(value['lat_degrees'])
+        self.lat_minutes = int(value['lat_minutes'])
+        self.lat_seconds = float(value['lat_seconds'])
+        self.lat_direction = value['lat_direction'].upper()
+        self.long_degrees = int(value['long_degrees'])
+        self.long_minutes = int(value['long_minutes'])
+        self.long_seconds = float(value['long_seconds'])
+        self.long_direction = value['long_direction'].upper()
+        self.altitude = float(value['altitude'])
+        self.size = float(value['size'])
+        self.precision_horz = float(value['precision_horz'])
+        self.precision_vert = float(value['precision_vert'])
+
+    @property
+    def data(self):
+        return {
+            'lat_degrees': self.lat_degrees,
+            'lat_minutes': self.lat_minutes,
+            'lat_seconds': self.lat_seconds,
+            'lat_direction': self.lat_direction,
+            'long_degrees': self.long_degrees,
+            'long_minutes': self.long_minutes,
+            'long_seconds': self.long_seconds,
+            'long_direction': self.long_direction,
+            'altitude': self.altitude,
+            'size': self.size,
+            'precision_horz': self.precision_horz,
+            'precision_vert': self.precision_vert,
+        }
+
+    def __hash__(self):
+        return hash((
+            self.lat_degrees,
+            self.lat_minutes,
+            self.lat_seconds,
+            self.lat_direction,
+            self.long_degrees,
+            self.long_minutes,
+            self.long_seconds,
+            self.long_direction,
+            self.altitude,
+            self.size,
+            self.precision_horz,
+            self.precision_vert,
+        ))
+
+    def _equality_tuple(self):
+        return (
+            self.lat_degrees,
+            self.lat_minutes,
+            self.lat_seconds,
+            self.lat_direction,
+            self.long_degrees,
+            self.long_minutes,
+            self.long_seconds,
+            self.long_direction,
+            self.altitude,
+            self.size,
+            self.precision_horz,
+            self.precision_vert,
+        )
+
+    def __repr__(self):
+        loc_format = "'{0} {1} {2:.3f} {3} " + \
+            "{4} {5} {6:.3f} {7} " + \
+            "{8:.2f}m {9:.2f}m {10:.2f}m {11:.2f}m'"
+        return loc_format.format(
+            self.lat_degrees,
+            self.lat_minutes,
+            self.lat_seconds,
+            self.lat_direction,
+            self.long_degrees,
+            self.long_minutes,
+            self.long_seconds,
+            self.long_direction,
+            self.altitude,
+            self.size,
+            self.precision_horz,
+            self.precision_vert,
+        )
+
+
+class LocRecord(_ValuesMixin, Record):
+    _type = 'LOC'
+    _value_type = LocValue
 
 
 class MxValue(EqualityTupleMixin):
@@ -1016,12 +1261,36 @@ class NsRecord(_ValuesMixin, Record):
 
 
 class PtrValue(_TargetValue):
-    pass
+
+    @classmethod
+    def validate(cls, values, _type):
+        if not isinstance(values, list):
+            values = [values]
+
+        reasons = []
+
+        if not values:
+            reasons.append('missing values')
+
+        for value in values:
+            reasons.extend(super(PtrValue, cls).validate(value, _type))
+
+        return reasons
+
+    @classmethod
+    def process(cls, values):
+        return [super(PtrValue, cls).process(v) for v in values]
 
 
-class PtrRecord(_ValueMixin, Record):
+class PtrRecord(_ValuesMixin, Record):
     _type = 'PTR'
     _value_type = PtrValue
+
+    # This is for backward compatibility with providers that don't support
+    # multi-value PTR records.
+    @property
+    def value(self):
+        return self.values[0]
 
 
 class SshfpValue(EqualityTupleMixin):
@@ -1227,3 +1496,86 @@ class _TxtValue(_ChunkedValue):
 class TxtRecord(_ChunkedValuesMixin, Record):
     _type = 'TXT'
     _value_type = _TxtValue
+
+
+class UrlfwdValue(EqualityTupleMixin):
+    VALID_CODES = (301, 302)
+    VALID_MASKS = (0, 1, 2)
+    VALID_QUERY = (0, 1)
+
+    @classmethod
+    def validate(cls, data, _type):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
+        reasons = []
+        for value in data:
+            try:
+                code = int(value['code'])
+                if code not in cls.VALID_CODES:
+                    reasons.append('unrecognized return code "{}"'
+                                   .format(code))
+            except KeyError:
+                reasons.append('missing code')
+            except ValueError:
+                reasons.append('invalid return code "{}"'
+                               .format(value['code']))
+            try:
+                masking = int(value['masking'])
+                if masking not in cls.VALID_MASKS:
+                    reasons.append('unrecognized masking setting "{}"'
+                                   .format(masking))
+            except KeyError:
+                reasons.append('missing masking')
+            except ValueError:
+                reasons.append('invalid masking setting "{}"'
+                               .format(value['masking']))
+            try:
+                query = int(value['query'])
+                if query not in cls.VALID_QUERY:
+                    reasons.append('unrecognized query setting "{}"'
+                                   .format(query))
+            except KeyError:
+                reasons.append('missing query')
+            except ValueError:
+                reasons.append('invalid query setting "{}"'
+                               .format(value['query']))
+            for k in ('path', 'target'):
+                if k not in value:
+                    reasons.append('missing {}'.format(k))
+        return reasons
+
+    @classmethod
+    def process(cls, values):
+        return [UrlfwdValue(v) for v in values]
+
+    def __init__(self, value):
+        self.path = value['path']
+        self.target = value['target']
+        self.code = int(value['code'])
+        self.masking = int(value['masking'])
+        self.query = int(value['query'])
+
+    @property
+    def data(self):
+        return {
+            'path': self.path,
+            'target': self.target,
+            'code': self.code,
+            'masking': self.masking,
+            'query': self.query,
+        }
+
+    def __hash__(self):
+        return hash(self.__repr__())
+
+    def _equality_tuple(self):
+        return (self.path, self.target, self.code, self.masking, self.query)
+
+    def __repr__(self):
+        return '"{}" "{}" {} {} {}'.format(self.path, self.target, self.code,
+                                           self.masking, self.query)
+
+
+class UrlfwdRecord(_ValuesMixin, Record):
+    _type = 'URLFWD'
+    _value_type = UrlfwdValue

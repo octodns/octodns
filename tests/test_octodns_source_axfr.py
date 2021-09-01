@@ -9,6 +9,8 @@ import dns.zone
 from dns.exception import DNSException
 
 from mock import patch
+from os.path import exists
+from shutil import copyfile
 from six import text_type
 from unittest import TestCase
 
@@ -21,7 +23,7 @@ from octodns.record import ValidationError
 class TestAxfrSource(TestCase):
     source = AxfrSource('test', 'localhost')
 
-    forward_zonefile = dns.zone.from_file('./tests/zones/unit.tests.',
+    forward_zonefile = dns.zone.from_file('./tests/zones/unit.tests.tst',
                                           'unit.tests', relativize=False)
 
     @patch('dns.zone.from_xfr')
@@ -34,7 +36,7 @@ class TestAxfrSource(TestCase):
         ]
 
         self.source.populate(got)
-        self.assertEquals(11, len(got.records))
+        self.assertEquals(15, len(got.records))
 
         with self.assertRaises(AxfrSourceZoneTransferFailed) as ctx:
             zone = Zone('unit.tests.', [])
@@ -44,18 +46,45 @@ class TestAxfrSource(TestCase):
 
 
 class TestZoneFileSource(TestCase):
-    source = ZoneFileSource('test', './tests/zones')
+    source = ZoneFileSource('test', './tests/zones', file_extension='.tst')
+
+    def test_zonefiles_with_extension(self):
+        source = ZoneFileSource('test', './tests/zones', '.extension')
+        # Load zonefiles with a specified file extension
+        valid = Zone('ext.unit.tests.', [])
+        source.populate(valid)
+        self.assertEquals(1, len(valid.records))
+
+    def test_zonefiles_without_extension(self):
+        # Windows doesn't let files end with a `.` so we add a .tst to them in
+        # the repo and then try and create the `.` version we need for the
+        # default case (no extension.)
+        copyfile('./tests/zones/unit.tests.tst', './tests/zones/unit.tests.')
+        # Unfortunately copyfile silently works and create the file without
+        # the `.` so we have to check to see if it did that
+        if exists('./tests/zones/unit.tests'):
+            # It did so we need to skip this test, that means windows won't
+            # have full code coverage, but skipping the test is going out of
+            # our way enough for a os-specific/oddball case.
+            self.skipTest('Unable to create unit.tests. (ending with .) so '
+                          'skipping default filename testing.')
+
+        source = ZoneFileSource('test', './tests/zones')
+        # Load zonefiles without a specified file extension
+        valid = Zone('unit.tests.', [])
+        source.populate(valid)
+        self.assertEquals(15, len(valid.records))
 
     def test_populate(self):
         # Valid zone file in directory
         valid = Zone('unit.tests.', [])
         self.source.populate(valid)
-        self.assertEquals(11, len(valid.records))
+        self.assertEquals(15, len(valid.records))
 
         # 2nd populate does not read file again
         again = Zone('unit.tests.', [])
         self.source.populate(again)
-        self.assertEquals(11, len(again.records))
+        self.assertEquals(15, len(again.records))
 
         # bust the cache
         del self.source._zone_records[valid.name]

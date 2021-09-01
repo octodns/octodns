@@ -6,6 +6,7 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from requests import HTTPError, Session
+from operator import itemgetter
 import logging
 
 from ..record import Create, Record
@@ -15,8 +16,8 @@ from .base import BaseProvider
 class PowerDnsBaseProvider(BaseProvider):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
-                    'PTR', 'SPF', 'SSHFP', 'SRV', 'TXT'))
+    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'LOC', 'MX', 'NAPTR',
+                    'NS', 'PTR', 'SPF', 'SSHFP', 'SRV', 'TXT'))
     TIMEOUT = 5
 
     def __init__(self, id, host, api_key, port=8081,
@@ -102,6 +103,33 @@ class PowerDnsBaseProvider(BaseProvider):
     _data_for_SPF = _data_for_quoted
     _data_for_TXT = _data_for_quoted
 
+    def _data_for_LOC(self, rrset):
+        values = []
+        for record in rrset['records']:
+            lat_degrees, lat_minutes, lat_seconds, lat_direction, \
+                long_degrees, long_minutes, long_seconds, long_direction, \
+                altitude, size, precision_horz, precision_vert = \
+                record['content'].replace('m', '').split(' ', 11)
+            values.append({
+                'lat_degrees': int(lat_degrees),
+                'lat_minutes': int(lat_minutes),
+                'lat_seconds': float(lat_seconds),
+                'lat_direction': lat_direction,
+                'long_degrees': int(long_degrees),
+                'long_minutes': int(long_minutes),
+                'long_seconds': float(long_seconds),
+                'long_direction': long_direction,
+                'altitude': float(altitude),
+                'size': float(size),
+                'precision_horz': float(precision_horz),
+                'precision_vert': float(precision_vert),
+            })
+        return {
+            'ttl': rrset['ttl'],
+            'type': rrset['type'],
+            'values': values
+        }
+
     def _data_for_MX(self, rrset):
         values = []
         for record in rrset['records']:
@@ -183,7 +211,10 @@ class PowerDnsBaseProvider(BaseProvider):
             version = resp.json()['version']
             self.log.debug('powerdns_version: got version %s from server',
                            version)
-            self._powerdns_version = [int(p) for p in version.split('.')]
+            # The extra `-` split is to handle pre-release and source built
+            # versions like 4.5.0-alpha0.435.master.gcb114252b
+            self._powerdns_version = [
+                int(p.split('-')[0]) for p in version.split('.')[:3]]
 
         return self._powerdns_version
 
@@ -282,6 +313,27 @@ class PowerDnsBaseProvider(BaseProvider):
     _records_for_SPF = _records_for_quoted
     _records_for_TXT = _records_for_quoted
 
+    def _records_for_LOC(self, record):
+        return [{
+            'content':
+                '%d %d %0.3f %s %d %d %.3f %s %0.2fm %0.2fm %0.2fm %0.2fm' %
+                (
+                    int(v.lat_degrees),
+                    int(v.lat_minutes),
+                    float(v.lat_seconds),
+                    v.lat_direction,
+                    int(v.long_degrees),
+                    int(v.long_minutes),
+                    float(v.long_seconds),
+                    v.long_direction,
+                    float(v.altitude),
+                    float(v.size),
+                    float(v.precision_horz),
+                    float(v.precision_vert)
+                ),
+            'disabled': False
+        } for v in record.values]
+
     def _records_for_MX(self, record):
         return [{
             'content': '{} {}'.format(v.preference, v.exchange),
@@ -378,6 +430,12 @@ class PowerDnsBaseProvider(BaseProvider):
         for change in changes:
             class_name = change.__class__.__name__
             mods.append(getattr(self, '_mod_{}'.format(class_name))(change))
+
+        # Ensure that any DELETE modifications always occur before any REPLACE
+        # modifications. This ensures that an A record can be replaced by a
+        # CNAME record and vice-versa.
+        mods.sort(key=itemgetter('changetype'))
+
         self.log.debug('_apply:   sending change request')
 
         try:

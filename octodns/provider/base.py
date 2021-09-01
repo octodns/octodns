@@ -10,13 +10,15 @@ from six import text_type
 from ..source.base import BaseSource
 from ..zone import Zone
 from .plan import Plan
+from . import SupportsException
 
 
 class BaseProvider(BaseSource):
 
     def __init__(self, id, apply_disabled=False,
                  update_pcent_threshold=Plan.MAX_SAFE_UPDATE_PCENT,
-                 delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT):
+                 delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT,
+                 strict_supports=False):
         super(BaseProvider, self).__init__(id)
         self.log.debug('__init__: id=%s, apply_disabled=%s, '
                        'update_pcent_threshold=%.2f, '
@@ -28,6 +30,43 @@ class BaseProvider(BaseSource):
         self.apply_disabled = apply_disabled
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
+        self.strict_supports = strict_supports
+
+    def _process_desired_zone(self, desired):
+        '''
+        An opportunity for providers to modify the desired zone records before
+        planning. `desired` is a "shallow" copy, see `Zone.copy` for more
+        information
+
+        - Must call `super` at an appropriate point for their work, generally
+          that means as the final step of the method, returning the result of
+          the `super` call.
+        - May modify `desired` directly.
+        - Must not modify records directly, `record.copy` should be called,
+          the results of which can be modified, and then `Zone.add_record` may
+          be used with `replace=True`.
+        - May call `Zone.remove_record` to remove records from `desired`.
+        - Must call supports_warn_or_except with information about any changes
+          that are made to have them logged or throw errors depending on the
+          provider configuration.
+        '''
+        if self.SUPPORTS_MUTLIVALUE_PTR:
+            # nothing do here
+            return desired
+
+        for record in desired.records:
+            if record._type == 'PTR' and len(record.values) > 1:
+                # replace with a single-value copy
+                msg = 'multi-value PTR records not supported for {}' \
+                    .format(record.fqdn)
+                fallback = 'falling back to single value, {}' \
+                    .format(record.value)
+                self.supports_warn_or_except(msg, fallback)
+                record = record.copy()
+                record.values = [record.value]
+                desired.add_record(record, replace=True)
+
+        return desired
 
     def _include_change(self, change):
         '''
@@ -44,8 +83,20 @@ class BaseProvider(BaseSource):
         '''
         return []
 
-    def plan(self, desired):
+    def supports_warn_or_except(self, msg, fallback):
+        if self.strict_supports:
+            raise SupportsException('{}: {}'.format(self.id, msg))
+        self.log.warning('{}; {}'.format(msg, fallback))
+
+    def plan(self, desired, processors=[]):
         self.log.info('plan: desired=%s', desired.name)
+
+        # Make a (shallow) copy of the desired state so that everything from
+        # now on (in this target) can modify it as they see fit without
+        # worrying about impacting other targets.
+        desired = desired.copy()
+
+        desired = self._process_desired_zone(desired)
 
         existing = Zone(desired.name, desired.sub_zones)
         exists = self.populate(existing, target=True, lenient=True)
@@ -54,6 +105,9 @@ class BaseProvider(BaseSource):
             # information
             self.log.warn('Provider %s used in target mode did not return '
                           'exists', self.id)
+
+        for processor in processors:
+            existing = processor.process_target_zone(existing, target=self)
 
         # compute the changes at the zone/record level
         changes = existing.changes(desired, self)
@@ -91,7 +145,10 @@ class BaseProvider(BaseSource):
             self.log.info('apply: disabled')
             return 0
 
-        self.log.info('apply: making changes')
+        zone_name = plan.desired.name
+        num_changes = len(plan.changes)
+        self.log.info('apply: making %d changes to %s', num_changes,
+                      zone_name)
         self._apply(plan)
         return len(plan.changes)
 

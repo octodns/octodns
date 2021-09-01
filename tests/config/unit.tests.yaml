@@ -36,6 +36,22 @@
     - flags: 0
       tag: issue
       value: ca.unit.tests
+_imap._tcp:
+  ttl: 600
+  type: SRV
+  values:
+  - port: 0
+    priority: 0
+    target: .
+    weight: 0
+_pop3._tcp:
+  ttl: 600
+  type: SRV
+  values:
+  - port: 0
+    priority: 0
+    target: .
+    weight: 0
 _srv._tcp:
   ttl: 600
   type: SRV
@@ -56,6 +72,10 @@ cname:
   ttl: 300
   type: CNAME
   value: unit.tests.
+dname:
+  ttl: 300
+  type: DNAME
+  value: unit.tests.
 excluded:
   octodns:
     excluded:
@@ -73,6 +93,34 @@ included:
     - test
   type: CNAME
   value: unit.tests.
+loc:
+  ttl: 300
+  type: LOC
+  values:
+  - altitude: 20
+    lat_degrees: 31
+    lat_direction: S
+    lat_minutes: 58
+    lat_seconds: 52.1
+    long_degrees: 115
+    long_direction: E
+    long_minutes: 49
+    long_seconds: 11.7
+    precision_horz: 10
+    precision_vert: 2
+    size: 10
+  - altitude: 20
+    lat_degrees: 53
+    lat_direction: N
+    lat_minutes: 13
+    lat_seconds: 10
+    long_degrees: 2
+    long_direction: W
+    long_minutes: 18
+    long_seconds: 26
+    precision_horz: 1000
+    precision_vert: 2
+    size: 10
 mx:
   ttl: 300
   type: MX
@@ -104,7 +152,7 @@ naptr:
 ptr:
   ttl: 300
   type: PTR
-  value: foo.bar.com.
+  values: [foo.bar.com.]
 spf:
   ttl: 600
   type: SPF
@@ -121,6 +169,20 @@ txt:
     - Bah bah black sheep
     - have you any wool.
     - 'v=DKIM1\;k=rsa\;s=email\;h=sha256\;p=A/kinda+of/long/string+with+numb3rs'
+urlfwd:
+  ttl: 300
+  type: URLFWD
+  values:
+  - code: 302
+    masking: 2
+    path: '/'
+    query: 0
+    target: 'http://www.unit.tests'
+  - code: 301
+    masking: 2
+    path: '/target'
+    query: 0
+    target: 'http://target.unit.tests'
 www:
   ttl: 300
   type: A
