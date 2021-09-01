@@ -10,7 +10,7 @@ from six import text_type
 from ..source.base import BaseSource
 from ..zone import Zone
 from .plan import Plan
-from . import ProviderException
+from . import SupportsException
 
 
 class BaseProvider(BaseSource):
@@ -34,21 +34,26 @@ class BaseProvider(BaseSource):
 
     def _process_desired_zone(self, desired):
         '''
-        An opportunity for providers to modify that desired zone records before
-        planning.
+        An opportunity for providers to modify the desired zone records before
+        planning. `desired` is a "shallow" copy, see `Zone.copy` for more
+        information
 
-        - Must do their work and then call super with the results of that work
-        - Must not modify the `desired` parameter or its records and should
-          make a copy of anything it's modifying
+        - Must call `super` at an appropriate point for their work, generally
+          that means as the final step of the method, returning the result of
+          the `super` call.
+        - May modify `desired` directly.
+        - Must not modify records directly, `record.copy` should be called,
+          the results of which can be modified, and then `Zone.add_record` may
+          be used with `replace=True`.
+        - May call `Zone.remove_record` to remove records from `desired`.
         - Must call supports_warn_or_except with information about any changes
           that are made to have them logged or throw errors depending on the
-          configuration
+          provider configuration.
         '''
         if self.SUPPORTS_MUTLIVALUE_PTR:
             # nothing do here
             return desired
 
-        new_desired = Zone(desired.name, desired.sub_zones)
         for record in desired.records:
             if record._type == 'PTR' and len(record.values) > 1:
                 # replace with a single-value copy
@@ -59,10 +64,9 @@ class BaseProvider(BaseSource):
                 self.supports_warn_or_except(msg, fallback)
                 record = record.copy()
                 record.values = [record.value]
+                desired.add_record(record, replace=True)
 
-            new_desired.add_record(record)
-
-        return new_desired
+        return desired
 
     def _include_change(self, change):
         '''
@@ -81,13 +85,17 @@ class BaseProvider(BaseSource):
 
     def supports_warn_or_except(self, msg, fallback):
         if self.strict_supports:
-            raise ProviderException('{}: {}'.format(self.id, msg))
+            raise SupportsException('{}: {}'.format(self.id, msg))
         self.log.warning('{}; {}'.format(msg, fallback))
 
     def plan(self, desired, processors=[]):
         self.log.info('plan: desired=%s', desired.name)
 
-        # process desired zone for any custom zone/record modification
+        # Make a (shallow) copy of the desired state so that everything from
+        # now on (in this target) can modify it as they see fit without
+        # worrying about impacting other targets.
+        desired = desired.copy()
+
         desired = self._process_desired_zone(desired)
 
         existing = Zone(desired.name, desired.sub_zones)

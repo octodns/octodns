@@ -228,6 +228,32 @@ The above command pulled the existing data out of Route53 and placed the results
    * Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
 * octoDNS itself supports non-ASCII character sets, but in testing Cloudflare is the only provider where that is currently functional end-to-end. Others have failures either in the client libraries or API calls
 
+## Compatibilty & Compliance
+
+### `lenient`
+
+`lenient` mostly focuses on the details of `Record`s and standards compliance. When set to `true` octoDNS will allow allow non-compliant configurations & values where possible. For example CNAME values that don't end with a `.`, label length restrictions, and invalid geo codes on `dynamic` records. When in lenient mode octoDNS will log validation problems at `WARNING` and try and continue with the configuration or source data as it exists. See [Lenience](/docs/records.md#lenience) for more information on the concept and how it can be configured.
+
+### `strict_supports` (Work In Progress)
+
+`strict_supports` is a `Provider` level parameter that comes into play when a provider has been asked to create a record that it is unable to support. The simplest case of this would be record type, e.g. `SSHFP` not being supported by `AzureProvider`. If such a record is passed to an `AzureProvider` as a target the provider will take action based on the `strict_supports`. When `true` it will throw an exception saying that it's unable to create the record, when set to `false` it will log at `WARNING` with information about what it's unable to do and how it is attempting to working around it. Other examples of things that cannot be supported would be `dynamic` records on a provider that only supports simple or the lack of support for specific geos in a provider, e.g. Route53Provider does not support `NA-CA-*`.
+
+It is worth noting that these errors will happen during the plan phase of things so that problems will be visible without having to make changes.
+
+This concept is currently a work in progress and only partially implemented. While work is on-going `strict_supports` will default to `false`. Once the work is considered complete & ready the default will change to `true` as it's a much safer and less surprising default as what you configure is what you'll get unless an error is throw telling you why it cannot be done. You will then have the choice to explicitly request that things continue with work-arounds with `strict_supports` set to false`. In the meantime it is encouraged that you manually configure the parameter to `true` in your provider configs.
+
+### Configuring `strict_supports`
+
+The `strict_supports` parameter is available on all providers and can be configured in YAML as follows:
+
+```yaml
+providers:
+  someprovider:
+    class: whatever.TheProvider
+    ...
+    strict_supports: true
+```
+
 ## Custom Sources and Providers
 
 You can check out the [source](/octodns/source/) and [provider](/octodns/provider/) directory to see what's currently supported. Sources act as a source of record information. AxfrSource and TinyDnsFileSource are currently the only OSS sources, though we have several others internally that are specific to our environment. These include something to pull host data from  [gPanel](https://githubengineering.com/githubs-metal-cloud/) and a similar provider that sources information about our network gear to create both `A` & `PTR` records for their interfaces. Things that might make good OSS sources might include an `ElbSource` that pulls information about [AWS Elastic Load Balancers](https://aws.amazon.com/elasticloadbalancing/) and dynamically creates `CNAME`s for them, or `Ec2Source` that pulls instance information so that records can be created for hosts similar to how our `GPanelProvider` works.

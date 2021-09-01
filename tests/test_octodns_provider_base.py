@@ -11,7 +11,8 @@ from six import text_type
 from unittest import TestCase
 
 from octodns.processor.base import BaseProcessor
-from octodns.provider.base import BaseProvider, ProviderException
+from octodns.provider import SupportsException
+from octodns.provider.base import BaseProvider
 from octodns.provider.plan import Plan, UnsafePlan
 from octodns.record import Create, Delete, Record, Update
 from octodns.zone import Zone
@@ -61,11 +62,11 @@ class TrickyProcessor(BaseProcessor):
         self.existing = existing
         self.target = target
 
-        new = self._clone_zone(existing)
+        new = existing.copy()
         for record in existing.records:
-            new.add_record(record)
+            new.add_record(record, replace=True)
         for record in self.add_during_process_target_zone:
-            new.add_record(record)
+            new.add_record(record, replace=True)
         return new
 
 
@@ -465,7 +466,7 @@ class TestBaseProvider(TestCase):
 
         strict = MinimalProvider(strict_supports=True)
         # Should log and not expect
-        with self.assertRaises(ProviderException) as ctx:
+        with self.assertRaises(SupportsException) as ctx:
             strict.supports_warn_or_except('Hello World!', 'Will not see')
         self.assertEquals('minimal: Hello World!', text_type(ctx.exception))
         strict.log.warning.assert_not_called()

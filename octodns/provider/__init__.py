@@ -8,3 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 
 class ProviderException(Exception):
     pass
+
+
+class SupportsException(ProviderException):
+    pass

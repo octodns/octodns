@@ -464,7 +464,7 @@ class TestManager(TestCase):
         class MockProcessor(BaseProcessor):
 
             def process_source_zone(self, zone, sources):
-                zone = self._clone_zone(zone)
+                zone = zone.copy()
                 zone.add_record(record)
                 return zone
 
@@ -480,7 +480,7 @@ class TestManager(TestCase):
         class MockProcessor(BaseProcessor):
 
             def process_target_zone(self, zone, target):
-                zone = self._clone_zone(zone)
+                zone = zone.copy()
                 zone.add_record(record)
                 return zone
 
@@ -496,7 +496,7 @@ class TestManager(TestCase):
         class MockProcessor(BaseProcessor):
 
             def process_target_zone(self, zone, target):
-                zone = self._clone_zone(zone)
+                zone = zone.copy()
                 zone.add_record(record)
                 return zone
 

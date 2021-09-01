@@ -19,7 +19,6 @@ from six import text_type
 from ..equality import EqualityTupleMixin
 from ..record import Record, Update
 from ..record.geo import GeoCodes
-from ..zone import Zone
 from . import ProviderException
 from .base import BaseProvider
 
@@ -927,11 +926,9 @@ class Route53Provider(BaseProvider):
         return data
 
     def _process_desired_zone(self, desired):
-        ret = Zone(desired.name, desired.sub_zones)
         for record in desired.records:
             if getattr(record, 'dynamic', False):
                 # Make a copy of the record in case we have to muck with it
-                record = record.copy()
                 dynamic = record.dynamic
                 rules = []
                 for i, rule in enumerate(dynamic.rules):
@@ -958,11 +955,12 @@ class Route53Provider(BaseProvider):
                         rule.data['geos'] = filtered_geos
                     rules.append(rule)
 
-                dynamic.rules = rules
+                if rules != dynamic.rules:
+                    record = record.copy()
+                    record.dynamic.rules = rules
+                    desired.add_record(record, replace=True)
 
-            ret.add_record(record)
-
-        return super(Route53Provider, self)._process_desired_zone(ret)
+        return super(Route53Provider, self)._process_desired_zone(desired)
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
