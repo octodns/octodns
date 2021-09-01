@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 from suds import WebFault
 
 from collections import defaultdict
+from . import ProviderException
 from .base import BaseProvider
 from logging import getLogger
 from ..record import Record
@@ -15,7 +16,7 @@ from transip.service.domain import DomainService
 from transip.service.objects import DnsEntry
 
 
-class TransipException(Exception):
+class TransipException(ProviderException):
     pass
 
 

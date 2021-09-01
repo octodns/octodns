@@ -12,10 +12,11 @@ from collections import defaultdict
 
 from logging import getLogger
 from ..record import Record
+from . import ProviderException
 from .base import BaseProvider
 
 
-class AkamaiClientNotFound(Exception):
+class AkamaiClientNotFound(ProviderException):
 
     def __init__(self, resp):
         message = "404: Resource not found"

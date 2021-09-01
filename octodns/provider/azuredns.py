@@ -20,10 +20,11 @@ from azure.mgmt.trafficmanager.models import Profile, DnsConfig, \
 import logging
 from functools import reduce
 from ..record import Record, Update, GeoCodes
+from . import ProviderException
 from .base import BaseProvider
 
 
-class AzureException(Exception):
+class AzureException(ProviderException):
     pass
 
 
