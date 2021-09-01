@@ -12,10 +12,11 @@ import logging
 import base64
 
 from ..record import Record
+from . import ProviderException
 from .base import BaseProvider
 
 
-class EasyDNSClientException(Exception):
+class EasyDNSClientException(ProviderException):
     pass
 
 

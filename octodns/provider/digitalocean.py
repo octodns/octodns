@@ -10,10 +10,11 @@ from requests import Session
 import logging
 
 from ..record import Record
+from . import ProviderException
 from .base import BaseProvider
 
 
-class DigitalOceanClientException(Exception):
+class DigitalOceanClientException(ProviderException):
     pass
 
 
