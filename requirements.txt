@@ -17,7 +17,7 @@ ipaddress==1.0.23; python_version < '3.3'
 jmespath==0.10.0
 msrestazure==0.6.4
 natsort==6.2.1
-ns1-python==0.16.0
+ns1-python==0.16.1
 ovh==0.5.0
 pycountry-convert==0.7.2
 pycountry==20.7.3
