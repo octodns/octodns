@@ -13,10 +13,11 @@ from time import sleep
 from urllib.parse import urlsplit
 
 from ..record import Record, Update
+from . import ProviderException
 from .base import BaseProvider
 
 
-class CloudflareError(Exception):
+class CloudflareError(ProviderException):
     def __init__(self, data):
         try:
             message = data['errors'][0]['message']

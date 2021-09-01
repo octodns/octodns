@@ -19,6 +19,7 @@ from six import text_type
 from ..equality import EqualityTupleMixin
 from ..record import Record, Update
 from ..record.geo import GeoCodes
+from . import ProviderException
 from .base import BaseProvider
 
 octal_re = re.compile(r'\\(\d\d\d)')
@@ -512,7 +513,7 @@ class _Route53GeoRecord(_Route53Record):
                                                           self.values)
 
 
-class Route53ProviderException(Exception):
+class Route53ProviderException(ProviderException):
     pass
 
 

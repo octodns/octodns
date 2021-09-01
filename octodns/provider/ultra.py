@@ -3,10 +3,11 @@ from logging import getLogger
 from requests import Session
 
 from ..record import Record
+from . import ProviderException
 from .base import BaseProvider
 
 
-class UltraClientException(Exception):
+class UltraClientException(ProviderException):
     '''
     Base Ultra exception type
     '''

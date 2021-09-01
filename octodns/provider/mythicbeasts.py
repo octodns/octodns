@@ -11,6 +11,7 @@ from requests import Session
 from logging import getLogger
 
 from ..record import Record
+from . import ProviderException
 from .base import BaseProvider
 
 from collections import defaultdict
@@ -34,7 +35,7 @@ def remove_trailing_dot(value):
     return value[:-1]
 
 
-class MythicBeastsUnauthorizedException(Exception):
+class MythicBeastsUnauthorizedException(ProviderException):
     def __init__(self, zone, *args):
         self.zone = zone
         self.message = 'Mythic Beasts unauthorized for zone: {}'.format(
@@ -45,7 +46,7 @@ class MythicBeastsUnauthorizedException(Exception):
             self.message, self.zone, *args)
 
 
-class MythicBeastsRecordException(Exception):
+class MythicBeastsRecordException(ProviderException):
     def __init__(self, zone, command, *args):
         self.zone = zone
         self.command = command

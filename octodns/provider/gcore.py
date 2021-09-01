@@ -17,10 +17,11 @@ import urllib.parse
 
 from ..record import GeoCodes
 from ..record import Record
+from . import ProviderException
 from .base import BaseProvider
 
 
-class GCoreClientException(Exception):
+class GCoreClientException(ProviderException):
     def __init__(self, r):
         super(GCoreClientException, self).__init__(r.text)
 

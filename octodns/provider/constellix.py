@@ -15,10 +15,11 @@ import logging
 import time
 
 from ..record import Record
+from . import ProviderException
 from .base import BaseProvider
 
 
-class ConstellixClientException(Exception):
+class ConstellixClientException(ProviderException):
     pass
 
 

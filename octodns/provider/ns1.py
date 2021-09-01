@@ -17,6 +17,7 @@ from uuid import uuid4
 from six import text_type
 
 from ..record import Record, Update
+from . import ProviderException
 from .base import BaseProvider
 
 
@@ -24,7 +25,7 @@ def _ensure_endswith_dot(string):
     return string if string.endswith('.') else '{}.'.format(string)
 
 
-class Ns1Exception(Exception):
+class Ns1Exception(ProviderException):
     pass
 
 
