@@ -10,6 +10,7 @@ from six import text_type
 
 from suds import WebFault
 
+from mock import patch
 from unittest import TestCase
 
 from octodns.provider.transip import TransipProvider
@@ -136,7 +137,11 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         source.populate(expected)
         return expected
 
-    def test_init(self):
+    @patch('octodns.provider.transip.TransipProvider._domain_service',
+           return_value=MockDomainService())
+    def test_init(self, _):
+
+        # No key nor key_file
         with self.assertRaises(Exception) as ctx:
             TransipProvider('test', 'unittest')
 
@@ -144,19 +149,26 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
             str('Missing `key` or `key_file` parameter in config'),
             str(ctx.exception))
 
+        # With key
         TransipProvider('test', 'unittest', key=self.bogus_key)
 
-        # Existence and content of the key is tested in the SDK on client call
+        # With key_file
         TransipProvider('test', 'unittest', key_file='/fake/path')
 
-    def test_populate(self):
+    @patch('suds.client.Client.__init__', new=lambda *args, **kwargs: None)
+    def test_domain_service(self):
+        # Special case smoke test for DomainService to get coverage
+        TransipProvider('test', 'unittest', key=self.bogus_key)
+
+    @patch('octodns.provider.transip.TransipProvider._domain_service',
+           return_value=MockDomainService())
+    def test_populate(self, _):
         _expected = self.make_expected()
 
         # Unhappy Plan - Not authenticated
         # Live test against API, will fail in an unauthorized error
         with self.assertRaises(WebFault) as ctx:
             provider = TransipProvider('test', 'unittest', self.bogus_key)
-            provider._client = MockDomainService('unittest', self.bogus_key)
             provider._client.throw_auth_fault = True
             zone = Zone('unit.tests.', [])
             provider.populate(zone, True)
@@ -166,12 +178,14 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
 
         self.assertEquals(str('200'), ctx.exception.fault.faultcode)
 
+        # No more auth problems
+        provider._client.throw_auth_fault = False
+
         # Unhappy Plan - Zone does not exists
         # Will trigger an exception if provider is used as a target for a
         # non-existing zone
         with self.assertRaises(Exception) as ctx:
             provider = TransipProvider('test', 'unittest', self.bogus_key)
-            provider._client = MockDomainService('unittest', self.bogus_key)
             zone = Zone('notfound.unit.tests.', [])
             provider.populate(zone, True)
 
@@ -187,13 +201,11 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         # Won't trigger an exception if provider is NOT used as a target for a
         # non-existing zone.
         provider = TransipProvider('test', 'unittest', self.bogus_key)
-        provider._client = MockDomainService('unittest', self.bogus_key)
         zone = Zone('notfound.unit.tests.', [])
         provider.populate(zone, False)
 
         # Happy Plan - Populate with mockup records
         provider = TransipProvider('test', 'unittest', self.bogus_key)
-        provider._client = MockDomainService('unittest', self.bogus_key)
         provider._client.mockup(_expected.records)
         zone = Zone('unit.tests.', [])
         provider.populate(zone, False)
@@ -211,19 +223,19 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
 
         # Happy Plan - Even if the zone has no records the zone should exist
         provider = TransipProvider('test', 'unittest', self.bogus_key)
-        provider._client = MockDomainService('unittest', self.bogus_key)
         zone = Zone('unit.tests.', [])
         exists = provider.populate(zone, True)
         self.assertTrue(exists, 'populate should return true')
 
         return
 
-    def test_plan(self):
+    @patch('octodns.provider.transip.TransipProvider._domain_service',
+           return_value=MockDomainService())
+    def test_plan(self, _):
         _expected = self.make_expected()
 
         # Test Happy plan, only create
         provider = TransipProvider('test', 'unittest', self.bogus_key)
-        provider._client = MockDomainService('unittest', self.bogus_key)
         plan = provider.plan(_expected)
 
         self.assertEqual(15, plan.change_counts['Create'])
@@ -232,12 +244,13 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
 
         return
 
-    def test_apply(self):
+    @patch('octodns.provider.transip.TransipProvider._domain_service',
+           return_value=MockDomainService())
+    def test_apply(self, _):
         _expected = self.make_expected()
 
         # Test happy flow. Create all supoorted records
         provider = TransipProvider('test', 'unittest', self.bogus_key)
-        provider._client = MockDomainService('unittest', self.bogus_key)
         plan = provider.plan(_expected)
         self.assertEqual(15, len(plan.changes))
         changes = provider.apply(plan)
@@ -249,7 +262,6 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         changes = []  # reset changes
         with self.assertRaises(Exception) as ctx:
             provider = TransipProvider('test', 'unittest', self.bogus_key)
-            provider._client = MockDomainService('unittest', self.bogus_key)
             plan = provider.plan(_expected)
             plan.desired.name = 'notfound.unit.tests.'
             changes = provider.apply(plan)
@@ -268,7 +280,6 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
 
         with self.assertRaises(Exception) as ctx:
             provider = TransipProvider('test', 'unittest', self.bogus_key)
-            provider._client = MockDomainService('unittest', self.bogus_key)
             plan = provider.plan(_expected)
             plan.desired.name = 'failsetdns.unit.tests.'
             changes = provider.apply(plan)
