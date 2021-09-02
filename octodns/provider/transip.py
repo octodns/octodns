@@ -57,25 +57,37 @@ class TransipProvider(BaseProvider):
     TIMEOUT = 15
     ROOT_RECORD = '@'
 
-    def __init__(self, id, account, key=None, key_file=None,  *args, **kwargs):
+    def __init__(self, id, account, key=None, key_file=None, *args, **kwargs):
         self.log = getLogger('TransipProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, account=%s, token=***', id,
                        account)
         super(TransipProvider, self).__init__(id, *args, **kwargs)
 
-        if key_file is not None:
-            self._client = DomainService(account, private_key_file=key_file)
-        elif key is not None:
-            self._client = DomainService(account, private_key=key)
-        else:
+        if key is None and key_file is None:
             raise TransipConfigException(
-                'Missing `key` of `key_file` parameter in config'
+                'Missing `key` or `key_file` parameter in config'
             )
 
         self.account = account
         self.key = key
+        self.key_file = key_file
 
+        self._client = None
         self._currentZone = {}
+
+    @property
+    def client(self):
+        # This can't happen in __init__ b/c it makes network calls during the
+        # construction of the object and that before the tests have had a
+        # chance to install the mock client
+        if self._client is None:
+            if self.key_file is not None:
+                self._client = DomainService(self.account,
+                                             private_key_file=self.key_file)
+            else:  # we checked key in __init__ so can assume it's not None
+                self._client = DomainService(self.account,
+                                             private_key=self.key)
+        return self._client
 
     def populate(self, zone, target=False, lenient=False):
 
@@ -86,7 +98,7 @@ class TransipProvider(BaseProvider):
 
         before = len(zone.records)
         try:
-            zoneInfo = self._client.get_info(zone.name[:-1])
+            zoneInfo = self.client.get_info(zone.name[:-1])
         except WebFault as e:
             if e.fault.faultcode == '102' and target is False:
                 # Zone not found in account, and not a target so just
@@ -136,7 +148,7 @@ class TransipProvider(BaseProvider):
 
         self._currentZone = plan.desired
         try:
-            self._client.get_info(plan.desired.name[:-1])
+            self.client.get_info(plan.desired.name[:-1])
         except WebFault as e:
             self.log.exception('_apply: get_info failed')
             raise e
@@ -155,7 +167,7 @@ class TransipProvider(BaseProvider):
                 _dns_entries.extend(entries_for(name, record))
 
         try:
-            self._client.set_dns_entries(plan.desired.name[:-1], _dns_entries)
+            self.client.set_dns_entries(plan.desired.name[:-1], _dns_entries)
         except WebFault as e:
             self.log.warning(('_apply: Set DNS returned ' +
                               'one or more errors: {}').format(

@@ -15,7 +15,6 @@ from unittest import TestCase
 from octodns.provider.transip import TransipProvider
 from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
-from transip.service.domain import DomainService
 from transip.service.objects import DnsEntry
 
 
@@ -32,12 +31,11 @@ class MockResponse(object):
     dnsEntries = []
 
 
-class MockDomainService(DomainService):
+class MockDomainService(object):
 
     def __init__(self, *args, **kwargs):
-        super(MockDomainService, self).__init__('MockDomainService', *args,
-                                                **kwargs)
         self.mockupEntries = []
+        self.throw_auth_fault = False
 
     def mockup(self, records):
 
@@ -66,6 +64,9 @@ class MockDomainService(DomainService):
 
     # Skips authentication layer and returns the entries loaded by "Mockup"
     def get_info(self, domain_name):
+
+        if self.throw_auth_fault:
+            self.raiseInvalidAuth()
 
         # Special 'domain' to trigger error
         if str(domain_name) == str('notfound.unit.tests'):
@@ -140,7 +141,7 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
             TransipProvider('test', 'unittest')
 
         self.assertEquals(
-            str('Missing `key` of `key_file` parameter in config'),
+            str('Missing `key` or `key_file` parameter in config'),
             str(ctx.exception))
 
         TransipProvider('test', 'unittest', key=self.bogus_key)
@@ -155,6 +156,8 @@ N4OiVz1I3rbZGYa396lpxO6ku8yCglisL1yrSP6DdEUp66ntpKVd
         # Live test against API, will fail in an unauthorized error
         with self.assertRaises(WebFault) as ctx:
             provider = TransipProvider('test', 'unittest', self.bogus_key)
+            provider._client = MockDomainService('unittest', self.bogus_key)
+            provider._client.throw_auth_fault = True
             zone = Zone('unit.tests.', [])
             provider.populate(zone, True)
 
