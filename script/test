@@ -30,4 +30,4 @@ export ARM_CLIENT_SECRET=
 export ARM_TENANT_ID=
 export ARM_SUBSCRIPTION_ID=
 
-nosetests "$@"
+nosetests --with-no-network "$@"
