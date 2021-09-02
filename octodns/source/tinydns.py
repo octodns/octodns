@@ -90,7 +90,7 @@ class TinyDnsBaseSource(BaseSource):
         return {
             'ttl': ttl,
             'type': _type,
-            'value': '{}.'.format(first[0])
+            'value': f'{first[0]}.'
         }
 
     def _data_for_MX(self, _type, records):
@@ -103,7 +103,7 @@ class TinyDnsBaseSource(BaseSource):
             'type': _type,
             'values': [{
                 'preference': r[1],
-                'exchange': '{}.'.format(r[0])
+                'exchange': f'{r[0]}.'
             } for r in records]
         }
 
@@ -115,7 +115,7 @@ class TinyDnsBaseSource(BaseSource):
         return {
             'ttl': ttl,
             'type': _type,
-            'values': ['{}.'.format(r[0]) for r in records]
+            'values': [f'{r[0]}.' for r in records]
         }
 
     def populate(self, zone, target=False, lenient=False):
@@ -168,7 +168,7 @@ class TinyDnsBaseSource(BaseSource):
 
         for name, types in data.items():
             for _type, d in types.items():
-                data_for = getattr(self, '_data_for_{}'.format(_type))
+                data_for = getattr(self, f'_data_for_{_type}')
                 data = data_for(_type, d)
                 if data:
                     record = Record.new(zone, name, data, source=self,
@@ -196,11 +196,11 @@ class TinyDnsBaseSource(BaseSource):
             if line[0].endswith('in-addr.arpa'):
                 # since it's already in in-addr.arpa format
                 match = name_re.match(line[0])
-                value = '{}.'.format(line[1])
+                value = f'{line[1]}.'
             else:
                 addr = ip_address(line[1])
                 match = name_re.match(addr.reverse_pointer)
-                value = '{}.'.format(line[0])
+                value = f'{line[0]}.'
 
             if match:
                 try:
@@ -217,8 +217,7 @@ class TinyDnsBaseSource(BaseSource):
                 try:
                     zone.add_record(record, lenient=lenient)
                 except DuplicateRecordException:
-                    self.log.warn('Duplicate PTR record for {}, '
-                                  'skipping'.format(addr))
+                    self.log.warn(f'Duplicate PTR record for {addr}, skipping')
 
 
 class TinyDnsFileSource(TinyDnsBaseSource):
@@ -236,7 +235,7 @@ class TinyDnsFileSource(TinyDnsBaseSource):
     NOTE: timestamps & lo fields are ignored if present.
     '''
     def __init__(self, id, directory, default_ttl=3600):
-        self.log = logging.getLogger('TinyDnsFileSource[{}]'.format(id))
+        self.log = logging.getLogger(f'TinyDnsFileSource[{id}]')
         self.log.debug('__init__: id=%s, directory=%s, default_ttl=%d', id,
                        directory, default_ttl)
         super(TinyDnsFileSource, self).__init__(id, default_ttl)
