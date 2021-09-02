@@ -24,15 +24,14 @@ class GeoCodes(object):
         pieces = code.split('-')
         n = len(pieces)
         if n > 3:
-            reasons.append('{}invalid geo code "{}"'.format(prefix, code))
+            reasons.append(f'{prefix}invalid geo code "{code}"')
         elif n > 0 and pieces[0] not in geo_data:
-            reasons.append('{}unknown continent code "{}"'
-                           .format(prefix, code))
+            reasons.append(f'{prefix}unknown continent code "{code}"')
         elif n > 1 and pieces[1] not in geo_data[pieces[0]]:
-            reasons.append('{}unknown country code "{}"'.format(prefix, code))
+            reasons.append(f'{prefix}unknown country code "{code}"')
         elif n > 2 and \
                 pieces[2] not in geo_data[pieces[0]][pieces[1]]['provinces']:
-            reasons.append('{}unknown province code "{}"'.format(prefix, code))
+            reasons.append(f'{prefix}unknown province code "{code}"')
 
         return reasons
 
@@ -57,7 +56,7 @@ class GeoCodes(object):
     def country_to_code(cls, country):
         for continent, countries in geo_data.items():
             if country in countries:
-                return '{}-{}'.format(continent, country)
+                return f'{continent}-{country}'
         cls.log.warn('country_to_code: unrecognized country "%s"', country)
         return
 
@@ -74,4 +73,4 @@ class GeoCodes(object):
             country = 'US'
         if province in geo_data['NA']['CA']['provinces']:
             country = 'CA'
-        return 'NA-{}-{}'.format(country, province)
+        return f'NA-{country}-{province}'
