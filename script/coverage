@@ -36,7 +36,7 @@ grep -r -I --line-number "# pragma: +no.*cover" octodns && {
   exit 1
 }
 
-coverage run --branch --source=octodns --omit=octodns/cmds/* "$(command -v nosetests)" --with-xunit "$@"
+coverage run --branch --source=octodns --omit=octodns/cmds/* "$(command -v nosetests)" --with-no-network --with-xunit "$@"
 coverage html
 coverage xml
 coverage report --show-missing
