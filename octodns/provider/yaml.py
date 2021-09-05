@@ -111,8 +111,8 @@ class YamlProvider(BaseProvider):
 
     def __init__(self, id, directory, default_ttl=3600, enforce_order=True,
                  populate_should_replace=False, *args, **kwargs):
-        self.log = logging.getLogger('{}[{}]'.format(
-            self.__class__.__name__, id))
+        klass = self.__class__.__name__
+        self.log = logging.getLogger(f'{klass}[{id}]')
         self.log.debug('__init__: id=%s, directory=%s, default_ttl=%d, '
                        'enforce_order=%d, populate_should_replace=%d',
                        id, directory, default_ttl, enforce_order,
@@ -150,7 +150,7 @@ class YamlProvider(BaseProvider):
             return False
 
         before = len(zone.records)
-        filename = join(self.directory, '{}yaml'.format(zone.name))
+        filename = join(self.directory, f'{zone.name}yaml')
         self._populate_from_file(filename, zone, lenient)
 
         self.log.info('populate:   found %s records, exists=False',
@@ -188,7 +188,7 @@ class YamlProvider(BaseProvider):
         self._do_apply(desired, data)
 
     def _do_apply(self, desired, data):
-        filename = join(self.directory, '{}yaml'.format(desired.name))
+        filename = join(self.directory, f'{desired.name}yaml')
         self.log.debug('_apply:   writing filename=%s', filename)
         with open(filename, 'w') as fh:
             safe_dump(dict(data), fh)
@@ -197,7 +197,7 @@ class YamlProvider(BaseProvider):
 def _list_all_yaml_files(directory):
     yaml_files = set()
     for f in listdir(directory):
-        filename = join(directory, '{}'.format(f))
+        filename = join(directory, f)
         if f.endswith('.yaml') and isfile(filename):
             yaml_files.add(filename)
     return list(yaml_files)
@@ -246,7 +246,7 @@ class SplitYamlProvider(YamlProvider):
         self.extension = extension
 
     def _zone_directory(self, zone):
-        filename = '{}{}'.format(zone.name[:-1], self.extension)
+        filename = f'{zone.name[:-1]}{self.extension}'
         return join(self.directory, filename)
 
     def populate(self, zone, target=False, lenient=False):
@@ -278,7 +278,7 @@ class SplitYamlProvider(YamlProvider):
             if record in self.CATCHALL_RECORD_NAMES:
                 catchall[record] = config
                 continue
-            filename = join(zone_dir, '{}.yaml'.format(record))
+            filename = join(zone_dir, f'{record}.yaml')
             self.log.debug('_apply:   writing filename=%s', filename)
             with open(filename, 'w') as fh:
                 record_data = {record: config}
@@ -286,7 +286,7 @@ class SplitYamlProvider(YamlProvider):
         if catchall:
             # Scrub the trailing . to make filenames more sane.
             dname = desired.name[:-1]
-            filename = join(zone_dir, '${}.yaml'.format(dname))
+            filename = join(zone_dir, f'${dname}.yaml')
             self.log.debug('_apply:   writing catchall filename=%s', filename)
             with open(filename, 'w') as fh:
                 safe_dump(catchall, fh)
