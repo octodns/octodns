@@ -39,7 +39,7 @@ class HetznerClient(object):
         self._session = session
 
     def _do(self, method, path, params=None, data=None):
-        url = '{}{}'.format(self.BASE_URL, path)
+        url = f'{self.BASE_URL}{path}'
         response = self._session.request(method, url, params=params, json=data)
         if response.status_code == 401:
             raise HetznerClientUnauthorized()
@@ -73,7 +73,7 @@ class HetznerClient(object):
         self._do('POST', '/records', data=data)
 
     def zone_record_delete(self, zone_id, record_id):
-        self._do('DELETE', '/records/{}'.format(record_id))
+        self._do('DELETE', f'/records/{record_id}')
 
 
 class HetznerProvider(BaseProvider):
@@ -90,7 +90,7 @@ class HetznerProvider(BaseProvider):
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SRV', 'TXT'))
 
     def __init__(self, id, token, *args, **kwargs):
-        self.log = logging.getLogger('HetznerProvider[{}]'.format(id))
+        self.log = logging.getLogger(f'HetznerProvider[{id}]')
         self.log.debug('__init__: id=%s, token=***', id)
         super(HetznerProvider, self).__init__(id, *args, **kwargs)
         self._client = HetznerClient(token)
@@ -102,7 +102,7 @@ class HetznerProvider(BaseProvider):
     def _append_dot(self, value):
         if value == '@' or value[-1] == '.':
             return value
-        return '{}.'.format(value)
+        return f'{value}.'
 
     def zone_metadata(self, zone_id=None, zone_name=None):
         if zone_name is not None:
@@ -232,7 +232,7 @@ class HetznerProvider(BaseProvider):
         before = len(zone.records)
         for name, types in values.items():
             for _type, records in types.items():
-                data_for = getattr(self, '_data_for_{}'.format(_type))
+                data_for = getattr(self, f'_data_for_{_type}')
                 record = Record.new(zone, name, data_for(_type, records),
                                     source=self, lenient=lenient)
                 zone.add_record(record, lenient=lenient)
@@ -256,7 +256,7 @@ class HetznerProvider(BaseProvider):
 
     def _params_for_CAA(self, record):
         for value in record.values:
-            data = '{} {} "{}"'.format(value.flags, value.tag, value.value)
+            data = f'{value.flags} {value.tag} "{value.value}"'
             yield {
                 'value': data,
                 'name': record.name,
@@ -276,7 +276,7 @@ class HetznerProvider(BaseProvider):
 
     def _params_for_MX(self, record):
         for value in record.values:
-            data = '{} {}'.format(value.preference, value.exchange)
+            data = f'{value.preference} {value.exchange}'
             yield {
                 'value': data,
                 'name': record.name,
@@ -288,8 +288,8 @@ class HetznerProvider(BaseProvider):
 
     def _params_for_SRV(self, record):
         for value in record.values:
-            data = '{} {} {} {}'.format(value.priority, value.weight,
-                                        value.port, value.target)
+            data = f'{value.priority} {value.weight} {value.port} ' \
+                f'{value.target}'
             yield {
                 'value': data,
                 'name': record.name,
@@ -301,7 +301,7 @@ class HetznerProvider(BaseProvider):
 
     def _apply_Create(self, zone_id, change):
         new = change.new
-        params_for = getattr(self, '_params_for_{}'.format(new._type))
+        params_for = getattr(self, f'_params_for_{new._type}')
         for params in params_for(new):
             self._client.zone_record_create(zone_id, params['name'],
                                             params['type'], params['value'],
@@ -334,7 +334,7 @@ class HetznerProvider(BaseProvider):
 
         for change in changes:
             class_name = change.__class__.__name__
-            getattr(self, '_apply_{}'.format(class_name))(zone_id, change)
+            getattr(self, f'_apply_{class_name}')(zone_id, change)
 
         # Clear out the cache if any
         self._zone_records.pop(desired.name, None)
