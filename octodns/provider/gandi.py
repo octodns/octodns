@@ -52,12 +52,12 @@ class GandiClient(object):
 
     def __init__(self, token):
         session = Session()
-        session.headers.update({'Authorization': 'Apikey {}'.format(token)})
+        session.headers.update({'Authorization': f'Apikey {token}'})
         self._session = session
         self.endpoint = 'https://api.gandi.net/v5'
 
     def _request(self, method, path, params={}, data=None):
-        url = '{}{}'.format(self.endpoint, path)
+        url = f'{self.endpoint}{path}'
         r = self._session.request(method, url, params=params, json=data)
         if r.status_code == 400:
             raise GandiClientBadRequest(r)
@@ -71,8 +71,7 @@ class GandiClient(object):
         return r
 
     def zone(self, zone_name):
-        return self._request('GET', '/livedns/domains/{}'
-                                    .format(zone_name)).json()
+        return self._request('GET', f'/livedns/domains/{zone_name}').json()
 
     def zone_create(self, zone_name):
         return self._request('POST', '/livedns/domains', data={
@@ -81,8 +80,8 @@ class GandiClient(object):
         }).json()
 
     def zone_records(self, zone_name):
-        records = self._request('GET', '/livedns/domains/{}/records'
-                                .format(zone_name)).json()
+        records = self._request('GET',
+                                f'/livedns/domains/{zone_name}/records').json()
 
         for record in records:
             if record['rrset_name'] == '@':
@@ -93,18 +92,17 @@ class GandiClient(object):
                                         'NS', 'SRV']:
                 for i, value in enumerate(record['rrset_values']):
                     if not value.endswith('.'):
-                        record['rrset_values'][i] = '{}.{}.'.format(
-                            value, zone_name)
+                        record['rrset_values'][i] = f'{value}.{zone_name}.'
 
         return records
 
     def record_create(self, zone_name, data):
-        self._request('POST', '/livedns/domains/{}/records'.format(zone_name),
+        self._request('POST', f'/livedns/domains/{zone_name}/records',
                       data=data)
 
     def record_delete(self, zone_name, record_name, record_type):
-        self._request('DELETE', '/livedns/domains/{}/records/{}/{}'
-                      .format(zone_name, record_name, record_type))
+        self._request('DELETE', f'/livedns/domains/{zone_name}/records/'
+                      f'{record_name}/{record_type}')
 
 
 class GandiProvider(BaseProvider):
@@ -123,7 +121,7 @@ class GandiProvider(BaseProvider):
                      'MX', 'NS', 'PTR', 'SPF', 'SRV', 'SSHFP', 'TXT']))
 
     def __init__(self, id, token, *args, **kwargs):
-        self.log = logging.getLogger('GandiProvider[{}]'.format(id))
+        self.log = logging.getLogger(f'GandiProvider[{id}]')
         self.log.debug('__init__: id=%s, token=***', id)
         super(GandiProvider, self).__init__(id, *args, **kwargs)
         self._client = GandiClient(token)
@@ -246,7 +244,7 @@ class GandiProvider(BaseProvider):
         before = len(zone.records)
         for name, types in values.items():
             for _type, records in types.items():
-                data_for = getattr(self, '_data_for_{}'.format(_type))
+                data_for = getattr(self, f'_data_for_{_type}')
                 record = Record.new(zone, name, data_for(_type, records),
                                     source=self, lenient=lenient)
                 zone.add_record(record, lenient=lenient)
@@ -280,7 +278,7 @@ class GandiProvider(BaseProvider):
             'rrset_name': self._record_name(record.name),
             'rrset_ttl': record.ttl,
             'rrset_type': record._type,
-            'rrset_values': ['{} {} "{}"'.format(v.flags, v.tag, v.value)
+            'rrset_values': [f'{v.flags} {v.tag} "{v.value}"'
                              for v in record.values]
         }
 
@@ -302,7 +300,7 @@ class GandiProvider(BaseProvider):
             'rrset_name': self._record_name(record.name),
             'rrset_ttl': record.ttl,
             'rrset_type': record._type,
-            'rrset_values': ['{} {}'.format(v.preference, v.exchange)
+            'rrset_values': [f'{v.preference} {v.exchange}'
                              for v in record.values]
         }
 
@@ -311,8 +309,8 @@ class GandiProvider(BaseProvider):
             'rrset_name': self._record_name(record.name),
             'rrset_ttl': record.ttl,
             'rrset_type': record._type,
-            'rrset_values': ['{} {} {} {}'.format(v.priority, v.weight, v.port,
-                             v.target) for v in record.values]
+            'rrset_values': [f'{v.priority} {v.weight} {v.port} {v.target}'
+                             for v in record.values]
         }
 
     def _params_for_SSHFP(self, record):
@@ -320,13 +318,13 @@ class GandiProvider(BaseProvider):
             'rrset_name': self._record_name(record.name),
             'rrset_ttl': record.ttl,
             'rrset_type': record._type,
-            'rrset_values': ['{} {} {}'.format(v.algorithm, v.fingerprint_type,
-                             v.fingerprint) for v in record.values]
+            'rrset_values': [f'{v.algorithm} {v.fingerprint_type} '
+                             f'{v.fingerprint}' for v in record.values]
         }
 
     def _apply_create(self, change):
         new = change.new
-        data = getattr(self, '_params_for_{}'.format(new._type))(new)
+        data = getattr(self, f'_params_for_{new._type}')(new)
         self._client.record_create(new.zone.name[:-1], data)
 
     def _apply_update(self, change):
@@ -373,7 +371,7 @@ class GandiProvider(BaseProvider):
 
         for change in changes:
             class_name = change.__class__.__name__
-            getattr(self, '_apply_{}'.format(class_name.lower()))(change)
+            getattr(self, f'_apply_{class_name.lower()}')(change)
 
         # Clear out the cache if any
         self._zone_records.pop(desired.name, None)
