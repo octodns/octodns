@@ -55,12 +55,12 @@ class GCoreClient(object):
         self._api_url = api_url
         if token is not None and token_type is not None:
             self._session.headers.update(
-                {"Authorization": "{} {}".format(token_type, token)}
+                {"Authorization": f"{token_type} {token}"}
             )
         elif login is not None and password is not None:
             token = self._auth(auth_url, login, password)
             self._session.headers.update(
-                {"Authorization": "Bearer {}".format(token)}
+                {"Authorization": f"Bearer {token}"}
             )
         else:
             raise ValueError("either token or login & password must be set")
@@ -107,15 +107,9 @@ class GCoreClient(object):
         ).json()
 
     def zone_records(self, zone_name):
-        rrsets = self._request(
-            "GET",
-            "{}".format(
-                self._build_url(
-                    self._api_url, self.ROOT_ZONES, zone_name, "rrsets"
-                )
-            ),
-            params={"all": "true"},
-        ).json()
+        url = self._build_url(self._api_url, self.ROOT_ZONES, zone_name,
+                              "rrsets")
+        rrsets = self._request("GET", url, params={"all": "true"}).json()
         records = rrsets["rrsets"]
         return records
 
@@ -174,7 +168,7 @@ class GCoreProvider(BaseProvider):
         api_url = kwargs.pop("url", "https://dnsapi.gcorelabs.com/v2")
         auth_url = kwargs.pop("auth_url", "https://api.gcdn.co")
         self.records_per_response = kwargs.pop("records_per_response", 1)
-        self.log = logging.getLogger("GCoreProvider[{}]".format(id))
+        self.log = logging.getLogger(f"GCoreProvider[{id}]")
         self.log.debug("__init__: id=%s", id)
         super(GCoreProvider, self).__init__(id, *args, **kwargs)
         self._client = GCoreClient(
@@ -188,7 +182,7 @@ class GCoreProvider(BaseProvider):
         )
 
     def _add_dot_if_need(self, value):
-        return "{}.".format(value) if not value.endswith(".") else value
+        return f"{value}." if not value.endswith(".") else value
 
     def _build_pools(self, record, default_pool_name, value_transform_fn):
         defaults = []
@@ -215,7 +209,7 @@ class GCoreProvider(BaseProvider):
                 [GeoCodes.country_to_code(cc.upper()) for cc in countries]
             ) | frozenset(cc.upper() for cc in continents)
             if geo_set not in geo_sets:
-                geo_sets[geo_set] = "pool-{}".format(pool_idx)
+                geo_sets[geo_set] = f"pool-{pool_idx}"
                 pool_idx += 1
 
             pools[geo_sets[geo_set]]["values"].append(value)
@@ -247,9 +241,7 @@ class GCoreProvider(BaseProvider):
         )
         if len(pools) == 0:
             raise RuntimeError(
-                "filter is enabled, but no pools where built for {}".format(
-                    record
-                )
+                f"filter is enabled, but no pools where built for {record}"
             )
 
         # defaults can't be empty, so use first pool values
@@ -402,7 +394,7 @@ class GCoreProvider(BaseProvider):
         before = len(zone.records)
         for name, types in values.items():
             for _type, record in types.items():
-                data_for = getattr(self, "_data_for_{}".format(_type))
+                data_for = getattr(self, f"_data_for_{_type}")
                 record = Record.new(
                     zone,
                     name,
@@ -582,7 +574,7 @@ class GCoreProvider(BaseProvider):
     def _apply_create(self, change):
         self.log.info("creating: %s", change)
         new = change.new
-        data = getattr(self, "_params_for_{}".format(new._type))(new)
+        data = getattr(self, f"_params_for_{new._type}")(new)
         self._client.record_create(
             new.zone.name[:-1], new.fqdn, new._type, data
         )
@@ -590,7 +582,7 @@ class GCoreProvider(BaseProvider):
     def _apply_update(self, change):
         self.log.info("updating: %s", change)
         new = change.new
-        data = getattr(self, "_params_for_{}".format(new._type))(new)
+        data = getattr(self, f"_params_for_{new._type}")(new)
         self._client.record_update(
             new.zone.name[:-1], new.fqdn, new._type, data
         )
@@ -621,4 +613,4 @@ class GCoreProvider(BaseProvider):
 
         for change in changes:
             class_name = change.__class__.__name__
-            getattr(self, "_apply_{}".format(class_name.lower()))(change)
+            getattr(self, f"_apply_{class_name.lower()}")(change)
