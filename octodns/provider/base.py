@@ -58,7 +58,8 @@ class BaseProvider(BaseSource):
                 fallback = 'omitting record'
                 self.supports_warn_or_except(msg, fallback)
                 desired.remove_record(record)
-            elif getattr(record, 'dynamic', False) and not self.SUPPORTS_DYNAMIC:
+            elif getattr(record, 'dynamic', False) and \
+                    not self.SUPPORTS_DYNAMIC:
                 msg = 'dynamic records not supported for {}'\
                     .format(record.fqdn)
                 fallback = 'falling back to simple record'
@@ -67,7 +68,7 @@ class BaseProvider(BaseSource):
                 record.dynamic = None
                 desired.add_record(record, replace=True)
             elif record._type == 'PTR' and len(record.values) > 1 and \
-               not self.SUPPORTS_MUTLIVALUE_PTR:
+                    not self.SUPPORTS_MUTLIVALUE_PTR:
                 # replace with a single-value copy
                 msg = 'multi-value PTR records not supported for {}' \
                     .format(record.fqdn)
