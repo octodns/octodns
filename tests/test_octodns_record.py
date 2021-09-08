@@ -118,16 +118,19 @@ class TestRecord(TestCase):
         # no changes if self
         self.assertFalse(a.changes(a, target))
         # no changes if clone
-        other = ARecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
+        other = a.copy()
         self.assertFalse(a.changes(other, target))
         # changes if ttl modified
-        other.ttl = 31
+        other = a.copy(data={
+            'ttl': 31,
+        })
         update = a.changes(other, target)
         self.assertEquals(a, update.existing)
         self.assertEquals(other, update.new)
         # changes if values modified
-        other.ttl = a.ttl
-        other.values = ['4.4.4.4']
+        other = a.copy(data={
+            'values': ['4.4.4.4'],
+        })
         update = a.changes(other, target)
         self.assertEquals(a, update.existing)
         self.assertEquals(other, update.new)

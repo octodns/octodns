@@ -152,13 +152,29 @@ class Record(EqualityTupleMixin):
     def __init__(self, zone, name, data, source=None):
         self.log.debug('__init__: zone.name=%s, type=%11s, name=%s', zone.name,
                        self.__class__.__name__, name)
-        self.zone = zone
+        self._zone = zone
         # force everything lower-case just to be safe
-        self.name = text_type(name).lower() if name else name
-        self.source = source
-        self.ttl = int(data['ttl'])
+        self._name = text_type(name).lower() if name else name
+        self._source = source
+        self._ttl = int(data['ttl'])
 
         self._octodns = data.get('octodns', {})
+
+    @property
+    def zone(self):
+        return self._zone
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def source(self):
+        return self._source
+
+    @property
+    def ttl(self):
+        return self._ttl
 
     def _data(self):
         return {'ttl': self.ttl}
