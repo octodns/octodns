@@ -918,9 +918,21 @@ class CaaValue(EqualityTupleMixin):
         return [CaaValue(v) for v in values]
 
     def __init__(self, value):
-        self.flags = int(value.get('flags', 0))
-        self.tag = value['tag']
-        self.value = value['value']
+        self._flags = int(value.get('flags', 0))
+        self._tag = value['tag']
+        self._value = value['value']
+
+    @property
+    def flags(self):
+        return self._flags
+
+    @property
+    def tag(self):
+        return self._tag
+
+    @property
+    def value(self):
+        return self._value
 
     @property
     def data(self):

@@ -376,20 +376,32 @@ class TestRecord(TestCase):
         # No changes with self
         self.assertFalse(a.changes(a, target))
         # Diff in flags causes change
-        other = CaaRecord(self.zone, 'a', {'ttl': 30, 'values': a_values})
-        other.values[0].flags = 128
+        # TODO: ugly due to copy limitations, fix when that's resolved
+        values = [v.data for v in a.values]
+        values[0]['flags'] = 128
+        other = a.copy(data={
+            'values': values,
+        })
         change = a.changes(other, target)
         self.assertEqual(change.existing, a)
         self.assertEqual(change.new, other)
         # Diff in tag causes change
-        other.values[0].flags = a.values[0].flags
-        other.values[0].tag = 'foo'
+        # TODO: ugly due to copy limitations, fix when that's resolved
+        values = [v.data for v in a.values]
+        values[0]['tag'] = 'foo'
+        other = a.copy(data={
+            'values': values,
+        })
         change = a.changes(other, target)
         self.assertEqual(change.existing, a)
         self.assertEqual(change.new, other)
         # Diff in value causes change
-        other.values[0].tag = a.values[0].tag
-        other.values[0].value = 'bar'
+        # TODO: ugly due to copy limitations, fix when that's resolved
+        values = [v.data for v in a.values]
+        values[0]['value'] = 'bar'
+        other = a.copy(data={
+            'values': values,
+        })
         change = a.changes(other, target)
         self.assertEqual(change.existing, a)
         self.assertEqual(change.new, other)
