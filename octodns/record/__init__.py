@@ -395,11 +395,15 @@ class _GeoMixin(_ValuesMixin):
     def __init__(self, zone, name, data, *args, **kwargs):
         super(_GeoMixin, self).__init__(zone, name, data, *args, **kwargs)
         try:
-            self.geo = dict(data['geo'])
+            self._geo = dict(data['geo'])
         except KeyError:
-            self.geo = {}
+            self._geo = {}
         for code, values in self.geo.items():
-            self.geo[code] = GeoValue(code, values)
+            self._geo[code] = GeoValue(code, values)
+
+    @property
+    def geo(self):
+        return self._geo
 
     def _data(self):
         ret = super(_GeoMixin, self)._data()

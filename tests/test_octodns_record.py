@@ -243,7 +243,11 @@ class TestRecord(TestCase):
         self.assertTrue(geo.changes(other, geo_target))
 
         # Object without geo doesn't impact equality
-        other.geo = {}
+        # TODO: this is working around copy's inability to remove a key, once
+        # it can we should switch to use it
+        d = geo.data
+        del d['geo']
+        other = ARecord(self.zone, 'geo', d)
         self.assertTrue(geo == other)
         # Non-geo supporting provider doesn't consider lack of geo a diff
         self.assertFalse(geo.changes(other, simple_target))
