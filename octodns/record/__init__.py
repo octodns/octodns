@@ -277,12 +277,32 @@ class GeoValue(EqualityTupleMixin):
         return reasons
 
     def __init__(self, geo, values):
-        self.code = geo
+        self._code = geo
         match = self.geo_re.match(geo)
-        self.continent_code = match.group('continent_code')
-        self.country_code = match.group('country_code')
-        self.subdivision_code = match.group('subdivision_code')
-        self.values = sorted(values)
+        self._continent_code = match.group('continent_code')
+        self._country_code = match.group('country_code')
+        self._subdivision_code = match.group('subdivision_code')
+        self._values = sorted(values)
+
+    @property
+    def code(self):
+        return self._code
+
+    @property
+    def continent_code(self):
+        return self._continent_code
+
+    @property
+    def country_code(self):
+        return self._country_code
+
+    @property
+    def subdivision_code(self):
+        return self._subdivision_code
+
+    @property
+    def values(self):
+        return self._values
 
     @property
     def parents(self):

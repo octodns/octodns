@@ -229,7 +229,13 @@ class TestRecord(TestCase):
         self.assertFalse(geo.changes(geo, geo_target))
 
         # geo values don't impact equality
-        other.geo['AF'].values = ['9.9.9.9']
+        other = geo.copy(data={
+            'geo': {
+                'AF': {
+                    'values': ['9.9.9.9']
+                }
+            }
+        })
         self.assertTrue(geo == other)
         # Non-geo supporting provider doesn't consider geo diffs to be changes
         self.assertFalse(geo.changes(other, simple_target))
