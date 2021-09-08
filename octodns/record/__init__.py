@@ -339,7 +339,11 @@ class _ValuesMixin(object):
             values = data['values']
         except KeyError:
             values = [data['value']]
-        self.values = sorted(self._value_type.process(values))
+        self._values = sorted(self._value_type.process(values))
+
+    @property
+    def values(self):
+        return self._values
 
     def changes(self, other, target):
         if self.values != other.values:
