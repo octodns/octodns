@@ -440,7 +440,11 @@ class _ValueMixin(object):
 
     def __init__(self, zone, name, data, source=None):
         super(_ValueMixin, self).__init__(zone, name, data, source=source)
-        self.value = self._value_type.process(data['value'])
+        self._value = self._value_type.process(data['value'])
+
+    @property
+    def value(self):
+        return self._value
 
     def changes(self, other, target):
         if self.value != other.value:

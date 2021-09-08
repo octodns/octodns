@@ -327,7 +327,9 @@ class TestRecord(TestCase):
         self.assertFalse(a.changes(a, target))
         # Diff in value causes change
         other = AliasRecord(self.zone, 'a', a_data)
-        other.value = 'foo.unit.tests.'
+        other = a.copy(data={
+            'value': 'foo.unit.tests.'
+        })
         change = a.changes(other, target)
         self.assertEqual(change.existing, a)
         self.assertEqual(change.new, other)
