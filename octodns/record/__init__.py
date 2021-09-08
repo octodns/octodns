@@ -5,6 +5,7 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from deep_merge import merge as deep_merge
 from ipaddress import IPv4Address, IPv6Address
 from logging import getLogger
 import re
@@ -219,14 +220,15 @@ class Record(EqualityTupleMixin):
         if self.ttl != other.ttl:
             return Update(self, other)
 
-    def copy(self, zone=None):
-        data = self.data
-        data['type'] = self._type
+    def copy(self, zone=None, data={}):
+        merged = self.data
+        deep_merge(merged, data)
+        merged['type'] = self._type
 
         return Record.new(
             zone if zone else self.zone,
             self.name,
-            data,
+            merged,
             self.source,
             lenient=True
         )

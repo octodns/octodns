@@ -1055,6 +1055,122 @@ class TestRecord(TestCase):
         d.copy()
         self.assertEquals('TXT', d._type)
 
+        # Simple data overrides
+        e = a.copy(data={
+            'ttl': 600,
+            'value': '2.3.4.5',
+        })
+        # Note, value gnored in equality
+        self.assertEquals(a, e)
+        self.assertEquals(600, e.ttl)
+        self.assertEquals(['2.3.4.5'], e.values)
+
+        # Another simple, this time multiple values
+        e = a.copy(data={
+            'ttl': 600,
+            'values': ['2.3.4.5', '3.4.5.6'],
+        })
+        # Note, value gnored in equality
+        self.assertEquals(a, e)
+        self.assertEquals(600, e.ttl)
+        self.assertEquals(['2.3.4.5', '3.4.5.6'], e.values)
+
+        # Passed in type is ignored
+        e = a.copy(data={
+            'type': 'TXT',
+        })
+        # Note, value gnored in equality
+        self.assertEquals(a, e)
+
+        # Bit more involved, convert a dynamic
+        e = a.copy(data={
+            'dynamic': {
+                'pools': {
+                    'primary': {
+                        'fallback': 'secondary',
+                        'values': [{
+                            'value': '2.3.4.5',
+                        }],
+                    },
+                    'secondary': {
+                        'values': [{
+                            'value': '3.4.5.6',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'primary',
+                }],
+            },
+        })
+        # Note, value gnored in equality
+        self.assertEquals(a, e)
+        self.assertTrue(e.dynamic)
+        self.assertEquals({
+            'dynamic': {
+                'pools': {
+                    'primary': {
+                        'fallback': 'secondary',
+                        'values': [{'value': '2.3.4.5', 'weight': 1}]
+                    },
+                    'secondary': {
+                        'fallback': None,
+                        'values': [{'value': '3.4.5.6', 'weight': 1}]
+                    }
+                },
+                'rules': [{'pool': 'primary'}]
+            },
+            'ttl': 44,
+            'value': '1.2.3.4'
+        }, e.data)
+
+        # Let's muck w/e now, doing some "deep" changes. Flip the pool
+        # ordering, and change around the values in primary
+        f = e.copy(data={
+            'dynamic': {
+                'pools': {
+                    'primary': {
+                        'fallback': None,
+                        'values': [{
+                            'value': '4.5.6.7',
+                            'weight': 2
+                        }, {
+                            'value': '5.6.7.8',
+                        }],
+                    },
+                    'secondary': {
+                        'fallback': 'primary'
+                    }
+                },
+                'rules': [{'pool': 'secondary'}]
+            },
+        })
+        self.assertEquals(e, f)
+        self.maxDiff = None
+        self.assertEquals({
+            'dynamic': {
+                'pools': {
+                    'primary': {
+                        'fallback': None,
+                        'values': [{
+                            'value': '4.5.6.7',
+                            'weight': 2
+                        }, {
+                            'value': '5.6.7.8',
+                            'weight': 1
+                        }]
+                    },
+                    'secondary': {
+                        'fallback': 'primary',
+                        'values': [{'value': '3.4.5.6', 'weight': 1}]
+                    },
+                },
+                'rules': [{'pool': 'secondary'}]
+            },
+            'ttl': 44,
+            'value': '1.2.3.4'
+        }, f.data)
+
     def test_change(self):
         existing = Record.new(self.zone, 'txt', {
             'ttl': 44,
