@@ -540,8 +540,16 @@ class _DynamicRule(object):
 class _Dynamic(object):
 
     def __init__(self, pools, rules):
-        self.pools = pools
-        self.rules = rules
+        self._pools = pools
+        self._rules = rules
+
+    @property
+    def pools(self):
+        return self._pools
+
+    @property
+    def rules(self):
+        return self._rules
 
     def _data(self):
         pools = {}
