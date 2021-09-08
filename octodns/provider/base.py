@@ -62,8 +62,9 @@ class BaseProvider(BaseSource):
                 fallback = 'falling back to single value, {}' \
                     .format(record.value)
                 self.supports_warn_or_except(msg, fallback)
-                record = record.copy()
-                record.values = [record.value]
+                record = record.copy(data={
+                    'values': [record.value],
+                })
                 desired.add_record(record, replace=True)
 
         return desired

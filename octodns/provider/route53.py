@@ -956,8 +956,11 @@ class Route53Provider(BaseProvider):
                     rules.append(rule)
 
                 if rules != dynamic.rules:
-                    record = record.copy()
-                    record.dynamic.rules = rules
+                    record = record.copy(data={
+                        'dynamic': {
+                            'rules': [r.data for r in rules],
+                        }
+                    })
                     desired.add_record(record, replace=True)
 
         return super(Route53Provider, self)._process_desired_zone(desired)

@@ -38,9 +38,9 @@ class AcmeMangingProcessor(BaseProcessor):
                record.name.startswith('_acme-challenge'):
                 # We have a managed acme challenge record (owned by octoDNS) so
                 # we should mark it as such
-                record = record.copy()
-                record.values.append('*octoDNS*')
-                record.values.sort()
+                record = record.copy(data={
+                    'values': sorted(record.values + ['*octoDNS*']),
+                })
                 # This assumes we'll see things as sources before targets,
                 # which is the case...
                 self._owned.add(record)
