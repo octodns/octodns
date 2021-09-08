@@ -726,7 +726,7 @@ class _DynamicMixin(object):
         super(_DynamicMixin, self).__init__(zone, name, data, *args,
                                             **kwargs)
 
-        self.dynamic = {}
+        self._dynamic = {}
 
         if 'dynamic' not in data:
             return
@@ -751,7 +751,11 @@ class _DynamicMixin(object):
             parsed.append(_DynamicRule(i, rule))
 
         # dynamic
-        self.dynamic = _Dynamic(pools, parsed)
+        self._dynamic = _Dynamic(pools, parsed)
+
+    @property
+    def dynamic(self):
+        return self._dynamic
 
     def _data(self):
         ret = super(_DynamicMixin, self)._data()
