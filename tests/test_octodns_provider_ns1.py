@@ -109,6 +109,22 @@ class TestNs1Provider(TestCase):
             'value': 'ca.unit.tests',
         },
     }))
+    expected.add(Record.new(zone, 'urlfwd', {
+        'ttl': 41,
+        'type': 'URLFWD',
+        'value': {
+            'path': '/',
+            'target': 'http://foo.unit.tests',
+            'code': 301,
+            'masking': 2,
+            'query': 0,
+        },
+    }))
+    expected.add(Record.new(zone, '1.2.3.4', {
+        'ttl': 42,
+        'type': 'PTR',
+        'values': ['one.one.one.one.', 'two.two.two.two.'],
+    }))
 
     ns1_records = [{
         'type': 'A',
@@ -164,6 +180,16 @@ class TestNs1Provider(TestCase):
         'ttl': 40,
         'short_answers': ['0 issue ca.unit.tests'],
         'domain': 'unit.tests.',
+    }, {
+        'type': 'URLFWD',
+        'ttl': 41,
+        'short_answers': ['/ http://foo.unit.tests 301 2 0'],
+        'domain': 'urlfwd.unit.tests.',
+    }, {
+        'type': 'PTR',
+        'ttl': 42,
+        'short_answers': ['one.one.one.one.', 'two.two.two.two.'],
+        'domain': '1.2.3.4.unit.tests.',
     }]
 
     @patch('ns1.rest.records.Records.retrieve')
@@ -171,7 +197,13 @@ class TestNs1Provider(TestCase):
     def test_populate(self, zone_retrieve_mock, record_retrieve_mock):
         provider = Ns1Provider('test', 'api-key')
 
+        def reset():
+            provider._client.reset_caches()
+            zone_retrieve_mock.reset_mock()
+            record_retrieve_mock.reset_mock()
+
         # Bad auth
+        reset()
         zone_retrieve_mock.side_effect = AuthException('unauthorized')
         zone = Zone('unit.tests.', [])
         with self.assertRaises(AuthException) as ctx:
@@ -179,7 +211,7 @@ class TestNs1Provider(TestCase):
         self.assertEquals(zone_retrieve_mock.side_effect, ctx.exception)
 
         # General error
-        zone_retrieve_mock.reset_mock()
+        reset()
         zone_retrieve_mock.side_effect = ResourceException('boom')
         zone = Zone('unit.tests.', [])
         with self.assertRaises(ResourceException) as ctx:
@@ -188,7 +220,7 @@ class TestNs1Provider(TestCase):
         self.assertEquals(('unit.tests',), zone_retrieve_mock.call_args[0])
 
         # Non-existent zone doesn't populate anything
-        zone_retrieve_mock.reset_mock()
+        reset()
         zone_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
         zone = Zone('unit.tests.', [])
@@ -198,8 +230,7 @@ class TestNs1Provider(TestCase):
         self.assertFalse(exists)
 
         # Existing zone w/o records
-        zone_retrieve_mock.reset_mock()
-        record_retrieve_mock.reset_mock()
+        reset()
         ns1_zone = {
             'records': [{
                 "domain": "geo.unit.tests",
@@ -229,8 +260,7 @@ class TestNs1Provider(TestCase):
                                                     'geo.unit.tests', 'A')])
 
         # Existing zone w/records
-        zone_retrieve_mock.reset_mock()
-        record_retrieve_mock.reset_mock()
+        reset()
         ns1_zone = {
             'records': self.ns1_records + [{
                 "domain": "geo.unit.tests",
@@ -260,8 +290,7 @@ class TestNs1Provider(TestCase):
                                                     'geo.unit.tests', 'A')])
 
         # Test skipping unsupported record type
-        zone_retrieve_mock.reset_mock()
-        record_retrieve_mock.reset_mock()
+        reset()
         ns1_zone = {
             'records': self.ns1_records + [{
                 'type': 'UNSUPPORTED',
@@ -314,19 +343,21 @@ class TestNs1Provider(TestCase):
         self.assertEquals(expected_n, len(plan.changes))
         self.assertTrue(plan.exists)
 
+        def reset():
+            provider._client.reset_caches()
+            record_retrieve_mock.reset_mock()
+            zone_create_mock.reset_mock()
+            zone_retrieve_mock.reset_mock()
+
         # Fails, general error
-        zone_retrieve_mock.reset_mock()
-        record_retrieve_mock.reset_mock()
-        zone_create_mock.reset_mock()
+        reset()
         zone_retrieve_mock.side_effect = ResourceException('boom')
         with self.assertRaises(ResourceException) as ctx:
             provider.apply(plan)
         self.assertEquals(zone_retrieve_mock.side_effect, ctx.exception)
 
         # Fails, bad auth
-        zone_retrieve_mock.reset_mock()
-        record_retrieve_mock.reset_mock()
-        zone_create_mock.reset_mock()
+        reset()
         zone_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
         zone_create_mock.side_effect = AuthException('unauthorized')
@@ -335,17 +366,15 @@ class TestNs1Provider(TestCase):
         self.assertEquals(zone_create_mock.side_effect, ctx.exception)
 
         # non-existent zone, create
-        zone_retrieve_mock.reset_mock()
-        record_retrieve_mock.reset_mock()
-        zone_create_mock.reset_mock()
+        reset()
         zone_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
 
         zone_create_mock.side_effect = ['foo']
-        # Test out the create rate-limit handling, then 9 successes
+        # Test out the create rate-limit handling, then successes for the rest
         record_create_mock.side_effect = [
             RateLimitException('boo', period=0),
-        ] + ([None] * 9)
+        ] + ([None] * len(self.expected))
 
         got_n = provider.apply(plan)
         self.assertEquals(expected_n, got_n)
@@ -363,12 +392,13 @@ class TestNs1Provider(TestCase):
             call('unit.tests', 'unit.tests', 'MX', answers=[
                 (10, 'mx1.unit.tests.'), (20, 'mx2.unit.tests.')
             ], ttl=35),
+            call('unit.tests', '1.2.3.4.unit.tests', 'PTR', answers=[
+                'one.one.one.one.', 'two.two.two.two.',
+            ], ttl=42),
         ])
 
         # Update & delete
-        zone_retrieve_mock.reset_mock()
-        record_retrieve_mock.reset_mock()
-        zone_create_mock.reset_mock()
+        reset()
 
         ns1_zone = {
             'records': self.ns1_records + [{
@@ -578,6 +608,82 @@ class TestNs1ProviderDynamic(TestCase):
             'meta': {},
         })
 
+    def aaaa_record(self):
+        return Record.new(self.zone, '', {
+            'dynamic': {
+                'pools': {
+                    'lhr': {
+                        'fallback': 'iad',
+                        'values': [{
+                            'value': '::ffff:3.4.5.6',
+                        }],
+                    },
+                    'iad': {
+                        'values': [{
+                            'value': '::ffff:1.2.3.4',
+                        }, {
+                            'value': '::ffff:2.3.4.5',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'geos': [
+                        'AF',
+                        'EU-GB',
+                        'NA-US-FL'
+                    ],
+                    'pool': 'lhr',
+                }, {
+                    'geos': [
+                        'AF-ZW',
+                    ],
+                    'pool': 'iad',
+                }, {
+                    'pool': 'iad',
+                }],
+            },
+            'octodns': {
+                'healthcheck': {
+                    'host': 'send.me',
+                    'path': '/_ping',
+                    'port': 80,
+                    'protocol': 'HTTP',
+                }
+            },
+            'ttl': 32,
+            'type': 'AAAA',
+            'value': '::ffff:1.2.3.4',
+            'meta': {},
+        })
+
+    def cname_record(self):
+        return Record.new(self.zone, 'foo', {
+            'dynamic': {
+                'pools': {
+                    'iad': {
+                        'values': [{
+                            'value': 'iad.unit.tests.',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'iad',
+                }],
+            },
+            'octodns': {
+                'healthcheck': {
+                    'host': 'send.me',
+                    'path': '/_ping',
+                    'port': 80,
+                    'protocol': 'HTTP',
+                }
+            },
+            'ttl': 33,
+            'type': 'CNAME',
+            'value': 'value.unit.tests.',
+            'meta': {},
+        })
+
     def test_notes(self):
         provider = Ns1Provider('test', 'api-key')
 
@@ -609,6 +715,12 @@ class TestNs1ProviderDynamic(TestCase):
             },
             'notes': 'host:unit.tests type:A',
         }
+        monitor_five = {
+            'config': {
+                'host': 'iad.unit.tests',
+            },
+            'notes': 'host:foo.unit.tests type:CNAME',
+        }
         provider._client._monitors_cache = {
             'one': monitor_one,
             'two': {
@@ -624,6 +736,19 @@ class TestNs1ProviderDynamic(TestCase):
                 'notes': 'host:other.unit.tests type:A',
             },
             'four': monitor_four,
+            'five': monitor_five,
+            'six': {
+                'config': {
+                    'host': '10.10.10.10',
+                },
+                'notes': 'non-conforming notes',
+            },
+            'seven': {
+                'config': {
+                    'host': '11.11.11.11',
+                },
+                'notes': None,
+            },
         }
 
         # Would match, but won't get there b/c it's not dynamic
@@ -640,6 +765,11 @@ class TestNs1ProviderDynamic(TestCase):
             '1.2.3.4': monitor_one,
             '2.3.4.5': monitor_four,
         }, provider._monitors_for(self.record()))
+
+        # Check match for CNAME values
+        self.assertEquals({
+            'iad.unit.tests.': monitor_five,
+        }, provider._monitors_for(self.cname_record()))
 
     def test_uuid(self):
         # Just a smoke test/for coverage
@@ -700,11 +830,69 @@ class TestNs1ProviderDynamic(TestCase):
         monitor = {
             'name': 'test monitor',
         }
+        provider._client._notifylists_cache = {}
         monitor_id, feed_id = provider._monitor_create(monitor)
         self.assertEquals('mon-id', monitor_id)
         self.assertEquals('feed-id', feed_id)
         monitors_create_mock.assert_has_calls([call(name='test monitor',
                                                     notify_list='nl-id')])
+
+    @patch('octodns.provider.ns1.Ns1Provider._feed_create')
+    @patch('octodns.provider.ns1.Ns1Client.monitors_create')
+    @patch('octodns.provider.ns1.Ns1Client._try')
+    def test_monitor_create_shared_notifylist(self, try_mock,
+                                              monitors_create_mock,
+                                              feed_create_mock):
+        provider = Ns1Provider('test', 'api-key', shared_notifylist=True)
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {}
+
+        # First time we'll need to create the share list
+        provider._client._notifylists_cache = {}
+        try_mock.reset_mock()
+        monitors_create_mock.reset_mock()
+        feed_create_mock.reset_mock()
+        try_mock.side_effect = [{
+            'id': 'nl-id',
+            'name': provider.SHARED_NOTIFYLIST_NAME,
+        }]
+        monitors_create_mock.side_effect = [{
+            'id': 'mon-id',
+        }]
+        feed_create_mock.side_effect = ['feed-id']
+        monitor = {
+            'name': 'test monitor',
+        }
+        monitor_id, feed_id = provider._monitor_create(monitor)
+        self.assertEquals('mon-id', monitor_id)
+        self.assertEquals('feed-id', feed_id)
+        monitors_create_mock.assert_has_calls([call(name='test monitor',
+                                                    notify_list='nl-id')])
+        try_mock.assert_called_once()
+        # The shared notifylist should be cached now
+        self.assertEquals([provider.SHARED_NOTIFYLIST_NAME],
+                          list(provider._client._notifylists_cache.keys()))
+
+        # Second time we'll use the cached version
+        try_mock.reset_mock()
+        monitors_create_mock.reset_mock()
+        feed_create_mock.reset_mock()
+        monitors_create_mock.side_effect = [{
+            'id': 'mon-id',
+        }]
+        feed_create_mock.side_effect = ['feed-id']
+        monitor = {
+            'name': 'test monitor',
+        }
+        monitor_id, feed_id = provider._monitor_create(monitor)
+        self.assertEquals('mon-id', monitor_id)
+        self.assertEquals('feed-id', feed_id)
+        monitors_create_mock.assert_has_calls([call(name='test monitor',
+                                                    notify_list='nl-id')])
+        try_mock.assert_not_called()
 
     def test_monitor_gen(self):
         provider = Ns1Provider('test', 'api-key')
@@ -717,6 +905,10 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertFalse(monitor['config']['ssl'])
         self.assertEquals('host:unit.tests type:A', monitor['notes'])
 
+        record._octodns['healthcheck']['host'] = None
+        monitor = provider._monitor_gen(record, value)
+        self.assertTrue(r'\nHost: 3.4.5.6\r' in monitor['config']['send'])
+
         record._octodns['healthcheck']['protocol'] = 'HTTPS'
         monitor = provider._monitor_gen(record, value)
         self.assertTrue(monitor['config']['ssl'])
@@ -727,6 +919,22 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertFalse('send' in monitor['config'])
         # No http response expected
         self.assertFalse('rules' in monitor)
+
+    def test_monitor_gen_AAAA(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        value = '::ffff:3.4.5.6'
+        record = self.aaaa_record()
+        monitor = provider._monitor_gen(record, value)
+        self.assertTrue(monitor['config']['ipv6'])
+
+    def test_monitor_gen_CNAME(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        value = 'iad.unit.tests.'
+        record = self.cname_record()
+        monitor = provider._monitor_gen(record, value)
+        self.assertEquals(value[:-1], monitor['config']['host'])
 
     def test_monitor_is_match(self):
         provider = Ns1Provider('test', 'api-key')
@@ -786,11 +994,14 @@ class TestNs1ProviderDynamic(TestCase):
             'mon-id': 'feed-id',
         }
 
+        def reset():
+            feed_create_mock.reset_mock()
+            monitor_create_mock.reset_mock()
+            monitor_gen_mock.reset_mock()
+            monitors_update_mock.reset_mock()
+
         # No existing monitor
-        monitor_gen_mock.reset_mock()
-        monitor_create_mock.reset_mock()
-        monitors_update_mock.reset_mock()
-        feed_create_mock.reset_mock()
+        reset()
         monitor_gen_mock.side_effect = [{'key': 'value'}]
         monitor_create_mock.side_effect = [('mon-id', 'feed-id')]
         value = '1.2.3.4'
@@ -804,10 +1015,7 @@ class TestNs1ProviderDynamic(TestCase):
         feed_create_mock.assert_not_called()
 
         # Existing monitor that doesn't need updates
-        monitor_gen_mock.reset_mock()
-        monitor_create_mock.reset_mock()
-        monitors_update_mock.reset_mock()
-        feed_create_mock.reset_mock()
+        reset()
         monitor = {
             'id': 'mon-id',
             'key': 'value',
@@ -824,10 +1032,7 @@ class TestNs1ProviderDynamic(TestCase):
         feed_create_mock.assert_not_called()
 
         # Existing monitor that doesn't need updates, but is missing its feed
-        monitor_gen_mock.reset_mock()
-        monitor_create_mock.reset_mock()
-        monitors_update_mock.reset_mock()
-        feed_create_mock.reset_mock()
+        reset()
         monitor = {
             'id': 'mon-id2',
             'key': 'value',
@@ -845,10 +1050,7 @@ class TestNs1ProviderDynamic(TestCase):
         feed_create_mock.assert_has_calls([call(monitor)])
 
         # Existing monitor that needs updates
-        monitor_gen_mock.reset_mock()
-        monitor_create_mock.reset_mock()
-        monitors_update_mock.reset_mock()
-        feed_create_mock.reset_mock()
+        reset()
         monitor = {
             'id': 'mon-id',
             'key': 'value',
@@ -882,11 +1084,14 @@ class TestNs1ProviderDynamic(TestCase):
             'mon-id': 'feed-id',
         }
 
+        def reset():
+            datafeed_delete_mock.reset_mock()
+            monitors_delete_mock.reset_mock()
+            monitors_for_mock.reset_mock()
+            notifylists_delete_mock.reset_mock()
+
         # No active monitors and no existing, nothing will happen
-        monitors_for_mock.reset_mock()
-        datafeed_delete_mock.reset_mock()
-        monitors_delete_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        reset()
         monitors_for_mock.side_effect = [{}]
         record = self.record()
         provider._monitors_gc(record)
@@ -896,16 +1101,19 @@ class TestNs1ProviderDynamic(TestCase):
         notifylists_delete_mock.assert_not_called()
 
         # No active monitors and one existing, delete all the things
-        monitors_for_mock.reset_mock()
-        datafeed_delete_mock.reset_mock()
-        monitors_delete_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        reset()
         monitors_for_mock.side_effect = [{
             'x': {
                 'id': 'mon-id',
                 'notify_list': 'nl-id',
             }
         }]
+        provider._client._notifylists_cache = {
+            'not shared': {
+                'id': 'nl-id',
+                'name': 'not shared',
+            }
+        }
         provider._monitors_gc(record)
         monitors_for_mock.assert_has_calls([call(record)])
         datafeed_delete_mock.assert_has_calls([call('foo', 'feed-id')])
@@ -913,10 +1121,7 @@ class TestNs1ProviderDynamic(TestCase):
         notifylists_delete_mock.assert_has_calls([call('nl-id')])
 
         # Same existing, this time in active list, should be noop
-        monitors_for_mock.reset_mock()
-        datafeed_delete_mock.reset_mock()
-        monitors_delete_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        reset()
         monitors_for_mock.side_effect = [{
             'x': {
                 'id': 'mon-id',
@@ -931,10 +1136,7 @@ class TestNs1ProviderDynamic(TestCase):
 
         # Non-active monitor w/o a feed, and another monitor that's left alone
         # b/c it's active
-        monitors_for_mock.reset_mock()
-        datafeed_delete_mock.reset_mock()
-        monitors_delete_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        reset()
         monitors_for_mock.side_effect = [{
             'x': {
                 'id': 'mon-id',
@@ -945,11 +1147,68 @@ class TestNs1ProviderDynamic(TestCase):
                 'notify_list': 'nl-id2',
             },
         }]
+        provider._client._notifylists_cache = {
+            'not shared': {
+                'id': 'nl-id',
+                'name': 'not shared',
+            },
+            'not shared 2': {
+                'id': 'nl-id2',
+                'name': 'not shared 2',
+            }
+        }
         provider._monitors_gc(record, {'mon-id'})
         monitors_for_mock.assert_has_calls([call(record)])
         datafeed_delete_mock.assert_not_called()
         monitors_delete_mock.assert_has_calls([call('mon-id2')])
         notifylists_delete_mock.assert_has_calls([call('nl-id2')])
+
+        # Non-active monitor w/o a notifylist, generally shouldn't happen, but
+        # code should handle it just in case someone gets clicky in the UI
+        reset()
+        monitors_for_mock.side_effect = [{
+            'y': {
+                'id': 'mon-id2',
+                'notify_list': 'nl-id2',
+            },
+        }]
+        provider._client._notifylists_cache = {
+            'not shared a': {
+                'id': 'nl-ida',
+                'name': 'not shared a',
+            },
+            'not shared b': {
+                'id': 'nl-idb',
+                'name': 'not shared b',
+            }
+        }
+        provider._monitors_gc(record, {'mon-id'})
+        monitors_for_mock.assert_has_calls([call(record)])
+        datafeed_delete_mock.assert_not_called()
+        monitors_delete_mock.assert_has_calls([call('mon-id2')])
+        notifylists_delete_mock.assert_not_called()
+
+        # Non-active monitor with a shared notifylist, monitor deleted, but
+        # notifylist is left alone
+        reset()
+        provider.shared_notifylist = True
+        monitors_for_mock.side_effect = [{
+            'y': {
+                'id': 'mon-id2',
+                'notify_list': 'shared',
+            },
+        }]
+        provider._client._notifylists_cache = {
+            'shared': {
+                'id': 'shared',
+                'name': provider.SHARED_NOTIFYLIST_NAME,
+            },
+        }
+        provider._monitors_gc(record, {'mon-id'})
+        monitors_for_mock.assert_has_calls([call(record)])
+        datafeed_delete_mock.assert_not_called()
+        monitors_delete_mock.assert_has_calls([call('mon-id2')])
+        notifylists_delete_mock.assert_not_called()
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
@@ -982,7 +1241,7 @@ class TestNs1ProviderDynamic(TestCase):
         rule0 = record.data['dynamic']['rules'][0]
         rule1 = record.data['dynamic']['rules'][1]
         rule0['geos'] = ['AF', 'EU']
-        rule1['geos'] = ['NA']
+        rule1['geos'] = ['AS']
         ret, monitor_ids = provider._params_for_A(record)
         self.assertEquals(10, len(ret['answers']))
         self.assertEquals(ret['filters'],
@@ -996,7 +1255,7 @@ class TestNs1ProviderDynamic(TestCase):
             },
             'iad__georegion': {
                 'meta': {
-                    'georegion': ['US-CENTRAL', 'US-EAST', 'US-WEST'],
+                    'georegion': ['ASIAPAC'],
                     'note': 'rule-order:1'
                 }
             },
@@ -1040,7 +1299,7 @@ class TestNs1ProviderDynamic(TestCase):
         rule0 = record.data['dynamic']['rules'][0]
         rule1 = record.data['dynamic']['rules'][1]
         rule0['geos'] = ['AF', 'EU']
-        rule1['geos'] = ['NA-US-CA']
+        rule1['geos'] = ['NA-US-CA', 'NA-CA-NL']
         ret, _ = provider._params_for_A(record)
         self.assertEquals(10, len(ret['answers']))
         exp = Ns1Provider._FILTER_CHAIN_WITH_REGION_AND_COUNTRY(provider,
@@ -1055,7 +1314,8 @@ class TestNs1ProviderDynamic(TestCase):
             'iad__country': {
                 'meta': {
                     'note': 'rule-order:1',
-                    'us_state': ['CA']
+                    'us_state': ['CA'],
+                    'ca_province': ['NL']
                 }
             },
             'lhr__georegion': {
@@ -1083,6 +1343,7 @@ class TestNs1ProviderDynamic(TestCase):
         # provider._params_for_A() calls provider._monitors_for() and
         # provider._monitor_sync(). Mock their return values so that we don't
         # make NS1 API calls during tests
+        provider._client.reset_caches()
         monitors_for_mock.reset_mock()
         monitor_sync_mock.reset_mock()
         monitors_for_mock.side_effect = [{
@@ -1098,7 +1359,7 @@ class TestNs1ProviderDynamic(TestCase):
         rule0 = record.data['dynamic']['rules'][0]
         rule1 = record.data['dynamic']['rules'][1]
         rule0['geos'] = ['AF', 'EU', 'NA-US-CA']
-        rule1['geos'] = ['NA', 'NA-US']
+        rule1['geos'] = ['AS', 'AS-IN']
         ret, _ = provider._params_for_A(record)
 
         self.assertEquals(17, len(ret['answers']))
@@ -1117,14 +1378,21 @@ class TestNs1ProviderDynamic(TestCase):
         # finally has a catchall.  Those are examples of the two ways pools get
         # expanded.
         #
-        # lhr splits in two, with a region and country.
+        # lhr splits in two, with a region and country and includes a fallback
+        #
+        # All values now include their own `pool:` name
         #
         # well as both lhr georegion (for contients) and country. The first is
         # an example of a repeated target pool in a rule (only allowed when the
         # 2nd is a catchall.)
-        self.assertEquals(['from:--default--', 'from:iad__catchall',
-                           'from:iad__country', 'from:iad__georegion',
-                           'from:lhr__country', 'from:lhr__georegion'],
+        self.assertEquals(['fallback: from:iad__catchall pool:iad',
+                           'fallback: from:iad__country pool:iad',
+                           'fallback: from:iad__georegion pool:iad',
+                           'fallback: from:lhr__country pool:iad',
+                           'fallback: from:lhr__georegion pool:iad',
+                           'fallback:iad from:lhr__country pool:lhr',
+                           'fallback:iad from:lhr__georegion pool:lhr',
+                           'from:--default--'],
                           sorted(notes.keys()))
 
         # All the iad's should match (after meta and region were removed)
@@ -1151,13 +1419,13 @@ class TestNs1ProviderDynamic(TestCase):
             },
             'iad__country': {
                 'meta': {
-                    'country': ['US'],
+                    'country': ['IN'],
                     'note': 'rule-order:1'
                 }
             },
             'iad__georegion': {
                 'meta': {
-                    'georegion': ['US-CENTRAL', 'US-EAST', 'US-WEST'],
+                    'georegion': ['ASIAPAC'],
                     'note': 'rule-order:1'
                 }
             },
@@ -1242,9 +1510,13 @@ class TestNs1ProviderDynamic(TestCase):
             ('mid-2', 'fid-2'),
             ('mid-3', 'fid-3'),
         ]
-        # This indirectly calls into _params_for_dynamic_A and tests the
+        # This indirectly calls into _params_for_dynamic and tests the
         # handling to get there
         record = self.record()
+        # copy an existing answer from a different pool to 'lhr' so
+        # in order to test answer repetition across pools (monitor reuse)
+        record.dynamic._data()['pools']['lhr']['values'].append(
+            record.dynamic._data()['pools']['iad']['values'][0])
         ret, _ = provider._params_for_A(record)
 
         # Given that record has both country and region in the rules,
@@ -1270,7 +1542,39 @@ class TestNs1ProviderDynamic(TestCase):
         params, _ = provider._params_for_geo_A(record)
         self.assertEquals([], params['filters'])
 
-    def test_data_for_dynamic_A(self):
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_params_for_dynamic_CNAME(self, monitors_for_mock,
+                                      monitor_sync_mock):
+        provider = Ns1Provider('test', 'api-key')
+
+        # pre-fill caches to avoid extranious calls (things we're testing
+        # elsewhere)
+        provider._client._datasource_id = 'foo'
+        provider._client._feeds_for_monitors = {
+            'mon-id': 'feed-id',
+        }
+
+        # provider._params_for_A() calls provider._monitors_for() and
+        # provider._monitor_sync(). Mock their return values so that we don't
+        # make NS1 API calls during tests
+        monitors_for_mock.reset_mock()
+        monitor_sync_mock.reset_mock()
+        monitors_for_mock.side_effect = [{
+            'iad.unit.tests.': 'mid-1',
+        }]
+        monitor_sync_mock.side_effect = [
+            ('mid-1', 'fid-1'),
+        ]
+
+        record = self.cname_record()
+        ret, _ = provider._params_for_CNAME(record)
+
+        # Check if the default value was correctly read and populated
+        # All other dynamic record test cases are covered by dynamic_A tests
+        self.assertEquals(ret['answers'][-1]['answer'][0], 'value.unit.tests.')
+
+    def test_data_for_dynamic(self):
         provider = Ns1Provider('test', 'api-key')
 
         # Unexpected filters throws an error
@@ -1279,7 +1583,7 @@ class TestNs1ProviderDynamic(TestCase):
             'filters': [],
         }
         with self.assertRaises(Ns1Exception) as ctx:
-            provider._data_for_dynamic_A('A', ns1_record)
+            provider._data_for_dynamic('A', ns1_record)
         self.assertEquals('Unrecognized advanced record',
                           text_type(ctx.exception))
 
@@ -1291,7 +1595,7 @@ class TestNs1ProviderDynamic(TestCase):
             'regions': {},
             'ttl': 42,
         }
-        data = provider._data_for_dynamic_A('A', ns1_record)
+        data = provider._data_for_dynamic('A', ns1_record)
         self.assertEquals({
             'dynamic': {
                 'pools': {},
@@ -1374,8 +1678,9 @@ class TestNs1ProviderDynamic(TestCase):
                 'lhr__country': {
                     'meta': {
                         'note': 'rule-order:1 fallback:iad',
-                        'country': ['CA'],
+                        'country': ['MX'],
                         'us_state': ['OR'],
+                        'ca_province': ['NL']
                     },
                 },
                 # iad will use the old style "plain" region naming. We won't
@@ -1396,7 +1701,7 @@ class TestNs1ProviderDynamic(TestCase):
             'tier': 3,
             'ttl': 42,
         }
-        data = provider._data_for_dynamic_A('A', ns1_record)
+        data = provider._data_for_dynamic('A', ns1_record)
         self.assertEquals({
             'dynamic': {
                 'pools': {
@@ -1419,8 +1724,9 @@ class TestNs1ProviderDynamic(TestCase):
                     '_order': '1',
                     'geos': [
                         'AF',
-                        'NA-CA',
-                        'NA-US-OR',
+                        'NA-CA-NL',
+                        'NA-MX',
+                        'NA-US-OR'
                     ],
                     'pool': 'lhr',
                 }, {
@@ -1440,7 +1746,7 @@ class TestNs1ProviderDynamic(TestCase):
         }, data)
 
         # Same answer if we go through _data_for_A which out sources the job to
-        # _data_for_dynamic_A
+        # _data_for_dynamic
         data2 = provider._data_for_A('A', ns1_record)
         self.assertEquals(data, data2)
 
@@ -1451,7 +1757,7 @@ class TestNs1ProviderDynamic(TestCase):
         ns1_record['regions'][old_style_catchall_pool_name] = \
             ns1_record['regions'][catchall_pool_name]
         del ns1_record['regions'][catchall_pool_name]
-        data3 = provider._data_for_dynamic_A('A', ns1_record)
+        data3 = provider._data_for_dynamic('A', ns1_record)
         self.assertEquals(data, data2)
 
         # Oceania test cases
@@ -1471,6 +1777,194 @@ class TestNs1ProviderDynamic(TestCase):
             self.assertTrue(
                 'OC-{}'.format(c) in data4['dynamic']['rules'][0]['geos'])
 
+        # NA test cases
+        # 1. Full list of countries should return 'NA' in geos
+        na_countries = Ns1Provider._CONTINENT_TO_LIST_OF_COUNTRIES['NA']
+        del ns1_record['regions']['lhr__country']['meta']['us_state']
+        ns1_record['regions']['lhr__country']['meta']['country'] = \
+            list(na_countries)
+        data5 = provider._data_for_A('A', ns1_record)
+        self.assertTrue('NA' in data5['dynamic']['rules'][0]['geos'])
+
+        # 2. Partial list of countries should return just those
+        partial_na_cntry_list = list(na_countries)[:5] + ['SX', 'UM']
+        ns1_record['regions']['lhr__country']['meta']['country'] = \
+            partial_na_cntry_list
+        data6 = provider._data_for_A('A', ns1_record)
+        for c in partial_na_cntry_list:
+            self.assertTrue(
+                'NA-{}'.format(c) in data6['dynamic']['rules'][0]['geos'])
+
+        # Test out fallback only pools and new-style notes
+        ns1_record = {
+            'answers': [{
+                'answer': ['1.1.1.1'],
+                'meta': {
+                    'priority': 1,
+                    'note': 'from:one__country pool:one fallback:two',
+                },
+                'region': 'one_country',
+            }, {
+                'answer': ['2.2.2.2'],
+                'meta': {
+                    'priority': 2,
+                    'note': 'from:one__country pool:two fallback:three',
+                },
+                'region': 'one_country',
+            }, {
+                'answer': ['3.3.3.3'],
+                'meta': {
+                    'priority': 3,
+                    'note': 'from:one__country pool:three fallback:',
+                },
+                'region': 'one_country',
+            }, {
+                'answer': ['5.5.5.5'],
+                'meta': {
+                    'priority': 4,
+                    'note': 'from:--default--',
+                },
+                'region': 'one_country',
+            }, {
+                'answer': ['4.4.4.4'],
+                'meta': {
+                    'priority': 1,
+                    'note': 'from:four__country pool:four fallback:',
+                },
+                'region': 'four_country',
+            }, {
+                'answer': ['5.5.5.5'],
+                'meta': {
+                    'priority': 2,
+                    'note': 'from:--default--',
+                },
+                'region': 'four_country',
+            }],
+            'domain': 'unit.tests',
+            'filters': filters,
+            'regions': {
+                'one__country': {
+                    'meta': {
+                        'note': 'rule-order:1 fallback:two',
+                        'country': ['CA'],
+                        'us_state': ['OR'],
+                    },
+                },
+                'four__country': {
+                    'meta': {
+                        'note': 'rule-order:2',
+                        'country': ['CA'],
+                        'us_state': ['OR'],
+                    },
+                },
+                catchall_pool_name: {
+                    'meta': {
+                        'note': 'rule-order:3',
+                    },
+                }
+            },
+            'tier': 3,
+            'ttl': 42,
+        }
+        data = provider._data_for_dynamic('A', ns1_record)
+        self.assertEquals({
+            'dynamic': {
+                'pools': {
+                    'four': {
+                        'fallback': None,
+                        'values': [{'value': '4.4.4.4', 'weight': 1}]
+                    },
+                    'one': {
+                        'fallback': 'two',
+                        'values': [{'value': '1.1.1.1', 'weight': 1}]
+                    },
+                    'three': {
+                        'fallback': None,
+                        'values': [{'value': '3.3.3.3', 'weight': 1}]
+                    },
+                    'two': {
+                        'fallback': 'three',
+                        'values': [{'value': '2.2.2.2', 'weight': 1}]
+                    },
+                },
+                'rules': [{
+                    '_order': '1',
+                    'geos': ['NA-CA', 'NA-US-OR'],
+                    'pool': 'one'
+                }, {
+                    '_order': '2',
+                    'geos': ['NA-CA', 'NA-US-OR'],
+                    'pool': 'four'
+                }, {
+                    '_order': '3', 'pool': 'iad'}
+                ]
+            },
+            'ttl': 42,
+            'type': 'A',
+            'values': ['5.5.5.5']
+        }, data)
+
+    def test_data_for_dynamic_CNAME(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        # Test out a small setup that just covers default value validation
+        # Everything else is same as dynamic A whose tests will cover all
+        # other options and test cases
+        # Not testing for geo/region specific cases
+        filters = provider._get_updated_filter_chain(False, False)
+        catchall_pool_name = 'iad__catchall'
+        ns1_record = {
+            'answers': [{
+                'answer': ['iad.unit.tests.'],
+                'meta': {
+                    'priority': 1,
+                    'weight': 12,
+                    'note': 'from:{}'.format(catchall_pool_name),
+                },
+                'region': catchall_pool_name,
+            }, {
+                'answer': ['value.unit.tests.'],
+                'meta': {
+                    'priority': 2,
+                    'note': 'from:--default--',
+                },
+                'region': catchall_pool_name,
+            }],
+            'domain': 'foo.unit.tests',
+            'filters': filters,
+            'regions': {
+                catchall_pool_name: {
+                    'meta': {
+                        'note': 'rule-order:1',
+                    },
+                }
+            },
+            'tier': 3,
+            'ttl': 43,
+            'type': 'CNAME',
+        }
+        data = provider._data_for_CNAME('CNAME', ns1_record)
+        self.assertEquals({
+            'dynamic': {
+                'pools': {
+                    'iad': {
+                        'fallback': None,
+                        'values': [{
+                            'value': 'iad.unit.tests.',
+                            'weight': 12,
+                        }],
+                    },
+                },
+                'rules': [{
+                    '_order': '1',
+                    'pool': 'iad',
+                }],
+            },
+            'ttl': 43,
+            'type': 'CNAME',
+            'value': 'value.unit.tests.',
+        }, data)
+
     @patch('ns1.rest.records.Records.retrieve')
     @patch('ns1.rest.zones.Zones.retrieve')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
@@ -1480,34 +1974,35 @@ class TestNs1ProviderDynamic(TestCase):
 
         desired = Zone('unit.tests.', [])
 
+        def reset():
+            monitors_for_mock.reset_mock()
+            provider._client.reset_caches()
+            records_retrieve_mock.reset_mock()
+            zones_retrieve_mock.reset_mock()
+
         # Empty zone and no changes
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
 
         extra = provider._extra_changes(desired, [])
         self.assertFalse(extra)
         monitors_for_mock.assert_not_called()
 
         # Non-existent zone. No changes
-        monitors_for_mock.reset_mock()
+        reset()
         zones_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
-        records_retrieve_mock.reset_mock()
         extra = provider._extra_changes(desired, [])
         self.assertFalse(extra)
 
         # Unexpected exception message
-        zones_retrieve_mock.reset_mock()
+        reset()
         zones_retrieve_mock.side_effect = ResourceException('boom')
         with self.assertRaises(ResourceException) as ctx:
             extra = provider._extra_changes(desired, [])
         self.assertEquals(zones_retrieve_mock.side_effect, ctx.exception)
 
         # Simple record, ignored, filter update lookups ignored
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         zones_retrieve_mock.side_effect = \
             ResourceException('server error: zone not found')
 
@@ -1552,9 +2047,7 @@ class TestNs1ProviderDynamic(TestCase):
         desired.add_record(dynamic)
 
         # untouched, but everything in sync so no change needed
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         # Generate what we expect to have
         gend = provider._monitor_gen(dynamic, '1.2.3.4')
         gend.update({
@@ -1572,9 +2065,7 @@ class TestNs1ProviderDynamic(TestCase):
 
         # If we don't have a notify list we're broken and we'll expect to see
         # an Update
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         del gend['notify_list']
         monitors_for_mock.side_effect = [{
             '1.2.3.4': gend,
@@ -1588,9 +2079,7 @@ class TestNs1ProviderDynamic(TestCase):
 
         # Add notify_list back and change the healthcheck protocol, we'll still
         # expect to see an update
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         gend['notify_list'] = 'xyz'
         dynamic._octodns['healthcheck']['protocol'] = 'HTTPS'
         del gend['notify_list']
@@ -1605,9 +2094,7 @@ class TestNs1ProviderDynamic(TestCase):
         monitors_for_mock.assert_has_calls([call(dynamic)])
 
         # If it's in the changed list, it'll be ignored
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         extra = provider._extra_changes(desired, [update])
         self.assertFalse(extra)
         monitors_for_mock.assert_not_called()
@@ -1615,9 +2102,7 @@ class TestNs1ProviderDynamic(TestCase):
         # Test changes in filters
 
         # No change in filters
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         ns1_zone = {
             'records': [{
                 "domain": "dyn.unit.tests",
@@ -1634,9 +2119,7 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertFalse(extra)
 
         # filters need an update
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         ns1_zone = {
             'records': [{
                 "domain": "dyn.unit.tests",
@@ -1653,9 +2136,7 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertTrue(extra)
 
         # Mixed disabled in filters. Raise Ns1Exception
-        monitors_for_mock.reset_mock()
-        zones_retrieve_mock.reset_mock()
-        records_retrieve_mock.reset_mock()
+        reset()
         ns1_zone = {
             'records': [{
                 "domain": "dyn.unit.tests",
@@ -1780,12 +2261,14 @@ class TestNs1Client(TestCase):
         client = Ns1Client('dummy-key')
 
         # No retry required, just calls and is returned
+        client.reset_caches()
         zone_retrieve_mock.reset_mock()
         zone_retrieve_mock.side_effect = ['foo']
         self.assertEquals('foo', client.zones_retrieve('unit.tests'))
         zone_retrieve_mock.assert_has_calls([call('unit.tests')])
 
         # One retry required
+        client.reset_caches()
         zone_retrieve_mock.reset_mock()
         zone_retrieve_mock.side_effect = [
             RateLimitException('boo', period=0),
@@ -1795,6 +2278,7 @@ class TestNs1Client(TestCase):
         zone_retrieve_mock.assert_has_calls([call('unit.tests')])
 
         # Two retries required
+        client.reset_caches()
         zone_retrieve_mock.reset_mock()
         zone_retrieve_mock.side_effect = [
             RateLimitException('boo', period=0),
@@ -1804,6 +2288,7 @@ class TestNs1Client(TestCase):
         zone_retrieve_mock.assert_has_calls([call('unit.tests')])
 
         # Exhaust our retries
+        client.reset_caches()
         zone_retrieve_mock.reset_mock()
         zone_retrieve_mock.side_effect = [
             RateLimitException('first', period=0),
@@ -2015,36 +2500,61 @@ class TestNs1Client(TestCase):
                          notifylists_delete_mock):
         client = Ns1Client('dummy-key')
 
-        notifylists_list_mock.reset_mock()
-        notifylists_create_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
-        notifylists_create_mock.side_effect = ['bar']
+        def reset():
+            notifylists_create_mock.reset_mock()
+            notifylists_delete_mock.reset_mock()
+            notifylists_list_mock.reset_mock()
+
+        reset()
+        notifylists_list_mock.side_effect = [{}]
+        expected = {
+            'id': 'nl-id',
+            'name': 'bar',
+        }
+        notifylists_create_mock.side_effect = [expected]
         notify_list = [{
             'config': {
                 'sourceid': 'foo',
             },
             'type': 'datafeed',
         }]
-        nl = client.notifylists_create(name='some name',
-                                       notify_list=notify_list)
-        self.assertEquals('bar', nl)
-        notifylists_list_mock.assert_not_called()
+        got = client.notifylists_create(name='some name',
+                                        notify_list=notify_list)
+        self.assertEquals(expected, got)
+        notifylists_list_mock.assert_called_once()
         notifylists_create_mock.assert_has_calls([
             call({'name': 'some name', 'notify_list': notify_list})
         ])
         notifylists_delete_mock.assert_not_called()
 
-        notifylists_list_mock.reset_mock()
-        notifylists_create_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        reset()
         client.notifylists_delete('nlid')
         notifylists_list_mock.assert_not_called()
         notifylists_create_mock.assert_not_called()
         notifylists_delete_mock.assert_has_calls([call('nlid')])
 
-        notifylists_list_mock.reset_mock()
-        notifylists_create_mock.reset_mock()
-        notifylists_delete_mock.reset_mock()
+        # Delete again, this time with a cache item that needs cleaned out and
+        # another that needs to be ignored
+        reset()
+        client._notifylists_cache = {
+            'another': {
+                'id': 'notid',
+                'name': 'another',
+            },
+            # This one comes 2nd on purpose
+            'the-one': {
+                'id': 'nlid',
+                'name': 'the-one',
+            },
+        }
+        client.notifylists_delete('nlid')
+        notifylists_list_mock.assert_not_called()
+        notifylists_create_mock.assert_not_called()
+        notifylists_delete_mock.assert_has_calls([call('nlid')])
+        # Only another left
+        self.assertEquals(['another'], list(client._notifylists_cache.keys()))
+
+        reset()
         expected = ['one', 'two', 'three']
         notifylists_list_mock.side_effect = [expected]
         nls = client.notifylists_list()
@@ -2052,3 +2562,150 @@ class TestNs1Client(TestCase):
         notifylists_list_mock.assert_has_calls([call()])
         notifylists_create_mock.assert_not_called()
         notifylists_delete_mock.assert_not_called()
+
+    @patch('ns1.rest.records.Records.delete')
+    @patch('ns1.rest.records.Records.update')
+    @patch('ns1.rest.records.Records.create')
+    @patch('ns1.rest.records.Records.retrieve')
+    @patch('ns1.rest.zones.Zones.create')
+    @patch('ns1.rest.zones.Zones.delete')
+    @patch('ns1.rest.zones.Zones.retrieve')
+    def test_client_caching(self, zone_retrieve_mock, zone_delete_mock,
+                            zone_create_mock, record_retrieve_mock,
+                            record_create_mock, record_update_mock,
+                            record_delete_mock):
+        client = Ns1Client('dummy-key')
+
+        def reset():
+            zone_retrieve_mock.reset_mock()
+            zone_delete_mock.reset_mock()
+            zone_create_mock.reset_mock()
+            record_retrieve_mock.reset_mock()
+            record_create_mock.reset_mock()
+            record_update_mock.reset_mock()
+            record_delete_mock.reset_mock()
+            # Testing caches so we don't reset those
+
+        # Initial zone get fetches and caches
+        reset()
+        zone_retrieve_mock.side_effect = ['foo']
+        self.assertEquals('foo', client.zones_retrieve('unit.tests'))
+        zone_retrieve_mock.assert_has_calls([call('unit.tests')])
+        self.assertEquals({
+            'unit.tests': 'foo',
+        }, client._zones_cache)
+
+        # Subsequent zone get does not fetch and returns from cache
+        reset()
+        self.assertEquals('foo', client.zones_retrieve('unit.tests'))
+        zone_retrieve_mock.assert_not_called()
+
+        # Zone create stores in cache
+        reset()
+        zone_create_mock.side_effect = ['bar']
+        self.assertEquals('bar', client.zones_create('sub.unit.tests'))
+        zone_create_mock.assert_has_calls([call('sub.unit.tests')])
+        self.assertEquals({
+            'sub.unit.tests': 'bar',
+            'unit.tests': 'foo',
+        }, client._zones_cache)
+
+        # Initial record get fetches and caches
+        reset()
+        record_retrieve_mock.side_effect = ['baz']
+        self.assertEquals('baz', client.records_retrieve('unit.tests',
+                                                         'a.unit.tests', 'A'))
+        record_retrieve_mock.assert_has_calls([call('unit.tests',
+                                                    'a.unit.tests', 'A')])
+        self.assertEquals({
+            'unit.tests': {
+                'a.unit.tests': {
+                    'A': 'baz'
+                }
+            }
+        }, client._records_cache)
+
+        # Subsequent record get does not fetch and returns from cache
+        reset()
+        self.assertEquals('baz', client.records_retrieve('unit.tests',
+                                                         'a.unit.tests', 'A'))
+        record_retrieve_mock.assert_not_called()
+
+        # Record create stores in cache
+        reset()
+        record_create_mock.side_effect = ['boo']
+        self.assertEquals('boo', client.records_create('unit.tests',
+                                                       'aaaa.unit.tests',
+                                                       'AAAA', key='val'))
+        record_create_mock.assert_has_calls([call('unit.tests',
+                                                  'aaaa.unit.tests', 'AAAA',
+                                                  key='val')])
+        self.assertEquals({
+            'unit.tests': {
+                'a.unit.tests': {
+                    'A': 'baz'
+                },
+                'aaaa.unit.tests': {
+                    'AAAA': 'boo'
+                },
+            }
+        }, client._records_cache)
+
+        # Record delete removes from cache and removes zone
+        reset()
+        record_delete_mock.side_effect = [{}]
+        self.assertEquals({}, client.records_delete('unit.tests',
+                                                    'aaaa.unit.tests',
+                                                    'AAAA'))
+        record_delete_mock.assert_has_calls([call('unit.tests',
+                                                  'aaaa.unit.tests', 'AAAA')])
+        self.assertEquals({
+            'unit.tests': {
+                'a.unit.tests': {
+                    'A': 'baz'
+                },
+                'aaaa.unit.tests': {},
+            }
+        }, client._records_cache)
+        self.assertEquals({
+            'sub.unit.tests': 'bar',
+        }, client._zones_cache)
+
+        # Delete the other record, no zone this time, record should still go
+        # away
+        reset()
+        record_delete_mock.side_effect = [{}]
+        self.assertEquals({}, client.records_delete('unit.tests',
+                                                    'a.unit.tests', 'A'))
+        record_delete_mock.assert_has_calls([call('unit.tests', 'a.unit.tests',
+                                                  'A')])
+        self.assertEquals({
+            'unit.tests': {
+                'a.unit.tests': {},
+                'aaaa.unit.tests': {},
+            }
+        }, client._records_cache)
+        self.assertEquals({
+            'sub.unit.tests': 'bar',
+        }, client._zones_cache)
+
+        # Record update removes zone and caches result
+        record_update_mock.side_effect = ['done']
+        self.assertEquals('done', client.records_update('sub.unit.tests',
+                                                        'aaaa.sub.unit.tests',
+                                                        'AAAA', key='val'))
+        record_update_mock.assert_has_calls([call('sub.unit.tests',
+                                                  'aaaa.sub.unit.tests',
+                                                  'AAAA', key='val')])
+        self.assertEquals({
+            'unit.tests': {
+                'a.unit.tests': {},
+                'aaaa.unit.tests': {},
+            },
+            'sub.unit.tests': {
+                'aaaa.sub.unit.tests': {
+                    'AAAA': 'done',
+                },
+            }
+        }, client._records_cache)
+        self.assertEquals({}, client._zones_cache)

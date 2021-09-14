@@ -35,10 +35,10 @@ class TestYamlProvider(TestCase):
 
         # without it we see everything
         source.populate(zone)
-        self.assertEquals(22, len(zone.records))
+        self.assertEquals(23, len(zone.records))
 
         source.populate(dynamic_zone)
-        self.assertEquals(5, len(dynamic_zone.records))
+        self.assertEquals(6, len(dynamic_zone.records))
 
         # Assumption here is that a clean round-trip means that everything
         # worked as expected, data that went in came back out and could be
@@ -58,21 +58,21 @@ class TestYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(19, len([c for c in plan.changes
+            self.assertEquals(20, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
             self.assertFalse(isfile(yaml_file))
 
             # Now actually do it
-            self.assertEquals(19, target.apply(plan))
+            self.assertEquals(20, target.apply(plan))
             self.assertTrue(isfile(yaml_file))
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
-            self.assertEquals(5, len([c for c in plan.changes
+            self.assertEquals(6, len([c for c in plan.changes
                                       if isinstance(c, Create)]))
             self.assertFalse(isfile(dynamic_yaml_file))
             # Apply it
-            self.assertEquals(5, target.apply(plan))
+            self.assertEquals(6, target.apply(plan))
             self.assertTrue(isfile(dynamic_yaml_file))
 
             # There should be no changes after the round trip
@@ -87,7 +87,7 @@ class TestYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(19, len([c for c in plan.changes
+            self.assertEquals(20, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
 
             with open(yaml_file) as fh:
@@ -107,6 +107,7 @@ class TestYamlProvider(TestCase):
                 self.assertTrue('values' in data.pop('sub'))
                 self.assertTrue('values' in data.pop('txt'))
                 self.assertTrue('values' in data.pop('loc'))
+                self.assertTrue('values' in data.pop('urlfwd'))
                 # these are stored as singular 'value'
                 self.assertTrue('value' in data.pop('_imap._tcp'))
                 self.assertTrue('value' in data.pop('_pop3._tcp'))
@@ -145,6 +146,10 @@ class TestYamlProvider(TestCase):
                 # self.assertTrue('dynamic' in dyna)
 
                 dyna = data.pop('simple-weighted')
+                self.assertTrue('value' in dyna)
+                # self.assertTrue('dynamic' in dyna)
+
+                dyna = data.pop('pool-only-in-fallback')
                 self.assertTrue('value' in dyna)
                 # self.assertTrue('dynamic' in dyna)
 
@@ -244,7 +249,7 @@ class TestSplitYamlProvider(TestCase):
 
         # without it we see everything
         source.populate(zone)
-        self.assertEquals(19, len(zone.records))
+        self.assertEquals(20, len(zone.records))
 
         source.populate(dynamic_zone)
         self.assertEquals(5, len(dynamic_zone.records))
@@ -259,12 +264,12 @@ class TestSplitYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(16, len([c for c in plan.changes
+            self.assertEquals(17, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
             self.assertFalse(isdir(zone_dir))
 
             # Now actually do it
-            self.assertEquals(16, target.apply(plan))
+            self.assertEquals(17, target.apply(plan))
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
@@ -287,7 +292,7 @@ class TestSplitYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(16, len([c for c in plan.changes
+            self.assertEquals(17, len([c for c in plan.changes
                                        if isinstance(c, Create)]))
 
             yaml_file = join(zone_dir, '$unit.tests.yaml')
@@ -302,7 +307,8 @@ class TestSplitYamlProvider(TestCase):
 
             # These records are stored as plural "values." Check each file to
             # ensure correctness.
-            for record_name in ('_srv._tcp', 'mx', 'naptr', 'sub', 'txt'):
+            for record_name in ('_srv._tcp', 'mx', 'naptr', 'sub', 'txt',
+                                'urlfwd'):
                 yaml_file = join(zone_dir, '{}.yaml'.format(record_name))
                 self.assertTrue(isfile(yaml_file))
                 with open(yaml_file) as fh:
@@ -397,7 +403,7 @@ class TestOverridingYamlProvider(TestCase):
         # Load the base, should see the 5 records
         base.populate(zone)
         got = {r.name: r for r in zone.records}
-        self.assertEquals(5, len(got))
+        self.assertEquals(6, len(got))
         # We get the "dynamic" A from the base config
         self.assertTrue('dynamic' in got['a'].data)
         # No added
@@ -406,7 +412,7 @@ class TestOverridingYamlProvider(TestCase):
         # Load the overrides, should replace one and add 1
         override.populate(zone)
         got = {r.name: r for r in zone.records}
-        self.assertEquals(6, len(got))
+        self.assertEquals(7, len(got))
         # 'a' was replaced with a generic record
         self.assertEquals({
             'ttl': 3600,

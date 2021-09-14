@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/octodns/octodns/master/docs/logos/octodns-logo.png?" height=251 width=404>
+<img src="https://raw.githubusercontent.com/octodns/octodns/master/docs/logos/octodns-logo.png?" alt="OctoDNS Logo" height=251 width=404>
 
 ## DNS as code - Tools for managing DNS across multiple providers
 
@@ -38,7 +38,7 @@ It is similar to [Netflix/denominator](https://github.com/Netflix/denominator).
 
 Running through the following commands will install the latest release of OctoDNS and set up a place for your config files to live. To determine if provider specific requirements are necessary see the [Supported providers table](#supported-providers) below.
 
-```
+```shell
 $ mkdir dns
 $ cd dns
 $ virtualenv env
@@ -46,6 +46,14 @@ $ virtualenv env
 $ source env/bin/activate
 $ pip install octodns <provider-specific-requirements>
 $ mkdir config
+```
+
+#### Installing a specific commit SHA
+
+If you'd like to install a version that has not yet been released in a repetable/safe manner you can do the following. In general octoDNS is fairly stable inbetween releases thanks to the plan and apply process, but care should be taken regardless.
+
+```shell
+$ pip install -e git+https://git@github.com/octodns/octodns.git@<SHA>#egg=octodns
 ```
 
 ### Config
@@ -81,7 +89,7 @@ zones:
       - dyn
       - route53
 
-  example.net:
+  example.net.:
     alias: example.com.
 ```
 
@@ -113,7 +121,7 @@ Further information can be found in [Records Documentation](/docs/records.md).
 
 We're ready to do a dry-run with our new setup to see what changes it would make. Since we're pretending here we'll act like there are no existing records for `example.com.` in our accounts on either provider.
 
-```
+```shell
 $ octodns-sync --config-file=./config/production.yaml
 ...
 ********************************************************************************
@@ -137,7 +145,7 @@ There will be other logging information presented on the screen, but successful 
 
 Now it's time to tell OctoDNS to make things happen. We'll invoke it again with the same options and add a `--doit` on the end to tell it this time we actually want it to try and make the specified changes.
 
-```
+```shell
 $ octodns-sync --config-file=./config/production.yaml --doit
 ...
 ```
@@ -150,17 +158,17 @@ In the above case we manually ran OctoDNS from the command line. That works and 
 
 The first step is to create a PR with your changes.
 
-![](/docs/assets/pr.png)
+![GitHub user interface of a pull request](/docs/assets/pr.png)
 
 Assuming the code tests and config validation statuses are green the next step is to do a noop deploy and verify that the changes OctoDNS plans to make are the ones you expect.
 
-![](/docs/assets/noop.png)
+![Output of a noop deployment command](/docs/assets/noop.png)
 
 After that comes a set of reviews. One from a teammate who should have full context on what you're trying to accomplish and visibility in to the changes you're making to do it. The other is from a member of the team here at GitHub that owns DNS, mostly as a sanity check and to make sure that best practices are being followed. As much of that as possible is baked into `octodns-validate`.
 
 After the reviews it's time to branch deploy the change.
 
-![](/docs/assets/deploy.png)
+![Output of a deployment command](/docs/assets/deploy.png)
 
 If that goes smoothly, you again see the expected changes, and verify them with `dig` and/or `octodns-report` you're good to hit the merge button. If there are problems you can quickly do a `.deploy dns/master` to go back to the previous state.
 
@@ -168,7 +176,7 @@ If that goes smoothly, you again see the expected changes, and verify them with 
 
 Very few situations will involve starting with a blank slate which is why there's tooling built in to pull existing data out of providers into a matching config file.
 
-```
+```shell
 $ octodns-dump --config-file=config/production.yaml --output-dir=tmp/ example.com. route53
 2017-03-15T13:33:34  INFO  Manager __init__: config_file=tmp/production.yaml
 2017-03-15T13:33:34  INFO  Manager dump: zone=example.com., sources=('route53',)
@@ -184,10 +192,10 @@ The above command pulled the existing data out of Route53 and placed the results
 
 | Provider | Requirements | Record Support | Dynamic | Notes |
 |--|--|--|--|--|
-| [AzureProvider](/octodns/provider/azuredns.py) | azure-mgmt-dns | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | No | |
+| [AzureProvider](/octodns/provider/azuredns.py) | azure-identity, azure-mgmt-dns, azure-mgmt-trafficmanager | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | Alpha (A, AAAA, CNAME) | |
 | [Akamai](/octodns/provider/edgedns.py) | edgegrid-python | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
 | [CloudflareProvider](/octodns/provider/cloudflare.py) | | A, AAAA, ALIAS, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
-| [ConstellixProvider](/octodns/provider/constellix.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
+| [ConstellixProvider](/octodns/provider/constellix.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | Yes | CAA tags restricted |
 | [DigitalOceanProvider](/octodns/provider/digitalocean.py) | | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
 | [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
 | [DnsimpleProvider](/octodns/provider/dnsimple.py) | | All | No | CAA tags restricted |
@@ -196,9 +204,11 @@ The above command pulled the existing data out of Route53 and placed the results
 | [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | A, AAAA, ALIAS, CNAME | No | |
 | [EnvVarSource](/octodns/source/envvar.py) | | TXT | No | read-only environment variable injection |
 | [GandiProvider](/octodns/provider/gandi.py) | | A, AAAA, ALIAS, CAA, CNAME, DNAME, MX, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
+| [GCoreProvider](/octodns/provider/gcore.py) | | A, AAAA, NS, MX, TXT, SRV, CNAME, PTR | Dynamic | |
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
+| [HetznerProvider](/octodns/provider/hetzner.py) | | A, AAAA, CAA, CNAME, MX, NS, SRV, TXT | No | |
 | [MythicBeastsProvider](/octodns/provider/mythicbeasts.py) | Mythic Beasts | A, AAAA, ALIAS, CNAME, MX, NS, SRV, SSHFP, CAA, TXT | No | |
-| [Ns1Provider](/octodns/provider/ns1.py) | ns1-python | All | Yes | Missing `NA` geo target |
+| [Ns1Provider](/octodns/provider/ns1.py) | ns1-python | All | Yes | |
 | [OVH](/octodns/provider/ovh.py) | ovh | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
 | [PowerDnsProvider](/octodns/provider/powerdns.py) | | All | No | |
 | [Rackspace](/octodns/provider/rackspace.py) | | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
@@ -217,6 +227,32 @@ The above command pulled the existing data out of Route53 and placed the results
    * Dyn's UI doesn't allow editing or view of TTL, but the API accepts and stores the value provided, this value does not appear to be used when served
    * Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
 * octoDNS itself supports non-ASCII character sets, but in testing Cloudflare is the only provider where that is currently functional end-to-end. Others have failures either in the client libraries or API calls
+
+## Compatibilty & Compliance
+
+### `lenient`
+
+`lenient` mostly focuses on the details of `Record`s and standards compliance. When set to `true` octoDNS will allow allow non-compliant configurations & values where possible. For example CNAME values that don't end with a `.`, label length restrictions, and invalid geo codes on `dynamic` records. When in lenient mode octoDNS will log validation problems at `WARNING` and try and continue with the configuration or source data as it exists. See [Lenience](/docs/records.md#lenience) for more information on the concept and how it can be configured.
+
+### `strict_supports` (Work In Progress)
+
+`strict_supports` is a `Provider` level parameter that comes into play when a provider has been asked to create a record that it is unable to support. The simplest case of this would be record type, e.g. `SSHFP` not being supported by `AzureProvider`. If such a record is passed to an `AzureProvider` as a target the provider will take action based on the `strict_supports`. When `true` it will throw an exception saying that it's unable to create the record, when set to `false` it will log at `WARNING` with information about what it's unable to do and how it is attempting to working around it. Other examples of things that cannot be supported would be `dynamic` records on a provider that only supports simple or the lack of support for specific geos in a provider, e.g. Route53Provider does not support `NA-CA-*`.
+
+It is worth noting that these errors will happen during the plan phase of things so that problems will be visible without having to make changes.
+
+This concept is currently a work in progress and only partially implemented. While work is on-going `strict_supports` will default to `false`. Once the work is considered complete & ready the default will change to `true` as it's a much safer and less surprising default as what you configure is what you'll get unless an error is throw telling you why it cannot be done. You will then have the choice to explicitly request that things continue with work-arounds with `strict_supports` set to false`. In the meantime it is encouraged that you manually configure the parameter to `true` in your provider configs.
+
+### Configuring `strict_supports`
+
+The `strict_supports` parameter is available on all providers and can be configured in YAML as follows:
+
+```yaml
+providers:
+  someprovider:
+    class: whatever.TheProvider
+    ...
+    strict_supports: true
+```
 
 ## Custom Sources and Providers
 

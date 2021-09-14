@@ -1,0 +1,23 @@
+providers:
+  config:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+  geo:
+    class: helpers.GeoProvider
+  nosshfp:
+    class: helpers.NoSshFpProvider
+
+processors:
+  no-class: {}
+
+zones:
+  unit.tests.:
+    processors:
+    - noop
+    sources:
+    - in
+    targets:
+    - dump

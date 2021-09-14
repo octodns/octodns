@@ -1,0 +1,25 @@
+providers:
+  config:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+  geo:
+    class: helpers.GeoProvider
+  nosshfp:
+    class: helpers.NoSshFpProvider
+
+processors:
+  # valid class, but it wants a param and we're not passing it
+  wants-config:
+    class: helpers.WantsConfigProcessor
+
+zones:
+  unit.tests.:
+    processors:
+    - noop
+    sources:
+    - in
+    targets:
+    - dump

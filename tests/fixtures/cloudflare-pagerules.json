@@ -1,0 +1,103 @@
+{
+  "result": [
+    {
+      "id": "2b1ec1793185213139f22059a165376e",
+      "targets": [
+        {
+          "target": "url",
+          "constraint": {
+            "operator": "matches",
+            "value": "urlfwd0.unit.tests/"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "always_use_https"
+        }
+      ],
+      "priority": 4,
+      "status": "active",
+      "created_on": "2021-06-29T17:14:28.000000Z",
+      "modified_on": "2021-06-29T17:15:33.000000Z"
+    },
+    {
+      "id": "2b1ec1793185213139f22059a165376f",
+      "targets": [
+        {
+          "target": "url",
+          "constraint": {
+            "operator": "matches",
+            "value": "urlfwd0.unit.tests/*"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "forwarding_url",
+          "value": {
+            "url": "https://www.unit.tests/",
+            "status_code": 301
+          }
+        }
+      ],
+      "priority": 3,
+      "status": "active",
+      "created_on": "2021-06-29T17:07:12.000000Z",
+      "modified_on": "2021-06-29T17:15:12.000000Z"
+    },
+    {
+      "id": "2b1ec1793185213139f22059a165377e",
+      "targets": [
+        {
+          "target": "url",
+          "constraint": {
+            "operator": "matches",
+            "value": "urlfwd1.unit.tests/*"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "forwarding_url",
+          "value": {
+            "url": "https://www.unit.tests/",
+            "status_code": 302
+          }
+        }
+      ],
+      "priority": 2,
+      "status": "active",
+      "created_on": "2021-06-28T22:42:27.000000Z",
+      "modified_on": "2021-06-28T22:43:13.000000Z"
+    },
+    {
+      "id": "2a9140b17ffb0e6aed826049eec970b8",
+      "targets": [
+        {
+          "target": "url",
+          "constraint": {
+            "operator": "matches",
+            "value": "urlfwd2.unit.tests/*"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "forwarding_url",
+          "value": {
+            "url": "https://www.unit.tests/",
+            "status_code": 301
+          }
+        }
+      ],
+      "priority": 1,
+      "status": "active",
+      "created_on": "2021-06-25T20:10:50.000000Z",
+      "modified_on": "2021-06-28T22:38:10.000000Z"
+    }
+  ],
+  "success": true,
+  "errors": [],
+  "messages": []
+}

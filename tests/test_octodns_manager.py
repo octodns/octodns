@@ -8,16 +8,19 @@ from __future__ import absolute_import, division, print_function, \
 from os import environ
 from os.path import dirname, join
 from six import text_type
-from unittest import TestCase
 
-from octodns.record import Record
 from octodns.manager import _AggregateTarget, MainThreadExecutor, Manager, \
     ManagerException
+from octodns.processor.base import BaseProcessor
+from octodns.record import Create, Delete, Record
 from octodns.yaml import safe_load
 from octodns.zone import Zone
 
+from mock import MagicMock, patch
+from unittest import TestCase
+
 from helpers import DynamicProvider, GeoProvider, NoSshFpProvider, \
-    SimpleProvider, TemporaryDirectory
+    PlannableProvider, SimpleProvider, TemporaryDirectory
 
 config_dir = join(dirname(__file__), 'config')
 
@@ -118,12 +121,12 @@ class TestManager(TestCase):
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False)
-            self.assertEquals(25, tc)
+            self.assertEquals(26, tc)
 
             # try with just one of the zones
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, eligible_zones=['unit.tests.'])
-            self.assertEquals(19, tc)
+            self.assertEquals(20, tc)
 
             # the subzone, with 2 targets
             tc = Manager(get_config_filename('simple.yaml')) \
@@ -138,18 +141,18 @@ class TestManager(TestCase):
             # Again with force
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(25, tc)
+            self.assertEquals(26, tc)
 
             # Again with max_workers = 1
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(25, tc)
+            self.assertEquals(26, tc)
 
             # Include meta
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1,
                          include_meta=True) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(29, tc)
+            self.assertEquals(30, tc)
 
     def test_eligible_sources(self):
         with TemporaryDirectory() as tmpdir:
@@ -215,13 +218,13 @@ class TestManager(TestCase):
                 fh.write('---\n{}')
 
             changes = manager.compare(['in'], ['dump'], 'unit.tests.')
-            self.assertEquals(19, len(changes))
+            self.assertEquals(20, len(changes))
 
             # Compound sources with varying support
             changes = manager.compare(['in', 'nosshfp'],
                                       ['dump'],
                                       'unit.tests.')
-            self.assertEquals(18, len(changes))
+            self.assertEquals(19, len(changes))
 
             with self.assertRaises(ManagerException) as ctx:
                 manager.compare(['nope'], ['dump'], 'unit.tests.')
@@ -336,6 +339,11 @@ class TestManager(TestCase):
         Manager(get_config_filename('simple-alias-zone.yaml')) \
             .validate_configs()
 
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('unknown-processor.yaml')) \
+                .validate_configs()
+        self.assertTrue('unknown processor' in text_type(ctx.exception))
+
     def test_get_zone(self):
         Manager(get_config_filename('simple.yaml')).get_zone('unit.tests.')
 
@@ -356,20 +364,152 @@ class TestManager(TestCase):
 
             class NoLenient(SimpleProvider):
 
-                def populate(self, zone, source=False):
+                def populate(self, zone):
                     pass
 
             # This should be ok, we'll fall back to not passing it
-            manager._populate_and_plan('unit.tests.', [NoLenient()], [])
+            manager._populate_and_plan('unit.tests.', [], [NoLenient()], [])
 
-            class NoZone(SimpleProvider):
+            class OtherType(SimpleProvider):
 
-                def populate(self, lenient=False):
-                    pass
+                def populate(self, zone, lenient=False):
+                    raise TypeError('something else')
 
             # This will blow up, we don't fallback for source
-            with self.assertRaises(TypeError):
-                manager._populate_and_plan('unit.tests.', [NoZone()], [])
+            with self.assertRaises(TypeError) as ctx:
+                manager._populate_and_plan('unit.tests.', [], [OtherType()],
+                                           [])
+            self.assertEquals('something else', text_type(ctx.exception))
+
+    def test_plan_processors_fallback(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            # Only allow a target that doesn't exist
+            manager = Manager(get_config_filename('simple.yaml'))
+
+            class NoProcessors(SimpleProvider):
+
+                def plan(self, zone):
+                    pass
+
+            # This should be ok, we'll fall back to not passing it
+            manager._populate_and_plan('unit.tests.', [], [],
+                                       [NoProcessors()])
+
+            class OtherType(SimpleProvider):
+
+                def plan(self, zone, processors):
+                    raise TypeError('something else')
+
+            # This will blow up, we don't fallback for source
+            with self.assertRaises(TypeError) as ctx:
+                manager._populate_and_plan('unit.tests.', [], [],
+                                           [OtherType()])
+            self.assertEquals('something else', text_type(ctx.exception))
+
+    @patch('octodns.manager.Manager._get_named_class')
+    def test_sync_passes_file_handle(self, mock):
+        plan_output_mock = MagicMock()
+        plan_output_class_mock = MagicMock()
+        plan_output_class_mock.return_value = plan_output_mock
+        mock.return_value = plan_output_class_mock
+        fh_mock = MagicMock()
+
+        Manager(get_config_filename('plan-output-filehandle.yaml')
+                ).sync(plan_output_fh=fh_mock)
+
+        # Since we only care about the fh kwarg, and different _PlanOutputs are
+        # are free to require arbitrary kwargs anyway, we concern ourselves
+        # with checking the value of fh only.
+        plan_output_mock.run.assert_called()
+        _, kwargs = plan_output_mock.run.call_args
+        self.assertEqual(fh_mock, kwargs.get('fh'))
+
+    def test_processor_config(self):
+        # Smoke test loading a valid config
+        manager = Manager(get_config_filename('processors.yaml'))
+        self.assertEquals(['noop'], list(manager.processors.keys()))
+        # This zone specifies a valid processor
+        manager.sync(['unit.tests.'])
+
+        with self.assertRaises(ManagerException) as ctx:
+            # This zone specifies a non-existant processor
+            manager.sync(['bad.unit.tests.'])
+        self.assertTrue('Zone bad.unit.tests., unknown processor: '
+                        'doesnt-exist' in text_type(ctx.exception))
+
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('processors-missing-class.yaml'))
+        self.assertTrue('Processor no-class is missing class' in
+                        text_type(ctx.exception))
+
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('processors-wants-config.yaml'))
+        self.assertTrue('Incorrect processor config for wants-config' in
+                        text_type(ctx.exception))
+
+    def test_processors(self):
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        targets = [PlannableProvider('prov')]
+
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+
+        # muck with sources
+        class MockProcessor(BaseProcessor):
+
+            def process_source_zone(self, zone, sources):
+                zone = zone.copy()
+                zone.add_record(record)
+                return zone
+
+        mock = MockProcessor('mock')
+        plans, zone = manager._populate_and_plan('unit.tests.', [mock], [],
+                                                 targets)
+        # Our mock was called and added the record
+        self.assertEquals(record, list(zone.records)[0])
+        # We got a create for the thing added to the expected state (source)
+        self.assertIsInstance(plans[0][1].changes[0], Create)
+
+        # muck with targets
+        class MockProcessor(BaseProcessor):
+
+            def process_target_zone(self, zone, target):
+                zone = zone.copy()
+                zone.add_record(record)
+                return zone
+
+        mock = MockProcessor('mock')
+        plans, zone = manager._populate_and_plan('unit.tests.', [mock], [],
+                                                 targets)
+        # No record added since it's target this time
+        self.assertFalse(zone.records)
+        # We got a delete for the thing added to the existing state (target)
+        self.assertIsInstance(plans[0][1].changes[0], Delete)
+
+        # muck with plans
+        class MockProcessor(BaseProcessor):
+
+            def process_target_zone(self, zone, target):
+                zone = zone.copy()
+                zone.add_record(record)
+                return zone
+
+            def process_plan(self, plans, sources, target):
+                # get rid of the change
+                plans.changes.pop(0)
+
+        mock = MockProcessor('mock')
+        plans, zone = manager._populate_and_plan('unit.tests.', [mock], [],
+                                                 targets)
+        # We planned a delete again, but this time removed it from the plan, so
+        # no plans
+        self.assertFalse(plans)
 
 
 class TestMainThreadExecutor(TestCase):

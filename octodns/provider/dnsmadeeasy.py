@@ -13,10 +13,11 @@ import hmac
 import logging
 
 from ..record import Record
+from . import ProviderException
 from .base import BaseProvider
 
 
-class DnsMadeEasyClientException(Exception):
+class DnsMadeEasyClientException(ProviderException):
     pass
 
 

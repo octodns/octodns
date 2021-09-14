@@ -5,19 +5,23 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from octodns.record import Create, Delete, Record
+from octodns.record import Create, Update, Delete, Record
 from octodns.provider.azuredns import _AzureRecord, AzureProvider, \
-    _check_endswith_dot, _parse_azure_type, _check_for_alias
+    _check_endswith_dot, _parse_azure_type, _root_traffic_manager_name, \
+    _get_monitor, _profile_is_match, AzureException
 from octodns.zone import Zone
 from octodns.provider.base import Plan
 
 from azure.mgmt.dns.models import ARecord, AaaaRecord, CaaRecord, \
     CnameRecord, MxRecord, SrvRecord, NsRecord, PtrRecord, TxtRecord, \
     RecordSet, SoaRecord, SubResource, Zone as AzureZone
+from azure.mgmt.trafficmanager.models import Profile, DnsConfig, \
+    MonitorConfig, Endpoint, MonitorConfigCustomHeadersItem
 from msrestazure.azure_exceptions import CloudError
 
+from six import text_type
 from unittest import TestCase
-from mock import Mock, patch
+from mock import Mock, patch, call
 
 
 zone = Zone(name='unit.tests.', sub_zones=[])
@@ -146,14 +150,19 @@ octo_records.append(Record.new(zone, 'txt3', {
     'type': 'TXT',
     'values': ['txt multiple test', long_txt]}))
 
+octo_records.append(Record.new(zone, 'ptr2', {
+    'ttl': 11,
+    'type': 'PTR',
+    'values': ['ptr21.unit.tests.', 'ptr22.unit.tests.']}))
+
 azure_records = []
 _base0 = _AzureRecord('TestAzure', octo_records[0])
 _base0.zone_name = 'unit.tests'
 _base0.relative_record_set_name = '@'
 _base0.record_type = 'A'
 _base0.params['ttl'] = 0
-_base0.params['arecords'] = [ARecord(ipv4_address='1.2.3.4'),
-                             ARecord(ipv4_address='10.10.10.10')]
+_base0.params['a_records'] = [ARecord(ipv4_address='1.2.3.4'),
+                              ARecord(ipv4_address='10.10.10.10')]
 azure_records.append(_base0)
 
 _base1 = _AzureRecord('TestAzure', octo_records[1])
@@ -161,8 +170,8 @@ _base1.zone_name = 'unit.tests'
 _base1.relative_record_set_name = 'a'
 _base1.record_type = 'A'
 _base1.params['ttl'] = 1
-_base1.params['arecords'] = [ARecord(ipv4_address='1.2.3.4'),
-                             ARecord(ipv4_address='1.1.1.1')]
+_base1.params['a_records'] = [ARecord(ipv4_address='1.2.3.4'),
+                              ARecord(ipv4_address='1.1.1.1')]
 azure_records.append(_base1)
 
 _base2 = _AzureRecord('TestAzure', octo_records[2])
@@ -170,7 +179,7 @@ _base2.zone_name = 'unit.tests'
 _base2.relative_record_set_name = 'aa'
 _base2.record_type = 'A'
 _base2.params['ttl'] = 9001
-_base2.params['arecords'] = ARecord(ipv4_address='1.2.4.3')
+_base2.params['a_records'] = ARecord(ipv4_address='1.2.4.3')
 azure_records.append(_base2)
 
 _base3 = _AzureRecord('TestAzure', octo_records[3])
@@ -178,7 +187,7 @@ _base3.zone_name = 'unit.tests'
 _base3.relative_record_set_name = 'aaa'
 _base3.record_type = 'A'
 _base3.params['ttl'] = 2
-_base3.params['arecords'] = ARecord(ipv4_address='1.1.1.3')
+_base3.params['a_records'] = ARecord(ipv4_address='1.1.1.3')
 azure_records.append(_base3)
 
 _base4 = _AzureRecord('TestAzure', octo_records[4])
@@ -334,6 +343,15 @@ _base18.params['txt_records'] = [TxtRecord(value=['txt multiple test']),
                                  TxtRecord(value=[long_txt_az1, long_txt_az2])]
 azure_records.append(_base18)
 
+_base19 = _AzureRecord('TestAzure', octo_records[19])
+_base19.zone_name = 'unit.tests'
+_base19.relative_record_set_name = 'ptr2'
+_base19.record_type = 'PTR'
+_base19.params['ttl'] = 11
+_base19.params['ptr_records'] = [PtrRecord(ptrdname='ptr21.unit.tests.'),
+                                 PtrRecord(ptrdname='ptr22.unit.tests.')]
+azure_records.append(_base19)
+
 
 class Test_AzureRecord(TestCase):
     def test_azure_record(self):
@@ -341,6 +359,43 @@ class Test_AzureRecord(TestCase):
         for i in range(len(azure_records)):
             octo = _AzureRecord('TestAzure', octo_records[i])
             assert(azure_records[i]._equals(octo))
+
+
+class Test_DynamicAzureRecord(TestCase):
+    def test_azure_record(self):
+        tm_profile = Profile()
+        data = {
+            'ttl': 60,
+            'type': 'CNAME',
+            'value': 'default.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [
+                            {'value': 'one.unit.tests.', 'weight': 1}
+                        ],
+                        'fallback': 'two',
+                    },
+                    'two': {
+                        'values': [
+                            {'value': 'two.unit.tests.', 'weight': 1}
+                        ],
+                    },
+                },
+                'rules': [
+                    {'geos': ['AF'], 'pool': 'one'},
+                    {'pool': 'two'},
+                ],
+            }
+        }
+        octo_record = Record.new(zone, 'foo', data)
+        azure_record = _AzureRecord('TestAzure', octo_record,
+                                    traffic_manager=tm_profile)
+        self.assertEqual(azure_record.zone_name, zone.name[:-1])
+        self.assertEqual(azure_record.relative_record_set_name, 'foo')
+        self.assertEqual(azure_record.record_type, 'CNAME')
+        self.assertEqual(azure_record.params['ttl'], 60)
+        self.assertEqual(azure_record.params['target_resource'], tm_profile)
 
 
 class Test_ParseAzureType(TestCase):
@@ -361,50 +416,353 @@ class Test_CheckEndswithDot(TestCase):
             self.assertEquals(expected, _check_endswith_dot(test))
 
 
-class Test_CheckAzureAlias(TestCase):
-    def test_check_for_alias(self):
-        alias_record = type('C', (object,), {})
-        alias_record.target_resource = type('C', (object,), {})
-        alias_record.target_resource.id = "/subscriptions/x/resourceGroups/y/z"
-        alias_record.arecords = None
-        alias_record.cname_record = None
+class Test_RootTrafficManagerName(TestCase):
+    def test_root_traffic_manager_name(self):
+        test = Record.new(zone, 'foo', data={
+            'ttl': 60, 'type': 'CNAME', 'value': 'default.unit.tests.',
+        })
+        self.assertEqual(_root_traffic_manager_name(test), 'foo--unit--tests')
 
-        self.assertEquals(_check_for_alias(alias_record), True)
+
+class Test_GetMonitor(TestCase):
+    def test_get_monitor(self):
+        record = Record.new(zone, 'foo', data={
+            'type': 'CNAME', 'ttl': 60, 'value': 'default.unit.tests.',
+            'octodns': {
+                'healthcheck': {
+                    'path': '/_ping',
+                    'port': 4443,
+                    'protocol': 'HTTPS',
+                }
+            },
+        })
+
+        monitor = _get_monitor(record)
+        self.assertEqual(monitor.protocol, 'HTTPS')
+        self.assertEqual(monitor.port, 4443)
+        self.assertEqual(monitor.path, '/_ping')
+        headers = monitor.custom_headers
+        self.assertIsInstance(headers, list)
+        self.assertEquals(len(headers), 1)
+        headers = headers[0]
+        self.assertEqual(headers.name, 'Host')
+        self.assertEqual(headers.value, record.healthcheck_host())
+
+        # test TCP monitor
+        record._octodns['healthcheck']['protocol'] = 'TCP'
+        monitor = _get_monitor(record)
+        self.assertEqual(monitor.protocol, 'TCP')
+        self.assertIsNone(monitor.custom_headers)
+
+
+class Test_ProfileIsMatch(TestCase):
+    def test_profile_is_match(self):
+        is_match = _profile_is_match
+
+        self.assertFalse(is_match(None, Profile()))
+
+        # Profile object builder with default property values that can be
+        # overridden for testing below
+        def profile(
+            name = 'foo-unit-tests',
+            ttl = 60,
+            method = 'Geographic',
+            dns_name = None,
+            monitor_proto = 'HTTPS',
+            monitor_port = 4443,
+            monitor_path = '/_ping',
+            endpoints = 1,
+            endpoint_name = 'name',
+            endpoint_type = 'profile/nestedEndpoints',
+            target = 'target.unit.tests',
+            target_id = 'resource/id',
+            geos = ['GEO-AF'],
+            weight = 1,
+            priority = 1,
+        ):
+            dns = DnsConfig(relative_name=(dns_name or name), ttl=ttl)
+            return Profile(
+                name=name, traffic_routing_method=method, dns_config=dns,
+                monitor_config=MonitorConfig(
+                    protocol=monitor_proto,
+                    port=monitor_port,
+                    path=monitor_path,
+                ),
+                endpoints=[Endpoint(
+                    name=endpoint_name,
+                    type=endpoint_type,
+                    target=target,
+                    target_resource_id=target_id,
+                    geo_mapping=geos,
+                    weight=weight,
+                    priority=priority,
+                )] + [Endpoint()] * (endpoints - 1),
+            )
+
+        self.assertTrue(is_match(profile(), profile()))
+
+        self.assertFalse(is_match(profile(), profile(name='two')))
+        self.assertFalse(is_match(profile(), profile(endpoints=2)))
+        self.assertFalse(is_match(profile(), profile(dns_name='two')))
+        self.assertFalse(is_match(profile(), profile(monitor_proto='HTTP')))
+        self.assertFalse(is_match(profile(), profile(endpoint_name='a')))
+        self.assertFalse(is_match(profile(), profile(endpoint_type='b')))
+        self.assertFalse(
+            is_match(profile(endpoint_type='b'), profile(endpoint_type='b'))
+        )
+        self.assertFalse(is_match(profile(), profile(target_id='rsrc/id2')))
+        self.assertFalse(is_match(profile(), profile(geos=['IN'])))
+
+        def wprofile(**kwargs):
+            kwargs['method'] = 'Weighted'
+            kwargs['endpoint_type'] = 'profile/externalEndpoints'
+            return profile(**kwargs)
+
+        self.assertFalse(is_match(wprofile(), wprofile(target='bar.unit')))
+        self.assertFalse(is_match(wprofile(), wprofile(weight=3)))
 
 
 class TestAzureDnsProvider(TestCase):
     def _provider(self):
         return self._get_provider('mock_spc', 'mock_dns_client')
 
+    @patch('octodns.provider.azuredns.TrafficManagerManagementClient')
     @patch('octodns.provider.azuredns.DnsManagementClient')
+    @patch('octodns.provider.azuredns.ClientSecretCredential')
     @patch('octodns.provider.azuredns.ServicePrincipalCredentials')
-    def _get_provider(self, mock_spc, mock_dns_client):
+    def _get_provider(self, mock_spc, mock_css, mock_dns_client,
+                      mock_tm_client):
         '''Returns a mock AzureProvider object to use in testing.
 
             :param mock_spc: placeholder
             :type  mock_spc: str
             :param mock_dns_client: placeholder
             :type  mock_dns_client: str
+            :param mock_tm_client: placeholder
+            :type  mock_tm_client: str
 
             :type return: AzureProvider
         '''
         provider = AzureProvider('mock_id', 'mock_client', 'mock_key',
                                  'mock_directory', 'mock_sub', 'mock_rg'
                                  )
+
         # Fetch the client to force it to load the creds
         provider._dns_client
+
+        # set critical functions to return properly
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = []
+        tm_sync = provider._tm_client.profiles.create_or_update
+
+        def side_effect(rg, name, profile):
+            return Profile(
+                id=profile.id,
+                name=profile.name,
+                traffic_routing_method=profile.traffic_routing_method,
+                dns_config=profile.dns_config,
+                monitor_config=profile.monitor_config,
+                endpoints=profile.endpoints,
+            )
+
+        tm_sync.side_effect = side_effect
+
         return provider
+
+    def _get_dynamic_record(self, zone):
+        return Record.new(zone, 'foo', data={
+            'type': 'CNAME',
+            'ttl': 60,
+            'value': 'default.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [
+                            {'value': 'one.unit.tests.', 'weight': 1},
+                        ],
+                        'fallback': 'two',
+                    },
+                    'two': {
+                        'values': [
+                            {'value': 'two1.unit.tests.', 'weight': 3},
+                            {'value': 'two2.unit.tests.', 'weight': 4},
+                        ],
+                        'fallback': 'three',
+                    },
+                    'three': {
+                        'values': [
+                            {'value': 'three.unit.tests.', 'weight': 1},
+                        ],
+                    },
+                },
+                'rules': [
+                    {'geos': ['AF', 'EU-DE', 'NA-US-CA', 'OC'], 'pool': 'one'},
+                    {'pool': 'two'},
+                ],
+            },
+            'octodns': {
+                'healthcheck': {
+                    'path': '/_ping',
+                    'port': 4443,
+                    'protocol': 'HTTPS',
+                }
+            },
+        })
+
+    def _get_tm_profiles(self, provider):
+        sub = provider._dns_client_subscription_id
+        rg = provider._resource_group
+        base_id = '/subscriptions/' + sub + \
+            '/resourceGroups/' + rg + \
+            '/providers/Microsoft.Network/trafficManagerProfiles/'
+        prefix = 'foo--unit--tests'
+        name_format = prefix + '-{}'
+        id_format = base_id + name_format
+
+        header = MonitorConfigCustomHeadersItem(name='Host',
+                                                value='foo.unit.tests')
+        monitor = MonitorConfig(protocol='HTTPS', port=4443, path='/_ping',
+                                custom_headers=[header])
+        external = 'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
+        nested = 'Microsoft.Network/trafficManagerProfiles/nestedEndpoints'
+
+        profiles = [
+            Profile(
+                id=id_format.format('pool-two'),
+                name=name_format.format('pool-two'),
+                traffic_routing_method='Weighted',
+                dns_config=DnsConfig(ttl=60),
+                monitor_config=monitor,
+                endpoints=[
+                    Endpoint(
+                        name='two--two1.unit.tests',
+                        type=external,
+                        target='two1.unit.tests',
+                        weight=3,
+                    ),
+                    Endpoint(
+                        name='two--two2.unit.tests',
+                        type=external,
+                        target='two2.unit.tests',
+                        weight=4,
+                    ),
+                ],
+            ),
+            Profile(
+                id=id_format.format('rule-one'),
+                name=name_format.format('rule-one'),
+                traffic_routing_method='Priority',
+                dns_config=DnsConfig(ttl=60),
+                monitor_config=monitor,
+                endpoints=[
+                    Endpoint(
+                        name='one',
+                        type=external,
+                        target='one.unit.tests',
+                        priority=1,
+                    ),
+                    Endpoint(
+                        name='two',
+                        type=nested,
+                        target_resource_id=id_format.format('pool-two'),
+                        priority=2,
+                    ),
+                    Endpoint(
+                        name='three',
+                        type=external,
+                        target='three.unit.tests',
+                        priority=3,
+                    ),
+                    Endpoint(
+                        name='--default--',
+                        type=external,
+                        target='default.unit.tests',
+                        priority=4,
+                    ),
+                ],
+            ),
+            Profile(
+                id=id_format.format('rule-two'),
+                name=name_format.format('rule-two'),
+                traffic_routing_method='Priority',
+                dns_config=DnsConfig(ttl=60),
+                monitor_config=monitor,
+                endpoints=[
+                    Endpoint(
+                        name='two',
+                        type=nested,
+                        target_resource_id=id_format.format('pool-two'),
+                        priority=1,
+                    ),
+                    Endpoint(
+                        name='three',
+                        type=external,
+                        target='three.unit.tests',
+                        priority=2,
+                    ),
+                    Endpoint(
+                        name='--default--',
+                        type=external,
+                        target='default.unit.tests',
+                        priority=3,
+                    ),
+                ],
+            ),
+            Profile(
+                id=base_id + prefix,
+                name=prefix,
+                traffic_routing_method='Geographic',
+                dns_config=DnsConfig(ttl=60),
+                monitor_config=monitor,
+                endpoints=[
+                    Endpoint(
+                        geo_mapping=['GEO-AF', 'DE', 'US-CA', 'GEO-AP'],
+                        name='one',
+                        type=nested,
+                        target_resource_id=id_format.format('rule-one'),
+                    ),
+                    Endpoint(
+                        geo_mapping=['WORLD'],
+                        name='two',
+                        type=nested,
+                        target_resource_id=id_format.format('rule-two'),
+                    ),
+                ],
+            ),
+        ]
+
+        for profile in profiles:
+            profile.dns_config.relative_name = profile.name
+
+        return profiles
+
+    def _get_dynamic_package(self):
+        '''Convenience function to setup a sample dynamic record.
+        '''
+        provider = self._get_provider()
+
+        # setup traffic manager profiles
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = self._get_tm_profiles(provider)
+
+        # setup zone with dynamic record
+        zone = Zone(name='unit.tests.', sub_zones=[])
+        record = self._get_dynamic_record(zone)
+        zone.add_record(record)
+
+        # return everything
+        return provider, zone, record
 
     def test_populate_records(self):
         provider = self._get_provider()
 
         rs = []
-        recordSet = RecordSet(arecords=[ARecord(ipv4_address='1.1.1.1')])
+        recordSet = RecordSet(a_records=[ARecord(ipv4_address='1.1.1.1')])
         recordSet.name, recordSet.ttl, recordSet.type = 'a1', 0, 'A'
         recordSet.target_resource = SubResource()
         rs.append(recordSet)
-        recordSet = RecordSet(arecords=[ARecord(ipv4_address='1.1.1.1'),
-                                        ARecord(ipv4_address='2.2.2.2')])
+        recordSet = RecordSet(a_records=[ARecord(ipv4_address='1.1.1.1'),
+                                         ARecord(ipv4_address='2.2.2.2')])
         recordSet.name, recordSet.ttl, recordSet.type = 'a2', 1, 'A'
         recordSet.target_resource = SubResource()
         rs.append(recordSet)
@@ -541,19 +899,1428 @@ class TestAzureDnsProvider(TestCase):
             None
         )
 
+    def test_extra_changes(self):
+        provider, existing, record = self._get_dynamic_package()
+
+        # test simple records produce no extra changes
+        desired = Zone(name=existing.name, sub_zones=[])
+        simple = Record.new(desired, 'simple', data={
+            'type': record._type,
+            'ttl': record.ttl,
+            'value': record.value,
+        })
+        desired.add_record(simple)
+        extra = provider._extra_changes(desired, desired, [Create(simple)])
+        self.assertEqual(len(extra), 0)
+
+        # test an unchanged dynamic record produces no extra changes
+        desired.add_record(record)
+        extra = provider._extra_changes(existing, desired, [])
+        self.assertEqual(len(extra), 0)
+
+        # test unused TM produces the extra change for clean up
+        sample_profile = self._get_tm_profiles(provider)[0]
+        tm_id = provider._profile_name_to_id
+        root_profile_name = _root_traffic_manager_name(record)
+        extra_profile = Profile(
+            id=tm_id('{}-pool-random'.format(root_profile_name)),
+            name='{}-pool-random'.format(root_profile_name),
+            traffic_routing_method='Weighted',
+            dns_config=sample_profile.dns_config,
+            monitor_config=sample_profile.monitor_config,
+            endpoints=sample_profile.endpoints,
+        )
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value.append(extra_profile)
+        provider._populate_traffic_managers()
+        extra = provider._extra_changes(existing, desired, [])
+        self.assertEqual(len(extra), 1)
+        extra = extra[0]
+        self.assertIsInstance(extra, Update)
+        self.assertEqual(extra.new, record)
+        desired._remove_record(record)
+        tm_list.return_value.pop()
+
+        # test new dynamic record does not produce an extra change for it
+        new_dynamic = Record.new(desired, record.name + '2', data={
+            'type': record._type,
+            'ttl': record.ttl,
+            'value': record.value,
+            'dynamic': record.dynamic._data(),
+            'octodns': record._octodns,
+        })
+        # test change in healthcheck by using a different port number
+        update_dynamic = Record.new(desired, record.name, data={
+            'type': record._type,
+            'ttl': record.ttl,
+            'value': record.value,
+            'dynamic': record.dynamic._data(),
+            'octodns': {
+                'healthcheck': {
+                    'path': '/_ping',
+                    'port': 443,
+                    'protocol': 'HTTPS',
+                },
+            },
+        })
+        desired.add_record(new_dynamic)
+        desired.add_record(update_dynamic)
+        changes = [Create(new_dynamic)]
+        extra = provider._extra_changes(existing, desired, changes)
+        # implicitly asserts that new_dynamic was not added to extra changes
+        # as it was already in the `changes` list
+        self.assertEqual(len(extra), 1)
+        extra = extra[0]
+        self.assertIsInstance(extra, Update)
+        self.assertEqual(extra.new, update_dynamic)
+
+        # test dynamic record of unsupported type throws exception
+        unsupported_dynamic = Record.new(desired, record.name + '3', data={
+            'type': 'DNAME',
+            'ttl': record.ttl,
+            'value': 'default.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'one': {'values': [{'value': 'one.unit.tests.'}]},
+                },
+                'rules': [
+                    {'pool': 'one'},
+                ],
+            },
+        })
+        desired.add_record(unsupported_dynamic)
+        changes = [Create(unsupported_dynamic)]
+        with self.assertRaises(AzureException) as ctx:
+            provider._extra_changes(existing, desired, changes)
+            self.assertTrue(text_type(ctx).endswith(
+                'must be of type CNAME'
+            ))
+        desired._remove_record(unsupported_dynamic)
+
+        # test colliding ATM names throws exception
+        record1 = Record.new(desired, 'sub.www', data={
+            'type': record._type,
+            'ttl': record.ttl,
+            'value': record.value,
+            'dynamic': record.dynamic._data(),
+        })
+        record2 = Record.new(desired, 'sub--www', data={
+            'type': record._type,
+            'ttl': record.ttl,
+            'value': record.value,
+            'dynamic': record.dynamic._data(),
+        })
+        desired.add_record(record1)
+        desired.add_record(record2)
+        changes = [Create(record1), Create(record2)]
+        with self.assertRaises(AzureException) as ctx:
+            provider._extra_changes(existing, desired, changes)
+            self.assertTrue(text_type(ctx).startswith(
+                'Collision in Traffic Manager'
+            ))
+
+    @patch(
+        'octodns.provider.azuredns.AzureProvider._generate_traffic_managers')
+    def test_extra_changes_non_last_fallback_contains_default(self, mock_gtm):
+        provider = self._get_provider()
+
+        desired = Zone(zone.name, sub_zones=[])
+        record = Record.new(desired, 'foo', {
+            'type': 'CNAME',
+            'ttl': 60,
+            'value': 'default.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{'value': 'one.unit.tests.'}],
+                        'fallback': 'def',
+                    },
+                    'def': {
+                        'values': [{'value': 'default.unit.tests.'}],
+                        'fallback': 'two',
+                    },
+                    'two': {
+                        'values': [{'value': 'two.unit.tests.'}],
+                    },
+                },
+                'rules': [
+                    {'pool': 'one'},
+                ]
+            }
+        })
+        desired.add_record(record)
+        changes = [Create(record)]
+
+        # assert that no exception is raised
+        provider._extra_changes(zone, desired, changes)
+
+        # simulate duplicate endpoint and assert exception
+        endpoint = Endpoint(target='dup.unit.tests.')
+        mock_gtm.return_value = [Profile(
+            name='test-profile',
+            endpoints=[endpoint, endpoint],
+        )]
+        with self.assertRaises(AzureException) as ctx:
+            provider._extra_changes(zone, desired, changes)
+            self.assertTrue('duplicate endpoint' in text_type(ctx))
+
+    def test_extra_changes_A_multi_defaults(self):
+        provider = self._get_provider()
+
+        record = Record.new(zone, 'foo', data={
+            'type': 'A',
+            'ttl': 60,
+            'values': ['1.1.1.1', '8.8.8.8'],
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{'value': '1.1.1.1'}],
+                    },
+                },
+                'rules': [
+                    {'pool': 'one'},
+                ],
+            }
+        })
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        with self.assertRaises(AzureException) as ctx:
+            provider._extra_changes(zone, desired, [])
+            self.assertEqual('single value' in text_type(ctx))
+
+    def test_generate_tm_profile(self):
+        provider, zone, record = self._get_dynamic_package()
+        profile_gen = provider._generate_tm_profile
+
+        label = 'foobar'
+        routing = 'Priority'
+        endpoints = [
+            Endpoint(target='one.unit.tests'),
+            Endpoint(target_resource_id='/s/1/rg/foo/tm/foobar2'),
+            Endpoint(name='invalid'),
+        ]
+
+        # invalid endpoint raises exception
+        with self.assertRaises(AzureException):
+            profile_gen(routing, endpoints, record, label)
+
+        # regular test
+        endpoints.pop()
+        profile = profile_gen(routing, endpoints, record, label)
+
+        # implicitly tests _profile_name_to_id
+        sub = provider._dns_client_subscription_id
+        rg = provider._resource_group
+        expected_name = 'foo--unit--tests-rule-foobar'
+        expected_id = '/subscriptions/' + sub + \
+            '/resourceGroups/' + rg + \
+            '/providers/Microsoft.Network/trafficManagerProfiles/' + \
+            expected_name
+        self.assertEqual(profile.id, expected_id)
+        self.assertEqual(profile.name, expected_name)
+        self.assertEqual(profile.name, profile.dns_config.relative_name)
+        self.assertEqual(profile.traffic_routing_method, routing)
+        self.assertEqual(profile.dns_config.ttl, record.ttl)
+        self.assertEqual(len(profile.endpoints), len(endpoints))
+
+        self.assertEqual(
+            profile.endpoints[0].type,
+            'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
+        )
+        self.assertEqual(
+            profile.endpoints[1].type,
+            'Microsoft.Network/trafficManagerProfiles/nestedEndpoints'
+        )
+
+    def test_dynamic_record(self):
+        provider, zone, record = self._get_dynamic_package()
+        profiles = provider._generate_traffic_managers(record)
+
+        # check that every profile is a match with what we expect
+        expected_profiles = self._get_tm_profiles(provider)
+        self.assertEqual(len(expected_profiles), len(profiles))
+        for have, expected in zip(profiles, expected_profiles):
+            self.assertTrue(_profile_is_match(have, expected))
+
+        # check that dynamic record is populated back from profiles
+        azrecord = RecordSet(
+            ttl=60,
+            target_resource=SubResource(id=profiles[-1].id),
+        )
+        azrecord.name = record.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
+
+    def test_generate_traffic_managers_middle_east(self):
+        # check Asia/Middle East test case
+        provider, zone, record = self._get_dynamic_package()
+        record.dynamic._data()['rules'][0]['geos'].append('AS')
+        profiles = provider._generate_traffic_managers(record)
+        self.assertIn('GEO-ME', profiles[-1].endpoints[0].geo_mapping)
+        self.assertIn('GEO-AS', profiles[-1].endpoints[0].geo_mapping)
+
+    def test_populate_dynamic_middle_east(self):
+        # Middle east without Asia raises exception
+        provider, zone, record = self._get_dynamic_package()
+        tm_suffix = _root_traffic_manager_name(record)
+        tm_id = provider._profile_name_to_id
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = [
+            Profile(
+                id=tm_id(tm_suffix),
+                name=tm_suffix,
+                traffic_routing_method='Geographic',
+                endpoints=[
+                    Endpoint(
+                        geo_mapping=['GEO-ME'],
+                    ),
+                ],
+            ),
+        ]
+        azrecord = RecordSet(
+            ttl=60,
+            target_resource=SubResource(id=tm_id(tm_suffix)),
+        )
+        azrecord.name = record.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        with self.assertRaises(AzureException) as ctx:
+            provider._populate_record(zone, azrecord)
+            self.assertTrue(text_type(ctx).startswith(
+                'Middle East (GEO-ME) is not supported'
+            ))
+
+        # valid profiles with Middle East test case
+        provider, zone, record = self._get_dynamic_package()
+        geo_profile = provider._get_tm_for_dynamic_record(record)
+        geo_profile.endpoints[0].geo_mapping.extend(['GEO-ME', 'GEO-AS'])
+        record = provider._populate_record(zone, azrecord)
+        self.assertIn('AS', record.dynamic.rules[0].data['geos'])
+        self.assertNotIn('ME', record.dynamic.rules[0].data['geos'])
+
+    def test_dynamic_no_geo(self):
+        # test that traffic managers are generated as expected
+        provider = self._get_provider()
+        external = 'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
+
+        record = Record.new(zone, 'foo', data={
+            'type': 'CNAME',
+            'ttl': 60,
+            'value': 'default.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [
+                            {'value': 'one.unit.tests.'},
+                        ],
+                    },
+                },
+                'rules': [
+                    {'pool': 'one'},
+                ],
+            }
+        })
+        profiles = provider._generate_traffic_managers(record)
+
+        self.assertEqual(len(profiles), 1)
+        self.assertTrue(_profile_is_match(profiles[0], Profile(
+            name='foo--unit--tests',
+            traffic_routing_method='Priority',
+            dns_config=DnsConfig(
+                relative_name='foo--unit--tests', ttl=60),
+            monitor_config=_get_monitor(record),
+            endpoints=[
+                Endpoint(
+                    name='one',
+                    type=external,
+                    target='one.unit.tests',
+                    priority=1,
+                ),
+                Endpoint(
+                    name='--default--',
+                    type=external,
+                    target='default.unit.tests',
+                    priority=2,
+                ),
+            ],
+        )))
+
+        # test that same record gets populated back from traffic managers
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = profiles
+        azrecord = RecordSet(
+            ttl=60,
+            target_resource=SubResource(id=profiles[-1].id),
+        )
+        azrecord.name = record.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
+
+    def test_dynamic_fallback_is_default(self):
+        # test that traffic managers are generated as expected
+        provider = self._get_provider()
+        external = 'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
+
+        record = Record.new(zone, 'foo', data={
+            'type': 'CNAME',
+            'ttl': 60,
+            'value': 'default.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'def': {
+                        'values': [
+                            {'value': 'default.unit.tests.'},
+                        ],
+                    },
+                },
+                'rules': [
+                    {'geos': ['AF'], 'pool': 'def'},
+                ],
+            }
+        })
+        profiles = provider._generate_traffic_managers(record)
+
+        self.assertEqual(len(profiles), 1)
+        self.assertTrue(_profile_is_match(profiles[0], Profile(
+            name='foo--unit--tests',
+            traffic_routing_method='Geographic',
+            dns_config=DnsConfig(
+                relative_name='foo--unit--tests', ttl=60),
+            monitor_config=_get_monitor(record),
+            endpoints=[
+                Endpoint(
+                    name='def--default--',
+                    type=external,
+                    target='default.unit.tests',
+                    geo_mapping=['GEO-AF'],
+                ),
+            ],
+        )))
+
+        # test that same record gets populated back from traffic managers
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = profiles
+        azrecord = RecordSet(
+            ttl=60,
+            target_resource=SubResource(id=profiles[-1].id),
+        )
+        azrecord.name = record.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
+
+    def test_dynamic_pool_contains_default(self):
+        # test that traffic managers are generated as expected
+        provider = self._get_provider()
+        external = 'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
+        nested = 'Microsoft.Network/trafficManagerProfiles/nestedEndpoints'
+
+        record = Record.new(zone, 'foo', data={
+            'type': 'CNAME',
+            'ttl': 60,
+            'value': 'default.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'rr': {
+                        'values': [
+                            {'value': 'one.unit.tests.'},
+                            {'value': 'two.unit.tests.'},
+                            {'value': 'default.unit.tests.'},
+                            {'value': 'final.unit.tests.'},
+                        ],
+                    },
+                },
+                'rules': [
+                    {'geos': ['AF'], 'pool': 'rr'},
+                ],
+            }
+        })
+        profiles = provider._generate_traffic_managers(record)
+
+        self.assertEqual(len(profiles), 2)
+        self.assertTrue(_profile_is_match(profiles[0], Profile(
+            name='foo--unit--tests-pool-rr',
+            traffic_routing_method='Weighted',
+            dns_config=DnsConfig(
+                relative_name='foo--unit--tests-pool-rr', ttl=60),
+            monitor_config=_get_monitor(record),
+            endpoints=[
+                Endpoint(
+                    name='rr--one.unit.tests',
+                    type=external,
+                    target='one.unit.tests',
+                    weight=1,
+                ),
+                Endpoint(
+                    name='rr--two.unit.tests',
+                    type=external,
+                    target='two.unit.tests',
+                    weight=1,
+                ),
+                Endpoint(
+                    name='rr--default.unit.tests--default--',
+                    type=external,
+                    target='default.unit.tests',
+                    weight=1,
+                ),
+                Endpoint(
+                    name='rr--final.unit.tests',
+                    type=external,
+                    target='final.unit.tests',
+                    weight=1,
+                ),
+            ],
+        )))
+        self.assertTrue(_profile_is_match(profiles[1], Profile(
+            name='foo--unit--tests',
+            traffic_routing_method='Geographic',
+            dns_config=DnsConfig(
+                relative_name='foo--unit--tests', ttl=60),
+            monitor_config=_get_monitor(record),
+            endpoints=[
+                Endpoint(
+                    name='rr',
+                    type=nested,
+                    target_resource_id=profiles[0].id,
+                    geo_mapping=['GEO-AF'],
+                ),
+            ],
+        )))
+
+        # test that same record gets populated back from traffic managers
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = profiles
+        azrecord = RecordSet(
+            ttl=60,
+            target_resource=SubResource(id=profiles[-1].id),
+        )
+        azrecord.name = record.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
+
+    def test_dynamic_pool_contains_default_no_geo(self):
+        # test that traffic managers are generated as expected
+        provider = self._get_provider()
+        external = 'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
+
+        record = Record.new(zone, 'foo', data={
+            'type': 'CNAME',
+            'ttl': 60,
+            'value': 'default.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'rr': {
+                        'values': [
+                            {'value': 'one.unit.tests.'},
+                            {'value': 'two.unit.tests.'},
+                            {'value': 'default.unit.tests.'},
+                            {'value': 'final.unit.tests.'},
+                        ],
+                    },
+                },
+                'rules': [
+                    {'pool': 'rr'},
+                ],
+            }
+        })
+        profiles = provider._generate_traffic_managers(record)
+
+        self.assertEqual(len(profiles), 1)
+        self.assertTrue(_profile_is_match(profiles[0], Profile(
+            name='foo--unit--tests',
+            traffic_routing_method='Weighted',
+            dns_config=DnsConfig(
+                relative_name='foo--unit--tests', ttl=60),
+            monitor_config=_get_monitor(record),
+            endpoints=[
+                Endpoint(
+                    name='rr--one.unit.tests',
+                    type=external,
+                    target='one.unit.tests',
+                    weight=1,
+                ),
+                Endpoint(
+                    name='rr--two.unit.tests',
+                    type=external,
+                    target='two.unit.tests',
+                    weight=1,
+                ),
+                Endpoint(
+                    name='rr--default.unit.tests--default--',
+                    type=external,
+                    target='default.unit.tests',
+                    weight=1,
+                ),
+                Endpoint(
+                    name='rr--final.unit.tests',
+                    type=external,
+                    target='final.unit.tests',
+                    weight=1,
+                ),
+            ],
+        )))
+
+        # test that same record gets populated back from traffic managers
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = profiles
+        azrecord = RecordSet(
+            ttl=60,
+            target_resource=SubResource(id=profiles[-1].id),
+        )
+        azrecord.name = record.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
+
+    def test_dynamic_last_pool_contains_default_no_geo(self):
+        # test that traffic managers are generated as expected
+        provider = self._get_provider()
+        external = 'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
+        nested = 'Microsoft.Network/trafficManagerProfiles/nestedEndpoints'
+
+        record = Record.new(zone, 'foo', data={
+            'type': 'CNAME',
+            'ttl': 60,
+            'value': 'default.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'cloud': {
+                        'values': [
+                            {'value': 'cloud.unit.tests.'},
+                        ],
+                        'fallback': 'rr',
+                    },
+                    'rr': {
+                        'values': [
+                            {'value': 'one.unit.tests.'},
+                            {'value': 'two.unit.tests.'},
+                            {'value': 'default.unit.tests.'},
+                            {'value': 'final.unit.tests.'},
+                        ],
+                    },
+                },
+                'rules': [
+                    {'pool': 'cloud'},
+                ],
+            }
+        })
+        profiles = provider._generate_traffic_managers(record)
+
+        self.assertEqual(len(profiles), 2)
+        self.assertTrue(_profile_is_match(profiles[0], Profile(
+            name='foo--unit--tests-pool-rr',
+            traffic_routing_method='Weighted',
+            dns_config=DnsConfig(
+                relative_name='foo--unit--tests-pool-rr', ttl=60),
+            monitor_config=_get_monitor(record),
+            endpoints=[
+                Endpoint(
+                    name='rr--one.unit.tests',
+                    type=external,
+                    target='one.unit.tests',
+                    weight=1,
+                ),
+                Endpoint(
+                    name='rr--two.unit.tests',
+                    type=external,
+                    target='two.unit.tests',
+                    weight=1,
+                ),
+                Endpoint(
+                    name='rr--default.unit.tests--default--',
+                    type=external,
+                    target='default.unit.tests',
+                    weight=1,
+                ),
+                Endpoint(
+                    name='rr--final.unit.tests',
+                    type=external,
+                    target='final.unit.tests',
+                    weight=1,
+                ),
+            ],
+        )))
+        self.assertTrue(_profile_is_match(profiles[1], Profile(
+            name='foo--unit--tests',
+            traffic_routing_method='Priority',
+            dns_config=DnsConfig(
+                relative_name='foo--unit--tests', ttl=60),
+            monitor_config=_get_monitor(record),
+            endpoints=[
+                Endpoint(
+                    name='cloud',
+                    type=external,
+                    target='cloud.unit.tests',
+                    priority=1,
+                ),
+                Endpoint(
+                    name='rr',
+                    type=nested,
+                    target_resource_id=profiles[0].id,
+                    priority=2,
+                ),
+            ],
+        )))
+
+        # test that same record gets populated back from traffic managers
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = profiles
+        azrecord = RecordSet(
+            ttl=60,
+            target_resource=SubResource(id=profiles[-1].id),
+        )
+        azrecord.name = record.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
+
+    def test_dynamic_unique_traffic_managers(self):
+        record = self._get_dynamic_record(zone)
+        data = {
+            'type': record._type,
+            'ttl': record.ttl,
+            'value': record.value,
+            'dynamic': record.dynamic._data()
+        }
+        record_names = [
+            'www.foo', 'www-foo'
+        ]
+        provider = self._get_provider()
+
+        seen = set()
+        for name in record_names:
+            record = Record.new(zone, name, data=data)
+            tms = provider._generate_traffic_managers(record)
+            for tm in tms:
+                self.assertNotIn(tm.name, seen)
+                seen.add(tm.name)
+
+    def test_dynamic_reused_pool(self):
+        # test that traffic managers are generated as expected
+        provider = self._get_provider()
+        nested = 'Microsoft.Network/trafficManagerProfiles/nestedEndpoints'
+
+        record = Record.new(zone, 'foo', data={
+            'type': 'CNAME',
+            'ttl': 60,
+            'value': 'default.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'sto': {
+                        'values': [
+                            {'value': 'sto.unit.tests.'},
+                        ],
+                        'fallback': 'iad',
+                    },
+                    'iad': {
+                        'values': [
+                            {'value': 'iad.unit.tests.'},
+                        ],
+                        'fallback': 'lhr',
+                    },
+                    'lhr': {
+                        'values': [
+                            {'value': 'lhr.unit.tests.'},
+                        ],
+                    },
+                },
+                'rules': [
+                    {'geos': ['EU'], 'pool': 'iad'},
+                    {'geos': ['EU-GB'], 'pool': 'lhr'},
+                    {'geos': ['EU-SE'], 'pool': 'sto'},
+                    {'pool': 'lhr'},
+                ],
+            }
+        })
+        profiles = provider._generate_traffic_managers(record)
+
+        self.assertEqual(len(profiles), 4)
+        self.assertTrue(_profile_is_match(profiles[-1], Profile(
+            name='foo--unit--tests',
+            traffic_routing_method='Geographic',
+            dns_config=DnsConfig(
+                relative_name='foo--unit--tests', ttl=record.ttl),
+            monitor_config=_get_monitor(record),
+            endpoints=[
+                Endpoint(
+                    name='iad',
+                    type=nested,
+                    target_resource_id=profiles[0].id,
+                    geo_mapping=['GEO-EU'],
+                ),
+                Endpoint(
+                    name='lhr',
+                    type=nested,
+                    target_resource_id=profiles[1].id,
+                    geo_mapping=['GB', 'WORLD'],
+                ),
+                Endpoint(
+                    name='sto',
+                    type=nested,
+                    target_resource_id=profiles[2].id,
+                    geo_mapping=['SE'],
+                ),
+            ],
+        )))
+
+        # test that same record gets populated back from traffic managers
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = profiles
+        azrecord = RecordSet(
+            ttl=60,
+            target_resource=SubResource(id=profiles[-1].id),
+        )
+        azrecord.name = record.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
+
+    def test_dynamic_A(self):
+        provider = self._get_provider()
+        external = 'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
+        nested = 'Microsoft.Network/trafficManagerProfiles/nestedEndpoints'
+
+        record = Record.new(zone, 'foo', data={
+            'type': 'A',
+            'ttl': 60,
+            'values': ['9.9.9.9'],
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [
+                            {'value': '11.11.11.11'},
+                            {'value': '12.12.12.12'},
+                        ],
+                        'fallback': 'two'
+                    },
+                    'two': {
+                        'values': [
+                            {'value': '2.2.2.2'},
+                        ],
+                    },
+                },
+                'rules': [
+                    {'geos': ['AF'], 'pool': 'one'},
+                    {'pool': 'two'},
+                ],
+            }
+        })
+
+        profiles = provider._generate_traffic_managers(record)
+
+        self.assertEqual(len(profiles), 4)
+        self.assertTrue(_profile_is_match(profiles[0], Profile(
+            name='foo--unit--tests-A-pool-one',
+            traffic_routing_method='Weighted',
+            dns_config=DnsConfig(
+                relative_name='foo--unit--tests-a-pool-one', ttl=record.ttl),
+            monitor_config=_get_monitor(record),
+            endpoints=[
+                Endpoint(
+                    name='one--11.11.11.11',
+                    type=external,
+                    target='11.11.11.11',
+                    weight=1,
+                ),
+                Endpoint(
+                    name='one--12.12.12.12',
+                    type=external,
+                    target='12.12.12.12',
+                    weight=1,
+                ),
+            ],
+        )))
+        self.assertTrue(_profile_is_match(profiles[1], Profile(
+            name='foo--unit--tests-A-rule-one',
+            traffic_routing_method='Priority',
+            dns_config=DnsConfig(
+                relative_name='foo--unit--tests-a-rule-one', ttl=record.ttl),
+            monitor_config=_get_monitor(record),
+            endpoints=[
+                Endpoint(
+                    name='one',
+                    type=nested,
+                    target_resource_id=profiles[0].id,
+                    priority=1,
+                ),
+                Endpoint(
+                    name='two',
+                    type=external,
+                    target='2.2.2.2',
+                    priority=2,
+                ),
+                Endpoint(
+                    name='--default--',
+                    type=external,
+                    target='9.9.9.9',
+                    priority=3,
+                ),
+            ],
+        )))
+        self.assertTrue(_profile_is_match(profiles[2], Profile(
+            name='foo--unit--tests-A-rule-two',
+            traffic_routing_method='Priority',
+            dns_config=DnsConfig(
+                relative_name='foo--unit--tests-a-rule-two', ttl=record.ttl),
+            monitor_config=_get_monitor(record),
+            endpoints=[
+                Endpoint(
+                    name='two',
+                    type=external,
+                    target='2.2.2.2',
+                    priority=1,
+                ),
+                Endpoint(
+                    name='--default--',
+                    type=external,
+                    target='9.9.9.9',
+                    priority=2,
+                ),
+            ],
+        )))
+        self.assertTrue(_profile_is_match(profiles[3], Profile(
+            name='foo--unit--tests-A',
+            traffic_routing_method='Geographic',
+            dns_config=DnsConfig(
+                relative_name='foo--unit--tests-a', ttl=record.ttl),
+            monitor_config=_get_monitor(record),
+            endpoints=[
+                Endpoint(
+                    name='one',
+                    type=nested,
+                    target_resource_id=profiles[1].id,
+                    geo_mapping=['GEO-AF'],
+                ),
+                Endpoint(
+                    name='two',
+                    type=nested,
+                    target_resource_id=profiles[2].id,
+                    geo_mapping=['WORLD'],
+                ),
+            ],
+        )))
+
+        # test that the record and ATM profile gets created
+        tm_sync = provider._tm_client.profiles.create_or_update
+        create = provider._dns_client.record_sets.create_or_update
+        provider._apply_Create(Create(record))
+        self.assertEqual(tm_sync.call_count, len(profiles) + 1)
+        create.assert_called_once()
+
+        # test broken alias
+        azrecord = RecordSet(
+            ttl=60, target_resource=SubResource(id=None))
+        azrecord.name = record.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record2.values, ['255.255.255.255'])
+
+        # test that same record gets populated back from traffic managers
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = profiles
+        provider._populate_traffic_managers()
+        azrecord = RecordSet(
+            ttl=60,
+            target_resource=SubResource(id=profiles[-1].id),
+        )
+        azrecord.name = record.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
+
+    def test_dynamic_AAAA(self):
+        provider = self._get_provider()
+        external = 'Microsoft.Network/trafficManagerProfiles/externalEndpoints'
+
+        record = Record.new(zone, 'foo', data={
+            'type': 'AAAA',
+            'ttl': 60,
+            'values': ['1::1', '2::2'],
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [
+                            {'value': '1::1'},
+                            {'value': '2::2'},
+                        ],
+                    },
+                },
+                'rules': [
+                    {'pool': 'one'},
+                ],
+            }
+        })
+        profiles = provider._generate_traffic_managers(record)
+
+        self.assertEqual(len(profiles), 1)
+        self.assertTrue(_profile_is_match(profiles[0], Profile(
+            name='foo--unit--tests-AAAA',
+            traffic_routing_method='Weighted',
+            dns_config=DnsConfig(
+                relative_name='foo--unit--tests-aaaa', ttl=record.ttl),
+            monitor_config=_get_monitor(record),
+            endpoints=[
+                Endpoint(
+                    name='one--1--1--default--',
+                    type=external,
+                    target='1::1',
+                    weight=1,
+                ),
+                Endpoint(
+                    name='one--2--2--default--',
+                    type=external,
+                    target='2::2',
+                    weight=1,
+                ),
+            ],
+        )))
+
+        # test that the record and ATM profile gets created
+        tm_sync = provider._tm_client.profiles.create_or_update
+        create = provider._dns_client.record_sets.create_or_update
+        provider._apply_Create(Create(record))
+        # A dynamic record can only have 1 profile
+        tm_sync.assert_called_once()
+        create.assert_called_once()
+
+        # test broken alias
+        azrecord = RecordSet(
+            ttl=60, target_resource=SubResource(id=None))
+        azrecord.name = record.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record2.values, ['::1'])
+
+        # test that same record gets populated back from traffic managers
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = profiles
+        azrecord = RecordSet(
+            ttl=60,
+            target_resource=SubResource(id=profiles[-1].id),
+        )
+        azrecord.name = record.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record2.dynamic._data(), record.dynamic._data())
+
+        # test that extra changes doesn't show any changes
+        desired = Zone(zone.name, sub_zones=[])
+        desired.add_record(record)
+        changes = provider._extra_changes(zone, desired, [])
+        self.assertEqual(len(changes), 0)
+
+    def test_sync_traffic_managers(self):
+        provider, zone, record = self._get_dynamic_package()
+        provider._populate_traffic_managers()
+
+        tm_sync = provider._tm_client.profiles.create_or_update
+
+        prefix = 'foo--unit--tests'
+        expected_seen = {
+            prefix, '{}-pool-two'.format(prefix),
+            '{}-rule-one'.format(prefix), '{}-rule-two'.format(prefix),
+        }
+
+        # test no change
+        profiles = provider._generate_traffic_managers(record)
+        seen = provider._sync_traffic_managers(profiles)
+        self.assertEqual(seen, expected_seen)
+        tm_sync.assert_not_called()
+
+        # test that changing weight causes update API call
+        dynamic = record.dynamic._data()
+        dynamic['pools']['two']['values'][0]['weight'] = 14
+        data = {
+            'type': 'CNAME',
+            'ttl': record.ttl,
+            'value': record.value,
+            'dynamic': dynamic,
+            'octodns': record._octodns,
+        }
+        new_record = Record.new(zone, record.name, data)
+        tm_sync.reset_mock()
+        profiles = provider._generate_traffic_managers(new_record)
+        seen2 = provider._sync_traffic_managers(profiles)
+        self.assertEqual(seen2, expected_seen)
+        tm_sync.assert_called_once()
+
+        # test that new profile was successfully inserted in cache
+        new_profile = provider._get_tm_profile_by_name(
+            '{}-pool-two'.format(prefix)
+        )
+        self.assertEqual(new_profile.endpoints[0].weight, 14)
+
+    def test_sync_traffic_managers_duplicate(self):
+        provider, zone, record = self._get_dynamic_package()
+        tm_sync = provider._tm_client.profiles.create_or_update
+
+        # change and duplicate profiles
+        profile = self._get_tm_profiles(provider)[0]
+        profile.name = 'changing_this_to_trigger_sync'
+        provider._sync_traffic_managers([profile, profile])
+
+        # it should only be called once for duplicate profiles
+        tm_sync.assert_called_once()
+
+    def test_find_traffic_managers(self):
+        provider, zone, record = self._get_dynamic_package()
+
+        # insert a non-matching profile
+        sample_profile = self._get_tm_profiles(provider)[0]
+        # dummy record for generating suffix
+        record2 = Record.new(zone, record.name + '2', data={
+            'type': record._type,
+            'ttl': record.ttl,
+            'value': record.value,
+        })
+        prefix2 = _root_traffic_manager_name(record2)
+        tm_id = provider._profile_name_to_id
+        extra_profile = Profile(
+            id=tm_id('{}-pool-random'.format(prefix2)),
+            name='{}-pool-random'.format(prefix2),
+            traffic_routing_method='Weighted',
+            dns_config=sample_profile.dns_config,
+            monitor_config=sample_profile.monitor_config,
+            endpoints=sample_profile.endpoints,
+        )
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value.append(extra_profile)
+        provider._populate_traffic_managers()
+
+        # implicitly asserts that non-matching profile is not included
+        prefix = _root_traffic_manager_name(record)
+        self.assertEqual(provider._find_traffic_managers(record), {
+            prefix, '{}-pool-two'.format(prefix),
+            '{}-rule-one'.format(prefix), '{}-rule-two'.format(prefix),
+        })
+
+    def test_traffic_manager_gc(self):
+        provider, zone, record = self._get_dynamic_package()
+        provider._populate_traffic_managers()
+
+        profiles = provider._find_traffic_managers(record)
+        profile_delete_mock = provider._tm_client.profiles.delete
+
+        provider._traffic_managers_gc(record, profiles)
+        profile_delete_mock.assert_not_called()
+
+        profile_delete_mock.reset_mock()
+        remove = list(profiles)[3]
+        profiles.discard(remove)
+
+        provider._traffic_managers_gc(record, profiles)
+        profile_delete_mock.assert_has_calls(
+            [call(provider._resource_group, remove)]
+        )
+
     def test_apply(self):
         provider = self._get_provider()
 
-        changes = []
-        deletes = []
-        for i in octo_records:
-            changes.append(Create(i))
-            deletes.append(Delete(i))
+        expected_n = len(octo_records)
+        half = int(expected_n / 2)
+        changes = [Create(r) for r in octo_records[:half]] + \
+            [Update(r, r) for r in octo_records[half:]]
+        deletes = [Delete(r) for r in octo_records]
 
-        self.assertEquals(19, provider.apply(Plan(None, zone,
-                                                  changes, True)))
-        self.assertEquals(19, provider.apply(Plan(zone, zone,
-                                                  deletes, True)))
+        self.assertEquals(expected_n, provider.apply(Plan(None, zone,
+                                                     changes, True)))
+        self.assertEquals(expected_n, provider.apply(Plan(zone, zone,
+                                                     deletes, True)))
+
+    def test_apply_create_dynamic(self):
+        provider = self._get_provider()
+
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = []
+
+        tm_sync = provider._tm_client.profiles.create_or_update
+
+        record = self._get_dynamic_record(zone)
+
+        profiles = self._get_tm_profiles(provider)
+
+        provider._apply_Create(Create(record))
+        # create was called as many times as number of profiles required for
+        # the dynamic record
+        self.assertEqual(tm_sync.call_count, len(profiles))
+
+        create = provider._dns_client.record_sets.create_or_update
+        create.assert_called_once()
+
+    def test_apply_update_dynamic(self):
+        # existing is simple, new is dynamic
+        provider = self._get_provider()
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = []
+        profiles = self._get_tm_profiles(provider)
+        dynamic_record = self._get_dynamic_record(zone)
+        simple_record = Record.new(zone, dynamic_record.name, data={
+            'type': 'CNAME',
+            'ttl': 3600,
+            'value': 'cname.unit.tests.',
+        })
+        change = Update(simple_record, dynamic_record)
+        provider._apply_Update(change)
+        tm_sync, dns_update, tm_delete = (
+            provider._tm_client.profiles.create_or_update,
+            provider._dns_client.record_sets.create_or_update,
+            provider._tm_client.profiles.delete
+        )
+        self.assertEqual(tm_sync.call_count, len(profiles))
+        dns_update.assert_called_once()
+        tm_delete.assert_not_called()
+
+        # existing is dynamic, new is simple
+        provider, existing, dynamic_record = self._get_dynamic_package()
+        profiles = self._get_tm_profiles(provider)
+        change = Update(dynamic_record, simple_record)
+        provider._apply_Update(change)
+        tm_sync, dns_update, tm_delete = (
+            provider._tm_client.profiles.create_or_update,
+            provider._dns_client.record_sets.create_or_update,
+            provider._tm_client.profiles.delete
+        )
+        tm_sync.assert_not_called()
+        dns_update.assert_called_once()
+        self.assertEqual(tm_delete.call_count, len(profiles))
+
+        # both are dynamic, healthcheck port is changed
+        provider, existing, dynamic_record = self._get_dynamic_package()
+        profiles = self._get_tm_profiles(provider)
+        dynamic_record2 = self._get_dynamic_record(existing)
+        dynamic_record2._octodns['healthcheck']['port'] += 1
+        change = Update(dynamic_record, dynamic_record2)
+        provider._apply_Update(change)
+        tm_sync, dns_update, tm_delete = (
+            provider._tm_client.profiles.create_or_update,
+            provider._dns_client.record_sets.create_or_update,
+            provider._tm_client.profiles.delete
+        )
+        self.assertEqual(tm_sync.call_count, len(profiles))
+        dns_update.assert_not_called()
+        tm_delete.assert_not_called()
+
+        # both are dynamic, extra profile should be deleted
+        provider, existing, dynamic_record = self._get_dynamic_package()
+        sample_profile = self._get_tm_profiles(provider)[0]
+        tm_id = provider._profile_name_to_id
+        root_profile_name = _root_traffic_manager_name(dynamic_record)
+        extra_profile = Profile(
+            id=tm_id('{}-pool-random'.format(root_profile_name)),
+            name='{}-pool-random'.format(root_profile_name),
+            traffic_routing_method='Weighted',
+            dns_config=sample_profile.dns_config,
+            monitor_config=sample_profile.monitor_config,
+            endpoints=sample_profile.endpoints,
+        )
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value.append(extra_profile)
+        change = Update(dynamic_record, dynamic_record)
+        provider._apply_Update(change)
+        tm_sync, dns_update, tm_delete = (
+            provider._tm_client.profiles.create_or_update,
+            provider._dns_client.record_sets.create_or_update,
+            provider._tm_client.profiles.delete
+        )
+        tm_sync.assert_not_called()
+        dns_update.assert_not_called()
+        tm_delete.assert_called_once()
+
+        # both are dynamic but alias is broken
+        provider, existing, record1 = self._get_dynamic_package()
+        azrecord = RecordSet(
+            ttl=record1.ttl, target_resource=SubResource(id=None))
+        azrecord.name = record1.name or '@'
+        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record1._type)
+
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record2.value, 'iam.invalid.')
+
+        change = Update(record2, record1)
+        provider._apply_Update(change)
+        tm_sync, dns_update, tm_delete = (
+            provider._tm_client.profiles.create_or_update,
+            provider._dns_client.record_sets.create_or_update,
+            provider._tm_client.profiles.delete
+        )
+        tm_sync.assert_not_called()
+        dns_update.assert_called_once()
+        tm_delete.assert_not_called()
+
+    def test_apply_update_dynamic_A(self):
+        # existing is simple, new is dynamic
+        provider = self._get_provider()
+        simple_record = Record.new(zone, 'foo', data={
+            'type': 'A',
+            'ttl': 3600,
+            'values': ['1.1.1.1', '2.2.2.2'],
+        })
+        dynamic_record = Record.new(zone, simple_record.name, data={
+            'type': 'A',
+            'ttl': 60,
+            'values': ['1.1.1.1'],
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [
+                            {'value': '8.8.8.8'},
+                            {'value': '4.4.4.4'},
+                        ],
+                        'fallback': 'two',
+                    },
+                    'two': {
+                        'values': [{'value': '9.9.9.9'}],
+                    },
+                },
+                'rules': [
+                    {'geos': ['AF'], 'pool': 'two'},
+                    {'pool': 'one'},
+                ],
+            }
+        })
+        num_tms = len(provider._generate_traffic_managers(dynamic_record))
+        change = Update(simple_record, dynamic_record)
+        provider._apply_Update(change)
+        tm_sync, dns_update, tm_delete = (
+            provider._tm_client.profiles.create_or_update,
+            provider._dns_client.record_sets.create_or_update,
+            provider._tm_client.profiles.delete
+        )
+        # sync is called once for each profile, plus 1 at the end for nested
+        # endpoints to workaround A/AAAA nesting limitation in Azure
+        self.assertEqual(tm_sync.call_count, num_tms + 1)
+        dns_update.assert_called_once()
+        tm_delete.assert_not_called()
+
+        # both are dynamic, healthcheck port is changed to trigger sync on
+        # all profiles
+        provider = self._get_provider()
+        dynamic_record2 = Record.new(zone, dynamic_record.name, data={
+            'type': dynamic_record._type,
+            'ttl': 300,
+            'values': dynamic_record.values,
+            'dynamic': dynamic_record.dynamic._data(),
+            'octodns': {
+                'healthcheck': {'port': 4433},
+            }
+        })
+        change = Update(dynamic_record, dynamic_record2)
+        provider._apply_Update(change)
+        tm_sync, dns_update, tm_delete = (
+            provider._tm_client.profiles.create_or_update,
+            provider._dns_client.record_sets.create_or_update,
+            provider._tm_client.profiles.delete
+        )
+        # sync is called once for each profile, extra call at the end is not
+        # needed when existing dynamic record is already aliased to its root
+        # profile
+        self.assertEqual(tm_sync.call_count, num_tms)
+        dns_update.assert_not_called()
+        tm_delete.assert_not_called()
+
+    def test_apply_update_dynamic_A_singluar(self):
+        # existing is simple, new is dynamic that needs only one profile
+        provider = self._get_provider()
+        simple_record = Record.new(zone, 'foo', data={
+            'type': 'A',
+            'ttl': 3600,
+            'values': ['1.1.1.1', '2.2.2.2'],
+        })
+        dynamic_record = Record.new(zone, simple_record.name, data={
+            'type': 'A',
+            'ttl': 60,
+            'values': ['1.1.1.1'],
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [
+                            {'value': '8.8.8.8'},
+                            {'value': '1.1.1.1'},
+                        ],
+                    },
+                },
+                'rules': [
+                    {'pool': 'one'},
+                ],
+            }
+        })
+        num_tms = len(provider._generate_traffic_managers(dynamic_record))
+        self.assertEqual(num_tms, 1)
+        change = Update(simple_record, dynamic_record)
+        provider._apply_Update(change)
+        tm_sync, dns_update, tm_delete = (
+            provider._tm_client.profiles.create_or_update,
+            provider._dns_client.record_sets.create_or_update,
+            provider._tm_client.profiles.delete
+        )
+        self.assertEqual(tm_sync.call_count, num_tms)
+        dns_update.assert_called_once()
+        tm_delete.assert_not_called()
+
+    def test_apply_delete_dynamic(self):
+        provider, existing, record = self._get_dynamic_package()
+        provider._populate_traffic_managers()
+        profiles = self._get_tm_profiles(provider)
+        change = Delete(record)
+        provider._apply_Delete(change)
+        dns_delete, tm_delete = (
+            provider._dns_client.record_sets.delete,
+            provider._tm_client.profiles.delete
+        )
+        dns_delete.assert_called_once()
+        self.assertEqual(tm_delete.call_count, len(profiles))
 
     def test_create_zone(self):
         provider = self._get_provider()
@@ -568,18 +2335,19 @@ class TestAzureDnsProvider(TestCase):
         _get = provider._dns_client.zones.get
         _get.side_effect = CloudError(Mock(status=404), err_msg)
 
-        self.assertEquals(19, provider.apply(Plan(None, desired, changes,
-                                                  True)))
+        expected_n = len(octo_records)
+        self.assertEquals(expected_n, provider.apply(Plan(None, desired,
+                                                          changes, True)))
 
     def test_check_zone_no_create(self):
         provider = self._get_provider()
 
         rs = []
-        recordSet = RecordSet(arecords=[ARecord(ipv4_address='1.1.1.1')])
+        recordSet = RecordSet(a_records=[ARecord(ipv4_address='1.1.1.1')])
         recordSet.name, recordSet.ttl, recordSet.type = 'a1', 0, 'A'
         rs.append(recordSet)
-        recordSet = RecordSet(arecords=[ARecord(ipv4_address='1.1.1.1'),
-                                        ARecord(ipv4_address='2.2.2.2')])
+        recordSet = RecordSet(a_records=[ARecord(ipv4_address='1.1.1.1'),
+                                         ARecord(ipv4_address='2.2.2.2')])
         recordSet.name, recordSet.ttl, recordSet.type = 'a2', 1, 'A'
         rs.append(recordSet)
 

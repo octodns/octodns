@@ -107,7 +107,8 @@ class TestEasyDNSProvider(TestCase):
             self.assertEquals('Not Found', text_type(ctx.exception))
 
     def test_apply_not_found(self):
-        provider = EasyDNSProvider('test', 'token', 'apikey')
+        provider = EasyDNSProvider('test', 'token', 'apikey',
+                                   domain_create_sleep=0)
 
         wanted = Zone('unit.tests.', [])
         wanted.add_record(Record.new(wanted, 'test1', {
@@ -143,7 +144,8 @@ class TestEasyDNSProvider(TestCase):
             self.assertEquals('Not Found', text_type(ctx.exception))
 
     def test_domain_create(self):
-        provider = EasyDNSProvider('test', 'token', 'apikey')
+        provider = EasyDNSProvider('test', 'token', 'apikey',
+                                   domain_create_sleep=0)
         domain_after_creation = {
             "tm": 1000000000,
             "data": [{
@@ -374,7 +376,7 @@ class TestEasyDNSProvider(TestCase):
         plan = provider.plan(self.expected)
 
         # No root NS, no ignored, no excluded, no unsupported
-        n = len(self.expected.records) - 8
+        n = len(self.expected.records) - 9
         self.assertEquals(n, len(plan.changes))
         self.assertEquals(n, provider.apply(plan))
         self.assertFalse(plan.exists)

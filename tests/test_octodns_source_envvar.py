@@ -1,6 +1,6 @@
+from mock import patch
 from six import text_type
 from unittest import TestCase
-from unittest.mock import patch
 
 from octodns.source.envvar import EnvVarSource
 from octodns.source.envvar import EnvironmentVariableNotFoundException
