@@ -394,8 +394,12 @@ class TestRoute53Provider(TestCase):
 
         return (provider, stubber)
 
-    def test_process_desired_zone(self):
+    # with fallback boto makes an unstubbed call to the 169. metadata api, this
+    # stubs that bit out
+    @patch('botocore.credentials.CredentialResolver.load_credentials')
+    def test_process_desired_zone(self, fetch_metadata_token_mock):
         provider, stubber = self._get_stubbed_fallback_auth_provider()
+        fetch_metadata_token_mock.side_effect = [None]
 
         # No records, essentially a no-op
         desired = Zone('unit.tests.', [])
@@ -527,8 +531,12 @@ class TestRoute53Provider(TestCase):
                           list(got.records)[0].dynamic.rules[0].data['geos'])
         self.assertFalse('geos' in list(got.records)[0].dynamic.rules[1].data)
 
-    def test_populate_with_fallback(self):
+    # with fallback boto makes an unstubbed call to the 169. metadata api, this
+    # stubs that bit out
+    @patch('botocore.credentials.CredentialResolver.load_credentials')
+    def test_populate_with_fallback(self, fetch_metadata_token_mock):
         provider, stubber = self._get_stubbed_fallback_auth_provider()
+        fetch_metadata_token_mock.side_effect = [None]
 
         got = Zone('unit.tests.', [])
         with self.assertRaises(ClientError):
