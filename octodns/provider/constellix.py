@@ -27,9 +27,8 @@ class ConstellixClientException(ProviderException):
 class ConstellixClientBadRequest(ConstellixClientException):
 
     def __init__(self, resp):
-        errors = resp.json()['errors']
-        super(ConstellixClientBadRequest, self).__init__(
-            '\n  - {}'.format('\n  - '.join(errors)))
+        errors = '\n  - '.join(resp.json()['errors'])
+        super(ConstellixClientBadRequest, self).__init__(f'\n  - {errors}')
 
 
 class ConstellixClientUnauthorized(ConstellixClientException):
@@ -73,7 +72,7 @@ class ConstellixClient(object):
             'x-cnsdns-requestDate': now
         }
 
-        url = '{}{}'.format(self.BASE, path)
+        url = f'{self.BASE}{path}'
         resp = self._sess.request(method, url, headers=headers,
                                   params=params, json=data)
         if resp.status_code == 400:
@@ -94,7 +93,7 @@ class ConstellixClient(object):
             resp = self._request('GET', '/domains').json()
             zones += resp
 
-            self._domains = {'{}.'.format(z['name']): z['id'] for z in zones}
+            self._domains = {f'{z["name"]}.': z['id'] for z in zones}
 
         return self._domains
 
@@ -195,7 +194,7 @@ class ConstellixClient(object):
                 return pool
 
     def pool_create(self, data):
-        path = '/pools/{}'.format(data.get('type'))
+        path = f'/pools/{data.get("type")}'
         # This returns a list of items, we want the first one
         response = self._request('POST', path, data=data).json()
 
@@ -204,7 +203,7 @@ class ConstellixClient(object):
         return response[0]
 
     def pool_update(self, pool_id, data):
-        path = '/pools/{}/{}'.format(data.get('type'), pool_id)
+        path = f'/pools/{data.get("type")}/{pool_id}'
         try:
             self._request('PUT', path, data=data).json()
 
@@ -358,17 +357,15 @@ class ConstellixProvider(BaseProvider):
 
                 if 'geoipCountries' in geofilter.keys():
                     for country_code in geofilter['geoipCountries']:
-                        geos.append('{}-{}'.format(
-                            country_alpha2_to_continent_code(country_code),
-                            country_code
-                        ))
+                        continent_code = \
+                            country_alpha2_to_continent_code(country_code)
+                        geos.append(f'{continent_code}-{country_code}')
 
                 if 'regions' in geofilter.keys():
                     for region in geofilter['regions']:
-                        geos.append('{}-{}-{}'.format(
-                            region['continentCode'],
-                            region['countryCode'],
-                            region['regionCode']))
+                        geos.append(f'{region["continentCode"]}-'
+                                    f'{region["countryCode"]}-'
+                                    f'{region["regionCode"]}')
 
                 rules.append({
                     'pool': pool_name,
@@ -625,12 +622,8 @@ class ConstellixProvider(BaseProvider):
             values = pool.data.get('values')
 
             # Make a pool name based on zone, record, type and name
-            generated_pool_name = '{}:{}:{}:{}'.format(
-                record.zone.name,
-                record.name,
-                record._type,
-                pool_name
-            )
+            generated_pool_name = \
+                f'{record.zone.name}:{record.name}:{record._type}:{pool_name}'
 
             # OK, pool is valid, let's create it or update it
             self.log.debug("Creating pool %s", generated_pool_name)
@@ -726,7 +719,7 @@ class ConstellixProvider(BaseProvider):
 
     def _apply_Create(self, change, domain_name):
         new = change.new
-        params_for = getattr(self, '_params_for_{}'.format(new._type))
+        params_for = getattr(self, f'_params_for_{new._type}')
         pools = self._handle_pools(new)
 
         for params in params_for(new):
