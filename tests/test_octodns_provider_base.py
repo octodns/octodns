@@ -21,7 +21,10 @@ from octodns.zone import Zone
 class HelperProvider(BaseProvider):
     log = getLogger('HelperProvider')
 
-    SUPPORTS = set(('A',))
+    SUPPORTS = set(('A', 'PTR'))
+    SUPPORTS_MUTLIVALUE_PTR = False
+    SUPPORTS_DYNAMIC = False
+
     id = 'test'
     strict_supports = False
 
@@ -234,6 +237,10 @@ class TestBaseProvider(TestCase):
         self.assertFalse(plan)
 
     def test_process_desired_zone(self):
+        provider = HelperProvider('test')
+
+        # SUPPORTS_MUTLIVALUE_PTR
+        provider.SUPPORTS_MUTLIVALUE_PTR = False
         zone1 = Zone('unit.tests.', [])
         record1 = Record.new(zone1, 'ptr', {
             'type': 'PTR',
@@ -242,10 +249,50 @@ class TestBaseProvider(TestCase):
         })
         zone1.add_record(record1)
 
-        zone2 = HelperProvider('hasptr')._process_desired_zone(zone1)
+        zone2 = provider._process_desired_zone(zone1.copy())
         record2 = list(zone2.records)[0]
-
         self.assertEqual(len(record2.values), 1)
+
+        provider.SUPPORTS_MUTLIVALUE_PTR = True
+        zone2 = provider._process_desired_zone(zone1.copy())
+        record2 = list(zone2.records)[0]
+        from pprint import pprint
+        pprint([
+            record1, record2
+        ])
+        self.assertEqual(len(record2.values), 2)
+
+        # SUPPORTS_DYNAMIC
+        provider.SUPPORTS_DYNAMIC = False
+        zone1 = Zone('unit.tests.', [])
+        record1 = Record.new(zone1, 'a', {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '1.1.1.1',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+            'type': 'A',
+            'ttl': 3600,
+            'values': ['2.2.2.2'],
+        })
+        self.assertTrue(record1.dynamic)
+        zone1.add_record(record1)
+
+        zone2 = provider._process_desired_zone(zone1.copy())
+        record2 = list(zone2.records)[0]
+        self.assertFalse(record2.dynamic)
+
+        provider.SUPPORTS_DYNAMIC = True
+        zone2 = provider._process_desired_zone(zone1.copy())
+        record2 = list(zone2.records)[0]
+        self.assertTrue(record2.dynamic)
 
     def test_safe_none(self):
         # No changes is safe
