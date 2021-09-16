@@ -145,16 +145,14 @@ class TransipProvider(BaseProvider):
 
         _dns_entries = []
         for record in plan.desired.records:
-            if record._type in self.SUPPORTS:
-                entries_for = getattr(self,
-                                      '_entries_for_{}'.format(record._type))
+            entries_for = getattr(self, '_entries_for_{}'.format(record._type))
 
-                # Root records have '@' as name
-                name = record.name
-                if name == '':
-                    name = self.ROOT_RECORD
+            # Root records have '@' as name
+            name = record.name
+            if name == '':
+                name = self.ROOT_RECORD
 
-                _dns_entries.extend(entries_for(name, record))
+            _dns_entries.extend(entries_for(name, record))
 
         try:
             self._client.set_dns_entries(plan.desired.name[:-1], _dns_entries)

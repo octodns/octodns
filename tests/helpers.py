@@ -107,7 +107,7 @@ class PlannableProvider(BaseProvider):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(('A',))
+    SUPPORTS = set(('A', 'AAAA', 'TXT'))
 
     def __init__(self, *args, **kwargs):
         super(PlannableProvider, self).__init__(*args, **kwargs)
