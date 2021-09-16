@@ -1001,7 +1001,7 @@ class AzureProvider(BaseProvider):
 
         return profile
 
-    def _generate_geos(self, rule_geos):
+    def _make_azure_geos(self, rule_geos):
         geos = []
         for geo in rule_geos:
             if '-' in geo:
@@ -1023,7 +1023,7 @@ class AzureProvider(BaseProvider):
 
         return geos
 
-    def _generate_pool_profile(self, pool, record, defaults):
+    def _make_pool_profile(self, pool, record, defaults):
         pool_name = pool._id
         default_seen = False
 
@@ -1051,8 +1051,8 @@ class AzureProvider(BaseProvider):
 
         return pool_profile, default_seen
 
-    def _generate_pool(self, pool, priority, pool_profiles, record, defaults,
-                       traffic_managers):
+    def _make_pool(self, pool, priority, pool_profiles, record, defaults,
+                   traffic_managers):
         pool_name = pool._id
         pool_values = pool.data['values']
         default_seen = False
@@ -1062,7 +1062,7 @@ class AzureProvider(BaseProvider):
             pool_profile = pool_profiles.get(pool_name)
             # TODO: what if a cached pool_profile had seen the default
             if pool_profile is None:
-                pool_profile, default_seen = self._generate_pool_profile(
+                pool_profile, default_seen = self._make_pool_profile(
                     pool, record, defaults)
                 traffic_managers.append(pool_profile)
                 pool_profiles[pool_name] = pool_profile
@@ -1090,41 +1090,8 @@ class AzureProvider(BaseProvider):
                 priority=priority,
             ), default_seen
 
-    def _pool_fallback_chain(self, pool_name, record, defaults, pool_profiles,
-                             traffic_managers):
-        rule_endpoints = []
-
-        priority = 1
-        default_seen = False
-
-        while pool_name:
-            # iterate until we reach end of fallback chain
-            pool = record.dynamic.pools[pool_name]
-
-            rule_ep, saw_default = self._generate_pool(
-                pool, priority, pool_profiles, record, defaults,
-                traffic_managers
-            )
-            rule_endpoints.append(rule_ep)
-            if saw_default:
-                default_seen = True
-
-            priority += 1
-            pool_name = pool.data.get('fallback')
-
-        # append default endpoint unless it is already included in last pool
-        # of rule profile
-        if not default_seen:
-            rule_endpoints.append(Endpoint(
-                name='--default--',
-                target=defaults[0],
-                priority=priority,
-            ))
-
-        return rule_endpoints
-
-    def _geo_endpoint(self, rule_name, rule_endpoints, record, geos,
-                      traffic_managers):
+    def _make_rule_profile(self, rule_endpoints, rule_name, record, geos,
+                           traffic_managers):
         if len(rule_endpoints) > 1:
             # create rule profile with fallback chain
             rule_profile = self._generate_tm_profile(
@@ -1156,16 +1123,49 @@ class AzureProvider(BaseProvider):
                     geo_mapping=geos,
                 )
 
-    def _generate_traffic_managers(self, record):
-        traffic_managers = []
-        rules = record.dynamic.rules
-        typ = record._type
-        profile = self._generate_tm_profile
+    def _make_rule(self, pool_name, pool_profiles, record, geos,
+                   traffic_managers):
+        endpoints = []
+        rule_name = pool_name
 
-        if typ == 'CNAME':
+        if record._type == 'CNAME':
             defaults = [record.value[:-1]]
         else:
             defaults = record.values
+
+        priority = 1
+        default_seen = False
+
+        while pool_name:
+            # iterate until we reach end of fallback chain
+            pool = record.dynamic.pools[pool_name]
+
+            rule_ep, saw_default = self._make_pool(
+                pool, priority, pool_profiles, record, defaults,
+                traffic_managers
+            )
+            endpoints.append(rule_ep)
+            if saw_default:
+                default_seen = True
+
+            priority += 1
+            pool_name = pool.data.get('fallback')
+
+        # append default endpoint unless it is already included in last pool
+        # of rule profile
+        if not default_seen:
+            endpoints.append(Endpoint(
+                name='--default--',
+                target=defaults[0],
+                priority=priority,
+            ))
+
+        return self._make_rule_profile(
+            endpoints, rule_name, record, geos, traffic_managers
+        )
+
+    def _make_geo_rules(self, record):
+        rules = record.dynamic.rules
 
         # a pool can be re-used only with a world pool, record the pool
         # to later consolidate it with a geo pool if one exists since we
@@ -1174,10 +1174,11 @@ class AzureProvider(BaseProvider):
         for rule in rules:
             if not rule.data.get('geos', []):
                 world_pool = rule.data['pool']
-        world_seen = False
 
+        traffic_managers = []
         geo_endpoints = []
         pool_profiles = {}
+        world_seen = False
 
         for rule in rules:
             rule = rule.data
@@ -1189,26 +1190,29 @@ class AzureProvider(BaseProvider):
                 continue
 
             # Prepare the list of Traffic manager geos
-            geos = self._generate_geos(rule_geos)
+            geos = self._make_azure_geos(rule_geos)
             if not geos or pool_name == world_pool:
                 geos.append('WORLD')
                 world_seen = True
 
-            rule_endpoints = self._pool_fallback_chain(
-                pool_name, record, defaults, pool_profiles, traffic_managers)
-
-            geo_endpoints.append(self._geo_endpoint(
-                pool_name, rule_endpoints, record, geos, traffic_managers
+            geo_endpoints.append(self._make_rule(
+                pool_name, pool_profiles, record, geos, traffic_managers
             ))
+
+        return geo_endpoints, traffic_managers
+
+    def _generate_traffic_managers(self, record):
+        geo_endpoints, traffic_managers = self._make_geo_rules(record)
 
         if len(geo_endpoints) == 1 and \
            geo_endpoints[0].geo_mapping == ['WORLD'] and \
            geo_endpoints[0].target_resource_id:
-            # Single WORLD rule does not require a Geographic profile, use
-            # the target profile as the root profile
+            # Single WORLD rule does not require a Geographic profile, use the
+            # target profile (which is at the end) as the root profile
             self._convert_tm_to_root(traffic_managers[-1], record)
         else:
-            geo_profile = profile('Geographic', geo_endpoints, record)
+            geo_profile = self._generate_tm_profile(
+                'Geographic', geo_endpoints, record)
             traffic_managers.append(geo_profile)
 
         return traffic_managers
