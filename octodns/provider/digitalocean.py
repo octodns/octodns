@@ -263,7 +263,7 @@ class DigitalOceanProvider(BaseProvider):
     def _params_for_CAA(self, record):
         for value in record.values:
             yield {
-                'data': '{}.'.format(value.value),
+                'data': value.value,
                 'flags': value.flags,
                 'name': record.name,
                 'tag': value.tag,
