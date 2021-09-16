@@ -53,15 +53,13 @@ class BaseProvider(BaseSource):
 
         for record in desired.records:
             if record._type not in self.SUPPORTS:
-                msg = '{} records not supported for {}'.format(record._type,
-                                                               record.fqdn)
+                msg = f'{record._type} records not supported for {record.fqdn}'
                 fallback = 'omitting record'
                 self.supports_warn_or_except(msg, fallback)
                 desired.remove_record(record)
             elif getattr(record, 'dynamic', False) and \
                     not self.SUPPORTS_DYNAMIC:
-                msg = 'dynamic records not supported for {}'\
-                    .format(record.fqdn)
+                msg = f'dynamic records not supported for {record.fqdn}'
                 fallback = 'falling back to simple record'
                 self.supports_warn_or_except(msg, fallback)
                 record = record.copy()
