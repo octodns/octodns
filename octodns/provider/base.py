@@ -50,12 +50,25 @@ class BaseProvider(BaseSource):
           that are made to have them logged or throw errors depending on the
           provider configuration.
         '''
-        if self.SUPPORTS_MUTLIVALUE_PTR:
-            # nothing do here
-            return desired
 
         for record in desired.records:
-            if record._type == 'PTR' and len(record.values) > 1:
+            if record._type not in self.SUPPORTS:
+                msg = '{} records not supported for {}'.format(record._type,
+                                                               record.fqdn)
+                fallback = 'omitting record'
+                self.supports_warn_or_except(msg, fallback)
+                desired.remove_record(record)
+            elif getattr(record, 'dynamic', False) and \
+                    not self.SUPPORTS_DYNAMIC:
+                msg = 'dynamic records not supported for {}'\
+                    .format(record.fqdn)
+                fallback = 'falling back to simple record'
+                self.supports_warn_or_except(msg, fallback)
+                record = record.copy()
+                record.dynamic = None
+                desired.add_record(record, replace=True)
+            elif record._type == 'PTR' and len(record.values) > 1 and \
+                    not self.SUPPORTS_MUTLIVALUE_PTR:
                 # replace with a single-value copy
                 msg = 'multi-value PTR records not supported for {}' \
                     .format(record.fqdn)

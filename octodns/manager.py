@@ -552,6 +552,7 @@ class Manager(object):
                 source_zone = source_zone
                 continue
 
+            lenient = config.get('lenient', False)
             try:
                 sources = config['sources']
             except KeyError:
@@ -572,7 +573,7 @@ class Manager(object):
 
             for source in sources:
                 if isinstance(source, YamlProvider):
-                    source.populate(zone)
+                    source.populate(zone, lenient=lenient)
 
             # check that processors are in order if any are specified
             processors = config.get('processors', [])
