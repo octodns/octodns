@@ -1,0 +1,62 @@
+[
+    {
+        "id": 1808521,
+        "name": "unit.tests.:www.dynamic:A:two",
+        "type": "A",
+        "numReturn": 1,
+        "minAvailableFailover": 1,
+        "createdTs": "2020-09-12T00:44:35Z",
+        "modifiedTs": "2020-09-12T00:44:35Z",
+        "appliedDomains": [
+            {
+                "id": 123123,
+                "name": "unit.tests",
+                "recordOption": "pools"
+            }
+        ],
+        "appliedTemplates": null,
+        "unlinkedDomains": [],
+        "unlinkedTemplates": null,
+        "itoEnabled": false,
+        "values": [
+            {
+                "value": "1.2.3.4",
+                "weight": 1
+            },
+            {
+                "value": "1.2.3.5",
+                "weight": 1
+            }
+        ]
+    },
+    {
+        "id": 1808522,
+        "name": "unit.tests.:www.dynamic:A:one",
+        "type": "A",
+        "numReturn": 1,
+        "minAvailableFailover": 1,
+        "createdTs": "2020-09-12T00:44:35Z",
+        "modifiedTs": "2020-09-12T00:44:35Z",
+        "appliedDomains": [
+            {
+                "id": 123123,
+                "name": "unit.tests",
+                "recordOption": "pools"
+            }
+        ],
+        "appliedTemplates": null,
+        "unlinkedDomains": [],
+        "unlinkedTemplates": null,
+        "itoEnabled": false,
+        "values": [
+            {
+                "value": "1.2.3.6",
+                "weight": 1
+            },
+            {
+                "value": "1.2.3.7",
+                "weight": 1
+            }
+        ]
+    }
+]
