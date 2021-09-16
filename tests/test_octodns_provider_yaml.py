@@ -309,7 +309,7 @@ class TestSplitYamlProvider(TestCase):
             # ensure correctness.
             for record_name in ('_srv._tcp', 'mx', 'naptr', 'sub', 'txt',
                                 'urlfwd'):
-                yaml_file = join(zone_dir, '{}.yaml'.format(record_name))
+                yaml_file = join(zone_dir, f'{record_name}.yaml')
                 self.assertTrue(isfile(yaml_file))
                 with open(yaml_file) as fh:
                     data = safe_load(fh.read())
@@ -318,7 +318,7 @@ class TestSplitYamlProvider(TestCase):
             # These are stored as singular "value." Again, check each file.
             for record_name in ('aaaa', 'cname', 'dname', 'included', 'ptr',
                                 'spf', 'www.sub', 'www'):
-                yaml_file = join(zone_dir, '{}.yaml'.format(record_name))
+                yaml_file = join(zone_dir, f'{record_name}.yaml')
                 self.assertTrue(isfile(yaml_file))
                 with open(yaml_file) as fh:
                     data = safe_load(fh.read())
@@ -327,7 +327,7 @@ class TestSplitYamlProvider(TestCase):
             # Again with the plural, this time checking dynamic.tests.
             for record_name in ('a', 'aaaa', 'real-ish-a'):
                 yaml_file = join(
-                    dynamic_zone_dir, '{}.yaml'.format(record_name))
+                    dynamic_zone_dir, f'{record_name}.yaml')
                 self.assertTrue(isfile(yaml_file))
                 with open(yaml_file) as fh:
                     data = safe_load(fh.read())
@@ -337,8 +337,7 @@ class TestSplitYamlProvider(TestCase):
 
             # Singular again.
             for record_name in ('cname', 'simple-weighted'):
-                yaml_file = join(
-                    dynamic_zone_dir, '{}.yaml'.format(record_name))
+                yaml_file = join(dynamic_zone_dir, f'{record_name}.yaml')
                 self.assertTrue(isfile(yaml_file))
                 with open(yaml_file) as fh:
                     data = safe_load(fh.read())

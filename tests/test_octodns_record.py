@@ -2664,7 +2664,7 @@ class TestRecordValidation(TestCase):
                     'ttl': 600,
                     'value': v
                 })
-            self.assertEquals(['missing {}'.format(k)], ctx.exception.reasons)
+            self.assertEquals([f'missing {k}'], ctx.exception.reasons)
 
         # non-int order
         v = dict(value)
