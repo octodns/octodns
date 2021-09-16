@@ -21,6 +21,9 @@
   previous versions of octoDNS are discouraged and may result in undefined
   behavior and broken records. See https://github.com/octodns/octodns/pull/749
   for related discussion.
+* TransipProvider removed as it currently relies on `suds` which is broken in
+  new python versions and hasn't seen a release since 2010. May return with
+  https://github.com/octodns/octodns/pull/762
 
 ## v0.9.13 - 2021-07-18 - Processors Alpha
 
