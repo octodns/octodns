@@ -12,6 +12,7 @@ from logging import getLogger
 from requests import Session
 
 from ..record import Record, Update
+from . import ProviderException
 from .base import BaseProvider
 
 
@@ -20,7 +21,7 @@ def escape_semicolon(s):
     return s.replace(';', '\\;')
 
 
-class SelectelAuthenticationRequired(Exception):
+class SelectelAuthenticationRequired(ProviderException):
     def __init__(self, msg):
         message = 'Authorization failed. Invalid or empty token.'
         super(SelectelAuthenticationRequired, self).__init__(message)

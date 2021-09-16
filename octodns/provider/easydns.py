@@ -12,10 +12,11 @@ import logging
 import base64
 
 from ..record import Record
+from . import ProviderException
 from .base import BaseProvider
 
 
-class EasyDNSClientException(Exception):
+class EasyDNSClientException(ProviderException):
     pass
 
 
@@ -47,19 +48,19 @@ class EasyDNSClient(object):
     # Domain Portfolio
     domain_portfolio = 'myport'
 
-    def __init__(self, token, api_key, currency, portfolio, sandbox):
+    def __init__(self, token, api_key, currency, portfolio, sandbox,
+                 domain_create_sleep):
         self.log = logging.getLogger('EasyDNSProvider[{}]'.format(id))
-        self.token = token
-        self.api_key = api_key
         self.default_currency = currency
         self.domain_portfolio = portfolio
-        self.apienv = 'sandbox' if sandbox else 'live'
-        auth_key = '{}:{}'.format(self.token, self.api_key)
-        self.auth_key = base64.b64encode(auth_key.encode("utf-8"))
+        self.domain_create_sleep = domain_create_sleep
+
+        auth_key = '{}:{}'.format(token, api_key)
+        auth_key = base64.b64encode(auth_key.encode("utf-8"))
         self.base_path = self.SANDBOX if sandbox else self.LIVE
         sess = Session()
         sess.headers.update({'Authorization': 'Basic {}'
-                             .format(self.auth_key.decode('utf-8'))})
+                             .format(auth_key.decode('utf-8'))})
         sess.headers.update({'accept': 'application/json'})
         self._sess = sess
 
@@ -98,7 +99,7 @@ class EasyDNSClient(object):
         # we need to delete those default record so we can sync with the source
         # records, first we'll sleep for a second before gathering new records
         # We also create default NS records, but they won't be deleted
-        sleep(1)
+        sleep(self.domain_create_sleep)
         records = self.records(name, True)
         for record in records:
             if record['host'] in ('', 'www') \
@@ -162,12 +163,12 @@ class EasyDNSProvider(BaseProvider):
                     'SRV', 'NAPTR'))
 
     def __init__(self, id, token, api_key, currency='CAD', portfolio='myport',
-                 sandbox=False, *args, **kwargs):
+                 sandbox=False, domain_create_sleep=1, *args, **kwargs):
         self.log = logging.getLogger('EasyDNSProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, token=***', id)
         super(EasyDNSProvider, self).__init__(id, *args, **kwargs)
         self._client = EasyDNSClient(token, api_key, currency, portfolio,
-                                     sandbox)
+                                     sandbox, domain_create_sleep)
         self._zone_records = {}
 
     def _data_for_multiple(self, _type, records):

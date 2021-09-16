@@ -11,6 +11,7 @@ from requests import Session
 from logging import getLogger
 
 from ..record import Record
+from . import ProviderException
 from .base import BaseProvider
 
 from collections import defaultdict
@@ -34,7 +35,7 @@ def remove_trailing_dot(value):
     return value[:-1]
 
 
-class MythicBeastsUnauthorizedException(Exception):
+class MythicBeastsUnauthorizedException(ProviderException):
     def __init__(self, zone, *args):
         self.zone = zone
         self.message = 'Mythic Beasts unauthorized for zone: {}'.format(
@@ -45,7 +46,7 @@ class MythicBeastsUnauthorizedException(Exception):
             self.message, self.zone, *args)
 
 
-class MythicBeastsRecordException(Exception):
+class MythicBeastsRecordException(ProviderException):
     def __init__(self, zone, command, *args):
         self.zone = zone
         self.command = command
@@ -70,13 +71,13 @@ class MythicBeastsProvider(BaseProvider):
       ...
       mythicbeasts:
         class: octodns.provider.mythicbeasts.MythicBeastsProvider
-          passwords:
-            my.domain.: 'password'
+        passwords:
+          my.domain.: 'DNS API v1 password'
 
     zones:
       my.domain.:
         targets:
-          - mythic
+          - mythicbeasts
     '''
 
     RE_MX = re.compile(r'^(?P<preference>[0-9]+)\s+(?P<exchange>\S+)$',

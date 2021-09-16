@@ -106,6 +106,7 @@ class Record(EqualityTupleMixin):
                 'SRV': SrvRecord,
                 'SSHFP': SshfpRecord,
                 'TXT': TxtRecord,
+                'URLFWD': UrlfwdRecord,
             }[_type]
         except KeyError:
             raise Exception('Unknown record type: "{}"'.format(_type))
@@ -183,15 +184,11 @@ class Record(EqualityTupleMixin):
     def included(self):
         return self._octodns.get('included', [])
 
-    @property
-    def healthcheck_host(self):
+    def healthcheck_host(self, value=None):
         healthcheck = self._octodns.get('healthcheck', {})
         if healthcheck.get('protocol', None) == 'TCP':
             return None
-        try:
-            return healthcheck['host']
-        except KeyError:
-            return self.fqdn[:-1]
+        return healthcheck.get('host', self.fqdn[:-1]) or value
 
     @property
     def healthcheck_path(self):
@@ -417,6 +414,7 @@ class _ValueMixin(object):
 
 
 class _DynamicPool(object):
+    log = getLogger('_DynamicPool')
 
     def __init__(self, _id, data):
         self._id = _id
@@ -428,6 +426,15 @@ class _DynamicPool(object):
             } for d in data['values']
         ]
         values.sort(key=lambda d: d['value'])
+
+        # normalize weight of a single-value pool
+        if len(values) == 1:
+            weight = data['values'][0].get('weight', 1)
+            if weight != 1:
+                self.log.warn(
+                    'Using weight=1 instead of %s for single-value pool %s',
+                    weight, _id)
+                values[0]['weight'] = 1
 
         fallback = data.get('fallback', None)
         self.data = {
@@ -573,6 +580,10 @@ class _DynamicMixin(object):
                         reasons.append('missing value in pool "{}" '
                                        'value {}'.format(_id, value_num))
 
+                if len(values) == 1 and values[0].get('weight', 1) != 1:
+                    reasons.append('pool "{}" has single value with '
+                                   'weight!=1'.format(_id))
+
                 fallback = pool.get('fallback', None)
                 if fallback is not None:
                     if fallback in pools:
@@ -607,7 +618,6 @@ class _DynamicMixin(object):
         else:
             seen_default = False
 
-            # TODO: don't allow 'default' as a pool name, reserved
             for i, rule in enumerate(rules):
                 rule_num = i + 1
                 try:
@@ -628,7 +638,6 @@ class _DynamicMixin(object):
                     if pool not in pools:
                         reasons.append('rule {} undefined pool "{}"'
                                        .format(rule_num, pool))
-                        pools_seen.add(pool)
                     elif pool in pools_seen and geos:
                         reasons.append('rule {} invalid, target pool "{}" '
                                        'reused'.format(rule_num, pool))
@@ -740,8 +749,13 @@ class _IpList(object):
 
     @classmethod
     def process(cls, values):
-        # Translating None into '' so that the list will be sortable in python3
-        return [v if v is not None else '' for v in values]
+        # Translating None into '' so that the list will be sortable in
+        # python3, get everything to str first
+        values = [text_type(v) if v is not None else '' for v in values]
+        # Now round trip all non-'' through the address type and back to a str
+        # to normalize the address representation.
+        return [text_type(cls._address_type(v)) if v != '' else ''
+                for v in values]
 
 
 class Ipv4List(_IpList):
@@ -1247,12 +1261,36 @@ class NsRecord(_ValuesMixin, Record):
 
 
 class PtrValue(_TargetValue):
-    pass
+
+    @classmethod
+    def validate(cls, values, _type):
+        if not isinstance(values, list):
+            values = [values]
+
+        reasons = []
+
+        if not values:
+            reasons.append('missing values')
+
+        for value in values:
+            reasons.extend(super(PtrValue, cls).validate(value, _type))
+
+        return reasons
+
+    @classmethod
+    def process(cls, values):
+        return [super(PtrValue, cls).process(v) for v in values]
 
 
-class PtrRecord(_ValueMixin, Record):
+class PtrRecord(_ValuesMixin, Record):
     _type = 'PTR'
     _value_type = PtrValue
+
+    # This is for backward compatibility with providers that don't support
+    # multi-value PTR records.
+    @property
+    def value(self):
+        return self.values[0]
 
 
 class SshfpValue(EqualityTupleMixin):
@@ -1458,3 +1496,86 @@ class _TxtValue(_ChunkedValue):
 class TxtRecord(_ChunkedValuesMixin, Record):
     _type = 'TXT'
     _value_type = _TxtValue
+
+
+class UrlfwdValue(EqualityTupleMixin):
+    VALID_CODES = (301, 302)
+    VALID_MASKS = (0, 1, 2)
+    VALID_QUERY = (0, 1)
+
+    @classmethod
+    def validate(cls, data, _type):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
+        reasons = []
+        for value in data:
+            try:
+                code = int(value['code'])
+                if code not in cls.VALID_CODES:
+                    reasons.append('unrecognized return code "{}"'
+                                   .format(code))
+            except KeyError:
+                reasons.append('missing code')
+            except ValueError:
+                reasons.append('invalid return code "{}"'
+                               .format(value['code']))
+            try:
+                masking = int(value['masking'])
+                if masking not in cls.VALID_MASKS:
+                    reasons.append('unrecognized masking setting "{}"'
+                                   .format(masking))
+            except KeyError:
+                reasons.append('missing masking')
+            except ValueError:
+                reasons.append('invalid masking setting "{}"'
+                               .format(value['masking']))
+            try:
+                query = int(value['query'])
+                if query not in cls.VALID_QUERY:
+                    reasons.append('unrecognized query setting "{}"'
+                                   .format(query))
+            except KeyError:
+                reasons.append('missing query')
+            except ValueError:
+                reasons.append('invalid query setting "{}"'
+                               .format(value['query']))
+            for k in ('path', 'target'):
+                if k not in value:
+                    reasons.append('missing {}'.format(k))
+        return reasons
+
+    @classmethod
+    def process(cls, values):
+        return [UrlfwdValue(v) for v in values]
+
+    def __init__(self, value):
+        self.path = value['path']
+        self.target = value['target']
+        self.code = int(value['code'])
+        self.masking = int(value['masking'])
+        self.query = int(value['query'])
+
+    @property
+    def data(self):
+        return {
+            'path': self.path,
+            'target': self.target,
+            'code': self.code,
+            'masking': self.masking,
+            'query': self.query,
+        }
+
+    def __hash__(self):
+        return hash(self.__repr__())
+
+    def _equality_tuple(self):
+        return (self.path, self.target, self.code, self.masking, self.query)
+
+    def __repr__(self):
+        return '"{}" "{}" {} {} {}'.format(self.path, self.target, self.code,
+                                           self.masking, self.query)
+
+
+class UrlfwdRecord(_ValuesMixin, Record):
+    _type = 'URLFWD'
+    _value_type = UrlfwdValue

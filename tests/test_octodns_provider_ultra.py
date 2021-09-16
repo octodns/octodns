@@ -1,8 +1,11 @@
+from __future__ import unicode_literals
+
 from mock import Mock, call
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
 from six import text_type
+from six.moves.urllib import parse
 from unittest import TestCase
 from json import load as json_load
 
@@ -55,7 +58,8 @@ class TestUltraProvider(TestCase):
             self.assertEquals(1, mock.call_count)
             expected_payload = "grant_type=password&username=user&"\
                                "password=rightpass"
-            self.assertEquals(mock.last_request.text, expected_payload)
+            self.assertEquals(parse.parse_qs(mock.last_request.text),
+                              parse.parse_qs(expected_payload))
 
     def test_get_zones(self):
         provider = _get_provider()
@@ -274,7 +278,7 @@ class TestUltraProvider(TestCase):
 
             self.assertTrue(provider.populate(zone))
             self.assertEquals('octodns1.test.', zone.name)
-            self.assertEquals(11, len(zone.records))
+            self.assertEquals(12, len(zone.records))
             self.assertEquals(4, mock.call_count)
 
     def test_apply(self):
@@ -352,8 +356,8 @@ class TestUltraProvider(TestCase):
         }))
 
         plan = provider.plan(wanted)
-        self.assertEquals(10, len(plan.changes))
-        self.assertEquals(10, provider.apply(plan))
+        self.assertEquals(11, len(plan.changes))
+        self.assertEquals(11, provider.apply(plan))
         self.assertTrue(plan.exists)
 
         provider._request.assert_has_calls([
@@ -492,6 +496,15 @@ class TestUltraProvider(TestCase):
              Record.new(zone, 'txt',
                         {'ttl': 60, 'type': 'TXT',
                          'values': ['abc', 'def']})),
+
+            # ALIAS
+            ('', 'ALIAS',
+             '/v2/zones/unit.tests./rrsets/APEXALIAS/unit.tests.',
+             {'ttl': 60, 'rdata': ['target.unit.tests.']},
+             Record.new(zone, '',
+                        {'ttl': 60, 'type': 'ALIAS',
+                         'value': 'target.unit.tests.'})),
+
         ):
             # Validate path and payload based on record meet expectations
             path, payload = provider._gen_data(expected_record)

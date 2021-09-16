@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 from suds import WebFault
 
 from collections import defaultdict
+from . import ProviderException
 from .base import BaseProvider
 from logging import getLogger
 from ..record import Record
@@ -15,7 +16,7 @@ from transip.service.domain import DomainService
 from transip.service.objects import DnsEntry
 
 
-class TransipException(Exception):
+class TransipException(ProviderException):
     pass
 
 
@@ -56,25 +57,27 @@ class TransipProvider(BaseProvider):
     TIMEOUT = 15
     ROOT_RECORD = '@'
 
-    def __init__(self, id, account, key=None, key_file=None,  *args, **kwargs):
+    def __init__(self, id, account, key=None, key_file=None, *args, **kwargs):
         self.log = getLogger('TransipProvider[{}]'.format(id))
         self.log.debug('__init__: id=%s, account=%s, token=***', id,
                        account)
         super(TransipProvider, self).__init__(id, *args, **kwargs)
 
         if key_file is not None:
-            self._client = DomainService(account, private_key_file=key_file)
+            self._client = self._domain_service(account,
+                                                private_key_file=key_file)
         elif key is not None:
-            self._client = DomainService(account, private_key=key)
+            self._client = self._domain_service(account, private_key=key)
         else:
             raise TransipConfigException(
-                'Missing `key` of `key_file` parameter in config'
+                'Missing `key` or `key_file` parameter in config'
             )
 
-        self.account = account
-        self.key = key
-
         self._currentZone = {}
+
+    def _domain_service(self, *args, **kwargs):
+        'This exists only for mocking purposes'
+        return DomainService(*args, **kwargs)
 
     def populate(self, zone, target=False, lenient=False):
 

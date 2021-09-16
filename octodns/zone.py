@@ -49,16 +49,26 @@ class Zone(object):
         # optional trailing . b/c some sources don't have it on their fqdn
         self._name_re = re.compile(r'\.?{}?$'.format(name))
 
+        # Copy-on-write semantics support, when `not None` this property will
+        # point to a location with records for this `Zone`. Once `hydrated`
+        # this property will be set to None
+        self._origin = None
+
         self.log.debug('__init__: zone=%s, sub_zones=%s', self, sub_zones)
 
     @property
     def records(self):
+        if self._origin:
+            return self._origin.records
         return set([r for _, node in self._records.items() for r in node])
 
     def hostname_from_fqdn(self, fqdn):
         return self._name_re.sub('', fqdn)
 
     def add_record(self, record, replace=False, lenient=False):
+        if self._origin:
+            self.hydrate()
+
         name = record.name
         last = name.split('.')[-1]
 
@@ -94,9 +104,13 @@ class Zone(object):
 
         node.add(record)
 
-    def _remove_record(self, record):
-        'Only for use in tests'
+    def remove_record(self, record):
+        if self._origin:
+            self.hydrate()
         self._records[record.name].discard(record)
+
+    # TODO: delete this
+    _remove_record = remove_record
 
     def changes(self, desired, target):
         self.log.debug('changes: zone=%s, target=%s', self, target)
@@ -183,6 +197,43 @@ class Zone(object):
             changes.append(Create(record))
 
         return changes
+
+    def hydrate(self):
+        '''
+        Take a shallow copy Zone and make it a deeper copy holding its own
+        reference to records. These records will still be the originals and
+        they should not be modified. Changes should be made by calling
+        `add_record`, often with `replace=True`, and/or `remove_record`.
+
+        Note: This method does not need to be called under normal circumstances
+        as `add_record` and `remove_record` will automatically call it when
+        appropriate.
+        '''
+        origin = self._origin
+        if origin is None:
+            return False
+        # Need to clear this before the copy to prevent recursion
+        self._origin = None
+        for record in origin.records:
+            # Use lenient as we're copying origin and should take its records
+            # regardless
+            self.add_record(record, lenient=True)
+        return True
+
+    def copy(self):
+        '''
+        Copy-on-write semantics support. This method will create a shallow
+        clone of the zone which will be hydrated the first time `add_record` or
+        `remove_record` is called.
+
+        This allows low-cost copies of things to be made in situations where
+        changes are unlikely and only incurs the "expense" of actually
+        copying the records when required. The actual record copy will not be
+        "deep" meaning that records should not be modified directly.
+        '''
+        copy = Zone(self.name, self.sub_zones)
+        copy._origin = self
+        return copy
 
     def __repr__(self):
         return 'Zone<{}>'.format(self.name)

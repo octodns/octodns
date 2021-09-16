@@ -6,12 +6,15 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from logging import getLogger
+from mock import MagicMock, call
 from six import text_type
 from unittest import TestCase
 
-from octodns.record import Create, Delete, Record, Update
+from octodns.processor.base import BaseProcessor
+from octodns.provider import SupportsException
 from octodns.provider.base import BaseProvider
 from octodns.provider.plan import Plan, UnsafePlan
+from octodns.record import Create, Delete, Record, Update
 from octodns.zone import Zone
 
 
@@ -20,8 +23,9 @@ class HelperProvider(BaseProvider):
 
     SUPPORTS = set(('A',))
     id = 'test'
+    strict_supports = False
 
-    def __init__(self, extra_changes, apply_disabled=False,
+    def __init__(self, extra_changes=[], apply_disabled=False,
                  include_change_callback=None):
         self.__extra_changes = extra_changes
         self.apply_disabled = apply_disabled
@@ -41,6 +45,29 @@ class HelperProvider(BaseProvider):
 
     def _apply(self, plan):
         pass
+
+
+class TrickyProcessor(BaseProcessor):
+
+    def __init__(self, name, add_during_process_target_zone):
+        super(TrickyProcessor, self).__init__(name)
+        self.add_during_process_target_zone = add_during_process_target_zone
+        self.reset()
+
+    def reset(self):
+        self.existing = None
+        self.target = None
+
+    def process_target_zone(self, existing, target):
+        self.existing = existing
+        self.target = target
+
+        new = existing.copy()
+        for record in existing.records:
+            new.add_record(record, replace=True)
+        for record in self.add_during_process_target_zone:
+            new.add_record(record, replace=True)
+        return new
 
 
 class TestBaseProvider(TestCase):
@@ -138,6 +165,45 @@ class TestBaseProvider(TestCase):
         self.assertTrue(plan)
         self.assertEquals(1, len(plan.changes))
 
+    def test_plan_with_processors(self):
+        zone = Zone('unit.tests.', [])
+
+        record = Record.new(zone, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        provider = HelperProvider()
+        # Processor that adds a record to the zone, which planning will then
+        # delete since it won't know anything about it
+        tricky = TrickyProcessor('tricky', [record])
+        plan = provider.plan(zone, processors=[tricky])
+        self.assertTrue(plan)
+        self.assertEquals(1, len(plan.changes))
+        self.assertIsInstance(plan.changes[0], Delete)
+        # Called processor stored its params
+        self.assertTrue(tricky.existing)
+        self.assertEquals(zone.name, tricky.existing.name)
+
+        # Chain of processors happen one after the other
+        other = Record.new(zone, 'b', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '5.6.7.8',
+        })
+        # Another processor will add its record, thus 2 deletes
+        another = TrickyProcessor('tricky', [other])
+        plan = provider.plan(zone, processors=[tricky, another])
+        self.assertTrue(plan)
+        self.assertEquals(2, len(plan.changes))
+        self.assertIsInstance(plan.changes[0], Delete)
+        self.assertIsInstance(plan.changes[1], Delete)
+        # 2nd processor stored its params, and we'll see the record the
+        # first one added
+        self.assertTrue(another.existing)
+        self.assertEquals(zone.name, another.existing.name)
+        self.assertEquals(1, len(another.existing.records))
+
     def test_apply(self):
         ignored = Zone('unit.tests.', [])
 
@@ -166,6 +232,20 @@ class TestBaseProvider(TestCase):
         plan = provider.plan(zone)
         # We filtered out the only change
         self.assertFalse(plan)
+
+    def test_process_desired_zone(self):
+        zone1 = Zone('unit.tests.', [])
+        record1 = Record.new(zone1, 'ptr', {
+            'type': 'PTR',
+            'ttl': 3600,
+            'values': ['foo.com.', 'bar.com.'],
+        })
+        zone1.add_record(record1)
+
+        zone2 = HelperProvider('hasptr')._process_desired_zone(zone1)
+        record2 = list(zone2.records)[0]
+
+        self.assertEqual(len(record2.values), 1)
 
     def test_safe_none(self):
         # No changes is safe
@@ -366,3 +446,27 @@ class TestBaseProvider(TestCase):
                  delete_pcent_threshold=safe_pcent).raise_if_unsafe()
 
         self.assertTrue('Too many deletes' in text_type(ctx.exception))
+
+    def test_supports_warn_or_except(self):
+        class MinimalProvider(BaseProvider):
+            SUPPORTS = set()
+            SUPPORTS_GEO = False
+
+            def __init__(self, **kwargs):
+                self.log = MagicMock()
+                super(MinimalProvider, self).__init__('minimal', **kwargs)
+
+        normal = MinimalProvider(strict_supports=False)
+        # Should log and not expect
+        normal.supports_warn_or_except('Hello World!', 'Goodbye')
+        normal.log.warning.assert_called_once()
+        normal.log.warning.assert_has_calls([
+            call('Hello World!; Goodbye')
+        ])
+
+        strict = MinimalProvider(strict_supports=True)
+        # Should log and not expect
+        with self.assertRaises(SupportsException) as ctx:
+            strict.supports_warn_or_except('Hello World!', 'Will not see')
+        self.assertEquals('minimal: Hello World!', text_type(ctx.exception))
+        strict.log.warning.assert_not_called()

@@ -10,12 +10,14 @@ from copy import deepcopy
 from logging import getLogger
 from requests import Session
 from time import sleep
+from urllib.parse import urlsplit
 
 from ..record import Record, Update
+from . import ProviderException
 from .base import BaseProvider
 
 
-class CloudflareError(Exception):
+class CloudflareError(ProviderException):
     def __init__(self, data):
         try:
             message = data['errors'][0]['message']
@@ -76,7 +78,7 @@ class CloudflareProvider(BaseProvider):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'LOC', 'MX', 'NS',
-                    'PTR', 'SRV', 'SPF', 'TXT'))
+                    'PTR', 'SRV', 'SPF', 'TXT', 'URLFWD'))
 
     MIN_TTL = 120
     TIMEOUT = 15
@@ -170,6 +172,9 @@ class CloudflareProvider(BaseProvider):
 
         return self._zones
 
+    def _ttl_data(self, ttl):
+        return 300 if ttl == 1 else ttl
+
     def _data_for_cdn(self, name, _type, records):
         self.log.info('CDN rewrite for %s', records[0]['name'])
         _type = "CNAME"
@@ -177,14 +182,14 @@ class CloudflareProvider(BaseProvider):
             _type = "ALIAS"
 
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'value': '{}.cdn.cloudflare.net.'.format(records[0]['name']),
         }
 
     def _data_for_multiple(self, _type, records):
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': [r['content'] for r in records],
         }
@@ -195,7 +200,7 @@ class CloudflareProvider(BaseProvider):
 
     def _data_for_TXT(self, _type, records):
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': [r['content'].replace(';', '\\;') for r in records],
         }
@@ -206,7 +211,7 @@ class CloudflareProvider(BaseProvider):
             data = r['data']
             values.append(data)
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': values,
         }
@@ -214,7 +219,7 @@ class CloudflareProvider(BaseProvider):
     def _data_for_CNAME(self, _type, records):
         only = records[0]
         return {
-            'ttl': only['ttl'],
+            'ttl': self._ttl_data(only['ttl']),
             'type': _type,
             'value': '{}.'.format(only['content'])
         }
@@ -241,7 +246,7 @@ class CloudflareProvider(BaseProvider):
                 'precision_vert': float(r['precision_vert']),
             })
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': values
         }
@@ -254,14 +259,14 @@ class CloudflareProvider(BaseProvider):
                 'exchange': '{}.'.format(r['content']),
             })
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': values,
         }
 
     def _data_for_NS(self, _type, records):
         return {
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
             'values': ['{}.'.format(r['content']) for r in records],
         }
@@ -279,7 +284,23 @@ class CloudflareProvider(BaseProvider):
             })
         return {
             'type': _type,
-            'ttl': records[0]['ttl'],
+            'ttl': self._ttl_data(records[0]['ttl']),
+            'values': values
+        }
+
+    def _data_for_URLFWD(self, _type, records):
+        values = []
+        for r in records:
+            values.append({
+                'path': r['path'],
+                'target': r['url'],
+                'code': r['status_code'],
+                'masking': 2,
+                'query': 0,
+            })
+        return {
+            'type': _type,
+            'ttl': 300,  # ttl does not exist for this type, forcing a setting
             'values': values
         }
 
@@ -301,6 +322,13 @@ class CloudflareProvider(BaseProvider):
                     page += 1
                 else:
                     page = None
+
+            path = '/zones/{}/pagerules'.format(zone_id)
+            resp = self._try_request('GET', path, params={'status': 'active'})
+            for r in resp['result']:
+                # assumption, base on API guide, will only contain 1 action
+                if r['actions'][0]['id'] == 'forwarding_url':
+                    records += [r]
 
             self._zone_records[zone.name] = records
 
@@ -338,10 +366,29 @@ class CloudflareProvider(BaseProvider):
             exists = True
             values = defaultdict(lambda: defaultdict(list))
             for record in records:
-                name = zone.hostname_from_fqdn(record['name'])
-                _type = record['type']
-                if _type in self.SUPPORTS:
-                    values[name][record['type']].append(record)
+                if 'targets' in record:
+                    # assumption, targets will always contain 1 target
+                    # API documentation only indicates 'url' as the only target
+                    # if record['targets'][0]['target'] == 'url':
+                    uri = record['targets'][0]['constraint']['value']
+                    uri = '//' + uri if not uri.startswith('http') else uri
+                    parsed_uri = urlsplit(uri)
+                    name = zone.hostname_from_fqdn(parsed_uri.netloc)
+                    path = parsed_uri.path
+                    _type = 'URLFWD'
+                    # assumption, actions will always contain 1 action
+                    _values = record['actions'][0]['value']
+                    _values['path'] = path
+                    # no ttl set by pagerule, creating one
+                    _values['ttl'] = 300
+                    values[name][_type].append(_values)
+                # the dns_records branch
+                # elif 'name' in record:
+                else:
+                    name = zone.hostname_from_fqdn(record['name'])
+                    _type = record['type']
+                    if _type in self.SUPPORTS:
+                        values[name][record['type']].append(record)
 
             for name, types in values.items():
                 for _type, records in types.items():
@@ -369,6 +416,11 @@ class CloudflareProvider(BaseProvider):
             # Cloudflare manages TTL of proxied records, so we should exclude
             # TTL from the comparison (to prevent false-positives).
             if self._record_is_proxied(change.existing):
+                existing = deepcopy(change.existing.data)
+                existing.update({
+                    'ttl': new['ttl']
+                })
+            elif change.new._type == 'URLFWD':
                 existing = deepcopy(change.existing.data)
                 existing.update({
                     'ttl': new['ttl']
@@ -470,6 +522,31 @@ class CloudflareProvider(BaseProvider):
                 }
             }
 
+    def _contents_for_URLFWD(self, record):
+        name = record.fqdn[:-1]
+        for value in record.values:
+            yield {
+                'targets': [
+                    {
+                        'target': 'url',
+                        'constraint': {
+                            'operator': 'matches',
+                            'value': name + value.path
+                        }
+                    }
+                ],
+                'actions': [
+                    {
+                        'id': 'forwarding_url',
+                        'value': {
+                            'url': value.target,
+                            'status_code': value.code,
+                        }
+                    }
+                ],
+                'status': 'active',
+            }
+
     def _record_is_proxied(self, record):
         return (
             not self.cdn and
@@ -485,20 +562,25 @@ class CloudflareProvider(BaseProvider):
         if _type == 'ALIAS':
             _type = 'CNAME'
 
-        contents_for = getattr(self, '_contents_for_{}'.format(_type))
-        for content in contents_for(record):
-            content.update({
-                'name': name,
-                'type': _type,
-                'ttl': ttl,
-            })
-
-            if _type in _PROXIABLE_RECORD_TYPES:
+        if _type == 'URLFWD':
+            contents_for = getattr(self, '_contents_for_{}'.format(_type))
+            for content in contents_for(record):
+                yield content
+        else:
+            contents_for = getattr(self, '_contents_for_{}'.format(_type))
+            for content in contents_for(record):
                 content.update({
-                    'proxied': self._record_is_proxied(record)
+                    'name': name,
+                    'type': _type,
+                    'ttl': ttl,
                 })
 
-            yield content
+                if _type in _PROXIABLE_RECORD_TYPES:
+                    content.update({
+                        'proxied': self._record_is_proxied(record)
+                    })
+
+                yield content
 
     def _gen_key(self, data):
         # Note that most CF record data has a `content` field the value of
@@ -512,7 +594,8 @@ class CloudflareProvider(BaseProvider):
         # BUT... there are exceptions. MX, CAA, LOC and SRV don't have a simple
         # content as things are currently implemented so we need to handle
         # those explicitly and create unique/hashable strings for them.
-        _type = data['type']
+        # AND... for URLFWD/Redirects additional adventures are created.
+        _type = data.get('type', 'URLFWD')
         if _type == 'MX':
             return '{priority} {content}'.format(**data)
         elif _type == 'CAA':
@@ -537,12 +620,23 @@ class CloudflareProvider(BaseProvider):
                 '{precision_horz}',
                 '{precision_vert}')
             return ' '.join(loc).format(**data)
+        elif _type == 'URLFWD':
+            uri = data['targets'][0]['constraint']['value']
+            uri = '//' + uri if not uri.startswith('http') else uri
+            parsed_uri = urlsplit(uri)
+            return '{name} {path} {url} {status_code}' \
+                .format(name=parsed_uri.netloc,
+                        path=parsed_uri.path,
+                        **data['actions'][0]['value'])
         return data['content']
 
     def _apply_Create(self, change):
         new = change.new
         zone_id = self.zones[new.zone.name]
-        path = '/zones/{}/dns_records'.format(zone_id)
+        if new._type == 'URLFWD':
+            path = '/zones/{}/pagerules'.format(zone_id)
+        else:
+            path = '/zones/{}/dns_records'.format(zone_id)
         for content in self._gen_data(new):
             self._try_request('POST', path, data=content)
 
@@ -555,14 +649,27 @@ class CloudflareProvider(BaseProvider):
         existing = {}
         # Find all of the existing CF records for this name & type
         for record in self.zone_records(zone):
-            name = zone.hostname_from_fqdn(record['name'])
+            if 'targets' in record:
+                uri = record['targets'][0]['constraint']['value']
+                uri = '//' + uri if not uri.startswith('http') else uri
+                parsed_uri = urlsplit(uri)
+                name = zone.hostname_from_fqdn(parsed_uri.netloc)
+                path = parsed_uri.path
+                # assumption, actions will always contain 1 action
+                _values = record['actions'][0]['value']
+                _values['path'] = path
+                _values['ttl'] = 300
+                _values['type'] = 'URLFWD'
+                record.update(_values)
+            else:
+                name = zone.hostname_from_fqdn(record['name'])
             # Use the _record_for so that we include all of standard
             # conversion logic
             r = self._record_for(zone, name, record['type'], [record], True)
             if hostname == r.name and _type == r._type:
-                # Round trip the single value through a record to contents flow
-                # to get a consistent _gen_data result that matches what
-                # went in to new_contents
+                # Round trip the single value through a record to contents
+                # flow to get a consistent _gen_data result that matches
+                # what went in to new_contents
                 data = next(self._gen_data(r))
 
                 # Record the record_id and data for this existing record
@@ -630,7 +737,10 @@ class CloudflareProvider(BaseProvider):
         # otherwise required, just makes things deterministic
 
         # Creates
-        path = '/zones/{}/dns_records'.format(zone_id)
+        if _type == 'URLFWD':
+            path = '/zones/{}/pagerules'.format(zone_id)
+        else:
+            path = '/zones/{}/dns_records'.format(zone_id)
         for _, data in sorted(creates.items()):
             self.log.debug('_apply_Update: creating %s', data)
             self._try_request('POST', path, data=data)
@@ -640,7 +750,10 @@ class CloudflareProvider(BaseProvider):
             record_id = info['record_id']
             data = info['data']
             old_data = info['old_data']
-            path = '/zones/{}/dns_records/{}'.format(zone_id, record_id)
+            if _type == 'URLFWD':
+                path = '/zones/{}/pagerules/{}'.format(zone_id, record_id)
+            else:
+                path = '/zones/{}/dns_records/{}'.format(zone_id, record_id)
             self.log.debug('_apply_Update: updating %s, %s -> %s',
                            record_id, data, old_data)
             self._try_request('PUT', path, data=data)
@@ -649,7 +762,10 @@ class CloudflareProvider(BaseProvider):
         for _, info in sorted(deletes.items()):
             record_id = info['record_id']
             old_data = info['data']
-            path = '/zones/{}/dns_records/{}'.format(zone_id, record_id)
+            if _type == 'URLFWD':
+                path = '/zones/{}/pagerules/{}'.format(zone_id, record_id)
+            else:
+                path = '/zones/{}/dns_records/{}'.format(zone_id, record_id)
             self.log.debug('_apply_Update: removing %s, %s', record_id,
                            old_data)
             self._try_request('DELETE', path)
@@ -661,11 +777,24 @@ class CloudflareProvider(BaseProvider):
         existing_type = 'CNAME' if existing._type == 'ALIAS' \
             else existing._type
         for record in self.zone_records(existing.zone):
-            if existing_name == record['name'] and \
-               existing_type == record['type']:
-                path = '/zones/{}/dns_records/{}'.format(record['zone_id'],
-                                                         record['id'])
-                self._try_request('DELETE', path)
+            if 'targets' in record:
+                uri = record['targets'][0]['constraint']['value']
+                uri = '//' + uri if not uri.startswith('http') else uri
+                parsed_uri = urlsplit(uri)
+                record_name = parsed_uri.netloc
+                record_type = 'URLFWD'
+                zone_id = self.zones.get(existing.zone.name, False)
+                if existing_name == record_name and \
+                   existing_type == record_type:
+                    path = '/zones/{}/pagerules/{}' \
+                        .format(zone_id, record['id'])
+                    self._try_request('DELETE', path)
+            else:
+                if existing_name == record['name'] and \
+                   existing_type == record['type']:
+                    path = '/zones/{}/dns_records/{}' \
+                        .format(record['zone_id'], record['id'])
+                    self._try_request('DELETE', path)
 
     def _apply(self, plan):
         desired = plan.desired

@@ -355,3 +355,59 @@ class TestZone(TestCase):
 
         self.assertTrue(zone_missing.changes(zone_normal, provider))
         self.assertFalse(zone_missing.changes(zone_included, provider))
+
+    def assertEqualsNameAndValues(self, a, b):
+        a = dict([(r.name, r.values[0]) for r in a])
+        b = dict([(r.name, r.values[0]) for r in b])
+        self.assertEquals(a, b)
+
+    def test_copy(self):
+        zone = Zone('unit.tests.', [])
+
+        a = ARecord(zone, 'a', {'ttl': 42, 'value': '1.1.1.1'})
+        zone.add_record(a)
+        b = ARecord(zone, 'b', {'ttl': 42, 'value': '1.1.1.2'})
+        zone.add_record(b)
+
+        # Sanity check
+        self.assertEqualsNameAndValues(set((a, b)), zone.records)
+
+        copy = zone.copy()
+        # We have an origin set and it is the source/original zone
+        self.assertEquals(zone, copy._origin)
+        # Our records are zone's records to start (references)
+        self.assertEqualsNameAndValues(zone.records, copy.records)
+
+        # If we try and change something that's already there we realize and
+        # then get an error about a duplicate
+        b_prime = ARecord(zone, 'b', {'ttl': 42, 'value': '1.1.1.3'})
+        with self.assertRaises(DuplicateRecordException):
+            copy.add_record(b_prime)
+        self.assertIsNone(copy._origin)
+        # Unchanged, straight copies
+        self.assertEqualsNameAndValues(zone.records, copy.records)
+
+        # If we add with replace things will be realized and the record will
+        # have changed
+        copy = zone.copy()
+        copy.add_record(b_prime, replace=True)
+        self.assertIsNone(copy._origin)
+        self.assertEqualsNameAndValues(set((a, b_prime)), copy.records)
+
+        # If we add another record, things are reliazed and it has been added
+        copy = zone.copy()
+        c = ARecord(zone, 'c', {'ttl': 42, 'value': '1.1.1.3'})
+        copy.add_record(c)
+        self.assertEqualsNameAndValues(set((a, b, c)), copy.records)
+
+        # If we remove a record, things are reliazed and it has been removed
+        copy = zone.copy()
+        copy.remove_record(a)
+        self.assertEqualsNameAndValues(set((b,)), copy.records)
+
+        # Re-realizing is a noop
+        copy = zone.copy()
+        # Happens the first time
+        self.assertTrue(copy.hydrate())
+        # Doesn't the second
+        self.assertFalse(copy.hydrate())

@@ -1,0 +1,34 @@
+[
+    {
+        "id": 6303, 
+        "name": "some.other", 
+        "filterRulesLimit": 100, 
+        "createdTs": "2021-08-19T14:47:47Z", 
+        "modifiedTs": "2021-08-19T14:47:47Z", 
+        "geoipContinents": ["AS", "OC"], 
+        "geoipCountries": ["ES", "SE", "UA"],
+        "regions": [
+            {
+                "continentCode": "NA", 
+                "countryCode": "CA", 
+                "regionCode": "NL"
+            }
+        ]
+    },
+    {
+        "id": 5303, 
+        "name": "unit.tests.:www.dynamic:A:one", 
+        "filterRulesLimit": 100, 
+        "createdTs": "2021-08-19T14:47:47Z", 
+        "modifiedTs": "2021-08-19T14:47:47Z", 
+        "geoipContinents": ["AS", "OC"], 
+        "geoipCountries": ["ES", "SE", "UA"],
+        "regions": [
+            {
+                "continentCode": "NA", 
+                "countryCode": "CA", 
+                "regionCode": "NL"
+            }
+        ]
+    }
+]
