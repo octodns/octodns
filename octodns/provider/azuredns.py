@@ -807,9 +807,16 @@ class AzureProvider(BaseProvider):
                 defaults.add(val)
                 ep_name = ep_name[:-len('--default--')]
 
+            up = None
+            if pool_ep.endpoint_status == 'Disabled':
+                up = False
+            elif ep_name.endswith('--UP'):
+                up = True
+
             values.append({
                 'value': val,
                 'weight': pool_ep.weight or 1,
+                'up': up,
             })
 
         return values
@@ -897,6 +904,22 @@ class AzureProvider(BaseProvider):
             data['values'] = defaults
 
         return data
+
+    def _process_desired_zone(self, desired):
+        # check for support of force up/down values
+        for record in desired.records:
+            if not getattr(record, 'dynamic', False):
+                continue
+            for name, pool in record.dynamic.pools.items():
+                for value in pool.data['values']:
+                    if value['up']:
+                        # Azure only supports up=None & up=False, not up=True
+                        msg = 'up=True is not supported for "{}" pool in {}' \
+                            .format(name, record.fqdn)
+                        fallback = 'ignoring it'
+                        self.supports_warn_or_except(msg, fallback)
+
+        return super()._process_desired_zone(desired)
 
     def _extra_changes(self, existing, desired, changes):
         changed = set(c.record for c in changes)
@@ -1033,16 +1056,21 @@ class AzureProvider(BaseProvider):
             if record._type == 'CNAME':
                 target = target[:-1]
             ep_name = f'{pool_name}--{target}'
+            if val['up']:
+                ep_name += '--UP'
             # Endpoint names cannot have colons, drop them from IPv6 addresses
             ep_name = ep_name.replace(':', '-')
             if target in defaults:
                 # mark default
                 ep_name += '--default--'
                 default_seen = True
+            ep_status = 'Disabled' if val['up'] == False else \
+                'Enabled'
             endpoints.append(Endpoint(
                 name=ep_name,
                 target=target,
                 weight=val.get('weight', 1),
+                endpoint_status=ep_status,
             ))
 
         pool_profile = self._generate_tm_profile(

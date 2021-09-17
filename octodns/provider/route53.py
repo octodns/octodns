@@ -941,6 +941,16 @@ class Route53Provider(BaseProvider):
                         rule.data['geos'] = filtered_geos
                     rules.append(rule)
 
+                # check for use of 'up' flag and warn/except if used
+                for name, pool in dynamic.pools.items():
+                    for value in pool.data['values']:
+                        if value['up'] is not None:
+                            msg = '"up" flag is not supported for "{}" pool' \
+                                ' in {}'.format(name, record.fqdn)
+                            fallback = 'ignoring it, octodns-sync command ' \
+                                'will keep showing changes'
+                            self.supports_warn_or_except(msg, fallback)
+
                 if rules != dynamic.rules:
                     record = record.copy()
                     record.dynamic.rules = rules

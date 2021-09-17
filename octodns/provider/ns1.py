@@ -591,6 +591,9 @@ class Ns1Provider(BaseProvider):
                 'value': value,
                 'weight': int(meta.get('weight', 1)),
             }
+            if isinstance(meta['up'], bool):
+                value_dict['up'] = meta['up']
+
             if value_dict not in pool['values']:
                 # If we haven't seen this value before add it to the pool
                 pool['values'].append(value_dict)
@@ -1141,6 +1144,10 @@ class Ns1Provider(BaseProvider):
             pool = pools[current_pool_name]
             for answer in pool_answers[current_pool_name]:
                 fallback = pool.data['fallback']
+                if answer['feed_id']:
+                    up = {'feed': answer['feed_id']}
+                else:
+                    up = answer['up']
                 answer = {
                     'answer': answer['answer'],
                     'meta': {
@@ -1150,9 +1157,7 @@ class Ns1Provider(BaseProvider):
                             'pool': current_pool_name,
                             'fallback': fallback or '',
                         }),
-                        'up': {
-                            'feed': answer['feed_id'],
-                        },
+                        'up': up,
                         'weight': answer['weight'],
                     },
                     'region': pool_label,  # the one we're answering
@@ -1273,20 +1278,25 @@ class Ns1Provider(BaseProvider):
         for pool_name, pool in sorted(pools.items()):
             for value in pool.data['values']:
                 weight = value['weight']
+                up = value['up']
                 value = value['value']
-                feed_id = value_feed.get(value)
-                # check for identical monitor and skip creating one if found
-                if not feed_id:
-                    existing = existing_monitors.get(value)
-                    monitor_id, feed_id = self._monitor_sync(record, value,
-                                                             existing)
-                    value_feed[value] = feed_id
-                    active_monitors.add(monitor_id)
+                feed_id = None
+                if up is None:
+                    # state is not forced, let's find a monitor
+                    feed_id = value_feed.get(value)
+                    # check for identical monitor and skip creating one if found
+                    if not feed_id:
+                        existing = existing_monitors.get(value)
+                        monitor_id, feed_id = self._monitor_sync(record, value,
+                                                                existing)
+                        value_feed[value] = feed_id
+                        active_monitors.add(monitor_id)
 
                 pool_answers[pool_name].append({
                     'answer': [value],
                     'weight': weight,
                     'feed_id': feed_id,
+                    'up': up,
                 })
 
         if record._type == 'CNAME':
