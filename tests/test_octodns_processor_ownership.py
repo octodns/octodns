@@ -129,7 +129,7 @@ class TestOwnershipProcessor(TestCase):
         # two delete changes.
         the_a = records['the-a']
         plan.existing.add_record(the_a)
-        name = '{}.a.the-a'.format(ownership.txt_name)
+        name = f'{ownership.txt_name}.a.the-a'
         the_a_ownership = Record.new(zone, name, {
             'ttl': 30,
             'type': 'TXT',

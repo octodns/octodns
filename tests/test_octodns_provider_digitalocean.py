@@ -77,9 +77,9 @@ class TestDigitalOceanProvider(TestCase):
             base = 'https://api.digitalocean.com/v2/domains/unit.tests/' \
                 'records?page='
             with open('tests/fixtures/digitalocean-page-1.json') as fh:
-                mock.get('{}{}'.format(base, 1), text=fh.read())
+                mock.get(f'{base}1', text=fh.read())
             with open('tests/fixtures/digitalocean-page-2.json') as fh:
-                mock.get('{}{}'.format(base, 2), text=fh.read())
+                mock.get(f'{base}2', text=fh.read())
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)

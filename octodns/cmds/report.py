@@ -53,13 +53,14 @@ def main():
     try:
         sources = [manager.providers[source] for source in args.source]
     except KeyError as e:
-        raise Exception('Unknown source: {}'.format(e.args[0]))
+        raise Exception(f'Unknown source: {e.args[0]}')
 
     zone = manager.get_zone(args.zone)
     for source in sources:
         source.populate(zone)
 
-    print('name,type,ttl,{},consistent'.format(','.join(args.server)))
+    servers = ','.join(args.server)
+    print(f'name,type,ttl,{servers},consistent')
     resolvers = []
     ip_addr_re = re.compile(r'^[\d\.]+$')
     for server in args.server:

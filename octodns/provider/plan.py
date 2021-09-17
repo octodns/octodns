@@ -12,7 +12,12 @@ from six import StringIO, text_type
 
 
 class UnsafePlan(Exception):
-    pass
+
+    def __init__(self, why, update_pcent, update_threshold, change_count,
+                 existing_count):
+        msg = f'{why}, {update_pcent:.2f} is over {update_threshold:.2f} %' \
+            f'({change_count}/{existing_count})'
+        super(UnsafePlan, self).__init__(msg)
 
 
 class Plan(object):
@@ -66,25 +71,23 @@ class Plan(object):
             delete_pcent = self.change_counts['Delete'] / existing_record_count
 
             if update_pcent > self.update_pcent_threshold:
-                raise UnsafePlan('Too many updates, {:.2f} is over {:.2f} %'
-                                 '({}/{})'.format(
-                                     update_pcent * 100,
-                                     self.update_pcent_threshold * 100,
-                                     self.change_counts['Update'],
-                                     existing_record_count))
+                raise UnsafePlan('Too many updates', update_pcent * 100,
+                                 self.update_pcent_threshold * 100,
+                                 self.change_counts['Update'],
+                                 existing_record_count)
             if delete_pcent > self.delete_pcent_threshold:
-                raise UnsafePlan('Too many deletes, {:.2f} is over {:.2f} %'
-                                 '({}/{})'.format(
-                                     delete_pcent * 100,
-                                     self.delete_pcent_threshold * 100,
-                                     self.change_counts['Delete'],
-                                     existing_record_count))
+                raise UnsafePlan('Too many deletes', delete_pcent * 100,
+                                 self.delete_pcent_threshold * 100,
+                                 self.change_counts['Delete'],
+                                 existing_record_count)
 
     def __repr__(self):
-        return 'Creates={}, Updates={}, Deletes={}, Existing Records={}' \
-            .format(self.change_counts['Create'], self.change_counts['Update'],
-                    self.change_counts['Delete'],
-                    len(self.existing.records))
+        creates = self.change_counts['Create']
+        updates = self.change_counts['Update']
+        deletes = self.change_counts['Delete']
+        existing = len(self.existing.records)
+        return f'Creates={creates}, Updates={updates}, Deletes={deletes}, ' \
+            f'Existing Records={existing}'
 
 
 class _PlanOutput(object):
@@ -106,7 +109,7 @@ class PlanLogger(_PlanOutput):
                 'error': ERROR
             }[level.lower()]
         except (AttributeError, KeyError):
-            raise Exception('Unsupported level: {}'.format(level))
+            raise Exception(f'Unsupported level: {level}')
 
     def run(self, log, plans, *args, **kwargs):
         hr = '*************************************************************' \
@@ -157,7 +160,7 @@ def _value_stringifier(record, sep):
         values = [record.value]
     for code, gv in sorted(getattr(record, 'geo', {}).items()):
         vs = ', '.join([text_type(v) for v in gv.values])
-        values.append('{}: {}'.format(code, vs))
+        values.append(f'{code}: {vs}')
     return sep.join(values)
 
 

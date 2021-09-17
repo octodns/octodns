@@ -291,8 +291,8 @@ class TestRoute53Provider(TestCase):
         record = Record.new(expected, name, data)
         expected.add_record(record)
 
-    caller_ref = '{}:A:unit.tests.:1324' \
-        .format(Route53Provider.HEALTH_CHECK_VERSION)
+    caller_ref = f'{Route53Provider.HEALTH_CHECK_VERSION}:A:unit.tests.:1324'
+
     health_checks = [{
         'Id': '42',
         'CallerReference': caller_ref,
@@ -1243,8 +1243,7 @@ class TestRoute53Provider(TestCase):
         provider, stubber = self._get_stubbed_provider()
 
         # No match based on type
-        caller_ref = \
-            '{}:AAAA:foo1234'.format(Route53Provider.HEALTH_CHECK_VERSION)
+        caller_ref = f'{Route53Provider.HEALTH_CHECK_VERSION}:AAAA:foo1234'
         health_checks = [{
             'Id': '42',
             # No match based on version

@@ -508,7 +508,7 @@ class TestBaseProvider(TestCase):
         normal.supports_warn_or_except('Hello World!', 'Goodbye')
         normal.log.warning.assert_called_once()
         normal.log.warning.assert_has_calls([
-            call('Hello World!; Goodbye')
+            call('%s; %s', 'Hello World!', 'Goodbye')
         ])
 
         strict = MinimalProvider(strict_supports=True)

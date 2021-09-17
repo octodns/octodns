@@ -53,15 +53,13 @@ class BaseProvider(BaseSource):
 
         for record in desired.records:
             if record._type not in self.SUPPORTS:
-                msg = '{} records not supported for {}'.format(record._type,
-                                                               record.fqdn)
+                msg = f'{record._type} records not supported for {record.fqdn}'
                 fallback = 'omitting record'
                 self.supports_warn_or_except(msg, fallback)
                 desired.remove_record(record)
             elif getattr(record, 'dynamic', False) and \
                     not self.SUPPORTS_DYNAMIC:
-                msg = 'dynamic records not supported for {}'\
-                    .format(record.fqdn)
+                msg = f'dynamic records not supported for {record.fqdn}'
                 fallback = 'falling back to simple record'
                 self.supports_warn_or_except(msg, fallback)
                 record = record.copy()
@@ -70,10 +68,9 @@ class BaseProvider(BaseSource):
             elif record._type == 'PTR' and len(record.values) > 1 and \
                     not self.SUPPORTS_MUTLIVALUE_PTR:
                 # replace with a single-value copy
-                msg = 'multi-value PTR records not supported for {}' \
-                    .format(record.fqdn)
-                fallback = 'falling back to single value, {}' \
-                    .format(record.value)
+                msg = \
+                    f'multi-value PTR records not supported for {record.fqdn}'
+                fallback = f'falling back to single value, {record.value}'
                 self.supports_warn_or_except(msg, fallback)
                 record = record.copy()
                 record.values = [record.value]
@@ -98,8 +95,8 @@ class BaseProvider(BaseSource):
 
     def supports_warn_or_except(self, msg, fallback):
         if self.strict_supports:
-            raise SupportsException('{}: {}'.format(self.id, msg))
-        self.log.warning('{}; {}'.format(msg, fallback))
+            raise SupportsException(f'{self.id}: {msg}')
+        self.log.warning('%s; %s', msg, fallback)
 
     def plan(self, desired, processors=[]):
         self.log.info('plan: desired=%s', desired.name)

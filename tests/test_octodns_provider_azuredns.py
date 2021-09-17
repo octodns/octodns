@@ -616,7 +616,7 @@ class TestAzureDnsProvider(TestCase):
             '/resourceGroups/' + rg + \
             '/providers/Microsoft.Network/trafficManagerProfiles/'
         prefix = 'foo--unit--tests'
-        name_format = prefix + '-{}'
+        name_format = prefix + '-'
         id_format = base_id + name_format
 
         header = MonitorConfigCustomHeadersItem(name='Host',
@@ -628,8 +628,8 @@ class TestAzureDnsProvider(TestCase):
 
         profiles = [
             Profile(
-                id=id_format.format('pool-two'),
-                name=name_format.format('pool-two'),
+                id=f'{id_format}pool-two',
+                name=f'{name_format}pool-two',
                 traffic_routing_method='Weighted',
                 dns_config=DnsConfig(ttl=60),
                 monitor_config=monitor,
@@ -649,8 +649,8 @@ class TestAzureDnsProvider(TestCase):
                 ],
             ),
             Profile(
-                id=id_format.format('rule-one'),
-                name=name_format.format('rule-one'),
+                id=f'{id_format}rule-one',
+                name=f'{name_format}rule-one',
                 traffic_routing_method='Priority',
                 dns_config=DnsConfig(ttl=60),
                 monitor_config=monitor,
@@ -664,7 +664,7 @@ class TestAzureDnsProvider(TestCase):
                     Endpoint(
                         name='two',
                         type=nested,
-                        target_resource_id=id_format.format('pool-two'),
+                        target_resource_id=f'{id_format}pool-two',
                         priority=2,
                     ),
                     Endpoint(
@@ -682,8 +682,8 @@ class TestAzureDnsProvider(TestCase):
                 ],
             ),
             Profile(
-                id=id_format.format('rule-two'),
-                name=name_format.format('rule-two'),
+                id=f'{id_format}rule-two',
+                name=f'{name_format}rule-two',
                 traffic_routing_method='Priority',
                 dns_config=DnsConfig(ttl=60),
                 monitor_config=monitor,
@@ -691,7 +691,7 @@ class TestAzureDnsProvider(TestCase):
                     Endpoint(
                         name='two',
                         type=nested,
-                        target_resource_id=id_format.format('pool-two'),
+                        target_resource_id=f'{id_format}pool-two',
                         priority=1,
                     ),
                     Endpoint(
@@ -719,13 +719,13 @@ class TestAzureDnsProvider(TestCase):
                         geo_mapping=['GEO-AF', 'DE', 'US-CA', 'GEO-AP'],
                         name='one',
                         type=nested,
-                        target_resource_id=id_format.format('rule-one'),
+                        target_resource_id=f'{id_format}rule-one',
                     ),
                     Endpoint(
                         geo_mapping=['WORLD'],
                         name='two',
                         type=nested,
-                        target_resource_id=id_format.format('rule-two'),
+                        target_resource_id=f'{id_format}rule-two',
                     ),
                 ],
             ),
@@ -923,8 +923,8 @@ class TestAzureDnsProvider(TestCase):
         tm_id = provider._profile_name_to_id
         root_profile_name = _root_traffic_manager_name(record)
         extra_profile = Profile(
-            id=tm_id('{}-pool-random'.format(root_profile_name)),
-            name='{}-pool-random'.format(root_profile_name),
+            id=tm_id(f'{root_profile_name}-pool-random'),
+            name=f'{root_profile_name}-pool-random',
             traffic_routing_method='Weighted',
             dns_config=sample_profile.dns_config,
             monitor_config=sample_profile.monitor_config,
@@ -1150,7 +1150,7 @@ class TestAzureDnsProvider(TestCase):
             target_resource=SubResource(id=profiles[-1].id),
         )
         azrecord.name = record.name or '@'
-        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
@@ -1191,7 +1191,7 @@ class TestAzureDnsProvider(TestCase):
             target_resource=SubResource(id=tm_id(tm_suffix)),
         )
         azrecord.name = record.name or '@'
-        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
         with self.assertRaises(AzureException) as ctx:
             provider._populate_record(zone, azrecord)
             self.assertTrue(text_type(ctx).startswith(
@@ -1261,7 +1261,7 @@ class TestAzureDnsProvider(TestCase):
             target_resource=SubResource(id=profiles[-1].id),
         )
         azrecord.name = record.name or '@'
-        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
@@ -1320,7 +1320,7 @@ class TestAzureDnsProvider(TestCase):
             target_resource=SubResource(id=profiles[-1].id),
         )
         azrecord.name = record.name or '@'
-        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
@@ -1416,7 +1416,7 @@ class TestAzureDnsProvider(TestCase):
             target_resource=SubResource(id=profiles[-1].id),
         )
         azrecord.name = record.name or '@'
-        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
@@ -1496,7 +1496,7 @@ class TestAzureDnsProvider(TestCase):
             target_resource=SubResource(id=profiles[-1].id),
         )
         azrecord.name = record.name or '@'
-        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
@@ -1604,7 +1604,7 @@ class TestAzureDnsProvider(TestCase):
             target_resource=SubResource(id=profiles[-1].id),
         )
         azrecord.name = record.name or '@'
-        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
@@ -1711,7 +1711,7 @@ class TestAzureDnsProvider(TestCase):
             target_resource=SubResource(id=profiles[-1].id),
         )
         azrecord.name = record.name or '@'
-        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
@@ -1857,7 +1857,7 @@ class TestAzureDnsProvider(TestCase):
         azrecord = RecordSet(
             ttl=60, target_resource=SubResource(id=None))
         azrecord.name = record.name or '@'
-        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.values, ['255.255.255.255'])
 
@@ -1870,7 +1870,7 @@ class TestAzureDnsProvider(TestCase):
             target_resource=SubResource(id=profiles[-1].id),
         )
         azrecord.name = record.name or '@'
-        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
@@ -1939,7 +1939,7 @@ class TestAzureDnsProvider(TestCase):
         azrecord = RecordSet(
             ttl=60, target_resource=SubResource(id=None))
         azrecord.name = record.name or '@'
-        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.values, ['::1'])
 
@@ -1951,7 +1951,7 @@ class TestAzureDnsProvider(TestCase):
             target_resource=SubResource(id=profiles[-1].id),
         )
         azrecord.name = record.name or '@'
-        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record._type)
+        azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.dynamic._data(), record.dynamic._data())
 
@@ -1969,8 +1969,8 @@ class TestAzureDnsProvider(TestCase):
 
         prefix = 'foo--unit--tests'
         expected_seen = {
-            prefix, '{}-pool-two'.format(prefix),
-            '{}-rule-one'.format(prefix), '{}-rule-two'.format(prefix),
+            prefix, f'{prefix}-pool-two', f'{prefix}-rule-one',
+            f'{prefix}-rule-two',
         }
 
         # test no change
@@ -1997,9 +1997,7 @@ class TestAzureDnsProvider(TestCase):
         tm_sync.assert_called_once()
 
         # test that new profile was successfully inserted in cache
-        new_profile = provider._get_tm_profile_by_name(
-            '{}-pool-two'.format(prefix)
-        )
+        new_profile = provider._get_tm_profile_by_name(f'{prefix}-pool-two')
         self.assertEqual(new_profile.endpoints[0].weight, 14)
 
     def test_sync_traffic_managers_duplicate(self):
@@ -2028,8 +2026,8 @@ class TestAzureDnsProvider(TestCase):
         prefix2 = _root_traffic_manager_name(record2)
         tm_id = provider._profile_name_to_id
         extra_profile = Profile(
-            id=tm_id('{}-pool-random'.format(prefix2)),
-            name='{}-pool-random'.format(prefix2),
+            id=tm_id(f'{prefix2}-pool-random'),
+            name=f'{prefix2}-pool-random',
             traffic_routing_method='Weighted',
             dns_config=sample_profile.dns_config,
             monitor_config=sample_profile.monitor_config,
@@ -2042,8 +2040,8 @@ class TestAzureDnsProvider(TestCase):
         # implicitly asserts that non-matching profile is not included
         prefix = _root_traffic_manager_name(record)
         self.assertEqual(provider._find_traffic_managers(record), {
-            prefix, '{}-pool-two'.format(prefix),
-            '{}-rule-one'.format(prefix), '{}-rule-two'.format(prefix),
+            prefix, f'{prefix}-pool-two', f'{prefix}-rule-one',
+            f'{prefix}-rule-two',
         })
 
     def test_traffic_manager_gc(self):
@@ -2158,8 +2156,8 @@ class TestAzureDnsProvider(TestCase):
         tm_id = provider._profile_name_to_id
         root_profile_name = _root_traffic_manager_name(dynamic_record)
         extra_profile = Profile(
-            id=tm_id('{}-pool-random'.format(root_profile_name)),
-            name='{}-pool-random'.format(root_profile_name),
+            id=tm_id(f'{root_profile_name}-pool-random'),
+            name=f'{root_profile_name}-pool-random',
             traffic_routing_method='Weighted',
             dns_config=sample_profile.dns_config,
             monitor_config=sample_profile.monitor_config,
@@ -2183,7 +2181,7 @@ class TestAzureDnsProvider(TestCase):
         azrecord = RecordSet(
             ttl=record1.ttl, target_resource=SubResource(id=None))
         azrecord.name = record1.name or '@'
-        azrecord.type = 'Microsoft.Network/dnszones/{}'.format(record1._type)
+        azrecord.type = f'Microsoft.Network/dnszones/{record1._type}'
 
         record2 = provider._populate_record(zone, azrecord)
         self.assertEqual(record2.value, 'iam.invalid.')

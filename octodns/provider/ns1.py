@@ -22,7 +22,7 @@ from .base import BaseProvider
 
 
 def _ensure_endswith_dot(string):
-    return string if string.endswith('.') else '{}.'.format(string)
+    return string if string.endswith('.') else f'{string}.'
 
 
 class Ns1Exception(ProviderException):
@@ -445,7 +445,7 @@ class Ns1Provider(BaseProvider):
     def __init__(self, id, api_key, retry_count=4, monitor_regions=None,
                  parallelism=None, client_config=None, shared_notifylist=False,
                  *args, **kwargs):
-        self.log = getLogger('Ns1Provider[{}]'.format(id))
+        self.log = getLogger(f'Ns1Provider[{id}]')
         self.log.debug('__init__: id=%s, api_key=***, retry_count=%d, '
                        'monitor_regions=%s, parallelism=%s, client_config=%s',
                        id, retry_count, monitor_regions, parallelism,
@@ -480,8 +480,7 @@ class Ns1Provider(BaseProvider):
         return filter_chain
 
     def _encode_notes(self, data):
-        return ' '.join(['{}:{}'.format(k, v)
-                         for k, v in sorted(data.items())])
+        return ' '.join([f'{k}:{v}' for k, v in sorted(data.items())])
 
     def _parse_notes(self, note):
         data = {}
@@ -515,13 +514,13 @@ class Ns1Provider(BaseProvider):
                 ca_province = meta.get('ca_province', [])
                 for cntry in country:
                     con = country_alpha2_to_continent_code(cntry)
-                    key = '{}-{}'.format(con, cntry)
+                    key = f'{con}-{cntry}'
                     geo[key].extend(answer['answer'])
                 for state in us_state:
-                    key = 'NA-US-{}'.format(state)
+                    key = f'NA-US-{state}'
                     geo[key].extend(answer['answer'])
                 for province in ca_province:
-                    key = 'NA-CA-{}'.format(province)
+                    key = f'NA-CA-{province}'
                     geo[key].extend(answer['answer'])
                 for code in meta.get('iso_region_code', []):
                     key = code
@@ -660,7 +659,7 @@ class Ns1Provider(BaseProvider):
                 if con in self._CONTINENT_TO_LIST_OF_COUNTRIES:
                     special_continents.setdefault(con, set()).add(country)
                 else:
-                    geos.add('{}-{}'.format(con, country))
+                    geos.add(f'{con}-{country}')
 
             for continent, countries in special_continents.items():
                 if countries == self._CONTINENT_TO_LIST_OF_COUNTRIES[
@@ -670,15 +669,15 @@ class Ns1Provider(BaseProvider):
                 else:
                     # Partial countries found, so just add them as-is to geos
                     for c in countries:
-                        geos.add('{}-{}'.format(continent, c))
+                        geos.add(f'{continent}-{c}')
 
             # States and provinces are easy too,
             # just assume NA-US or NA-CA
             for state in meta.get('us_state', []):
-                geos.add('NA-US-{}'.format(state))
+                geos.add(f'NA-US-{state}')
 
             for province in meta.get('ca_province', []):
-                geos.add('NA-CA-{}'.format(province))
+                geos.add(f'NA-CA-{province}')
 
             if geos:
                 # There are geos, combine them with any existing geos for this
@@ -892,7 +891,7 @@ class Ns1Provider(BaseProvider):
             _type = record['type']
             if _type not in self.SUPPORTS:
                 continue
-            data_for = getattr(self, '_data_for_{}'.format(_type))
+            data_for = getattr(self, f'_data_for_{_type}')
             name = zone.hostname_from_fqdn(record['domain'])
             data = data_for(_type, record)
             record = Record.new(zone, name, data, source=self, lenient=lenient)
@@ -969,7 +968,7 @@ class Ns1Provider(BaseProvider):
     def _feed_create(self, monitor):
         monitor_id = monitor['id']
         self.log.debug('_feed_create: monitor=%s', monitor_id)
-        name = '{} - {}'.format(monitor['name'], self._uuid()[:6])
+        name = f'{monitor["name"]} - {self._uuid()[:6]}'
 
         # Create the data feed
         config = {
@@ -1037,7 +1036,7 @@ class Ns1Provider(BaseProvider):
             },
             'frequency': 60,
             'job_type': 'tcp',
-            'name': '{} - {} - {}'.format(host, _type, value),
+            'name': f'{host} - {_type} - {value}',
             'notes': self._encode_notes({
                 'host': host,
                 'type': _type,
@@ -1055,8 +1054,8 @@ class Ns1Provider(BaseProvider):
             # IF it's HTTP we need to send the request string
             path = record.healthcheck_path
             host = record.healthcheck_host(value=value)
-            request = r'GET {path} HTTP/1.0\r\nHost: {host}\r\n' \
-                r'User-agent: NS1\r\n\r\n'.format(path=path, host=host)
+            request = fr'GET {path} HTTP/1.0\r\nHost: {host}\r\n' \
+                r'User-agent: NS1\r\n\r\n'
             ret['config']['send'] = request
             # We'll also expect a HTTP response
             ret['rules'] = [{
@@ -1238,7 +1237,7 @@ class Ns1Provider(BaseProvider):
             if georegion:
                 georegion_meta = dict(meta)
                 georegion_meta['georegion'] = sorted(georegion)
-                regions['{}__georegion'.format(pool_name)] = {
+                regions[f'{pool_name}__georegion'] = {
                     'meta': georegion_meta,
                 }
 
@@ -1255,12 +1254,12 @@ class Ns1Provider(BaseProvider):
                     country_state_meta['us_state'] = sorted(us_state)
                 if ca_province:
                     country_state_meta['ca_province'] = sorted(ca_province)
-                regions['{}__country'.format(pool_name)] = {
+                regions[f'{pool_name}__country'] = {
                     'meta': country_state_meta,
                 }
             elif not georegion:
                 # If there's no targeting it's a catchall
-                regions['{}__catchall'.format(pool_name)] = {
+                regions[f'{pool_name}__catchall'] = {
                     'meta': meta,
                 }
 
@@ -1403,7 +1402,7 @@ class Ns1Provider(BaseProvider):
                         ns1_record['domain'],
                         ns1_record['type'])
                     if 'filters' in full_rec:
-                        filter_key = '{}.'.format(ns1_record['domain'])
+                        filter_key = f'{ns1_record["domain"]}.'
                         ns1_filters[filter_key] = full_rec['filters']
 
         return ns1_filters
@@ -1412,8 +1411,7 @@ class Ns1Provider(BaseProvider):
         disabled_count = ['disabled' in f for f in filters].count(True)
         if disabled_count and disabled_count != len(filters):
             # Some filters have the disabled flag, and some don't. Disallow
-            exception_msg = 'Mixed disabled flag in filters for {}'.format(
-                            domain)
+            exception_msg = f'Mixed disabled flag in filters for {domain}'
             raise Ns1Exception(exception_msg)
         return disabled_count == len(filters)
 
@@ -1431,7 +1429,7 @@ class Ns1Provider(BaseProvider):
             # Check if filters for existing domains need an update
             # Needs an explicit check since there might be no change in the
             # config at all. Filters however might still need an update
-            domain = '{}.{}'.format(record.name, record.zone.name)
+            domain = f'{record.name}.{record.zone.name}'
             if domain in ns1_filters:
                 domain_filters = ns1_filters[domain]
                 if not self._disabled_flag_in_filters(domain_filters, domain):
@@ -1463,8 +1461,7 @@ class Ns1Provider(BaseProvider):
         zone = new.zone.name[:-1]
         domain = new.fqdn[:-1]
         _type = new._type
-        params, active_monitor_ids = \
-            getattr(self, '_params_for_{}'.format(_type))(new)
+        params, active_monitor_ids = getattr(self, f'_params_for_{_type}')(new)
         self._client.records_create(zone, domain, _type, **params)
         self._monitors_gc(new, active_monitor_ids)
 
@@ -1473,8 +1470,7 @@ class Ns1Provider(BaseProvider):
         zone = new.zone.name[:-1]
         domain = new.fqdn[:-1]
         _type = new._type
-        params, active_monitor_ids = \
-            getattr(self, '_params_for_{}'.format(_type))(new)
+        params, active_monitor_ids = getattr(self, f'_params_for_{_type}')(new)
         self._client.records_update(zone, domain, _type, **params)
         # If we're cleaning up we need to send in the old record since it'd
         # have anything that needs cleaning up
@@ -1518,5 +1514,4 @@ class Ns1Provider(BaseProvider):
 
         for change in changes:
             class_name = change.__class__.__name__
-            getattr(self, '_apply_{}'.format(class_name))(ns1_zone,
-                                                          change)
+            getattr(self, f'_apply_{class_name}')(ns1_zone, change)

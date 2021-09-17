@@ -54,7 +54,7 @@ class GoogleCloudProvider(BaseProvider):
             self.gcloud_client = dns.Client(project=project)
 
         # Logger
-        self.log = getLogger('GoogleCloudProvider[{}]'.format(id))
+        self.log = getLogger(f'GoogleCloudProvider[{id}]')
         self.id = id
 
         self._gcloud_zones = {}
@@ -85,8 +85,7 @@ class GoogleCloudProvider(BaseProvider):
 
         for change in changes:
             class_name = change.__class__.__name__
-            _rrset_func = getattr(
-                self, '_rrset_for_{}'.format(change.record._type))
+            _rrset_func = getattr(self, f'_rrset_for_{change.record._type}')
 
             if class_name == 'Create':
                 gcloud_changes.add_record_set(
@@ -100,9 +99,9 @@ class GoogleCloudProvider(BaseProvider):
                 gcloud_changes.add_record_set(
                     _rrset_func(gcloud_zone, change.new))
             else:
-                raise RuntimeError('Change type "{}" for change "{!s}" '
-                                   'is none of "Create", "Delete" or "Update'
-                                   .format(class_name, change))
+                msg = f'Change type "{class_name}" for change ' \
+                    f'"{str(change)}" is none of "Create", "Delete" or "Update'
+                raise RuntimeError(msg)
 
         gcloud_changes.create()
 
@@ -116,8 +115,8 @@ class GoogleCloudProvider(BaseProvider):
             time.sleep(self.CHANGE_LOOP_WAIT)
 
         if gcloud_changes.status != 'done':
-            raise RuntimeError("Timeout reached after {} seconds".format(
-                i * self.CHANGE_LOOP_WAIT))
+            timeout = i * self.CHANGE_LOOP_WAIT
+            raise RuntimeError(f"Timeout reached after {timeout} seconds")
 
     def _create_gcloud_zone(self, dns_name):
         """Creates a google cloud ManagedZone with dns_name, and zone named
@@ -131,8 +130,7 @@ class GoogleCloudProvider(BaseProvider):
         # Zone name must begin with a letter, end with a letter or digit,
         # and only contain lowercase letters, digits or dashes,
         # and be 63 characters or less
-        zone_name = 'zone-{}-{}'.format(
-            dns_name.replace('.', '-'), uuid4().hex)[:63]
+        zone_name = f'zone-{dns_name.replace(".", "-")}-{uuid4().hex}'[:63]
 
         gcloud_zone = self.gcloud_client.zone(
             name=zone_name,
@@ -143,7 +141,7 @@ class GoogleCloudProvider(BaseProvider):
         # add this new zone to the list of zones.
         self._gcloud_zones[gcloud_zone.dns_name] = gcloud_zone
 
-        self.log.info("Created zone {}. Fqdn {}.".format(zone_name, dns_name))
+        self.log.info(f"Created zone {zone_name}. Fqdn {dns_name}.")
 
         return gcloud_zone
 
@@ -224,12 +222,12 @@ class GoogleCloudProvider(BaseProvider):
                     # which is also the way octodns likes it.
                     record_name = record_name[:-(len(zone.name) + 1)]
                 typ = gcloud_record.record_type.upper()
-                data = getattr(self, '_data_for_{}'.format(typ))
+                data = getattr(self, f'_data_for_{typ}')
                 data = data(gcloud_record)
                 data['type'] = typ
                 data['ttl'] = gcloud_record.ttl
-                self.log.debug('populate: adding record {} records: {!s}'
-                               .format(record_name, data))
+                self.log.debug('populate: adding record %s records: %s',
+                               record_name, data)
                 record = Record.new(zone, record_name, data, source=self)
                 zone.add_record(record, lenient=lenient)
 
@@ -306,8 +304,7 @@ class GoogleCloudProvider(BaseProvider):
     def _rrset_for_CAA(self, gcloud_zone, record):
         return gcloud_zone.resource_record_set(
             record.fqdn, record._type, record.ttl, [
-                '{} {} {}'.format(v.flags, v.tag, v.value)
-                for v in record.values])
+                f'{v.flags} {v.tag} {v.value}' for v in record.values])
 
     def _rrset_for_CNAME(self, gcloud_zone, record):
         return gcloud_zone.resource_record_set(
@@ -316,15 +313,13 @@ class GoogleCloudProvider(BaseProvider):
     def _rrset_for_MX(self, gcloud_zone, record):
         return gcloud_zone.resource_record_set(
             record.fqdn, record._type, record.ttl, [
-                '{} {}'.format(v.preference, v.exchange)
-                for v in record.values])
+                f'{v.preference} {v.exchange}' for v in record.values])
 
     def _rrset_for_NAPTR(self, gcloud_zone, record):
         return gcloud_zone.resource_record_set(
             record.fqdn, record._type, record.ttl, [
-                '{} {} "{}" "{}" "{}" {}'.format(
-                    v.order, v.preference, v.flags, v.service,
-                    v.regexp, v.replacement) for v in record.values])
+                f'{v.order} {v.preference} "{v.flags}" "{v.service}" '
+                f'"{v.regexp}" {v.replacement}' for v in record.values])
 
     _rrset_for_NS = _rrset_for_A
 
@@ -337,8 +332,7 @@ class GoogleCloudProvider(BaseProvider):
     def _rrset_for_SRV(self, gcloud_zone, record):
         return gcloud_zone.resource_record_set(
             record.fqdn, record._type, record.ttl, [
-                '{} {} {} {}'
-                .format(v.priority, v.weight, v.port, v.target)
+                f'{v.priority} {v.weight} {v.port} {v.target}'
                 for v in record.values])
 
     _rrset_for_TXT = _rrset_for_SPF

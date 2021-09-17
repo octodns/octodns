@@ -157,36 +157,31 @@ class TestCloudflareProvider(TestCase):
 
             # zones
             with open('tests/fixtures/cloudflare-zones-page-1.json') as fh:
-                mock.get('{}?page=1'.format(base), status_code=200,
-                         text=fh.read())
+                mock.get(f'{base}?page=1', status_code=200, text=fh.read())
             with open('tests/fixtures/cloudflare-zones-page-2.json') as fh:
-                mock.get('{}?page=2'.format(base), status_code=200,
-                         text=fh.read())
-            mock.get('{}?page=3'.format(base), status_code=200,
+                mock.get(f'{base}?page=2', status_code=200, text=fh.read())
+            mock.get(f'{base}?page=3', status_code=200,
                      json={'result': [], 'result_info': {'count': 0,
                                                          'per_page': 0}})
 
-            base = '{}/234234243423aaabb334342aaa343435'.format(base)
+            base = f'{base}/234234243423aaabb334342aaa343435'
 
             # pagerules/URLFWD
             with open('tests/fixtures/cloudflare-pagerules.json') as fh:
-                mock.get('{}/pagerules?status=active'.format(base),
+                mock.get(f'{base}/pagerules?status=active',
                          status_code=200, text=fh.read())
 
             # records
-            base = '{}/dns_records'.format(base)
+            base = f'{base}/dns_records'
             with open('tests/fixtures/cloudflare-dns_records-'
                       'page-1.json') as fh:
-                mock.get('{}?page=1'.format(base), status_code=200,
-                         text=fh.read())
+                mock.get(f'{base}?page=1', status_code=200, text=fh.read())
             with open('tests/fixtures/cloudflare-dns_records-'
                       'page-2.json') as fh:
-                mock.get('{}?page=2'.format(base), status_code=200,
-                         text=fh.read())
+                mock.get(f'{base}?page=2', status_code=200, text=fh.read())
             with open('tests/fixtures/cloudflare-dns_records-'
                       'page-3.json') as fh:
-                mock.get('{}?page=3'.format(base), status_code=200,
-                         text=fh.read())
+                mock.get(f'{base}?page=3', status_code=200, text=fh.read())
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)

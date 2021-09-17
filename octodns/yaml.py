@@ -26,8 +26,8 @@ class SortEnforcingLoader(SafeLoader):
             expected = keys_sorted.pop(0)
             if key != expected:
                 raise ConstructorError(None, None, 'keys out of order: '
-                                       'expected {} got {} at {}'
-                                       .format(expected, key, node.start_mark))
+                                       f'expected {expected} got {key} at ' +
+                                       str(node.start_mark))
         return dict(ret)
 
 

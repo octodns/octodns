@@ -195,7 +195,7 @@ class TestGCoreProvider(TestCase):
                 str(ctx.exception).startswith(
                     "filter is enabled, but no pools where built for"
                 ),
-                "{} - is not start from desired text".format(ctx.exception),
+                f"{ctx.exception} - is not start from desired text",
             )
 
     def test_apply(self):

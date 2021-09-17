@@ -151,7 +151,7 @@ class AxfrBaseSource(BaseSource):
         before = len(zone.records)
         for name, types in values.items():
             for _type, records in types.items():
-                data_for = getattr(self, '_data_for_{}'.format(_type))
+                data_for = getattr(self, f'_data_for_{_type}')
                 record = Record.new(zone, name, data_for(_type, records),
                                     source=self, lenient=lenient)
                 zone.add_record(record, lenient=lenient)
@@ -181,7 +181,7 @@ class AxfrSource(AxfrBaseSource):
         master: ns1.example.com
     '''
     def __init__(self, id, master):
-        self.log = logging.getLogger('AxfrSource[{}]'.format(id))
+        self.log = logging.getLogger(f'AxfrSource[{id}]')
         self.log.debug('__init__: id=%s, master=%s', id, master)
         super(AxfrSource, self).__init__(id)
         self.master = master
@@ -244,7 +244,7 @@ class ZoneFileSource(AxfrBaseSource):
         check_origin: false
     '''
     def __init__(self, id, directory, file_extension='.', check_origin=True):
-        self.log = logging.getLogger('ZoneFileSource[{}]'.format(id))
+        self.log = logging.getLogger(f'ZoneFileSource[{id}]')
         self.log.debug('__init__: id=%s, directory=%s, file_extension=%s, '
                        'check_origin=%s', id,
                        directory, file_extension, check_origin)
@@ -256,7 +256,7 @@ class ZoneFileSource(AxfrBaseSource):
         self._zone_records = {}
 
     def _load_zone_file(self, zone_name):
-        zone_filename = '{}{}'.format(zone_name[:-1], self.file_extension)
+        zone_filename = f'{zone_name[:-1]}{self.file_extension}'
         zonefiles = listdir(self.directory)
         if zone_filename in zonefiles:
             try:

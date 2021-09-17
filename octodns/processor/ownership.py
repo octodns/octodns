@@ -29,10 +29,9 @@ class OwnershipProcessor(BaseProcessor):
             # Then create and add an ownership TXT for each of them
             record_name = record.name.replace('*', '_wildcard')
             if record.name:
-                name = '{}.{}.{}'.format(self.txt_name, record._type,
-                                         record_name)
+                name = f'{self.txt_name}.{record._type}.{record_name}'
             else:
-                name = '{}.{}'.format(self.txt_name, record._type)
+                name = f'{self.txt_name}.{record._type}'
             txt = Record.new(desired, name, {
                 'type': 'TXT',
                 'ttl': 60,

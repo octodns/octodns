@@ -79,7 +79,7 @@ class UltraProvider(BaseProvider):
                  data=None, json=None, json_response=True):
         self.log.debug('_request: method=%s, path=%s', method, path)
 
-        url = '{}{}'.format(self._base_uri, path)
+        url = f'{self._base_uri}{path}'
         resp = self._sess.request(method,
                                   url,
                                   params=params,
@@ -128,12 +128,12 @@ class UltraProvider(BaseProvider):
 
         resp = self._post(path, data=data)
         self._sess.headers.update({
-            'Authorization': 'Bearer {}'.format(resp['access_token']),
+            'Authorization': f'Bearer {resp["access_token"]}',
         })
 
     def __init__(self, id, account, username, password, timeout=TIMEOUT,
                  *args, **kwargs):
-        self.log = getLogger('UltraProvider[{}]'.format(id))
+        self.log = getLogger(f'UltraProvider[{id}]')
         self.log.debug('__init__: id=%s, account=%s, username=%s, '
                        'password=***', id, account, username)
 
@@ -250,7 +250,7 @@ class UltraProvider(BaseProvider):
                 return []
 
             records = []
-            path = '/v2/zones/{}/rrsets'.format(zone.name)
+            path = f'/v2/zones/{zone.name}/rrsets'
             offset = 0
             limit = 100
             paging = True
@@ -269,7 +269,7 @@ class UltraProvider(BaseProvider):
         return self._zone_records[zone.name]
 
     def _record_for(self, zone, name, _type, records, lenient):
-        data_for = getattr(self, '_data_for_{}'.format(_type))
+        data_for = getattr(self, f'_data_for_{_type}')
         data = data_for(_type, records)
         record = Record.new(zone, name, data, source=self, lenient=lenient)
         return record
@@ -327,7 +327,7 @@ class UltraProvider(BaseProvider):
 
         for change in changes:
             class_name = change.__class__.__name__
-            getattr(self, '_apply_{}'.format(class_name))(change)
+            getattr(self, f'_apply_{class_name}')(change)
 
         # Clear the cache
         self._zone_records.pop(name, None)
@@ -380,25 +380,20 @@ class UltraProvider(BaseProvider):
     def _contents_for_SRV(self, record):
         return {
             'ttl': record.ttl,
-            'rdata': ['{} {} {} {}'.format(x.priority,
-                                           x.weight,
-                                           x.port,
-                                           x.target) for x in record.values]
+            'rdata': [f'{x.priority} {x.weight} {x.port} {x.target}'
+                      for x in record.values]
         }
 
     def _contents_for_CAA(self, record):
         return {
             'ttl': record.ttl,
-            'rdata': ['{} {} {}'.format(x.flags,
-                                        x.tag,
-                                        x.value) for x in record.values]
+            'rdata': [f'{x.flags} {x.tag} {x.value}' for x in record.values]
         }
 
     def _contents_for_MX(self, record):
         return {
             'ttl': record.ttl,
-            'rdata': ['{} {}'.format(x.preference,
-                                     x.exchange) for x in record.values]
+            'rdata': [f'{x.preference} {x.exchange}' for x in record.values]
         }
 
     def _gen_data(self, record):
@@ -410,10 +405,8 @@ class UltraProvider(BaseProvider):
         else:
             record_type = record._type
 
-        path = '/v2/zones/{}/rrsets/{}/{}'.format(zone_name,
-                                                  record_type,
-                                                  record.fqdn)
-        contents_for = getattr(self, '_contents_for_{}'.format(record._type))
+        path = f'/v2/zones/{zone_name}/rrsets/{record_type}/{record.fqdn}'
+        contents_for = getattr(self, f'_contents_for_{record._type}')
         return path, contents_for(record)
 
     def _apply_Create(self, change):
@@ -459,7 +452,6 @@ class UltraProvider(BaseProvider):
                 if existing_type == "ALIAS":
                     existing_type = "APEXALIAS"
 
-                path = '/v2/zones/{}/rrsets/{}/{}'.format(zone_name,
-                                                          existing_type,
-                                                          existing.fqdn)
+                path = f'/v2/zones/{zone_name}/rrsets/{existing_type}/' + \
+                    existing.fqdn
                 self._delete(path, json_response=False)

@@ -24,9 +24,8 @@ class DnsMadeEasyClientException(ProviderException):
 class DnsMadeEasyClientBadRequest(DnsMadeEasyClientException):
 
     def __init__(self, resp):
-        errors = resp.json()['error']
-        super(DnsMadeEasyClientBadRequest, self).__init__(
-            '\n  - {}'.format('\n  - '.join(errors)))
+        errors = '\n  - '.join(resp.json()['error'])
+        super(DnsMadeEasyClientBadRequest, self).__init__(f'\n  - {errors}')
 
 
 class DnsMadeEasyClientUnauthorized(DnsMadeEasyClientException):
@@ -71,7 +70,7 @@ class DnsMadeEasyClient(object):
             'x-dnsme-requestDate': now
         }
 
-        url = '{}{}'.format(self._base, path)
+        url = f'{self._base}{path}'
         resp = self._sess.request(method, url, headers=headers,
                                   params=params, json=data)
         if resp.status_code == 400:
@@ -93,12 +92,12 @@ class DnsMadeEasyClient(object):
             resp = self._request('GET', '/').json()
             zones += resp['data']
 
-            self._domains = {'{}.'.format(z['name']): z['id'] for z in zones}
+            self._domains = {f'{z["name"]}.': z['id'] for z in zones}
 
         return self._domains
 
     def domain(self, name):
-        path = '/id/{}'.format(name)
+        path = f'/id/{name}'
         return self._request('GET', path).json()
 
     def domain_create(self, name):
@@ -106,7 +105,7 @@ class DnsMadeEasyClient(object):
 
     def records(self, zone_name):
         zone_id = self.domains.get(zone_name, False)
-        path = '/{}/records'.format(zone_id)
+        path = f'/{zone_id}/records'
         ret = []
 
         # has pages in resp, do we need paging?
@@ -124,13 +123,13 @@ class DnsMadeEasyClient(object):
                 if value == '':
                     record['value'] = zone_name
                 elif not value.endswith('.'):
-                    record['value'] = '{}.{}'.format(value, zone_name)
+                    record['value'] = f'{value}.{zone_name}'
 
         return ret
 
     def record_create(self, zone_name, params):
         zone_id = self.domains.get(zone_name, False)
-        path = '/{}/records'.format(zone_id)
+        path = f'/{zone_id}/records'
 
         # change ALIAS records to ANAME
         if params['type'] == 'ALIAS':
@@ -140,7 +139,7 @@ class DnsMadeEasyClient(object):
 
     def record_delete(self, zone_name, record_id):
         zone_id = self.domains.get(zone_name, False)
-        path = '/{}/records/{}'.format(zone_id, record_id)
+        path = f'/{zone_id}/records/{record_id}'
         self._request('DELETE', path)
 
 
@@ -165,7 +164,7 @@ class DnsMadeEasyProvider(BaseProvider):
 
     def __init__(self, id, api_key, secret_key, sandbox=False,
                  ratelimit_delay=0.0, *args, **kwargs):
-        self.log = logging.getLogger('DnsMadeEasyProvider[{}]'.format(id))
+        self.log = logging.getLogger(f'DnsMadeEasyProvider[{id}]')
         self.log.debug('__init__: id=%s, api_key=***, secret_key=***, '
                        'sandbox=%s', id, sandbox)
         super(DnsMadeEasyProvider, self).__init__(id, *args, **kwargs)
@@ -275,7 +274,7 @@ class DnsMadeEasyProvider(BaseProvider):
         before = len(zone.records)
         for name, types in values.items():
             for _type, records in types.items():
-                data_for = getattr(self, '_data_for_{}'.format(_type))
+                data_for = getattr(self, f'_data_for_{_type}')
                 record = Record.new(zone, name, data_for(_type, records),
                                     source=self, lenient=lenient)
                 zone.add_record(record, lenient=lenient)
@@ -385,7 +384,7 @@ class DnsMadeEasyProvider(BaseProvider):
 
     def _apply_Create(self, change):
         new = change.new
-        params_for = getattr(self, '_params_for_{}'.format(new._type))
+        params_for = getattr(self, f'_params_for_{new._type}')
         for params in params_for(new):
             self._client.record_create(new.zone.name, params)
 
@@ -416,7 +415,7 @@ class DnsMadeEasyProvider(BaseProvider):
 
         for change in changes:
             class_name = change.__class__.__name__
-            getattr(self, '_apply_{}'.format(class_name))(change)
+            getattr(self, f'_apply_{class_name}')(change)
 
         # Clear out the cache if any
         self._zone_records.pop(desired.name, None)

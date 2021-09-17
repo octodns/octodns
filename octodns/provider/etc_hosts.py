@@ -29,7 +29,7 @@ class EtcHostsProvider(BaseProvider):
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME'))
 
     def __init__(self, id, directory, *args, **kwargs):
-        self.log = logging.getLogger('EtcHostsProvider[{}]'.format(id))
+        self.log = logging.getLogger(f'EtcHostsProvider[{id}]')
         self.log.debug('__init__: id=%s, directory=%s', id, directory)
         super(EtcHostsProvider, self).__init__(id, *args, **kwargs)
         self.directory = directory
@@ -67,24 +67,25 @@ class EtcHostsProvider(BaseProvider):
         if not isdir(self.directory):
             makedirs(self.directory)
 
-        filename = '{}hosts'.format(path.join(self.directory, desired.name))
+        filepath = path.join(self.directory, desired.name)
+        filename = f'{filepath}hosts'
         self.log.info('_apply: filename=%s', filename)
         with open(filename, 'w') as fh:
             fh.write('##################################################\n')
-            fh.write('# octoDNS {} {}\n'.format(self.id, desired.name))
+            fh.write(f'# octoDNS {self.id} {desired.name}\n')
             fh.write('##################################################\n\n')
             if values:
                 fh.write('## A & AAAA\n\n')
                 for fqdn, value in sorted(values.items()):
                     if fqdn[0] == '*':
                         fh.write('# ')
-                    fh.write('{}\t{}\n\n'.format(value, fqdn))
+                    fh.write(f'{value}\t{fqdn}\n\n')
 
             if cnames:
                 fh.write('\n## CNAME (mapped)\n\n')
                 for fqdn, value in sorted(cnames.items()):
                     # Print out a comment of the first level
-                    fh.write('# {} -> {}\n'.format(fqdn, value))
+                    fh.write(f'# {fqdn} -> {value}\n')
                     seen = set()
                     while True:
                         seen.add(value)
@@ -92,7 +93,7 @@ class EtcHostsProvider(BaseProvider):
                             value = values[value]
                             # If we're here we've found the target, print it
                             # and break the loop
-                            fh.write('{}\t{}\n'.format(value, fqdn))
+                            fh.write(f'{value}\t{fqdn}\n')
                             break
                         except KeyError:
                             # Try and step down one level
@@ -102,15 +103,13 @@ class EtcHostsProvider(BaseProvider):
                             if value:
                                 if value in seen:
                                     # We'd loop here, break it
-                                    fh.write('# {} -> {} **loop**\n'
-                                             .format(orig, value))
+                                    fh.write(f'# {orig} -> {value} **loop**\n')
                                     break
                                 else:
-                                    fh.write('# {} -> {}\n'
-                                             .format(orig, value))
+                                    fh.write(f'# {orig} -> {value}\n')
                             else:
                                 # Don't have anywhere else to go
-                                fh.write('# {} -> **unknown**\n'.format(orig))
+                                fh.write(f'# {orig} -> **unknown**\n')
                                 break
 
                     fh.write('\n')

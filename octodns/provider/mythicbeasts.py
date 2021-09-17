@@ -38,9 +38,7 @@ def remove_trailing_dot(value):
 class MythicBeastsUnauthorizedException(ProviderException):
     def __init__(self, zone, *args):
         self.zone = zone
-        self.message = 'Mythic Beasts unauthorized for zone: {}'.format(
-            self.zone
-        )
+        self.message = f'Mythic Beasts unauthorized for zone: {self.zone}'
 
         super(MythicBeastsUnauthorizedException, self).__init__(
             self.message, self.zone, *args)
@@ -50,10 +48,8 @@ class MythicBeastsRecordException(ProviderException):
     def __init__(self, zone, command, *args):
         self.zone = zone
         self.command = command
-        self.message = 'Mythic Beasts could not action command: {} {}'.format(
-            self.zone,
-            self.command,
-        )
+        self.message = 'Mythic Beasts could not action command: ' \
+            f'{self.zone} {self.command}'
 
         super(MythicBeastsRecordException, self).__init__(
             self.message, self.zone, self.command, *args)
@@ -108,7 +104,7 @@ class MythicBeastsProvider(BaseProvider):
     BASE = 'https://dnsapi.mythic-beasts.com/'
 
     def __init__(self, identifier, passwords, *args, **kwargs):
-        self.log = getLogger('MythicBeastsProvider[{}]'.format(identifier))
+        self.log = getLogger(f'MythicBeastsProvider[{identifier}]')
 
         assert isinstance(passwords, dict), 'Passwords must be a dictionary'
 
@@ -147,11 +143,12 @@ class MythicBeastsProvider(BaseProvider):
         return self._request('POST', self.BASE, data=data)
 
     def records(self, zone):
-        assert zone in self._passwords, 'Missing password for domain: {}' \
-            .format(remove_trailing_dot(zone))
+        domain = remove_trailing_dot(zone)
+        assert zone in self._passwords, \
+            f'Missing password for domain: {domain}'
 
         return self._post({
-            'domain': remove_trailing_dot(zone),
+            'domain': domain,
             'password': self._passwords[zone],
             'showall': 0,
             'command': 'LIST',
@@ -202,7 +199,7 @@ class MythicBeastsProvider(BaseProvider):
             exchange = match.group('exchange')
 
             if not exchange.endswith('.'):
-                exchange = '{}.{}'.format(exchange, data['zone'])
+                exchange = f'{exchange}.{data["zone"]}'
 
             values.append({
                 'preference': match.group('preference'),
@@ -220,7 +217,7 @@ class MythicBeastsProvider(BaseProvider):
         ttl = data['raw_values'][0]['ttl']
         value = data['raw_values'][0]['value']
         if not value.endswith('.'):
-            value = '{}.{}'.format(value, data['zone'])
+            value = f'{value}.{data["zone"]}'
 
         return MythicBeastsProvider._data_for_single(
             _type,
@@ -252,7 +249,7 @@ class MythicBeastsProvider(BaseProvider):
 
             target = match.group('target')
             if not target.endswith('.'):
-                target = '{}.{}'.format(target, data['zone'])
+                target = f'{target}.{data["zone"]}'
 
             values.append({
                 'priority': match.group('priority'),
@@ -344,7 +341,7 @@ class MythicBeastsProvider(BaseProvider):
             _ttl = int(match.group('ttl'))
             _value = match.group('value').strip()
 
-            if hasattr(self, '_data_for_{}'.format(_type)):
+            if hasattr(self, f'_data_for_{_type}'):
                 if _name not in data[_type]:
                     data[_type][_name] = {
                         'raw_values': [{'value': _value, 'ttl': _ttl}],
@@ -361,7 +358,7 @@ class MythicBeastsProvider(BaseProvider):
 
         for _type in data:
             for _name in data[_type]:
-                data_for = getattr(self, '_data_for_{}'.format(_type))
+                data_for = getattr(self, f'_data_for_{_type}')
 
                 record = Record.new(
                     zone,
@@ -391,7 +388,7 @@ class MythicBeastsProvider(BaseProvider):
         else:
             values = [record.value]
 
-        base = '{} {} {} {}'.format(action, hostname, ttl, _type)
+        base = f'{action} {hostname} {ttl} {_type}'
 
         # Unescape TXT records
         if _type == 'TXT':
@@ -400,35 +397,32 @@ class MythicBeastsProvider(BaseProvider):
         # Handle specific types or default
         if _type == 'SSHFP':
             data = values[0].data
-            commands.append('{} {} {} {}'.format(
-                base,
-                data['algorithm'],
-                data['fingerprint_type'],
-                data['fingerprint']
-            ))
+            algorithm = data['algorithm']
+            fingerprint_type = data['fingerprint_type']
+            fingerprint = data['fingerprint']
+            commands.append(f'{base} {algorithm} {fingerprint_type} '
+                            f'{fingerprint}')
 
         elif _type == 'SRV':
             for value in values:
                 data = value.data
-                commands.append('{} {} {} {} {}'.format(
-                    base,
-                    data['priority'],
-                    data['weight'],
-                    data['port'],
-                    data['target']))
+                priority = data['priority']
+                weight = data['weight']
+                port = data['port']
+                target = data['target']
+                commands.append(f'{base} {priority} {weight} {port} {target}')
 
         elif _type == 'MX':
             for value in values:
                 data = value.data
-                commands.append('{} {} {}'.format(
-                    base,
-                    data['preference'],
-                    data['exchange']))
+                preference = data['preference']
+                exchange = data['exchange']
+                commands.append(f'{base} {preference} {exchange}')
 
         else:
-            if hasattr(self, '_data_for_{}'.format(_type)):
+            if hasattr(self, f'_data_for_{_type}'):
                 for value in values:
-                    commands.append('{} {}'.format(base, value))
+                    commands.append(f'{base} {value}')
             else:
                 self.log.debug('skipping %s as not supported', _type)
 
@@ -472,4 +466,4 @@ class MythicBeastsProvider(BaseProvider):
 
         for change in changes:
             class_name = change.__class__.__name__
-            getattr(self, '_apply_{}'.format(class_name))(change)
+            getattr(self, f'_apply_{class_name}')(change)

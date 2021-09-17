@@ -14,7 +14,7 @@ class TestEnvVarSource(TestCase):
         source = EnvVarSource('testid', envvar, 'recordname', ttl=120)
         with self.assertRaises(EnvironmentVariableNotFoundException) as ctx:
             source._read_variable()
-        msg = 'Unknown environment variable {}'.format(envvar)
+        msg = f'Unknown environment variable {envvar}'
         self.assertEquals(msg, text_type(ctx.exception))
 
         with patch.dict('os.environ', {envvar: 'testvalue'}):
@@ -35,7 +35,7 @@ class TestEnvVarSource(TestCase):
         self.assertEquals(1, len(zone.records))
         record = list(zone.records)[0]
         self.assertEquals(name, record.name)
-        self.assertEquals('{}.{}'.format(name, zone_name), record.fqdn)
+        self.assertEquals(f'{name}.{zone_name}', record.fqdn)
         self.assertEquals('TXT', record._type)
         self.assertEquals(1, len(record.values))
         self.assertEquals(value, record.values[0])

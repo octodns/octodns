@@ -86,7 +86,7 @@ class CloudflareProvider(BaseProvider):
     def __init__(self, id, email=None, token=None, cdn=False, retry_count=4,
                  retry_period=300, zones_per_page=50, records_per_page=100,
                  *args, **kwargs):
-        self.log = getLogger('CloudflareProvider[{}]'.format(id))
+        self.log = getLogger(f'CloudflareProvider[{id}]')
         self.log.debug('__init__: id=%s, email=%s, token=***, cdn=%s', id,
                        email, cdn)
         super(CloudflareProvider, self).__init__(id, *args, **kwargs)
@@ -101,7 +101,7 @@ class CloudflareProvider(BaseProvider):
             # https://api.cloudflare.com/#getting-started-requests
             # https://tools.ietf.org/html/rfc6750#section-2.1
             sess.headers.update({
-                'Authorization': 'Bearer {}'.format(token),
+                'Authorization': f'Bearer {token}',
             })
         self.cdn = cdn
         self.retry_count = retry_count
@@ -130,7 +130,7 @@ class CloudflareProvider(BaseProvider):
     def _request(self, method, path, params=None, data=None):
         self.log.debug('_request: method=%s, path=%s', method, path)
 
-        url = 'https://api.cloudflare.com/client/v4{}'.format(path)
+        url = f'https://api.cloudflare.com/client/v4{path}'
         resp = self._sess.request(method, url, params=params, json=data,
                                   timeout=self.TIMEOUT)
         self.log.debug('_request:   status=%d', resp.status_code)
@@ -168,7 +168,7 @@ class CloudflareProvider(BaseProvider):
                 else:
                     page = None
 
-            self._zones = {'{}.'.format(z['name']): z['id'] for z in zones}
+            self._zones = {f'{z["name"]}.': z['id'] for z in zones}
 
         return self._zones
 
@@ -184,7 +184,7 @@ class CloudflareProvider(BaseProvider):
         return {
             'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
-            'value': '{}.cdn.cloudflare.net.'.format(records[0]['name']),
+            'value': f'{records[0]["name"]}.cdn.cloudflare.net.',
         }
 
     def _data_for_multiple(self, _type, records):
@@ -221,7 +221,7 @@ class CloudflareProvider(BaseProvider):
         return {
             'ttl': self._ttl_data(only['ttl']),
             'type': _type,
-            'value': '{}.'.format(only['content'])
+            'value': f'{only["content"]}.'
         }
 
     _data_for_ALIAS = _data_for_CNAME
@@ -256,7 +256,7 @@ class CloudflareProvider(BaseProvider):
         for r in records:
             values.append({
                 'preference': r['priority'],
-                'exchange': '{}.'.format(r['content']),
+                'exchange': f'{r["content"]}.',
             })
         return {
             'ttl': self._ttl_data(records[0]['ttl']),
@@ -268,13 +268,13 @@ class CloudflareProvider(BaseProvider):
         return {
             'ttl': self._ttl_data(records[0]['ttl']),
             'type': _type,
-            'values': ['{}.'.format(r['content']) for r in records],
+            'values': [f'{r["content"]}.' for r in records],
         }
 
     def _data_for_SRV(self, _type, records):
         values = []
         for r in records:
-            target = ('{}.'.format(r['data']['target'])
+            target = (f'{r["data"]["target"]}.'
                       if r['data']['target'] != "." else ".")
             values.append({
                 'priority': r['data']['priority'],
@@ -311,7 +311,7 @@ class CloudflareProvider(BaseProvider):
                 return []
 
             records = []
-            path = '/zones/{}/dns_records'.format(zone_id)
+            path = f'/zones/{zone_id}/dns_records'
             page = 1
             while page:
                 resp = self._try_request('GET', path, params={'page': page,
@@ -323,7 +323,7 @@ class CloudflareProvider(BaseProvider):
                 else:
                     page = None
 
-            path = '/zones/{}/pagerules'.format(zone_id)
+            path = f'/zones/{zone_id}/pagerules'
             resp = self._try_request('GET', path, params={'status': 'active'})
             for r in resp['result']:
                 # assumption, base on API guide, will only contain 1 action
@@ -343,7 +343,7 @@ class CloudflareProvider(BaseProvider):
             if _type == 'CNAME' and name == '':
                 _type = 'ALIAS'
 
-            data_for = getattr(self, '_data_for_{}'.format(_type))
+            data_for = getattr(self, f'_data_for_{_type}')
             data = data_for(_type, records)
 
         record = Record.new(zone, name, data, source=self, lenient=lenient)
@@ -563,11 +563,11 @@ class CloudflareProvider(BaseProvider):
             _type = 'CNAME'
 
         if _type == 'URLFWD':
-            contents_for = getattr(self, '_contents_for_{}'.format(_type))
+            contents_for = getattr(self, f'_contents_for_{_type}')
             for content in contents_for(record):
                 yield content
         else:
-            contents_for = getattr(self, '_contents_for_{}'.format(_type))
+            contents_for = getattr(self, f'_contents_for_{_type}')
             for content in contents_for(record):
                 content.update({
                     'name': name,
@@ -597,46 +597,58 @@ class CloudflareProvider(BaseProvider):
         # AND... for URLFWD/Redirects additional adventures are created.
         _type = data.get('type', 'URLFWD')
         if _type == 'MX':
-            return '{priority} {content}'.format(**data)
+            priority = data['priority']
+            content = data['content']
+            return f'{priority} {content}'
         elif _type == 'CAA':
             data = data['data']
-            return '{flags} {tag} {value}'.format(**data)
+            flags = data['flags']
+            tag = data['tag']
+            value = data['value']
+            return f'{flags} {tag} {value}'
         elif _type == 'SRV':
             data = data['data']
-            return '{port} {priority} {target} {weight}'.format(**data)
+            port = data['port']
+            priority = data['priority']
+            target = data['target']
+            weight = data['weight']
+            return f'{port} {priority} {target} {weight}'
         elif _type == 'LOC':
             data = data['data']
-            loc = (
-                '{lat_degrees}',
-                '{lat_minutes}',
-                '{lat_seconds}',
-                '{lat_direction}',
-                '{long_degrees}',
-                '{long_minutes}',
-                '{long_seconds}',
-                '{long_direction}',
-                '{altitude}',
-                '{size}',
-                '{precision_horz}',
-                '{precision_vert}')
-            return ' '.join(loc).format(**data)
+            lat_degrees = data['lat_degrees']
+            lat_minutes = data['lat_minutes']
+            lat_seconds = data['lat_seconds']
+            lat_direction = data['lat_direction']
+            long_degrees = data['long_degrees']
+            long_minutes = data['long_minutes']
+            long_seconds = data['long_seconds']
+            long_direction = data['long_direction']
+            altitude = data['altitude']
+            size = data['size']
+            precision_horz = data['precision_horz']
+            precision_vert = data['precision_vert']
+            return f'{lat_degrees} {lat_minutes} {lat_seconds} ' \
+                f'{lat_direction} {long_degrees} {long_minutes} ' \
+                f'{long_seconds} {long_direction} {altitude} {size} ' \
+                f'{precision_horz} {precision_vert}'
         elif _type == 'URLFWD':
             uri = data['targets'][0]['constraint']['value']
             uri = '//' + uri if not uri.startswith('http') else uri
             parsed_uri = urlsplit(uri)
-            return '{name} {path} {url} {status_code}' \
-                .format(name=parsed_uri.netloc,
-                        path=parsed_uri.path,
-                        **data['actions'][0]['value'])
+            url = data['actions'][0]['value']['url']
+            status_code = data['actions'][0]['value']['status_code']
+            return f'{parsed_uri.netloc} {parsed_uri.path} {url} ' + \
+                f'{status_code}'
+
         return data['content']
 
     def _apply_Create(self, change):
         new = change.new
         zone_id = self.zones[new.zone.name]
         if new._type == 'URLFWD':
-            path = '/zones/{}/pagerules'.format(zone_id)
+            path = f'/zones/{zone_id}/pagerules'
         else:
-            path = '/zones/{}/dns_records'.format(zone_id)
+            path = f'/zones/{zone_id}/dns_records'
         for content in self._gen_data(new):
             self._try_request('POST', path, data=content)
 
@@ -738,9 +750,9 @@ class CloudflareProvider(BaseProvider):
 
         # Creates
         if _type == 'URLFWD':
-            path = '/zones/{}/pagerules'.format(zone_id)
+            path = f'/zones/{zone_id}/pagerules'
         else:
-            path = '/zones/{}/dns_records'.format(zone_id)
+            path = f'/zones/{zone_id}/dns_records'
         for _, data in sorted(creates.items()):
             self.log.debug('_apply_Update: creating %s', data)
             self._try_request('POST', path, data=data)
@@ -751,9 +763,9 @@ class CloudflareProvider(BaseProvider):
             data = info['data']
             old_data = info['old_data']
             if _type == 'URLFWD':
-                path = '/zones/{}/pagerules/{}'.format(zone_id, record_id)
+                path = f'/zones/{zone_id}/pagerules/{record_id}'
             else:
-                path = '/zones/{}/dns_records/{}'.format(zone_id, record_id)
+                path = f'/zones/{zone_id}/dns_records/{record_id}'
             self.log.debug('_apply_Update: updating %s, %s -> %s',
                            record_id, data, old_data)
             self._try_request('PUT', path, data=data)
@@ -763,9 +775,9 @@ class CloudflareProvider(BaseProvider):
             record_id = info['record_id']
             old_data = info['data']
             if _type == 'URLFWD':
-                path = '/zones/{}/pagerules/{}'.format(zone_id, record_id)
+                path = f'/zones/{zone_id}/pagerules/{record_id}'
             else:
-                path = '/zones/{}/dns_records/{}'.format(zone_id, record_id)
+                path = f'/zones/{zone_id}/dns_records/{record_id}'
             self.log.debug('_apply_Update: removing %s, %s', record_id,
                            old_data)
             self._try_request('DELETE', path)
@@ -786,14 +798,13 @@ class CloudflareProvider(BaseProvider):
                 zone_id = self.zones.get(existing.zone.name, False)
                 if existing_name == record_name and \
                    existing_type == record_type:
-                    path = '/zones/{}/pagerules/{}' \
-                        .format(zone_id, record['id'])
+                    path = f'/zones/{zone_id}/pagerules/{record["id"]}'
                     self._try_request('DELETE', path)
             else:
                 if existing_name == record['name'] and \
                    existing_type == record['type']:
-                    path = '/zones/{}/dns_records/{}' \
-                        .format(record['zone_id'], record['id'])
+                    path = f'/zones/{record["zone_id"]}/dns_records/' \
+                        f'{record["id"]}'
                     self._try_request('DELETE', path)
 
     def _apply(self, plan):
@@ -821,7 +832,7 @@ class CloudflareProvider(BaseProvider):
 
         for change in changes:
             class_name = change.__class__.__name__
-            getattr(self, '_apply_{}'.format(class_name))(change)
+            getattr(self, f'_apply_{class_name}')(change)
 
         # clear the cache
         self._zone_records.pop(name, None)
