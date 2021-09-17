@@ -610,9 +610,11 @@ class Route53Provider(BaseProvider):
 
     def __init__(self, id, access_key_id=None, secret_access_key=None,
                  max_changes=1000, client_max_attempts=None,
-                 session_token=None, delegation_set_id=None, *args, **kwargs):
+                 session_token=None, delegation_set_id=None,
+                 get_zones_by_name=False, *args, **kwargs):
         self.max_changes = max_changes
         self.delegation_set_id = delegation_set_id
+        self.get_zones_by_name = get_zones_by_name
         _msg = f'access_key_id={access_key_id}, secret_access_key=***, ' \
                'session_token=***'
         use_fallback_auth = access_key_id is None and \
@@ -661,7 +663,18 @@ class Route53Provider(BaseProvider):
 
     def _get_zone_id(self, name, create=False):
         self.log.debug('_get_zone_id: name=%s', name)
-        if name in self.r53_zones:
+        if self.get_zones_by_name:
+            # attempt to get zone by name
+            # limited to one as this should be unique
+            response = self._conn.list_hosted_zones_by_name(
+                DNSName=name, MaxItems="1"
+            )
+            if len(response['HostedZones']) == 1:
+                # if there is a single response
+                id = response['HostedZones'][0]['Id']
+                self.log.debug(id)
+                return id
+        elif name in self.r53_zones:
             id = self.r53_zones[name]
             self.log.debug('_get_zone_id:   id=%s', id)
             return id

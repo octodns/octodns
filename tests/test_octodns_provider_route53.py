@@ -1745,6 +1745,82 @@ class TestRoute53Provider(TestCase):
         self.assertEquals([], extra)
         stubber.assert_no_pending_responses()
 
+    def test_no_changes_with_get_zones_by_name(self):
+        provider = Route53Provider(
+            'test', 'abc', '123', get_zones_by_name=True)
+
+        # Use the stubber
+        stubber = Stubber(provider._conn)
+        stubber.activate()
+
+        list_hosted_zones_by_name_resp = {
+            'HostedZones': [{
+                'Id': 'z42',
+                'Name': 'unit.tests.',
+                'CallerReference': 'abc',
+                'Config': {
+                    'Comment': 'string',
+                    'PrivateZone': False
+                },
+                'ResourceRecordSetCount': 123,
+            }, ],
+            'DNSName': 'unit.tests.',
+            'HostedZoneId': 'z42',
+            'IsTruncated': False,
+            'MaxItems': 'string'
+        }
+
+        stubber.add_response(
+            'list_hosted_zones_by_name',
+            list_hosted_zones_by_name_resp,
+            {'DNSName': 'unit.tests.', 'MaxItems': '1'}
+        )
+
+        # empty is empty
+        desired = Zone('unit.tests.', [])
+        extra = provider._extra_changes(desired=desired, changes=[])
+        self.assertEquals([], extra)
+        stubber.assert_no_pending_responses()
+
+    def test_plan_with_get_zones_by_name(self):
+        provider = Route53Provider(
+            'test', 'abc', '123', get_zones_by_name=True)
+
+        # Use the stubber
+        stubber = Stubber(provider._conn)
+        stubber.activate()
+
+        # this is an empty response
+        # zone name not found
+        list_hosted_zones_by_name_resp = {
+            'HostedZones': [],
+            'DNSName': 'unit.tests.',
+            'HostedZoneId': 'z42',
+            'IsTruncated': False,
+            'MaxItems': 'string'
+        }
+
+        # list_hosted_zones_by_name gets called 3 times in this process
+        # so adding 3 responses
+        stubber.add_response(
+            'list_hosted_zones_by_name',
+            list_hosted_zones_by_name_resp,
+            {'DNSName': 'unit.tests.', 'MaxItems': '1'}
+        )
+        stubber.add_response(
+            'list_hosted_zones_by_name',
+            list_hosted_zones_by_name_resp,
+            {'DNSName': 'unit.tests.', 'MaxItems': '1'}
+        )
+        stubber.add_response(
+            'list_hosted_zones_by_name',
+            list_hosted_zones_by_name_resp,
+            {'DNSName': 'unit.tests.', 'MaxItems': '1'}
+        )
+
+        plan = provider.plan(self.expected)
+        self.assertEquals(9, len(plan.changes))
+
     def test_extra_change_no_health_check(self):
         provider, stubber = self._get_stubbed_provider()
 
