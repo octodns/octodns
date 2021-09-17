@@ -917,7 +917,8 @@ class AzureProvider(BaseProvider):
                         # Azure only supports up=None & up=False, not up=True
                         msg = f'up=True is not supported for "{name}" pool ' \
                             f'in {record.fqdn}'
-                        fallback = 'ignoring it'
+                        fallback = \
+                            'will ignore the flag and respect healthcheck'
                         self.supports_warn_or_except(msg, fallback)
 
         return super()._process_desired_zone(desired)
