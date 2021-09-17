@@ -57,14 +57,28 @@ class BaseProvider(BaseSource):
                 fallback = 'omitting record'
                 self.supports_warn_or_except(msg, fallback)
                 desired.remove_record(record)
-            elif getattr(record, 'dynamic', False) and \
-                    not self.SUPPORTS_DYNAMIC:
-                msg = f'dynamic records not supported for {record.fqdn}'
-                fallback = 'falling back to simple record'
-                self.supports_warn_or_except(msg, fallback)
-                record = record.copy()
-                record.dynamic = None
-                desired.add_record(record, replace=True)
+            elif getattr(record, 'dynamic', False):
+                if self.SUPPORTS_DYNAMIC:
+                    pools = record.dynamic.pools.values()
+                    values = [p.data['values'] for p in pools]
+                    if any(isinstance(v['up'], bool) for v in values) and not \
+                       self.SUPPORTS_POOL_VALUE_UP:
+                        msg = f'"up" flag used in {record.fqdn} is not ' \
+                            f'supported'
+                        fallback = 'falling back to using healthchecks'
+                        self.supports_warn_or_except(msg, fallback)
+                        record = record.copy()
+                        for pool in record.dynamic.pools.values():
+                            for value in pool.data['values']:
+                                value['up'] = None
+                        desired.add_record(record, replace=True)
+                else:
+                    msg = f'dynamic records not supported for {record.fqdn}'
+                    fallback = 'falling back to simple record'
+                    self.supports_warn_or_except(msg, fallback)
+                    record = record.copy()
+                    record.dynamic = None
+                    desired.add_record(record, replace=True)
             elif record._type == 'PTR' and len(record.values) > 1 and \
                     not self.SUPPORTS_MUTLIVALUE_PTR:
                 # replace with a single-value copy
