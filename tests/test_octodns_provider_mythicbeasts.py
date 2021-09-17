@@ -8,7 +8,6 @@ from __future__ import absolute_import, division, print_function, \
 from os.path import dirname, join
 
 from requests_mock import ANY, mock as requests_mock
-from six import text_type
 from unittest import TestCase
 
 from octodns.provider.mythicbeasts import MythicBeastsProvider, \
@@ -32,12 +31,12 @@ class TestMythicBeastsProvider(TestCase):
         with self.assertRaises(AssertionError) as err:
             add_trailing_dot('unit.tests.')
         self.assertEquals('Value already has trailing dot',
-                          text_type(err.exception))
+                          str(err.exception))
 
         with self.assertRaises(AssertionError) as err:
             remove_trailing_dot('unit.tests')
         self.assertEquals('Value already missing trailing dot',
-                          text_type(err.exception))
+                          str(err.exception))
 
         self.assertEquals(add_trailing_dot('unit.tests'), 'unit.tests.')
         self.assertEquals(remove_trailing_dot('unit.tests.'), 'unit.tests')
@@ -91,8 +90,7 @@ class TestMythicBeastsProvider(TestCase):
                 '',
                 {'raw_values': [{'value': '', 'ttl': 0}]}
             )
-        self.assertEquals('Unable to parse MX data',
-                          text_type(err.exception))
+        self.assertEquals('Unable to parse MX data', str(err.exception))
 
     def test_data_for_CNAME(self):
         test_data = {
@@ -129,8 +127,7 @@ class TestMythicBeastsProvider(TestCase):
                 '',
                 {'raw_values': [{'value': '', 'ttl': 0}]}
             )
-        self.assertEquals('Unable to parse SRV data',
-                          text_type(err.exception))
+        self.assertEquals('Unable to parse SRV data', str(err.exception))
 
     def test_data_for_SSHFP(self):
         test_data = {
@@ -149,8 +146,7 @@ class TestMythicBeastsProvider(TestCase):
                 '',
                 {'raw_values': [{'value': '', 'ttl': 0}]}
             )
-        self.assertEquals('Unable to parse SSHFP data',
-                          text_type(err.exception))
+        self.assertEquals('Unable to parse SSHFP data', str(err.exception))
 
     def test_data_for_CAA(self):
         test_data = {
@@ -166,8 +162,7 @@ class TestMythicBeastsProvider(TestCase):
                 '',
                 {'raw_values': [{'value': '', 'ttl': 0}]}
             )
-        self.assertEquals('Unable to parse CAA data',
-                          text_type(err.exception))
+        self.assertEquals('Unable to parse CAA data', str(err.exception))
 
     def test_command_generation(self):
         zone = Zone('unit.tests.', [])
@@ -312,8 +307,7 @@ class TestMythicBeastsProvider(TestCase):
         # Null passwords dict
         with self.assertRaises(AssertionError) as err:
             provider = MythicBeastsProvider('test', None)
-        self.assertEquals('Passwords must be a dictionary',
-                          text_type(err.exception))
+        self.assertEquals('Passwords must be a dictionary', str(err.exception))
 
         # Missing password
         with requests_mock() as mock:
@@ -323,9 +317,8 @@ class TestMythicBeastsProvider(TestCase):
                 provider = MythicBeastsProvider('test', dict())
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            self.assertEquals(
-                'Missing password for domain: unit.tests',
-                text_type(err.exception))
+            self.assertEquals('Missing password for domain: unit.tests',
+                              str(err.exception))
 
         # Failed authentication
         with requests_mock() as mock:

@@ -5,8 +5,6 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from six import text_type
-
 from ..source.base import BaseSource
 from ..zone import Zone
 from .plan import Plan
@@ -134,7 +132,7 @@ class BaseProvider(BaseSource):
                                     changes=changes)
         if extra:
             self.log.info('plan:   extra changes\n  %s', '\n  '
-                          .join([text_type(c) for c in extra]))
+                          .join([str(c) for c in extra]))
             changes += extra
 
         if changes:
