@@ -914,8 +914,8 @@ class AzureProvider(BaseProvider):
                 for value in pool.data['values']:
                     if value['up']:
                         # Azure only supports up=None & up=False, not up=True
-                        msg = 'up=True is not supported for "{}" pool in {}' \
-                            .format(name, record.fqdn)
+                        msg = f'up=True is not supported for "{name}" pool ' \
+                            f'in {record.fqdn}'
                         fallback = 'ignoring it'
                         self.supports_warn_or_except(msg, fallback)
 
@@ -1064,7 +1064,7 @@ class AzureProvider(BaseProvider):
                 # mark default
                 ep_name += '--default--'
                 default_seen = True
-            ep_status = 'Disabled' if val['up'] == False else \
+            ep_status = 'Disabled' if val['up'] is False else \
                 'Enabled'
             endpoints.append(Endpoint(
                 name=ep_name,

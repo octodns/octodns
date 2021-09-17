@@ -945,8 +945,8 @@ class Route53Provider(BaseProvider):
                 for name, pool in dynamic.pools.items():
                     for value in pool.data['values']:
                         if value['up'] is not None:
-                            msg = '"up" flag is not supported for "{}" pool' \
-                                ' in {}'.format(name, record.fqdn)
+                            msg = f'"up" flag is not supported for "{name}"' \
+                                f' pool in {record.fqdn}'
                             fallback = 'ignoring it, octodns-sync command ' \
                                 'will keep showing changes'
                             self.supports_warn_or_except(msg, fallback)

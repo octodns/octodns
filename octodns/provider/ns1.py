@@ -1284,11 +1284,12 @@ class Ns1Provider(BaseProvider):
                 if up is None:
                     # state is not forced, let's find a monitor
                     feed_id = value_feed.get(value)
-                    # check for identical monitor and skip creating one if found
+                    # check for identical monitor and skip creating one if
+                    # found
                     if not feed_id:
                         existing = existing_monitors.get(value)
                         monitor_id, feed_id = self._monitor_sync(record, value,
-                                                                existing)
+                                                                 existing)
                         value_feed[value] = feed_id
                         active_monitors.add(monitor_id)
 
