@@ -41,7 +41,7 @@ class TestUltraProvider(TestCase):
 
         # Bad Auth
         with requests_mock() as mock:
-            mock.post('{}{}'.format(self.host, path), status_code=401,
+            mock.post(f'{self.host}{path}', status_code=401,
                       text='{"errorCode": 60001}')
             with self.assertRaises(Exception) as ctx:
                 UltraProvider('test', 'account', 'user', 'wrongpass')
@@ -50,7 +50,7 @@ class TestUltraProvider(TestCase):
         # Good Auth
         with requests_mock() as mock:
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-            mock.post('{}{}'.format(self.host, path), status_code=200,
+            mock.post(f'{self.host}{path}', status_code=200,
                       request_headers=headers,
                       text='{"token type": "Bearer", "refresh_token": "abc", '
                       '"access_token":"123", "expires_in": "3600"}')
@@ -67,7 +67,7 @@ class TestUltraProvider(TestCase):
 
         # Test authorization issue
         with requests_mock() as mock:
-            mock.get('{}{}'.format(self.host, path), status_code=400,
+            mock.get(f'{self.host}{path}', status_code=400,
                      json={"errorCode": 60004,
                            "errorMessage": "Authorization Header required"})
             with self.assertRaises(HTTPError) as ctx:
@@ -76,7 +76,7 @@ class TestUltraProvider(TestCase):
 
         # Test no zones exist error
         with requests_mock() as mock:
-            mock.get('{}{}'.format(self.host, path), status_code=404,
+            mock.get(f'{self.host}{path}', status_code=404,
                      headers={'Authorization': 'Bearer 123'},
                      json=self.empty_body)
             zones = provider.zones
@@ -109,7 +109,7 @@ class TestUltraProvider(TestCase):
                 ]
             }
 
-            mock.get('{}{}'.format(self.host, path), status_code=200,
+            mock.get(f'{self.host}{path}', status_code=200,
                      headers={'Authorization': 'Bearer 123'},
                      json=payload)
             zones = provider.zones
@@ -120,14 +120,14 @@ class TestUltraProvider(TestCase):
         # Test different paging behavior
         provider._zones = None
         with requests_mock() as mock:
-            mock.get('{}{}?limit=100&q=zone_type%3APRIMARY&offset=0'
-                     .format(self.host, path), status_code=200,
+            mock.get(f'{self.host}{path}?limit=100&q=zone_type%3APRIMARY&'
+                     'offset=0', status_code=200,
                      json={"resultInfo": {"totalCount": 15,
                                           "offset": 0,
                                           "returnedCount": 10},
                            "zones": []})
-            mock.get('{}{}?limit=100&q=zone_type%3APRIMARY&offset=10'
-                     .format(self.host, path), status_code=200,
+            mock.get(f'{self.host}{path}?limit=100&q=zone_type%3APRIMARY'
+                     '&offset=10', status_code=200,
                      json={"resultInfo": {"totalCount": 15,
                                           "offset": 10,
                                           "returnedCount": 5},
@@ -141,7 +141,7 @@ class TestUltraProvider(TestCase):
         payload = {'a': 1}
 
         with requests_mock() as mock:
-            mock.get('{}{}'.format(self.host, path), status_code=401,
+            mock.get(f'{self.host}{path}', status_code=401,
                      headers={'Authorization': 'Bearer 123'}, json={})
             with self.assertRaises(Exception) as ctx:
                 provider._get(path)
@@ -149,37 +149,37 @@ class TestUltraProvider(TestCase):
 
         # Test all GET patterns
         with requests_mock() as mock:
-            mock.get('{}{}'.format(self.host, path), status_code=200,
+            mock.get(f'{self.host}{path}', status_code=200,
                      headers={'Authorization': 'Bearer 123'},
                      json=payload)
             provider._get(path, json=payload)
 
-            mock.get('{}{}?a=1'.format(self.host, path), status_code=200,
+            mock.get(f'{self.host}{path}?a=1', status_code=200,
                      headers={'Authorization': 'Bearer 123'})
             provider._get(path, params=payload, json_response=False)
 
         # Test all POST patterns
         with requests_mock() as mock:
-            mock.post('{}{}'.format(self.host, path), status_code=200,
+            mock.post(f'{self.host}{path}', status_code=200,
                       headers={'Authorization': 'Bearer 123'},
                       json=payload)
             provider._post(path, json=payload)
 
-            mock.post('{}{}'.format(self.host, path), status_code=200,
+            mock.post(f'{self.host}{path}', status_code=200,
                       headers={'Authorization': 'Bearer 123'},
                       text="{'a':1}")
             provider._post(path, data=payload, json_response=False)
 
         # Test all PUT patterns
         with requests_mock() as mock:
-            mock.put('{}{}'.format(self.host, path), status_code=200,
+            mock.put(f'{self.host}{path}', status_code=200,
                      headers={'Authorization': 'Bearer 123'},
                      json=payload)
             provider._put(path, json=payload)
 
         # Test all DELETE patterns
         with requests_mock() as mock:
-            mock.delete('{}{}'.format(self.host, path), status_code=200,
+            mock.delete(f'{self.host}{path}', status_code=200,
                         headers={'Authorization': 'Bearer 123'})
             provider._delete(path, json_response=False)
 
@@ -221,10 +221,9 @@ class TestUltraProvider(TestCase):
         zone_path = '/v2/zones'
         rec_path = '/v2/zones/octodns1.test./rrsets'
         with requests_mock() as mock:
-            mock.get('{}{}?limit=100&q=zone_type%3APRIMARY&offset=0'
-                     .format(self.host, zone_path),
-                     status_code=200, json=zone_payload)
-            mock.get('{}{}?offset=0&limit=100'.format(self.host, rec_path),
+            mock.get(f'{self.host}{zone_path}?limit=100&q=zone_type%3APRIMARY&'
+                     'offset=0', status_code=200, json=zone_payload)
+            mock.get(f'{self.host}{rec_path}?offset=0&limit=100',
                      status_code=200, json=records_payload)
 
             zone = Zone('octodns1.test.', [])
@@ -257,21 +256,18 @@ class TestUltraProvider(TestCase):
         path = '/v2/zones'
         with requests_mock() as mock:
             with open('tests/fixtures/ultra-zones-page-1.json') as fh:
-                mock.get('{}{}?limit=100&q=zone_type%3APRIMARY&offset=0'
-                         .format(self.host, path),
-                         status_code=200, text=fh.read())
+                mock.get(f'{self.host}{path}?limit=100&q=zone_type%3APRIMARY&'
+                         'offset=0', status_code=200, text=fh.read())
             with open('tests/fixtures/ultra-zones-page-2.json') as fh:
-                mock.get('{}{}?limit=100&q=zone_type%3APRIMARY&offset=10'
-                         .format(self.host, path),
-                         status_code=200, text=fh.read())
+                mock.get(f'{self.host}{path}?limit=100&q=zone_type%3APRIMARY&'
+                         'offset=10', status_code=200, text=fh.read())
             with open('tests/fixtures/ultra-records-page-1.json') as fh:
                 rec_path = '/v2/zones/octodns1.test./rrsets'
-                mock.get('{}{}?offset=0&limit=100'.format(self.host, rec_path),
+                mock.get(f'{self.host}{rec_path}?offset=0&limit=100',
                          status_code=200, text=fh.read())
             with open('tests/fixtures/ultra-records-page-2.json') as fh:
                 rec_path = '/v2/zones/octodns1.test./rrsets'
-                mock.get('{}{}?offset=10&limit=100'
-                         .format(self.host, rec_path),
+                mock.get(f'{self.host}{rec_path}?offset=10&limit=100',
                          status_code=200, text=fh.read())
 
             zone = Zone('octodns1.test.', [])

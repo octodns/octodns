@@ -79,9 +79,9 @@ class TestDnsimpleProvider(TestCase):
             base = 'https://api.dnsimple.com/v2/42/zones/unit.tests/' \
                 'records?page='
             with open('tests/fixtures/dnsimple-page-1.json') as fh:
-                mock.get('{}{}'.format(base, 1), text=fh.read())
+                mock.get(f'{base}1', text=fh.read())
             with open('tests/fixtures/dnsimple-page-2.json') as fh:
-                mock.get('{}{}'.format(base, 2), text=fh.read())
+                mock.get(f'{base}2', text=fh.read())
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)

@@ -45,8 +45,7 @@ class MockDomainService(object):
         _dns_entries = []
         for record in records:
             if record._type in provider.SUPPORTS:
-                entries_for = getattr(provider,
-                                      '_entries_for_{}'.format(record._type))
+                entries_for = getattr(provider, f'_entries_for_{record._type}')
 
                 # Root records have '@' as name
                 name = record.name

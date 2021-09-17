@@ -1653,7 +1653,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 1,
                     'weight': 12,
-                    'note': 'from:{}'.format(catchall_pool_name),
+                    'note': f'from:{catchall_pool_name}',
                 },
                 'region': catchall_pool_name,
             }, {
@@ -1774,8 +1774,7 @@ class TestNs1ProviderDynamic(TestCase):
             partial_oc_cntry_list
         data4 = provider._data_for_A('A', ns1_record)
         for c in partial_oc_cntry_list:
-            self.assertTrue(
-                'OC-{}'.format(c) in data4['dynamic']['rules'][0]['geos'])
+            self.assertTrue(f'OC-{c}' in data4['dynamic']['rules'][0]['geos'])
 
         # NA test cases
         # 1. Full list of countries should return 'NA' in geos
@@ -1792,8 +1791,7 @@ class TestNs1ProviderDynamic(TestCase):
             partial_na_cntry_list
         data6 = provider._data_for_A('A', ns1_record)
         for c in partial_na_cntry_list:
-            self.assertTrue(
-                'NA-{}'.format(c) in data6['dynamic']['rules'][0]['geos'])
+            self.assertTrue(f'NA-{c}' in data6['dynamic']['rules'][0]['geos'])
 
         # Test out fallback only pools and new-style notes
         ns1_record = {
@@ -1919,7 +1917,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 1,
                     'weight': 12,
-                    'note': 'from:{}'.format(catchall_pool_name),
+                    'note': f'from:{catchall_pool_name}',
                 },
                 'region': catchall_pool_name,
             }, {

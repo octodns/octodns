@@ -68,9 +68,9 @@ class TestHetznerProvider(TestCase):
         with requests_mock() as mock:
             base = provider._client.BASE_URL
             with open('tests/fixtures/hetzner-zones.json') as fh:
-                mock.get('{}/zones'.format(base), text=fh.read())
+                mock.get(f'{base}/zones', text=fh.read())
             with open('tests/fixtures/hetzner-records.json') as fh:
-                mock.get('{}/records'.format(base), text=fh.read())
+                mock.get(f'{base}/records', text=fh.read())
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)

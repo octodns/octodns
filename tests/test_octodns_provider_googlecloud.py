@@ -156,8 +156,7 @@ class DummyResourceRecordSet:
             return False
 
     def __repr__(self):
-        return "{} {} {} {!s}"\
-            .format(self.name, self.record_type, self.ttl, self.rrdatas)
+        return f"{self.name} {self.record_type} {self.ttl} {self.rrdatas}"
 
     def __hash__(self):
         return hash(repr(self))
@@ -419,7 +418,7 @@ class TestGoogleCloudProvider(TestCase):
         dummy_gcloud_zone = DummyGoogleCloudZone("unit.tests")
         for octo_record in octo_records:
             _rrset_func = getattr(
-                provider, '_rrset_for_{}'.format(octo_record._type))
+                provider, f'_rrset_for_{octo_record._type}')
             self.assertEqual(
                 _rrset_func(dummy_gcloud_zone, octo_record).record_type,
                 octo_record._type
