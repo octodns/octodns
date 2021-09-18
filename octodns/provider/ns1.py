@@ -306,7 +306,7 @@ class Ns1Provider(BaseProvider):
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
-    SUPPORTS_MUTLIVALUE_PTR = True
+    SUPPORTS_MULTIVALUE_PTR = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR',
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT', 'URLFWD'))
 
