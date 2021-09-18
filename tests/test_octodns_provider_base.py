@@ -22,7 +22,7 @@ class HelperProvider(BaseProvider):
     log = getLogger('HelperProvider')
 
     SUPPORTS = set(('A', 'PTR'))
-    SUPPORTS_MUTLIVALUE_PTR = False
+    SUPPORTS_MULTIVALUE_PTR = False
     SUPPORTS_DYNAMIC = False
 
     id = 'test'
@@ -239,8 +239,8 @@ class TestBaseProvider(TestCase):
     def test_process_desired_zone(self):
         provider = HelperProvider('test')
 
-        # SUPPORTS_MUTLIVALUE_PTR
-        provider.SUPPORTS_MUTLIVALUE_PTR = False
+        # SUPPORTS_MULTIVALUE_PTR
+        provider.SUPPORTS_MULTIVALUE_PTR = False
         zone1 = Zone('unit.tests.', [])
         record1 = Record.new(zone1, 'ptr', {
             'type': 'PTR',
@@ -253,7 +253,7 @@ class TestBaseProvider(TestCase):
         record2 = list(zone2.records)[0]
         self.assertEqual(len(record2.values), 1)
 
-        provider.SUPPORTS_MUTLIVALUE_PTR = True
+        provider.SUPPORTS_MULTIVALUE_PTR = True
         zone2 = provider._process_desired_zone(zone1.copy())
         record2 = list(zone2.records)[0]
         from pprint import pprint

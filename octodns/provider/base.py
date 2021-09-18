@@ -66,7 +66,7 @@ class BaseProvider(BaseSource):
                 record.dynamic = None
                 desired.add_record(record, replace=True)
             elif record._type == 'PTR' and len(record.values) > 1 and \
-                    not self.SUPPORTS_MUTLIVALUE_PTR:
+                    not self.SUPPORTS_MULTIVALUE_PTR:
                 # replace with a single-value copy
                 msg = \
                     f'multi-value PTR records not supported for {record.fqdn}'
