@@ -59,19 +59,26 @@ class BaseProvider(BaseSource):
                 desired.remove_record(record)
             elif getattr(record, 'dynamic', False):
                 if self.SUPPORTS_DYNAMIC:
-                    pools = record.dynamic.pools.values()
-                    values = [p.data['values'] for p in pools]
-                    if any(isinstance(v['up'], bool) for v in values) and not \
-                       self.SUPPORTS_POOL_VALUE_UP:
-                        msg = f'"up" flag used in {record.fqdn} is not ' \
-                            f'supported'
-                        fallback = 'falling back to using healthchecks'
-                        self.supports_warn_or_except(msg, fallback)
-                        record = record.copy()
-                        for pool in record.dynamic.pools.values():
-                            for value in pool.data['values']:
-                                value['up'] = None
-                        desired.add_record(record, replace=True)
+                    if self.SUPPORTS_POOL_VALUE_UP:
+                        continue
+                    # drop unsupported up flag
+                    unsupported_pools = []
+                    for _id, pool in record.dynamic.pools.items():
+                        for value in pool.data['values']:
+                            if isinstance(value['up'], bool):
+                                unsupported_pools.append(_id)
+                    if not unsupported_pools:
+                        continue
+                    unsupported_pools = ','.join(unsupported_pools)
+                    msg = f'"up" flag used in pools {unsupported_pools} in ' \
+                        f'{record.fqdn} is not supported'
+                    fallback = 'will ignore it and respect the healthcheck'
+                    self.supports_warn_or_except(msg, fallback)
+                    record = record.copy()
+                    for pool in record.dynamic.pools.values():
+                        for value in pool.data['values']:
+                            value['up'] = None
+                    desired.add_record(record, replace=True)
                 else:
                     msg = f'dynamic records not supported for {record.fqdn}'
                     fallback = 'falling back to simple record'
