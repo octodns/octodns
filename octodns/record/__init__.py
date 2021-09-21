@@ -222,6 +222,7 @@ class Record(EqualityTupleMixin):
     def copy(self, zone=None):
         data = self.data
         data['type'] = self._type
+        data['octodns'] = self._octodns
 
         return Record.new(
             zone if zone else self.zone,
