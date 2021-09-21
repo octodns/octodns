@@ -9,7 +9,6 @@ from mock import Mock, call
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
-from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record
@@ -58,7 +57,7 @@ class TestGandiProvider(TestCase):
             with self.assertRaises(GandiClientBadRequest) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            self.assertIn('"status": "error"', text_type(ctx.exception))
+            self.assertIn('"status": "error"', str(ctx.exception))
 
         # 401 - Unauthorized.
         with requests_mock() as mock:
@@ -73,7 +72,7 @@ class TestGandiProvider(TestCase):
             with self.assertRaises(GandiClientUnauthorized) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            self.assertIn('"cause":"Unauthorized"', text_type(ctx.exception))
+            self.assertIn('"cause":"Unauthorized"', str(ctx.exception))
 
         # 403 - Forbidden.
         with requests_mock() as mock:
@@ -85,7 +84,7 @@ class TestGandiProvider(TestCase):
             with self.assertRaises(GandiClientForbidden) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            self.assertIn('"cause":"Forbidden"', text_type(ctx.exception))
+            self.assertIn('"cause":"Forbidden"', str(ctx.exception))
 
         # 404 - Not Found.
         with requests_mock() as mock:
@@ -97,7 +96,7 @@ class TestGandiProvider(TestCase):
             with self.assertRaises(GandiClientNotFound) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider._client.zone(zone)
-            self.assertIn('"cause": "Not Found"', text_type(ctx.exception))
+            self.assertIn('"cause": "Not Found"', str(ctx.exception))
 
         # General error
         with requests_mock() as mock:
@@ -175,7 +174,7 @@ class TestGandiProvider(TestCase):
                 plan = provider.plan(self.expected)
                 provider.apply(plan)
             self.assertIn('This domain is not registered at Gandi.',
-                          text_type(ctx.exception))
+                          str(ctx.exception))
 
         resp = Mock()
         resp.json = Mock()

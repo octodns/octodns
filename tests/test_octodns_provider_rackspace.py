@@ -7,8 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 import json
 import re
-from six import text_type
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 from unittest import TestCase
 
 from requests import HTTPError
@@ -53,7 +52,7 @@ class TestRackspaceProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 self.provider.populate(zone)
-            self.assertTrue('unauthorized' in text_type(ctx.exception))
+            self.assertTrue('unauthorized' in str(ctx.exception))
             self.assertTrue(mock.called_once)
 
     def test_server_error(self):

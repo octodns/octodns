@@ -14,8 +14,6 @@ from pycountry_convert import country_alpha2_to_continent_code
 from time import sleep
 from uuid import uuid4
 
-from six import text_type
-
 from ..record import Record, Update
 from . import ProviderException
 from .base import BaseProvider
@@ -529,9 +527,9 @@ class Ns1Provider(BaseProvider):
             else:
                 values.extend(answer['answer'])
                 codes.append([])
-        values = [text_type(x) for x in values]
+        values = [str(x) for x in values]
         geo = OrderedDict(
-            {text_type(k): [text_type(x) for x in v] for k, v in geo.items()}
+            {str(k): [str(x) for x in v] for k, v in geo.items()}
         )
         data['values'] = values
         data['geo'] = geo
@@ -565,7 +563,7 @@ class Ns1Provider(BaseProvider):
             meta = answer['meta']
             notes = self._parse_notes(meta.get('note', ''))
 
-            value = text_type(answer['answer'][0])
+            value = str(answer['answer'][0])
             if notes.get('from', False) == '--default--':
                 # It's a final/default value, record it and move on
                 default.add(value)
@@ -727,7 +725,7 @@ class Ns1Provider(BaseProvider):
         return {
             'ttl': record['ttl'],
             'type': _type,
-            'values': [text_type(x) for x in record['short_answers']]
+            'values': [str(x) for x in record['short_answers']]
         }
 
     _data_for_AAAA = _data_for_A

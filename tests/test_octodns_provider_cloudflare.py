@@ -9,7 +9,6 @@ from mock import Mock, call
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
-from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record, Update
@@ -67,7 +66,7 @@ class TestCloudflareProvider(TestCase):
                 provider.populate(zone)
 
             self.assertEquals('CloudflareError', type(ctx.exception).__name__)
-            self.assertEquals('request was invalid', text_type(ctx.exception))
+            self.assertEquals('request was invalid', str(ctx.exception))
 
         # Bad auth
         with requests_mock() as mock:
@@ -82,7 +81,7 @@ class TestCloudflareProvider(TestCase):
             self.assertEquals('CloudflareAuthenticationError',
                               type(ctx.exception).__name__)
             self.assertEquals('Unknown X-Auth-Key or X-Auth-Email',
-                              text_type(ctx.exception))
+                              str(ctx.exception))
 
         # Bad auth, unknown resp
         with requests_mock() as mock:
@@ -93,7 +92,7 @@ class TestCloudflareProvider(TestCase):
                 provider.populate(zone)
             self.assertEquals('CloudflareAuthenticationError',
                               type(ctx.exception).__name__)
-            self.assertEquals('Cloudflare error', text_type(ctx.exception))
+            self.assertEquals('Cloudflare error', str(ctx.exception))
 
         # General error
         with requests_mock() as mock:
@@ -120,7 +119,7 @@ class TestCloudflareProvider(TestCase):
                               type(ctx.exception).__name__)
             self.assertEquals('More than 1200 requests per 300 seconds '
                               'reached. Please wait and consider throttling '
-                              'your request speed', text_type(ctx.exception))
+                              'your request speed', str(ctx.exception))
 
         # Rate Limit error, unknown resp
         with requests_mock() as mock:
@@ -132,7 +131,7 @@ class TestCloudflareProvider(TestCase):
 
             self.assertEquals('CloudflareRateLimitError',
                               type(ctx.exception).__name__)
-            self.assertEquals('Cloudflare error', text_type(ctx.exception))
+            self.assertEquals('Cloudflare error', str(ctx.exception))
 
         # Non-existent zone doesn't populate anything
         with requests_mock() as mock:
@@ -1625,7 +1624,7 @@ class TestCloudflareProvider(TestCase):
         ]
         with self.assertRaises(CloudflareRateLimitError) as ctx:
             provider.zone_records(zone)
-            self.assertEquals('last', text_type(ctx.exception))
+            self.assertEquals('last', str(ctx.exception))
 
     def test_ttl_mapping(self):
         provider = CloudflareProvider('test', 'email', 'token')
