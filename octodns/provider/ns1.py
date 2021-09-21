@@ -306,7 +306,7 @@ class Ns1Provider(BaseProvider):
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
-    SUPPORTS_POOL_VALUE_UP = True
+    SUPPORTS_POOL_VALUE_STATUS = True
     SUPPORTS_MULTIVALUE_PTR = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR',
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT', 'URLFWD'))
@@ -593,7 +593,7 @@ class Ns1Provider(BaseProvider):
                 'weight': int(meta.get('weight', 1)),
             }
             if isinstance(meta['up'], bool):
-                value_dict['up'] = meta['up']
+                value_dict['status'] = 'up' if meta['up'] else 'down'
 
             if value_dict not in pool['values']:
                 # If we haven't seen this value before add it to the pool
@@ -1148,7 +1148,7 @@ class Ns1Provider(BaseProvider):
                 if answer['feed_id']:
                     up = {'feed': answer['feed_id']}
                 else:
-                    up = answer['up']
+                    up = answer['status'] == 'up'
                 answer = {
                     'answer': answer['answer'],
                     'meta': {
@@ -1279,10 +1279,11 @@ class Ns1Provider(BaseProvider):
         for pool_name, pool in sorted(pools.items()):
             for value in pool.data['values']:
                 weight = value['weight']
-                up = value['up']
+                status = value['status']
                 value = value['value']
+
                 feed_id = None
-                if up is None:
+                if status == 'obey':
                     # state is not forced, let's find a monitor
                     feed_id = value_feed.get(value)
                     # check for identical monitor and skip creating one if
@@ -1298,7 +1299,7 @@ class Ns1Provider(BaseProvider):
                     'answer': [value],
                     'weight': weight,
                     'feed_id': feed_id,
-                    'up': up,
+                    'status': status,
                 })
 
         if record._type == 'CNAME':

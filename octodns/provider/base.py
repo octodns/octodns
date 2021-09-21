@@ -59,13 +59,13 @@ class BaseProvider(BaseSource):
                 desired.remove_record(record)
             elif getattr(record, 'dynamic', False):
                 if self.SUPPORTS_DYNAMIC:
-                    if self.SUPPORTS_POOL_VALUE_UP:
+                    if self.SUPPORTS_POOL_VALUE_STATUS:
                         continue
                     # drop unsupported up flag
                     unsupported_pools = []
                     for _id, pool in record.dynamic.pools.items():
                         for value in pool.data['values']:
-                            if isinstance(value['up'], bool):
+                            if value['status'] != 'obey':
                                 unsupported_pools.append(_id)
                     if not unsupported_pools:
                         continue
@@ -77,7 +77,7 @@ class BaseProvider(BaseSource):
                     record = record.copy()
                     for pool in record.dynamic.pools.values():
                         for value in pool.data['values']:
-                            value['up'] = None
+                            value['status'] = 'obey'
                     desired.add_record(record, replace=True)
                 else:
                     msg = f'dynamic records not supported for {record.fqdn}'

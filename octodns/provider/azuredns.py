@@ -457,7 +457,7 @@ class AzureProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = True
-    SUPPORTS_POOL_VALUE_UP = True
+    SUPPORTS_POOL_VALUE_STATUS = True
     SUPPORTS_MULTIVALUE_PTR = True
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR', 'SRV',
                     'TXT'))
@@ -808,14 +808,14 @@ class AzureProvider(BaseProvider):
                 defaults.add(val)
                 ep_name = ep_name[:-len('--default--')]
 
-            up = None
+            status = 'obey'
             if pool_ep.endpoint_status == 'Disabled':
-                up = False
+                status = 'down'
 
             values.append({
                 'value': val,
                 'weight': pool_ep.weight or 1,
-                'up': up,
+                'status': status,
             })
 
         return values
@@ -905,7 +905,7 @@ class AzureProvider(BaseProvider):
         return data
 
     def _process_desired_zone(self, desired):
-        # check for support of force up/down values
+        # check for status=up values
         for record in desired.records:
             if not getattr(record, 'dynamic', False):
                 continue
@@ -913,14 +913,14 @@ class AzureProvider(BaseProvider):
             up_pools = []
             for name, pool in record.dynamic.pools.items():
                 for value in pool.data['values']:
-                    if value['up']:
-                        # Azure only supports up=None & up=False, not up=True
+                    if value['status'] == 'up':
+                        # Azure only supports obey and down, not up
                         up_pools.append(name)
             if not up_pools:
                 continue
 
             up_pools = ','.join(up_pools)
-            msg = f'up=True is not supported for pools {up_pools} in ' \
+            msg = f'status=up is not supported for pools {up_pools} in ' \
                 f'{record.fqdn}'
             fallback = 'will ignore it and respect the healthcheck'
             self.supports_warn_or_except(msg, fallback)
@@ -928,8 +928,8 @@ class AzureProvider(BaseProvider):
             record = record.copy()
             for pool in record.dynamic.pools.values():
                 for value in pool.data['values']:
-                    if value['up']:
-                        value['up'] = None
+                    if value['status'] == 'up':
+                        value['status'] = 'obey'
             desired.add_record(record, replace=True)
 
         return super()._process_desired_zone(desired)
@@ -1075,7 +1075,7 @@ class AzureProvider(BaseProvider):
                 # mark default
                 ep_name += '--default--'
                 default_seen = True
-            ep_status = 'Disabled' if val['up'] is False else \
+            ep_status = 'Disabled' if val['status'] == 'down' else \
                 'Enabled'
             endpoints.append(Endpoint(
                 name=ep_name,

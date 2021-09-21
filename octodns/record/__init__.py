@@ -418,7 +418,7 @@ class _DynamicPool(object):
             {
                 'value': d['value'],
                 'weight': d.get('weight', 1),
-                'up': d.get('up'),  # TODO: add validation on this field
+                'status': d.get('status', 'obey'),  # TODO: add validation on this field
             } for d in data['values']
         ]
         values.sort(key=lambda d: d['value'])
