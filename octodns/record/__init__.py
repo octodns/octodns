@@ -418,7 +418,7 @@ class _DynamicPool(object):
             {
                 'value': d['value'],
                 'weight': d.get('weight', 1),
-                'status': d.get('status', 'obey'),  # TODO: add validation on this field
+                'status': d.get('status', 'obey'),
             } for d in data['values']
         ]
         values.sort(key=lambda d: d['value'])
@@ -573,6 +573,14 @@ class _DynamicMixin(object):
                     except KeyError:
                         reasons.append(f'missing value in pool "{_id}" '
                                        f'value {value_num}')
+
+                    try:
+                        status = value['status']
+                        if status not in ['up', 'down', 'obey']:
+                            reasons.append(f'invalid status "{status}" in '
+                                           f'pool "{_id}" value {value_num}')
+                    except KeyError:
+                        pass
 
                 if len(values) == 1 and values[0].get('weight', 1) != 1:
                     reasons.append(f'pool "{_id}" has single value with '
