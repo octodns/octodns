@@ -105,7 +105,7 @@ class YamlProvider(BaseProvider):
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
     SUPPORTS_POOL_VALUE_UP = True
-    SUPPORTS_MUTLIVALUE_PTR = True
+    SUPPORTS_MULTIVALUE_PTR = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'DNAME', 'LOC', 'MX',
                     'NAPTR', 'NS', 'PTR', 'SSHFP', 'SPF', 'SRV', 'TXT',
                     'URLFWD'))
