@@ -8,7 +8,6 @@ from __future__ import absolute_import, division, print_function, \
 from collections import defaultdict
 from requests import Session
 from base64 import b64encode
-from six import string_types
 from pycountry_convert import country_alpha2_to_continent_code
 import hashlib
 import hmac
@@ -142,7 +141,7 @@ class ConstellixClient(object):
             # change relative values to absolute
             value = record['value']
             if record['type'] in ['ALIAS', 'CNAME', 'MX', 'NS', 'SRV']:
-                if isinstance(value, string_types):
+                if isinstance(value, str):
                     record['value'] = self._absolutize_value(value,
                                                              zone_name)
                 if isinstance(value, list):

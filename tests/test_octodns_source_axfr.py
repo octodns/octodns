@@ -11,7 +11,6 @@ from dns.exception import DNSException
 from mock import patch
 from os.path import exists
 from shutil import copyfile
-from six import text_type
 from unittest import TestCase
 
 from octodns.source.axfr import AxfrSource, AxfrSourceZoneTransferFailed, \
@@ -42,7 +41,7 @@ class TestAxfrSource(TestCase):
             zone = Zone('unit.tests.', [])
             self.source.populate(zone)
         self.assertEquals('Unable to Perform Zone Transfer',
-                          text_type(ctx.exception))
+                          str(ctx.exception))
 
 
 class TestZoneFileSource(TestCase):
@@ -99,7 +98,7 @@ class TestZoneFileSource(TestCase):
             zone = Zone('invalid.zone.', [])
             self.source.populate(zone)
         self.assertEquals('The DNS zone has no NS RRset at its origin.',
-                          text_type(ctx.exception))
+                          str(ctx.exception))
 
         # Records are not to RFC (lenient=False)
         with self.assertRaises(ValidationError) as ctx:
@@ -107,7 +106,7 @@ class TestZoneFileSource(TestCase):
             self.source.populate(zone)
         self.assertEquals('Invalid record _invalid.invalid.records.\n'
                           '  - invalid name for SRV record',
-                          text_type(ctx.exception))
+                          str(ctx.exception))
 
         # Records are not to RFC, but load anyhow (lenient=True)
         invalid = Zone('invalid.records.', [])

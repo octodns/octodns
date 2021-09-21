@@ -9,7 +9,6 @@ from ipaddress import IPv4Address, IPv6Address
 from logging import getLogger
 import re
 
-from six import string_types, text_type
 from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
@@ -83,7 +82,7 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
-        name = text_type(name)
+        name = str(name)
         fqdn = f'{name}.{zone.name}' if name else zone.name
         try:
             _type = data['type']
@@ -153,7 +152,7 @@ class Record(EqualityTupleMixin):
                        self.__class__.__name__, name)
         self.zone = zone
         # force everything lower-case just to be safe
-        self.name = text_type(name).lower() if name else name
+        self.name = str(name).lower() if name else name
         self.source = source
         self.ttl = int(data['ttl'])
 
@@ -324,7 +323,7 @@ class _ValuesMixin(object):
         return ret
 
     def __repr__(self):
-        values = "', '".join([text_type(v) for v in self.values])
+        values = "', '".join([str(v) for v in self.values])
         klass = self.__class__.__name__
         return f"<{klass} {self._type} {self.ttl}, {self.fqdn}, ['{values}']>"
 
@@ -624,7 +623,7 @@ class _DynamicMixin(object):
                 except KeyError:
                     geos = []
 
-                if not isinstance(pool, string_types):
+                if not isinstance(pool, str):
                     reasons.append(f'rule {rule_num} invalid pool "{pool}"')
                 else:
                     if pool not in pools:
@@ -730,7 +729,7 @@ class _IpList(object):
                 reasons.append('missing value(s)')
             else:
                 try:
-                    cls._address_type(text_type(value))
+                    cls._address_type(str(value))
                 except Exception:
                     addr_name = cls._address_name
                     reasons.append(f'invalid {addr_name} address "{value}"')
@@ -740,10 +739,10 @@ class _IpList(object):
     def process(cls, values):
         # Translating None into '' so that the list will be sortable in
         # python3, get everything to str first
-        values = [text_type(v) if v is not None else '' for v in values]
+        values = [str(v) if v is not None else '' for v in values]
         # Now round trip all non-'' through the address type and back to a str
         # to normalize the address representation.
-        return [text_type(cls._address_type(v)) if v != '' else ''
+        return [str(cls._address_type(v)) if v != '' else ''
                 for v in values]
 
 

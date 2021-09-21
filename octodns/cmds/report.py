@@ -13,8 +13,6 @@ from logging import getLogger
 from sys import stdout
 import re
 
-from six import text_type
-
 from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
 
@@ -67,7 +65,7 @@ def main():
         resolver = AsyncResolver(configure=False,
                                  num_workers=int(args.num_workers))
         if not ip_addr_re.match(server):
-            server = text_type(query(server, 'A')[0])
+            server = str(query(server, 'A')[0])
         log.info('server=%s', server)
         resolver.nameservers = [server]
         resolver.lifetime = int(args.timeout)
@@ -83,12 +81,12 @@ def main():
         stdout.write(',')
         stdout.write(record._type)
         stdout.write(',')
-        stdout.write(text_type(record.ttl))
+        stdout.write(str(record.ttl))
         compare = {}
         for future in futures:
             stdout.write(',')
             try:
-                answers = [text_type(r) for r in future.result()]
+                answers = [str(r) for r in future.result()]
             except (NoAnswer, NoNameservers):
                 answers = ['*no answer*']
             except NXDOMAIN:

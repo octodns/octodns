@@ -8,7 +8,6 @@ from __future__ import absolute_import, division, print_function, \
 from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from os import environ
-from six import text_type
 from sys import stdout
 import logging
 
@@ -259,7 +258,7 @@ class Manager(object):
                     source.populate(zone, lenient=lenient)
                 except TypeError as e:
                     if ("unexpected keyword argument 'lenient'"
-                            not in text_type(e)):
+                            not in str(e)):
                         raise
                     self.log.warn('provider %s does not accept lenient '
                                   'param', source.__class__.__name__)
@@ -282,7 +281,7 @@ class Manager(object):
             try:
                 plan = target.plan(zone, processors=processors)
             except TypeError as e:
-                if "keyword argument 'processors'" not in text_type(e):
+                if "keyword argument 'processors'" not in str(e):
                     raise
                 self.log.warn('provider.plan %s does not accept processors '
                               'param', target.__class__.__name__)
