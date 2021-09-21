@@ -811,8 +811,6 @@ class AzureProvider(BaseProvider):
             up = None
             if pool_ep.endpoint_status == 'Disabled':
                 up = False
-            elif ep_name.endswith('--UP'):
-                up = True
 
             values.append({
                 'value': val,
@@ -911,15 +909,28 @@ class AzureProvider(BaseProvider):
         for record in desired.records:
             if not getattr(record, 'dynamic', False):
                 continue
+
+            up_pools = []
             for name, pool in record.dynamic.pools.items():
                 for value in pool.data['values']:
                     if value['up']:
                         # Azure only supports up=None & up=False, not up=True
-                        msg = f'up=True is not supported for "{name}" pool ' \
-                            f'in {record.fqdn}'
-                        fallback = \
-                            'will ignore the flag and respect healthcheck'
-                        self.supports_warn_or_except(msg, fallback)
+                        up_pools.append(name)
+            if not up_pools:
+                continue
+
+            up_pools = ','.join(up_pools)
+            msg = f'up=True is not supported for pools {up_pools} in ' \
+                f'{record.fqdn}'
+            fallback = 'will ignore it and respect the healthcheck'
+            self.supports_warn_or_except(msg, fallback)
+
+            record = record.copy()
+            for pool in record.dynamic.pools.values():
+                for value in pool.data['values']:
+                    if value['up']:
+                        value['up'] = None
+            desired.add_record(record, replace=True)
 
         return super()._process_desired_zone(desired)
 
@@ -1058,8 +1069,6 @@ class AzureProvider(BaseProvider):
             if record._type == 'CNAME':
                 target = target[:-1]
             ep_name = f'{pool_name}--{target}'
-            if val['up']:
-                ep_name += '--UP'
             # Endpoint names cannot have colons, drop them from IPv6 addresses
             ep_name = ep_name.replace(':', '-')
             if target in defaults:
