@@ -70,8 +70,8 @@ class BaseProvider(BaseSource):
                     if not unsupported_pools:
                         continue
                     unsupported_pools = ','.join(unsupported_pools)
-                    msg = f'"up" flag used in pools {unsupported_pools} in ' \
-                        f'{record.fqdn} is not supported'
+                    msg = f'"status" flag used in pools {unsupported_pools}' \
+                        f' in {record.fqdn} is not supported'
                     fallback = 'will ignore it and respect the healthcheck'
                     self.supports_warn_or_except(msg, fallback)
                     record = record.copy()
