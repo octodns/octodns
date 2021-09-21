@@ -567,20 +567,20 @@ class _DynamicMixin(object):
                                        f'pool "{_id}" value {value_num}')
 
                     try:
-                        value = value['value']
-                        reasons.extend(cls._value_type.validate(value,
-                                                                cls._type))
-                    except KeyError:
-                        reasons.append(f'missing value in pool "{_id}" '
-                                       f'value {value_num}')
-
-                    try:
                         status = value['status']
                         if status not in ['up', 'down', 'obey']:
                             reasons.append(f'invalid status "{status}" in '
                                            f'pool "{_id}" value {value_num}')
                     except KeyError:
                         pass
+
+                    try:
+                        value = value['value']
+                        reasons.extend(cls._value_type.validate(value,
+                                                                cls._type))
+                    except KeyError:
+                        reasons.append(f'missing value in pool "{_id}" '
+                                       f'value {value_num}')
 
                 if len(values) == 1 and values[0].get('weight', 1) != 1:
                     reasons.append(f'pool "{_id}" has single value with '
