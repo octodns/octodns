@@ -5,7 +5,6 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from six import text_type
 from unittest import TestCase
 
 from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
@@ -1013,14 +1012,14 @@ class TestRecord(TestCase):
         # Missing type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {})
-        self.assertTrue('missing type' in text_type(ctx.exception))
+        self.assertTrue('missing type' in str(ctx.exception))
 
         # Unknown type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {
                 'type': 'XXX',
             })
-        self.assertTrue('Unknown record type' in text_type(ctx.exception))
+        self.assertTrue('Unknown record type' in str(ctx.exception))
 
     def test_record_copy(self):
         a = Record.new(self.zone, 'a', {

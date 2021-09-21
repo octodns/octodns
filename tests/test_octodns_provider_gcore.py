@@ -12,7 +12,6 @@ from __future__ import (
 from mock import Mock, call
 from os.path import dirname, join
 from requests_mock import ANY, mock as requests_mock
-from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record, Update, Delete, Create
@@ -52,7 +51,7 @@ class TestGCoreProvider(TestCase):
             with self.assertRaises(GCoreClientBadRequest) as ctx:
                 zone = Zone("unit.tests.", [])
                 provider.populate(zone)
-            self.assertIn('"error":"bad body"', text_type(ctx.exception))
+            self.assertIn('"error":"bad body"', str(ctx.exception))
 
         # TC: 404 - Not Found.
         with requests_mock() as mock:
@@ -64,7 +63,7 @@ class TestGCoreProvider(TestCase):
                 zone = Zone("unit.tests.", [])
                 provider._client.zone(zone.name)
             self.assertIn(
-                '"error":"zone is not found"', text_type(ctx.exception)
+                '"error":"zone is not found"', str(ctx.exception)
             )
 
         # TC: General error
@@ -74,7 +73,7 @@ class TestGCoreProvider(TestCase):
             with self.assertRaises(GCoreClientException) as ctx:
                 zone = Zone("unit.tests.", [])
                 provider.populate(zone)
-            self.assertEqual("Things caught fire", text_type(ctx.exception))
+            self.assertEqual("Things caught fire", str(ctx.exception))
 
         # TC: No credentials or token error
         with requests_mock() as mock:
@@ -82,7 +81,7 @@ class TestGCoreProvider(TestCase):
                 GCoreProvider("test_id")
             self.assertEqual(
                 "either token or login & password must be set",
-                text_type(ctx.exception),
+                str(ctx.exception),
             )
 
         # TC: Auth with login password
@@ -230,7 +229,7 @@ class TestGCoreProvider(TestCase):
                 provider.apply(plan)
             self.assertIn(
                 "parent zone is already occupied by another client",
-                text_type(ctx.exception),
+                str(ctx.exception),
             )
 
         resp = Mock()

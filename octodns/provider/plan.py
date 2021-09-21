@@ -8,7 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 from logging import DEBUG, ERROR, INFO, WARN, getLogger
 from sys import stdout
 
-from six import StringIO, text_type
+from io import StringIO
 
 
 class UnsafePlan(Exception):
@@ -130,7 +130,7 @@ class PlanLogger(_PlanOutput):
                 buf.write('* ')
                 buf.write(target.id)
                 buf.write(' (')
-                buf.write(text_type(target))
+                buf.write(str(target))
                 buf.write(')\n*   ')
 
                 if plan.exists is False:
@@ -143,7 +143,7 @@ class PlanLogger(_PlanOutput):
                     buf.write('\n*   ')
 
                 buf.write('Summary: ')
-                buf.write(text_type(plan))
+                buf.write(str(plan))
                 buf.write('\n')
         else:
             buf.write(hr)
@@ -155,11 +155,11 @@ class PlanLogger(_PlanOutput):
 
 def _value_stringifier(record, sep):
     try:
-        values = [text_type(v) for v in record.values]
+        values = [str(v) for v in record.values]
     except AttributeError:
         values = [record.value]
     for code, gv in sorted(getattr(record, 'geo', {}).items()):
-        vs = ', '.join([text_type(v) for v in gv.values])
+        vs = ', '.join([str(v) for v in gv.values])
         values.append(f'{code}: {vs}')
     return sep.join(values)
 
@@ -201,7 +201,7 @@ class PlanMarkdown(_PlanOutput):
                     fh.write(' | ')
                     # TTL
                     if existing:
-                        fh.write(text_type(existing.ttl))
+                        fh.write(str(existing.ttl))
                         fh.write(' | ')
                         fh.write(_value_stringifier(existing, '; '))
                         fh.write(' | |\n')
@@ -209,7 +209,7 @@ class PlanMarkdown(_PlanOutput):
                             fh.write('| | | | ')
 
                     if new:
-                        fh.write(text_type(new.ttl))
+                        fh.write(str(new.ttl))
                         fh.write(' | ')
                         fh.write(_value_stringifier(new, '; '))
                         fh.write(' | ')
@@ -218,7 +218,7 @@ class PlanMarkdown(_PlanOutput):
                         fh.write(' |\n')
 
                 fh.write('\nSummary: ')
-                fh.write(text_type(plan))
+                fh.write(str(plan))
                 fh.write('\n\n')
         else:
             fh.write('## No changes were planned\n')
@@ -269,7 +269,7 @@ class PlanHtml(_PlanOutput):
                     # TTL
                     if existing:
                         fh.write('    <td>')
-                        fh.write(text_type(existing.ttl))
+                        fh.write(str(existing.ttl))
                         fh.write('</td>\n    <td>')
                         fh.write(_value_stringifier(existing, '<br/>'))
                         fh.write('</td>\n    <td></td>\n  </tr>\n')
@@ -278,7 +278,7 @@ class PlanHtml(_PlanOutput):
 
                     if new:
                         fh.write('    <td>')
-                        fh.write(text_type(new.ttl))
+                        fh.write(str(new.ttl))
                         fh.write('</td>\n    <td>')
                         fh.write(_value_stringifier(new, '<br/>'))
                         fh.write('</td>\n    <td>')
@@ -287,7 +287,7 @@ class PlanHtml(_PlanOutput):
                         fh.write('</td>\n  </tr>\n')
 
                 fh.write('  <tr>\n    <td colspan=6>Summary: ')
-                fh.write(text_type(plan))
+                fh.write(str(plan))
                 fh.write('</td>\n  </tr>\n</table>\n')
         else:
             fh.write('<b>No changes were planned</b>')

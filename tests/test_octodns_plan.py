@@ -5,8 +5,8 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from io import StringIO
 from logging import getLogger
-from six import StringIO, text_type
 from unittest import TestCase
 
 from octodns.provider.plan import Plan, PlanHtml, PlanLogger, PlanMarkdown
@@ -58,8 +58,7 @@ class TestPlanLogger(TestCase):
     def test_invalid_level(self):
         with self.assertRaises(Exception) as ctx:
             PlanLogger('invalid', 'not-a-level')
-        self.assertEquals('Unsupported level: not-a-level',
-                          text_type(ctx.exception))
+        self.assertEquals('Unsupported level: not-a-level', str(ctx.exception))
 
     def test_create(self):
 

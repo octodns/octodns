@@ -1,5 +1,4 @@
 from mock import patch
-from six import text_type
 from unittest import TestCase
 
 from octodns.source.envvar import EnvVarSource
@@ -15,7 +14,7 @@ class TestEnvVarSource(TestCase):
         with self.assertRaises(EnvironmentVariableNotFoundException) as ctx:
             source._read_variable()
         msg = f'Unknown environment variable {envvar}'
-        self.assertEquals(msg, text_type(ctx.exception))
+        self.assertEquals(msg, str(ctx.exception))
 
         with patch.dict('os.environ', {envvar: 'testvalue'}):
             value = source._read_variable()
