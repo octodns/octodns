@@ -10,7 +10,6 @@ from mock import Mock, call
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
-from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record
@@ -156,7 +155,7 @@ class TestConstellixProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            self.assertEquals('Unauthorized', text_type(ctx.exception))
+            self.assertEquals('Unauthorized', str(ctx.exception))
 
         # Bad request
         with requests_mock() as mock:
@@ -168,7 +167,7 @@ class TestConstellixProvider(TestCase):
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
             self.assertEquals('\n  - "unittests" is not a valid domain name',
-                              text_type(ctx.exception))
+                              str(ctx.exception))
 
         # General error
         with requests_mock() as mock:

@@ -9,8 +9,6 @@ from collections import defaultdict
 from logging import getLogger
 import re
 
-from six import text_type
-
 from .record import Create, Delete
 
 
@@ -39,7 +37,7 @@ class Zone(object):
         if not name[-1] == '.':
             raise Exception(f'Invalid zone name {name}, missing ending dot')
         # Force everything to lowercase just to be safe
-        self.name = text_type(name).lower() if name else name
+        self.name = str(name).lower() if name else name
         self.sub_zones = sub_zones
         # We're grouping by node, it allows us to efficiently search for
         # duplicates and detect when CNAMEs co-exist with other records

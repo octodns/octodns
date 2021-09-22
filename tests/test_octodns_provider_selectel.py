@@ -6,7 +6,6 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from unittest import TestCase
-from six import text_type
 
 import requests_mock
 
@@ -288,7 +287,7 @@ class TestSelectelProvider(TestCase):
 
         with self.assertRaises(Exception) as ctx:
             SelectelProvider(123, 'fail_token')
-        self.assertEquals(text_type(ctx.exception),
+        self.assertEquals(str(ctx.exception),
                           'Authorization failed. Invalid or empty token.')
 
     @requests_mock.Mocker()

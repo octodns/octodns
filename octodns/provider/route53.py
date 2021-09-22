@@ -14,8 +14,6 @@ from uuid import uuid4
 import logging
 import re
 
-from six import text_type
-
 from ..equality import EqualityTupleMixin
 from ..record import Record, Update
 from ..record.geo import GeoCodes
@@ -1104,8 +1102,8 @@ class Route53Provider(BaseProvider):
         # for equivalence.
         # E.g 2001:4860:4860:0:0:0:0:8842 -> 2001:4860:4860::8842
         if value:
-            value = ip_address(text_type(value))
-            config_ip_address = ip_address(text_type(config['IPAddress']))
+            value = ip_address(str(value))
+            config_ip_address = ip_address(str(config['IPAddress']))
         else:
             # No value so give this a None to match value's
             config_ip_address = None
@@ -1130,7 +1128,7 @@ class Route53Provider(BaseProvider):
                        fqdn, record._type, value)
 
         try:
-            ip_address(text_type(value))
+            ip_address(str(value))
             # We're working with an IP, host is the Host header
             healthcheck_host = record.healthcheck_host(value=value)
         except (AddressValueError, ValueError):

@@ -9,7 +9,6 @@ from collections import defaultdict
 from mock import call, patch
 from ns1.rest.errors import AuthException, RateLimitException, \
     ResourceException
-from six import text_type
 from unittest import TestCase
 
 from octodns.record import Delete, Record, Update
@@ -1584,8 +1583,7 @@ class TestNs1ProviderDynamic(TestCase):
         }
         with self.assertRaises(Ns1Exception) as ctx:
             provider._data_for_dynamic('A', ns1_record)
-        self.assertEquals('Unrecognized advanced record',
-                          text_type(ctx.exception))
+        self.assertEquals('Unrecognized advanced record', str(ctx.exception))
 
         # empty record turns into empty data
         ns1_record = {
@@ -2150,8 +2148,7 @@ class TestNs1ProviderDynamic(TestCase):
         records_retrieve_mock.side_effect = ns1_zone['records']
         with self.assertRaises(Ns1Exception) as ctx:
             extra = provider._extra_changes(desired, [])
-        self.assertTrue('Mixed disabled flag in filters' in
-                        text_type(ctx.exception))
+        self.assertTrue('Mixed disabled flag in filters' in str(ctx.exception))
 
     DESIRED = Zone('unit.tests.', [])
 
@@ -2231,14 +2228,14 @@ class TestNs1ProviderDynamic(TestCase):
         apply_update_mock.reset_mock()
         with self.assertRaises(Ns1Exception) as ctx:
             provider._apply(dynamic_plan)
-        self.assertTrue('monitor_regions not set' in text_type(ctx.exception))
+        self.assertTrue('monitor_regions not set' in str(ctx.exception))
         apply_update_mock.assert_not_called()
 
         # Blows up and apply not called even though there's a simple
         apply_update_mock.reset_mock()
         with self.assertRaises(Ns1Exception) as ctx:
             provider._apply(both_plan)
-        self.assertTrue('monitor_regions not set' in text_type(ctx.exception))
+        self.assertTrue('monitor_regions not set' in str(ctx.exception))
         apply_update_mock.assert_not_called()
 
         # with monitor_regions set
@@ -2296,7 +2293,7 @@ class TestNs1Client(TestCase):
         ]
         with self.assertRaises(RateLimitException) as ctx:
             client.zones_retrieve('unit.tests')
-        self.assertEquals('last', text_type(ctx.exception))
+        self.assertEquals('last', str(ctx.exception))
 
     def test_client_config(self):
         with self.assertRaises(TypeError):
