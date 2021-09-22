@@ -608,9 +608,11 @@ class Route53Provider(BaseProvider):
 
     def __init__(self, id, access_key_id=None, secret_access_key=None,
                  max_changes=1000, client_max_attempts=None,
-                 session_token=None, delegation_set_id=None, *args, **kwargs):
+                 session_token=None, delegation_set_id=None,
+                 get_zones_by_name=False, *args, **kwargs):
         self.max_changes = max_changes
         self.delegation_set_id = delegation_set_id
+        self.get_zones_by_name = get_zones_by_name
         _msg = f'access_key_id={access_key_id}, secret_access_key=***, ' \
                'session_token=***'
         use_fallback_auth = access_key_id is None and \
@@ -639,28 +641,49 @@ class Route53Provider(BaseProvider):
         self._r53_rrsets = {}
         self._health_checks = None
 
-    @property
-    def r53_zones(self):
+    def _get_zone_id_by_name(self, name):
+        # attempt to get zone by name
+        # limited to one as this should be unique
+        id = None
+        resp = self._conn.list_hosted_zones_by_name(
+            DNSName=name, MaxItems="1"
+        )
+        if len(resp['HostedZones']) != 0:
+            # if there is a response that starts with the name
+            if resp['HostedZones'][0]['Name'].startswith(name):
+                id = resp['HostedZones'][0]['Id']
+                self.log.debug('get_zones_by_name:   id=%s', id)
+        return id
+
+    def update_r53_zones(self, name):
         if self._r53_zones is None:
-            self.log.debug('r53_zones: loading')
-            zones = {}
-            more = True
-            start = {}
-            while more:
-                resp = self._conn.list_hosted_zones(**start)
-                for z in resp['HostedZones']:
-                    zones[z['Name']] = z['Id']
-                more = resp['IsTruncated']
-                start['Marker'] = resp.get('NextMarker', None)
-
-            self._r53_zones = zones
-
-        return self._r53_zones
+            if self.get_zones_by_name:
+                id = self._get_zone_id_by_name(name)
+                zones = {}
+                zones[name] = id
+                self._r53_zones = zones
+            else:
+                self.log.debug('r53_zones: loading')
+                zones = {}
+                more = True
+                start = {}
+                while more:
+                    resp = self._conn.list_hosted_zones(**start)
+                    for z in resp['HostedZones']:
+                        zones[z['Name']] = z['Id']
+                    more = resp['IsTruncated']
+                    start['Marker'] = resp.get('NextMarker', None)
+                self._r53_zones = zones
+        else:
+            if name not in self._r53_zones and self.get_zones_by_name:
+                id = self._get_zone_id_by_name(name)
+                self._r53_zones[name] = id
 
     def _get_zone_id(self, name, create=False):
         self.log.debug('_get_zone_id: name=%s', name)
-        if name in self.r53_zones:
-            id = self.r53_zones[name]
+        self.update_r53_zones(name)
+        if name in self._r53_zones:
+            id = self._r53_zones[name]
             self.log.debug('_get_zone_id:   id=%s', id)
             return id
         if create:
@@ -675,7 +698,7 @@ class Route53Provider(BaseProvider):
             else:
                 resp = self._conn.create_hosted_zone(Name=name,
                                                      CallerReference=ref)
-            self.r53_zones[name] = id = resp['HostedZone']['Id']
+            self._r53_zones[name] = id = resp['HostedZone']['Id']
             return id
         return None
 
