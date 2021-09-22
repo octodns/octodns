@@ -9,7 +9,6 @@ from json import loads, dumps
 from os.path import dirname, join
 from requests import HTTPError
 from requests_mock import ANY, mock as requests_mock
-from six import text_type
 from unittest import TestCase
 
 from octodns.record import Record
@@ -51,7 +50,7 @@ class TestPowerDnsProvider(TestCase):
 
             with self.assertRaises(Exception) as ctx:
                 provider.powerdns_version
-            self.assertTrue('unauthorized' in text_type(ctx.exception))
+            self.assertTrue('unauthorized' in str(ctx.exception))
 
         # Api not found
         with requests_mock() as mock:
@@ -59,7 +58,7 @@ class TestPowerDnsProvider(TestCase):
 
             with self.assertRaises(Exception) as ctx:
                 provider.powerdns_version
-            self.assertTrue('404' in text_type(ctx.exception))
+            self.assertTrue('404' in str(ctx.exception))
 
         # Test version detection
         with requests_mock() as mock:
@@ -150,7 +149,7 @@ class TestPowerDnsProvider(TestCase):
             with self.assertRaises(Exception) as ctx:
                 zone = Zone('unit.tests.', [])
                 provider.populate(zone)
-            self.assertTrue('unauthorized' in text_type(ctx.exception))
+            self.assertTrue('unauthorized' in str(ctx.exception))
 
         # General error
         with requests_mock() as mock:

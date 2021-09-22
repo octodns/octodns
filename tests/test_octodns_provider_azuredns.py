@@ -19,7 +19,6 @@ from azure.mgmt.trafficmanager.models import Profile, DnsConfig, \
     MonitorConfig, Endpoint, MonitorConfigCustomHeadersItem
 from msrestazure.azure_exceptions import CloudError
 
-from six import text_type
 from unittest import TestCase
 from mock import Mock, patch, call
 
@@ -992,9 +991,7 @@ class TestAzureDnsProvider(TestCase):
         changes = [Create(unsupported_dynamic)]
         with self.assertRaises(AzureException) as ctx:
             provider._extra_changes(existing, desired, changes)
-            self.assertTrue(text_type(ctx).endswith(
-                'must be of type CNAME'
-            ))
+            self.assertTrue(str(ctx).endswith('must be of type CNAME'))
         desired._remove_record(unsupported_dynamic)
 
         # test colliding ATM names throws exception
@@ -1015,9 +1012,8 @@ class TestAzureDnsProvider(TestCase):
         changes = [Create(record1), Create(record2)]
         with self.assertRaises(AzureException) as ctx:
             provider._extra_changes(existing, desired, changes)
-            self.assertTrue(text_type(ctx).startswith(
-                'Collision in Traffic Manager'
-            ))
+            self.assertTrue(str(ctx)
+                            .startswith('Collision in Traffic Manager'))
 
     @patch(
         'octodns.provider.azuredns.AzureProvider._generate_traffic_managers')
@@ -1062,7 +1058,7 @@ class TestAzureDnsProvider(TestCase):
         )]
         with self.assertRaises(AzureException) as ctx:
             provider._extra_changes(zone, desired, changes)
-            self.assertTrue('duplicate endpoint' in text_type(ctx))
+            self.assertTrue('duplicate endpoint' in str(ctx))
 
     def test_extra_changes_A_multi_defaults(self):
         provider = self._get_provider()
@@ -1088,7 +1084,7 @@ class TestAzureDnsProvider(TestCase):
         desired.add_record(record)
         with self.assertRaises(AzureException) as ctx:
             provider._extra_changes(zone, desired, [])
-            self.assertEqual('single value' in text_type(ctx))
+            self.assertEqual('single value' in str(ctx))
 
     def test_generate_tm_profile(self):
         provider, zone, record = self._get_dynamic_package()
@@ -1194,7 +1190,7 @@ class TestAzureDnsProvider(TestCase):
         azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
         with self.assertRaises(AzureException) as ctx:
             provider._populate_record(zone, azrecord)
-            self.assertTrue(text_type(ctx).startswith(
+            self.assertTrue(str(ctx).startswith(
                 'Middle East (GEO-ME) is not supported'
             ))
 

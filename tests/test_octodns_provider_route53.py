@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function, \
 
 from botocore.exceptions import ClientError
 from botocore.stub import ANY, Stubber
-from six import text_type
 from unittest import TestCase
 from mock import patch
 
@@ -2513,7 +2512,7 @@ class TestRoute53Provider(TestCase):
         provider, plan = self._get_test_plan(1)
         with self.assertRaises(Exception) as ctx:
             provider.apply(plan)
-        self.assertTrue('modifications' in text_type(ctx.exception))
+        self.assertTrue('modifications' in str(ctx.exception))
 
     def test_semicolon_fixup(self):
         provider = Route53Provider('test', 'abc', '123')

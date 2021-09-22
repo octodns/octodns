@@ -5,7 +5,6 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from six import text_type
 from unittest import TestCase
 
 from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
@@ -1013,14 +1012,14 @@ class TestRecord(TestCase):
         # Missing type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {})
-        self.assertTrue('missing type' in text_type(ctx.exception))
+        self.assertTrue('missing type' in str(ctx.exception))
 
         # Unknown type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {
                 'type': 'XXX',
             })
-        self.assertTrue('Unknown record type' in text_type(ctx.exception))
+        self.assertTrue('Unknown record type' in str(ctx.exception))
 
     def test_record_copy(self):
         a = Record.new(self.zone, 'a', {
@@ -1054,6 +1053,37 @@ class TestRecord(TestCase):
         d = TxtRecord(self.zone, 'txt', d_data)
         d.copy()
         self.assertEquals('TXT', d._type)
+
+    def test_dynamic_record_copy(self):
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '3.3.3.3',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+            'octodns': {
+                'healthcheck': {
+                    'protocol': 'TCP',
+                    'port': 80,
+                },
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+                '2.2.2.2',
+            ],
+        }
+        record1 = Record.new(self.zone, 'a', a_data)
+        record2 = record1.copy()
+        self.assertEqual(record1._octodns, record2._octodns)
 
     def test_change(self):
         existing = Record.new(self.zone, 'txt', {

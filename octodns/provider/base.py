@@ -5,8 +5,6 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from six import text_type
-
 from ..source.base import BaseSource
 from ..zone import Zone
 from .plan import Plan
@@ -66,7 +64,7 @@ class BaseProvider(BaseSource):
                 record.dynamic = None
                 desired.add_record(record, replace=True)
             elif record._type == 'PTR' and len(record.values) > 1 and \
-                    not self.SUPPORTS_MUTLIVALUE_PTR:
+                    not self.SUPPORTS_MULTIVALUE_PTR:
                 # replace with a single-value copy
                 msg = \
                     f'multi-value PTR records not supported for {record.fqdn}'
@@ -134,7 +132,7 @@ class BaseProvider(BaseSource):
                                     changes=changes)
         if extra:
             self.log.info('plan:   extra changes\n  %s', '\n  '
-                          .join([text_type(c) for c in extra]))
+                          .join([str(c) for c in extra]))
             changes += extra
 
         if changes:
