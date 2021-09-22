@@ -669,11 +669,12 @@ class Route53Provider(BaseProvider):
             response = self._conn.list_hosted_zones_by_name(
                 DNSName=name, MaxItems="1"
             )
-            if len(response['HostedZones']) == 1:
-                # if there is a single response
-                id = response['HostedZones'][0]['Id']
-                self.log.debug(id)
-                return id
+            if len(response['HostedZones']) != 0:
+                # if there is a response that starts with the name
+                if response['HostedZones'][0]['Name'].startswith(name):
+                    id = response['HostedZones'][0]['Id']
+                    self.log.debug('get_zones_by_name:   id=%s', id)
+                    return id
         elif name in self.r53_zones:
             id = self.r53_zones[name]
             self.log.debug('_get_zone_id:   id=%s', id)
