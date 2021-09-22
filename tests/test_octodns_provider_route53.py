@@ -1753,7 +1753,7 @@ class TestRoute53Provider(TestCase):
         stubber = Stubber(provider._conn)
         stubber.activate()
 
-        list_hosted_zones_by_name_resp = {
+        list_hosted_zones_by_name_resp_1 = {
             'HostedZones': [{
                 'Id': 'z42',
                 'Name': 'unit.tests.',
@@ -1770,14 +1770,43 @@ class TestRoute53Provider(TestCase):
             'MaxItems': 'string'
         }
 
+        list_hosted_zones_by_name_resp_2 = {
+            'HostedZones': [{
+                'Id': 'z43',
+                'Name': 'unit2.tests.',
+                'CallerReference': 'abc',
+                'Config': {
+                    'Comment': 'string',
+                    'PrivateZone': False
+                },
+                'ResourceRecordSetCount': 123,
+            }, ],
+            'DNSName': 'unit2.tests.',
+            'HostedZoneId': 'z43',
+            'IsTruncated': False,
+            'MaxItems': 'string'
+        }
+
         stubber.add_response(
             'list_hosted_zones_by_name',
-            list_hosted_zones_by_name_resp,
+            list_hosted_zones_by_name_resp_1,
             {'DNSName': 'unit.tests.', 'MaxItems': '1'}
         )
 
         # empty is empty
         desired = Zone('unit.tests.', [])
+        extra = provider._extra_changes(desired=desired, changes=[])
+        self.assertEquals([], extra)
+        stubber.assert_no_pending_responses()
+
+        stubber.add_response(
+            'list_hosted_zones_by_name',
+            list_hosted_zones_by_name_resp_2,
+            {'DNSName': 'unit2.tests.', 'MaxItems': '1'}
+        )
+
+        # empty is empty
+        desired = Zone('unit2.tests.', [])
         extra = provider._extra_changes(desired=desired, changes=[])
         self.assertEquals([], extra)
         stubber.assert_no_pending_responses()
@@ -1837,18 +1866,6 @@ class TestRoute53Provider(TestCase):
             'MaxItems': 'string'
         }
 
-        # list_hosted_zones_by_name gets called 3 times in this process
-        # so adding 3 responses
-        stubber.add_response(
-            'list_hosted_zones_by_name',
-            list_hosted_zones_by_name_resp,
-            {'DNSName': 'unit.tests.', 'MaxItems': '1'}
-        )
-        stubber.add_response(
-            'list_hosted_zones_by_name',
-            list_hosted_zones_by_name_resp,
-            {'DNSName': 'unit.tests.', 'MaxItems': '1'}
-        )
         stubber.add_response(
             'list_hosted_zones_by_name',
             list_hosted_zones_by_name_resp,
