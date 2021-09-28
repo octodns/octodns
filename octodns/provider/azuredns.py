@@ -375,8 +375,11 @@ def _profile_is_match(have, desired):
         desired_endpoints = desired.endpoints
     endpoints = zip(have_endpoints, desired_endpoints)
     for have_endpoint, desired_endpoint in endpoints:
+        have_status = have_endpoint.endpoint_status or 'Enabled'
+        desired_status = desired_endpoint.endpoint_status or 'Enabled'
         if have_endpoint.name != desired_endpoint.name or \
-           have_endpoint.type != desired_endpoint.type:
+           have_endpoint.type != desired_endpoint.type or \
+           have_status != desired_status:
             return false(have_endpoint, desired_endpoint, have.name)
         target_type = have_endpoint.type.split('/')[-1]
         if target_type == 'externalEndpoints':
