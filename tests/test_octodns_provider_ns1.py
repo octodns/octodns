@@ -1614,6 +1614,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 1,
                     'note': 'from:lhr__country',
+                    'up': {},
                 },
                 'region': 'lhr',
             }, {
@@ -1622,6 +1623,7 @@ class TestNs1ProviderDynamic(TestCase):
                     'priority': 2,
                     'weight': 12,
                     'note': 'from:iad',
+                    'up': {},
                 },
                 'region': 'lhr',
             }, {
@@ -1637,6 +1639,7 @@ class TestNs1ProviderDynamic(TestCase):
                     'priority': 1,
                     'weight': 12,
                     'note': 'from:iad',
+                    'up': {},
                 },
                 'region': 'iad',
             }, {
@@ -1652,6 +1655,7 @@ class TestNs1ProviderDynamic(TestCase):
                     'priority': 1,
                     'weight': 12,
                     'note': f'from:{catchall_pool_name}',
+                    'up': {},
                 },
                 'region': catchall_pool_name,
             }, {
@@ -1798,6 +1802,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 1,
                     'note': 'from:one__country pool:one fallback:two',
+                    'up': {},
                 },
                 'region': 'one_country',
             }, {
@@ -1805,6 +1810,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 2,
                     'note': 'from:one__country pool:two fallback:three',
+                    'up': {},
                 },
                 'region': 'one_country',
             }, {
@@ -1812,6 +1818,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 3,
                     'note': 'from:one__country pool:three fallback:',
+                    'up': {},
                 },
                 'region': 'one_country',
             }, {
@@ -1826,6 +1833,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 1,
                     'note': 'from:four__country pool:four fallback:',
+                    'up': {},
                 },
                 'region': 'four_country',
             }, {
@@ -1916,6 +1924,7 @@ class TestNs1ProviderDynamic(TestCase):
                     'priority': 1,
                     'weight': 12,
                     'note': f'from:{catchall_pool_name}',
+                    'up': {},
                 },
                 'region': catchall_pool_name,
             }, {
@@ -1923,6 +1932,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 2,
                     'note': 'from:--default--',
+                    'up': {},
                 },
                 'region': catchall_pool_name,
             }],
