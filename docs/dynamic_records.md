@@ -125,7 +125,8 @@ test:
   ...
 ```
 
-* NS1 supports all 3 flags values
+Support matrix:
+* NS1 supports all 3 flag values
 * Azure DNS supports only `obey` and `down`
 * All other dynamic-capable providers only support the default `obey`
 
