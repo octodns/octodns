@@ -293,6 +293,19 @@ class TestBaseProvider(TestCase):
         record2 = list(zone2.records)[0]
         self.assertTrue(record2.dynamic)
 
+        # SUPPORTS_POOL_VALUE_STATUS
+        provider.SUPPORTS_POOL_VALUE_STATUS = False
+        zone1 = Zone('unit.tests.', [])
+        record1.dynamic.pools['one'].data['values'][0]['status'] = 'up'
+        zone1.add_record(record1)
+
+        zone2 = provider._process_desired_zone(zone1.copy())
+        record2 = list(zone2.records)[0]
+        self.assertEqual(
+            record2.dynamic.pools['one'].data['values'][0]['status'],
+            'obey'
+        )
+
     def test_safe_none(self):
         # No changes is safe
         Plan(None, None, [], True).raise_if_unsafe()

@@ -4543,6 +4543,29 @@ class TestDynamicRecords(TestCase):
         # This should be valid, no exception
         Record.new(self.zone, 'bad', a_data)
 
+        # invalid status
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '2.2.2.2',
+                            'status': 'none',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': ['1.1.1.1'],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertIn('invalid status', ctx.exception.reasons[0])
+
     def test_dynamic_lenient(self):
         # Missing pools
         a_data = {

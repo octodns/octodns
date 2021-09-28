@@ -1114,7 +1114,8 @@ class AzureProvider(BaseProvider):
         else:
             # Skip Weighted profile hop for single-value pool; append its
             # value as an external endpoint to fallback rule profile
-            target = pool_values[0]['value']
+            value = pool_values[0]
+            target = value['value']
             if record._type == 'CNAME':
                 target = target[:-1]
             ep_name = pool_name
@@ -1122,10 +1123,13 @@ class AzureProvider(BaseProvider):
                 # mark default
                 ep_name += '--default--'
                 default_seen = True
+            ep_status = 'Disabled' if value['status'] == 'down' else \
+                'Enabled'
             return Endpoint(
                 name=ep_name,
                 target=target,
                 priority=priority,
+                endpoint_status=ep_status,
             ), default_seen
 
     def _make_rule_profile(self, rule_endpoints, rule_name, record, geos,

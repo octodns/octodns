@@ -1209,6 +1209,34 @@ class TestNs1ProviderDynamic(TestCase):
         monitors_delete_mock.assert_has_calls([call('mon-id2')])
         notifylists_delete_mock.assert_not_called()
 
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_params_for_dynamic_with_pool_status(self, monitors_for_mock):
+        provider = Ns1Provider('test', 'api-key')
+        monitors_for_mock.reset_mock()
+        monitors_for_mock.side_effect = [{}]
+        record = Record.new(self.zone, '', {
+            'dynamic': {
+                'pools': {
+                    'iad': {
+                        'values': [{
+                            'value': '1.2.3.4',
+                            'status': 'up',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'iad',
+                }],
+            },
+            'ttl': 32,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'meta': {},
+        })
+        params, active_monitors = provider._params_for_dynamic(record)
+        self.assertTrue(params['answers'][0]['meta']['up'])
+        self.assertEqual(len(active_monitors), 0)
+
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
     def test_params_for_dynamic_region_only(self, monitors_for_mock,
@@ -1802,7 +1830,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 1,
                     'note': 'from:one__country pool:one fallback:two',
-                    'up': {},
+                    'up': True,
                 },
                 'region': 'one_country',
             }, {
@@ -1880,7 +1908,9 @@ class TestNs1ProviderDynamic(TestCase):
                     },
                     'one': {
                         'fallback': 'two',
-                        'values': [{'value': '1.1.1.1', 'weight': 1}]
+                        'values': [
+                            {'value': '1.1.1.1', 'weight': 1, 'status': 'up'},
+                        ],
                     },
                     'three': {
                         'fallback': None,
