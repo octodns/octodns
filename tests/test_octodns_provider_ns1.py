@@ -1213,7 +1213,7 @@ class TestNs1ProviderDynamic(TestCase):
     def test_params_for_dynamic_with_pool_status(self, monitors_for_mock):
         provider = Ns1Provider('test', 'api-key')
         monitors_for_mock.reset_mock()
-        monitors_for_mock.side_effect = [{}]
+        monitors_for_mock.return_value = {}
         record = Record.new(self.zone, '', {
             'dynamic': {
                 'pools': {
@@ -1234,7 +1234,13 @@ class TestNs1ProviderDynamic(TestCase):
             'meta': {},
         })
         params, active_monitors = provider._params_for_dynamic(record)
-        self.assertTrue(params['answers'][0]['meta']['up'])
+        self.assertEqual(params['answers'][0]['meta']['up'], True)
+        self.assertEqual(len(active_monitors), 0)
+
+        # check for down also
+        record.dynamic.pools['iad'].data['values'][0]['status'] = 'down'
+        params, active_monitors = provider._params_for_dynamic(record)
+        self.assertEqual(params['answers'][0]['meta']['up'], False)
         self.assertEqual(len(active_monitors), 0)
 
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
@@ -1846,7 +1852,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 3,
                     'note': 'from:one__country pool:three fallback:',
-                    'up': {},
+                    'up': False,
                 },
                 'region': 'one_country',
             }, {
@@ -1914,7 +1920,9 @@ class TestNs1ProviderDynamic(TestCase):
                     },
                     'three': {
                         'fallback': None,
-                        'values': [{'value': '3.3.3.3', 'weight': 1}]
+                        'values': [
+                            {'value': '3.3.3.3', 'weight': 1, 'status': 'down'}
+                        ]
                     },
                     'two': {
                         'fallback': 'three',
