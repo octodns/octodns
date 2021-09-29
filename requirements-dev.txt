@@ -1,3 +1,4 @@
+build==0.7.0
 coverage
 mock
 nose
