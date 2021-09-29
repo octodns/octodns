@@ -473,6 +473,7 @@ class Test_ProfileIsMatch(TestCase):
             endpoints = 1,
             endpoint_name = 'name',
             endpoint_type = 'profile/nestedEndpoints',
+            endpoint_status = None,
             target = 'target.unit.tests',
             target_id = 'resource/id',
             geos = ['GEO-AF'],
@@ -490,6 +491,7 @@ class Test_ProfileIsMatch(TestCase):
                 endpoints=[Endpoint(
                     name=endpoint_name,
                     type=endpoint_type,
+                    endpoint_status=endpoint_status,
                     target=target,
                     target_resource_id=target_id,
                     geo_mapping=geos,
@@ -506,6 +508,9 @@ class Test_ProfileIsMatch(TestCase):
         self.assertFalse(is_match(profile(), profile(monitor_proto='HTTP')))
         self.assertFalse(is_match(profile(), profile(endpoint_name='a')))
         self.assertFalse(is_match(profile(), profile(endpoint_type='b')))
+        self.assertFalse(
+            is_match(profile(), profile(endpoint_status='Disabled'))
+        )
         self.assertFalse(
             is_match(profile(endpoint_type='b'), profile(endpoint_type='b'))
         )
@@ -1716,6 +1721,81 @@ class TestAzureDnsProvider(TestCase):
         desired.add_record(record)
         changes = provider._extra_changes(zone, desired, [])
         self.assertEqual(len(changes), 0)
+
+    def test_dynamic_pool_status(self):
+        # test that traffic managers are generated as expected for pool value
+        # statuses
+        provider = self._get_provider()
+        zone1 = Zone('unit.tests.', [])
+        record1 = Record.new(zone1, 'foo', data={
+            'type': 'CNAME',
+            'ttl': 60,
+            'value': 'default.unit.tests.',
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [
+                            {'value': 'one1.unit.tests.', 'status': 'up'},
+                        ],
+                    },
+                    'two': {
+                        'values': [
+                            {'value': 'two1.unit.tests.', 'status': 'down'},
+                            {'value': 'two2.unit.tests.'},
+                        ],
+                    },
+                },
+                'rules': [
+                    {'geos': ['AS'], 'pool': 'one'},
+                    {'pool': 'two'},
+                ],
+            }
+        })
+        zone1.add_record(record1)
+        zone2 = provider._process_desired_zone(zone1.copy())
+        record2 = list(zone2.records)[0]
+        self.assertTrue(
+            record2.dynamic.pools['one'].data['values'][0]['status'],
+            'obey'
+        )
+
+        record1.dynamic.pools['one'].data['values'][0]['status'] = 'down'
+        profiles = provider._generate_traffic_managers(record1)
+        self.assertEqual(len(profiles), 4)
+        self.assertEqual(profiles[0].endpoints[0].endpoint_status, 'Disabled')
+        self.assertEqual(profiles[1].endpoints[0].endpoint_status, 'Disabled')
+
+        # test that same record gets populated back from traffic managers
+        tm_list = provider._tm_client.profiles.list_by_resource_group
+        tm_list.return_value = profiles
+        azrecord = RecordSet(
+            ttl=60,
+            target_resource=SubResource(id=profiles[-1].id),
+        )
+        azrecord.name = record1.name or '@'
+        azrecord.type = f'Microsoft.Network/dnszones/{record1._type}'
+        record2 = provider._populate_record(zone, azrecord)
+        self.assertEqual(record1.dynamic._data(), record2.dynamic._data())
+
+        # _process_desired_zone shouldn't change anything when status value is
+        # supported
+        zone1 = Zone(zone.name, sub_zones=[])
+        zone1.add_record(record1)
+        zone2 = provider._process_desired_zone(zone1.copy())
+        record2 = list(zone2.records)[0]
+        self.assertTrue(record1.data, record2.data)
+
+        # simple records should not get changed by _process_desired_zone
+        zone1 = Zone(zone.name, sub_zones=[])
+        record1 = Record.new(zone1, 'foo', data={
+            'type': 'CNAME',
+            'ttl': 86400,
+            'value': 'one.unit.tests.',
+        })
+        zone1.add_record(record1)
+        zone2 = provider._process_desired_zone(zone1.copy())
+        record2 = list(zone2.records)[0]
+        self.assertTrue(record1.data, record2.data)
 
     def test_dynamic_A(self):
         provider = self._get_provider()

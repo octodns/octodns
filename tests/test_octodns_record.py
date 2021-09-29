@@ -3423,20 +3423,25 @@ class TestDynamicRecords(TestCase):
         self.assertEquals({
             'value': '3.3.3.3',
             'weight': 1,
+            'status': 'obey',
         }, pools['one'].data['values'][0])
         self.assertEquals([{
             'value': '4.4.4.4',
             'weight': 1,
+            'status': 'obey',
         }, {
             'value': '5.5.5.5',
             'weight': 1,
+            'status': 'obey',
         }], pools['two'].data['values'])
         self.assertEquals([{
             'weight': 10,
             'value': '4.4.4.4',
+            'status': 'obey',
         }, {
             'weight': 12,
             'value': '5.5.5.5',
+            'status': 'obey',
         }], pools['three'].data['values'])
 
         rules = dynamic.rules
@@ -3526,20 +3531,25 @@ class TestDynamicRecords(TestCase):
         self.assertEquals({
             'value': '2601:642:500:e210:62f8:1dff:feb8:9473',
             'weight': 1,
+            'status': 'obey',
         }, pools['one'].data['values'][0])
         self.assertEquals([{
             'value': '2601:642:500:e210:62f8:1dff:feb8:9474',
             'weight': 1,
+            'status': 'obey',
         }, {
             'value': '2601:642:500:e210:62f8:1dff:feb8:9475',
             'weight': 1,
+            'status': 'obey',
         }], pools['two'].data['values'])
         self.assertEquals([{
             'weight': 10,
             'value': '2601:642:500:e210:62f8:1dff:feb8:9476',
+            'status': 'obey',
         }, {
             'weight': 12,
             'value': '2601:642:500:e210:62f8:1dff:feb8:9477',
+            'status': 'obey',
         }], pools['three'].data['values'])
 
         rules = dynamic.rules
@@ -3596,17 +3606,21 @@ class TestDynamicRecords(TestCase):
         self.assertEquals({
             'value': 'one.cname.target.',
             'weight': 1,
+            'status': 'obey',
         }, pools['one'].data['values'][0])
         self.assertEquals({
             'value': 'two.cname.target.',
             'weight': 1,
+            'status': 'obey',
         }, pools['two'].data['values'][0])
         self.assertEquals([{
             'value': 'three-1.cname.target.',
             'weight': 12,
+            'status': 'obey',
         }, {
             'value': 'three-2.cname.target.',
             'weight': 32,
+            'status': 'obey',
         }], pools['three'].data['values'])
 
         rules = dynamic.rules
@@ -4529,6 +4543,29 @@ class TestDynamicRecords(TestCase):
         # This should be valid, no exception
         Record.new(self.zone, 'bad', a_data)
 
+        # invalid status
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': '2.2.2.2',
+                            'status': 'none',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': ['1.1.1.1'],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertIn('invalid status', ctx.exception.reasons[0])
+
     def test_dynamic_lenient(self):
         # Missing pools
         a_data = {
@@ -4587,6 +4624,7 @@ class TestDynamicRecords(TestCase):
                     'values': [{
                         'value': '3.3.3.3',
                         'weight': 1,
+                        'status': 'obey',
                     }]
                 },
                 'two': {
@@ -4594,9 +4632,11 @@ class TestDynamicRecords(TestCase):
                     'values': [{
                         'value': '4.4.4.4',
                         'weight': 1,
+                        'status': 'obey',
                     }, {
                         'value': '5.5.5.5',
                         'weight': 2,
+                        'status': 'obey',
                     }]
                 },
             },
@@ -4642,6 +4682,7 @@ class TestDynamicRecords(TestCase):
                     'values': [{
                         'value': '3.3.3.3',
                         'weight': 1,
+                        'status': 'obey',
                     }]
                 },
                 'two': {
@@ -4649,9 +4690,11 @@ class TestDynamicRecords(TestCase):
                     'values': [{
                         'value': '4.4.4.4',
                         'weight': 1,
+                        'status': 'obey',
                     }, {
                         'value': '5.5.5.5',
                         'weight': 2,
+                        'status': 'obey',
                     }]
                 },
             },

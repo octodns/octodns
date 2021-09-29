@@ -618,7 +618,12 @@ class ConstellixProvider(BaseProvider):
         for i, rule in enumerate(record.dynamic.rules):
             pool_name = rule.data.get('pool')
             pool = record.dynamic.pools.get(pool_name)
-            values = pool.data.get('values')
+            values = [
+                {
+                    'value': value['value'],
+                    'weight': value['weight'],
+                } for value in pool.data.get('values', [])
+            ]
 
             # Make a pool name based on zone, record, type and name
             generated_pool_name = \

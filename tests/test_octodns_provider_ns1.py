@@ -1209,6 +1209,40 @@ class TestNs1ProviderDynamic(TestCase):
         monitors_delete_mock.assert_has_calls([call('mon-id2')])
         notifylists_delete_mock.assert_not_called()
 
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_params_for_dynamic_with_pool_status(self, monitors_for_mock):
+        provider = Ns1Provider('test', 'api-key')
+        monitors_for_mock.reset_mock()
+        monitors_for_mock.return_value = {}
+        record = Record.new(self.zone, '', {
+            'dynamic': {
+                'pools': {
+                    'iad': {
+                        'values': [{
+                            'value': '1.2.3.4',
+                            'status': 'up',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'iad',
+                }],
+            },
+            'ttl': 32,
+            'type': 'A',
+            'value': '1.2.3.4',
+            'meta': {},
+        })
+        params, active_monitors = provider._params_for_dynamic(record)
+        self.assertEqual(params['answers'][0]['meta']['up'], True)
+        self.assertEqual(len(active_monitors), 0)
+
+        # check for down also
+        record.dynamic.pools['iad'].data['values'][0]['status'] = 'down'
+        params, active_monitors = provider._params_for_dynamic(record)
+        self.assertEqual(params['answers'][0]['meta']['up'], False)
+        self.assertEqual(len(active_monitors), 0)
+
     @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
     def test_params_for_dynamic_region_only(self, monitors_for_mock,
@@ -1614,6 +1648,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 1,
                     'note': 'from:lhr__country',
+                    'up': {},
                 },
                 'region': 'lhr',
             }, {
@@ -1622,6 +1657,7 @@ class TestNs1ProviderDynamic(TestCase):
                     'priority': 2,
                     'weight': 12,
                     'note': 'from:iad',
+                    'up': {},
                 },
                 'region': 'lhr',
             }, {
@@ -1637,6 +1673,7 @@ class TestNs1ProviderDynamic(TestCase):
                     'priority': 1,
                     'weight': 12,
                     'note': 'from:iad',
+                    'up': {},
                 },
                 'region': 'iad',
             }, {
@@ -1652,6 +1689,7 @@ class TestNs1ProviderDynamic(TestCase):
                     'priority': 1,
                     'weight': 12,
                     'note': f'from:{catchall_pool_name}',
+                    'up': {},
                 },
                 'region': catchall_pool_name,
             }, {
@@ -1798,6 +1836,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 1,
                     'note': 'from:one__country pool:one fallback:two',
+                    'up': True,
                 },
                 'region': 'one_country',
             }, {
@@ -1805,6 +1844,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 2,
                     'note': 'from:one__country pool:two fallback:three',
+                    'up': {},
                 },
                 'region': 'one_country',
             }, {
@@ -1812,6 +1852,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 3,
                     'note': 'from:one__country pool:three fallback:',
+                    'up': False,
                 },
                 'region': 'one_country',
             }, {
@@ -1826,6 +1867,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 1,
                     'note': 'from:four__country pool:four fallback:',
+                    'up': {},
                 },
                 'region': 'four_country',
             }, {
@@ -1872,11 +1914,15 @@ class TestNs1ProviderDynamic(TestCase):
                     },
                     'one': {
                         'fallback': 'two',
-                        'values': [{'value': '1.1.1.1', 'weight': 1}]
+                        'values': [
+                            {'value': '1.1.1.1', 'weight': 1, 'status': 'up'},
+                        ],
                     },
                     'three': {
                         'fallback': None,
-                        'values': [{'value': '3.3.3.3', 'weight': 1}]
+                        'values': [
+                            {'value': '3.3.3.3', 'weight': 1, 'status': 'down'}
+                        ]
                     },
                     'two': {
                         'fallback': 'three',
@@ -1916,6 +1962,7 @@ class TestNs1ProviderDynamic(TestCase):
                     'priority': 1,
                     'weight': 12,
                     'note': f'from:{catchall_pool_name}',
+                    'up': {},
                 },
                 'region': catchall_pool_name,
             }, {
@@ -1923,6 +1970,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 2,
                     'note': 'from:--default--',
+                    'up': {},
                 },
                 'region': catchall_pool_name,
             }],

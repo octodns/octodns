@@ -105,6 +105,31 @@ test:
 | port | port to check | 443 |
 | protocol | HTTP/HTTPS/TCP | HTTPS |
 
+Healthchecks can also be skipped for individual pool values. These values can be forced to always-serve or never-serve using the `status` flag.
+
+`status` flag is optional and accepts one of three possible values, `up`/`down`/`obey`, with `obey` being the default:
+
+```yaml
+test:
+  ...
+  dynamic:
+    pools:
+      na:
+        values:
+        - value: 1.2.3.4
+          status: down
+        - value: 2.3.4.5
+          status: up
+        - value: 3.4.5.6
+          # defaults to status: obey
+  ...
+```
+
+Support matrix:
+* NS1 supports all 3 flag values
+* Azure DNS supports only `obey` and `down`
+* All other dynamic-capable providers only support the default `obey`
+
 #### Route53 Healtch Check Options
 
 | Key  | Description | Default |
