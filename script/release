@@ -21,7 +21,7 @@ VERSION="$(grep __VERSION__ "$ROOT/octodns/__init__.py" | sed -e "s/.* = '//" -e
 git tag -s "v$VERSION" -m "Release $VERSION"
 git push origin "v$VERSION"
 echo "Tagged and pushed v$VERSION"
-python setup.py sdist
-twine check dist/*$VERSION.tar.gz
-twine upload dist/*$VERSION.tar.gz
+python -m build --sdist --wheel
+twine check dist/*$VERSION.tar.gz dist/*$VERSION*.whl
+twine upload dist/*$VERSION.tar.gz dist/*$VERSION*.whl
 echo "Uploaded $VERSION"

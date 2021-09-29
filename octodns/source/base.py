@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function, \
 class BaseSource(object):
 
     SUPPORTS_MULTIVALUE_PTR = False
+    SUPPORTS_POOL_VALUE_STATUS = False
 
     def __init__(self, id):
         self.id = id

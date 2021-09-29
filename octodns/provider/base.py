@@ -55,14 +55,35 @@ class BaseProvider(BaseSource):
                 fallback = 'omitting record'
                 self.supports_warn_or_except(msg, fallback)
                 desired.remove_record(record)
-            elif getattr(record, 'dynamic', False) and \
-                    not self.SUPPORTS_DYNAMIC:
-                msg = f'dynamic records not supported for {record.fqdn}'
-                fallback = 'falling back to simple record'
-                self.supports_warn_or_except(msg, fallback)
-                record = record.copy()
-                record.dynamic = None
-                desired.add_record(record, replace=True)
+            elif getattr(record, 'dynamic', False):
+                if self.SUPPORTS_DYNAMIC:
+                    if self.SUPPORTS_POOL_VALUE_STATUS:
+                        continue
+                    # drop unsupported up flag
+                    unsupported_pools = []
+                    for _id, pool in record.dynamic.pools.items():
+                        for value in pool.data['values']:
+                            if value['status'] != 'obey':
+                                unsupported_pools.append(_id)
+                    if not unsupported_pools:
+                        continue
+                    unsupported_pools = ','.join(unsupported_pools)
+                    msg = f'"status" flag used in pools {unsupported_pools}' \
+                        f' in {record.fqdn} is not supported'
+                    fallback = 'will ignore it and respect the healthcheck'
+                    self.supports_warn_or_except(msg, fallback)
+                    record = record.copy()
+                    for pool in record.dynamic.pools.values():
+                        for value in pool.data['values']:
+                            value['status'] = 'obey'
+                    desired.add_record(record, replace=True)
+                else:
+                    msg = f'dynamic records not supported for {record.fqdn}'
+                    fallback = 'falling back to simple record'
+                    self.supports_warn_or_except(msg, fallback)
+                    record = record.copy()
+                    record.dynamic = None
+                    desired.add_record(record, replace=True)
             elif record._type == 'PTR' and len(record.values) > 1 and \
                     not self.SUPPORTS_MULTIVALUE_PTR:
                 # replace with a single-value copy

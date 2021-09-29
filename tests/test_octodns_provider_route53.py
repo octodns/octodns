@@ -2724,25 +2724,25 @@ class TestRoute53Provider(TestCase):
             'ap-southeast-1': {
                 'fallback': 'us-east-1',
                 'values': [{
-                    'weight': 2, 'value': '1.4.1.1'
+                    'weight': 2, 'value': '1.4.1.1', 'status': 'obey',
                 }, {
-                    'weight': 2, 'value': '1.4.1.2'
+                    'weight': 2, 'value': '1.4.1.2', 'status': 'obey',
                 }]
             },
             'eu-central-1': {
                 'fallback': 'us-east-1',
                 'values': [{
-                    'weight': 1, 'value': '1.3.1.1'
+                    'weight': 1, 'value': '1.3.1.1', 'status': 'obey',
                 }, {
-                    'weight': 1, 'value': '1.3.1.2'
+                    'weight': 1, 'value': '1.3.1.2', 'status': 'obey',
                 }],
             },
             'us-east-1': {
                 'fallback': None,
                 'values': [{
-                    'weight': 1, 'value': '1.5.1.1'
+                    'weight': 1, 'value': '1.5.1.1', 'status': 'obey',
                 }, {
-                    'weight': 1, 'value': '1.5.1.2'
+                    'weight': 1, 'value': '1.5.1.2', 'status': 'obey',
                 }],
             }
         }, {k: v.data for k, v in record.dynamic.pools.items()})

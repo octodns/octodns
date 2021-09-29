@@ -375,8 +375,11 @@ def _profile_is_match(have, desired):
         desired_endpoints = desired.endpoints
     endpoints = zip(have_endpoints, desired_endpoints)
     for have_endpoint, desired_endpoint in endpoints:
+        have_status = have_endpoint.endpoint_status or 'Enabled'
+        desired_status = desired_endpoint.endpoint_status or 'Enabled'
         if have_endpoint.name != desired_endpoint.name or \
-           have_endpoint.type != desired_endpoint.type:
+           have_endpoint.type != desired_endpoint.type or \
+           have_status != desired_status:
             return false(have_endpoint, desired_endpoint, have.name)
         target_type = have_endpoint.type.split('/')[-1]
         if target_type == 'externalEndpoints':
@@ -457,6 +460,7 @@ class AzureProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = True
+    SUPPORTS_POOL_VALUE_STATUS = True
     SUPPORTS_MULTIVALUE_PTR = True
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'PTR', 'SRV',
                     'TXT'))
@@ -807,9 +811,14 @@ class AzureProvider(BaseProvider):
                 defaults.add(val)
                 ep_name = ep_name[:-len('--default--')]
 
+            status = 'obey'
+            if pool_ep.endpoint_status == 'Disabled':
+                status = 'down'
+
             values.append({
                 'value': val,
                 'weight': pool_ep.weight or 1,
+                'status': status,
             })
 
         return values
@@ -897,6 +906,36 @@ class AzureProvider(BaseProvider):
             data['values'] = defaults
 
         return data
+
+    def _process_desired_zone(self, desired):
+        # check for status=up values
+        for record in desired.records:
+            if not getattr(record, 'dynamic', False):
+                continue
+
+            up_pools = []
+            for name, pool in record.dynamic.pools.items():
+                for value in pool.data['values']:
+                    if value['status'] == 'up':
+                        # Azure only supports obey and down, not up
+                        up_pools.append(name)
+            if not up_pools:
+                continue
+
+            up_pools = ','.join(up_pools)
+            msg = f'status=up is not supported for pools {up_pools} in ' \
+                f'{record.fqdn}'
+            fallback = 'will ignore it and respect the healthcheck'
+            self.supports_warn_or_except(msg, fallback)
+
+            record = record.copy()
+            for pool in record.dynamic.pools.values():
+                for value in pool.data['values']:
+                    if value['status'] == 'up':
+                        value['status'] = 'obey'
+            desired.add_record(record, replace=True)
+
+        return super()._process_desired_zone(desired)
 
     def _extra_changes(self, existing, desired, changes):
         changed = set(c.record for c in changes)
@@ -1039,10 +1078,13 @@ class AzureProvider(BaseProvider):
                 # mark default
                 ep_name += '--default--'
                 default_seen = True
+            ep_status = 'Disabled' if val['status'] == 'down' else \
+                'Enabled'
             endpoints.append(Endpoint(
                 name=ep_name,
                 target=target,
                 weight=val.get('weight', 1),
+                endpoint_status=ep_status,
             ))
 
         pool_profile = self._generate_tm_profile(
@@ -1075,7 +1117,8 @@ class AzureProvider(BaseProvider):
         else:
             # Skip Weighted profile hop for single-value pool; append its
             # value as an external endpoint to fallback rule profile
-            target = pool_values[0]['value']
+            value = pool_values[0]
+            target = value['value']
             if record._type == 'CNAME':
                 target = target[:-1]
             ep_name = pool_name
@@ -1083,10 +1126,13 @@ class AzureProvider(BaseProvider):
                 # mark default
                 ep_name += '--default--'
                 default_seen = True
+            ep_status = 'Disabled' if value['status'] == 'down' else \
+                'Enabled'
             return Endpoint(
                 name=ep_name,
                 target=target,
                 priority=priority,
+                endpoint_status=ep_status,
             ), default_seen
 
     def _make_rule_profile(self, rule_endpoints, rule_name, record, geos,

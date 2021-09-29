@@ -1921,12 +1921,15 @@ class TestDynProviderDynamic(TestCase):
             'values': [{
                 'value': '1.2.3.5',
                 'weight': 1,
+                'status': 'obey',
             }, {
                 'value': '1.2.3.6',
                 'weight': 1,
+                'status': 'obey',
             }, {
                 'value': '1.2.3.7',
                 'weight': 1,
+                'status': 'obey',
             }]
         }, record.dynamic.pools['pool1'].data)
         self.assertEquals(2, len(record.dynamic.rules))
