@@ -682,11 +682,11 @@ class Route53Provider(BaseProvider):
     def _get_zone_id(self, name, create=False):
         self.log.debug('_get_zone_id: name=%s', name)
         self.update_r53_zones(name)
+        id = None
         if name in self._r53_zones:
             id = self._r53_zones[name]
             self.log.debug('_get_zone_id:   id=%s', id)
-            return id
-        if create:
+        if create and not id:
             ref = uuid4().hex
             del_set = self.delegation_set_id
             self.log.debug('_get_zone_id:   no matching zone, creating, '
@@ -699,8 +699,7 @@ class Route53Provider(BaseProvider):
                 resp = self._conn.create_hosted_zone(Name=name,
                                                      CallerReference=ref)
             self._r53_zones[name] = id = resp['HostedZone']['Id']
-            return id
-        return None
+        return id
 
     def _parse_geo(self, rrset):
         try:
