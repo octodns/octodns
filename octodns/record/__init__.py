@@ -557,7 +557,7 @@ class _DynamicMixin(object):
                     try:
                         weight = value['weight']
                         weight = int(weight)
-                        if weight < 1 or weight > 15:
+                        if weight < 1 or weight > 100:
                             reasons.append(f'invalid weight "{weight}" in '
                                            f'pool "{_id}" value {value_num}')
                     except KeyError:
