@@ -464,6 +464,12 @@ class Ns1Provider(BaseProvider):
                                                              with_disabled)
         return filter_cfg == expected_filter_cfg
 
+    def _notes_exist(self, record):
+        pools_have_notes = all('note' in a['meta'] for a in record['answers'])
+        regions_have_notes = all('note' in r['meta']
+                                 for r in record['regions'].values())
+        return pools_have_notes and regions_have_notes
+
     def _get_updated_filter_chain(self, has_region, has_country,
                                   with_disabled=True):
         if has_region and has_country:
@@ -490,6 +496,19 @@ class Ns1Provider(BaseProvider):
                     data[k] = v if v != '' else None
                 except ValueError:
                     pass
+        return data
+
+    def _invalid_record(self, _type):
+        data = {'ttl': 0, 'type': _type}
+        if _type == 'A':
+            data['values'] = ['255.255.255.255']
+        elif _type == 'AAAA':
+            data['values'] = ['::1']
+        elif _type == 'CNAME':
+            data['value'] = 'iam.invalid.'
+        else:
+            raise Ns1Exception('Unrecognized advanced record')
+
         return data
 
     def _data_for_geo_A(self, _type, record):
@@ -548,21 +567,17 @@ class Ns1Provider(BaseProvider):
     def _data_for_dynamic(self, _type, record):
         # First make sure we have the expected filters config
         if not self._valid_filter_config(record['filters'], record['domain']):
-            self.log.warn('_data_for_dynamic: %s %s has unsupported '
-                          'filters; will overwrite the record',
+            self.log.warn('_data_for_dynamic: %s %s has unsupported filters, '
+                          'will attempt to overwrite the record',
                           record['domain'], _type)
+            return self._invalid_record(_type)
 
-            data = {'ttl': 0, 'type': _type}
-            if _type == 'A':
-                data['values'] = ['255.255.255.255']
-            elif _type == 'AAAA':
-                data['values'] = ['::1']
-            elif _type == 'CNAME':
-                data['value'] = 'iam.invalid.'
-            else:
-                raise Ns1Exception('Unrecognized advanced record')
-
-            return data
+        # We can't parse without notes, let's invalidate and force overwrite
+        if not self._notes_exist(record):
+            self.log.warn('_data_for_dynamic: %s %s is missing the metadata '
+                          'notes required to parse it, will attempt to '
+                          'overwrite the record')
+            return self._invalid_record(_type)
 
         # All regions (pools) will include the list of default values
         # (eventually) at higher priorities, we'll just add them to this set to
