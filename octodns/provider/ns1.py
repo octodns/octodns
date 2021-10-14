@@ -576,7 +576,7 @@ class Ns1Provider(BaseProvider):
         if not self._notes_exist(record):
             self.log.warn('_data_for_dynamic: %s %s is missing the metadata '
                           'notes required to parse it, will attempt to '
-                          'overwrite the record')
+                          'overwrite the record', record['domain'], _type)
             return self._invalid_record(_type)
 
         # All regions (pools) will include the list of default values
