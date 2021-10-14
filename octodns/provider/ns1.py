@@ -548,9 +548,21 @@ class Ns1Provider(BaseProvider):
     def _data_for_dynamic(self, _type, record):
         # First make sure we have the expected filters config
         if not self._valid_filter_config(record['filters'], record['domain']):
-            self.log.error('_data_for_dynamic: %s %s has unsupported '
-                           'filters', record['domain'], _type)
-            raise Ns1Exception('Unrecognized advanced record')
+            self.log.warn('_data_for_dynamic: %s %s has unsupported '
+                          'filters; will overwrite the record',
+                          record['domain'], _type)
+
+            data = {'ttl': 0, 'type': _type}
+            if _type == 'A':
+                data['values'] = ['255.255.255.255']
+            elif _type == 'AAAA':
+                data['values'] = ['::1']
+            elif _type == 'CNAME':
+                data['value'] = 'iam.invalid.'
+            else:
+                raise Ns1Exception('Unrecognized advanced record')
+
+            return data
 
         # All regions (pools) will include the list of default values
         # (eventually) at higher priorities, we'll just add them to this set to
