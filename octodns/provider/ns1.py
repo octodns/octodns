@@ -598,6 +598,9 @@ class Ns1Provider(BaseProvider):
             if fallback is not None:
                 pool['fallback'] = fallback
 
+        # Order and convert to a list
+        default = sorted(default)
+
         return default, pools
 
     def _parse_rule_geos(self, meta):
@@ -688,6 +691,9 @@ class Ns1Provider(BaseProvider):
                 # pool and recorded the sorted unique set of them
                 rule['geos'] = sorted(set(rule.get('geos', [])) | geos)
 
+        # Convert to list and order
+        rules = sorted(rules.values(), key=lambda r: (r['_order'], r['pool']))
+
         return rules
 
     def _data_for_dynamic(self, _type, record):
@@ -699,12 +705,6 @@ class Ns1Provider(BaseProvider):
 
         default, pools = self._parse_pools(record['answers'])
         rules = self._parse_rules(pools, record['regions'])
-
-        # Order and convert to a list
-        default = sorted(default)
-        # Convert to list and order
-        rules = list(rules.values())
-        rules.sort(key=lambda r: (r['_order'], r['pool']))
 
         data = {
             'dynamic': {
