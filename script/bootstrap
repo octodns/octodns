@@ -15,15 +15,18 @@ if [ ! -d "$VENV_NAME" ]; then
     if [ -z "$VENV_PYTHON" ]; then
         VENV_PYTHON=$(command -v python3)
     fi
-    virtualenv --python="$VENV_PYTHON" "$VENV_NAME"
+    "$VENV_PYTHON" -m venv "$VENV_NAME"
 fi
 . "$VENV_NAME/bin/activate"
 
-pip install -U 'pip>=10.0.1'
-pip install -r requirements.txt
+# We're in the venv now, so use the first Python in $PATH. In particular, don't
+# use $VENV_PYTHON - that's the Python that *created* the venv, not the python
+# *inside* the venv
+python -m pip install -U 'pip>=10.0.1'
+python -m pip install -r requirements.txt
 
 if [ "$ENV" != "production" ]; then
-    pip install -r requirements-dev.txt
+    python -m pip install -r requirements-dev.txt
 fi
 
 if [ ! -L ".git/hooks/pre-commit" ]; then

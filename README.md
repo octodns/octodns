@@ -41,7 +41,7 @@ Running through the following commands will install the latest release of OctoDN
 ```shell
 $ mkdir dns
 $ cd dns
-$ virtualenv env
+$ python -m venv env
 ...
 $ source env/bin/activate
 $ pip install octodns <provider-specific-requirements>
