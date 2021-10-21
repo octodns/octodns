@@ -1961,7 +1961,7 @@ class TestNs1ProviderDynamic(TestCase):
                 'meta': {
                     'priority': 1,
                     'weight': 12,
-                    'note': f'from:{catchall_pool_name}',
+                    'note': f'pool:iad from:{catchall_pool_name}',
                     'up': {},
                 },
                 'region': catchall_pool_name,
@@ -2007,6 +2007,45 @@ class TestNs1ProviderDynamic(TestCase):
             'ttl': 43,
             'type': 'CNAME',
             'value': 'value.unit.tests.',
+        }, data)
+
+    def test_data_for_invalid_dynamic_CNAME(self):
+        provider = Ns1Provider('test', 'api-key')
+
+        # Potential setup created outside of octoDNS, so it could be missing
+        # notes and region names can be arbitrary
+        filters = provider._get_updated_filter_chain(False, False)
+        ns1_record = {
+            'answers': [{
+                'answer': ['iad.unit.tests.'],
+                'meta': {
+                    'priority': 1,
+                    'weight': 12,
+                    'up': {},
+                },
+                'region': 'global',
+            }, {
+                'answer': ['value.unit.tests.'],
+                'meta': {
+                    'priority': 2,
+                    'up': {},
+                },
+                'region': 'global',
+            }],
+            'domain': 'foo.unit.tests',
+            'filters': filters,
+            'regions': {
+                'global': {},
+            },
+            'tier': 3,
+            'ttl': 44,
+            'type': 'CNAME',
+        }
+        data = provider._data_for_CNAME('CNAME', ns1_record)
+        self.assertEquals({
+            'ttl': 44,
+            'type': 'CNAME',
+            'value': None,
         }, data)
 
     @patch('ns1.rest.records.Records.retrieve')
