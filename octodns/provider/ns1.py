@@ -545,21 +545,16 @@ class Ns1Provider(BaseProvider):
             pass
         return pool_name
 
-    def _data_for_dynamic(self, _type, record):
-        # First make sure we have the expected filters config
-        if not self._valid_filter_config(record['filters'], record['domain']):
-            self.log.error('_data_for_dynamic: %s %s has unsupported '
-                           'filters', record['domain'], _type)
-            raise Ns1Exception('Unrecognized advanced record')
-
+    def _parse_pools(self, answers):
         # All regions (pools) will include the list of default values
         # (eventually) at higher priorities, we'll just add them to this set to
         # we'll have the complete collection.
         default = set()
+
         # Fill out the pools by walking the answers and looking at their
-        # region.
+        # region (< v0.9.11) or notes (> v0.9.11).
         pools = defaultdict(lambda: {'fallback': None, 'values': []})
-        for answer in record['answers']:
+        for answer in answers:
             meta = answer['meta']
             notes = self._parse_notes(meta.get('note', ''))
 
@@ -579,7 +574,7 @@ class Ns1Provider(BaseProvider):
                 if meta['priority'] != 1:
                     # Ignore all but priority 1
                     continue
-                # And use region's pool name as the pool name
+                # And use region's name as the pool name
                 pool_name = self._parse_dynamic_pool_name(answer['region'])
             else:
                 # > v0.9.11, use the notes-based name and consider all values
@@ -603,17 +598,82 @@ class Ns1Provider(BaseProvider):
             if fallback is not None:
                 pool['fallback'] = fallback
 
+        # Order and convert to a list
+        default = sorted(default)
+
+        return default, pools
+
+    def _parse_rule_geos(self, meta):
+        geos = set()
+
+        for georegion in meta.get('georegion', []):
+            geos.add(self._REGION_TO_CONTINENT[georegion])
+
+        # Countries are easy enough to map, we just have to find their
+        # continent
+        #
+        # NOTE: Some continents need special handling since NS1
+        # does not supprt them as regions. These are defined under
+        # _CONTINENT_TO_LIST_OF_COUNTRIES. So the countries for these
+        # regions will be present in meta['country']. If all the countries
+        # in _CONTINENT_TO_LIST_OF_COUNTRIES[<region>] list are found,
+        # set the continent as the region and remove individual countries
+
+        special_continents = dict()
+        for country in meta.get('country', []):
+            # country_alpha2_to_continent_code fails for Pitcairn ('PN'),
+            # United States Minor Outlying Islands ('UM') and
+            # Sint Maarten ('SX')
+            if country == 'PN':
+                con = 'OC'
+            elif country in ['SX', 'UM']:
+                con = 'NA'
+            else:
+                con = country_alpha2_to_continent_code(country)
+
+            if con in self._CONTINENT_TO_LIST_OF_COUNTRIES:
+                special_continents.setdefault(con, set()).add(country)
+            else:
+                geos.add(f'{con}-{country}')
+
+        for continent, countries in special_continents.items():
+            if countries == self._CONTINENT_TO_LIST_OF_COUNTRIES[
+                    continent]:
+                # All countries found, so add it to geos
+                geos.add(continent)
+            else:
+                # Partial countries found, so just add them as-is to geos
+                for c in countries:
+                    geos.add(f'{continent}-{c}')
+
+        # States and provinces are easy too,
+        # just assume NA-US or NA-CA
+        for state in meta.get('us_state', []):
+            geos.add(f'NA-US-{state}')
+
+        for province in meta.get('ca_province', []):
+            geos.add(f'NA-CA-{province}')
+
+        return geos
+
+    def _parse_rules(self, pools, regions):
         # The regions objects map to rules, but it's a bit fuzzy since they're
         # tied to pools on the NS1 side, e.g. we can only have 1 rule per pool,
         # that may eventually run into problems, but I don't have any use-cases
         # examples currently where it would
         rules = {}
-        for pool_name, region in sorted(record['regions'].items()):
+        for pool_name, region in sorted(regions.items()):
             # Get the actual pool name by removing the type
             pool_name = self._parse_dynamic_pool_name(pool_name)
 
             meta = region['meta']
             notes = self._parse_notes(meta.get('note', ''))
+
+            # The group notes field in the UI is a `note` on the region here,
+            # that's where we can find our pool's fallback in < v0.9.11 anyway
+            if 'fallback' in notes:
+                # set the fallback pool name
+                pools[pool_name]['fallback'] = notes['fallback']
 
             rule_order = notes['rule-order']
             try:
@@ -625,72 +685,26 @@ class Ns1Provider(BaseProvider):
                 }
                 rules[rule_order] = rule
 
-            # The group notes field in the UI is a `note` on the region here,
-            # that's where we can find our pool's fallback in < v0.9.11 anyway
-            if 'fallback' in notes:
-                # set the fallback pool name
-                pools[pool_name]['fallback'] = notes['fallback']
-
-            geos = set()
-
-            for georegion in meta.get('georegion', []):
-                geos.add(self._REGION_TO_CONTINENT[georegion])
-
-            # Countries are easy enough to map, we just have to find their
-            # continent
-            #
-            # NOTE: Some continents need special handling since NS1
-            # does not supprt them as regions. These are defined under
-            # _CONTINENT_TO_LIST_OF_COUNTRIES. So the countries for these
-            # regions will be present in meta['country']. If all the countries
-            # in _CONTINENT_TO_LIST_OF_COUNTRIES[<region>] list are found,
-            # set the continent as the region and remove individual countries
-
-            special_continents = dict()
-            for country in meta.get('country', []):
-                # country_alpha2_to_continent_code fails for Pitcairn ('PN'),
-                # United States Minor Outlying Islands ('UM') and
-                # Sint Maarten ('SX')
-                if country == 'PN':
-                    con = 'OC'
-                elif country in ['SX', 'UM']:
-                    con = 'NA'
-                else:
-                    con = country_alpha2_to_continent_code(country)
-
-                if con in self._CONTINENT_TO_LIST_OF_COUNTRIES:
-                    special_continents.setdefault(con, set()).add(country)
-                else:
-                    geos.add(f'{con}-{country}')
-
-            for continent, countries in special_continents.items():
-                if countries == self._CONTINENT_TO_LIST_OF_COUNTRIES[
-                        continent]:
-                    # All countries found, so add it to geos
-                    geos.add(continent)
-                else:
-                    # Partial countries found, so just add them as-is to geos
-                    for c in countries:
-                        geos.add(f'{continent}-{c}')
-
-            # States and provinces are easy too,
-            # just assume NA-US or NA-CA
-            for state in meta.get('us_state', []):
-                geos.add(f'NA-US-{state}')
-
-            for province in meta.get('ca_province', []):
-                geos.add(f'NA-CA-{province}')
-
+            geos = self._parse_rule_geos(meta)
             if geos:
                 # There are geos, combine them with any existing geos for this
                 # pool and recorded the sorted unique set of them
                 rule['geos'] = sorted(set(rule.get('geos', [])) | geos)
 
-        # Order and convert to a list
-        default = sorted(default)
         # Convert to list and order
-        rules = list(rules.values())
-        rules.sort(key=lambda r: (r['_order'], r['pool']))
+        rules = sorted(rules.values(), key=lambda r: (r['_order'], r['pool']))
+
+        return rules
+
+    def _data_for_dynamic(self, _type, record):
+        # First make sure we have the expected filters config
+        if not self._valid_filter_config(record['filters'], record['domain']):
+            self.log.error('_data_for_dynamic: %s %s has unsupported '
+                           'filters', record['domain'], _type)
+            raise Ns1Exception('Unrecognized advanced record')
+
+        default, pools = self._parse_pools(record['answers'])
+        rules = self._parse_rules(pools, record['regions'])
 
         data = {
             'dynamic': {
@@ -1182,10 +1196,8 @@ class Ns1Provider(BaseProvider):
             }
             answers.append(answer)
 
-    def _params_for_dynamic(self, record):
+    def _generate_regions(self, record):
         pools = record.dynamic.pools
-
-        # Convert rules to regions
         has_country = False
         has_region = False
         regions = {}
@@ -1267,6 +1279,10 @@ class Ns1Provider(BaseProvider):
                     'meta': meta,
                 }
 
+        return has_country, has_region, regions
+
+    def _generate_answers(self, record, regions):
+        pools = record.dynamic.pools
         existing_monitors = self._monitors_for(record)
         active_monitors = set()
 
@@ -1323,6 +1339,15 @@ class Ns1Provider(BaseProvider):
             self._add_answers_for_pool(answers, default_answers, pool_name,
                                        pool_label, pool_answers, pools,
                                        priority)
+
+        return active_monitors, answers
+
+    def _params_for_dynamic(self, record):
+        # Convert rules to regions
+        has_country, has_region, regions = self._generate_regions(record)
+
+        # Convert pools to answers
+        active_monitors, answers = self._generate_answers(record, regions)
 
         # Update filters as necessary
         filters = self._get_updated_filter_chain(has_region, has_country)
