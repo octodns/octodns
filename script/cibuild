@@ -8,9 +8,7 @@ script/bootstrap
 
 echo "## environment & versions ######################################################"
 python --version
-pip --version
-VVER=$(virtualenv --version)
-echo "virtualenv $VVER"
+python -m pip --version
 
 if [ -z "$VENV_NAME" ]; then
     VENV_NAME="env"
