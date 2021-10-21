@@ -1934,8 +1934,8 @@ class TestAzureDnsProvider(TestCase):
             ttl=60, target_resource=SubResource(id=None))
         azrecord.name = record.name or '@'
         azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
-        record2 = provider._populate_record(zone, azrecord)
-        self.assertEqual(record2.values, ['255.255.255.255'])
+        record2 = provider._populate_record(zone, azrecord, lenient=True)
+        self.assertEqual(record2.values, [])
 
         # test that same record gets populated back from traffic managers
         tm_list = provider._tm_client.profiles.list_by_resource_group
@@ -2016,8 +2016,8 @@ class TestAzureDnsProvider(TestCase):
             ttl=60, target_resource=SubResource(id=None))
         azrecord.name = record.name or '@'
         azrecord.type = f'Microsoft.Network/dnszones/{record._type}'
-        record2 = provider._populate_record(zone, azrecord)
-        self.assertEqual(record2.values, ['::1'])
+        record2 = provider._populate_record(zone, azrecord, lenient=True)
+        self.assertEqual(record2.values, [])
 
         # test that same record gets populated back from traffic managers
         tm_list = provider._tm_client.profiles.list_by_resource_group
@@ -2259,8 +2259,8 @@ class TestAzureDnsProvider(TestCase):
         azrecord.name = record1.name or '@'
         azrecord.type = f'Microsoft.Network/dnszones/{record1._type}'
 
-        record2 = provider._populate_record(zone, azrecord)
-        self.assertEqual(record2.value, 'iam.invalid.')
+        record2 = provider._populate_record(zone, azrecord, lenient=True)
+        self.assertIsNone(record2.value)
 
         change = Update(record2, record1)
         provider._apply_Update(change)

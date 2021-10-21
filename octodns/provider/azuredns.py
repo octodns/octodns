@@ -650,14 +650,12 @@ class AzureProvider(BaseProvider):
         if azrecord.a_records is None:
             if azrecord.target_resource.id:
                 return self._data_for_dynamic(azrecord)
-            else:
-                # dynamic record alias is broken, return dummy value and apply
-                # will likely overwrite/fix it
-                self.log.warn('_data_for_A: Missing Traffic Manager '
-                              'alias for dynamic A record %s, forcing '
-                              're-link by setting an invalid value',
-                              azrecord.fqdn)
-                return {'values': ['255.255.255.255']}
+
+            # dynamic record alias is broken, return dummy value and apply
+            # will likely overwrite/fix it
+            self.log.warn('_data_for_A: Missing Traffic Manager alias for '
+                          'dynamic record %s', azrecord.fqdn)
+            return {'values': []}
 
         return {'values': [ar.ipv4_address for ar in azrecord.a_records]}
 
@@ -665,14 +663,12 @@ class AzureProvider(BaseProvider):
         if azrecord.aaaa_records is None:
             if azrecord.target_resource.id:
                 return self._data_for_dynamic(azrecord)
-            else:
-                # dynamic record alias is broken, return dummy value and apply
-                # will likely overwrite/fix it
-                self.log.warn('_data_for_AAAA: Missing Traffic Manager '
-                              'alias for dynamic AAAA record %s, forcing '
-                              're-link by setting an invalid value',
-                              azrecord.fqdn)
-                return {'values': ['::1']}
+
+            # dynamic record alias is broken, return dummy value and apply
+            # will likely overwrite/fix it
+            self.log.warn('_data_for_AAAA: Missing Traffic Manager alias for '
+                          'dynamic record %s', azrecord.fqdn)
+            return {'values': []}
 
         return {'values': [ar.ipv6_address for ar in azrecord.aaaa_records]}
 
@@ -692,14 +688,12 @@ class AzureProvider(BaseProvider):
         if azrecord.cname_record is None:
             if azrecord.target_resource.id:
                 return self._data_for_dynamic(azrecord)
-            else:
-                # dynamic record alias is broken, return dummy value and apply
-                # will likely overwrite/fix it
-                self.log.warn('_data_for_CNAME: Missing Traffic Manager '
-                              'alias for dynamic CNAME record %s, forcing '
-                              're-link by setting an invalid value',
-                              azrecord.fqdn)
-                return {'value': 'iam.invalid.'}
+
+            # dynamic record alias is broken, return dummy value and apply
+            # will likely overwrite/fix it
+            self.log.warn('_data_for_CNAME: Missing Traffic Manager alias for '
+                          'dynamic record %s', azrecord.fqdn)
+            return {'value': None}
 
         return {'value': _check_endswith_dot(azrecord.cname_record.cname)}
 
