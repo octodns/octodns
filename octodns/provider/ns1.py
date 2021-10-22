@@ -312,68 +312,64 @@ class Ns1Provider(BaseProvider):
     ZONE_NOT_FOUND_MESSAGE = 'server error: zone not found'
     SHARED_NOTIFYLIST_NAME = 'octoDNS NS1 Notify List'
 
-    def _update_filter(self, filter):
-        filter.setdefault('disabled', False)
-        return (dict(sorted(filter.items(), key=lambda t: t[0])))
-
     @property
     def _UP_FILTER(self):
-        return self._update_filter({
+        return {
             'config': {},
             'filter': 'up'
-        })
+        }
 
     @property
     def _REGION_FILTER(self):
-        return self._update_filter({
+        return {
             'config': {
                 'remove_no_georegion': True
             },
             'filter': u'geofence_regional'
-        })
+        }
 
     @property
     def _COUNTRY_FILTER(self):
-        return self._update_filter({
+        return {
             'config': {
                 'remove_no_location': True
             },
             'filter': u'geofence_country'
-        })
+        }
 
     # In the NS1 UI/portal, this filter is called "SELECT FIRST GROUP" though
     # the filter name in the NS1 api is 'select_first_region'
     @property
     def _SELECT_FIRST_REGION_FILTER(self):
-        return self._update_filter({
+        return {
             'config': {},
             'filter': u'select_first_region'
-        })
+        }
 
     @property
     def _PRIORITY_FILTER(self):
-        return self._update_filter({
+        return {
             'config': {
                 'eliminate': u'1'
             },
             'filter': 'priority'
-        })
+        }
 
     @property
     def _WEIGHTED_SHUFFLE_FILTER(self):
-        return self._update_filter({
+        return {
             'config': {},
             'filter': u'weighted_shuffle'
-        })
+        }
 
     @property
     def _SELECT_FIRST_N_FILTER(self):
-        return self._update_filter({
+        return {
             'config': {
                 'N': u'1'
             },
             'filter': u'select_first_n'
-        })
+        }
 
     @property
     def _BASIC_FILTER_CHAIN(self):
@@ -465,8 +461,15 @@ class Ns1Provider(BaseProvider):
         self._client = Ns1Client(api_key, parallelism, retry_count,
                                  client_config)
 
+    def _sanitize_disabled_in_filter_config(self, filter_cfg):
+        # remove disabled=False from filters
+        for filter in filter_cfg:
+            if 'disabled' in filter and filter['disabled'] is False:
+                del filter['disabled']
+        return filter_cfg
+
     def _valid_filter_config(self, filter_cfg):
-        self._disabled_flag_in_filters(filter_cfg)
+        self._sanitize_disabled_in_filter_config(filter_cfg)
         has_region = self._REGION_FILTER in filter_cfg
         has_country = self._COUNTRY_FILTER in filter_cfg
         expected_filter_cfg = self._get_updated_filter_chain(has_region,
@@ -1423,10 +1426,6 @@ class Ns1Provider(BaseProvider):
         values = [(v.path, v.target, v.code, v.masking, v.query)
                   for v in record.values]
         return {'answers': values, 'ttl': record.ttl}, None
-
-    def _disabled_flag_in_filters(self, filters):
-        # fill up filters with disabled=False flag whenever absent
-        return [self._update_filter(f) for f in filters]
 
     def _extra_changes(self, desired, changes, **kwargs):
         self.log.debug('_extra_changes: desired=%s', desired.name)

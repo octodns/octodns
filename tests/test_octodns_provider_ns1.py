@@ -2165,7 +2165,7 @@ class TestNs1ProviderDynamic(TestCase):
         extra = provider._extra_changes(desired, [])
         self.assertTrue(extra)
 
-        # Mixed disabled in filters doesn't trigger an update
+        # disabled=False in filters doesn't trigger an update
         reset()
         ns1_zone = {
             'records': [{
@@ -2176,7 +2176,7 @@ class TestNs1ProviderDynamic(TestCase):
                 "filters": provider._BASIC_FILTER_CHAIN
             }],
         }
-        del ns1_zone['records'][0]['filters'][0]['disabled']
+        ns1_zone['records'][0]['filters'][0]['disabled'] = False
         monitors_for_mock.side_effect = [{}]
         zones_retrieve_mock.side_effect = [ns1_zone]
         records_retrieve_mock.side_effect = ns1_zone['records']
@@ -2186,6 +2186,11 @@ class TestNs1ProviderDynamic(TestCase):
         }
         extra = provider._extra_changes(desired, [])
         self.assertFalse(extra)
+
+        # disabled=True in filters does trigger an update
+        ns1_zone['records'][0]['filters'][0]['disabled'] = True
+        extra = provider._extra_changes(desired, [])
+        self.assertTrue(extra)
 
     DESIRED = Zone('unit.tests.', [])
 
