@@ -780,11 +780,15 @@ class Ns1Provider(BaseProvider):
             if 'pool:' in first_answer_note:
                 return self._data_for_dynamic(_type, record)
             # If not, it can't be parsed. Let it be an empty record
-
-        try:
-            value = record['short_answers'][0]
-        except (IndexError, KeyError):
+            self.log.warn('Cannot parse %s dynamic record due to missing '
+                          'pool name in first answer note, treating it as '
+                          'an empty record', record['domain'])
             value = None
+        else:
+            try:
+                value = record['short_answers'][0]
+            except IndexError:
+                value = None
 
         return {
             'ttl': record['ttl'],
