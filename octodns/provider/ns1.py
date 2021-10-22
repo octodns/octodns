@@ -771,13 +771,25 @@ class Ns1Provider(BaseProvider):
 
     def _data_for_CNAME(self, _type, record):
         if record.get('tier', 1) > 1:
-            # Advanced dynamic record
-            return self._data_for_dynamic(_type, record)
-
-        try:
-            value = record['short_answers'][0]
-        except IndexError:
+            # Advanced record, see if it's first answer has a note
+            try:
+                first_answer_note = record['answers'][0]['meta']['note']
+            except (IndexError, KeyError):
+                first_answer_note = ''
+            # If that note includes a `pool` it's a valid dynamic record
+            if 'pool:' in first_answer_note:
+                return self._data_for_dynamic(_type, record)
+            # If not, it can't be parsed. Let it be an empty record
+            self.log.warn('Cannot parse %s dynamic record due to missing '
+                          'pool name in first answer note, treating it as '
+                          'an empty record', record['domain'])
             value = None
+        else:
+            try:
+                value = record['short_answers'][0]
+            except IndexError:
+                value = None
+
         return {
             'ttl': record['ttl'],
             'type': _type,
