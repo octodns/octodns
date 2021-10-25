@@ -41,7 +41,7 @@ Running through the following commands will install the latest release of OctoDN
 ```shell
 $ mkdir dns
 $ cd dns
-$ virtualenv env
+$ python -m venv env
 ...
 $ source env/bin/activate
 $ pip install octodns <provider-specific-requirements>
@@ -357,4 +357,4 @@ GitHub® and its stylized versions and the Invertocat mark are GitHub's Trademar
 
 ## Authors
 
-OctoDNS was designed and authored by [Ross McFarland](https://github.com/ross) and [Joe Williams](https://github.com/joewilliams). It is now maintained, reviewed, and tested by Traffic Engineering team at GitHub.
+OctoDNS was designed and authored by [Ross McFarland](https://github.com/ross) and [Joe Williams](https://github.com/joewilliams). See https://github.com/octodns/octodns/graphs/contributors for a complete list of people who've contributed.

@@ -80,6 +80,7 @@ setup(
     long_description_content_type='text/markdown',
     name='octodns',
     packages=find_packages(),
+    python_requires='>=3.6',
     url='https://github.com/octodns/octodns',
     version=octodns.__VERSION__,
 )

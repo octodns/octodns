@@ -1,4 +1,4 @@
-## v0.9.14 - 2021-??-?? - A new supports system
+## v0.9.14 - 2021-10-10 - A new supports system
 
 #### Noteworthy changes
 
@@ -24,6 +24,26 @@
 * TransipProvider removed as it currently relies on `suds` which is broken in
   new python versions and hasn't seen a release since 2010. May return with
   https://github.com/octodns/octodns/pull/762
+
+#### Stuff
+
+* Fully remove python 2.7 support & sims
+* Dynamic record pool status flag: up/down/obey added w/provider support as
+  possible.
+* Support for multi-value PTRs where providers allow them
+* Normalize IPv6 addresses to avoid false changes and simplify providers
+* Include pure-python wheel distirubtions in release builds
+* Improvements and updates to AzureProvider, especially w/respect to dynamic
+  records.
+* NS1Provider support for IPv6 monitors and general caching/performance
+  improvements
+* Route53Provider.get_zones_by_name option to avoid paging through huge lists
+  and hitting rate limits
+* Misc Route53Provider
+* Ensure no network access during testing (helps with runtime)
+* Sped up the long pole unit tests
+* Misc. ConstellixProvider, DigitalOceanProvider, GCoreProvider, and
+  Route53Provider fixes & improvements
 
 ## v0.9.13 - 2021-07-18 - Processors Alpha
 
