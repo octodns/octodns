@@ -151,3 +151,26 @@ Support matrix:
         measure_latency: false
         request_interval: 30
 ```
+
+#### Constellix Health Check Options
+
+| Key  | Description | Default |
+|--|--|--|
+| sonar_interval | Sonar check interval [FIVESECONDS|THIRTYSECONDS|ONEMINUTE|TWOMINUTES|THREEMINUTES|FOURMINUTES|FIVEMINUTES|TENMINUTES|THIRTYMINUTES|HALFDAY|DAY] | ONEMINUTE |
+| sonar_port | Sonar check port | 80 |
+| sonar_regions | Sonar check regions for a check. WORLD or a list of [ASIAPAC|EUROPE|NACENTRAL|NAEAST|NAWEST|OCEANIA|SOUTHAMERICA] | WORLD |
+| sonar_type | Sonar check type [TCP|HTTP] | TCP |
+
+```yaml
+
+---
+  octodns:
+    constellix:
+      healthcheck:
+        sonar_interval: DAY
+        sonar_port: 80
+        sonar_regions:
+        - ASIAPAC
+        - EUROPE
+        sonar_type: TCP
+```
