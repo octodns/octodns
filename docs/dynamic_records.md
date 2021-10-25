@@ -156,10 +156,34 @@ Support matrix:
 
 | Key  | Description | Default |
 |--|--|--|
-| sonar_interval | Sonar check interval [FIVESECONDS|THIRTYSECONDS|ONEMINUTE|TWOMINUTES|THREEMINUTES|FOURMINUTES|FIVEMINUTES|TENMINUTES|THIRTYMINUTES|HALFDAY|DAY] | ONEMINUTE |
+| sonar_interval | Sonar check interval | ONEMINUTE |
 | sonar_port | Sonar check port | 80 |
-| sonar_regions | Sonar check regions for a check. WORLD or a list of [ASIAPAC|EUROPE|NACENTRAL|NAEAST|NAWEST|OCEANIA|SOUTHAMERICA] | WORLD |
-| sonar_type | Sonar check type [TCP|HTTP] | TCP |
+| sonar_regions | Sonar check regions for a check. WORLD or a list of values | WORLD |
+| sonar_type | Sonar check type TCP/HTTP | TCP |
+
+Sonar check interval (sonar_interval) possible values:
+
+* FIVESECONDS
+* THIRTYSECONDS
+* ONEMINUTE
+* TWOMINUTES
+* THREEMINUTES
+* FOURMINUTES
+* FIVEMINUTES
+* TENMINUTES
+* THIRTYMINUTES
+* HALFDAY
+* DAY
+
+Sonar check regions (sonar_regions) possible values:
+
+* ASIAPAC
+* EUROPE
+* NACENTRAL
+* NAEAST
+* NAWEST
+* OCEANIA
+* SOUTHAMERICA
 
 ```yaml
 
