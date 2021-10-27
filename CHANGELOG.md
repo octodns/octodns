@@ -1,3 +1,12 @@
+
+## v0.9.15 - 202?-??-?? - ??
+
+#### Noteworthy changes
+
+* NS1 provider has received improvements to the dynamic record implementation.
+  As a result, if octoDNS is downgraded from this version, any dynamic records
+  created or updated using this version will show an update.
+
 ## v0.9.14 - 2021-10-10 - A new supports system
 
 #### Noteworthy changes
