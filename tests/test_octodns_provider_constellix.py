@@ -346,12 +346,24 @@ class TestConstellixProvider(TestCase):
             self.assertEquals('Not Found', str(ctx.exception))
 
         # Sonar Normal response
+        provider = ConstellixProvider('test', 'api', 'secret')
         with requests_mock() as mock:
             mock.get(ANY, status_code=200, text='[]')
             agents = provider._sonar.agents
             self.assertEquals({}, agents)
             agents = provider._sonar.agents
 
+        provider = ConstellixProvider('test', 'api', 'secret', 0.01)
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=200, text='[]')
+            agents = provider._sonar.agents
+
+        provider = ConstellixProvider('test', 'api', 'secret', 1.01)
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=200, text='[]')
+            agents = provider._sonar.agents
+
+        provider = ConstellixProvider('test', 'api', 'secret')
         # No diffs == no changes
         with requests_mock() as mock:
             base = 'https://api.dns.constellix.com/v1'

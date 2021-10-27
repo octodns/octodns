@@ -298,15 +298,20 @@ class SonarClientNotFound(SonarClientException):
 class SonarClient(object):
     BASE = 'https://api.sonar.constellix.com/rest/api'
 
-    def __init__(self, api_key, secret_key, ratelimit_delay=0.0):
+    def __init__(self, log, api_key, secret_key, ratelimit_delay=0.0):
+        self.log = log
         self.api_key = api_key
         self.secret_key = secret_key
         self.ratelimit_delay = ratelimit_delay
         self._sess = Session()
+        self._sess.headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'octoDNS',
+        }
         self._agents = None
         self._checks = {'tcp': None, 'http': None}
 
-    def _current_time(self):
+    def _current_time_ms(self):
         return str(int(time.time() * 1000))
 
     def _hmac_hash(self, now):
@@ -319,15 +324,14 @@ class SonarClient(object):
         return hmac_text
 
     def _request(self, method, path, params=None, data=None):
-        now = self._current_time()
+        now = self._current_time_ms()
         hmac_text = self._hmac_hash(now)
 
         headers = {
             'x-cns-security-token': "{}:{}:{}".format(
                 self.api_key,
                 hmac_text,
-                now),
-            'Content-Type': "application/json"
+                now)
         }
 
         url = f'{self.BASE}{path}'
@@ -340,7 +344,13 @@ class SonarClient(object):
         if resp.status_code == 404:
             raise SonarClientNotFound()
         resp.raise_for_status()
+
+        if self.ratelimit_delay >= 1.0:
+            self.log.info("Waiting for Sonar Rate Limit Delay")
+        elif self.ratelimit_delay > 0.0:
+            self.log.debug("Waiting for Sonar Rate Limit Delay")
         time.sleep(self.ratelimit_delay)
+
         return resp
 
     @property
@@ -348,8 +358,8 @@ class SonarClient(object):
         if self._agents is None:
             agents = []
 
-            resp = self._request('GET', '/system/sites').json()
-            agents += resp
+            data = self._request('GET', '/system/sites').json()
+            agents += data
 
             self._agents = {f'{a["name"]}.': a for a in agents}
 
@@ -377,8 +387,8 @@ class SonarClient(object):
         if self._checks[check_type] is None:
             self._checks[check_type] = {}
             path = f'/{check_type}'
-            response = self._request('GET', path).json()
-            for check in response:
+            data = self._request('GET', path).json()
+            for check in data:
                 self._checks[check_type][check['id']] = check
         return self._checks[check_type].values()
 
@@ -396,17 +406,17 @@ class SonarClient(object):
         id = self.parse_uri_id(response.headers["Location"])
         # Get check details
         path = f'/{check_type}/{id}'
-        response = self._request('GET', path, data=data).json()
+        data = self._request('GET', path, data=data).json()
 
         # Update our cache
-        self._checks[check_type]['id'] = response
-        return response
+        self._checks[check_type]['id'] = data
+        return data
 
     def check_delete(self, check_id):
         # first get check type
         path = f'/check/type/{check_id}'
-        response = self._request('GET', path).json()
-        check_type = response['type'].lower()
+        data = self._request('GET', path).json()
+        check_type = data['type'].lower()
 
         path = f'/{check_type}/{check_id}'
         self._request('DELETE', path)
@@ -440,7 +450,9 @@ class ConstellixProvider(BaseProvider):
         self.log.debug('__init__: id=%s, api_key=***, secret_key=***', id)
         super(ConstellixProvider, self).__init__(id, *args, **kwargs)
         self._client = ConstellixClient(api_key, secret_key, ratelimit_delay)
-        self._sonar = SonarClient(api_key, secret_key, ratelimit_delay)
+        self._sonar = SonarClient(
+            self.log, api_key, secret_key, ratelimit_delay
+        )
         self._zone_records = {}
 
     def _data_for_multiple(self, _type, records):
