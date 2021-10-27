@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from collections import defaultdict
 from requests import Session
-from base64 import b64encode
+from base64 import b64encode, standard_b64encode
 from pycountry_convert import country_alpha2_to_continent_code
 import hashlib
 import hmac
@@ -191,6 +191,7 @@ class ConstellixClient(object):
         for pool in pools:
             if pool['id'] == pool_id:
                 return pool
+        return None
 
     def pool_create(self, data):
         path = f'/pools/{data.get("type")}'
@@ -241,6 +242,7 @@ class ConstellixClient(object):
         for geofilter in geofilters:
             if geofilter['id'] == geofilter_id:
                 return geofilter
+        return None
 
     def geofilter_create(self, data):
         path = '/geoFilters'
@@ -270,6 +272,159 @@ class ConstellixClient(object):
             self._geofilters.pop(geofilter_id, None)
 
 
+class SonarClientException(ProviderException):
+    pass
+
+
+class SonarClientBadRequest(SonarClientException):
+
+    def __init__(self, resp):
+        errors = resp.text
+        super(SonarClientBadRequest, self).__init__(f'\n  - {errors}')
+
+
+class SonarClientUnauthorized(SonarClientException):
+
+    def __init__(self):
+        super(SonarClientUnauthorized, self).__init__('Unauthorized')
+
+
+class SonarClientNotFound(SonarClientException):
+
+    def __init__(self):
+        super(SonarClientNotFound, self).__init__('Not Found')
+
+
+class SonarClient(object):
+    BASE = 'https://api.sonar.constellix.com/rest/api'
+
+    def __init__(self, log, api_key, secret_key, ratelimit_delay=0.0):
+        self.log = log
+        self.api_key = api_key
+        self.secret_key = secret_key
+        self.ratelimit_delay = ratelimit_delay
+        self._sess = Session()
+        self._sess.headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'octoDNS',
+        }
+        self._agents = None
+        self._checks = {'tcp': None, 'http': None}
+
+    def _current_time_ms(self):
+        return str(int(time.time() * 1000))
+
+    def _hmac_hash(self, now):
+        digester = hmac.new(
+            bytes(self.secret_key, "UTF-8"),
+            bytes(now, "UTF-8"),
+            hashlib.sha1)
+        signature = digester.digest()
+        hmac_text = str(standard_b64encode(signature), "UTF-8")
+        return hmac_text
+
+    def _request(self, method, path, params=None, data=None):
+        now = self._current_time_ms()
+        hmac_text = self._hmac_hash(now)
+
+        headers = {
+            'x-cns-security-token': "{}:{}:{}".format(
+                self.api_key,
+                hmac_text,
+                now)
+        }
+
+        url = f'{self.BASE}{path}'
+        resp = self._sess.request(method, url, headers=headers,
+                                  params=params, json=data)
+        if resp.status_code == 400:
+            raise SonarClientBadRequest(resp)
+        if resp.status_code == 401:
+            raise SonarClientUnauthorized()
+        if resp.status_code == 404:
+            raise SonarClientNotFound()
+        resp.raise_for_status()
+
+        if self.ratelimit_delay >= 1.0:
+            self.log.info("Waiting for Sonar Rate Limit Delay")
+        elif self.ratelimit_delay > 0.0:
+            self.log.debug("Waiting for Sonar Rate Limit Delay")
+        time.sleep(self.ratelimit_delay)
+
+        return resp
+
+    @property
+    def agents(self):
+        if self._agents is None:
+            agents = []
+
+            data = self._request('GET', '/system/sites').json()
+            agents += data
+
+            self._agents = {f'{a["name"]}.': a for a in agents}
+
+        return self._agents
+
+    def agents_for_regions(self, regions):
+        if regions[0] == "WORLD":
+            res_agents = []
+            for agent in self.agents.values():
+                res_agents.append(agent['id'])
+            return res_agents
+
+        res_agents = []
+        for agent in self.agents.values():
+            if agent["region"] in regions:
+                res_agents.append(agent['id'])
+        return res_agents
+
+    def parse_uri_id(self, url):
+        r = str(url).rfind("/")
+        res = str(url)[r + 1:]
+        return res
+
+    def checks(self, check_type):
+        if self._checks[check_type] is None:
+            self._checks[check_type] = {}
+            path = f'/{check_type}'
+            data = self._request('GET', path).json()
+            for check in data:
+                self._checks[check_type][check['id']] = check
+        return self._checks[check_type].values()
+
+    def check(self, check_type, check_name):
+        checks = self.checks(check_type)
+        for check in checks:
+            if check['name'] == check_name:
+                return check
+        return None
+
+    def check_create(self, check_type, data):
+        path = f'/{check_type}'
+        response = self._request('POST', path, data=data)
+        # Parse check ID from Location response header
+        id = self.parse_uri_id(response.headers["Location"])
+        # Get check details
+        path = f'/{check_type}/{id}'
+        data = self._request('GET', path, data=data).json()
+
+        # Update our cache
+        self._checks[check_type]['id'] = data
+        return data
+
+    def check_delete(self, check_id):
+        # first get check type
+        path = f'/check/type/{check_id}'
+        data = self._request('GET', path).json()
+        check_type = data['type'].lower()
+
+        path = f'/{check_type}/{check_id}'
+        self._request('DELETE', path)
+
+        # Update our cache
+        self._checks[check_type].pop(check_id, None)
+
+
 class ConstellixProvider(BaseProvider):
     '''
     Constellix DNS provider
@@ -295,6 +450,9 @@ class ConstellixProvider(BaseProvider):
         self.log.debug('__init__: id=%s, api_key=***, secret_key=***', id)
         super(ConstellixProvider, self).__init__(id, *args, **kwargs)
         self._client = ConstellixClient(api_key, secret_key, ratelimit_delay)
+        self._sonar = SonarClient(
+            self.log, api_key, secret_key, ratelimit_delay
+        )
         self._zone_records = {}
 
     def _data_for_multiple(self, _type, records):
@@ -511,6 +669,27 @@ class ConstellixProvider(BaseProvider):
                       len(zone.records) - before, exists)
         return exists
 
+    def _healthcheck_config(self, record):
+        sonar_healthcheck = record._octodns.get('constellix', {}) \
+            .get('healthcheck', None)
+
+        if sonar_healthcheck is None:
+            return None
+
+        healthcheck = {}
+        healthcheck["sonar_port"] = sonar_healthcheck.get('sonar_port', 80)
+        healthcheck["sonar_type"] = sonar_healthcheck.get('sonar_type', "TCP")
+        healthcheck["sonar_regions"] = sonar_healthcheck.get(
+            'sonar_regions',
+            ["WORLD"]
+        )
+        healthcheck["sonar_interval"] = sonar_healthcheck.get(
+            'sonar_interval',
+            "ONEMINUTE"
+        )
+
+        return healthcheck
+
     def _params_for_multiple(self, record):
         yield {
             'name': record.name,
@@ -609,6 +788,8 @@ class ConstellixProvider(BaseProvider):
         }
 
     def _handle_pools(self, record):
+        healthcheck = self._healthcheck_config(record)
+
         # If we don't have dynamic, then there's no pools
         if not getattr(record, 'dynamic', False):
             return []
@@ -628,6 +809,26 @@ class ConstellixProvider(BaseProvider):
             # Make a pool name based on zone, record, type and name
             generated_pool_name = \
                 f'{record.zone.name}:{record.name}:{record._type}:{pool_name}'
+
+            # Create Sonar checks if needed
+            if healthcheck is not None:
+                check_sites = self._sonar.\
+                    agents_for_regions(healthcheck["sonar_regions"])
+                for value in values:
+                    check_obj = self._create_update_check(
+                        pool_type = record._type,
+                        check_name = '{}-{}'.format(
+                            generated_pool_name,
+                            value['value']
+                        ),
+                        check_type = healthcheck["sonar_type"].lower(),
+                        value = value['value'],
+                        port = healthcheck["sonar_port"],
+                        interval = healthcheck["sonar_interval"],
+                        sites = check_sites
+                    )
+                    value['checkId'] = check_obj['id']
+                    value['policy'] = "followsonar"
 
             # OK, pool is valid, let's create it or update it
             self.log.debug("Creating pool %s", generated_pool_name)
@@ -676,6 +877,37 @@ class ConstellixProvider(BaseProvider):
 
             res_pools.append(pool_obj)
         return res_pools
+
+    def _create_update_check(
+            self,
+            pool_type,
+            check_name,
+            check_type,
+            value,
+            port,
+            interval,
+            sites):
+
+        check = {
+            'name': check_name,
+            'host': value,
+            'port': port,
+            'checkSites': sites,
+            'interval': interval
+        }
+        if pool_type == "AAAA":
+            check['ipVersion'] = "IPV6"
+        else:
+            check['ipVersion'] = "IPV4"
+
+        if check_type == "http":
+            check['protocolType'] = "HTTPS"
+
+        existing_check = self._sonar.check(check_type, check_name)
+        if existing_check:
+            self._sonar.check_delete(existing_check['id'])
+
+        return self._sonar.check_create(check_type, check)
 
     def _create_update_pool(self, pool_name, pool_type, ttl, values):
         pool = {
