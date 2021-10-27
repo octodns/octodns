@@ -198,3 +198,20 @@ Sonar check regions (sonar_regions) possible values:
         - EUROPE
         sonar_type: TCP
 ```
+
+#### NS1 Health Check Options
+
+| Key  | Description | Default |
+|--|--|--|
+| connect_timeout | Timeout (in seconds) before we give up trying to connect | 2 |
+| response_timeout | Timeout (in seconds) after connecting to wait for output. | 10 |
+
+```yaml
+
+---
+  octodns:
+    ns1:
+      healthcheck:
+        connect_timeout: 2
+        response_timeout: 10
+```

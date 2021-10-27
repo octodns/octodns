@@ -602,8 +602,8 @@ class TestNs1ProviderDynamic(TestCase):
                 },
                 'ns1': {
                     'healthcheck': {
-                        'tcp_connect_timeout': 5000,
-                        'tcp_response_timeout': 6000,
+                        'connect_timeout': 5,
+                        'response_timeout': 6,
                     },
                 },
             },
@@ -925,13 +925,13 @@ class TestNs1ProviderDynamic(TestCase):
         # No http response expected
         self.assertFalse('rules' in monitor)
 
-        record._octodns['ns1']['healthcheck']['tcp_connect_timeout'] = 1234
+        record._octodns['ns1']['healthcheck']['connect_timeout'] = 1
         monitor = provider._monitor_gen(record, value)
-        self.assertEquals(1234, monitor['config']['connect_timeout'])
+        self.assertEquals(1000, monitor['config']['connect_timeout'])
 
-        record._octodns['ns1']['healthcheck']['tcp_response_timeout'] = 5678
+        record._octodns['ns1']['healthcheck']['response_timeout'] = 2
         monitor = provider._monitor_gen(record, value)
-        self.assertEquals(5678, monitor['config']['response_timeout'])
+        self.assertEquals(2000, monitor['config']['response_timeout'])
 
     def test_monitor_gen_AAAA(self):
         provider = Ns1Provider('test', 'api-key')
