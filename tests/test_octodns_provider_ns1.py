@@ -599,7 +599,13 @@ class TestNs1ProviderDynamic(TestCase):
                     'path': '/_ping',
                     'port': 80,
                     'protocol': 'HTTP',
-                }
+                },
+                'ns1': {
+                    'healthcheck': {
+                        'connect_timeout': 5,
+                        'response_timeout': 6,
+                    },
+                },
             },
             'ttl': 32,
             'type': 'A',
@@ -918,6 +924,14 @@ class TestNs1ProviderDynamic(TestCase):
         self.assertFalse('send' in monitor['config'])
         # No http response expected
         self.assertFalse('rules' in monitor)
+
+        record._octodns['ns1']['healthcheck']['connect_timeout'] = 1
+        monitor = provider._monitor_gen(record, value)
+        self.assertEquals(1000, monitor['config']['connect_timeout'])
+
+        record._octodns['ns1']['healthcheck']['response_timeout'] = 2
+        monitor = provider._monitor_gen(record, value)
+        self.assertEquals(2000, monitor['config']['response_timeout'])
 
     def test_monitor_gen_AAAA(self):
         provider = Ns1Provider('test', 'api-key')

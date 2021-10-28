@@ -1053,6 +1053,16 @@ class Ns1Provider(BaseProvider):
 
         return monitor_id, self._feed_create(monitor)
 
+    def _healthcheck_connect_timeout(self, record):
+        return record._octodns.get('ns1', {}) \
+            .get('healthcheck', {}) \
+            .get('connect_timeout', 2)
+
+    def _healthcheck_response_timeout(self, record):
+        return record._octodns.get('ns1', {}) \
+            .get('healthcheck', {}) \
+            .get('response_timeout', 10)
+
     def _monitor_gen(self, record, value):
         host = record.fqdn[:-1]
         _type = record._type
@@ -1064,10 +1074,16 @@ class Ns1Provider(BaseProvider):
         ret = {
             'active': True,
             'config': {
-                'connect_timeout': 2000,
+                'connect_timeout':
+                    # TCP monitors use milliseconds, so convert from
+                    # seconds to milliseconds
+                    self._healthcheck_connect_timeout(record) * 1000,
                 'host': value,
                 'port': record.healthcheck_port,
-                'response_timeout': 10000,
+                'response_timeout':
+                    # TCP monitors use milliseconds, so convert from
+                    # seconds to milliseconds
+                    self._healthcheck_response_timeout(record) * 1000,
                 'ssl': record.healthcheck_protocol == 'HTTPS',
             },
             'frequency': 60,
