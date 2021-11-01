@@ -203,8 +203,10 @@ Sonar check regions (sonar_regions) possible values:
 
 | Key  | Description | Default |
 |--|--|--|
+| policy | One of:<ol><li>`all` - down if every region is down</li><li>`quorum` - down if majority regions are down</li><li>`one` - down if any region is down</ol> | `quorum` |
+| frequency | Frequency (in seconds) of health-check | 60 |
 | connect_timeout | Timeout (in seconds) before we give up trying to connect | 2 |
-| response_timeout | Timeout (in seconds) after connecting to wait for output. | 10 |
+| response_timeout | Timeout (in seconds) after connecting to wait for output | 10 |
 
 ```yaml
 
@@ -212,6 +214,8 @@ Sonar check regions (sonar_regions) possible values:
   octodns:
     ns1:
       healthcheck:
+        policy: quorum
+        frequency: 60
         connect_timeout: 2
         response_timeout: 10
 ```

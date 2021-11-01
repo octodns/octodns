@@ -1053,6 +1053,16 @@ class Ns1Provider(BaseProvider):
 
         return monitor_id, self._feed_create(monitor)
 
+    def _healthcheck_policy(self, record):
+        return record._octodns.get('ns1', {}) \
+            .get('healthcheck', {}) \
+            .get('policy', 'quorum')
+
+    def _healthcheck_frequency(self, record):
+        return record._octodns.get('ns1', {}) \
+            .get('healthcheck', {}) \
+            .get('frequency', 60)
+
     def _healthcheck_connect_timeout(self, record):
         return record._octodns.get('ns1', {}) \
             .get('healthcheck', {}) \
@@ -1086,14 +1096,14 @@ class Ns1Provider(BaseProvider):
                     self._healthcheck_response_timeout(record) * 1000,
                 'ssl': record.healthcheck_protocol == 'HTTPS',
             },
-            'frequency': 60,
+            'frequency': self._healthcheck_frequency(record),
             'job_type': 'tcp',
             'name': f'{host} - {_type} - {value}',
             'notes': self._encode_notes({
                 'host': host,
                 'type': _type,
             }),
-            'policy': 'quorum',
+            'policy': self._healthcheck_policy(record),
             'rapid_recheck': False,
             'region_scope': 'fixed',
             'regions': self.monitor_regions,
