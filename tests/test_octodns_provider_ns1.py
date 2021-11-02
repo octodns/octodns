@@ -925,6 +925,14 @@ class TestNs1ProviderDynamic(TestCase):
         # No http response expected
         self.assertFalse('rules' in monitor)
 
+        record._octodns['ns1']['healthcheck']['policy'] = 'all'
+        monitor = provider._monitor_gen(record, value)
+        self.assertEquals('all', monitor['policy'])
+
+        record._octodns['ns1']['healthcheck']['frequency'] = 300
+        monitor = provider._monitor_gen(record, value)
+        self.assertEquals(300, monitor['frequency'])
+
         record._octodns['ns1']['healthcheck']['connect_timeout'] = 1
         monitor = provider._monitor_gen(record, value)
         self.assertEquals(1000, monitor['config']['connect_timeout'])
