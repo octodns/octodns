@@ -2056,6 +2056,56 @@ class TestNs1ProviderDynamic(TestCase):
             'value': None,
         }, data)
 
+    @patch('octodns.provider.ns1.Ns1Provider._monitor_sync')
+    @patch('octodns.provider.ns1.Ns1Provider._monitors_for')
+    def test_dynamic_explicit_countries(self, monitors_for_mock,
+                                        monitors_sync_mock):
+        provider = Ns1Provider('test', 'api-key')
+        record_data = {
+            'dynamic': {
+                'pools': {
+                    'iad': {
+                        'values': [{
+                            'value': 'iad.unit.tests.',
+                            'status': 'up',
+                        }],
+                    },
+                    'lhr': {
+                        'values': [{
+                            'value': 'lhr.unit.tests.',
+                            'status': 'up',
+                        }]
+                    }
+                },
+                'rules': [
+                    {
+                        'geos': ['NA-US'],
+                        'pool': 'iad',
+                    },
+                    {
+                        'geos': ['NA'],
+                        'pool': 'lhr',
+                    },
+                ],
+            },
+            'ttl': 33,
+            'type': 'CNAME',
+            'value': 'value.unit.tests.',
+        }
+        record = Record.new(self.zone, 'foo', record_data)
+
+        ns1_record, _ = provider._params_for_dynamic(record)
+        regions = [
+            r for r in ns1_record['regions'].values()
+            if 'US' in r['meta']['country']
+        ]
+        self.assertEquals(len(regions), 1)
+
+        ns1_record['domain'] = record.fqdn[:-1]
+        data = provider._data_for_dynamic(record._type, ns1_record)['dynamic']
+        self.assertEquals(data['rules'][0]['geos'], ['NA-US'])
+        self.assertEquals(data['rules'][1]['geos'], ['NA'])
+
     @patch('ns1.rest.records.Records.retrieve')
     @patch('ns1.rest.zones.Zones.retrieve')
     @patch('octodns.provider.ns1.Ns1Provider._monitors_for')

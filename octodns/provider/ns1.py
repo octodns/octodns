@@ -613,7 +613,7 @@ class Ns1Provider(BaseProvider):
 
         return default, pools
 
-    def _parse_rule_geos(self, meta):
+    def _parse_rule_geos(self, meta, notes):
         geos = set()
 
         for georegion in meta.get('georegion', []):
@@ -628,6 +628,11 @@ class Ns1Provider(BaseProvider):
         # regions will be present in meta['country']. If all the countries
         # in _CONTINENT_TO_LIST_OF_COUNTRIES[<region>] list are found,
         # set the continent as the region and remove individual countries
+
+        # continents that don't have all countries here because a subset of
+        # them were used in another rule, but we still need this rule to use
+        # continent instead of the remaining subset of its countries
+        continents_from_notes = set(notes.get('continents', '').split(','))
 
         special_continents = dict()
         for country in meta.get('country', []):
@@ -648,8 +653,8 @@ class Ns1Provider(BaseProvider):
 
         for continent, countries in special_continents.items():
             if countries == self._CONTINENT_TO_LIST_OF_COUNTRIES[
-                    continent]:
-                # All countries found, so add it to geos
+                    continent] or continent in continents_from_notes:
+                # All countries found or continent in notes, so add it to geos
                 geos.add(continent)
             else:
                 # Partial countries found, so just add them as-is to geos
@@ -695,7 +700,7 @@ class Ns1Provider(BaseProvider):
                 }
                 rules[rule_order] = rule
 
-            geos = self._parse_rule_geos(meta)
+            geos = self._parse_rule_geos(meta, notes)
             if geos:
                 # There are geos, combine them with any existing geos for this
                 # pool and recorded the sorted unique set of them
@@ -1248,6 +1253,13 @@ class Ns1Provider(BaseProvider):
         has_region = False
         regions = {}
 
+        explicit_countries = dict()
+        for rule in record.dynamic.rules:
+            for geo in rule.data.get('geos', []):
+                if len(geo) == 5:
+                    con, country = geo.split('-', 1)
+                    explicit_countries.setdefault(con, set()).add(country)
+
         for i, rule in enumerate(record.dynamic.rules):
             pool_name = rule.data['pool']
 
@@ -1288,9 +1300,15 @@ class Ns1Provider(BaseProvider):
                         # Use the country list
                         self.log.debug('Converting geo {} to country list'.
                                        format(geo))
-                        for c in self._CONTINENT_TO_LIST_OF_COUNTRIES[geo]:
-                            country.add(c)
-                            has_country = True
+                        continent_countries = \
+                            self._CONTINENT_TO_LIST_OF_COUNTRIES[geo]
+                        exclude = explicit_countries.get(geo, set())
+                        country.update(continent_countries - exclude)
+                        notes.setdefault('continents', set()).add(geo)
+                        has_country = True
+
+            if 'continents' in notes:
+                notes['continents'] = ','.join(sorted(notes['continents']))
 
             meta = {
                 'note': self._encode_notes(notes),
