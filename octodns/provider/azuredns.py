@@ -377,29 +377,39 @@ def _profile_is_match(have, desired):
     for have_endpoint, desired_endpoint in endpoints:
         have_status = have_endpoint.endpoint_status or 'Enabled'
         desired_status = desired_endpoint.endpoint_status or 'Enabled'
+
+        # compare basic attributes
         if have_endpoint.name != desired_endpoint.name or \
            have_endpoint.type != desired_endpoint.type or \
            have_status != desired_status:
             return false(have_endpoint, desired_endpoint, have.name)
+
+        # compare geos
+        if method == 'Geographic':
+            have_geos = sorted(have_endpoint.geo_mapping)
+            desired_geos = sorted(desired_endpoint.geo_mapping)
+            if have_geos != desired_geos:
+                return false(have_endpoint, desired_endpoint, have.name)
+
+        # compare priorities
+        if method == 'Priority' and \
+           have_endpoint.priority != desired_endpoint.priority:
+            return false(have_endpoint, desired_endpoint, have.name)
+
+        # compare weights
+        if method == 'Weighted' and \
+           have_endpoint.weight != desired_endpoint.weight:
+            return false(have_endpoint, desired_endpoint, have.name)
+
+        # compare targets
         target_type = have_endpoint.type.split('/')[-1]
         if target_type == 'externalEndpoints':
-            # compare value, weight, priority
             if have_endpoint.target != desired_endpoint.target:
                 return false(have_endpoint, desired_endpoint, have.name)
-            if method == 'Weighted' and \
-               have_endpoint.weight != desired_endpoint.weight:
-                return false(have_endpoint, desired_endpoint, have.name)
         elif target_type == 'nestedEndpoints':
-            # compare targets
             if have_endpoint.target_resource_id != \
                desired_endpoint.target_resource_id:
                 return false(have_endpoint, desired_endpoint, have.name)
-            # compare geos
-            if method == 'Geographic':
-                have_geos = sorted(have_endpoint.geo_mapping)
-                desired_geos = sorted(desired_endpoint.geo_mapping)
-                if have_geos != desired_geos:
-                    return false(have_endpoint, desired_endpoint, have.name)
         else:
             # unexpected, give up
             return False
@@ -913,6 +923,7 @@ class AzureProvider(BaseProvider):
                     if value['status'] == 'up':
                         # Azure only supports obey and down, not up
                         up_pools.append(name)
+                        break
             if not up_pools:
                 continue
 
