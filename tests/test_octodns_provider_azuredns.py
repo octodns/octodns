@@ -516,6 +516,16 @@ class Test_ProfileIsMatch(TestCase):
         )
         self.assertFalse(is_match(profile(), profile(target_id='rsrc/id2')))
         self.assertFalse(is_match(profile(), profile(geos=['IN'])))
+        self.assertFalse(is_match(
+            profile(endpoint_type='profile/externalEndpoints'),
+            profile(
+                endpoint_type='profile/externalEndpoints',
+                geos=['IN']
+            )
+        ))
+        self.assertFalse(is_match(profile(method='Priority'), profile(
+            method='Priority', priority=2
+        )))
 
         def wprofile(**kwargs):
             kwargs['method'] = 'Weighted'
