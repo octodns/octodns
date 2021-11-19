@@ -6,6 +6,12 @@
 * NS1 provider has received improvements to the dynamic record implementation.
   As a result, if octoDNS is downgraded from this version, any dynamic records
   created or updated using this version will show an update.
+* An edge-case bug related to geo rules involving continents in NS1 provider
+  has been fixed in this version. However, it will not show/fix the records that
+  match this edge-case. See https://github.com/octodns/octodns/pull/809 for
+  more information. If octoDNS is downgraded from this version, any dynamic
+  records created or updated using this version and matching the said edge-case
+  will not be read/parsed correctly by the older version and will show a diff.
 
 ## v0.9.14 - 2021-10-10 - A new supports system
 
