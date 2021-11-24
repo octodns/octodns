@@ -52,10 +52,7 @@ def long_description():
                 supported_providers = True
                 continue
             buf.write(line)
-    buf = buf.getvalue()
-    with open('/tmp/mod', 'w') as fh:
-        fh.write(buf)
-    return buf
+    return buf.getvalue()
 
 
 setup(
