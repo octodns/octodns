@@ -7,8 +7,6 @@ code](https://en.wikipedia.org/wiki/Infrastructure_as_Code) OctoDNS provides a s
 
 The architecture is pluggable and the tooling is flexible to make it applicable to a wide variety of use-cases. Effort has been made to make adding new providers as easy as possible. In the simple case that involves writing of a single `class` and a couple hundred lines of code, most of which is translating between the provider's schema and OctoDNS's. More on some of the ways we use it and how to go about extending it below and in the [/docs directory](/docs).
 
-It is similar to [Netflix/denominator](https://github.com/Netflix/denominator).
-
 ## Table of Contents
 
 - [DNS as code - Tools for managing DNS across multiple providers](#dns-as-code---tools-for-managing-dns-across-multiple-providers)
