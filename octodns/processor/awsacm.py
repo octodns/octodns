@@ -11,24 +11,22 @@ from .base import BaseProcessor
 
 
 class AwsAcmMangingProcessor(BaseProcessor):
-    log = getLogger('AwsAcmMangingProcessor')
+    '''
+    processors:
+        awsacm:
+        class: octodns.processor.acme.AwsAcmMangingProcessor
 
-    def __init__(self, name):
-        '''
-        processors:
-          awsacm:
-            class: octodns.processor.acme.AwsAcmMangingProcessor
+    ...
 
+    zones:
+        something.com.:
         ...
+        processors:
+        - awsacm
+        ...
+    '''
 
-        zones:
-          something.com.:
-          ...
-          processors:
-            - awsacm
-          ...
-        '''
-        super(AwsAcmMangingProcessor, self).__init__(name)
+    log = getLogger('AwsAcmMangingProcessor')
 
     def _ignore_awsacm_cnames(self, zone):
         for r in zone.records:
