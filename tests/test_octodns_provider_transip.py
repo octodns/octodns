@@ -368,7 +368,7 @@ class TestTransipProvider(TestCase):
         self.assertEquals(
             sorted(seen_entries, key=itemgetter("name", "type", "expire")),
             sorted(expected_entries, key=itemgetter("name", "type", "expire")),
-          )
+        )
 
     @patch("octodns.provider.transip.TransIP")
     def test_apply_failure_on_not_found(self, client_mock):
