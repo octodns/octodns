@@ -4,7 +4,7 @@
 
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
-
+import json
 from boto3 import client
 from botocore.config import Config
 from collections import defaultdict
@@ -117,6 +117,18 @@ class _Route53Record(EqualityTupleMixin):
         return ret
 
     @classmethod
+    def _new_weighted(cls, provider, record, creating):
+        # Creates the RRSets that correspond to the given weighted record
+        ret = set()
+
+        # ret.add(_Route53WeightedDefault(provider, record, creating))
+        for ident, weighted in record.weighted.items():
+            ret.add(_Route53WeightedRecord(provider, record, ident,
+                                           weighted, creating))
+
+        return ret
+
+    @classmethod
     def new(cls, provider, record, hosted_zone_id, creating):
         # Creates the RRSets that correspond to the given record
 
@@ -125,6 +137,8 @@ class _Route53Record(EqualityTupleMixin):
             return ret
         elif getattr(record, 'geo', False):
             return cls._new_geo(provider, record, creating)
+        elif getattr(record, 'weighted', False):
+            return cls._new_weighted(provider, record, creating)
 
         # Its a simple record that translates into a single RRSet
         return set((_Route53Record(provider, record, creating),))
@@ -437,6 +451,96 @@ class _Route53GeoRecord(_Route53Record):
 
     def mod(self, action, existing_rrsets):
         geo = self.geo
+        set_identifier = geo.code
+        fqdn = self.fqdn
+
+        if action == 'DELETE':
+            # When deleting records try and find the original rrset so that
+            # we're 100% sure to have the complete & accurate data (this mostly
+            # ensures we have the right health check id when there's multiple
+            # potential matches)
+            for existing in existing_rrsets:
+                if fqdn == existing.get('Name') and \
+                   set_identifier == existing.get('SetIdentifier', None):
+                    return {
+                        'Action': action,
+                        'ResourceRecordSet': existing,
+                    }
+
+        rrset = {
+            'Name': self.fqdn,
+            'GeoLocation': {
+                'CountryCode': '*'
+            },
+            'ResourceRecords': [{'Value': v} for v in geo.values],
+            'SetIdentifier': set_identifier,
+            'TTL': self.ttl,
+            'Type': self._type,
+        }
+
+        if self.health_check_id:
+            rrset['HealthCheckId'] = self.health_check_id
+
+        if geo.subdivision_code:
+            rrset['GeoLocation'] = {
+                'CountryCode': geo.country_code,
+                'SubdivisionCode': geo.subdivision_code
+            }
+        elif geo.country_code:
+            rrset['GeoLocation'] = {
+                'CountryCode': geo.country_code
+            }
+        else:
+            rrset['GeoLocation'] = {
+                'ContinentCode': geo.continent_code
+            }
+
+        return {
+            'Action': action,
+            'ResourceRecordSet': rrset,
+        }
+
+    def __hash__(self):
+        return f'{self.fqdn}:{self._type}:{self.geo.code}'.__hash__()
+
+    def _equality_tuple(self):
+        return super(_Route53GeoRecord, self)._equality_tuple() + \
+            (self.geo.code,)
+
+    def __repr__(self):
+        return f'_Route53GeoRecord<{self.fqdn} {self._type} {self.ttl} ' \
+            f'{self.geo.code} {self.values}>'
+
+
+# class _Route53WeightedDefault(_Route53Record):
+
+#     def mod(self, action, existing_rrsets):
+#         return {
+#             'Action': action,
+#             'ResourceRecordSet': {
+#                 'Name': self.fqdn,
+#                 'ResourceRecords': [{'Value': v} for v in self.values],
+#                 'SetIdentifier': 'default',
+#                 'TTL': self.ttl,
+#                 'Type': self._type,
+#             }
+#         }
+
+#     def __hash__(self):
+#         return f'{self.fqdn}:{self._type}:default'.__hash__()
+
+#     def __repr__(self):
+#         return f'_Route53WeightedDefault<{self.fqdn} {self._type} {self.ttl} ' \
+#             f'{self.values}>'
+
+
+class _Route53WeightedRecord(_Route53Record):
+
+    def __init__(self, provider, record, ident, weighted, creating):
+        super(_Route53WeightedRecord, self).__init__(provider, record, creating)
+        self.weighted = weighted
+
+    def mod(self, action, existing_rrsets):
         set_identifier = geo.code
         fqdn = self.fqdn
 
@@ -932,6 +1036,11 @@ class Route53Provider(BaseProvider):
 
         return data
 
+    def _data_for_weighted(self, name, _type, rrsets):
+        # This converts a bunch of RRSets into their corrosponding weighted
+        # Record. It's used by populate.
+
+
     def _process_desired_zone(self, desired):
         for record in desired.records:
             if getattr(record, 'dynamic', False):
@@ -980,11 +1089,14 @@ class Route53Provider(BaseProvider):
             exists = True
             records = defaultdict(lambda: defaultdict(list))
             dynamic = defaultdict(lambda: defaultdict(list))
+            weighted = defaultdict(lambda: defaultdict(list))
 
             for rrset in self._load_records(zone_id):
                 record_name = zone.hostname_from_fqdn(rrset['Name'])
                 record_name = _octal_replace(record_name)
                 record_type = rrset['Type']
+
+                self.log.info('################## %s' % json.dumps(rrset))
                 if record_type not in self.SUPPORTS:
                     # Skip stuff we don't support
                     continue
@@ -1006,8 +1118,10 @@ class Route53Provider(BaseProvider):
                         self.log.warning("%s is an Alias record. Skipping..."
                                          % rrset['Name'])
                     continue
+
                 # A basic record (potentially including geo)
                 data = getattr(self, f'_data_for_{record_type}')(rrset)
+                self.log.info('DATA             %s' % json.dumps(data))
                 records[record_name][record_type].append(data)
 
             # Convert the dynamic rrsets to Records
@@ -1018,9 +1132,17 @@ class Route53Provider(BaseProvider):
                                         lenient=lenient)
                     zone.add_record(record, lenient=lenient)
 
+            # Convert the weighted rrsets to Records
+            for name, types in weighted.items():
+                for _type, rrsets in types.items():
+                    data = self._data_for_weighted(name, _type, rrsets)
+                    record = Record.new(zone, name, data, source=self
+                                        lenient=lenient)
+
             # Convert the basic (potentially with geo) rrsets to records
             for name, types in records.items():
                 for _type, data in types.items():
+                    self.log.info("########### %s" % data)
                     if len(data) > 1:
                         # Multiple data indicates a record with GeoDNS, convert
                         # them data into the format we need

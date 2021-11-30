@@ -106,6 +106,7 @@ class Record(EqualityTupleMixin):
                 'SSHFP': SshfpRecord,
                 'TXT': TxtRecord,
                 'URLFWD': UrlfwdRecord,
+                'WEIGHTED': WeightedRecord,
             }[_type]
         except KeyError:
             raise Exception(f'Unknown record type: "{_type}"')
@@ -1545,3 +1546,59 @@ class UrlfwdValue(EqualityTupleMixin):
 class UrlfwdRecord(_ValuesMixin, Record):
     _type = 'URLFWD'
     _value_type = UrlfwdValue
+
+class WeightedValue(EqualityTupleMixin)
+    @classmethod
+    def validate(cls, data, _type):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
+        reasons = []
+        for value in data:
+            try:
+                int(value['weight'])
+            except KeyError:
+                reasons.append('missing weight')
+            except ValueError:
+                reasons.append(f'invalid weight "{value["weight"]}"')
+            try:
+                value['identifier']
+            except KeyError:
+                reasons.append('missing identifier')
+            except ValueError:
+                reasons.append(f'invalid identifier "{value["identifier"]}"')
+        return reasons
+
+    @classmethod
+    def process(cls, values):
+        return [WeightedValue(v) for v in values]
+
+    def __init__(self, value):
+        self.weight = int(value['weight'])
+        self.identifier = value['identifier'].lower()
+
+    @property
+    def data(self):
+        return {
+            'weight': self.weight,
+            'identifier': self.identifier,
+        }
+
+    def __hash__(self):
+        return hash(self.__repr__())
+
+    def _equality_tuple(self):
+        return (self.identifier, self.weight)
+
+    def __repr__(self):
+        return f"'{self.identifier} {self.weight}'"
+
+
+class WeightedRecord(_ValuesMixin, Record):
+    _type = 'WEIGHTED'
+    _value_type = WeightedValue
+
+    @classmethod
+    def validate(cls, name, fqdn, data):
+        reasons = []
+        reasons.extend(super(WeightedRecord, cls).validate(name, fqdn, data)
+        return reasons
