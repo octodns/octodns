@@ -20,8 +20,8 @@ ovh==0.5.0
 pycountry-convert==0.7.2
 pycountry==20.7.3
 python-dateutil==2.8.1
-requests==2.24.0
+requests==2.25.1
 s3transfer==0.3.3
 setuptools==44.1.1
 six==1.15.0
-transip==2.1.2
+python-transip==0.5.0
