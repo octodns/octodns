@@ -45,6 +45,13 @@ class _AggregateTarget(object):
                 return False
         return True
 
+    @property
+    def SUPPORTS_WEIGHTED(self):
+        for target in self.targets:
+            if not target.SUPPORTS_WEIGHTED:
+                return False
+        return True
+
 
 class MakeThreadFuture(object):
 

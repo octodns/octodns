@@ -5,6 +5,7 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+import json
 from boto3 import client
 from botocore.config import Config
 from collections import defaultdict
@@ -117,14 +118,29 @@ class _Route53Record(EqualityTupleMixin):
         return ret
 
     @classmethod
+    def _new_weighted(cls, provider, record, creating):
+        # Creates the RRsets that correspond to the given weighted record
+        ret = set()
+        # Create the default record with weight 0, which comes from the default `value` of the
+        # record object. It's only used if all other records are also on weight 0, which is
+        # hopefully never.
+        fqdn = record.fqdn
+        ret.add(_Route53WeightedDefault(provider, record, creating))
+
+        for identifier, weighted in record.weighted.items():
+            ret.add(_Route53WeightedRecord(provider, record, identifier, weighted, creating))
+        return ret
+
+    @classmethod
     def new(cls, provider, record, hosted_zone_id, creating):
         # Creates the RRSets that correspond to the given record
-
         if getattr(record, 'dynamic', False):
             ret = cls._new_dynamic(provider, record, hosted_zone_id, creating)
             return ret
         elif getattr(record, 'geo', False):
             return cls._new_geo(provider, record, creating)
+        elif getattr(record, 'weighted', False):
+            return cls._new_weighted(provider, record, creating)
 
         # Its a simple record that translates into a single RRSet
         return set((_Route53Record(provider, record, creating),))
@@ -252,7 +268,7 @@ class _Route53DynamicPool(_Route53Record):
         return 'Secondary' if self.target_name else 'Primary'
 
     @property
-    def identifer(self):
+    def identifier(self):
         if self.target_name:
             return f'{self.pool_name}-{self.mode}-{self.target_name}'
         return f'{self.pool_name}-{self.mode}'
@@ -268,13 +284,13 @@ class _Route53DynamicPool(_Route53Record):
                 },
                 'Failover': 'SECONDARY' if self.target_name else 'PRIMARY',
                 'Name': self.fqdn,
-                'SetIdentifier': self.identifer,
+                'SetIdentifier': self.identifier,
                 'Type': self._type,
             }
         }
 
     def __hash__(self):
-        return f'{self.fqdn}:{self._type}:{self.identifer}'.__hash__()
+        return f'{self.fqdn}:{self._type}:{self.identifier}'.__hash__()
 
     def __repr__(self):
         return f'_Route53DynamicPool<{self.fqdn} {self._type} {self.mode} ' \
@@ -295,7 +311,7 @@ class _Route53DynamicRule(_Route53Record):
         self.target_dns_name = f'_octodns-{pool_name}-pool.{record.fqdn}'
 
     @property
-    def identifer(self):
+    def identifier(self):
         return f'{self.index}-{self.pool_name}-{self.geo}'
 
     def mod(self, action, existing_rrsets):
@@ -309,7 +325,7 @@ class _Route53DynamicRule(_Route53Record):
                 'CountryCode': '*'
             },
             'Name': self.fqdn,
-            'SetIdentifier': self.identifer,
+            'SetIdentifier': self.identifier,
             'Type': self._type,
         }
 
@@ -336,7 +352,7 @@ class _Route53DynamicRule(_Route53Record):
         }
 
     def __hash__(self):
-        return f'{self.fqdn}:{self._type}:{self.identifer}'.__hash__()
+        return f'{self.fqdn}:{self._type}:{self.identifier}'.__hash__()
 
     def __repr__(self):
         return f'_Route53DynamicRule<{self.fqdn} {self._type} {self.index} ' \
@@ -361,7 +377,7 @@ class _Route53DynamicValue(_Route53Record):
                                                             creating)
 
     @property
-    def identifer(self):
+    def identifier(self):
         return f'{self.pool_name}-{self.index:03d}'
 
     def mod(self, action, existing_rrsets):
@@ -373,7 +389,7 @@ class _Route53DynamicValue(_Route53Record):
             # potential matches)
             for existing in existing_rrsets:
                 if self.fqdn == existing.get('Name') and \
-                   self.identifer == existing.get('SetIdentifier', None):
+                   self.identifier == existing.get('SetIdentifier', None):
                     return {
                         'Action': action,
                         'ResourceRecordSet': existing,
@@ -385,7 +401,7 @@ class _Route53DynamicValue(_Route53Record):
                 'HealthCheckId': self.health_check_id,
                 'Name': self.fqdn,
                 'ResourceRecords': [{'Value': self.value}],
-                'SetIdentifier': self.identifer,
+                'SetIdentifier': self.identifier,
                 'TTL': self.ttl,
                 'Type': self._type,
                 'Weight': self.weight,
@@ -393,11 +409,11 @@ class _Route53DynamicValue(_Route53Record):
         }
 
     def __hash__(self):
-        return f'{self.fqdn}:{self._type}:{self.identifer}'.__hash__()
+        return f'{self.fqdn}:{self._type}:{self.identifier}'.__hash__()
 
     def __repr__(self):
         return f'_Route53DynamicValue<{self.fqdn} {self._type} ' \
-            f'{self.identifer} {self.value}>'
+            f'{self.identifier} {self.value}>'
 
 
 class _Route53GeoDefault(_Route53Record):
@@ -498,6 +514,75 @@ class _Route53GeoRecord(_Route53Record):
             f'{self.geo.code} {self.values}>'
 
 
+class _Route53WeightedDefault(_Route53Record):
+
+    def mod(self, action, existing_rrsets):
+        return {
+            'Action': action,
+            'ResourceRecordSet': {
+                'Name': self.fqdn,
+                'ResourceRecords': [{'Value': v} for v in self.values],
+                'SetIdentifier': '_octodns_default',
+                'TTL': self.ttl,
+                'Type': self._type,
+                'Weight': 0,
+            }
+        }
+
+    def __hash__(self):
+        return f'{self.fqdn}:{self._type}:_octodns_default'.__hash__()
+
+    def __repr__(self):
+        return f'_Route53WeightedDefault<{self.fqdn} {self._type} ' \
+            f'_octodns_default {self.values}>'
+
+class _Route53WeightedRecord(_Route53Record):
+
+    def __init__(self, provider, record, identifier, weighted, creating):
+        super(_Route53WeightedRecord, self).__init__(provider, record, creating)
+        self.weighted = weighted
+        self.identifier = identifier
+
+    def mod(self, action, existing_rrsets):
+        weighted = self.weighted
+        set_identifier = weighted.identifier
+
+        if action == 'DELETE':
+            # When deleting records try and find the original rrset so that
+            # we're 100% sure to have the complete & accurate data (this mostly
+            # ensures we have the right health check id when there's multiple
+            # potential matches)
+            for existing in existing_rrsets:
+                # print("_______________")
+                # print(existing.__dict__)
+                # print(set_identifier)
+                if self.fqdn == existing.get('Name') and \
+                   set_identifier == existing.get('SetIdentifier', None):
+                    return {
+                        'Action': action,
+                        'ResourceRecordSet': existing,
+                    }
+        return {
+            'Action': action,
+            'ResourceRecordSet': {
+                'Name': self.fqdn,
+                'ResourceRecords': [{'Value': weighted.value}],
+                'SetIdentifier': set_identifier,
+                'TTL': self.ttl,
+                'Type': self._type,
+                'Weight': weighted.weight,
+            }
+        }
+
+    def __hash__(self):
+        return f'{self.fqdn}:{self._type}:{self.weighted.identifier}'.__hash__()
+
+    def __repr__(self):
+        return f'_Route53WeightedRecord<{self.fqdn} {self._type} ' \
+            f'{self.weighted.identifier}> {self.weighted.value}'
+
+
+
 class Route53ProviderException(ProviderException):
     pass
 
@@ -596,6 +681,8 @@ class Route53Provider(BaseProvider):
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
+    SUPPORTS_WEIGHTED = True
+    SUPPORTS_WEIGHTED_TYPES = set(('A', 'CNAME'))
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
                     'SPF', 'SRV', 'TXT'))
 
@@ -727,6 +814,10 @@ class Route53Provider(BaseProvider):
         geo = self._parse_geo(rrset)
         if geo:
             ret['geo'] = geo
+        if 'Weight' in rrset:
+            ret['weight'] = rrset['Weight']
+        if 'SetIdentifier' in rrset:
+            ret['identifier'] = rrset['SetIdentifier']
         return ret
 
     _data_for_A = _data_for_geo
@@ -748,11 +839,16 @@ class Route53Provider(BaseProvider):
         }
 
     def _data_for_single(self, rrset):
-        return {
+        ret = {
             'type': rrset['Type'],
             'value': rrset['ResourceRecords'][0]['Value'],
             'ttl': int(rrset['TTL'])
         }
+        if 'Weight' in rrset:
+            ret['weight'] = int(rrset['Weight'])
+        if 'SetIdentifier' in rrset:
+            ret['identifier'] = rrset['SetIdentifier']
+        return ret
 
     _data_for_PTR = _data_for_single
     _data_for_CNAME = _data_for_single
@@ -929,6 +1025,23 @@ class Route53Provider(BaseProvider):
 
         return data
 
+    def _data_for_weighted(self, name, _type, rrsets):
+        # This converts a bunch of RRSets into their corresponding weighted
+        # Record. It's used by populate.
+        data = {
+            'weighted': {}
+        }
+        for rrset in rrsets:
+            name = rrset['Name']
+            identifier = rrset['SetIdentifier']
+            data_for = getattr(self, f'_data_for_{_type}')
+            data_for_rrset = data_for(rrset)
+            if identifier == '_octodns_default':
+                data.update(data_for_rrset)
+            else:
+                data['weighted'][identifier] = data_for_rrset
+        return data
+
     def _process_desired_zone(self, desired):
         for record in desired.records:
             if getattr(record, 'dynamic', False):
@@ -961,7 +1074,15 @@ class Route53Provider(BaseProvider):
                 if rules != dynamic.rules:
                     record = record.copy()
                     record.dynamic.rules = rules
+
                     desired.add_record(record, replace=True)
+            # if getattr(record, 'weighted', False):
+            #     weighted = record.weighted
+
+            #     self.log.info("+++++++++++++++")
+            #     self.log.info("%s | %s" % (record, record.weighted))
+            #     self.log.info("+++++++++++++++")
+
 
         return super(Route53Provider, self)._process_desired_zone(desired)
 
@@ -977,6 +1098,7 @@ class Route53Provider(BaseProvider):
             exists = True
             records = defaultdict(lambda: defaultdict(list))
             dynamic = defaultdict(lambda: defaultdict(list))
+            weighted = defaultdict(lambda: defaultdict(list))
 
             for rrset in self._load_records(zone_id):
                 record_name = zone.hostname_from_fqdn(rrset['Name'])
@@ -1003,6 +1125,10 @@ class Route53Provider(BaseProvider):
                         self.log.warning("%s is an Alias record. Skipping..."
                                          % rrset['Name'])
                     continue
+                elif 'SetIdentifier' in rrset and rrset['SetIdentifier'].startswith('_octodns_'):
+                    # Part of the weighted record
+                    weighted[record_name][record_type].append(rrset)
+                    continue
                 # A basic record (potentially including geo)
                 data = getattr(self, f'_data_for_{record_type}')(rrset)
                 records[record_name][record_type].append(data)
@@ -1013,6 +1139,14 @@ class Route53Provider(BaseProvider):
                     data = self._data_for_dynamic(name, _type, rrsets)
                     record = Record.new(zone, name, data, source=self,
                                         lenient=lenient)
+                    zone.add_record(record, lenient=lenient)
+
+            # Convert the weighted rrsets to Records
+            for name, types in weighted.items():
+                for _type, rrsets in types.items():
+                    data = self._data_for_weighted(name, _type, rrsets)
+                    record = Record.new(zone, name, data, source=self,
+                                       lenient=lenient)
                     zone.add_record(record, lenient=lenient)
 
             # Convert the basic (potentially with geo) rrsets to records
@@ -1263,6 +1397,12 @@ class Route53Provider(BaseProvider):
         existing_records = self._gen_records(change.existing, zone_id,
                                              creating=False)
         new_records = self._gen_records(change.new, zone_id, creating=True)
+
+        # print("################")
+        # print(existing_records)
+        # print("#--------------#")
+        # print(new_records)
+        # print("################")
         # Now is a good time to clear out any unused health checks since we
         # know what we'll be using going forward
         self._gc_health_checks(change.new, new_records)
@@ -1388,6 +1528,22 @@ class Route53Provider(BaseProvider):
 
         return False
 
+    # def _extra_changed_weighted_needs_update(self, zone_id, record):
+    #     self.log.debug('_extra_changed_weighted_needs_update: inspecting=%s, %s',
+    #                    record.fqdn, record._type)
+    #     fqdn = record.fqdn
+
+    #     # # loop through all the r53 rrsets
+    #     # for rrset in self._load_records(zone_id):
+    #     #     if fqdn == rrset['Name'] and record._type == rrset['Type'] and \
+    #     #        rrset.get('SetIdentifier', "").startswith('_octodns_') and \
+    #     #        not rrset['SetIdentifier'] == '_octodns_default':
+    #     #         self.log.info('_extra_changes_geo_needs_update: health-check '
+    #     #                       'caused update of %s:%s', record.fqdn,
+    #     #                       record._type)
+    #     return False
+
+
     def _extra_changes(self, desired, changes, **kwargs):
         self.log.debug('_extra_changes: desired=%s', desired.name)
         zone_id = self._get_zone_id(desired.name)
@@ -1410,6 +1566,9 @@ class Route53Provider(BaseProvider):
             elif getattr(record, 'dynamic', False):
                 if self._extra_changes_dynamic_needs_update(zone_id, record):
                     extras.append(Update(record, record))
+            # elif getattr(record, 'weighted', False):
+            #     if self._extra_changed_weighted_needs_update(zone_id, record):
+            #         extras.append(Update(record, record))
 
         return extras
 
@@ -1426,8 +1585,17 @@ class Route53Provider(BaseProvider):
         for c in changes:
             # Generate the mods for this change
             klass = c.__class__.__name__
+            self.log.info("_0________________")
+            self.log.info(klass)
+            self.log.info("_0________________")
             mod_type = getattr(self, f'_mod_{klass}')
             mods = mod_type(c, zone_id, existing_rrsets)
+
+            # print("____SDF_SD_F_SF__")
+            # print(c.existing)
+            # print("--")
+            # print(mods)
+            # print("____SDF_SD_F_SF__")
 
             # Order our mods to make sure targets exist before alises point to
             # them and we CRUD in the desired order
@@ -1469,6 +1637,8 @@ class Route53Provider(BaseProvider):
     def _really_apply(self, batch, zone_id):
         # Ensure this batch is ordered (deletes before creates etc.)
         batch.sort(key=_mod_keyer)
+        # print(json.dumps(batch))
+        exit()
         uuid = uuid4().hex
         batch = {
             'Comment': f'Change: {uuid}',

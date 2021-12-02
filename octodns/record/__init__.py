@@ -8,7 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 from ipaddress import IPv4Address, IPv6Address
 from logging import getLogger
 import re
-
+import json
 from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
@@ -106,7 +106,6 @@ class Record(EqualityTupleMixin):
                 'SSHFP': SshfpRecord,
                 'TXT': TxtRecord,
                 'URLFWD': UrlfwdRecord,
-                'WEIGHTED': WeightedRecord,
             }[_type]
         except KeyError:
             raise Exception(f'Unknown record type: "{_type}"')
@@ -723,6 +722,132 @@ class _DynamicMixin(object):
         return super(_DynamicMixin, self).__repr__()
 
 
+
+class WeightedValue(object):
+
+    def __init__(self, identifier, value):
+        self.identifier = identifier
+        self.value = value['value']
+        self.weight = value['weight']
+
+    def _data(self):
+
+        return {
+            'identifier': self.identifier,
+            'weight': self.weight,
+            'value': self.value
+        }
+
+    def _equality_tuple(self):
+        # return (self.identifier, self.weight, cls._type, self.value)
+        return (self.identifier, self.weight, self.value)
+
+    def __repr__(self):
+        # return f"Weighted '{self.identifier} {self.weight} {cls._type} {self.value}'"
+        return f"'{self.identifier} {self.weight} {self.value}'"
+
+
+class _WeightedMixin(object):
+
+    @classmethod
+    def validate(cls, name, fqdn, data):
+        reasons = super(_WeightedMixin, cls).validate(name, fqdn, data)
+
+        if 'weighted' not in data:
+            return reasons
+
+        try:
+            weighted = data['weighted']
+        except KeyError:
+            weighted = {}
+
+        if not isinstance(weighted, dict):
+            reasons.append('weighted must be a dict')
+        elif not weighted:
+            reasons.append('missing weighted')
+        else:
+            for identifier, weight_record in sorted(weighted.items()):
+                if not isinstance(weight_record, dict):
+                    reasons.append(f'weight_record "{identifier}" must be a dict')
+                    continue
+                try:
+                    values = data.get('values', weight_record.get('value', []))
+                except KeyError:
+                    reasons.append(f'weight_record "{identifier}" is missing value(s)')
+                    continue
+                try:
+                    weight = int(weight_record['weight'])
+                    if weight > 255:
+                        reasons.append(f'invalid weight "{weight}" in '
+                                       f'weight_record "{identifier}"')
+                except KeyError:
+                    reasons.append(f'weight_record "{identifier}" is missing weight')
+                    continue
+                except ValueError:
+                    reasons.append(f'invalid weight "{weight_record}" in '
+                                    f'weight_record "{identifier}"')
+
+                reasons.extend(cls._value_type.validate(values, cls._type))
+        return reasons
+
+    def __init__(self, zone, name, data, *args, **kwargs):
+        super(_WeightedMixin, self).__init__(zone, name, data, *args, **kwargs)
+
+        self.weighted = {}
+
+        if 'weighted' not in data:
+            return
+
+        # weighted records
+        try:
+            check_dict = dict(data['weighted'])
+            for identifier in sorted(data['weighted'].keys()):
+                _id = identifier
+                if not identifier.startswith('_octodns_'):
+                    _id = "_octodns_%s" % identifier
+                self.weighted[_id] = WeightedValue(_id, dict(data['weighted'][identifier]))
+
+        except KeyError:
+            self.weighted = {}
+
+    def _data(self):
+        ret = super(_WeightedMixin, self)._data()
+        if self.weighted:
+            weighted = {}
+            for identifier, weight_record in self.weighted.items():
+                weighted[identifier] = weight_record
+            ret['weighted'] = weighted
+        return ret
+
+    def changes(self, other, target):
+        if target.SUPPORTS_WEIGHTED:
+            if self.weighted != other.weighted:
+                # print(set(self.weighted.items()))
+                # print(set(other.weighted.items()))
+                # print(set(other.weighted.items()) ^ set(self.weighted.items()))
+                return Update(self, other)
+        return super(_WeightedMixin, self).__repr__()
+
+    def __repr__(self):
+        # TODO: improve this whole thing, we need multi-line...
+        if self.weighted:
+            # TODO: this hack can't going to cut it, as part of said
+            # improvements the value types should deal with serializing their
+            # value
+            try:
+                values = self.values
+            except AttributeError:
+                values = self.value
+
+            klass = self.__class__.__name__
+            weighted = "\n"
+            for _id, w in self.weighted.items():
+                weighted += "*     {id}: {w}\n".format(id=_id, w=w)
+
+            return f'<{klass} {self._type} {self.ttl}, {self.fqdn}, ' \
+                f'{values}, Weighted Record: {weighted}>'
+        return super(_WeightedMixin, self).__repr__()
+
 class _IpList(object):
 
     @classmethod
@@ -798,7 +923,7 @@ class DnameValue(_TargetValue):
     pass
 
 
-class ARecord(_DynamicMixin, _GeoMixin, Record):
+class ARecord(_WeightedMixin, _DynamicMixin, _GeoMixin, Record):
     _type = 'A'
     _value_type = Ipv4List
 
@@ -876,7 +1001,7 @@ class CaaRecord(_ValuesMixin, Record):
     _value_type = CaaValue
 
 
-class CnameRecord(_DynamicMixin, _ValueMixin, Record):
+class CnameRecord(_WeightedMixin, _DynamicMixin, _ValueMixin, Record):
     _type = 'CNAME'
     _value_type = CnameValue
 
@@ -1546,158 +1671,3 @@ class UrlfwdValue(EqualityTupleMixin):
 class UrlfwdRecord(_ValuesMixin, Record):
     _type = 'URLFWD'
     _value_type = UrlfwdValue
-
-# class WeightedValue(object):
-
-#     def __init__(self, _id, value):
-#         self._id = _id
-#         self.value = value['value']
-#         self.weight = value['weight']
-#         self.values =
-
-
-#     def _data(self):
-
-#         return {
-#             '_id': self._id,
-#             'weight': self.weight,
-#             'value': self.value
-#         }
-
-#     def __eq__(self, other):
-#         if not isinstance(other, WeightedValue):
-#             return False
-#         ret = self.
-#     def __hash__(self):
-#         return hash(self.__repr__())
-
-#     def _equality_tuple(self):
-#         return (self.identifier, self.weight)
-
-#     def __repr__(self):
-#         return f"'{self.identifier} {self.weight}'"
-
-
-
-
-# class _WeightedMixin(_ValuesMixin):
-
-#     @classmethod
-#     def validate(cls, name, fqdn, data):
-#         reasons = super(_WeightedMixin, cls).validate(name, fqdn, data)
-
-#         if 'weighted' not in data:
-#             return reasons
-
-#         try:
-#             weighted = data['weighted']
-#         except KeyError:
-#             weighted = {}
-
-#         if not isinstance(weighted, dict):
-#             reasons.append('weighted must be a dict')
-#         elif not weighted:
-#             reasons.append('missing weighted')
-#         else:
-#             for _id, weight_record in sorted(weighted.items()):
-#                 if not isinstance(weight, dict):
-#                     reasons.append(f'weight_record "{_id}" must be a dict')
-#                     continue
-#                 try:
-#                     value = weight['value']
-#                 except KeyError:
-#                     reasons.append(f'weight_record "{_id}" is missing value')
-#                     continue
-#                 try:
-#                     weight = int(weight['weight'])
-#                     if weight > 255:
-#                         reasons.append(f'invalid weight "{weight}" in '
-#                                        f'weight_record "{_id}"')
-#                 except KeyError:
-#                     reasons.append(f'weight_record "{_id}" is missing weight')
-#                     continue
-#                 except ValueError:
-#                     reasons.append(f'invalid weight "{weight}" in '
-#                                     f'weight_record "{_id}"')
-
-#         return reasons
-
-#     def __init__(self, zone, name, data, *args, **kwargs):
-#         super(_WeightedMixin, self).__init__(zone, name, data, *args, **kwargs)
-
-#         self.weighted = {}
-
-#         if 'weighted' not in data:
-#             return
-
-#         # weighted records
-#         try:
-#             self.weighted = dict(data['weighted'])
-#         except KeyError:
-#             self.weighted = {}
-#         for _id, weight_record in self.weighted.item():
-#             self.weighted[_id] = WeightedValue(_id, weight_record)
-
-####
-## SEPARATE CLASS
-
-class WeightedValue(object):
-
-    @classmethod
-    def validate(cls, data, _type):
-        if not isinstance(data, (list, tuple)):
-            data = (data,)
-        reasons = []
-        for value in data:
-            try:
-                values = [data['value']]
-            except KeyError:
-                reasons.append('missing value')
-
-            try:
-                record_type = value['type']
-                if record_type == "CNAME":
-                    reasons.append(cls._TargetValue.validate(values, record_type))
-                if record_type == "A":
-                    reasons.append(cls.Ipv4List.validate(values, record_type))
-            except KeyError:
-                reasons.append('missing type')
-
-            try:
-                weight = int(value.get('weight', 0))
-                if weight < 0 or weight > 255:
-                    reasons.append(f'invalid weight "{weight}"')
-            except ValueError:
-                reasons.append(f'invalid weight "{value["weight"]}"')
-        return reasons
-
-    @classmethod
-    def process(cls, values):
-        return [WeightedValue(v) for v in values]
-
-    def __init__(self, value):
-        self.weight = int(value.get('weight', 0))
-        self.type = value['type']
-        self.value = value['value']
-        self._id = value['id']
-
-    @property
-    def data(self):
-        return {
-            'weight': self.weight,
-            'type': self.type,
-            'value': self.value,
-            '_id': self._id
-        }
-
-    def _equality_tuple(self):
-        return (self._id, self.weight, self.type, self.value)
-
-    def __repr__(self):
-        return f'{self._id} {self.weight} {self.type} "{self.value}"'
-
-class WeightedRecord(_ValuesMixin, Record):
-    _type = 'WEIGHTED'
-    _value_type = WeightedValue
-
-
