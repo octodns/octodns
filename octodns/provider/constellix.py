@@ -441,6 +441,7 @@ class ConstellixProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = True
+    SUPPORTS_WEIGHTED = False
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX',
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 

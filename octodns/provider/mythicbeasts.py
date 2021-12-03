@@ -99,6 +99,7 @@ class MythicBeastsProvider(BaseProvider):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
+    SUPPORTS_WEIGHTED = False
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CNAME', 'MX', 'NS',
                     'SRV', 'SSHFP', 'CAA', 'TXT'))
     BASE = 'https://dnsapi.mythic-beasts.com/'

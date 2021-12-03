@@ -25,6 +25,7 @@ class AxfrBaseSource(BaseSource):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
+    SUPPORTS_WEIGHTED = False
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'LOC', 'MX', 'NS', 'PTR',
                     'SPF', 'SRV', 'TXT'))
 

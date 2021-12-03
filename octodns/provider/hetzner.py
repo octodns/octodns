@@ -87,6 +87,7 @@ class HetznerProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
+    SUPPORTS_WEIGHTED = False
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NS', 'SRV', 'TXT'))
 
     def __init__(self, id, token, *args, **kwargs):

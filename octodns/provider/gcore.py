@@ -158,6 +158,7 @@ class GCoreProvider(BaseProvider):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = True
+    SUPPORTS_WEIGHTED = False
     SUPPORTS = set(("A", "AAAA", "NS", "MX", "TXT", "SRV", "CNAME", "PTR"))
 
     def __init__(self, id, *args, **kwargs):

@@ -77,6 +77,7 @@ class CloudflareProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
+    SUPPORTS_WEIGHTED = False
     SUPPORTS = set(('ALIAS', 'A', 'AAAA', 'CAA', 'CNAME', 'LOC', 'MX', 'NS',
                     'PTR', 'SRV', 'SPF', 'TXT', 'URLFWD'))
 

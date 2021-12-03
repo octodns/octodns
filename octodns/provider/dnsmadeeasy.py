@@ -159,6 +159,7 @@ class DnsMadeEasyProvider(BaseProvider):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
+    SUPPORTS_WEIGHTED = False
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX',
                     'NS', 'PTR', 'SPF', 'SRV', 'TXT'))
 

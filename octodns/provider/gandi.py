@@ -117,6 +117,7 @@ class GandiProvider(BaseProvider):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
+    SUPPORTS_WEIGHTED = False
     SUPPORTS = set((['A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'DNAME',
                      'MX', 'NS', 'PTR', 'SPF', 'SRV', 'SSHFP', 'TXT']))
 

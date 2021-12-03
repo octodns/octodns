@@ -72,6 +72,7 @@ class UltraProvider(BaseProvider):
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
+    SUPPORTS_WEIGHTED = False
     TIMEOUT = 5
     ZONE_REQUEST_LIMIT = 100
 

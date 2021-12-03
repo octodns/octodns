@@ -58,6 +58,7 @@ class EnvVarSource(BaseSource):
     '''
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
+    SUPPORTS_WEIGHTED = False
     SUPPORTS = set(('TXT'))
 
     DEFAULT_TTL = 60
