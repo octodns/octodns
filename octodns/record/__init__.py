@@ -722,31 +722,6 @@ class _DynamicMixin(object):
         return super(_DynamicMixin, self).__repr__()
 
 
-
-class WeightedValue(object):
-
-    def __init__(self, identifier, value):
-        self.identifier = identifier
-        self.value = value['value']
-        self.weight = value['weight']
-
-    def _data(self):
-
-        return {
-            'identifier': self.identifier,
-            'weight': self.weight,
-            'value': self.value
-        }
-
-    def _equality_tuple(self):
-        # return (self.identifier, self.weight, cls._type, self.value)
-        return (self.identifier, self.weight, self.value)
-
-    def __repr__(self):
-        # return f"Weighted '{self.identifier} {self.weight} {cls._type} {self.value}'"
-        return f"'{self.identifier} {self.weight} {self.value}'"
-
-
 class _WeightedMixin(object):
 
     @classmethod
@@ -800,36 +775,37 @@ class _WeightedMixin(object):
 
         # weighted records
         try:
-            check_dict = dict(data['weighted'])
-            for identifier in sorted(data['weighted'].keys()):
-                _id = identifier
-                if not identifier.startswith('_octodns_'):
-                    _id = "_octodns_%s" % identifier
-                self.weighted[_id] = WeightedValue(_id, dict(data['weighted'][identifier]))
-
+            weighed_values = dict(data['weighted'])
         except KeyError:
-            self.weighted = {}
+            weighed_values = {}
+
+        for _id, value in sorted(weighed_values.items()):
+            if not _id.startswith('_octodns_'):
+                _id = "_octodns_%s" % _id
+            try:
+                new_value = value['value']
+            except KeyError:
+                new_value = value['values'][0]
+            weighed_values[_id] = {
+                'weight': value['weight'],
+                'value': new_value
+            }
+
+        self.weighted = weighed_values
 
     def _data(self):
         ret = super(_WeightedMixin, self)._data()
         if self.weighted:
-            weighted = {}
-            for identifier, weight_record in self.weighted.items():
-                weighted[identifier] = weight_record
-            ret['weighted'] = weighted
+            ret['weighted'] = self.weighted
         return ret
 
     def changes(self, other, target):
         if target.SUPPORTS_WEIGHTED:
             if self.weighted != other.weighted:
-                # print(set(self.weighted.items()))
-                # print(set(other.weighted.items()))
-                # print(set(other.weighted.items()) ^ set(self.weighted.items()))
                 return Update(self, other)
-        return super(_WeightedMixin, self).__repr__()
+        return super(_WeightedMixin, self).changes(other, target)
 
     def __repr__(self):
-        # TODO: improve this whole thing, we need multi-line...
         if self.weighted:
             # TODO: this hack can't going to cut it, as part of said
             # improvements the value types should deal with serializing their
@@ -840,12 +816,9 @@ class _WeightedMixin(object):
                 values = self.value
 
             klass = self.__class__.__name__
-            weighted = "\n"
-            for _id, w in self.weighted.items():
-                weighted += "*     {id}: {w}\n".format(id=_id, w=w)
 
             return f'<{klass} {self._type} {self.ttl}, {self.fqdn}, ' \
-                f'{values}, Weighted Record: {weighted}>'
+                f'{values}, {self.weighted}>'
         return super(_WeightedMixin, self).__repr__()
 
 class _IpList(object):

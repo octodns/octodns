@@ -86,9 +86,10 @@ class Zone(object):
 
         node = self._records[name]
         if record in node:
-            # We already have a record at this node of this type
-            raise DuplicateRecordException(f'Duplicate record {record.fqdn}, '
-                                           f'type {record._type}')
+            if not getattr(record, 'weighted', False):
+                # We already have a record at this node of this type
+                raise DuplicateRecordException(f'Duplicate record {record.fqdn}, '
+                                            f'type {record._type}')
         elif not lenient and ((record._type == 'CNAME' and len(node) > 0) or
                               ('CNAME' in [r._type for r in node])):
             # We're adding a CNAME to existing records or adding to an existing
@@ -190,7 +191,6 @@ class Zone(object):
                 continue
             self.log.debug('changes: zone=%s, create record=%s', self, record)
             changes.append(Create(record))
-
         return changes
 
     def hydrate(self):

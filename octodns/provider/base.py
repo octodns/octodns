@@ -76,10 +76,6 @@ class BaseProvider(BaseSource):
                     for pool in record.dynamic.pools.values():
                         for value in pool.data['values']:
                             value['status'] = 'obey'
-
-                    print("_1_____JJJOOWOOWOWOWOWOOWOWOWOWO")
-                    print(record)
-                    print("_1_____JJJOOWOOWOWOWOWOOWOWOWOWO")
                     desired.add_record(record, replace=True)
                 else:
                     msg = f'dynamic records not supported for {record.fqdn}'
@@ -87,15 +83,13 @@ class BaseProvider(BaseSource):
                     self.supports_warn_or_except(msg, fallback)
                     record = record.copy()
                     record.dynamic = None
-                    print("_2_____JJJOOWOOWOWOWOWOOWOWOWOWO")
-                    print(record)
-                    print("_2_____JJJOOWOOWOWOWOWOOWOWOWOWO")
                     desired.add_record(record, replace=True)
             # elif getattr(record, 'weighted', False):
             #     if self.SUPPORTS_WEIGHTED:
             #         if record._type in self.SUPPORTS_WEIGHTED_TYPES:
             #             print("# BASEPROVIDER")
             #             print(record._type)
+            #             print(record.weighted)
             #             print("# BASEPROVIDER")
             #     else:
             #         msg = f'weighted records not supported for {record.fqdn}'
@@ -161,14 +155,10 @@ class BaseProvider(BaseSource):
         before = len(changes)
         changes = [c for c in changes if self._include_change(c)]
         after = len(changes)
+
         if before != after:
             self.log.info('plan:   filtered out %s changes', before - after)
 
-        # allow the provider to add extra changes it needs
-        for c in changes:
-            print(c)
-            print(dir(c))
-            print()
         extra = self._extra_changes(existing=existing, desired=desired,
                                     changes=changes)
         if extra:
