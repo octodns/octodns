@@ -207,6 +207,7 @@ Sonar check regions (sonar_regions) possible values:
 | frequency | Frequency (in seconds) of health-check | 60 |
 | connect_timeout | Timeout (in seconds) before we give up trying to connect | 2 |
 | response_timeout | Timeout (in seconds) after connecting to wait for output | 10 |
+| rapid_recheck | Enable or disable a second, automatic verification test before changing the status of a host. Enabling this option can help prevent false positives. | False |
 
 ```yaml
 
@@ -218,4 +219,5 @@ Sonar check regions (sonar_regions) possible values:
         frequency: 60
         connect_timeout: 2
         response_timeout: 10
+        rapid_recheck: True
 ```

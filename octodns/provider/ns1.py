@@ -1068,6 +1068,11 @@ class Ns1Provider(BaseProvider):
             .get('healthcheck', {}) \
             .get('frequency', 60)
 
+    def _healthcheck_rapid_recheck(self, record):
+        return record._octodns.get('ns1', {}) \
+            .get('healthcheck', {}) \
+            .get('rapid_recheck', False)
+
     def _healthcheck_connect_timeout(self, record):
         return record._octodns.get('ns1', {}) \
             .get('healthcheck', {}) \
@@ -1101,7 +1106,6 @@ class Ns1Provider(BaseProvider):
                     self._healthcheck_response_timeout(record) * 1000,
                 'ssl': record.healthcheck_protocol == 'HTTPS',
             },
-            'frequency': self._healthcheck_frequency(record),
             'job_type': 'tcp',
             'name': f'{host} - {_type} - {value}',
             'notes': self._encode_notes({
@@ -1109,7 +1113,8 @@ class Ns1Provider(BaseProvider):
                 'type': _type,
             }),
             'policy': self._healthcheck_policy(record),
-            'rapid_recheck': False,
+            'frequency': self._healthcheck_frequency(record),
+            'rapid_recheck': self._healthcheck_rapid_recheck(record),
             'region_scope': 'fixed',
             'regions': self.monitor_regions,
         }
