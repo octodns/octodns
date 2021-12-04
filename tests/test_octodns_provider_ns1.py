@@ -933,6 +933,10 @@ class TestNs1ProviderDynamic(TestCase):
         monitor = provider._monitor_gen(record, value)
         self.assertEquals(300, monitor['frequency'])
 
+        record._octodns['ns1']['healthcheck']['rapid_recheck'] = True
+        monitor = provider._monitor_gen(record, value)
+        self.assertTrue(monitor['rapid_recheck'])
+
         record._octodns['ns1']['healthcheck']['connect_timeout'] = 1
         monitor = provider._monitor_gen(record, value)
         self.assertEquals(1000, monitor['config']['connect_timeout'])
