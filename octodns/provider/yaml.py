@@ -134,8 +134,10 @@ class YamlProvider(BaseProvider):
                     for d in data:
                         if 'ttl' not in d:
                             d['ttl'] = self.default_ttl
+                        print("yaml: 137: ", d)
                         record = Record.new(zone, name, d, source=self,
                                             lenient=lenient)
+                        print("yaml: 140: ", record)
                         zone.add_record(record, lenient=lenient,
                                         replace=self.populate_should_replace)
             self.log.debug('_populate_from_file: successfully loaded "%s"',
@@ -149,7 +151,6 @@ class YamlProvider(BaseProvider):
             # When acting as a target we ignore any existing records so that we
             # create a completely new copy
             return False
-
         before = len(zone.records)
         filename = join(self.directory, f'{zone.name}yaml')
         self._populate_from_file(filename, zone, lenient)

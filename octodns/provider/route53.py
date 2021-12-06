@@ -5,7 +5,6 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-import json
 from boto3 import client
 from botocore.config import Config
 from collections import defaultdict
@@ -22,6 +21,10 @@ from . import ProviderException
 from .base import BaseProvider
 
 octal_re = re.compile(r'\\(\d\d\d)')
+
+def dump(obj):
+  for attr in dir(obj):
+    print("obj.%s = %r" % (attr, getattr(obj, attr)))
 
 
 def _octal_replace(s):
@@ -121,14 +124,17 @@ class _Route53Record(EqualityTupleMixin):
     def _new_weighted(cls, provider, record, creating):
         # Creates the RRsets that correspond to the given weighted record
         ret = set()
-        # Create the default record with weight 0, which comes from the default `value` of the
-        # record object. It's only used if all other records are also on weight 0, which is
-        # hopefully never.
-        fqdn = record.fqdn
+        # Create the default record with weight 0, which comes from the default
+        # `value` of the record object. It's only used if all other records are
+        # also on weight 0, which is hopefully never.
         ret.add(_Route53WeightedDefault(provider, record, creating))
 
         for _id, weighted in record.weighted.items():
-            ret.add(_Route53WeightedRecord(provider, record, _id, weighted, creating))
+            ret.add(
+                _Route53WeightedRecord(
+                    provider, record, _id, weighted, creating
+                )
+            )
         return ret
 
     @classmethod
@@ -536,10 +542,12 @@ class _Route53WeightedDefault(_Route53Record):
         return f'_Route53WeightedDefault<{self.fqdn} {self._type} ' \
             f'_octodns_default {self.values}>'
 
+
 class _Route53WeightedRecord(_Route53Record):
 
     def __init__(self, provider, record, _id, weighted, creating):
-        super(_Route53WeightedRecord, self).__init__(provider, record, creating)
+        super(_Route53WeightedRecord, self).__init__(provider, record,
+                                                     creating)
         self.weighted = weighted
         self._id = _id
 
@@ -577,7 +585,6 @@ class _Route53WeightedRecord(_Route53Record):
     def __repr__(self):
         return f'_Route53WeightedRecord<{self.fqdn} {self._type} ' \
             f'{self._id}> {self.weighted.data}'
-
 
 
 class Route53ProviderException(ProviderException):
@@ -1029,7 +1036,6 @@ class Route53Provider(BaseProvider):
             'weighted': {}
         }
         for rrset in rrsets:
-            name = rrset['Name']
             _id = rrset['SetIdentifier']
             data_for = getattr(self, f'_data_for_{_type}')
             data_for_rrset = data_for(rrset)
@@ -1073,6 +1079,7 @@ class Route53Provider(BaseProvider):
                     record.dynamic.rules = rules
 
                     desired.add_record(record, replace=True)
+
             if getattr(record, 'weighted', False):
                 # Make sure identifier always starts with _octodns_
                 weighted = record.weighted
@@ -1081,8 +1088,8 @@ class Route53Provider(BaseProvider):
                     if not _id.startswith('_octodns_'):
                         _id = "_octodns_%s" % _id
                     values[_id] = value
-
                 if values != weighted:
+                    print("JOOW")
                     record = record.copy()
                     record.weighted = values
 
@@ -1129,7 +1136,8 @@ class Route53Provider(BaseProvider):
                         self.log.warning("%s is an Alias record. Skipping..."
                                          % rrset['Name'])
                     continue
-                elif 'SetIdentifier' in rrset and rrset['SetIdentifier'].startswith('_octodns_'):
+                elif 'SetIdentifier' in rrset and \
+                     rrset['SetIdentifier'].startswith('_octodns_'):
                     # Part of the weighted record
                     weighted[record_name][record_type].append(rrset)
                     continue
@@ -1150,7 +1158,7 @@ class Route53Provider(BaseProvider):
                 for _type, rrsets in types.items():
                     data = self._data_for_weighted(name, _type, rrsets)
                     record = Record.new(zone, name, data, source=self,
-                                       lenient=lenient)
+                                        lenient=lenient)
                     zone.add_record(record, lenient=lenient)
 
             # Convert the basic (potentially with geo) rrsets to records
@@ -1527,22 +1535,6 @@ class Route53Provider(BaseProvider):
 
         return False
 
-    # def _extra_changed_weighted_needs_update(self, zone_id, record):
-    #     self.log.debug('_extra_changed_weighted_needs_update: inspecting=%s, %s',
-    #                    record.fqdn, record._type)
-    #     fqdn = record.fqdn
-
-    #     # # loop through all the r53 rrsets
-    #     # for rrset in self._load_records(zone_id):
-    #     #     if fqdn == rrset['Name'] and record._type == rrset['Type'] and \
-    #     #        rrset.get('SetIdentifier', "").startswith('_octodns_') and \
-    #     #        not rrset['SetIdentifier'] == '_octodns_default':
-    #     #         self.log.info('_extra_changes_geo_needs_update: health-check '
-    #     #                       'caused update of %s:%s', record.fqdn,
-    #     #                       record._type)
-    #     return False
-
-
     def _extra_changes(self, desired, changes, **kwargs):
         self.log.debug('_extra_changes: desired=%s', desired.name)
         zone_id = self._get_zone_id(desired.name)
@@ -1565,9 +1557,6 @@ class Route53Provider(BaseProvider):
             elif getattr(record, 'dynamic', False):
                 if self._extra_changes_dynamic_needs_update(zone_id, record):
                     extras.append(Update(record, record))
-            # elif getattr(record, 'weighted', False):
-            #     if self._extra_changed_weighted_needs_update(zone_id, record):
-            #         extras.append(Update(record, record))
 
         return extras
 
@@ -1627,8 +1616,6 @@ class Route53Provider(BaseProvider):
     def _really_apply(self, batch, zone_id):
         # Ensure this batch is ordered (deletes before creates etc.)
         batch.sort(key=_mod_keyer)
-        # print(json.dumps(batch))
-        # exit()
         uuid = uuid4().hex
         batch = {
             'Comment': f'Change: {uuid}',

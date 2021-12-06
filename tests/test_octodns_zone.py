@@ -42,10 +42,16 @@ class TestZone(TestCase):
         c = ARecord(zone, 'a', {'ttl': 43, 'value': '2.2.2.2'})
 
         zone.add_record(a)
+        print("___________________")
+        print(zone.records)
+        print("---")
+        print(set([a]))
+        print("___________________")
         self.assertEquals(zone.records, set([a]))
         # Can't add record with same name & type
         with self.assertRaises(DuplicateRecordException) as ctx:
             zone.add_record(a)
+        print(str(ctx.exception))
         self.assertEquals('Duplicate record a.unit.tests., type A',
                           str(ctx.exception))
         self.assertEquals(zone.records, set([a]))

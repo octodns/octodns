@@ -18,7 +18,7 @@ from octodns.zone import Zone
 from mock import MagicMock, patch
 from unittest import TestCase
 
-from helpers import DynamicProvider, GeoProvider, NoSshFpProvider, \
+from helpers import WeightedProvider, DynamicProvider, GeoProvider, NoSshFpProvider, \
     PlannableProvider, SimpleProvider, TemporaryDirectory
 
 config_dir = join(dirname(__file__), 'config')
@@ -233,6 +233,7 @@ class TestManager(TestCase):
         simple = SimpleProvider()
         geo = GeoProvider()
         dynamic = DynamicProvider()
+        weighted = WeightedProvider()
         nosshfp = NoSshFpProvider()
 
         self.assertFalse(_AggregateTarget([simple, simple]).SUPPORTS_GEO)
@@ -244,6 +245,11 @@ class TestManager(TestCase):
         self.assertFalse(_AggregateTarget([simple, dynamic]).SUPPORTS_DYNAMIC)
         self.assertFalse(_AggregateTarget([dynamic, simple]).SUPPORTS_DYNAMIC)
         self.assertTrue(_AggregateTarget([dynamic, dynamic]).SUPPORTS_DYNAMIC)
+
+        self.assertFalse(_AggregateTarget([simple, simple]).SUPPORTS_WEIGHTED)
+        self.assertFalse(_AggregateTarget([simple, weighted]).SUPPORTS_WEIGHTED)
+        self.assertFalse(_AggregateTarget([weighted, simple]).SUPPORTS_WEIGHTED)
+        self.assertTrue(_AggregateTarget([weighted, weighted]).SUPPORTS_WEIGHTED)
 
         zone = Zone('unit.tests.', [])
         record = Record.new(zone, 'sshfp', {

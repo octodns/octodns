@@ -11,6 +11,9 @@ import re
 
 from .record import Create, Delete
 
+def dump(obj):
+  for attr in dir(obj):
+    print("obj.%s = %r" % (attr, getattr(obj, attr)))
 
 class SubzoneRecordException(Exception):
     pass
@@ -68,7 +71,15 @@ class Zone(object):
 
         name = record.name
         last = name.split('.')[-1]
-
+        # self.log.debug("zone.add_record: record=%s replace=%s, lenient=%s", record, replace, lenient)
+        # if record.name == 'test-weighted-a':
+        #     print()
+        #     print()
+        #     dump(record)
+        #     print()
+        #     print()
+        #     print()
+        #     print()
         if not lenient and last in self.sub_zones:
             if name != last:
                 # it's a record for something under a sub-zone
@@ -86,10 +97,10 @@ class Zone(object):
 
         node = self._records[name]
         if record in node:
-            if not getattr(record, 'weighted', False):
-                # We already have a record at this node of this type
-                raise DuplicateRecordException(f'Duplicate record {record.fqdn}, '
-                                            f'type {record._type}')
+            # We already have a record at this node of this type
+            raise DuplicateRecordException('Duplicate record '
+                                            f'{record.fqdn}, type '
+                                            f'{record._type}')
         elif not lenient and ((record._type == 'CNAME' and len(node) > 0) or
                               ('CNAME' in [r._type for r in node])):
             # We're adding a CNAME to existing records or adding to an existing

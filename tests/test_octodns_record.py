@@ -12,10 +12,10 @@ from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
     LocValue, MxRecord, MxValue, NaptrRecord, NaptrValue, NsRecord, \
     PtrRecord, Record, SshfpRecord, SshfpValue, SpfRecord, SrvRecord, \
     SrvValue, TxtRecord, Update, UrlfwdRecord, UrlfwdValue, ValidationError, \
-    _Dynamic, _DynamicPool, _DynamicRule
+    _Dynamic, _DynamicPool, _DynamicRule, _WeightedValue
 from octodns.zone import Zone
 
-from helpers import DynamicProvider, GeoProvider, SimpleProvider
+from helpers import WeightedProvider, DynamicProvider, GeoProvider, SimpleProvider
 
 
 class TestRecord(TestCase):
@@ -1084,6 +1084,23 @@ class TestRecord(TestCase):
         record1 = Record.new(self.zone, 'a', a_data)
         record2 = record1.copy()
         self.assertEqual(record1._octodns, record2._octodns)
+
+    def test_weighted_record_copy(self):
+        a_data = {
+            'weighted': {
+                'one': {
+                    'value': '2.2.2.2',
+                    'weight': 10
+                }
+            },
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.1.1.1'
+        }
+
+        record1 = Record.new(self.zone, 'a', a_data)
+        record2 = record1.copy()
+        self.assertEqual(record1, record2)
 
     def test_change(self):
         existing = Record.new(self.zone, 'txt', {
@@ -4922,3 +4939,106 @@ class TestDynamicRecords(TestCase):
         self.assertEquals(dynamic, dynamic)
         self.assertNotEquals(dynamic, other)
         self.assertNotEquals(dynamic, 42)
+
+    def test_weighted_validation(self):
+        # empty weigthed (both)
+        a_data = {
+            'weighted': {},
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['missing weighted'], ctx.exception.reasons)
+
+        # weighted not a dict
+        a_data = {
+            'weighted': [
+                "one"
+            ],
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['weighted must be a dict'], ctx.exception.reasons)
+
+        #   weight_value not a dict
+        a_data = {
+            'weighted': {
+                "one": [
+                    "1.1.1.1"
+                ]
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': [
+                '1.1.1.1',
+            ],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEquals(['weight_record "one" must be a dict'], ctx.exception.reasons)
+
+        # Invalid address (not a record for example)
+        a_data = {
+            'weighted': {
+                "one": {
+                    "value": "this-aint-right",
+                    "weight": 10
+                }
+            },
+            'ttl': 60,
+            'type': 'A',
+            'value': '1.1.1.1',
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        print(ctx.exception.reasons)
+        self.assertEquals(['invalid IPv4 address "this-aint-right"'], ctx.exception.reasons)
+
+        # Invalid address (not a record for example)
+        a_data = {
+            'weighted': {
+                "one": {
+                    "value": "this-aint-right",
+                    "weight": 10
+                }
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': ['1.1.1.1'],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        print(ctx.exception.reasons)
+        self.assertEquals(['invalid IPv4 address "this-aint-right"'], ctx.exception.reasons)
+
+        # missing value
+        # Invalid weight
+        # invalid non-int wieght
+
+    def test_wieghted_lenient(self):
+        # simple empty value test
+        #
+        #
+        print("TODO")
+
+    def test_weighted_changes(self):
+        # check for changes
+        #
+        #
+        print("TODO")
+
+    def test_weighted_eqs(self):
+        # test __eq__
+        #
+        #
+        print("TODO")
+

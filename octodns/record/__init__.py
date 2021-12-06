@@ -8,12 +8,15 @@ from __future__ import absolute_import, division, print_function, \
 from ipaddress import IPv4Address, IPv6Address
 from logging import getLogger
 import re
-import json
 from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
 from .geo import GeoCodes
 
+
+def dump(obj):
+  for attr in dir(obj):
+    print("obj.%s = %r" % (attr, getattr(obj, attr)))
 
 class Change(object):
 
@@ -109,6 +112,7 @@ class Record(EqualityTupleMixin):
             }[_type]
         except KeyError:
             raise Exception(f'Unknown record type: "{_type}"')
+        print("record.init: 115: ", _class, name, data, lenient)
         reasons = _class.validate(name, fqdn, data)
         try:
             lenient |= data['octodns']['lenient']
@@ -116,6 +120,7 @@ class Record(EqualityTupleMixin):
             pass
         if reasons:
             if lenient:
+                print("))))))))))))))))")
                 cls.log.warn(ValidationError.build_message(fqdn, reasons))
             else:
                 raise ValidationError(fqdn, reasons)
@@ -222,7 +227,7 @@ class Record(EqualityTupleMixin):
         data = self.data
         data['type'] = self._type
         data['octodns'] = self._octodns
-
+        print("COPY:    %s" % self.name)
         return Record.new(
             zone if zone else self.zone,
             self.name,
@@ -722,6 +727,37 @@ class _DynamicMixin(object):
         return super(_DynamicMixin, self).__repr__()
 
 
+class _WeightedValue(object):
+    log = getLogger('_WeightedValue')
+
+    def __init__(self, _id, data):
+        if not _id.startswith('_octodns_'):
+            _id = "_octodns_%s" % _id
+        try:
+            new_value = data['value']
+        except KeyError:
+            new_value = data['values'][0]
+        self._id = _id
+        self.data = {
+                'weight': data['weight'],
+                'value': new_value
+        }
+
+    def _data(self):
+        return self.data
+
+    def __eq__(self, other):
+        if not isinstance(other, _WeightedValue):
+            return False
+        return self.data == other.data
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __repr__(self):
+        return f'{self.data}'
+
+
 class _WeightedMixin(object):
 
     @classmethod
@@ -743,12 +779,16 @@ class _WeightedMixin(object):
         else:
             for identifier, weight_record in sorted(weighted.items()):
                 if not isinstance(weight_record, dict):
-                    reasons.append(f'weight_record "{identifier}" must be a dict')
+                    reasons.append(
+                        f'weight_record "{identifier}" must be a dict'
+                    )
                     continue
                 try:
-                    values = data.get('values', weight_record.get('value', []))
+                    values = data.get(
+                        'values', weight_record.get('value', []))
                 except KeyError:
-                    reasons.append(f'weight_record "{identifier}" is missing value(s)')
+                    reasons.append(
+                        f'weight_record "{identifier}" is missing value')
                     continue
                 try:
                     weight = int(weight_record['weight'])
@@ -756,12 +796,14 @@ class _WeightedMixin(object):
                         reasons.append(f'invalid weight "{weight}" in '
                                        f'weight_record "{identifier}"')
                 except KeyError:
-                    reasons.append(f'weight_record "{identifier}" is missing weight')
+                    reasons.append(
+                        f'weight_record "{identifier}" is missing weight')
                     continue
                 except ValueError:
                     reasons.append(f'invalid weight "{weight_record}" in '
-                                    f'weight_record "{identifier}"')
-
+                                   f'weight_record "{identifier}"')
+                print(cls._value_type, "- ", cls._type, "- ", values)
+                print(data.keys())
                 reasons.extend(cls._value_type.validate(values, cls._type))
         return reasons
 
@@ -779,17 +821,8 @@ class _WeightedMixin(object):
         except KeyError:
             weighed_values = {}
 
-        for _id, value in sorted(weighed_values.items()):
-            if not _id.startswith('_octodns_'):
-                _id = "_octodns_%s" % _id
-            try:
-                new_value = value['value']
-            except KeyError:
-                new_value = value['values'][0]
-            weighed_values[_id] = {
-                'weight': value['weight'],
-                'value': new_value
-            }
+        for _id, data in sorted(weighed_values.items()):
+            weighed_values[_id] = _WeightedValue(_id, data)._data()
 
         self.weighted = weighed_values
 
@@ -820,6 +853,7 @@ class _WeightedMixin(object):
             return f'<{klass} {self._type} {self.ttl}, {self.fqdn}, ' \
                 f'{values}, {self.weighted}>'
         return super(_WeightedMixin, self).__repr__()
+
 
 class _IpList(object):
 
