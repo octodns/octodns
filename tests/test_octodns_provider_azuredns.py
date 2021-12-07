@@ -470,6 +470,7 @@ class Test_ProfileIsMatch(TestCase):
             monitor_proto = 'HTTPS',
             monitor_port = 4443,
             monitor_path = '/_ping',
+            monitor_optional_kwargs={},
             endpoints = 1,
             endpoint_name = 'name',
             endpoint_type = 'profile/nestedEndpoints',
@@ -487,6 +488,9 @@ class Test_ProfileIsMatch(TestCase):
                     protocol=monitor_proto,
                     port=monitor_port,
                     path=monitor_path,
+                    # see note in azuredns.py's _get_monitor(record) function
+                    **{k: v for k, v
+                       in monitor_optional_kwargs.items() if v is not None},
                 ),
                 endpoints=[Endpoint(
                     name=endpoint_name,
@@ -506,6 +510,12 @@ class Test_ProfileIsMatch(TestCase):
         self.assertFalse(is_match(profile(), profile(endpoints=2)))
         self.assertFalse(is_match(profile(), profile(dns_name='two')))
         self.assertFalse(is_match(profile(), profile(monitor_proto='HTTP')))
+        self.assertFalse(is_match(
+            profile(),
+            profile(
+                monitor_optional_kwargs={'tolerated_number_of_failures': 2}
+            ),
+        ))
         self.assertFalse(is_match(profile(), profile(endpoint_name='a')))
         self.assertFalse(is_match(profile(), profile(endpoint_type='b')))
         self.assertFalse(

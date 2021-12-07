@@ -286,11 +286,48 @@ def _pool_traffic_manager_name(pool, record):
     return f'{prefix}-pool-{pool}'
 
 
+def _healthcheck_tolerated_number_of_failures(record):
+    return record._octodns.get('azuredns', {}) \
+        .get('healthcheck', {}) \
+        .get('tolerated_number_of_failures', None)
+
+
+def _healthcheck_interval_in_seconds(record):
+    return record._octodns.get('azuredns', {}) \
+        .get('healthcheck', {}) \
+        .get('interval_in_seconds', None)
+
+
+def _healthcheck_timeout_in_seconds(record):
+    return record._octodns.get('azuredns', {}) \
+        .get('healthcheck', {}) \
+        .get('timeout_in_seconds', None)
+
+
 def _get_monitor(record):
+    # We're using None as a sentinal value for optional octoDNS configuration
+    # values that doesn't end up getting set. For example, if
+    # `interval_in_seconds` was not entered into the YAML, then
+    # `_healthcheck_interval_in_seconds(record)` will return None.
+    # In contrast, when creating a MonitorConfig, optional config is set by
+    # *not* passing a keyword argument (kwarg). For example, if you want to
+    # use the default `interval_in_seconds`, you would leave that keyword out
+    # of your call to `MonitorConfig(...)`. So, when we create a
+    # MonitorConfig, we need to remove any octoDNS config key that ended up
+    # with a value of None.
+    optional_kwargs = {
+        'tolerated_number_of_failures':
+            _healthcheck_tolerated_number_of_failures(record),
+        'interval_in_seconds': _healthcheck_interval_in_seconds(record),
+        'timeout_in_seconds': _healthcheck_timeout_in_seconds(record),
+
+    }
+
     monitor = MonitorConfig(
         protocol=record.healthcheck_protocol,
         port=record.healthcheck_port,
         path=record.healthcheck_path,
+        **{k: v for k, v in optional_kwargs.items() if v is not None},
     )
     host = record.healthcheck_host()
     if host:
@@ -358,6 +395,12 @@ def _profile_is_match(have, desired):
     if monitor_have.protocol != monitor_desired.protocol or \
        monitor_have.port != monitor_desired.port or \
        monitor_have.path != monitor_desired.path or \
+       monitor_have.tolerated_number_of_failures != \
+       monitor_desired.tolerated_number_of_failures or \
+       monitor_have.interval_in_seconds != \
+       monitor_desired.interval_in_seconds or \
+       monitor_have.timeout_in_seconds != \
+       monitor_desired.timeout_in_seconds or \
        monitor_have.custom_headers != monitor_desired.custom_headers:
         return false(monitor_have, monitor_desired, have.name)
 
