@@ -289,45 +289,30 @@ def _pool_traffic_manager_name(pool, record):
 def _healthcheck_tolerated_number_of_failures(record):
     return record._octodns.get('azuredns', {}) \
         .get('healthcheck', {}) \
-        .get('tolerated_number_of_failures', None)
+        .get('tolerated_number_of_failures')
 
 
 def _healthcheck_interval_in_seconds(record):
     return record._octodns.get('azuredns', {}) \
         .get('healthcheck', {}) \
-        .get('interval_in_seconds', None)
+        .get('interval_in_seconds')
 
 
 def _healthcheck_timeout_in_seconds(record):
     return record._octodns.get('azuredns', {}) \
         .get('healthcheck', {}) \
-        .get('timeout_in_seconds', None)
+        .get('timeout_in_seconds')
 
 
 def _get_monitor(record):
-    # We're using None as a sentinal value for optional octoDNS configuration
-    # values that doesn't end up getting set. For example, if
-    # `interval_in_seconds` was not entered into the YAML, then
-    # `_healthcheck_interval_in_seconds(record)` will return None.
-    # In contrast, when creating a MonitorConfig, optional config is set by
-    # *not* passing a keyword argument (kwarg). For example, if you want to
-    # use the default `interval_in_seconds`, you would leave that keyword out
-    # of your call to `MonitorConfig(...)`. So, when we create a
-    # MonitorConfig, we need to remove any octoDNS config key that ended up
-    # with a value of None.
-    optional_kwargs = {
-        'tolerated_number_of_failures':
-            _healthcheck_tolerated_number_of_failures(record),
-        'interval_in_seconds': _healthcheck_interval_in_seconds(record),
-        'timeout_in_seconds': _healthcheck_timeout_in_seconds(record),
-
-    }
-
     monitor = MonitorConfig(
         protocol=record.healthcheck_protocol,
         port=record.healthcheck_port,
         path=record.healthcheck_path,
-        **{k: v for k, v in optional_kwargs.items() if v is not None},
+        interval_in_seconds=_healthcheck_interval_in_seconds(record),
+        timeout_in_seconds=_healthcheck_timeout_in_seconds(record),
+        tolerated_number_of_failures=
+        _healthcheck_tolerated_number_of_failures(record),
     )
     host = record.healthcheck_host()
     if host:
