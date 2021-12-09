@@ -199,24 +199,24 @@ dynamic_record_data = {
             'ap-southeast-1': {
                 'fallback': 'us-east-1',
                 'values': [{
-                    'weight': 2, 'value': '1.4.1.1'
+                    'weight': 2, 'value': '1.4.1.1', 'status': 'up',
                 }, {
-                    'weight': 2, 'value': '1.4.1.2'
+                    'weight': 2, 'value': '1.4.1.2', 'status': 'up',
                 }]
             },
             'eu-central-1': {
                 'fallback': 'us-east-1',
                 'values': [{
-                    'weight': 1, 'value': '1.3.1.1'
+                    'weight': 1, 'value': '1.3.1.1', 'status': 'up',
                 }, {
-                    'weight': 1, 'value': '1.3.1.2'
+                    'weight': 1, 'value': '1.3.1.2', 'status': 'up',
                 }],
             },
             'us-east-1': {
                 'values': [{
-                    'weight': 1, 'value': '1.5.1.1'
+                    'weight': 1, 'value': '1.5.1.1', 'status': 'up',
                 }, {
-                    'weight': 1, 'value': '1.5.1.2'
+                    'weight': 1, 'value': '1.5.1.2', 'status': 'up',
                 }],
             }
         },
@@ -296,6 +296,9 @@ class TestRoute53Provider(TestCase):
         'Id': '42',
         'CallerReference': caller_ref,
         'HealthCheckConfig': {
+            'Disabled': False,
+            'EnableSNI': True,
+            'Inverted': False,
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '4.2.3.4',
@@ -310,6 +313,9 @@ class TestRoute53Provider(TestCase):
         'Id': 'ignored-also',
         'CallerReference': 'something-else',
         'HealthCheckConfig': {
+            'Disabled': False,
+            'EnableSNI': True,
+            'Inverted': False,
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '5.2.3.4',
@@ -324,6 +330,9 @@ class TestRoute53Provider(TestCase):
         'Id': '43',
         'CallerReference': caller_ref,
         'HealthCheckConfig': {
+            'Disabled': False,
+            'EnableSNI': True,
+            'Inverted': False,
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '5.2.3.4',
@@ -338,6 +347,9 @@ class TestRoute53Provider(TestCase):
         'Id': '44',
         'CallerReference': caller_ref,
         'HealthCheckConfig': {
+            'Disabled': False,
+            'EnableSNI': True,
+            'Inverted': False,
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '7.2.3.4',
@@ -353,6 +365,9 @@ class TestRoute53Provider(TestCase):
         # won't match anything based on type
         'CallerReference': caller_ref.replace(':A:', ':AAAA:'),
         'HealthCheckConfig': {
+            'Disabled': False,
+            'EnableSNI': True,
+            'Inverted': False,
             'Type': 'HTTPS',
             'FullyQualifiedDomainName': 'unit.tests',
             'IPAddress': '7.2.3.4',
@@ -1161,6 +1176,9 @@ class TestRoute53Provider(TestCase):
             'Id': '42',
             'CallerReference': self.caller_ref,
             'HealthCheckConfig': {
+                'Disabled': False,
+                'EnableSNI': True,
+                'Inverted': False,
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
@@ -1175,6 +1193,9 @@ class TestRoute53Provider(TestCase):
             'Id': '43',
             'CallerReference': 'abc123',
             'HealthCheckConfig': {
+                'Disabled': False,
+                'EnableSNI': True,
+                'Inverted': False,
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '9.2.3.4',
@@ -1199,6 +1220,9 @@ class TestRoute53Provider(TestCase):
             'Id': '44',
             'CallerReference': self.caller_ref,
             'HealthCheckConfig': {
+                'Disabled': False,
+                'EnableSNI': True,
+                'Inverted': False,
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '8.2.3.4',
@@ -1248,6 +1272,9 @@ class TestRoute53Provider(TestCase):
             # No match based on version
             'CallerReference': '9999:A:foo1234',
             'HealthCheckConfig': {
+                'Disabled': False,
+                'EnableSNI': True,
+                'Inverted': False,
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
@@ -1262,6 +1289,9 @@ class TestRoute53Provider(TestCase):
             'Id': '43',
             'CallerReference': caller_ref,
             'HealthCheckConfig': {
+                'Disabled': False,
+                'EnableSNI': True,
+                'Inverted': False,
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
@@ -1281,7 +1311,9 @@ class TestRoute53Provider(TestCase):
         })
 
         health_check_config = {
+            'Disabled': False,
             'EnableSNI': False,
+            'Inverted': False,
             'FailureThreshold': 6,
             'FullyQualifiedDomainName': 'foo.bar.com',
             'IPAddress': '4.2.3.4',
@@ -1306,7 +1338,9 @@ class TestRoute53Provider(TestCase):
         stubber.add_response('change_tags_for_resource', {})
 
         health_check_config = {
+            'Disabled': False,
             'EnableSNI': False,
+            'Inverted': False,
             'FailureThreshold': 6,
             'FullyQualifiedDomainName': '4.2.3.4',
             'IPAddress': '4.2.3.4',
@@ -1349,23 +1383,25 @@ class TestRoute53Provider(TestCase):
 
         # if not allowed to create returns none
         value = record.geo['AF'].values[0]
-        id = provider.get_health_check_id(record, value, False)
+        id = provider.get_health_check_id(record, value, 'obey', False)
         self.assertFalse(id)
 
         # when allowed to create we do
-        id = provider.get_health_check_id(record, value, True)
+        id = provider.get_health_check_id(record, value, 'obey', True)
         self.assertEquals('42', id)
 
         # when allowed to create and when host is None
         record._octodns['healthcheck']['host'] = None
-        id = provider.get_health_check_id(record, value, True)
+        id = provider.get_health_check_id(record, value, 'obey', True)
         self.assertEquals('43', id)
         stubber.assert_no_pending_responses()
 
         # A CNAME style healthcheck, without a value
 
         health_check_config = {
+            'Disabled': False,
             'EnableSNI': False,
+            'Inverted': False,
             'FailureThreshold': 6,
             'FullyQualifiedDomainName': 'target-1.unit.tests.',
             'MeasureLatency': True,
@@ -1388,14 +1424,17 @@ class TestRoute53Provider(TestCase):
         })
         stubber.add_response('change_tags_for_resource', {})
 
-        id = provider.get_health_check_id(record, 'target-1.unit.tests.', True)
+        id = provider.get_health_check_id(record, 'target-1.unit.tests.',
+                                          'obey', True)
         self.assertEquals('42', id)
         stubber.assert_no_pending_responses()
 
         # TCP health check
 
         health_check_config = {
+            'Disabled': False,
             'EnableSNI': False,
+            'Inverted': False,
             'FailureThreshold': 6,
             'MeasureLatency': True,
             'Port': 8080,
@@ -1417,7 +1456,8 @@ class TestRoute53Provider(TestCase):
         stubber.add_response('change_tags_for_resource', {})
 
         record._octodns['healthcheck']['protocol'] = 'TCP'
-        id = provider.get_health_check_id(record, 'target-1.unit.tests.', True)
+        id = provider.get_health_check_id(record, 'target-1.unit.tests.',
+                                          'obey', True)
         self.assertEquals('42', id)
         stubber.assert_no_pending_responses()
 
@@ -1494,7 +1534,9 @@ class TestRoute53Provider(TestCase):
         provider, stubber = self._get_stubbed_provider()
 
         health_check_config = {
+            'Disabled': False,
             'EnableSNI': True,
+            'Inverted': False,
             'FailureThreshold': 6,
             'FullyQualifiedDomainName': 'a.unit.tests',
             'IPAddress': '1.2.3.4',
@@ -1547,7 +1589,7 @@ class TestRoute53Provider(TestCase):
         })
 
         value = record.geo['AF'].values[0]
-        id = provider.get_health_check_id(record, value, True)
+        id = provider.get_health_check_id(record, value, 'obey', True)
         ml = provider.health_checks[id]['HealthCheckConfig']['MeasureLatency']
         ri = provider.health_checks[id]['HealthCheckConfig']['RequestInterval']
         self.assertFalse(ml)
@@ -1636,6 +1678,9 @@ class TestRoute53Provider(TestCase):
             'Id': '42',
             'CallerReference': self.caller_ref,
             'HealthCheckConfig': {
+                'Disabled': False,
+                'EnableSNI': True,
+                'Inverted': False,
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
@@ -1650,6 +1695,9 @@ class TestRoute53Provider(TestCase):
             'Id': '43',
             'CallerReference': old_caller_ref,
             'HealthCheckConfig': {
+                'Disabled': False,
+                'EnableSNI': True,
+                'Inverted': False,
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'unit.tests',
                 'IPAddress': '4.2.3.4',
@@ -1664,6 +1712,9 @@ class TestRoute53Provider(TestCase):
             'Id': '44',
             'CallerReference': old_caller_ref,
             'HealthCheckConfig': {
+                'Disabled': False,
+                'EnableSNI': True,
+                'Inverted': False,
                 'Type': 'HTTPS',
                 'FullyQualifiedDomainName': 'other.unit.tests',
                 'IPAddress': '4.2.3.4',
@@ -2105,6 +2156,9 @@ class TestRoute53Provider(TestCase):
                 'Id': '42',
                 'CallerReference': 'foo',
                 'HealthCheckConfig': {
+                    'Disabled': False,
+                    'EnableSNI': True,
+                    'Inverted': False,
                     'Type': 'HTTPS',
                     'FullyQualifiedDomainName': 'unit.tests',
                     'IPAddress': '2.2.3.4',
@@ -2210,6 +2264,9 @@ class TestRoute53Provider(TestCase):
                 'Id': '42',
                 'CallerReference': self.caller_ref,
                 'HealthCheckConfig': {
+                    'Disabled': False,
+                    'EnableSNI': True,
+                    'Inverted': False,
                     'Type': 'HTTPS',
                     'FullyQualifiedDomainName': 'a.unit.tests',
                     'IPAddress': '2.2.3.4',
@@ -2359,6 +2416,9 @@ class TestRoute53Provider(TestCase):
                 'Id': '42',
                 'CallerReference': self.caller_ref,
                 'HealthCheckConfig': {
+                    'Disabled': False,
+                    'EnableSNI': True,
+                    'Inverted': False,
                     'Type': 'HTTPS',
                     'FullyQualifiedDomainName': 'a.unit.tests',
                     'IPAddress': '2.2.3.4',
@@ -2517,6 +2577,9 @@ class TestRoute53Provider(TestCase):
                 'Id': '42',
                 'CallerReference': self.caller_ref,
                 'HealthCheckConfig': {
+                    'Disabled': False,
+                    'EnableSNI': True,
+                    'Inverted': False,
                     'Type': 'HTTPS',
                     'FullyQualifiedDomainName': 'one.cname.unit.tests.',
                     'ResourcePath': '/_dns',
@@ -2695,6 +2758,7 @@ class TestRoute53Provider(TestCase):
 
     def test_data_for_dynamic(self):
         provider = Route53Provider('test', 'abc', '123')
+        provider._health_checks = {}
 
         data = provider._data_for_dynamic('', 'A', dynamic_rrsets)
         self.assertEquals(dynamic_record_data, data)
@@ -2703,6 +2767,7 @@ class TestRoute53Provider(TestCase):
     @patch('octodns.provider.route53.Route53Provider._load_records')
     def test_dynamic_populate(self, load_records_mock, get_zone_id_mock):
         provider = Route53Provider('test', 'abc', '123')
+        provider._health_checks = {}
 
         get_zone_id_mock.side_effect = ['z44']
         load_records_mock.side_effect = [dynamic_rrsets]
@@ -2724,25 +2789,25 @@ class TestRoute53Provider(TestCase):
             'ap-southeast-1': {
                 'fallback': 'us-east-1',
                 'values': [{
-                    'weight': 2, 'value': '1.4.1.1', 'status': 'obey',
+                    'weight': 2, 'value': '1.4.1.1', 'status': 'up',
                 }, {
-                    'weight': 2, 'value': '1.4.1.2', 'status': 'obey',
+                    'weight': 2, 'value': '1.4.1.2', 'status': 'up',
                 }]
             },
             'eu-central-1': {
                 'fallback': 'us-east-1',
                 'values': [{
-                    'weight': 1, 'value': '1.3.1.1', 'status': 'obey',
+                    'weight': 1, 'value': '1.3.1.1', 'status': 'up',
                 }, {
-                    'weight': 1, 'value': '1.3.1.2', 'status': 'obey',
+                    'weight': 1, 'value': '1.3.1.2', 'status': 'up',
                 }],
             },
             'us-east-1': {
                 'fallback': None,
                 'values': [{
-                    'weight': 1, 'value': '1.5.1.1', 'status': 'obey',
+                    'weight': 1, 'value': '1.5.1.1', 'status': 'up',
                 }, {
-                    'weight': 1, 'value': '1.5.1.2', 'status': 'obey',
+                    'weight': 1, 'value': '1.5.1.2', 'status': 'up',
                 }],
             }
         }, {k: v.data for k, v in record.dynamic.pools.items()})
@@ -2905,7 +2970,7 @@ class TestRoute53Records(TestCase):
     def test_dynamic_value_delete(self):
         provider = DummyProvider()
         geo = _Route53DynamicValue(provider, self.record_a, 'iad', '2.2.2.2',
-                                   1, 0, False)
+                                   1, 'obey', 0, False)
 
         rrset = {
             'HealthCheckId': 'x12346z',
@@ -3008,7 +3073,7 @@ class TestRoute53Records(TestCase):
         # thoroughly tested elsewhere
         provider._health_checks = {}
         # When asked for a healthcheck return dummy info
-        provider.get_health_check_id = lambda r, v, c: 'hc42'
+        provider.get_health_check_id = lambda r, v, s, c: 'hc42'
 
         zone = Zone('unit.tests.', [])
         record = Record.new(zone, '', dynamic_record_data)
