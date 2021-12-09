@@ -286,11 +286,33 @@ def _pool_traffic_manager_name(pool, record):
     return f'{prefix}-pool-{pool}'
 
 
+def _healthcheck_tolerated_number_of_failures(record):
+    return record._octodns.get('azuredns', {}) \
+        .get('healthcheck', {}) \
+        .get('tolerated_number_of_failures')
+
+
+def _healthcheck_interval_in_seconds(record):
+    return record._octodns.get('azuredns', {}) \
+        .get('healthcheck', {}) \
+        .get('interval_in_seconds')
+
+
+def _healthcheck_timeout_in_seconds(record):
+    return record._octodns.get('azuredns', {}) \
+        .get('healthcheck', {}) \
+        .get('timeout_in_seconds')
+
+
 def _get_monitor(record):
     monitor = MonitorConfig(
         protocol=record.healthcheck_protocol,
         port=record.healthcheck_port,
         path=record.healthcheck_path,
+        interval_in_seconds=_healthcheck_interval_in_seconds(record),
+        timeout_in_seconds=_healthcheck_timeout_in_seconds(record),
+        tolerated_number_of_failures=
+        _healthcheck_tolerated_number_of_failures(record),
     )
     host = record.healthcheck_host()
     if host:
@@ -358,6 +380,12 @@ def _profile_is_match(have, desired):
     if monitor_have.protocol != monitor_desired.protocol or \
        monitor_have.port != monitor_desired.port or \
        monitor_have.path != monitor_desired.path or \
+       monitor_have.tolerated_number_of_failures != \
+       monitor_desired.tolerated_number_of_failures or \
+       monitor_have.interval_in_seconds != \
+       monitor_desired.interval_in_seconds or \
+       monitor_have.timeout_in_seconds != \
+       monitor_desired.timeout_in_seconds or \
        monitor_have.custom_headers != monitor_desired.custom_headers:
         return false(monitor_have, monitor_desired, have.name)
 
