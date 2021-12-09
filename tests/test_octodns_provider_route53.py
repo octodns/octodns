@@ -192,6 +192,26 @@ dynamic_rrsets = [{
     'SetIdentifier': '3-us-east-1-None',
     'Type': 'A',
 }]
+dynamic_health_checks = {
+    '76': {
+        'HealthCheckConfig': {
+            'Disabled': False,
+            'Inverted': False,
+        }
+    },
+    '09': {
+        'HealthCheckConfig': {
+            'Disabled': True,
+            'Inverted': False,
+        }
+    },
+    'ab': {
+        'HealthCheckConfig': {
+            'Disabled': True,
+            'Inverted': True,
+        }
+    },
+}
 
 dynamic_record_data = {
     'dynamic': {
@@ -199,7 +219,7 @@ dynamic_record_data = {
             'ap-southeast-1': {
                 'fallback': 'us-east-1',
                 'values': [{
-                    'weight': 2, 'value': '1.4.1.1', 'status': 'up',
+                    'weight': 2, 'value': '1.4.1.1', 'status': 'obey',
                 }, {
                     'weight': 2, 'value': '1.4.1.2', 'status': 'up',
                 }]
@@ -207,7 +227,7 @@ dynamic_record_data = {
             'eu-central-1': {
                 'fallback': 'us-east-1',
                 'values': [{
-                    'weight': 1, 'value': '1.3.1.1', 'status': 'up',
+                    'weight': 1, 'value': '1.3.1.1', 'status': 'down',
                 }, {
                     'weight': 1, 'value': '1.3.1.2', 'status': 'up',
                 }],
@@ -1259,8 +1279,108 @@ class TestRoute53Provider(TestCase):
             }
         })
         value = record.geo['AF'].values[0]
-        id = provider.get_health_check_id(record, value, True)
+        id = provider.get_health_check_id(record, value, 'obey', True)
         self.assertEquals('42', id)
+
+    def test_health_check_status_support(self):
+        provider, stubber = self._get_stubbed_provider()
+
+        health_checks = [{
+            'Id': '42',
+            'CallerReference': self.caller_ref,
+            'HealthCheckConfig': {
+                'Disabled': False,
+                'EnableSNI': True,
+                'Inverted': False,
+                'Type': 'HTTPS',
+                'FullyQualifiedDomainName': 'unit.tests',
+                'IPAddress': '1.1.1.1',
+                'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
+                'MeasureLatency': True,
+                'RequestInterval': 10,
+            },
+            'HealthCheckVersion': 2,
+        }, {
+            'Id': '43',
+            'CallerReference': self.caller_ref,
+            'HealthCheckConfig': {
+                'Disabled': True,
+                'EnableSNI': True,
+                'Inverted': False,
+                'Type': 'HTTPS',
+                'FullyQualifiedDomainName': 'unit.tests',
+                'IPAddress': '2.2.2.2',
+                'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
+                'MeasureLatency': True,
+                'RequestInterval': 10,
+            },
+            'HealthCheckVersion': 2,
+        }, {
+            'Id': '44',
+            'CallerReference': self.caller_ref,
+            'HealthCheckConfig': {
+                'Disabled': True,
+                'EnableSNI': True,
+                'Inverted': True,
+                'Type': 'HTTPS',
+                'FullyQualifiedDomainName': 'unit.tests',
+                'IPAddress': '3.3.3.3',
+                'ResourcePath': '/_dns',
+                'Type': 'HTTPS',
+                'Port': 443,
+                'MeasureLatency': True,
+                'RequestInterval': 10,
+            },
+            'HealthCheckVersion': 2,
+        }]
+        stubber.add_response('list_health_checks',
+                             {
+                                 'HealthChecks': health_checks,
+                                 'IsTruncated': False,
+                                 'MaxItems': '20',
+                                 'Marker': '',
+                             })
+
+        health_checks = provider.health_checks
+
+        # get without create
+        record = Record.new(self.expected, '', {
+            'ttl': 61,
+            'type': 'A',
+            'value': '5.5.5.5',
+            'dynamic': {
+                'pools': {
+                    'main': {
+                        'values': [{
+                            'value': '6.6.6.6',
+                        }]
+                    }
+                },
+                'rules': [{
+                    'pool': 'main',
+                }]
+            }
+        })
+        self.assertEquals('42',
+                          provider.get_health_check_id(record, '1.1.1.1',
+                                                       'obey', False))
+        self.assertEquals('43',
+                          provider.get_health_check_id(record, '2.2.2.2',
+                                                       'up', False))
+        self.assertEquals('44',
+                          provider.get_health_check_id(record, '3.3.3.3',
+                                                       'down', False))
+
+        # If we're not allowed to create we won't find a health check for
+        # 1.1.1.1 with status up or down
+        self.assertFalse(provider.get_health_check_id(record, '1.1.1.1',
+                                                      'up', False))
+        self.assertFalse(provider.get_health_check_id(record, '1.1.1.1',
+                                                      'down', False))
 
     def test_health_check_create(self):
         provider, stubber = self._get_stubbed_provider()
@@ -2758,7 +2878,7 @@ class TestRoute53Provider(TestCase):
 
     def test_data_for_dynamic(self):
         provider = Route53Provider('test', 'abc', '123')
-        provider._health_checks = {}
+        provider._health_checks = dynamic_health_checks
 
         data = provider._data_for_dynamic('', 'A', dynamic_rrsets)
         self.assertEquals(dynamic_record_data, data)
