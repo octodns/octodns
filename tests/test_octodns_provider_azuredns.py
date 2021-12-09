@@ -470,6 +470,9 @@ class Test_ProfileIsMatch(TestCase):
             monitor_proto = 'HTTPS',
             monitor_port = 4443,
             monitor_path = '/_ping',
+            monitor_interval_in_seconds = None,
+            monitor_timeout_in_seconds = None,
+            monitor_tolerated_number_of_failures = None,
             endpoints = 1,
             endpoint_name = 'name',
             endpoint_type = 'profile/nestedEndpoints',
@@ -487,6 +490,10 @@ class Test_ProfileIsMatch(TestCase):
                     protocol=monitor_proto,
                     port=monitor_port,
                     path=monitor_path,
+                    interval_in_seconds=monitor_interval_in_seconds,
+                    timeout_in_seconds=monitor_timeout_in_seconds,
+                    tolerated_number_of_failures=
+                    monitor_tolerated_number_of_failures,
                 ),
                 endpoints=[Endpoint(
                     name=endpoint_name,
@@ -506,6 +513,18 @@ class Test_ProfileIsMatch(TestCase):
         self.assertFalse(is_match(profile(), profile(endpoints=2)))
         self.assertFalse(is_match(profile(), profile(dns_name='two')))
         self.assertFalse(is_match(profile(), profile(monitor_proto='HTTP')))
+        self.assertFalse(is_match(
+            profile(),
+            profile(monitor_interval_in_seconds=9),
+        ))
+        self.assertFalse(is_match(
+            profile(),
+            profile(monitor_timeout_in_seconds=3),
+        ))
+        self.assertFalse(is_match(
+            profile(),
+            profile(monitor_tolerated_number_of_failures=2),
+        ))
         self.assertFalse(is_match(profile(), profile(endpoint_name='a')))
         self.assertFalse(is_match(profile(), profile(endpoint_type='b')))
         self.assertFalse(
