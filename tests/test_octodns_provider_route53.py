@@ -2567,6 +2567,48 @@ class TestRoute53Provider(TestCase):
         self.assertEquals(1, len(extra))
         stubber.assert_no_pending_responses()
 
+    def test_extra_change_dyamic_status_up(self):
+        provider, stubber = self._get_stubbed_provider()
+
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.1.1.1',
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'status': 'up',
+                            'value': '1.2.3.4',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+        })
+
+        # status up and no health check so we're good
+        rrset = {
+            'ResourceRecords': [{'Value': '1.2.3.4'}],
+        }
+        statuses = {'1.2.3.4': 'up'}
+        self.assertFalse(
+            provider._extra_changes_update_needed(record, rrset, statuses)
+        )
+
+        # status up and has a health check so update needed
+        rrset = {
+            'ResourceRecords': [{'Value': '1.2.3.4'}],
+            'HealthCheckId': 'foo',
+        }
+        statuses = {'1.2.3.4': 'up'}
+        self.assertTrue(
+            provider._extra_changes_update_needed(record, rrset, statuses)
+        )
+
     def test_extra_change_dynamic_has_health_check_cname(self):
         provider, stubber = self._get_stubbed_provider()
 

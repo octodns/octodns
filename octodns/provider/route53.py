@@ -1338,10 +1338,11 @@ class Route53Provider(BaseProvider):
         self._gc_health_checks(change.existing, [])
         return self._gen_mods('DELETE', existing_records, existing_rrsets)
 
-    def _extra_changes_update_needed(self, record, rrset):
+    def _extra_changes_update_needed(self, record, rrset, statuses={}):
+        value = rrset['ResourceRecords'][0]['Value']
         if record._type == 'CNAME':
             # For CNAME, healthcheck host by default points to the CNAME value
-            healthcheck_host = rrset['ResourceRecords'][0]['Value']
+            healthcheck_host = value
         else:
             healthcheck_host = record.healthcheck_host()
 
@@ -1350,6 +1351,17 @@ class Route53Provider(BaseProvider):
         healthcheck_port = record.healthcheck_port
         healthcheck_latency = self._healthcheck_measure_latency(record)
         healthcheck_interval = self._healthcheck_request_interval(record)
+
+        status = statuses.get(value, 'obey')
+        if status == 'up':
+            if 'HealthCheckId' in rrset:
+                self.log.info('_extra_changes_update_needed: health-check '
+                              'found for status="up", causing update of %s:%s',
+                              record.fqdn, record._type)
+                return True
+            else:
+                # No health check needed
+                return False
 
         try:
             health_check_id = rrset['HealthCheckId']
@@ -1406,6 +1418,12 @@ class Route53Provider(BaseProvider):
         fqdn = record.fqdn
         _type = record._type
 
+        # map values to statuses
+        statuses = {}
+        for pool in record.dynamic.pools.values():
+            for value in pool.data['values']:
+                statuses[value['value']] = value.get('status', 'obey')
+
         # loop through all the r53 rrsets
         for rrset in self._load_records(zone_id):
             name = rrset['Name']
@@ -1424,7 +1442,7 @@ class Route53Provider(BaseProvider):
                 # rrset isn't for the current record
                 continue
 
-            if self._extra_changes_update_needed(record, rrset):
+            if self._extra_changes_update_needed(record, rrset, statuses):
                 # no good, doesn't have the right health check, needs an update
                 self.log.info('_extra_changes_dynamic_needs_update: '
                               'health-check caused update of %s:%s',
