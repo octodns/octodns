@@ -58,7 +58,6 @@ dynamic_rrsets = [{
     'Type': 'A',
     'Weight': 2
 }, {
-    'HealthCheckId': '09',
     'Name': '_octodns-ap-southeast-1-value.unit.tests.',
     'ResourceRecords': [{'Value': '1.4.1.2'}],
     'SetIdentifier': 'ap-southeast-1-001',
@@ -196,12 +195,6 @@ dynamic_health_checks = {
     '76': {
         'HealthCheckConfig': {
             'Disabled': False,
-            'Inverted': False,
-        }
-    },
-    '09': {
-        'HealthCheckConfig': {
-            'Disabled': True,
             'Inverted': False,
         }
     },
@@ -1368,7 +1361,7 @@ class TestRoute53Provider(TestCase):
         self.assertEquals('42',
                           provider.get_health_check_id(record, '1.1.1.1',
                                                        'obey', False))
-        self.assertEquals('43',
+        self.assertEquals(None,
                           provider.get_health_check_id(record, '2.2.2.2',
                                                        'up', False))
         self.assertEquals('44',
@@ -3129,7 +3122,7 @@ class TestRoute53Records(TestCase):
 
         # If we don't provide the candidate rrsets we get back exactly what we
         # put in minus the healthcheck
-        rrset['HealthCheckId'] = None
+        del rrset['HealthCheckId']
         mod = geo.mod('DELETE', [])
         self.assertEquals(rrset, mod['ResourceRecordSet'])
 

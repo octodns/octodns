@@ -383,10 +383,9 @@ class _Route53DynamicValue(_Route53Record):
                         'ResourceRecordSet': existing,
                     }
 
-        return {
+        ret = {
             'Action': action,
             'ResourceRecordSet': {
-                'HealthCheckId': self.health_check_id,
                 'Name': self.fqdn,
                 'ResourceRecords': [{'Value': self.value}],
                 'SetIdentifier': self.identifer,
@@ -395,6 +394,11 @@ class _Route53DynamicValue(_Route53Record):
                 'Weight': self.weight,
             }
         }
+
+        if self.health_check_id:
+            ret['ResourceRecordSet']['HealthCheckId'] = self.health_check_id
+
+        return ret
 
     def __hash__(self):
         return f'{self.fqdn}:{self._type}:{self.identifer}'.__hash__()
@@ -923,18 +927,15 @@ class Route53Provider(BaseProvider):
                     health_check_id = rrset.get('HealthCheckId', None)
                     health_check = self.health_checks[health_check_id]
                     health_check_config = health_check['HealthCheckConfig']
-                    if health_check_config['Disabled']:
-                        if health_check_config['Inverted']:
-                            # disabled and inverted means down
-                            status = 'down'
-                        else:
-                            # disabled means always up
-                            status = 'up'
+                    if health_check_config['Disabled'] and \
+                       health_check_config['Inverted']:
+                        # disabled and inverted means down
+                        status = 'down'
                     else:
                         # otherwise obey
                         status = 'obey'
                 except KeyError:
-                    # No healthcheck implies status is always up
+                    # No healthcheck means status is up
                     status = 'up'
                 pools[pool_name]['values'].append({
                     'status': status,
@@ -1152,6 +1153,11 @@ class Route53Provider(BaseProvider):
         self.log.debug('get_health_check_id: fqdn=%s, type=%s, value=%s, '
                        'status=%s', fqdn, record._type, value, status)
 
+        if status == 'up':
+            # status up means no health check
+            self.log.debug('get_health_check_id:   status up, no health check')
+            return None
+
         try:
             ip_address(str(value))
             # We're working with an IP, host is the Host header
@@ -1166,13 +1172,10 @@ class Route53Provider(BaseProvider):
         healthcheck_port = record.healthcheck_port
         healthcheck_latency = self._healthcheck_measure_latency(record)
         healthcheck_interval = self._healthcheck_request_interval(record)
-        if status == 'up':
-            healthcheck_disabled = True
-            healthcheck_inverted = False
-        elif status == 'down':
+        if status == 'down':
             healthcheck_disabled = True
             healthcheck_inverted = True
-        else:
+        else:  # obey
             healthcheck_disabled = False
             healthcheck_inverted = False
 
