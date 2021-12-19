@@ -80,9 +80,11 @@ class _Route53Record(EqualityTupleMixin):
             # be served out according to their weights
             for i, value in enumerate(pool.data['values']):
                 weight = value['weight']
+                status = value['status']
                 value = value['value']
                 ret.add(_Route53DynamicValue(provider, record, pool_name,
-                                             value, weight, i, creating))
+                                             value, weight, status, i,
+                                             creating))
 
         # Rules
         for i, rule in enumerate(record.dynamic.rules):
@@ -345,19 +347,21 @@ class _Route53DynamicRule(_Route53Record):
 
 class _Route53DynamicValue(_Route53Record):
 
-    def __init__(self, provider, record, pool_name, value, weight, index,
-                 creating):
+    def __init__(self, provider, record, pool_name, value, weight, status,
+                 index, creating):
         fqdn_override = f'_octodns-{pool_name}-value.{record.fqdn}'
         super(_Route53DynamicValue, self).__init__(provider, record, creating,
                                                    fqdn_override=fqdn_override)
 
         self.pool_name = pool_name
+        self.status = status
         self.index = index
         value_convert = getattr(self, f'_value_convert_{record._type}')
         self.value = value_convert(value, record)
         self.weight = weight
 
         self.health_check_id = provider.get_health_check_id(record, self.value,
+                                                            self.status,
                                                             creating)
 
     @property
@@ -379,10 +383,9 @@ class _Route53DynamicValue(_Route53Record):
                         'ResourceRecordSet': existing,
                     }
 
-        return {
+        ret = {
             'Action': action,
             'ResourceRecordSet': {
-                'HealthCheckId': self.health_check_id,
                 'Name': self.fqdn,
                 'ResourceRecords': [{'Value': self.value}],
                 'SetIdentifier': self.identifer,
@@ -391,6 +394,11 @@ class _Route53DynamicValue(_Route53Record):
                 'Weight': self.weight,
             }
         }
+
+        if self.health_check_id:
+            ret['ResourceRecordSet']['HealthCheckId'] = self.health_check_id
+
+        return ret
 
     def __hash__(self):
         return f'{self.fqdn}:{self._type}:{self.identifer}'.__hash__()
@@ -433,7 +441,7 @@ class _Route53GeoRecord(_Route53Record):
 
         value = geo.values[0]
         self.health_check_id = provider.get_health_check_id(record, value,
-                                                            creating)
+                                                            'obey', creating)
 
     def mod(self, action, existing_rrsets):
         geo = self.geo
@@ -599,6 +607,7 @@ class Route53Provider(BaseProvider):
     '''
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
+    SUPPORTS_POOL_VALUE_STATUS = True
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR',
                     'SPF', 'SRV', 'TXT'))
 
@@ -914,7 +923,22 @@ class Route53Provider(BaseProvider):
                 # it's ignored only used to make sure the value is unique
                 pool_name = rrset['SetIdentifier'][:-4]
                 value = rrset['ResourceRecords'][0]['Value']
+                try:
+                    health_check_id = rrset.get('HealthCheckId', None)
+                    health_check = self.health_checks[health_check_id]
+                    health_check_config = health_check['HealthCheckConfig']
+                    if health_check_config['Disabled'] and \
+                       health_check_config['Inverted']:
+                        # disabled and inverted means down
+                        status = 'down'
+                    else:
+                        # otherwise obey
+                        status = 'obey'
+                except KeyError:
+                    # No healthcheck means status is up
+                    status = 'up'
                 pools[pool_name]['values'].append({
+                    'status': status,
                     'value': value,
                     'weight': rrset['Weight'],
                 })
@@ -1092,7 +1116,8 @@ class Route53Provider(BaseProvider):
 
     def _health_check_equivalent(self, host, path, protocol, port,
                                  measure_latency, request_interval,
-                                 health_check, value=None):
+                                 health_check, value=None, disabled=None,
+                                 inverted=None):
         config = health_check['HealthCheckConfig']
 
         # So interestingly Route53 normalizes IPv6 addresses to a funky, but
@@ -1115,16 +1140,23 @@ class Route53Provider(BaseProvider):
             port == config['Port'] and \
             measure_latency == config['MeasureLatency'] and \
             request_interval == config['RequestInterval'] and \
+            (disabled is None or disabled == config['Disabled']) and \
+            (inverted is None or inverted == config['Inverted']) and \
             value == config_ip_address
 
-    def get_health_check_id(self, record, value, create):
+    def get_health_check_id(self, record, value, status, create):
         # fqdn & the first value are special, we use them to match up health
         # checks to their records. Route53 health checks check a single ip and
         # we're going to assume that ips are interchangeable to avoid
         # health-checking each one independently
         fqdn = record.fqdn
-        self.log.debug('get_health_check_id: fqdn=%s, type=%s, value=%s',
-                       fqdn, record._type, value)
+        self.log.debug('get_health_check_id: fqdn=%s, type=%s, value=%s, '
+                       'status=%s', fqdn, record._type, value, status)
+
+        if status == 'up':
+            # status up means no health check
+            self.log.debug('get_health_check_id:   status up, no health check')
+            return None
 
         try:
             ip_address(str(value))
@@ -1140,6 +1172,12 @@ class Route53Provider(BaseProvider):
         healthcheck_port = record.healthcheck_port
         healthcheck_latency = self._healthcheck_measure_latency(record)
         healthcheck_interval = self._healthcheck_request_interval(record)
+        if status == 'down':
+            healthcheck_disabled = True
+            healthcheck_inverted = True
+        else:  # obey
+            healthcheck_disabled = False
+            healthcheck_inverted = False
 
         # we're looking for a healthcheck with the current version & our record
         # type, we'll ignore anything else
@@ -1156,7 +1194,9 @@ class Route53Provider(BaseProvider):
                                              healthcheck_latency,
                                              healthcheck_interval,
                                              health_check,
-                                             value=value):
+                                             value=value,
+                                             disabled=healthcheck_disabled,
+                                             inverted=healthcheck_inverted):
                 # this is the health check we're looking for
                 self.log.debug('get_health_check_id:   found match id=%s', id)
                 return id
@@ -1168,6 +1208,8 @@ class Route53Provider(BaseProvider):
 
         # no existing matches, we need to create a new health check
         config = {
+            'Disabled': healthcheck_disabled,
+            'Inverted': healthcheck_inverted,
             'EnableSNI': healthcheck_protocol == 'HTTPS',
             'FailureThreshold': 6,
             'MeasureLatency': healthcheck_latency,
@@ -1296,10 +1338,11 @@ class Route53Provider(BaseProvider):
         self._gc_health_checks(change.existing, [])
         return self._gen_mods('DELETE', existing_records, existing_rrsets)
 
-    def _extra_changes_update_needed(self, record, rrset):
+    def _extra_changes_update_needed(self, record, rrset, statuses={}):
+        value = rrset['ResourceRecords'][0]['Value']
         if record._type == 'CNAME':
             # For CNAME, healthcheck host by default points to the CNAME value
-            healthcheck_host = rrset['ResourceRecords'][0]['Value']
+            healthcheck_host = value
         else:
             healthcheck_host = record.healthcheck_host()
 
@@ -1308,6 +1351,17 @@ class Route53Provider(BaseProvider):
         healthcheck_port = record.healthcheck_port
         healthcheck_latency = self._healthcheck_measure_latency(record)
         healthcheck_interval = self._healthcheck_request_interval(record)
+
+        status = statuses.get(value, 'obey')
+        if status == 'up':
+            if 'HealthCheckId' in rrset:
+                self.log.info('_extra_changes_update_needed: health-check '
+                              'found for status="up", causing update of %s:%s',
+                              record.fqdn, record._type)
+                return True
+            else:
+                # No health check needed
+                return False
 
         try:
             health_check_id = rrset['HealthCheckId']
@@ -1364,6 +1418,12 @@ class Route53Provider(BaseProvider):
         fqdn = record.fqdn
         _type = record._type
 
+        # map values to statuses
+        statuses = {}
+        for pool in record.dynamic.pools.values():
+            for value in pool.data['values']:
+                statuses[value['value']] = value.get('status', 'obey')
+
         # loop through all the r53 rrsets
         for rrset in self._load_records(zone_id):
             name = rrset['Name']
@@ -1382,7 +1442,7 @@ class Route53Provider(BaseProvider):
                 # rrset isn't for the current record
                 continue
 
-            if self._extra_changes_update_needed(record, rrset):
+            if self._extra_changes_update_needed(record, rrset, statuses):
                 # no good, doesn't have the right health check, needs an update
                 self.log.info('_extra_changes_dynamic_needs_update: '
                               'health-check caused update of %s:%s',
