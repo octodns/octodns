@@ -306,6 +306,104 @@ class TestBaseProvider(TestCase):
             'obey'
         )
 
+    def test_check_dynamic_for_private_ips(self):
+        provider = HelperProvider('test')
+
+        # CNAME is a no-op
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, 'cname', {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            'value': 'foo.unit.tests.',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+            'type': 'CNAME',
+            'ttl': 3600,
+            'value': 'bar.unit.tests.',
+        })
+        provider._check_dynamic_for_private_ips(zone, record)
+        # Nothing modified
+        self.assertEquals(0, len(zone.records))
+
+        # A with a mixture of IPs
+        zone = Zone('unit.tests.', [])
+        data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            # routable
+                            'value': '1.1.1.1',
+                        }, {
+                            # RFC5737
+                            'value': '192.0.2.43',
+                        }, {
+                            # RFC1918
+                            'value': '192.168.1.42',
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+            'type': 'A',
+            'ttl': 3600,
+            'value': '2.2.2.2',
+        }
+        record = Record.new(zone, 'a', data)
+        provider._check_dynamic_for_private_ips(zone, record)
+        # Record will have been modified
+        self.assertEquals(1, len(zone.records))
+        got = list(zone.records)[0].data['dynamic']['pools']['one']['values']
+        # Record data has been updated
+        expected = data['dynamic']['pools']['one']['values']
+        expected[0].update({'status': 'obey', 'weight': 1})
+        expected[1].update({'status': 'up', 'weight': 1})
+        expected[2].update({'status': 'up', 'weight': 1})
+        self.assertEquals(expected, got)
+
+        # AAAA with a mixture of IPs
+        zone = Zone('unit.tests.', [])
+        data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        'values': [{
+                            # routable
+                            'value': '2607:f8b0:400a:803::200d',
+                        }, {
+                            # non
+                            'value': 'fc00::1'
+                        }],
+                    },
+                },
+                'rules': [{
+                    'pool': 'one',
+                }],
+            },
+            'type': 'AAAA',
+            'ttl': 3600,
+            'value': '2607:f8b0:400a:803::200e',
+        }
+        record = Record.new(zone, 'aaaa', data)
+        provider._check_dynamic_for_private_ips(zone, record)
+        # Record will have been modified
+        self.assertEquals(1, len(zone.records))
+        got = list(zone.records)[0].data['dynamic']['pools']['one']['values']
+        # Record data has been updated
+        expected = data['dynamic']['pools']['one']['values']
+        expected[0].update({'status': 'obey', 'weight': 1})
+        expected[1].update({'status': 'up', 'weight': 1})
+        self.assertEquals(expected, got)
+
     def test_safe_none(self):
         # No changes is safe
         Plan(None, None, [], True).raise_if_unsafe()

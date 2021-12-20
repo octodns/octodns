@@ -5,6 +5,8 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
+from ipaddress import ip_address
+
 from ..source.base import BaseSource
 from ..zone import Zone
 from .plan import Plan
@@ -29,6 +31,24 @@ class BaseProvider(BaseSource):
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
         self.strict_supports = strict_supports
+
+    def _check_dynamic_for_private_ips(self, desired, record):
+        if record._type not in ('A', 'AAAA'):
+            # won't necessarily contain IPs
+            return
+        for name, pool in record.dynamic.pools.items():
+            for i, value in enumerate(pool.data['values']):
+                ip = ip_address(value['value'])
+                status = value['status']
+                if not ip.is_global and status != 'up':
+                    msg = f'non-routable dynamic record {record.fqdn} value ' \
+                        f'{ip} requires status `up` and has `{status}`'
+                    fallback = 'setting status to `up`'
+                    self.supports_warn_or_except(msg, fallback)
+                    record = record.copy()
+                    pool = record.dynamic.pools[name]
+                    pool.data['values'][i]['status'] = 'up'
+                    desired.add_record(record, replace=True)
 
     def _process_desired_zone(self, desired):
         '''
@@ -58,6 +78,7 @@ class BaseProvider(BaseSource):
             elif getattr(record, 'dynamic', False):
                 if self.SUPPORTS_DYNAMIC:
                     if self.SUPPORTS_POOL_VALUE_STATUS:
+                        self._check_dynamic_for_private_ips(desired, record)
                         continue
                     # drop unsupported up flag
                     unsupported_pools = []
