@@ -255,10 +255,6 @@ class TestBaseProvider(TestCase):
         provider.SUPPORTS_MULTIVALUE_PTR = True
         zone2 = provider._process_desired_zone(zone1.copy())
         record2 = list(zone2.records)[0]
-        from pprint import pprint
-        pprint([
-            record1, record2
-        ])
         self.assertEqual(len(record2.values), 2)
 
         # SUPPORTS_DYNAMIC
