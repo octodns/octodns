@@ -198,7 +198,7 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [ConstellixProvider](/octodns/provider/constellix.py) | | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | Yes | CAA tags restricted |
 | [DigitalOceanProvider](/octodns/provider/digitalocean.py) | | | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
 | [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
-| [DnsimpleProvider](/octodns/provider/dnsimple.py) | | | All | No | CAA tags restricted |
+| [DnsimpleProvider](https://github.com/octodns/octodns-powerdns/) | [octodns_dnsimple](https://github.com/octodns/octodns-powerdns/) | | | | |
 | [DynProvider](/octodns/provider/dyn.py) | | dyn | All | Both | |
 | [EasyDNSProvider](/octodns/provider/easydns.py) | | | A, AAAA, CAA, CNAME, MX, NAPTR, NS, SRV, TXT | No | |
 | [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | | A, AAAA, ALIAS, CNAME | No | |
