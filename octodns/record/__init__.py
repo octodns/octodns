@@ -124,6 +124,8 @@ class Record(EqualityTupleMixin):
     @classmethod
     def validate(cls, name, fqdn, data):
         reasons = []
+        if name == '@':
+            reasons.append('invalid name "@", use "" instead')
         n = len(fqdn)
         if n > 253:
             reasons.append(f'invalid fqdn, "{fqdn}" is too long at {n} '
