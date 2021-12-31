@@ -1,8 +1,12 @@
-
 ## v0.9.15 - 202?-??-?? - ??
 
 #### Noteworthy changes
 
+* Provider extraction has begun, see
+  https://github.com/octodns/octodns/issues/622 &
+  https://github.com/octodns/octodns/pull/822 for more information. Providers
+  that have been extracted in this release include:
+   * [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/)
 * NS1 provider has received improvements to the dynamic record implementation.
   As a result, if octoDNS is downgraded from this version, any dynamic records
   created or updated using this version will show an update.
