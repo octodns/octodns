@@ -3,8 +3,6 @@ azure-common==1.1.27
 azure-identity==1.5.0
 azure-mgmt-dns==8.0.0
 azure-mgmt-trafficmanager==0.51.0
-boto3==1.15.9
-botocore==1.18.9
 dnspython==1.16.0
 docutils==0.16
 dyn==1.8.1
@@ -21,6 +19,5 @@ pycountry-convert==0.7.2
 pycountry==20.7.3
 python-dateutil==2.8.1
 requests==2.25.1
-s3transfer==0.3.3
 setuptools==44.1.1
 python-transip==0.5.0
