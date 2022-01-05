@@ -9,6 +9,8 @@
    * [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/)
    * [Ns1Provider](https://github.com/octodns/octodns-ns1/)
    * [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/)
+   * [Route53Provider](https://github.com/octodns/octodns-route53/) also
+     AwsAcmMangingProcessor
 * NS1 provider has received improvements to the dynamic record implementation.
   As a result, if octoDNS is downgraded from this version, any dynamic records
   created or updated using this version will show an update.
