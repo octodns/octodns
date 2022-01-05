@@ -1,4 +1,3 @@
-
 ## v0.9.15 - 202?-??-?? - ??
 
 #### Noteworthy changes
@@ -7,6 +6,9 @@
   https://github.com/octodns/octodns/issues/622 &
   https://github.com/octodns/octodns/pull/822 for more information. Providers
   that have been extracted in this release include:
+   * [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/)
+   * [Ns1Provider](https://github.com/octodns/octodns-ns1/)
+   * [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/)
    * [Route53Provider](https://github.com/octodns/octodns-route53/) also
      AwsAcmMangingProcessor
 * NS1 provider has received improvements to the dynamic record implementation.
