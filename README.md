@@ -198,7 +198,7 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [ConstellixProvider](https://github.com/octodns/octodns-constellix/) | [octodns_constellix](https://github.com/octodns/octodns-constellix/) | | | | |
 | [DigitalOceanProvider](/octodns/provider/digitalocean.py) | | | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
 | [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
-| [DnsimpleProvider](/octodns/provider/dnsimple.py) | | | All | No | CAA tags restricted |
+| [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/) | [octodns_dnsimple](https://github.com/octodns/octodns-dnsimple/) | | | | |
 | [DynProvider](/octodns/provider/dyn.py) | | dyn | All | Both | |
 | [EasyDNSProvider](/octodns/provider/easydns.py) | | | A, AAAA, CAA, CNAME, MX, NAPTR, NS, SRV, TXT | No | |
 | [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | | A, AAAA, ALIAS, CNAME | No | |
@@ -208,11 +208,11 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
 | [HetznerProvider](/octodns/provider/hetzner.py) | | | A, AAAA, CAA, CNAME, MX, NS, SRV, TXT | No | |
 | [MythicBeastsProvider](/octodns/provider/mythicbeasts.py) | | Mythic Beasts | A, AAAA, ALIAS, CNAME, MX, NS, SRV, SSHFP, CAA, TXT | No | |
-| [Ns1Provider](/octodns/provider/ns1.py) | | ns1-python | All | Yes | |
+| [Ns1Provider](https://github.com/octodns/octodns-ns1/) | [octodns_ns1](https://github.com/octodns/octodns-ns1/) | | | | |
 | [OVH](/octodns/provider/ovh.py) | | ovh | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
 | [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/) | [octodns_powerdns](https://github.com/octodns/octodns-powerdns/) | | | | |
 | [Rackspace](/octodns/provider/rackspace.py) | | | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
-| [Route53](/octodns/provider/route53.py) | | boto3 | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT | Both | CNAME health checks don't support a Host header |
+| [Route53](https://github.com/octodns/octodns-route53) | [octodns_route53](https://github.com/octodns/octodns-route53) | | | | |
 | [Selectel](/octodns/provider/selectel.py) | | | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | |
 | [Transip](/octodns/provider/transip.py) | | transip | A, AAAA, CNAME, MX, NS, SRV, SPF, TXT, SSHFP, CAA | No | |
 | [UltraDns](/octodns/provider/ultra.py) | | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | |

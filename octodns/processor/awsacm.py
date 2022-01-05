@@ -7,38 +7,16 @@ from __future__ import absolute_import, division, print_function, \
 
 from logging import getLogger
 
-from .base import BaseProcessor
-
-
-class AwsAcmMangingProcessor(BaseProcessor):
-    '''
-    processors:
-        awsacm:
-        class: octodns.processor.acme.AwsAcmMangingProcessor
-
-    ...
-
-    zones:
-        something.com.:
-        ...
-        processors:
-        - awsacm
-        ...
-    '''
-
-    log = getLogger('AwsAcmMangingProcessor')
-
-    def _ignore_awsacm_cnames(self, zone):
-        for r in zone.records:
-            if r._type == 'CNAME' and \
-                r.name.startswith('_') \
-                    and r.value.endswith('.acm-validations.aws.'):
-                self.log.info('_process: ignoring %s', r.fqdn)
-                zone.remove_record(r)
-        return zone
-
-    def process_source_zone(self, desired, *args, **kwargs):
-        return self._ignore_awsacm_cnames(desired)
-
-    def process_target_zone(self, existing, *args, **kwargs):
-        return self._ignore_awsacm_cnames(existing)
+logger = getLogger('Route53')
+try:
+    logger.warn('octodns_route53 shimmed. Update your processor class to '
+                'octodns_route53.processor.AwsAcmMangingProcessor. '
+                'Shim will be removed in 1.0')
+    from octodns_route53.processor import AwsAcmMangingProcessor
+    AwsAcmMangingProcessor  # pragma: no cover
+except ModuleNotFoundError:
+    logger.exception('AwsAcmMangingProcessor has been moved into a seperate '
+                     'module, octodns_route53 is now required. Processor '
+                     'class should be updated to '
+                     'octodns_route53.processor.AwsAcmMangingProcessor')
+    raise
