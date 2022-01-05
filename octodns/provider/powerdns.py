@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function, \
 
 from logging import getLogger
 
-logger = getLogger('PowerDNS')
+logger = getLogger('PowerDns')
 try:
     logger.warn('octodns_powerdns shimmed. Update your provider class to '
                 'octodns_powerdns.PowerDnsProvider. '
