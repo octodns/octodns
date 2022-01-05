@@ -1643,6 +1643,17 @@ class TestRecordValidation(TestCase):
     zone = Zone('unit.tests.', [])
 
     def test_base(self):
+        # name = '@'
+        with self.assertRaises(ValidationError) as ctx:
+            name = '@'
+            Record.new(self.zone, name, {
+                'ttl': 300,
+                'type': 'A',
+                'value': '1.2.3.4',
+            })
+        reason = ctx.exception.reasons[0]
+        self.assertTrue(reason.startswith('invalid name "@", use "" instead'))
+
         # fqdn length, DNS defins max as 253
         with self.assertRaises(ValidationError) as ctx:
             # The . will put this over the edge
