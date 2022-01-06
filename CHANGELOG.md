@@ -7,6 +7,7 @@
   https://github.com/octodns/octodns/pull/822 for more information. Providers
   that have been extracted in this release include:
    * [ConstellixProvider](https://github.com/octodns/octodns-constellix/)
+   * [DigitalOceanProvider](https://github.com/octodns/octodns-digitalocean/)
    * [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/)
    * [Ns1Provider](https://github.com/octodns/octodns-ns1/)
    * [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/)

@@ -196,7 +196,7 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [Akamai](/octodns/provider/edgedns.py) | | edgegrid-python | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
 | [CloudflareProvider](/octodns/provider/cloudflare.py) | | | A, AAAA, ALIAS, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT, URLFWD | No | CAA tags restricted |
 | [ConstellixProvider](https://github.com/octodns/octodns-constellix/) | [octodns_constellix](https://github.com/octodns/octodns-constellix/) | | | | |
-| [DigitalOceanProvider](/octodns/provider/digitalocean.py) | | | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
+| [DigitalOceanProvider](https://github.com/octodns/octodns-digitalocean/) | [octodns_digitalocean](https://github.com/octodns/octodns-digitalocean/) | | | | |
 | [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
 | [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/) | [octodns_dnsimple](https://github.com/octodns/octodns-dnsimple/) | | | | |
 | [DynProvider](/octodns/provider/dyn.py) | | dyn | All | Both | |
