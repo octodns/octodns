@@ -199,7 +199,7 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [DigitalOceanProvider](https://github.com/octodns/octodns-digitalocean/) | [octodns_digitalocean](https://github.com/octodns/octodns-digitalocean/) | | | | |
 | [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
 | [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/) | [octodns_dnsimple](https://github.com/octodns/octodns-dnsimple/) | | | | |
-| [DynProvider](/octodns/provider/dyn.py) | | dyn | All | Both | |
+| [DynProvider](https://github.com/octodns/octodns-dyn/) (deprecated) | [octodns_dyn](https://github.com/octodns/octodns-dyn/) | | | | |
 | [EasyDNSProvider](/octodns/provider/easydns.py) | | | A, AAAA, CAA, CNAME, MX, NAPTR, NS, SRV, TXT | No | |
 | [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | | A, AAAA, ALIAS, CNAME | No | |
 | [EnvVarSource](/octodns/source/envvar.py) | | | TXT | No | read-only environment variable injection |
