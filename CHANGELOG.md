@@ -9,6 +9,7 @@
    * [ConstellixProvider](https://github.com/octodns/octodns-constellix/)
    * [DigitalOceanProvider](https://github.com/octodns/octodns-digitalocean/)
    * [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/)
+   * [DynProvider](https://github.com/octodns/octodns-dynprovider/)
    * [Ns1Provider](https://github.com/octodns/octodns-ns1/)
    * [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/)
    * [Route53Provider](https://github.com/octodns/octodns-route53/) also
