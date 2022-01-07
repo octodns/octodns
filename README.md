@@ -197,7 +197,7 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [CloudflareProvider](/octodns/provider/cloudflare.py) | | | A, AAAA, ALIAS, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT, URLFWD | No | CAA tags restricted |
 | [ConstellixProvider](https://github.com/octodns/octodns-constellix/) | [octodns_constellix](https://github.com/octodns/octodns-constellix/) | | | | |
 | [DigitalOceanProvider](https://github.com/octodns/octodns-digitalocean/) | [octodns_digitalocean](https://github.com/octodns/octodns-digitalocean/) | | | | |
-| [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
+| [DnsMadeEasyProvider](https://github.com/octodns/octodns-dnsmadeeasy/) | [octodns_dnsmadeeasy](https://github.com/octodns/octodns-dnsmadeeasy/) | | | | |
 | [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/) | [octodns_dnsimple](https://github.com/octodns/octodns-dnsimple/) | | | | |
 | [DynProvider](https://github.com/octodns/octodns-dyn/) (deprecated) | [octodns_dyn](https://github.com/octodns/octodns-dyn/) | | | | |
 | [EasyDNSProvider](/octodns/provider/easydns.py) | | | A, AAAA, CAA, CNAME, MX, NAPTR, NS, SRV, TXT | No | |
