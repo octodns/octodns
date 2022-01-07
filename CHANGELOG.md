@@ -6,6 +6,7 @@
   https://github.com/octodns/octodns/issues/622 &
   https://github.com/octodns/octodns/pull/822 for more information. Providers
   that have been extracted in this release include:
+   * [CloudflareProvider](https://github.com/octodns/octodns-cloudflare/)
    * [ConstellixProvider](https://github.com/octodns/octodns-constellix/)
    * [DigitalOceanProvider](https://github.com/octodns/octodns-digitalocean/)
    * [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/)

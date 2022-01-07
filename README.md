@@ -194,7 +194,7 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 |--|--|--|--|--|--|
 | [AzureProvider](/octodns/provider/azuredns.py) | | azure-identity, azure-mgmt-dns, azure-mgmt-trafficmanager | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | Alpha (A, AAAA, CNAME) | |
 | [Akamai](/octodns/provider/edgedns.py) | | edgegrid-python | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
-| [CloudflareProvider](/octodns/provider/cloudflare.py) | | | A, AAAA, ALIAS, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT, URLFWD | No | CAA tags restricted |
+| [CloudflareProvider](https://github.com/octodns/octodns-cloudflare/) | [octodns_cloudflare](https://github.com/octodns/octodns-cloudflare/) | | | | |
 | [ConstellixProvider](https://github.com/octodns/octodns-constellix/) | [octodns_constellix](https://github.com/octodns/octodns-constellix/) | | | | |
 | [DigitalOceanProvider](https://github.com/octodns/octodns-digitalocean/) | [octodns_digitalocean](https://github.com/octodns/octodns-digitalocean/) | | | | |
 | [DnsMadeEasyProvider](https://github.com/octodns/octodns-dnsmadeeasy/) | [octodns_dnsmadeeasy](https://github.com/octodns/octodns-dnsmadeeasy/) | | | | |
