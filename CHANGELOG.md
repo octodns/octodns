@@ -7,7 +7,11 @@
   https://github.com/octodns/octodns/pull/822 for more information. Providers
   that have been extracted in this release include:
    * [CloudflareProvider](https://github.com/octodns/octodns-cloudflare/)
+   * [ConstellixProvider](https://github.com/octodns/octodns-constellix/)
+   * [DigitalOceanProvider](https://github.com/octodns/octodns-digitalocean/)
    * [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/)
+   * [DnsMadeEasyProvider](https://github.com/octodns/octodns-dnsmadeeasy/)
+   * [DynProvider](https://github.com/octodns/octodns-dynprovider/)
    * [Ns1Provider](https://github.com/octodns/octodns-ns1/)
    * [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/)
    * [Route53Provider](https://github.com/octodns/octodns-route53/) also
