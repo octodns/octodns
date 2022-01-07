@@ -221,6 +221,13 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [TinyDnsFileSource](/octodns/source/tinydns.py) | | | A, CNAME, MX, NS, PTR | No | read-only |
 | [YamlProvider](/octodns/provider/yaml.py) | | | All | Yes | config |
 
+### Updating to use extracted providers
+
+1. Include the extracted module in your python environment, e.g. if using Route53 that would require adding the `octodns_route53` module to your requirements.txt, setup.py, or similar.
+1. Update the `class` value for your provider to the new path, e.g. again for Route53 that would be replacing `octodns.provider.route53.Route53Provider` with `octodns_route53.Route53Provider`
+
+The module required and provider class path for extracted providers can be found in the table above.
+
 #### Notes
 
 * ALIAS support varies a lot from provider to provider care should be taken to verify that your needs are met in detail.
