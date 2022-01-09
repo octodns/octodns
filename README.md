@@ -201,7 +201,7 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/) | [octodns_dnsimple](https://github.com/octodns/octodns-dnsimple/) | | | | |
 | [DynProvider](https://github.com/octodns/octodns-dyn/) (deprecated) | [octodns_dyn](https://github.com/octodns/octodns-dyn/) | | | | |
 | [EasyDnsProvider](https://github.com/octodns/octodns-easydns/) | [octodns_easydns](https://github.com/octodns/octodns-easydns/) | | | | |
-| [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | | A, AAAA, ALIAS, CNAME | No | |
+| [EtcHostsProvider](https://github.com/octodns/octodns-etchosts/) | [octodns_etchosts](https://github.com/octodns/octodns-etchosts/) | | | | |
 | [EnvVarSource](/octodns/source/envvar.py) | | | TXT | No | read-only environment variable injection |
 | [GandiProvider](/octodns/provider/gandi.py) | | | A, AAAA, ALIAS, CAA, CNAME, DNAME, MX, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
 | [GCoreProvider](/octodns/provider/gcore.py) | | | A, AAAA, NS, MX, TXT, SRV, CNAME, PTR | Dynamic | |
