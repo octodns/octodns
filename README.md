@@ -203,7 +203,7 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [EasyDnsProvider](https://github.com/octodns/octodns-easydns/) | [octodns_easydns](https://github.com/octodns/octodns-easydns/) | | | | |
 | [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | | A, AAAA, ALIAS, CNAME | No | |
 | [EnvVarSource](/octodns/source/envvar.py) | | | TXT | No | read-only environment variable injection |
-| [GandiProvider](/octodns/provider/gandi.py) | | | A, AAAA, ALIAS, CAA, CNAME, DNAME, MX, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
+| [GandiProvider](https://github.com/octodns/octodns-gandi/) | [octodns_gandi](https://github.com/octodns/octodns-gandi/) | | | | |
 | [GCoreProvider](/octodns/provider/gcore.py) | | | A, AAAA, NS, MX, TXT, SRV, CNAME, PTR | Dynamic | |
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
 | [HetznerProvider](/octodns/provider/hetzner.py) | | | A, AAAA, CAA, CNAME, MX, NS, SRV, TXT | No | |

@@ -14,6 +14,7 @@
    * [DnsMadeEasyProvider](https://github.com/octodns/octodns-dnsmadeeasy/)
    * [DynProvider](https://github.com/octodns/octodns-dynprovider/)
    * [EasyDnsProvider](https://github.com/octodns/octodns-easydns/)
+   * [GandiProvider](https://github.com/octodns/octodns-gandi/)
    * [Ns1Provider](https://github.com/octodns/octodns-ns1/)
    * [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/)
    * [Route53Provider](https://github.com/octodns/octodns-route53/) also
