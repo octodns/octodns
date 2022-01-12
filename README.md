@@ -207,7 +207,7 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [GCoreProvider](/octodns/provider/gcore.py) | | | A, AAAA, NS, MX, TXT, SRV, CNAME, PTR | Dynamic | |
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
 | [HetznerProvider](/octodns/provider/hetzner.py) | | | A, AAAA, CAA, CNAME, MX, NS, SRV, TXT | No | |
-| [MythicBeastsProvider](/octodns/provider/mythicbeasts.py) | | Mythic Beasts | A, AAAA, ALIAS, CNAME, MX, NS, SRV, SSHFP, CAA, TXT | No | |
+| [MythicBeastsProvider](https://github.com/octodns/octodns-mythicbeasts/) | [octodns_mythicbeasts](https://github.com/octodns/octodns-mythicbeasts/) | | | | |
 | [Ns1Provider](https://github.com/octodns/octodns-ns1/) | [octodns_ns1](https://github.com/octodns/octodns-ns1/) | | | | |
 | [OVH](/octodns/provider/ovh.py) | | ovh | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
 | [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/) | [octodns_powerdns](https://github.com/octodns/octodns-powerdns/) | | | | |
