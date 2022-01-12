@@ -5,12 +5,11 @@
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
-from .edgedns import AkamaiProvider
 from logging import getLogger
 
-# Quell unused warning
-AkamaiProvider
-
-log = getLogger('octodns.provider.fastdns.AkamaiProvider')
-log.warn('DEPRECATION NOTICE: AkamaiProvider has been moved to '
-         'octodns.provider.fastdns.AkamaiProvider')
+logger = getLogger('Akamai')
+logger.warn('AkamaiProvider has been moved into a seperate module, '
+            'octodns_edgedns is now required. Provider class should '
+            'be updated to octodns_edgedns.AkamaiProvider. See '
+            'https://github.com/octodns/octodns/README.md#updating-'
+            'to-use-extracted-providers for more information.')

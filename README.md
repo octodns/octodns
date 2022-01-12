@@ -193,15 +193,15 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | Provider | Module | Requirements | Record Support | Dynamic | Notes |
 |--|--|--|--|--|--|
 | [AzureProvider](https://github.com/octodns/octodns-azure/) | [octodns_azure](https://github.com/octodns/octodns-azure/) | | | | |
-| [Akamai](/octodns/provider/edgedns.py) | | edgegrid-python | A, AAAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
-| [CloudflareProvider](/octodns/provider/cloudflare.py) | | | A, AAAA, ALIAS, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT, URLFWD | No | CAA tags restricted |
-| [ConstellixProvider](/octodns/provider/constellix.py) | | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | Yes | CAA tags restricted |
-| [DigitalOceanProvider](/octodns/provider/digitalocean.py) | | | A, AAAA, CAA, CNAME, MX, NS, TXT, SRV | No | CAA tags restricted |
-| [DnsMadeEasyProvider](/octodns/provider/dnsmadeeasy.py) | | | A, AAAA, ALIAS (ANAME), CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | CAA tags restricted |
+| [AkamaiProvider](https://github.com/octodns/octodns-edgedns/) | [octodns_edgedns](https://github.com/octodns/octodns-edgedns/) | | | | |
+| [CloudflareProvider](https://github.com/octodns/octodns-cloudflare/) | [octodns_cloudflare](https://github.com/octodns/octodns-cloudflare/) | | | | |
+| [ConstellixProvider](https://github.com/octodns/octodns-constellix/) | [octodns_constellix](https://github.com/octodns/octodns-constellix/) | | | | |
+| [DigitalOceanProvider](https://github.com/octodns/octodns-digitalocean/) | [octodns_digitalocean](https://github.com/octodns/octodns-digitalocean/) | | | | |
+| [DnsMadeEasyProvider](https://github.com/octodns/octodns-dnsmadeeasy/) | [octodns_dnsmadeeasy](https://github.com/octodns/octodns-dnsmadeeasy/) | | | | |
 | [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/) | [octodns_dnsimple](https://github.com/octodns/octodns-dnsimple/) | | | | |
-| [DynProvider](/octodns/provider/dyn.py) | | dyn | All | Both | |
-| [EasyDNSProvider](/octodns/provider/easydns.py) | | | A, AAAA, CAA, CNAME, MX, NAPTR, NS, SRV, TXT | No | |
-| [EtcHostsProvider](/octodns/provider/etc_hosts.py) | | | A, AAAA, ALIAS, CNAME | No | |
+| [DynProvider](https://github.com/octodns/octodns-dyn/) (deprecated) | [octodns_dyn](https://github.com/octodns/octodns-dyn/) | | | | |
+| [EasyDnsProvider](https://github.com/octodns/octodns-easydns/) | [octodns_easydns](https://github.com/octodns/octodns-easydns/) | | | | |
+| [EtcHostsProvider](https://github.com/octodns/octodns-etchosts/) | [octodns_etchosts](https://github.com/octodns/octodns-etchosts/) | | | | |
 | [EnvVarSource](/octodns/source/envvar.py) | | | TXT | No | read-only environment variable injection |
 | [GandiProvider](/octodns/provider/gandi.py) | | | A, AAAA, ALIAS, CAA, CNAME, DNAME, MX, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
 | [GCoreProvider](/octodns/provider/gcore.py) | | | A, AAAA, NS, MX, TXT, SRV, CNAME, PTR | Dynamic | |
@@ -220,6 +220,13 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [ZoneFileSource](/octodns/source/axfr.py) | | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [TinyDnsFileSource](/octodns/source/tinydns.py) | | | A, CNAME, MX, NS, PTR | No | read-only |
 | [YamlProvider](/octodns/provider/yaml.py) | | | All | Yes | config |
+
+### Updating to use extracted providers
+
+1. Include the extracted module in your python environment, e.g. if using Route53 that would require adding the `octodns_route53` module to your requirements.txt, setup.py, or similar.
+1. Update the `class` value for your provider to the new path, e.g. again for Route53 that would be replacing `octodns.provider.route53.Route53Provider` with `octodns_route53.Route53Provider`
+
+The module required and provider class path for extracted providers can be found in the table above.
 
 #### Notes
 

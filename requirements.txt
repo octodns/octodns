@@ -1,8 +1,6 @@
 PyYaml==5.4
 dnspython==1.16.0
 docutils==0.16
-dyn==1.8.1
-edgegrid-python==1.1.1
 fqdn==1.5.0
 google-cloud-core==1.4.1
 google-cloud-dns==0.32.0
