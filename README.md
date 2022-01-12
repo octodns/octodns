@@ -206,7 +206,7 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [GandiProvider](/octodns/provider/gandi.py) | | | A, AAAA, ALIAS, CAA, CNAME, DNAME, MX, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
 | [GCoreProvider](/octodns/provider/gcore.py) | | | A, AAAA, NS, MX, TXT, SRV, CNAME, PTR | Dynamic | |
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
-| [HetznerProvider](/octodns/provider/hetzner.py) | | | A, AAAA, CAA, CNAME, MX, NS, SRV, TXT | No | |
+| [HetznerProvider](https://github.com/octodns/octodns-hetzner/) | [octodns_hetzner](https://github.com/octodns/octodns-hetzner/) | | | | |
 | [MythicBeastsProvider](/octodns/provider/mythicbeasts.py) | | Mythic Beasts | A, AAAA, ALIAS, CNAME, MX, NS, SRV, SSHFP, CAA, TXT | No | |
 | [Ns1Provider](https://github.com/octodns/octodns-ns1/) | [octodns_ns1](https://github.com/octodns/octodns-ns1/) | | | | |
 | [OVH](/octodns/provider/ovh.py) | | ovh | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
