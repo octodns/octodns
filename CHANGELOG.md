@@ -6,6 +6,7 @@
   https://github.com/octodns/octodns/issues/622 &
   https://github.com/octodns/octodns/pull/822 for more information. Providers
   that have been extracted in this release include:
+   * [AzureProvider](https://github.com/octodns/octodns-azure/)
    * [AkamaiProvider](https://github.com/octodns/octodns-edgedns/)
    * [CloudflareProvider](https://github.com/octodns/octodns-cloudflare/)
    * [ConstellixProvider](https://github.com/octodns/octodns-constellix/)

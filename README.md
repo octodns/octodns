@@ -192,7 +192,7 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 
 | Provider | Module | Requirements | Record Support | Dynamic | Notes |
 |--|--|--|--|--|--|
-| [AzureProvider](/octodns/provider/azuredns.py) | | azure-identity, azure-mgmt-dns, azure-mgmt-trafficmanager | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | Alpha (A, AAAA, CNAME) | |
+| [AzureProvider](https://github.com/octodns/octodns-azure/) | [octodns_azure](https://github.com/octodns/octodns-azure/) | | | | |
 | [AkamaiProvider](https://github.com/octodns/octodns-edgedns/) | [octodns_edgedns](https://github.com/octodns/octodns-edgedns/) | | | | |
 | [CloudflareProvider](https://github.com/octodns/octodns-cloudflare/) | [octodns_cloudflare](https://github.com/octodns/octodns-cloudflare/) | | | | |
 | [ConstellixProvider](https://github.com/octodns/octodns-constellix/) | [octodns_constellix](https://github.com/octodns/octodns-constellix/) | | | | |
