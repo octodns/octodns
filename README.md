@@ -192,7 +192,7 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 
 | Provider | Module | Requirements | Record Support | Dynamic | Notes |
 |--|--|--|--|--|--|
-| [AzureProvider](/octodns/provider/azuredns.py) | | azure-identity, azure-mgmt-dns, azure-mgmt-trafficmanager | A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT | Alpha (A, AAAA, CNAME) | |
+| [AzureProvider](https://github.com/octodns/octodns-azure/) | [octodns_azure](https://github.com/octodns/octodns-azure/) | | | | |
 | [AkamaiProvider](https://github.com/octodns/octodns-edgedns/) | [octodns_edgedns](https://github.com/octodns/octodns-edgedns/) | | | | |
 | [CloudflareProvider](https://github.com/octodns/octodns-cloudflare/) | [octodns_cloudflare](https://github.com/octodns/octodns-cloudflare/) | | | | |
 | [ConstellixProvider](https://github.com/octodns/octodns-constellix/) | [octodns_constellix](https://github.com/octodns/octodns-constellix/) | | | | |
@@ -203,7 +203,7 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [EasyDnsProvider](https://github.com/octodns/octodns-easydns/) | [octodns_easydns](https://github.com/octodns/octodns-easydns/) | | | | |
 | [EtcHostsProvider](https://github.com/octodns/octodns-etchosts/) | [octodns_etchosts](https://github.com/octodns/octodns-etchosts/) | | | | |
 | [EnvVarSource](/octodns/source/envvar.py) | | | TXT | No | read-only environment variable injection |
-| [GandiProvider](/octodns/provider/gandi.py) | | | A, AAAA, ALIAS, CAA, CNAME, DNAME, MX, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
+| [GandiProvider](https://github.com/octodns/octodns-gandi/) | [octodns_gandi](https://github.com/octodns/octodns-gandi/) | | | | |
 | [GCoreProvider](https://github.com/octodns/octodns-gcore/) | [octodns_gcore](https://github.com/octodns/octodns-gcore/) | | | | |
 | [GoogleCloudProvider](/octodns/provider/googlecloud.py) | | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
 | [HetznerProvider](/octodns/provider/hetzner.py) | | | A, AAAA, CAA, CNAME, MX, NS, SRV, TXT | No | |

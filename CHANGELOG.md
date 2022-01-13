@@ -6,6 +6,7 @@
   https://github.com/octodns/octodns/issues/622 &
   https://github.com/octodns/octodns/pull/822 for more information. Providers
   that have been extracted in this release include:
+   * [AzureProvider](https://github.com/octodns/octodns-azure/)
    * [AkamaiProvider](https://github.com/octodns/octodns-edgedns/)
    * [CloudflareProvider](https://github.com/octodns/octodns-cloudflare/)
    * [ConstellixProvider](https://github.com/octodns/octodns-constellix/)
@@ -16,6 +17,7 @@
    * [EasyDnsProvider](https://github.com/octodns/octodns-easydns/)
    * [EtcHostsProvider](https://github.com/octodns/octodns-etchosts/)
    * [GcoreProvider](https://github.com/octodns/octodns-gcore/)
+   * [GandiProvider](https://github.com/octodns/octodns-gandi/)
    * [Ns1Provider](https://github.com/octodns/octodns-ns1/)
    * [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/)
    * [Route53Provider](https://github.com/octodns/octodns-route53/) also
