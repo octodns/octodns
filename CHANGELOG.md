@@ -16,8 +16,9 @@
    * [DynProvider](https://github.com/octodns/octodns-dynprovider/)
    * [EasyDnsProvider](https://github.com/octodns/octodns-easydns/)
    * [EtcHostsProvider](https://github.com/octodns/octodns-etchosts/)
-   * [GcoreProvider](https://github.com/octodns/octodns-gcore/)
    * [GandiProvider](https://github.com/octodns/octodns-gandi/)
+   * [GcoreProvider](https://github.com/octodns/octodns-gcore/)
+   * [GoogleCloudProvider](https://github.com/octodns/octodns-googlecloud/)
    * [Ns1Provider](https://github.com/octodns/octodns-ns1/)
    * [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/)
    * [Route53Provider](https://github.com/octodns/octodns-route53/) also
