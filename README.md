@@ -203,10 +203,10 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [EasyDnsProvider](https://github.com/octodns/octodns-easydns/) | [octodns_easydns](https://github.com/octodns/octodns-easydns/) | | | | |
 | [EtcHostsProvider](https://github.com/octodns/octodns-etchosts/) | [octodns_etchosts](https://github.com/octodns/octodns-etchosts/) | | | | |
 | [EnvVarSource](/octodns/source/envvar.py) | | | TXT | No | read-only environment variable injection |
-| [GandiProvider](/octodns/provider/gandi.py) | | | A, AAAA, ALIAS, CAA, CNAME, DNAME, MX, NS, PTR, SPF, SRV, SSHFP, TXT | No | |
-| [GCoreProvider](/octodns/provider/gcore.py) | | | A, AAAA, NS, MX, TXT, SRV, CNAME, PTR | Dynamic | |
-| [GoogleCloudProvider](/octodns/provider/googlecloud.py) | | google-cloud-dns | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, TXT  | No | |
-| [HetznerProvider](/octodns/provider/hetzner.py) | | | A, AAAA, CAA, CNAME, MX, NS, SRV, TXT | No | |
+| [GandiProvider](https://github.com/octodns/octodns-gandi/) | [octodns_gandi](https://github.com/octodns/octodns-gandi/) | | | | |
+| [GCoreProvider](https://github.com/octodns/octodns-gcore/) | [octodns_gcore](https://github.com/octodns/octodns-gcore/) | | | | |
+| [GoogleCloudProvider](https://github.com/octodns/octodns-googlecloud/) | [octodns_googlecloud](https://github.com/octodns/octodns-googlecloud/) | | | | |
+| [HetznerProvider](https://github.com/octodns/octodns-hetzner/) | [octodns_hetzner](https://github.com/octodns/octodns-hetzner/) | | | | |
 | [MythicBeastsProvider](https://github.com/octodns/octodns-mythicbeasts/) | [octodns_mythicbeasts](https://github.com/octodns/octodns-mythicbeasts/) | | | | |
 | [Ns1Provider](https://github.com/octodns/octodns-ns1/) | [octodns_ns1](https://github.com/octodns/octodns-ns1/) | | | | |
 | [OVH](/octodns/provider/ovh.py) | | ovh | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
