@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('Cloudflare')
 try:
-    logger.warn('octodns_cloudflare shimmed. Update your provider class to '
-                'octodns_cloudflare.CloudflareProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_cloudflare shimmed. Update your provider class to '
+                   'octodns_cloudflare.CloudflareProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_cloudflare import CloudflareProvider
     CloudflareProvider  # pragma: no cover
 except ModuleNotFoundError:

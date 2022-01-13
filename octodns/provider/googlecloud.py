@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('GoogleCloud')
 try:
-    logger.warn('octodns_googlecloud shimmed. Update your provider class to '
-                'octodns_googlecloud.GoogleCloudProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_googlecloud shimmed. Update your provider class '
+                   'to octodns_googlecloud.GoogleCloudProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_googlecloud import GoogleCloudProvider
     GoogleCloudProvider  # pragma: no cover
 except ModuleNotFoundError:

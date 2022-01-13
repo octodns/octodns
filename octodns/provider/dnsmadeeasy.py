@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('DnsMadeEasy')
 try:
-    logger.warn('octodns_dnsmadeeasy shimmed. Update your provider class to '
-                'octodns_dnsmadeeasy.DnsMadeEasyProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_dnsmadeeasy shimmed. Update your provider class '
+                   'to octodns_dnsmadeeasy.DnsMadeEasyProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_dnsmadeeasy import DnsMadeEasyProvider
     DnsMadeEasyProvider  # pragma: no cover
 except ModuleNotFoundError:

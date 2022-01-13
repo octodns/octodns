@@ -27,7 +27,7 @@ class TestRecord(TestCase):
             'type': 'A',
             'value': '1.2.3.4',
         })
-        self.assertEquals('mixedcase', record.name)
+        self.assertEqual('mixedcase', record.name)
 
     def test_alias_lowering_value(self):
         upper_record = AliasRecord(self.zone, 'aliasUppwerValue', {
@@ -40,7 +40,7 @@ class TestRecord(TestCase):
             'type': 'ALIAS',
             'value': 'github.com',
         })
-        self.assertEquals(upper_record.value, lower_record.value)
+        self.assertEqual(upper_record.value, lower_record.value)
 
     def test_cname_lowering_value(self):
         upper_record = CnameRecord(self.zone, 'CnameUppwerValue', {
@@ -53,7 +53,7 @@ class TestRecord(TestCase):
             'type': 'CNAME',
             'value': 'github.com',
         })
-        self.assertEquals(upper_record.value, lower_record.value)
+        self.assertEqual(upper_record.value, lower_record.value)
 
     def test_dname_lowering_value(self):
         upper_record = DnameRecord(self.zone, 'DnameUppwerValue', {
@@ -66,7 +66,7 @@ class TestRecord(TestCase):
             'type': 'DNAME',
             'value': 'github.com',
         })
-        self.assertEquals(upper_record.value, lower_record.value)
+        self.assertEqual(upper_record.value, lower_record.value)
 
     def test_ptr_lowering_value(self):
         upper_record = PtrRecord(self.zone, 'PtrUppwerValue', {
@@ -79,28 +79,28 @@ class TestRecord(TestCase):
             'type': 'PTR',
             'value': 'github.com',
         })
-        self.assertEquals(upper_record.value, lower_record.value)
+        self.assertEqual(upper_record.value, lower_record.value)
 
     def test_a_and_record(self):
         a_values = ['1.2.3.4', '2.2.3.4']
         a_data = {'ttl': 30, 'values': a_values}
         a = ARecord(self.zone, 'a', a_data)
-        self.assertEquals('a', a.name)
-        self.assertEquals('a.unit.tests.', a.fqdn)
-        self.assertEquals(30, a.ttl)
-        self.assertEquals(a_values, a.values)
-        self.assertEquals(a_data, a.data)
+        self.assertEqual('a', a.name)
+        self.assertEqual('a.unit.tests.', a.fqdn)
+        self.assertEqual(30, a.ttl)
+        self.assertEqual(a_values, a.values)
+        self.assertEqual(a_data, a.data)
 
         b_value = '3.2.3.4'
         b_data = {'ttl': 30, 'value': b_value}
         b = ARecord(self.zone, 'b', b_data)
-        self.assertEquals([b_value], b.values)
-        self.assertEquals(b_data, b.data)
+        self.assertEqual([b_value], b.values)
+        self.assertEqual(b_data, b.data)
 
         # top-level
         data = {'ttl': 30, 'value': '4.2.3.4'}
-        self.assertEquals(self.zone.name, ARecord(self.zone, '', data).fqdn)
-        self.assertEquals(self.zone.name, ARecord(self.zone, None, data).fqdn)
+        self.assertEqual(self.zone.name, ARecord(self.zone, '', data).fqdn)
+        self.assertEqual(self.zone.name, ARecord(self.zone, None, data).fqdn)
 
         # ARecord equate with itself
         self.assertTrue(a == a)
@@ -122,14 +122,14 @@ class TestRecord(TestCase):
         # changes if ttl modified
         other.ttl = 31
         update = a.changes(other, target)
-        self.assertEquals(a, update.existing)
-        self.assertEquals(other, update.new)
+        self.assertEqual(a, update.existing)
+        self.assertEqual(other, update.new)
         # changes if values modified
         other.ttl = a.ttl
         other.values = ['4.4.4.4']
         update = a.changes(other, target)
-        self.assertEquals(a, update.existing)
-        self.assertEquals(other, update.new)
+        self.assertEqual(a, update.existing)
+        self.assertEqual(other, update.new)
 
         # Hashing
         records = set()
@@ -208,7 +208,7 @@ class TestRecord(TestCase):
                             'NA-US': ['4.4.4.4', '5.5.5.5'],
                             'NA-US-CA': ['6.6.6.6', '7.7.7.7']}}
         geo = ARecord(self.zone, 'geo', geo_data)
-        self.assertEquals(geo_data, geo.data)
+        self.assertEqual(geo_data, geo.data)
 
         other_data = {'ttl': 42, 'values': ['5.2.3.4', '6.2.3.4'],
                       'geo': {'AF': ['1.1.1.1'],
@@ -216,7 +216,7 @@ class TestRecord(TestCase):
                               'NA-US': ['4.4.4.4', '5.5.5.5'],
                               'NA-US-CA': ['6.6.6.6', '7.7.7.7']}}
         other = ARecord(self.zone, 'geo', other_data)
-        self.assertEquals(other_data, other.data)
+        self.assertEqual(other_data, other.data)
 
         simple_target = SimpleProvider()
         geo_target = GeoProvider()
@@ -246,16 +246,16 @@ class TestRecord(TestCase):
     def assertMultipleValues(self, _type, a_values, b_value):
         a_data = {'ttl': 30, 'values': a_values}
         a = _type(self.zone, 'a', a_data)
-        self.assertEquals('a', a.name)
-        self.assertEquals('a.unit.tests.', a.fqdn)
-        self.assertEquals(30, a.ttl)
-        self.assertEquals(a_values, a.values)
-        self.assertEquals(a_data, a.data)
+        self.assertEqual('a', a.name)
+        self.assertEqual('a.unit.tests.', a.fqdn)
+        self.assertEqual(30, a.ttl)
+        self.assertEqual(a_values, a.values)
+        self.assertEqual(a_data, a.data)
 
         b_data = {'ttl': 30, 'value': b_value}
         b = _type(self.zone, 'b', b_data)
-        self.assertEquals([b_value], b.values)
-        self.assertEquals(b_data, b.data)
+        self.assertEqual([b_value], b.values)
+        self.assertEqual(b_data, b.data)
 
     def test_aaaa(self):
         a_values = ['2001:db8:3c4d:15::1a2f:1a2b',
@@ -271,21 +271,21 @@ class TestRecord(TestCase):
             'values': values,
         }
         record = AaaaRecord(self.zone, 'aaaa', data)
-        self.assertEquals(a_values, record.values)
+        self.assertEqual(a_values, record.values)
 
     def assertSingleValue(self, _type, a_value, b_value):
         a_data = {'ttl': 30, 'value': a_value}
         a = _type(self.zone, 'a', a_data)
-        self.assertEquals('a', a.name)
-        self.assertEquals('a.unit.tests.', a.fqdn)
-        self.assertEquals(30, a.ttl)
-        self.assertEquals(a_value, a.value)
-        self.assertEquals(a_data, a.data)
+        self.assertEqual('a', a.name)
+        self.assertEqual('a.unit.tests.', a.fqdn)
+        self.assertEqual(30, a.ttl)
+        self.assertEqual(a_value, a.value)
+        self.assertEqual(a_data, a.data)
 
         b_data = {'ttl': 30, 'value': b_value}
         b = _type(self.zone, 'b', b_data)
-        self.assertEquals(b_value, b.value)
-        self.assertEquals(b_data, b.data)
+        self.assertEqual(b_value, b.value)
+        self.assertEqual(b_data, b.data)
 
         target = SimpleProvider()
         # No changes with self
@@ -302,11 +302,11 @@ class TestRecord(TestCase):
     def test_alias(self):
         a_data = {'ttl': 0, 'value': 'www.unit.tests.'}
         a = AliasRecord(self.zone, '', a_data)
-        self.assertEquals('', a.name)
-        self.assertEquals('unit.tests.', a.fqdn)
-        self.assertEquals(0, a.ttl)
-        self.assertEquals(a_data['value'], a.value)
-        self.assertEquals(a_data, a.data)
+        self.assertEqual('', a.name)
+        self.assertEqual('unit.tests.', a.fqdn)
+        self.assertEqual(0, a.ttl)
+        self.assertEqual(a_data['value'], a.value)
+        self.assertEqual(a_data, a.data)
 
         target = SimpleProvider()
         # No changes with self
@@ -333,16 +333,16 @@ class TestRecord(TestCase):
         }]
         a_data = {'ttl': 30, 'values': a_values}
         a = CaaRecord(self.zone, 'a', a_data)
-        self.assertEquals('a', a.name)
-        self.assertEquals('a.unit.tests.', a.fqdn)
-        self.assertEquals(30, a.ttl)
-        self.assertEquals(a_values[0]['flags'], a.values[0].flags)
-        self.assertEquals(a_values[0]['tag'], a.values[0].tag)
-        self.assertEquals(a_values[0]['value'], a.values[0].value)
-        self.assertEquals(a_values[1]['flags'], a.values[1].flags)
-        self.assertEquals(a_values[1]['tag'], a.values[1].tag)
-        self.assertEquals(a_values[1]['value'], a.values[1].value)
-        self.assertEquals(a_data, a.data)
+        self.assertEqual('a', a.name)
+        self.assertEqual('a.unit.tests.', a.fqdn)
+        self.assertEqual(30, a.ttl)
+        self.assertEqual(a_values[0]['flags'], a.values[0].flags)
+        self.assertEqual(a_values[0]['tag'], a.values[0].tag)
+        self.assertEqual(a_values[0]['value'], a.values[0].value)
+        self.assertEqual(a_values[1]['flags'], a.values[1].flags)
+        self.assertEqual(a_values[1]['tag'], a.values[1].tag)
+        self.assertEqual(a_values[1]['value'], a.values[1].value)
+        self.assertEqual(a_data, a.data)
 
         b_value = {
             'tag': 'iodef',
@@ -350,11 +350,11 @@ class TestRecord(TestCase):
         }
         b_data = {'ttl': 30, 'value': b_value}
         b = CaaRecord(self.zone, 'b', b_data)
-        self.assertEquals(0, b.values[0].flags)
-        self.assertEquals(b_value['tag'], b.values[0].tag)
-        self.assertEquals(b_value['value'], b.values[0].value)
+        self.assertEqual(0, b.values[0].flags)
+        self.assertEqual(b_value['tag'], b.values[0].tag)
+        self.assertEqual(b_value['value'], b.values[0].value)
         b_data['value']['flags'] = 0
-        self.assertEquals(b_data, b.data)
+        self.assertEqual(b_data, b.data)
 
         target = SimpleProvider()
         # No changes with self
@@ -406,28 +406,28 @@ class TestRecord(TestCase):
         }]
         a_data = {'ttl': 30, 'values': a_values}
         a = LocRecord(self.zone, 'a', a_data)
-        self.assertEquals('a', a.name)
-        self.assertEquals('a.unit.tests.', a.fqdn)
-        self.assertEquals(30, a.ttl)
-        self.assertEquals(a_values[0]['lat_degrees'], a.values[0].lat_degrees)
-        self.assertEquals(a_values[0]['lat_minutes'], a.values[0].lat_minutes)
-        self.assertEquals(a_values[0]['lat_seconds'], a.values[0].lat_seconds)
-        self.assertEquals(a_values[0]['lat_direction'],
-                          a.values[0].lat_direction)
-        self.assertEquals(a_values[0]['long_degrees'],
-                          a.values[0].long_degrees)
-        self.assertEquals(a_values[0]['long_minutes'],
-                          a.values[0].long_minutes)
-        self.assertEquals(a_values[0]['long_seconds'],
-                          a.values[0].long_seconds)
-        self.assertEquals(a_values[0]['long_direction'],
-                          a.values[0].long_direction)
-        self.assertEquals(a_values[0]['altitude'], a.values[0].altitude)
-        self.assertEquals(a_values[0]['size'], a.values[0].size)
-        self.assertEquals(a_values[0]['precision_horz'],
-                          a.values[0].precision_horz)
-        self.assertEquals(a_values[0]['precision_vert'],
-                          a.values[0].precision_vert)
+        self.assertEqual('a', a.name)
+        self.assertEqual('a.unit.tests.', a.fqdn)
+        self.assertEqual(30, a.ttl)
+        self.assertEqual(a_values[0]['lat_degrees'], a.values[0].lat_degrees)
+        self.assertEqual(a_values[0]['lat_minutes'], a.values[0].lat_minutes)
+        self.assertEqual(a_values[0]['lat_seconds'], a.values[0].lat_seconds)
+        self.assertEqual(a_values[0]['lat_direction'],
+                         a.values[0].lat_direction)
+        self.assertEqual(a_values[0]['long_degrees'],
+                         a.values[0].long_degrees)
+        self.assertEqual(a_values[0]['long_minutes'],
+                         a.values[0].long_minutes)
+        self.assertEqual(a_values[0]['long_seconds'],
+                         a.values[0].long_seconds)
+        self.assertEqual(a_values[0]['long_direction'],
+                         a.values[0].long_direction)
+        self.assertEqual(a_values[0]['altitude'], a.values[0].altitude)
+        self.assertEqual(a_values[0]['size'], a.values[0].size)
+        self.assertEqual(a_values[0]['precision_horz'],
+                         a.values[0].precision_horz)
+        self.assertEqual(a_values[0]['precision_vert'],
+                         a.values[0].precision_vert)
 
         b_value = {
             'lat_degrees': 32,
@@ -445,22 +445,22 @@ class TestRecord(TestCase):
         }
         b_data = {'ttl': 30, 'value': b_value}
         b = LocRecord(self.zone, 'b', b_data)
-        self.assertEquals(b_value['lat_degrees'], b.values[0].lat_degrees)
-        self.assertEquals(b_value['lat_minutes'], b.values[0].lat_minutes)
-        self.assertEquals(b_value['lat_seconds'], b.values[0].lat_seconds)
-        self.assertEquals(b_value['lat_direction'], b.values[0].lat_direction)
-        self.assertEquals(b_value['long_degrees'], b.values[0].long_degrees)
-        self.assertEquals(b_value['long_minutes'], b.values[0].long_minutes)
-        self.assertEquals(b_value['long_seconds'], b.values[0].long_seconds)
-        self.assertEquals(b_value['long_direction'],
-                          b.values[0].long_direction)
-        self.assertEquals(b_value['altitude'], b.values[0].altitude)
-        self.assertEquals(b_value['size'], b.values[0].size)
-        self.assertEquals(b_value['precision_horz'],
-                          b.values[0].precision_horz)
-        self.assertEquals(b_value['precision_vert'],
-                          b.values[0].precision_vert)
-        self.assertEquals(b_data, b.data)
+        self.assertEqual(b_value['lat_degrees'], b.values[0].lat_degrees)
+        self.assertEqual(b_value['lat_minutes'], b.values[0].lat_minutes)
+        self.assertEqual(b_value['lat_seconds'], b.values[0].lat_seconds)
+        self.assertEqual(b_value['lat_direction'], b.values[0].lat_direction)
+        self.assertEqual(b_value['long_degrees'], b.values[0].long_degrees)
+        self.assertEqual(b_value['long_minutes'], b.values[0].long_minutes)
+        self.assertEqual(b_value['long_seconds'], b.values[0].long_seconds)
+        self.assertEqual(b_value['long_direction'],
+                         b.values[0].long_direction)
+        self.assertEqual(b_value['altitude'], b.values[0].altitude)
+        self.assertEqual(b_value['size'], b.values[0].size)
+        self.assertEqual(b_value['precision_horz'],
+                         b.values[0].precision_horz)
+        self.assertEqual(b_value['precision_vert'],
+                         b.values[0].precision_vert)
+        self.assertEqual(b_data, b.data)
 
         target = SimpleProvider()
         # No changes with self
@@ -491,18 +491,18 @@ class TestRecord(TestCase):
         }]
         a_data = {'ttl': 30, 'values': a_values}
         a = MxRecord(self.zone, 'a', a_data)
-        self.assertEquals('a', a.name)
-        self.assertEquals('a.unit.tests.', a.fqdn)
-        self.assertEquals(30, a.ttl)
-        self.assertEquals(a_values[0]['preference'], a.values[0].preference)
-        self.assertEquals(a_values[0]['exchange'], a.values[0].exchange)
-        self.assertEquals(a_values[1]['priority'], a.values[1].preference)
-        self.assertEquals(a_values[1]['value'], a.values[1].exchange)
+        self.assertEqual('a', a.name)
+        self.assertEqual('a.unit.tests.', a.fqdn)
+        self.assertEqual(30, a.ttl)
+        self.assertEqual(a_values[0]['preference'], a.values[0].preference)
+        self.assertEqual(a_values[0]['exchange'], a.values[0].exchange)
+        self.assertEqual(a_values[1]['priority'], a.values[1].preference)
+        self.assertEqual(a_values[1]['value'], a.values[1].exchange)
         a_data['values'][1] = {
             'preference': 20,
             'exchange': 'smtp2.',
         }
-        self.assertEquals(a_data, a.data)
+        self.assertEqual(a_data, a.data)
 
         b_value = {
             'preference': 0,
@@ -510,9 +510,9 @@ class TestRecord(TestCase):
         }
         b_data = {'ttl': 30, 'value': b_value}
         b = MxRecord(self.zone, 'b', b_data)
-        self.assertEquals(b_value['preference'], b.values[0].preference)
-        self.assertEquals(b_value['exchange'], b.values[0].exchange)
-        self.assertEquals(b_data, b.data)
+        self.assertEqual(b_value['preference'], b.values[0].preference)
+        self.assertEqual(b_value['exchange'], b.values[0].exchange)
+        self.assertEqual(b_data, b.data)
 
         a_upper_values = [{
             'preference': 10,
@@ -523,7 +523,7 @@ class TestRecord(TestCase):
         }]
         a_upper_data = {'ttl': 30, 'values': a_upper_values}
         a_upper = MxRecord(self.zone, 'a', a_upper_data)
-        self.assertEquals(a_upper.data, a.data)
+        self.assertEqual(a_upper.data, a.data)
 
         target = SimpleProvider()
         # No changes with self
@@ -562,13 +562,13 @@ class TestRecord(TestCase):
         }]
         a_data = {'ttl': 30, 'values': a_values}
         a = NaptrRecord(self.zone, 'a', a_data)
-        self.assertEquals('a', a.name)
-        self.assertEquals('a.unit.tests.', a.fqdn)
-        self.assertEquals(30, a.ttl)
+        self.assertEqual('a', a.name)
+        self.assertEqual('a.unit.tests.', a.fqdn)
+        self.assertEqual(30, a.ttl)
         for i in (0, 1):
             for k in a_values[0].keys():
-                self.assertEquals(a_values[i][k], getattr(a.values[i], k))
-        self.assertEquals(a_data, a.data)
+                self.assertEqual(a_values[i][k], getattr(a.values[i], k))
+        self.assertEqual(a_data, a.data)
 
         b_value = {
             'order': 30,
@@ -581,8 +581,8 @@ class TestRecord(TestCase):
         b_data = {'ttl': 30, 'value': b_value}
         b = NaptrRecord(self.zone, 'b', b_data)
         for k in a_values[0].keys():
-            self.assertEquals(b_value[k], getattr(b.values[0], k))
-        self.assertEquals(b_data, b.data)
+            self.assertEqual(b_value[k], getattr(b.values[0], k))
+        self.assertEqual(b_data, b.data)
 
         target = SimpleProvider()
         # No changes with self
@@ -741,17 +741,17 @@ class TestRecord(TestCase):
         a_values = ['5.6.7.8.', '6.7.8.9.', '7.8.9.0.']
         a_data = {'ttl': 30, 'values': a_values}
         a = NsRecord(self.zone, 'a', a_data)
-        self.assertEquals('a', a.name)
-        self.assertEquals('a.unit.tests.', a.fqdn)
-        self.assertEquals(30, a.ttl)
-        self.assertEquals(a_values, a.values)
-        self.assertEquals(a_data, a.data)
+        self.assertEqual('a', a.name)
+        self.assertEqual('a.unit.tests.', a.fqdn)
+        self.assertEqual(30, a.ttl)
+        self.assertEqual(a_values, a.values)
+        self.assertEqual(a_data, a.data)
 
         b_value = '9.8.7.6.'
         b_data = {'ttl': 30, 'value': b_value}
         b = NsRecord(self.zone, 'b', b_data)
-        self.assertEquals([b_value], b.values)
-        self.assertEquals(b_data, b.data)
+        self.assertEqual([b_value], b.values)
+        self.assertEqual(b_data, b.data)
 
     def test_sshfp(self):
         a_values = [{
@@ -765,14 +765,14 @@ class TestRecord(TestCase):
         }]
         a_data = {'ttl': 30, 'values': a_values}
         a = SshfpRecord(self.zone, 'a', a_data)
-        self.assertEquals('a', a.name)
-        self.assertEquals('a.unit.tests.', a.fqdn)
-        self.assertEquals(30, a.ttl)
-        self.assertEquals(a_values[0]['algorithm'], a.values[0].algorithm)
-        self.assertEquals(a_values[0]['fingerprint_type'],
-                          a.values[0].fingerprint_type)
-        self.assertEquals(a_values[0]['fingerprint'], a.values[0].fingerprint)
-        self.assertEquals(a_data, a.data)
+        self.assertEqual('a', a.name)
+        self.assertEqual('a.unit.tests.', a.fqdn)
+        self.assertEqual(30, a.ttl)
+        self.assertEqual(a_values[0]['algorithm'], a.values[0].algorithm)
+        self.assertEqual(a_values[0]['fingerprint_type'],
+                         a.values[0].fingerprint_type)
+        self.assertEqual(a_values[0]['fingerprint'], a.values[0].fingerprint)
+        self.assertEqual(a_data, a.data)
 
         b_value = {
             'algorithm': 30,
@@ -781,11 +781,11 @@ class TestRecord(TestCase):
         }
         b_data = {'ttl': 30, 'value': b_value}
         b = SshfpRecord(self.zone, 'b', b_data)
-        self.assertEquals(b_value['algorithm'], b.values[0].algorithm)
-        self.assertEquals(b_value['fingerprint_type'],
-                          b.values[0].fingerprint_type)
-        self.assertEquals(b_value['fingerprint'], b.values[0].fingerprint)
-        self.assertEquals(b_data, b.data)
+        self.assertEqual(b_value['algorithm'], b.values[0].algorithm)
+        self.assertEqual(b_value['fingerprint_type'],
+                         b.values[0].fingerprint_type)
+        self.assertEqual(b_value['fingerprint'], b.values[0].fingerprint)
+        self.assertEqual(b_data, b.data)
 
         target = SimpleProvider()
         # No changes with self
@@ -833,14 +833,14 @@ class TestRecord(TestCase):
         }]
         a_data = {'ttl': 30, 'values': a_values}
         a = SrvRecord(self.zone, '_a._tcp', a_data)
-        self.assertEquals('_a._tcp', a.name)
-        self.assertEquals('_a._tcp.unit.tests.', a.fqdn)
-        self.assertEquals(30, a.ttl)
-        self.assertEquals(a_values[0]['priority'], a.values[0].priority)
-        self.assertEquals(a_values[0]['weight'], a.values[0].weight)
-        self.assertEquals(a_values[0]['port'], a.values[0].port)
-        self.assertEquals(a_values[0]['target'], a.values[0].target)
-        self.assertEquals(a_data, a.data)
+        self.assertEqual('_a._tcp', a.name)
+        self.assertEqual('_a._tcp.unit.tests.', a.fqdn)
+        self.assertEqual(30, a.ttl)
+        self.assertEqual(a_values[0]['priority'], a.values[0].priority)
+        self.assertEqual(a_values[0]['weight'], a.values[0].weight)
+        self.assertEqual(a_values[0]['port'], a.values[0].port)
+        self.assertEqual(a_values[0]['target'], a.values[0].target)
+        self.assertEqual(a_data, a.data)
 
         b_value = {
             'priority': 30,
@@ -850,11 +850,11 @@ class TestRecord(TestCase):
         }
         b_data = {'ttl': 30, 'value': b_value}
         b = SrvRecord(self.zone, '_b._tcp', b_data)
-        self.assertEquals(b_value['priority'], b.values[0].priority)
-        self.assertEquals(b_value['weight'], b.values[0].weight)
-        self.assertEquals(b_value['port'], b.values[0].port)
-        self.assertEquals(b_value['target'], b.values[0].target)
-        self.assertEquals(b_data, b.data)
+        self.assertEqual(b_value['priority'], b.values[0].priority)
+        self.assertEqual(b_value['weight'], b.values[0].weight)
+        self.assertEqual(b_value['port'], b.values[0].port)
+        self.assertEqual(b_value['target'], b.values[0].target)
+        self.assertEqual(b_data, b.data)
 
         target = SimpleProvider()
         # No changes with self
@@ -909,20 +909,20 @@ class TestRecord(TestCase):
         }]
         a_data = {'ttl': 30, 'values': a_values}
         a = UrlfwdRecord(self.zone, 'a', a_data)
-        self.assertEquals('a', a.name)
-        self.assertEquals('a.unit.tests.', a.fqdn)
-        self.assertEquals(30, a.ttl)
-        self.assertEquals(a_values[0]['path'], a.values[0].path)
-        self.assertEquals(a_values[0]['target'], a.values[0].target)
-        self.assertEquals(a_values[0]['code'], a.values[0].code)
-        self.assertEquals(a_values[0]['masking'], a.values[0].masking)
-        self.assertEquals(a_values[0]['query'], a.values[0].query)
-        self.assertEquals(a_values[1]['path'], a.values[1].path)
-        self.assertEquals(a_values[1]['target'], a.values[1].target)
-        self.assertEquals(a_values[1]['code'], a.values[1].code)
-        self.assertEquals(a_values[1]['masking'], a.values[1].masking)
-        self.assertEquals(a_values[1]['query'], a.values[1].query)
-        self.assertEquals(a_data, a.data)
+        self.assertEqual('a', a.name)
+        self.assertEqual('a.unit.tests.', a.fqdn)
+        self.assertEqual(30, a.ttl)
+        self.assertEqual(a_values[0]['path'], a.values[0].path)
+        self.assertEqual(a_values[0]['target'], a.values[0].target)
+        self.assertEqual(a_values[0]['code'], a.values[0].code)
+        self.assertEqual(a_values[0]['masking'], a.values[0].masking)
+        self.assertEqual(a_values[0]['query'], a.values[0].query)
+        self.assertEqual(a_values[1]['path'], a.values[1].path)
+        self.assertEqual(a_values[1]['target'], a.values[1].target)
+        self.assertEqual(a_values[1]['code'], a.values[1].code)
+        self.assertEqual(a_values[1]['masking'], a.values[1].masking)
+        self.assertEqual(a_values[1]['query'], a.values[1].query)
+        self.assertEqual(a_data, a.data)
 
         b_value = {
             'path': '/',
@@ -933,12 +933,12 @@ class TestRecord(TestCase):
         }
         b_data = {'ttl': 30, 'value': b_value}
         b = UrlfwdRecord(self.zone, 'b', b_data)
-        self.assertEquals(b_value['path'], b.values[0].path)
-        self.assertEquals(b_value['target'], b.values[0].target)
-        self.assertEquals(b_value['code'], b.values[0].code)
-        self.assertEquals(b_value['masking'], b.values[0].masking)
-        self.assertEquals(b_value['query'], b.values[0].query)
-        self.assertEquals(b_data, b.data)
+        self.assertEqual(b_value['path'], b.values[0].path)
+        self.assertEqual(b_value['target'], b.values[0].target)
+        self.assertEqual(b_value['code'], b.values[0].code)
+        self.assertEqual(b_value['masking'], b.values[0].masking)
+        self.assertEqual(b_value['query'], b.values[0].query)
+        self.assertEqual(b_data, b.data)
 
         target = SimpleProvider()
         # No changes with self
@@ -1006,8 +1006,8 @@ class TestRecord(TestCase):
             'value': 'some text',
         })
         self.assertIsInstance(txt, TxtRecord)
-        self.assertEquals('TXT', txt._type)
-        self.assertEquals(['some text'], txt.values)
+        self.assertEqual('TXT', txt._type)
+        self.assertEqual(['some text'], txt.values)
 
         # Missing type
         with self.assertRaises(Exception) as ctx:
@@ -1031,19 +1031,19 @@ class TestRecord(TestCase):
         # Identical copy.
         b = a.copy()
         self.assertIsInstance(b, ARecord)
-        self.assertEquals('unit.tests.', b.zone.name)
-        self.assertEquals('a', b.name)
-        self.assertEquals('A', b._type)
-        self.assertEquals(['1.2.3.4'], b.values)
+        self.assertEqual('unit.tests.', b.zone.name)
+        self.assertEqual('a', b.name)
+        self.assertEqual('A', b._type)
+        self.assertEqual(['1.2.3.4'], b.values)
 
         # Copy with another zone object.
         c_zone = Zone('other.tests.', [])
         c = a.copy(c_zone)
         self.assertIsInstance(c, ARecord)
-        self.assertEquals('other.tests.', c.zone.name)
-        self.assertEquals('a', c.name)
-        self.assertEquals('A', c._type)
-        self.assertEquals(['1.2.3.4'], c.values)
+        self.assertEqual('other.tests.', c.zone.name)
+        self.assertEqual('a', c.name)
+        self.assertEqual('A', c._type)
+        self.assertEqual(['1.2.3.4'], c.values)
 
         # Record with no record type specified in data.
         d_data = {
@@ -1052,7 +1052,7 @@ class TestRecord(TestCase):
         }
         d = TxtRecord(self.zone, 'txt', d_data)
         d.copy()
-        self.assertEquals('TXT', d._type)
+        self.assertEqual('TXT', d._type)
 
     def test_dynamic_record_copy(self):
         a_data = {
@@ -1097,22 +1097,22 @@ class TestRecord(TestCase):
             'value': 'some change',
         })
         create = Create(new)
-        self.assertEquals(new.values, create.record.values)
+        self.assertEqual(new.values, create.record.values)
         update = Update(existing, new)
-        self.assertEquals(new.values, update.record.values)
+        self.assertEqual(new.values, update.record.values)
         delete = Delete(existing)
-        self.assertEquals(existing.values, delete.record.values)
+        self.assertEqual(existing.values, delete.record.values)
 
     def test_geo_value(self):
         code = 'NA-US-CA'
         values = ['1.2.3.4']
         geo = GeoValue(code, values)
-        self.assertEquals(code, geo.code)
-        self.assertEquals('NA', geo.continent_code)
-        self.assertEquals('US', geo.country_code)
-        self.assertEquals('CA', geo.subdivision_code)
-        self.assertEquals(values, geo.values)
-        self.assertEquals(['NA-US', 'NA'], list(geo.parents))
+        self.assertEqual(code, geo.code)
+        self.assertEqual('NA', geo.continent_code)
+        self.assertEqual('US', geo.country_code)
+        self.assertEqual('CA', geo.subdivision_code)
+        self.assertEqual(values, geo.values)
+        self.assertEqual(['NA-US', 'NA'], list(geo.parents))
 
         a = GeoValue('NA-US-CA', values)
         b = GeoValue('AP-JP', values)
@@ -1160,10 +1160,10 @@ class TestRecord(TestCase):
                 }
             }
         })
-        self.assertEquals('/_ready', new.healthcheck_path)
-        self.assertEquals('bleep.bloop', new.healthcheck_host())
-        self.assertEquals('HTTP', new.healthcheck_protocol)
-        self.assertEquals(8080, new.healthcheck_port)
+        self.assertEqual('/_ready', new.healthcheck_path)
+        self.assertEqual('bleep.bloop', new.healthcheck_host())
+        self.assertEqual('HTTP', new.healthcheck_protocol)
+        self.assertEqual(8080, new.healthcheck_port)
 
         # empty host value in healthcheck
         new = Record.new(self.zone, 'a', {
@@ -1179,17 +1179,17 @@ class TestRecord(TestCase):
                 }
             }
         })
-        self.assertEquals('1.2.3.4', new.healthcheck_host(value="1.2.3.4"))
+        self.assertEqual('1.2.3.4', new.healthcheck_host(value="1.2.3.4"))
 
         new = Record.new(self.zone, 'a', {
             'ttl': 44,
             'type': 'A',
             'value': '1.2.3.4',
         })
-        self.assertEquals('/_dns', new.healthcheck_path)
-        self.assertEquals('a.unit.tests', new.healthcheck_host())
-        self.assertEquals('HTTPS', new.healthcheck_protocol)
-        self.assertEquals(443, new.healthcheck_port)
+        self.assertEqual('/_dns', new.healthcheck_path)
+        self.assertEqual('a.unit.tests', new.healthcheck_host())
+        self.assertEqual('HTTPS', new.healthcheck_protocol)
+        self.assertEqual(443, new.healthcheck_port)
 
     def test_healthcheck_tcp(self):
         new = Record.new(self.zone, 'a', {
@@ -1207,8 +1207,8 @@ class TestRecord(TestCase):
         })
         self.assertIsNone(new.healthcheck_path)
         self.assertIsNone(new.healthcheck_host())
-        self.assertEquals('TCP', new.healthcheck_protocol)
-        self.assertEquals(8080, new.healthcheck_port)
+        self.assertEqual('TCP', new.healthcheck_protocol)
+        self.assertEqual(8080, new.healthcheck_port)
 
         new = Record.new(self.zone, 'a', {
             'ttl': 44,
@@ -1222,8 +1222,8 @@ class TestRecord(TestCase):
         })
         self.assertIsNone(new.healthcheck_path)
         self.assertIsNone(new.healthcheck_host())
-        self.assertEquals('TCP', new.healthcheck_protocol)
-        self.assertEquals(443, new.healthcheck_port)
+        self.assertEqual('TCP', new.healthcheck_protocol)
+        self.assertEqual(443, new.healthcheck_port)
 
     def test_inored(self):
         new = Record.new(self.zone, 'txt', {
@@ -1273,10 +1273,10 @@ class TestRecord(TestCase):
             'value': '2601:644:500:e210:62f8:1dff:feb8:947a',
         })
 
-        self.assertEquals(a, a)
-        self.assertEquals(b, b)
-        self.assertEquals(c, c)
-        self.assertEquals(aaaa, aaaa)
+        self.assertEqual(a, a)
+        self.assertEqual(b, b)
+        self.assertEqual(c, c)
+        self.assertEqual(aaaa, aaaa)
 
         self.assertNotEqual(a, b)
         self.assertNotEqual(a, c)
@@ -1708,7 +1708,7 @@ class TestRecordValidation(TestCase):
                 'type': 'A',
                 'value': '1.2.3.4',
             })
-        self.assertEquals(['missing ttl'], ctx.exception.reasons)
+        self.assertEqual(['missing ttl'], ctx.exception.reasons)
 
         # invalid ttl
         with self.assertRaises(ValidationError) as ctx:
@@ -1717,8 +1717,8 @@ class TestRecordValidation(TestCase):
                 'ttl': -1,
                 'value': '1.2.3.4',
             })
-        self.assertEquals('www.unit.tests.', ctx.exception.fqdn)
-        self.assertEquals(['invalid ttl'], ctx.exception.reasons)
+        self.assertEqual('www.unit.tests.', ctx.exception.fqdn)
+        self.assertEqual(['invalid ttl'], ctx.exception.reasons)
 
         # no exception if we're in lenient mode
         Record.new(self.zone, 'www', {
@@ -1733,7 +1733,7 @@ class TestRecordValidation(TestCase):
                 'type': 'A',
                 'ttl': -1,
             }, lenient=True)
-        self.assertEquals(('value',), ctx.exception.args)
+        self.assertEqual(('value',), ctx.exception.args)
 
         # no exception if we're in lenient mode from config
         Record.new(self.zone, 'www', {
@@ -1774,7 +1774,7 @@ class TestRecordValidation(TestCase):
                 'type': 'A',
                 'ttl': 600,
             })
-        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
 
         # missing value(s), empty values
         with self.assertRaises(ValidationError) as ctx:
@@ -1783,7 +1783,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'values': []
             })
-        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
 
         # missing value(s), None values
         with self.assertRaises(ValidationError) as ctx:
@@ -1792,7 +1792,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'values': None
             })
-        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
 
         # missing value(s) and empty value
         with self.assertRaises(ValidationError) as ctx:
@@ -1801,8 +1801,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'values': [None, '']
             })
-        self.assertEquals(['missing value(s)',
-                           'empty value'], ctx.exception.reasons)
+        self.assertEqual(['missing value(s)',
+                          'empty value'], ctx.exception.reasons)
 
         # missing value(s), None value
         with self.assertRaises(ValidationError) as ctx:
@@ -1811,7 +1811,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': None
             })
-        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
 
         # empty value, empty string value
         with self.assertRaises(ValidationError) as ctx:
@@ -1820,15 +1820,15 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': ''
             })
-        self.assertEquals(['empty value'], ctx.exception.reasons)
+        self.assertEqual(['empty value'], ctx.exception.reasons)
 
         # missing value(s) & ttl
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'A',
             })
-        self.assertEquals(['missing ttl', 'missing value(s)'],
-                          ctx.exception.reasons)
+        self.assertEqual(['missing ttl', 'missing value(s)'],
+                         ctx.exception.reasons)
 
         # invalid ipv4 address
         with self.assertRaises(ValidationError) as ctx:
@@ -1837,8 +1837,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'hello'
             })
-        self.assertEquals(['invalid IPv4 address "hello"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid IPv4 address "hello"'],
+                         ctx.exception.reasons)
 
         # invalid ipv4 addresses
         with self.assertRaises(ValidationError) as ctx:
@@ -1847,7 +1847,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'values': ['hello', 'goodbye']
             })
-        self.assertEquals([
+        self.assertEqual([
             'invalid IPv4 address "hello"',
             'invalid IPv4 address "goodbye"'
         ], ctx.exception.reasons)
@@ -1858,7 +1858,7 @@ class TestRecordValidation(TestCase):
                 'type': 'A',
                 'values': ['1.2.3.4', 'hello', '5.6.7.8']
             })
-        self.assertEquals([
+        self.assertEqual([
             'missing ttl',
             'invalid IPv4 address "hello"',
         ], ctx.exception.reasons)
@@ -1892,7 +1892,7 @@ class TestRecordValidation(TestCase):
                 'type': 'AAAA',
                 'ttl': 600,
             })
-        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
 
         # missing value(s), empty values
         with self.assertRaises(ValidationError) as ctx:
@@ -1901,7 +1901,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'values': []
             })
-        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
 
         # missing value(s), None values
         with self.assertRaises(ValidationError) as ctx:
@@ -1910,7 +1910,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'values': None
             })
-        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
 
         # missing value(s) and empty value
         with self.assertRaises(ValidationError) as ctx:
@@ -1919,8 +1919,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'values': [None, '']
             })
-        self.assertEquals(['missing value(s)',
-                           'empty value'], ctx.exception.reasons)
+        self.assertEqual(['missing value(s)',
+                          'empty value'], ctx.exception.reasons)
 
         # missing value(s), None value
         with self.assertRaises(ValidationError) as ctx:
@@ -1929,7 +1929,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': None
             })
-        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
 
         # empty value, empty string value
         with self.assertRaises(ValidationError) as ctx:
@@ -1938,15 +1938,15 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': ''
             })
-        self.assertEquals(['empty value'], ctx.exception.reasons)
+        self.assertEqual(['empty value'], ctx.exception.reasons)
 
         # missing value(s) & ttl
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'AAAA',
             })
-        self.assertEquals(['missing ttl', 'missing value(s)'],
-                          ctx.exception.reasons)
+        self.assertEqual(['missing ttl', 'missing value(s)'],
+                         ctx.exception.reasons)
 
         # invalid IPv6 address
         with self.assertRaises(ValidationError) as ctx:
@@ -1955,8 +1955,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'hello'
             })
-        self.assertEquals(['invalid IPv6 address "hello"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid IPv6 address "hello"'],
+                         ctx.exception.reasons)
 
         # invalid IPv6 addresses
         with self.assertRaises(ValidationError) as ctx:
@@ -1965,7 +1965,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'values': ['hello', 'goodbye']
             })
-        self.assertEquals([
+        self.assertEqual([
             'invalid IPv6 address "hello"',
             'invalid IPv6 address "goodbye"'
         ], ctx.exception.reasons)
@@ -1980,7 +1980,7 @@ class TestRecordValidation(TestCase):
                     '2601:642:500:e210:62f8:1dff:feb8:947a'
                 ]
             })
-        self.assertEquals([
+        self.assertEqual([
             'missing ttl',
             'invalid IPv6 address "hello"',
         ], ctx.exception.reasons)
@@ -2007,8 +2007,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': '1.2.3.4',
             })
-        self.assertEquals(['invalid IPv4 address "hello"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid IPv4 address "hello"'],
+                         ctx.exception.reasons)
 
         # invalid geo code
         with self.assertRaises(ValidationError) as ctx:
@@ -2020,7 +2020,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': '1.2.3.4',
             })
-        self.assertEquals(['invalid geo "XYZ"'], ctx.exception.reasons)
+        self.assertEqual(['invalid geo "XYZ"'], ctx.exception.reasons)
 
         # invalid ip address
         with self.assertRaises(ValidationError) as ctx:
@@ -2033,7 +2033,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': '1.2.3.4',
             })
-        self.assertEquals([
+        self.assertEqual([
             'invalid IPv4 address "hello"',
             'invalid IPv4 address "goodbye"'
         ], ctx.exception.reasons)
@@ -2054,8 +2054,8 @@ class TestRecordValidation(TestCase):
                     }
                 }
             })
-        self.assertEquals(['invalid healthcheck protocol'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid healthcheck protocol'],
+                         ctx.exception.reasons)
 
     def test_AAAA(self):
         # doesn't blow up
@@ -2080,8 +2080,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'hello'
             })
-        self.assertEquals(['invalid IPv6 address "hello"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid IPv6 address "hello"'],
+                         ctx.exception.reasons)
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'AAAA',
@@ -2091,7 +2091,7 @@ class TestRecordValidation(TestCase):
                     '2.3.4.5',
                 ],
             })
-        self.assertEquals([
+        self.assertEqual([
             'invalid IPv6 address "1.2.3.4"',
             'invalid IPv6 address "2.3.4.5"',
         ], ctx.exception.reasons)
@@ -2103,7 +2103,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'values': ['hello', 'goodbye']
             })
-        self.assertEquals([
+        self.assertEqual([
             'invalid IPv6 address "hello"',
             'invalid IPv6 address "goodbye"'
         ], ctx.exception.reasons)
@@ -2123,8 +2123,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar.com.',
             })
-        self.assertEquals(['non-root ALIAS not allowed'],
-                          ctx.exception.reasons)
+        self.assertEqual(['non-root ALIAS not allowed'],
+                         ctx.exception.reasons)
 
         # missing value
         with self.assertRaises(ValidationError) as ctx:
@@ -2132,7 +2132,7 @@ class TestRecordValidation(TestCase):
                 'type': 'ALIAS',
                 'ttl': 600,
             })
-        self.assertEquals(['missing value'], ctx.exception.reasons)
+        self.assertEqual(['missing value'], ctx.exception.reasons)
 
         # missing value
         with self.assertRaises(ValidationError) as ctx:
@@ -2141,7 +2141,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': None
             })
-        self.assertEquals(['missing value'], ctx.exception.reasons)
+        self.assertEqual(['missing value'], ctx.exception.reasons)
 
         # empty value
         with self.assertRaises(ValidationError) as ctx:
@@ -2150,7 +2150,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': ''
             })
-        self.assertEquals(['empty value'], ctx.exception.reasons)
+        self.assertEqual(['empty value'], ctx.exception.reasons)
 
         # not a valid FQDN
         with self.assertRaises(ValidationError) as ctx:
@@ -2159,8 +2159,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': '__.',
             })
-        self.assertEquals(['ALIAS value "__." is not a valid FQDN'],
-                          ctx.exception.reasons)
+        self.assertEqual(['ALIAS value "__." is not a valid FQDN'],
+                         ctx.exception.reasons)
 
         # missing trailing .
         with self.assertRaises(ValidationError) as ctx:
@@ -2169,8 +2169,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar.com',
             })
-        self.assertEquals(['ALIAS value "foo.bar.com" missing trailing .'],
-                          ctx.exception.reasons)
+        self.assertEqual(['ALIAS value "foo.bar.com" missing trailing .'],
+                         ctx.exception.reasons)
 
     def test_CAA(self):
         # doesn't blow up
@@ -2195,7 +2195,7 @@ class TestRecordValidation(TestCase):
                     'value': 'http://foo.bar.com/',
                 }
             })
-        self.assertEquals(['invalid flags "-42"'], ctx.exception.reasons)
+        self.assertEqual(['invalid flags "-42"'], ctx.exception.reasons)
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'CAA',
@@ -2206,7 +2206,7 @@ class TestRecordValidation(TestCase):
                     'value': 'http://foo.bar.com/',
                 }
             })
-        self.assertEquals(['invalid flags "442"'], ctx.exception.reasons)
+        self.assertEqual(['invalid flags "442"'], ctx.exception.reasons)
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'CAA',
@@ -2217,7 +2217,7 @@ class TestRecordValidation(TestCase):
                     'value': 'http://foo.bar.com/',
                 }
             })
-        self.assertEquals(['invalid flags "nope"'], ctx.exception.reasons)
+        self.assertEqual(['invalid flags "nope"'], ctx.exception.reasons)
 
         # missing tag
         with self.assertRaises(ValidationError) as ctx:
@@ -2228,7 +2228,7 @@ class TestRecordValidation(TestCase):
                     'value': 'http://foo.bar.com/',
                 }
             })
-        self.assertEquals(['missing tag'], ctx.exception.reasons)
+        self.assertEqual(['missing tag'], ctx.exception.reasons)
 
         # missing value
         with self.assertRaises(ValidationError) as ctx:
@@ -2239,7 +2239,7 @@ class TestRecordValidation(TestCase):
                     'tag': 'iodef',
                 }
             })
-        self.assertEquals(['missing value'], ctx.exception.reasons)
+        self.assertEqual(['missing value'], ctx.exception.reasons)
 
     def test_CNAME(self):
         # doesn't blow up
@@ -2256,7 +2256,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar.com.',
             })
-        self.assertEquals(['root CNAME not allowed'], ctx.exception.reasons)
+        self.assertEqual(['root CNAME not allowed'], ctx.exception.reasons)
 
         # not a valid FQDN
         with self.assertRaises(ValidationError) as ctx:
@@ -2265,8 +2265,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': '___.',
             })
-        self.assertEquals(['CNAME value "___." is not a valid FQDN'],
-                          ctx.exception.reasons)
+        self.assertEqual(['CNAME value "___." is not a valid FQDN'],
+                         ctx.exception.reasons)
 
         # missing trailing .
         with self.assertRaises(ValidationError) as ctx:
@@ -2275,8 +2275,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar.com',
             })
-        self.assertEquals(['CNAME value "foo.bar.com" missing trailing .'],
-                          ctx.exception.reasons)
+        self.assertEqual(['CNAME value "foo.bar.com" missing trailing .'],
+                         ctx.exception.reasons)
 
     def test_DNAME(self):
         # A valid DNAME record.
@@ -2300,8 +2300,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': '.',
             })
-        self.assertEquals(['DNAME value "." is not a valid FQDN'],
-                          ctx.exception.reasons)
+        self.assertEqual(['DNAME value "." is not a valid FQDN'],
+                         ctx.exception.reasons)
 
         # missing trailing .
         with self.assertRaises(ValidationError) as ctx:
@@ -2310,8 +2310,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar.com',
             })
-        self.assertEquals(['DNAME value "foo.bar.com" missing trailing .'],
-                          ctx.exception.reasons)
+        self.assertEqual(['DNAME value "foo.bar.com" missing trailing .'],
+                         ctx.exception.reasons)
 
     def test_LOC(self):
         # doesn't blow up
@@ -2354,7 +2354,7 @@ class TestRecordValidation(TestCase):
                 }
             })
 
-        self.assertEquals(['missing lat_degrees'], ctx.exception.reasons)
+        self.assertEqual(['missing lat_degrees'], ctx.exception.reasons)
 
         # missing float key
         with self.assertRaises(ValidationError) as ctx:
@@ -2376,7 +2376,7 @@ class TestRecordValidation(TestCase):
                 }
             })
 
-        self.assertEquals(['missing lat_seconds'], ctx.exception.reasons)
+        self.assertEqual(['missing lat_seconds'], ctx.exception.reasons)
 
         # missing text key
         with self.assertRaises(ValidationError) as ctx:
@@ -2398,7 +2398,7 @@ class TestRecordValidation(TestCase):
                 }
             })
 
-        self.assertEquals(['missing lat_direction'], ctx.exception.reasons)
+        self.assertEqual(['missing lat_direction'], ctx.exception.reasons)
 
         # invalid direction
         with self.assertRaises(ValidationError) as ctx:
@@ -2421,8 +2421,8 @@ class TestRecordValidation(TestCase):
                 }
             })
 
-        self.assertEquals(['invalid direction for lat_direction "U"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid direction for lat_direction "U"'],
+                         ctx.exception.reasons)
 
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
@@ -2444,8 +2444,8 @@ class TestRecordValidation(TestCase):
                 }
             })
 
-        self.assertEquals(['invalid direction for long_direction "N"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid direction for long_direction "N"'],
+                         ctx.exception.reasons)
 
         # invalid degrees
         with self.assertRaises(ValidationError) as ctx:
@@ -2468,8 +2468,8 @@ class TestRecordValidation(TestCase):
                 }
             })
 
-        self.assertEquals(['invalid value for lat_degrees "360"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid value for lat_degrees "360"'],
+                         ctx.exception.reasons)
 
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
@@ -2491,8 +2491,8 @@ class TestRecordValidation(TestCase):
                 }
             })
 
-        self.assertEquals(['invalid lat_degrees "nope"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid lat_degrees "nope"'],
+                         ctx.exception.reasons)
 
         # invalid minutes
         with self.assertRaises(ValidationError) as ctx:
@@ -2515,8 +2515,8 @@ class TestRecordValidation(TestCase):
                 }
             })
 
-        self.assertEquals(['invalid value for lat_minutes "60"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid value for lat_minutes "60"'],
+                         ctx.exception.reasons)
 
         # invalid seconds
         with self.assertRaises(ValidationError) as ctx:
@@ -2539,8 +2539,8 @@ class TestRecordValidation(TestCase):
                 }
             })
 
-        self.assertEquals(['invalid value for lat_seconds "60"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid value for lat_seconds "60"'],
+                         ctx.exception.reasons)
 
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
@@ -2562,8 +2562,8 @@ class TestRecordValidation(TestCase):
                 }
             })
 
-        self.assertEquals(['invalid lat_seconds "nope"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid lat_seconds "nope"'],
+                         ctx.exception.reasons)
 
         # invalid altitude
         with self.assertRaises(ValidationError) as ctx:
@@ -2586,8 +2586,8 @@ class TestRecordValidation(TestCase):
                 }
             })
 
-        self.assertEquals(['invalid value for altitude "-666666"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid value for altitude "-666666"'],
+                         ctx.exception.reasons)
 
         # invalid size
         with self.assertRaises(ValidationError) as ctx:
@@ -2610,8 +2610,8 @@ class TestRecordValidation(TestCase):
                 }
             })
 
-        self.assertEquals(['invalid value for size "99999999.99"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid value for size "99999999.99"'],
+                         ctx.exception.reasons)
 
     def test_MX(self):
         # doesn't blow up
@@ -2633,7 +2633,7 @@ class TestRecordValidation(TestCase):
                     'exchange': 'foo.bar.com.'
                 }
             })
-        self.assertEquals(['missing preference'], ctx.exception.reasons)
+        self.assertEqual(['missing preference'], ctx.exception.reasons)
 
         # invalid preference
         with self.assertRaises(ValidationError) as ctx:
@@ -2645,7 +2645,7 @@ class TestRecordValidation(TestCase):
                     'exchange': 'foo.bar.com.'
                 }
             })
-        self.assertEquals(['invalid preference "nope"'], ctx.exception.reasons)
+        self.assertEqual(['invalid preference "nope"'], ctx.exception.reasons)
 
         # missing exchange
         with self.assertRaises(ValidationError) as ctx:
@@ -2656,7 +2656,7 @@ class TestRecordValidation(TestCase):
                     'preference': 10,
                 }
             })
-        self.assertEquals(['missing exchange'], ctx.exception.reasons)
+        self.assertEqual(['missing exchange'], ctx.exception.reasons)
 
         # missing trailing .
         with self.assertRaises(ValidationError) as ctx:
@@ -2668,8 +2668,8 @@ class TestRecordValidation(TestCase):
                     'exchange': 'foo.bar.com'
                 }
             })
-        self.assertEquals(['MX value "foo.bar.com" missing trailing .'],
-                          ctx.exception.reasons)
+        self.assertEqual(['MX value "foo.bar.com" missing trailing .'],
+                         ctx.exception.reasons)
 
     def test_NXPTR(self):
         # doesn't blow up
@@ -2705,7 +2705,7 @@ class TestRecordValidation(TestCase):
                     'ttl': 600,
                     'value': v
                 })
-            self.assertEquals([f'missing {k}'], ctx.exception.reasons)
+            self.assertEqual([f'missing {k}'], ctx.exception.reasons)
 
         # non-int order
         v = dict(value)
@@ -2716,7 +2716,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': v
             })
-        self.assertEquals(['invalid order "boo"'], ctx.exception.reasons)
+        self.assertEqual(['invalid order "boo"'], ctx.exception.reasons)
 
         # non-int preference
         v = dict(value)
@@ -2727,7 +2727,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': v
             })
-        self.assertEquals(['invalid preference "who"'], ctx.exception.reasons)
+        self.assertEqual(['invalid preference "who"'], ctx.exception.reasons)
 
         # unrecognized flags
         v = dict(value)
@@ -2738,7 +2738,7 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': v
             })
-        self.assertEquals(['unrecognized flags "X"'], ctx.exception.reasons)
+        self.assertEqual(['unrecognized flags "X"'], ctx.exception.reasons)
 
     def test_NS(self):
         # doesn't blow up
@@ -2757,7 +2757,7 @@ class TestRecordValidation(TestCase):
                 'type': 'NS',
                 'ttl': 600,
             })
-        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
 
         # no trailing .
         with self.assertRaises(ValidationError) as ctx:
@@ -2766,8 +2766,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar',
             })
-        self.assertEquals(['NS value "foo.bar" missing trailing .'],
-                          ctx.exception.reasons)
+        self.assertEqual(['NS value "foo.bar" missing trailing .'],
+                         ctx.exception.reasons)
 
     def test_PTR(self):
         # doesn't blow up (name & zone here don't make any sense, but not
@@ -2784,7 +2784,7 @@ class TestRecordValidation(TestCase):
                 'type': 'PTR',
                 'ttl': 600,
             })
-        self.assertEquals(['missing values'], ctx.exception.reasons)
+        self.assertEqual(['missing values'], ctx.exception.reasons)
 
         # not a valid FQDN
         with self.assertRaises(ValidationError) as ctx:
@@ -2793,8 +2793,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': '_.',
             })
-        self.assertEquals(['PTR value "_." is not a valid FQDN'],
-                          ctx.exception.reasons)
+        self.assertEqual(['PTR value "_." is not a valid FQDN'],
+                         ctx.exception.reasons)
 
         # no trailing .
         with self.assertRaises(ValidationError) as ctx:
@@ -2803,8 +2803,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'foo.bar',
             })
-        self.assertEquals(['PTR value "foo.bar" missing trailing .'],
-                          ctx.exception.reasons)
+        self.assertEqual(['PTR value "foo.bar" missing trailing .'],
+                         ctx.exception.reasons)
 
     def test_SSHFP(self):
         # doesn't blow up
@@ -2828,7 +2828,7 @@ class TestRecordValidation(TestCase):
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }
             })
-        self.assertEquals(['missing algorithm'], ctx.exception.reasons)
+        self.assertEqual(['missing algorithm'], ctx.exception.reasons)
 
         # invalid algorithm
         with self.assertRaises(ValidationError) as ctx:
@@ -2841,7 +2841,7 @@ class TestRecordValidation(TestCase):
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }
             })
-        self.assertEquals(['invalid algorithm "nope"'], ctx.exception.reasons)
+        self.assertEqual(['invalid algorithm "nope"'], ctx.exception.reasons)
 
         # unrecognized algorithm
         with self.assertRaises(ValidationError) as ctx:
@@ -2854,8 +2854,8 @@ class TestRecordValidation(TestCase):
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }
             })
-        self.assertEquals(['unrecognized algorithm "42"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['unrecognized algorithm "42"'],
+                         ctx.exception.reasons)
 
         # missing fingerprint_type
         with self.assertRaises(ValidationError) as ctx:
@@ -2867,7 +2867,7 @@ class TestRecordValidation(TestCase):
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }
             })
-        self.assertEquals(['missing fingerprint_type'], ctx.exception.reasons)
+        self.assertEqual(['missing fingerprint_type'], ctx.exception.reasons)
 
         # invalid fingerprint_type
         with self.assertRaises(ValidationError) as ctx:
@@ -2880,8 +2880,8 @@ class TestRecordValidation(TestCase):
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }
             })
-        self.assertEquals(['invalid fingerprint_type "yeeah"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid fingerprint_type "yeeah"'],
+                         ctx.exception.reasons)
 
         # unrecognized fingerprint_type
         with self.assertRaises(ValidationError) as ctx:
@@ -2894,8 +2894,8 @@ class TestRecordValidation(TestCase):
                     'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
                 }
             })
-        self.assertEquals(['unrecognized fingerprint_type "42"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['unrecognized fingerprint_type "42"'],
+                         ctx.exception.reasons)
 
         # missing fingerprint
         with self.assertRaises(ValidationError) as ctx:
@@ -2907,7 +2907,7 @@ class TestRecordValidation(TestCase):
                     'fingerprint_type': 1,
                 }
             })
-        self.assertEquals(['missing fingerprint'], ctx.exception.reasons)
+        self.assertEqual(['missing fingerprint'], ctx.exception.reasons)
 
     def test_SPF(self):
         # doesn't blow up (name & zone here don't make any sense, but not
@@ -2928,7 +2928,7 @@ class TestRecordValidation(TestCase):
                 'type': 'SPF',
                 'ttl': 600,
             })
-        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
 
         # missing escapes
         with self.assertRaises(ValidationError) as ctx:
@@ -2937,8 +2937,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'this has some; semi-colons\\; in it',
             })
-        self.assertEquals(['unescaped ; in "this has some; '
-                           'semi-colons\\; in it"'], ctx.exception.reasons)
+        self.assertEqual(['unescaped ; in "this has some; '
+                          'semi-colons\\; in it"'], ctx.exception.reasons)
 
     def test_SRV(self):
         # doesn't blow up
@@ -2977,8 +2977,8 @@ class TestRecordValidation(TestCase):
                     'target': 'foo.bar.baz.'
                 }
             })
-        self.assertEquals(['invalid name for SRV record'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid name for SRV record'],
+                         ctx.exception.reasons)
 
         # missing priority
         with self.assertRaises(ValidationError) as ctx:
@@ -2991,7 +2991,7 @@ class TestRecordValidation(TestCase):
                     'target': 'foo.bar.baz.'
                 }
             })
-        self.assertEquals(['missing priority'], ctx.exception.reasons)
+        self.assertEqual(['missing priority'], ctx.exception.reasons)
 
         # invalid priority
         with self.assertRaises(ValidationError) as ctx:
@@ -3005,7 +3005,7 @@ class TestRecordValidation(TestCase):
                     'target': 'foo.bar.baz.'
                 }
             })
-        self.assertEquals(['invalid priority "foo"'], ctx.exception.reasons)
+        self.assertEqual(['invalid priority "foo"'], ctx.exception.reasons)
 
         # missing weight
         with self.assertRaises(ValidationError) as ctx:
@@ -3018,7 +3018,7 @@ class TestRecordValidation(TestCase):
                     'target': 'foo.bar.baz.'
                 }
             })
-        self.assertEquals(['missing weight'], ctx.exception.reasons)
+        self.assertEqual(['missing weight'], ctx.exception.reasons)
         # invalid weight
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '_srv._tcp', {
@@ -3031,7 +3031,7 @@ class TestRecordValidation(TestCase):
                     'target': 'foo.bar.baz.'
                 }
             })
-        self.assertEquals(['invalid weight "foo"'], ctx.exception.reasons)
+        self.assertEqual(['invalid weight "foo"'], ctx.exception.reasons)
 
         # missing port
         with self.assertRaises(ValidationError) as ctx:
@@ -3044,7 +3044,7 @@ class TestRecordValidation(TestCase):
                     'target': 'foo.bar.baz.'
                 }
             })
-        self.assertEquals(['missing port'], ctx.exception.reasons)
+        self.assertEqual(['missing port'], ctx.exception.reasons)
         # invalid port
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '_srv._tcp', {
@@ -3057,7 +3057,7 @@ class TestRecordValidation(TestCase):
                     'target': 'foo.bar.baz.'
                 }
             })
-        self.assertEquals(['invalid port "foo"'], ctx.exception.reasons)
+        self.assertEqual(['invalid port "foo"'], ctx.exception.reasons)
 
         # missing target
         with self.assertRaises(ValidationError) as ctx:
@@ -3070,7 +3070,7 @@ class TestRecordValidation(TestCase):
                     'port': 3,
                 }
             })
-        self.assertEquals(['missing target'], ctx.exception.reasons)
+        self.assertEqual(['missing target'], ctx.exception.reasons)
         # invalid target
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '_srv._tcp', {
@@ -3083,8 +3083,8 @@ class TestRecordValidation(TestCase):
                     'target': 'foo.bar.baz'
                 }
             })
-        self.assertEquals(['SRV value "foo.bar.baz" missing trailing .'],
-                          ctx.exception.reasons)
+        self.assertEqual(['SRV value "foo.bar.baz" missing trailing .'],
+                         ctx.exception.reasons)
 
     def test_TXT(self):
         # doesn't blow up (name & zone here don't make any sense, but not
@@ -3104,7 +3104,7 @@ class TestRecordValidation(TestCase):
                 'type': 'TXT',
                 'ttl': 600,
             })
-        self.assertEquals(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
 
         # missing escapes
         with self.assertRaises(ValidationError) as ctx:
@@ -3113,8 +3113,8 @@ class TestRecordValidation(TestCase):
                 'ttl': 600,
                 'value': 'this has some; semi-colons\\; in it',
             })
-        self.assertEquals(['unescaped ; in "this has some; semi-colons\\; '
-                           'in it"'], ctx.exception.reasons)
+        self.assertEqual(['unescaped ; in "this has some; semi-colons\\; '
+                          'in it"'], ctx.exception.reasons)
 
     def test_TXT_long_value_chunking(self):
         expected = '"Lorem ipsum dolor sit amet, consectetur adipiscing ' \
@@ -3145,11 +3145,11 @@ class TestRecordValidation(TestCase):
                 'this has some\\; semi-colons\\; in it',
             ]
         })
-        self.assertEquals(3, len(single.values))
-        self.assertEquals(3, len(single.chunked_values))
+        self.assertEqual(3, len(single.values))
+        self.assertEqual(3, len(single.chunked_values))
         # Note we are checking that this normalizes the chunking, not that we
         # get out what we put in.
-        self.assertEquals(expected, single.chunked_values[0])
+        self.assertEqual(expected, single.chunked_values[0])
 
         long_split_value = '"Lorem ipsum dolor sit amet, consectetur ' \
             'adipiscing elit, sed do eiusmod tempor incididunt ut ' \
@@ -3170,11 +3170,11 @@ class TestRecordValidation(TestCase):
                 '"this has some\\; semi-colons\\; in it"',
             ]
         })
-        self.assertEquals(expected, chunked.chunked_values[0])
+        self.assertEqual(expected, chunked.chunked_values[0])
         # should be single values, no quoting
-        self.assertEquals(single.values, chunked.values)
+        self.assertEqual(single.values, chunked.values)
         # should be chunked values, with quoting
-        self.assertEquals(single.chunked_values, chunked.chunked_values)
+        self.assertEqual(single.chunked_values, chunked.chunked_values)
 
     def test_URLFWD(self):
         # doesn't blow up
@@ -3219,7 +3219,7 @@ class TestRecordValidation(TestCase):
                     'query': 0,
                 }
             })
-        self.assertEquals(['missing path'], ctx.exception.reasons)
+        self.assertEqual(['missing path'], ctx.exception.reasons)
 
         # missing target
         with self.assertRaises(ValidationError) as ctx:
@@ -3233,7 +3233,7 @@ class TestRecordValidation(TestCase):
                     'query': 0,
                 }
             })
-        self.assertEquals(['missing target'], ctx.exception.reasons)
+        self.assertEqual(['missing target'], ctx.exception.reasons)
 
         # missing code
         with self.assertRaises(ValidationError) as ctx:
@@ -3247,7 +3247,7 @@ class TestRecordValidation(TestCase):
                     'query': 0,
                 }
             })
-        self.assertEquals(['missing code'], ctx.exception.reasons)
+        self.assertEqual(['missing code'], ctx.exception.reasons)
 
         # invalid code
         with self.assertRaises(ValidationError) as ctx:
@@ -3262,8 +3262,8 @@ class TestRecordValidation(TestCase):
                     'query': 0,
                 }
             })
-        self.assertEquals(['invalid return code "nope"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid return code "nope"'],
+                         ctx.exception.reasons)
 
         # unrecognized code
         with self.assertRaises(ValidationError) as ctx:
@@ -3278,8 +3278,8 @@ class TestRecordValidation(TestCase):
                     'query': 0,
                 }
             })
-        self.assertEquals(['unrecognized return code "3"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['unrecognized return code "3"'],
+                         ctx.exception.reasons)
 
         # missing masking
         with self.assertRaises(ValidationError) as ctx:
@@ -3293,7 +3293,7 @@ class TestRecordValidation(TestCase):
                     'query': 0,
                 }
             })
-        self.assertEquals(['missing masking'], ctx.exception.reasons)
+        self.assertEqual(['missing masking'], ctx.exception.reasons)
 
         # invalid masking
         with self.assertRaises(ValidationError) as ctx:
@@ -3308,8 +3308,8 @@ class TestRecordValidation(TestCase):
                     'query': 0,
                 }
             })
-        self.assertEquals(['invalid masking setting "nope"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid masking setting "nope"'],
+                         ctx.exception.reasons)
 
         # unrecognized masking
         with self.assertRaises(ValidationError) as ctx:
@@ -3324,8 +3324,8 @@ class TestRecordValidation(TestCase):
                     'query': 0,
                 }
             })
-        self.assertEquals(['unrecognized masking setting "3"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['unrecognized masking setting "3"'],
+                         ctx.exception.reasons)
 
         # missing query
         with self.assertRaises(ValidationError) as ctx:
@@ -3339,7 +3339,7 @@ class TestRecordValidation(TestCase):
                     'masking': 2,
                 }
             })
-        self.assertEquals(['missing query'], ctx.exception.reasons)
+        self.assertEqual(['missing query'], ctx.exception.reasons)
 
         # invalid query
         with self.assertRaises(ValidationError) as ctx:
@@ -3354,8 +3354,8 @@ class TestRecordValidation(TestCase):
                     'query': 'nope',
                 }
             })
-        self.assertEquals(['invalid query setting "nope"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid query setting "nope"'],
+                         ctx.exception.reasons)
 
         # unrecognized query
         with self.assertRaises(ValidationError) as ctx:
@@ -3370,8 +3370,8 @@ class TestRecordValidation(TestCase):
                     'query': 3,
                 }
             })
-        self.assertEquals(['unrecognized query setting "3"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['unrecognized query setting "3"'],
+                         ctx.exception.reasons)
 
 
 class TestDynamicRecords(TestCase):
@@ -3422,21 +3422,21 @@ class TestDynamicRecords(TestCase):
             ],
         }
         a = ARecord(self.zone, 'weighted', a_data)
-        self.assertEquals('A', a._type)
-        self.assertEquals(a_data['ttl'], a.ttl)
-        self.assertEquals(a_data['values'], a.values)
+        self.assertEqual('A', a._type)
+        self.assertEqual(a_data['ttl'], a.ttl)
+        self.assertEqual(a_data['values'], a.values)
 
         dynamic = a.dynamic
         self.assertTrue(dynamic)
 
         pools = dynamic.pools
         self.assertTrue(pools)
-        self.assertEquals({
+        self.assertEqual({
             'value': '3.3.3.3',
             'weight': 1,
             'status': 'obey',
         }, pools['one'].data['values'][0])
-        self.assertEquals([{
+        self.assertEqual([{
             'value': '4.4.4.4',
             'weight': 1,
             'status': 'obey',
@@ -3445,7 +3445,7 @@ class TestDynamicRecords(TestCase):
             'weight': 1,
             'status': 'obey',
         }], pools['two'].data['values'])
-        self.assertEquals([{
+        self.assertEqual([{
             'weight': 10,
             'value': '4.4.4.4',
             'status': 'obey',
@@ -3457,7 +3457,7 @@ class TestDynamicRecords(TestCase):
 
         rules = dynamic.rules
         self.assertTrue(rules)
-        self.assertEquals(a_data['dynamic']['rules'][0], rules[0].data)
+        self.assertEqual(a_data['dynamic']['rules'][0], rules[0].data)
 
     def test_simple_aaaa_weighted(self):
         aaaa_data = {
@@ -3530,21 +3530,21 @@ class TestDynamicRecords(TestCase):
             ],
         }
         aaaa = AaaaRecord(self.zone, 'weighted', aaaa_data)
-        self.assertEquals('AAAA', aaaa._type)
-        self.assertEquals(aaaa_data['ttl'], aaaa.ttl)
-        self.assertEquals(aaaa_data['values'], aaaa.values)
+        self.assertEqual('AAAA', aaaa._type)
+        self.assertEqual(aaaa_data['ttl'], aaaa.ttl)
+        self.assertEqual(aaaa_data['values'], aaaa.values)
 
         dynamic = aaaa.dynamic
         self.assertTrue(dynamic)
 
         pools = dynamic.pools
         self.assertTrue(pools)
-        self.assertEquals({
+        self.assertEqual({
             'value': '2601:642:500:e210:62f8:1dff:feb8:9473',
             'weight': 1,
             'status': 'obey',
         }, pools['one'].data['values'][0])
-        self.assertEquals([{
+        self.assertEqual([{
             'value': '2601:642:500:e210:62f8:1dff:feb8:9474',
             'weight': 1,
             'status': 'obey',
@@ -3553,7 +3553,7 @@ class TestDynamicRecords(TestCase):
             'weight': 1,
             'status': 'obey',
         }], pools['two'].data['values'])
-        self.assertEquals([{
+        self.assertEqual([{
             'weight': 10,
             'value': '2601:642:500:e210:62f8:1dff:feb8:9476',
             'status': 'obey',
@@ -3565,7 +3565,7 @@ class TestDynamicRecords(TestCase):
 
         rules = dynamic.rules
         self.assertTrue(rules)
-        self.assertEquals(aaaa_data['dynamic']['rules'][0], rules[0].data)
+        self.assertEqual(aaaa_data['dynamic']['rules'][0], rules[0].data)
 
     def test_simple_cname_weighted(self):
         cname_data = {
@@ -3605,26 +3605,26 @@ class TestDynamicRecords(TestCase):
             'value': 'cname.target.',
         }
         cname = CnameRecord(self.zone, 'weighted', cname_data)
-        self.assertEquals('CNAME', cname._type)
-        self.assertEquals(cname_data['ttl'], cname.ttl)
-        self.assertEquals(cname_data['value'], cname.value)
+        self.assertEqual('CNAME', cname._type)
+        self.assertEqual(cname_data['ttl'], cname.ttl)
+        self.assertEqual(cname_data['value'], cname.value)
 
         dynamic = cname.dynamic
         self.assertTrue(dynamic)
 
         pools = dynamic.pools
         self.assertTrue(pools)
-        self.assertEquals({
+        self.assertEqual({
             'value': 'one.cname.target.',
             'weight': 1,
             'status': 'obey',
         }, pools['one'].data['values'][0])
-        self.assertEquals({
+        self.assertEqual({
             'value': 'two.cname.target.',
             'weight': 1,
             'status': 'obey',
         }, pools['two'].data['values'][0])
-        self.assertEquals([{
+        self.assertEqual([{
             'value': 'three-1.cname.target.',
             'weight': 12,
             'status': 'obey',
@@ -3636,7 +3636,7 @@ class TestDynamicRecords(TestCase):
 
         rules = dynamic.rules
         self.assertTrue(rules)
-        self.assertEquals(cname_data['dynamic']['rules'][0], rules[0].data)
+        self.assertEqual(cname_data['dynamic']['rules'][0], rules[0].data)
 
     def test_dynamic_validation(self):
         # Missing pools
@@ -3655,8 +3655,8 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['missing pools', 'rule 1 undefined pool "one"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['missing pools', 'rule 1 undefined pool "one"'],
+                         ctx.exception.reasons)
 
         # Empty pools
         a_data = {
@@ -3676,8 +3676,8 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['missing pools', 'rule 1 undefined pool "one"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['missing pools', 'rule 1 undefined pool "one"'],
+                         ctx.exception.reasons)
 
         # pools not a dict
         a_data = {
@@ -3696,9 +3696,9 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['pools must be a dict',
-                           'rule 1 undefined pool "one"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['pools must be a dict',
+                          'rule 1 undefined pool "one"'],
+                         ctx.exception.reasons)
 
         # Invalid addresses
         a_data = {
@@ -3747,7 +3747,7 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals([
+        self.assertEqual([
             'invalid IPv4 address "this-aint-right"',
             'invalid IPv4 address "yet-another-bad-one"',
             'invalid IPv4 address "nor-is-this"',
@@ -3794,8 +3794,8 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['pool "one" is missing values'],
-                          ctx.exception.reasons)
+        self.assertEqual(['pool "one" is missing values'],
+                         ctx.exception.reasons)
 
         # pool value not a dict
         a_data = {
@@ -3838,8 +3838,8 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['pool "one" must be a dict'],
-                          ctx.exception.reasons)
+        self.assertEqual(['pool "one" must be a dict'],
+                         ctx.exception.reasons)
 
         # empty pool value
         a_data = {
@@ -3882,8 +3882,8 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['pool "one" is missing values'],
-                          ctx.exception.reasons)
+        self.assertEqual(['pool "one" is missing values'],
+                         ctx.exception.reasons)
 
         # invalid int weight
         a_data = {
@@ -3930,8 +3930,8 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['invalid weight "101" in pool "three" value 2'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid weight "101" in pool "three" value 2'],
+                         ctx.exception.reasons)
 
         # invalid non-int weight
         a_data = {
@@ -3978,8 +3978,8 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['invalid weight "foo" in pool "three" value 2'],
-                          ctx.exception.reasons)
+        self.assertEqual(['invalid weight "foo" in pool "three" value 2'],
+                         ctx.exception.reasons)
 
         # single value with weight!=1
         a_data = {
@@ -4005,8 +4005,8 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['pool "one" has single value with weight!=1'],
-                          ctx.exception.reasons)
+        self.assertEqual(['pool "one" has single value with weight!=1'],
+                         ctx.exception.reasons)
 
         # invalid fallback
         a_data = {
@@ -4055,8 +4055,8 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['undefined fallback "invalid" for pool "two"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['undefined fallback "invalid" for pool "two"'],
+                         ctx.exception.reasons)
 
         # fallback loop
         a_data = {
@@ -4106,7 +4106,7 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals([
+        self.assertEqual([
             'loop in pool fallbacks: one -> three -> two',
             'loop in pool fallbacks: three -> two -> one',
             'loop in pool fallbacks: two -> one -> three'
@@ -4152,7 +4152,7 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals([
+        self.assertEqual([
             'pool "one" must be a dict',
             'missing value in pool "three" value 1',
             'invalid weight "5000" in pool "three" value 2',
@@ -4186,7 +4186,7 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals([
+        self.assertEqual([
             'missing rules',
             'unused pools: "one", "two"',
         ], ctx.exception.reasons)
@@ -4219,7 +4219,7 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals([
+        self.assertEqual([
             'missing rules',
             'unused pools: "one", "two"',
         ], ctx.exception.reasons)
@@ -4252,7 +4252,7 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals([
+        self.assertEqual([
             'rules must be a list',
             'unused pools: "one", "two"',
         ], ctx.exception.reasons)
@@ -4289,7 +4289,7 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals([
+        self.assertEqual([
             'rule 1 missing pool',
             'unused pools: "two"',
         ], ctx.exception.reasons)
@@ -4327,7 +4327,7 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals([
+        self.assertEqual([
             'rule 1 invalid pool "[]"',
             'unused pools: "two"',
         ], ctx.exception.reasons)
@@ -4365,7 +4365,7 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals([
+        self.assertEqual([
             "rule 1 undefined pool \"non-existent\"",
             'unused pools: "two"',
         ], ctx.exception.reasons)
@@ -4403,8 +4403,8 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['rule 1 geos must be a list'],
-                          ctx.exception.reasons)
+        self.assertEqual(['rule 1 geos must be a list'],
+                         ctx.exception.reasons)
 
         # rule with invalid geo
         a_data = {
@@ -4439,8 +4439,8 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['rule 1 unknown continent code "invalid"'],
-                          ctx.exception.reasons)
+        self.assertEqual(['rule 1 unknown continent code "invalid"'],
+                         ctx.exception.reasons)
 
         # multiple default rules
         a_data = {
@@ -4474,8 +4474,8 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['rule 2 duplicate default'],
-                          ctx.exception.reasons)
+        self.assertEqual(['rule 2 duplicate default'],
+                         ctx.exception.reasons)
 
         # repeated pool in rules
         a_data = {
@@ -4514,8 +4514,8 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['rule 3 invalid, target pool "one" reused'],
-                          ctx.exception.reasons)
+        self.assertEqual(['rule 3 invalid, target pool "one" reused'],
+                         ctx.exception.reasons)
 
         # Repeated pool is OK if later one is a default
         a_data = {
@@ -4596,7 +4596,7 @@ class TestDynamicRecords(TestCase):
             ],
         }
         a = Record.new(self.zone, 'bad', a_data, lenient=True)
-        self.assertEquals({
+        self.assertEqual({
             'pools': {},
             'rules': a_data['dynamic']['rules'],
         }, a._data()['dynamic'])
@@ -4628,7 +4628,7 @@ class TestDynamicRecords(TestCase):
             ],
         }
         a = Record.new(self.zone, 'bad', a_data, lenient=True)
-        self.assertEquals({
+        self.assertEqual({
             'pools': {
                 'one': {
                     'fallback': None,
@@ -4686,7 +4686,7 @@ class TestDynamicRecords(TestCase):
             ],
         }
         a = Record.new(self.zone, 'bad', a_data, lenient=True)
-        self.assertEquals({
+        self.assertEqual({
             'pools': {
                 'one': {
                     'fallback': None,
@@ -4819,13 +4819,13 @@ class TestDynamicRecords(TestCase):
         self.assertFalse(a.changes(b, simple))
         # but is true for dynamic
         update = a.changes(b, dynamic)
-        self.assertEquals(a, update.existing)
-        self.assertEquals(b, update.new)
+        self.assertEqual(a, update.existing)
+        self.assertEqual(b, update.new)
         # transitive
         self.assertFalse(b.changes(a, simple))
         update = b.changes(a, dynamic)
-        self.assertEquals(a, update.existing)
-        self.assertEquals(b, update.new)
+        self.assertEqual(a, update.existing)
+        self.assertEqual(b, update.new)
 
         # same for a change c
         self.assertFalse(a.changes(c, simple))
@@ -4834,12 +4834,12 @@ class TestDynamicRecords(TestCase):
         self.assertTrue(c.changes(a, dynamic))
 
         # smoke test some of the equiality bits
-        self.assertEquals(a.dynamic.pools, a.dynamic.pools)
-        self.assertEquals(a.dynamic.pools['one'], a.dynamic.pools['one'])
-        self.assertNotEquals(a.dynamic.pools['one'], a.dynamic.pools['two'])
-        self.assertEquals(a.dynamic.rules, a.dynamic.rules)
-        self.assertEquals(a.dynamic.rules[0], a.dynamic.rules[0])
-        self.assertNotEquals(a.dynamic.rules[0], c.dynamic.rules[0])
+        self.assertEqual(a.dynamic.pools, a.dynamic.pools)
+        self.assertEqual(a.dynamic.pools['one'], a.dynamic.pools['one'])
+        self.assertNotEqual(a.dynamic.pools['one'], a.dynamic.pools['two'])
+        self.assertEqual(a.dynamic.rules, a.dynamic.rules)
+        self.assertEqual(a.dynamic.rules[0], a.dynamic.rules[0])
+        self.assertNotEqual(a.dynamic.rules[0], c.dynamic.rules[0])
 
     def test_dynamic_and_geo_validation(self):
         a_data = {
@@ -4891,8 +4891,8 @@ class TestDynamicRecords(TestCase):
         }
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'bad', a_data)
-        self.assertEquals(['"dynamic" record with "geo" content'],
-                          ctx.exception.reasons)
+        self.assertEqual(['"dynamic" record with "geo" content'],
+                         ctx.exception.reasons)
 
     def test_dynamic_eqs(self):
 
@@ -4906,9 +4906,9 @@ class TestDynamicRecords(TestCase):
                 'value': '1.2.3.5',
             }],
         })
-        self.assertEquals(pool_one, pool_one)
-        self.assertNotEquals(pool_one, pool_two)
-        self.assertNotEquals(pool_one, 42)
+        self.assertEqual(pool_one, pool_one)
+        self.assertNotEqual(pool_one, pool_two)
+        self.assertNotEqual(pool_one, 42)
 
         pools = {
             'one': pool_one,
@@ -4920,9 +4920,9 @@ class TestDynamicRecords(TestCase):
         rule_two = _DynamicRule(1, {
             'pool': 'two',
         })
-        self.assertEquals(rule_one, rule_one)
-        self.assertNotEquals(rule_one, rule_two)
-        self.assertNotEquals(rule_one, 42)
+        self.assertEqual(rule_one, rule_one)
+        self.assertNotEqual(rule_one, rule_two)
+        self.assertNotEqual(rule_one, 42)
         rules = [
             rule_one,
             rule_two,
@@ -4930,6 +4930,6 @@ class TestDynamicRecords(TestCase):
 
         dynamic = _Dynamic(pools, rules)
         other = _Dynamic({}, [])
-        self.assertEquals(dynamic, dynamic)
-        self.assertNotEquals(dynamic, other)
-        self.assertNotEquals(dynamic, 42)
+        self.assertEqual(dynamic, dynamic)
+        self.assertNotEqual(dynamic, other)
+        self.assertNotEqual(dynamic, 42)

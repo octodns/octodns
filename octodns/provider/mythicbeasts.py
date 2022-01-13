@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('MythicBeasts')
 try:
-    logger.warn('octodns_mythicbeasts shimmed. Update your provider class to '
-                'octodns_mythicbeasts.MythicBeastsProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_mythicbeasts shimmed. Update your provider class '
+                   'to octodns_mythicbeasts.MythicBeastsProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_mythicbeasts import MythicBeastsProvider
     MythicBeastsProvider  # pragma: no cover
 except ModuleNotFoundError:

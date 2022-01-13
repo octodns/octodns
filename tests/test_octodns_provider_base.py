@@ -77,16 +77,16 @@ class TestBaseProvider(TestCase):
     def test_base_provider(self):
         with self.assertRaises(NotImplementedError) as ctx:
             BaseProvider('base')
-        self.assertEquals('Abstract base class, log property missing',
-                          str(ctx.exception))
+        self.assertEqual('Abstract base class, log property missing',
+                         str(ctx.exception))
 
         class HasLog(BaseProvider):
             log = getLogger('HasLog')
 
         with self.assertRaises(NotImplementedError) as ctx:
             HasLog('haslog')
-        self.assertEquals('Abstract base class, SUPPORTS_GEO property missing',
-                          str(ctx.exception))
+        self.assertEqual('Abstract base class, SUPPORTS_GEO property missing',
+                         str(ctx.exception))
 
         class HasSupportsGeo(HasLog):
             SUPPORTS_GEO = False
@@ -94,15 +94,15 @@ class TestBaseProvider(TestCase):
         zone = Zone('unit.tests.', ['sub'])
         with self.assertRaises(NotImplementedError) as ctx:
             HasSupportsGeo('hassupportsgeo').populate(zone)
-        self.assertEquals('Abstract base class, SUPPORTS property missing',
-                          str(ctx.exception))
+        self.assertEqual('Abstract base class, SUPPORTS property missing',
+                         str(ctx.exception))
 
         class HasSupports(HasSupportsGeo):
             SUPPORTS = set(('A',))
         with self.assertRaises(NotImplementedError) as ctx:
             HasSupports('hassupports').populate(zone)
-        self.assertEquals('Abstract base class, populate method missing',
-                          str(ctx.exception))
+        self.assertEqual('Abstract base class, populate method missing',
+                         str(ctx.exception))
 
         # SUPPORTS_DYNAMIC has a default/fallback
         self.assertFalse(HasSupports('hassupports').SUPPORTS_DYNAMIC)
@@ -143,19 +143,19 @@ class TestBaseProvider(TestCase):
                         .supports(list(zone.records)[0]))
 
         plan = HasPopulate('haspopulate').plan(zone)
-        self.assertEquals(3, len(plan.changes))
+        self.assertEqual(3, len(plan.changes))
 
         with self.assertRaises(NotImplementedError) as ctx:
             HasPopulate('haspopulate').apply(plan)
-        self.assertEquals('Abstract base class, _apply method missing',
-                          str(ctx.exception))
+        self.assertEqual('Abstract base class, _apply method missing',
+                         str(ctx.exception))
 
     def test_plan(self):
         ignored = Zone('unit.tests.', [])
 
         # No change, thus no plan
         provider = HelperProvider([])
-        self.assertEquals(None, provider.plan(ignored))
+        self.assertEqual(None, provider.plan(ignored))
 
         record = Record.new(ignored, 'a', {
             'ttl': 30,
@@ -165,7 +165,7 @@ class TestBaseProvider(TestCase):
         provider = HelperProvider([Create(record)])
         plan = provider.plan(ignored)
         self.assertTrue(plan)
-        self.assertEquals(1, len(plan.changes))
+        self.assertEqual(1, len(plan.changes))
 
     def test_plan_with_processors(self):
         zone = Zone('unit.tests.', [])
@@ -181,11 +181,11 @@ class TestBaseProvider(TestCase):
         tricky = TrickyProcessor('tricky', [record])
         plan = provider.plan(zone, processors=[tricky])
         self.assertTrue(plan)
-        self.assertEquals(1, len(plan.changes))
+        self.assertEqual(1, len(plan.changes))
         self.assertIsInstance(plan.changes[0], Delete)
         # Called processor stored its params
         self.assertTrue(tricky.existing)
-        self.assertEquals(zone.name, tricky.existing.name)
+        self.assertEqual(zone.name, tricky.existing.name)
 
         # Chain of processors happen one after the other
         other = Record.new(zone, 'b', {
@@ -197,14 +197,14 @@ class TestBaseProvider(TestCase):
         another = TrickyProcessor('tricky', [other])
         plan = provider.plan(zone, processors=[tricky, another])
         self.assertTrue(plan)
-        self.assertEquals(2, len(plan.changes))
+        self.assertEqual(2, len(plan.changes))
         self.assertIsInstance(plan.changes[0], Delete)
         self.assertIsInstance(plan.changes[1], Delete)
         # 2nd processor stored its params, and we'll see the record the
         # first one added
         self.assertTrue(another.existing)
-        self.assertEquals(zone.name, another.existing.name)
-        self.assertEquals(1, len(another.existing.records))
+        self.assertEqual(zone.name, another.existing.name)
+        self.assertEqual(1, len(another.existing.records))
 
     def test_apply(self):
         ignored = Zone('unit.tests.', [])
@@ -219,7 +219,7 @@ class TestBaseProvider(TestCase):
         provider.apply(plan)
 
         provider.apply_disabled = False
-        self.assertEquals(1, provider.apply(plan))
+        self.assertEqual(1, provider.apply(plan))
 
     def test_include_change(self):
         zone = Zone('unit.tests.', [])
@@ -527,5 +527,5 @@ class TestBaseProvider(TestCase):
         # Should log and not expect
         with self.assertRaises(SupportsException) as ctx:
             strict.supports_warn_or_except('Hello World!', 'Will not see')
-        self.assertEquals('minimal: Hello World!', str(ctx.exception))
+        self.assertEqual('minimal: Hello World!', str(ctx.exception))
         strict.log.warning.assert_not_called()

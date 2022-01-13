@@ -20,7 +20,7 @@ class TestTinyDnsFileSource(TestCase):
     def test_populate_normal(self):
         got = Zone('example.com.', [])
         self.source.populate(got)
-        self.assertEquals(17, len(got.records))
+        self.assertEqual(17, len(got.records))
 
         expected = Zone('example.com.', [])
         for name, data in (
@@ -121,12 +121,12 @@ class TestTinyDnsFileSource(TestCase):
             expected.add_record(record)
 
         changes = expected.changes(got, SimpleProvider())
-        self.assertEquals([], changes)
+        self.assertEqual([], changes)
 
     def test_populate_normal_sub1(self):
         got = Zone('asdf.subtest.com.', [])
         self.source.populate(got)
-        self.assertEquals(1, len(got.records))
+        self.assertEqual(1, len(got.records))
 
         expected = Zone('asdf.subtest.com.', [])
         for name, data in (
@@ -140,12 +140,12 @@ class TestTinyDnsFileSource(TestCase):
             expected.add_record(record)
 
         changes = expected.changes(got, SimpleProvider())
-        self.assertEquals([], changes)
+        self.assertEqual([], changes)
 
     def test_populate_normal_sub2(self):
         got = Zone('blah-asdf.subtest.com.', [])
         self.source.populate(got)
-        self.assertEquals(2, len(got.records))
+        self.assertEqual(2, len(got.records))
 
         expected = Zone('sub-asdf.subtest.com.', [])
         for name, data in (
@@ -164,7 +164,7 @@ class TestTinyDnsFileSource(TestCase):
             expected.add_record(record)
 
         changes = expected.changes(got, SimpleProvider())
-        self.assertEquals([], changes)
+        self.assertEqual([], changes)
 
     def test_populate_in_addr_arpa(self):
 
@@ -198,9 +198,9 @@ class TestTinyDnsFileSource(TestCase):
             expected.add_record(record)
 
         changes = expected.changes(got, SimpleProvider())
-        self.assertEquals([], changes)
+        self.assertEqual([], changes)
 
     def test_ignores_subs(self):
         got = Zone('example.com.', ['sub'])
         self.source.populate(got)
-        self.assertEquals(16, len(got.records))
+        self.assertEqual(16, len(got.records))

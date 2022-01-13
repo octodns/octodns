@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('Route53')
 try:
-    logger.warn('octodns_route53 shimmed. Update your provider class to '
-                'octodns_route53.Route53Provider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_route53 shimmed. Update your provider class to '
+                   'octodns_route53.Route53Provider. '
+                   'Shim will be removed in 1.0')
     from octodns_route53 import Route53Provider
     Route53Provider  # pragma: no cover
 except ModuleNotFoundError:

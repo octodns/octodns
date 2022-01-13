@@ -328,18 +328,18 @@ class TestOvhProvider(TestCase):
             get_mock.side_effect = ResourceNotFoundError('boom')
             with self.assertRaises(APIError) as ctx:
                 provider.populate(zone)
-            self.assertEquals(get_mock.side_effect, ctx.exception)
+            self.assertEqual(get_mock.side_effect, ctx.exception)
 
             get_mock.side_effect = InvalidCredential('boom')
             with self.assertRaises(APIError) as ctx:
                 provider.populate(zone)
-            self.assertEquals(get_mock.side_effect, ctx.exception)
+            self.assertEqual(get_mock.side_effect, ctx.exception)
 
             zone = Zone('unit.tests.', [])
             get_mock.side_effect = ResourceNotFoundError('This service does '
                                                          'not exist')
             exists = provider.populate(zone)
-            self.assertEquals(set(), zone.records)
+            self.assertEqual(set(), zone.records)
             self.assertFalse(exists)
 
             zone = Zone('unit.tests.', [])
@@ -347,7 +347,7 @@ class TestOvhProvider(TestCase):
             get_returns += self.api_record
             get_mock.side_effect = get_returns
             exists = provider.populate(zone)
-            self.assertEquals(self.expected, zone.records)
+            self.assertEqual(self.expected, zone.records)
             self.assertTrue(exists)
 
     @patch('ovh.Client')
@@ -375,7 +375,7 @@ class TestOvhProvider(TestCase):
             get_mock.side_effect = APIError('boom')
             with self.assertRaises(APIError) as ctx:
                 provider.apply(plan)
-            self.assertEquals(get_mock.side_effect, ctx.exception)
+            self.assertEqual(get_mock.side_effect, ctx.exception)
 
         # Records get by API call
         with patch.object(provider._client, 'get') as get_mock:

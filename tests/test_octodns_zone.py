@@ -18,7 +18,7 @@ class TestZone(TestCase):
 
     def test_lowering(self):
         zone = Zone('UniT.TEsTs.', [])
-        self.assertEquals('unit.tests.', zone.name)
+        self.assertEqual('unit.tests.', zone.name)
 
     def test_hostname_from_fqdn(self):
         zone = Zone('unit.tests.', [])
@@ -32,7 +32,7 @@ class TestZone(TestCase):
             ('foo.unit.tests', 'foo.unit.tests.unit.tests.'),
             ('foo.unit.tests', 'foo.unit.tests.unit.tests'),
         ):
-            self.assertEquals(hostname, zone.hostname_from_fqdn(fqdn))
+            self.assertEqual(hostname, zone.hostname_from_fqdn(fqdn))
 
     def test_add_record(self):
         zone = Zone('unit.tests.', [])
@@ -42,21 +42,21 @@ class TestZone(TestCase):
         c = ARecord(zone, 'a', {'ttl': 43, 'value': '2.2.2.2'})
 
         zone.add_record(a)
-        self.assertEquals(zone.records, set([a]))
+        self.assertEqual(zone.records, set([a]))
         # Can't add record with same name & type
         with self.assertRaises(DuplicateRecordException) as ctx:
             zone.add_record(a)
-        self.assertEquals('Duplicate record a.unit.tests., type A',
-                          str(ctx.exception))
-        self.assertEquals(zone.records, set([a]))
+        self.assertEqual('Duplicate record a.unit.tests., type A',
+                         str(ctx.exception))
+        self.assertEqual(zone.records, set([a]))
 
         # can add duplicate with replace=True
         zone.add_record(c, replace=True)
-        self.assertEquals('2.2.2.2', list(zone.records)[0].values[0])
+        self.assertEqual('2.2.2.2', list(zone.records)[0].values[0])
 
         # Can add dup name, with different type
         zone.add_record(b)
-        self.assertEquals(zone.records, set([a, b]))
+        self.assertEqual(zone.records, set([a, b]))
 
     def test_changes(self):
         before = Zone('unit.tests.', [])
@@ -78,17 +78,17 @@ class TestZone(TestCase):
         c = ARecord(before, 'c', {'ttl': 42, 'value': '1.1.1.1'})
         after.add_record(c)
         after._remove_record(b)
-        self.assertEquals(after.records, set([a, c]))
+        self.assertEqual(after.records, set([a, c]))
         changes = before.changes(after, target)
-        self.assertEquals(2, len(changes))
+        self.assertEqual(2, len(changes))
         for change in changes:
             if isinstance(change, Create):
                 create = change
             elif isinstance(change, Delete):
                 delete = change
-        self.assertEquals(b, delete.existing)
+        self.assertEqual(b, delete.existing)
         self.assertFalse(delete.new)
-        self.assertEquals(c, create.new)
+        self.assertEqual(c, create.new)
         self.assertFalse(create.existing)
         delete.__repr__()
         create.__repr__()
@@ -98,7 +98,7 @@ class TestZone(TestCase):
         after.add_record(changed)
         after.add_record(b)
         changes = before.changes(after, target)
-        self.assertEquals(1, len(changes))
+        self.assertEqual(1, len(changes))
         update = changes[0]
         self.assertIsInstance(update, Update)
         # Using changes here to get a full equality
@@ -126,12 +126,12 @@ class TestZone(TestCase):
 
         # Only create the supported A, not the AAAA
         changes = current.changes(desired, NoAaaaProvider())
-        self.assertEquals(1, len(changes))
+        self.assertEqual(1, len(changes))
         self.assertIsInstance(changes[0], Create)
 
         # Only delete the supported A, not the AAAA
         changes = desired.changes(current, NoAaaaProvider())
-        self.assertEquals(1, len(changes))
+        self.assertEqual(1, len(changes))
         self.assertIsInstance(changes[0], Delete)
 
     def test_missing_dot(self):
@@ -149,7 +149,7 @@ class TestZone(TestCase):
             'values': ['1.2.3.4.', '2.3.4.5.'],
         })
         zone.add_record(record)
-        self.assertEquals(set([record]), zone.records)
+        self.assertEqual(set([record]), zone.records)
 
         # non-NS for exactly the sub is rejected
         zone = Zone('unit.tests.', set(['sub', 'barred']))
@@ -163,7 +163,7 @@ class TestZone(TestCase):
         self.assertTrue('not of type NS', str(ctx.exception))
         # Can add it w/lenient
         zone.add_record(record, lenient=True)
-        self.assertEquals(set([record]), zone.records)
+        self.assertEqual(set([record]), zone.records)
 
         # NS for something below the sub is rejected
         zone = Zone('unit.tests.', set(['sub', 'barred']))
@@ -177,7 +177,7 @@ class TestZone(TestCase):
         self.assertTrue('under a managed sub-zone', str(ctx.exception))
         # Can add it w/lenient
         zone.add_record(record, lenient=True)
-        self.assertEquals(set([record]), zone.records)
+        self.assertEqual(set([record]), zone.records)
 
         # A for something below the sub is rejected
         zone = Zone('unit.tests.', set(['sub', 'barred']))
@@ -191,7 +191,7 @@ class TestZone(TestCase):
         self.assertTrue('under a managed sub-zone', str(ctx.exception))
         # Can add it w/lenient
         zone.add_record(record, lenient=True)
-        self.assertEquals(set([record]), zone.records)
+        self.assertEqual(set([record]), zone.records)
 
     def test_ignored_records(self):
         zone_normal = Zone('unit.tests.', [])
@@ -243,18 +243,18 @@ class TestZone(TestCase):
         zone.add_record(a)
         with self.assertRaises(InvalidNodeException):
             zone.add_record(cname)
-        self.assertEquals(set([a]), zone.records)
+        self.assertEqual(set([a]), zone.records)
         zone.add_record(cname, lenient=True)
-        self.assertEquals(set([a, cname]), zone.records)
+        self.assertEqual(set([a, cname]), zone.records)
 
         # add a to cname
         zone = Zone('unit.tests.', [])
         zone.add_record(cname)
         with self.assertRaises(InvalidNodeException):
             zone.add_record(a)
-        self.assertEquals(set([cname]), zone.records)
+        self.assertEqual(set([cname]), zone.records)
         zone.add_record(a, lenient=True)
-        self.assertEquals(set([a, cname]), zone.records)
+        self.assertEqual(set([a, cname]), zone.records)
 
     def test_excluded_records(self):
         zone_normal = Zone('unit.tests.', [])
@@ -355,10 +355,10 @@ class TestZone(TestCase):
         self.assertTrue(zone_missing.changes(zone_normal, provider))
         self.assertFalse(zone_missing.changes(zone_included, provider))
 
-    def assertEqualsNameAndValues(self, a, b):
+    def assertEqualNameAndValues(self, a, b):
         a = dict([(r.name, r.values[0]) for r in a])
         b = dict([(r.name, r.values[0]) for r in b])
-        self.assertEquals(a, b)
+        self.assertEqual(a, b)
 
     def test_copy(self):
         zone = Zone('unit.tests.', [])
@@ -369,13 +369,13 @@ class TestZone(TestCase):
         zone.add_record(b)
 
         # Sanity check
-        self.assertEqualsNameAndValues(set((a, b)), zone.records)
+        self.assertEqualNameAndValues(set((a, b)), zone.records)
 
         copy = zone.copy()
         # We have an origin set and it is the source/original zone
-        self.assertEquals(zone, copy._origin)
+        self.assertEqual(zone, copy._origin)
         # Our records are zone's records to start (references)
-        self.assertEqualsNameAndValues(zone.records, copy.records)
+        self.assertEqualNameAndValues(zone.records, copy.records)
 
         # If we try and change something that's already there we realize and
         # then get an error about a duplicate
@@ -384,25 +384,25 @@ class TestZone(TestCase):
             copy.add_record(b_prime)
         self.assertIsNone(copy._origin)
         # Unchanged, straight copies
-        self.assertEqualsNameAndValues(zone.records, copy.records)
+        self.assertEqualNameAndValues(zone.records, copy.records)
 
         # If we add with replace things will be realized and the record will
         # have changed
         copy = zone.copy()
         copy.add_record(b_prime, replace=True)
         self.assertIsNone(copy._origin)
-        self.assertEqualsNameAndValues(set((a, b_prime)), copy.records)
+        self.assertEqualNameAndValues(set((a, b_prime)), copy.records)
 
         # If we add another record, things are reliazed and it has been added
         copy = zone.copy()
         c = ARecord(zone, 'c', {'ttl': 42, 'value': '1.1.1.3'})
         copy.add_record(c)
-        self.assertEqualsNameAndValues(set((a, b, c)), copy.records)
+        self.assertEqualNameAndValues(set((a, b, c)), copy.records)
 
         # If we remove a record, things are reliazed and it has been removed
         copy = zone.copy()
         copy.remove_record(a)
-        self.assertEqualsNameAndValues(set((b,)), copy.records)
+        self.assertEqualNameAndValues(set((b,)), copy.records)
 
         # Re-realizing is a noop
         copy = zone.copy()

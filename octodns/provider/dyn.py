@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('Dyn')
 try:
-    logger.warn('octodns_dyn shimmed. Update your provider class to '
-                'octodns_dyn.DynProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_dyn shimmed. Update your provider class to '
+                   'octodns_dyn.DynProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_dyn import DynProvider
     DynProvider  # pragma: no cover
 except ModuleNotFoundError:

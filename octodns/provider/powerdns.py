@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('PowerDns')
 try:
-    logger.warn('octodns_powerdns shimmed. Update your provider class to '
-                'octodns_powerdns.PowerDnsProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_powerdns shimmed. Update your provider class to '
+                   'octodns_powerdns.PowerDnsProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_powerdns import PowerDnsProvider, PowerDnsBaseProvider
     PowerDnsProvider  # pragma: no cover
     PowerDnsBaseProvider  # pragma: no cover

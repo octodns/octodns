@@ -66,7 +66,7 @@ class TestTransipProvider(TestCase):
         with self.assertRaises(TransipConfigException) as ctx:
             TransipProvider("test", "unittest")
 
-        self.assertEquals(
+        self.assertEqual(
             "Missing `key` or `key_file` parameter in config",
             str(ctx.exception),
         )
@@ -365,7 +365,7 @@ class TestTransipProvider(TestCase):
             {"name": "@", "expire": 300, "type": "A", "content": "1.2.3.5"},
             {"name": "www", "expire": 300, "type": "A", "content": "2.2.3.6"},
         ]
-        self.assertEquals(
+        self.assertEqual(
             sorted(seen_entries, key=itemgetter("name", "type", "expire")),
             sorted(expected_entries, key=itemgetter("name", "type", "expire")),
         )
@@ -408,12 +408,12 @@ class TestTransipProvider(TestCase):
 class TestParseFQDN(TestCase):
     def test_parse_fqdn(self):
         zone = Zone("unit.tests.", [])
-        self.assertEquals("www.unit.tests.", _parse_to_fqdn("www", zone))
-        self.assertEquals(
+        self.assertEqual("www.unit.tests.", _parse_to_fqdn("www", zone))
+        self.assertEqual(
             "www.unit.tests.", _parse_to_fqdn("www.unit.tests.", zone)
         )
-        self.assertEquals(
+        self.assertEqual(
             "www.sub.sub.sub.unit.tests.",
             _parse_to_fqdn("www.sub.sub.sub", zone),
         )
-        self.assertEquals("unit.tests.", _parse_to_fqdn("@", zone))
+        self.assertEqual("unit.tests.", _parse_to_fqdn("@", zone))

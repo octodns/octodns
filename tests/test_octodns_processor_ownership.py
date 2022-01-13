@@ -56,7 +56,7 @@ class TestOwnershipProcessor(TestCase):
         ownership = OwnershipProcessor('ownership')
 
         got = ownership.process_source_zone(zone.copy())
-        self.assertEquals([
+        self.assertEqual([
             '',
             '*',
             '_owner.a',
@@ -72,7 +72,7 @@ class TestOwnershipProcessor(TestCase):
         found = False
         for record in got.records:
             if record.name.startswith(ownership.txt_name):
-                self.assertEquals([ownership.txt_value], record.values)
+                self.assertEqual([ownership.txt_value], record.values)
                 # test _is_ownership while we're in here
                 self.assertTrue(ownership._is_ownership(record))
                 found = True
@@ -92,12 +92,12 @@ class TestOwnershipProcessor(TestCase):
         plan = provider.plan(ownership_added)
         self.assertTrue(plan)
         # Double the number of records
-        self.assertEquals(len(records) * 2, len(plan.changes))
+        self.assertEqual(len(records) * 2, len(plan.changes))
         # Now process the plan, shouldn't make any changes, we're creating
         # everything
         got = ownership.process_plan(plan)
         self.assertTrue(got)
-        self.assertEquals(len(records) * 2, len(got.changes))
+        self.assertEqual(len(records) * 2, len(got.changes))
 
         # Something extra exists and doesn't have ownership TXT, leave it
         # alone, we don't own it.
@@ -113,7 +113,7 @@ class TestOwnershipProcessor(TestCase):
         # something we don't own
         got = ownership.process_plan(plan)
         self.assertTrue(got)
-        self.assertEquals(len(records) * 2, len(got.changes))
+        self.assertEqual(len(records) * 2, len(got.changes))
 
         # Something extra exists and does have an ownership record so we will
         # delete it...
@@ -123,7 +123,7 @@ class TestOwnershipProcessor(TestCase):
                 copy.add_record(record)
         # New ownership, without the `the-a`
         ownership_added = ownership.process_source_zone(copy)
-        self.assertEquals(len(records) * 2 - 2, len(ownership_added.records))
+        self.assertEqual(len(records) * 2 - 2, len(ownership_added.records))
         plan = provider.plan(ownership_added)
         # Fake the extra existing by adding the record, its ownership, and the
         # two delete changes.
@@ -142,5 +142,5 @@ class TestOwnershipProcessor(TestCase):
         # plan out, meaning the planned deletes were allowed to happen.
         got = ownership.process_plan(plan)
         self.assertTrue(got)
-        self.assertEquals(plan, got)
-        self.assertEquals(len(plan.changes), len(got.changes))
+        self.assertEqual(plan, got)
+        self.assertEqual(len(plan.changes), len(got.changes))

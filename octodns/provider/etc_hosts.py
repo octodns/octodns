@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('EtcHosts')
 try:
-    logger.warn('octodns_etchosts shimmed. Update your provider class to '
-                'octodns_etchosts.EtcHostsProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_etchosts shimmed. Update your provider class to '
+                   'octodns_etchosts.EtcHostsProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_etchosts import EtcHostsProvider
     EtcHostsProvider  # pragma: no cover
 except ModuleNotFoundError:

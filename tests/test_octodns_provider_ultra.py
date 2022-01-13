@@ -44,7 +44,7 @@ class TestUltraProvider(TestCase):
                       text='{"errorCode": 60001}')
             with self.assertRaises(Exception) as ctx:
                 UltraProvider('test', 'account', 'user', 'wrongpass')
-            self.assertEquals('Unauthorized', str(ctx.exception))
+            self.assertEqual('Unauthorized', str(ctx.exception))
 
         # Good Auth
         with requests_mock() as mock:
@@ -54,11 +54,11 @@ class TestUltraProvider(TestCase):
                       text='{"token type": "Bearer", "refresh_token": "abc", '
                       '"access_token":"123", "expires_in": "3600"}')
             UltraProvider('test', 'account', 'user', 'rightpass')
-            self.assertEquals(1, mock.call_count)
+            self.assertEqual(1, mock.call_count)
             expected_payload = "grant_type=password&username=user&"\
                                "password=rightpass"
-            self.assertEquals(parse_qs(mock.last_request.text),
-                              parse_qs(expected_payload))
+            self.assertEqual(parse_qs(mock.last_request.text),
+                             parse_qs(expected_payload))
 
     def test_get_zones(self):
         provider = _get_provider()
@@ -71,7 +71,7 @@ class TestUltraProvider(TestCase):
                            "errorMessage": "Authorization Header required"})
             with self.assertRaises(HTTPError) as ctx:
                 zones = provider.zones
-            self.assertEquals(400, ctx.exception.response.status_code)
+            self.assertEqual(400, ctx.exception.response.status_code)
 
         # Test no zones exist error
         with requests_mock() as mock:
@@ -79,8 +79,8 @@ class TestUltraProvider(TestCase):
                      headers={'Authorization': 'Bearer 123'},
                      json=self.empty_body)
             zones = provider.zones
-            self.assertEquals(1, mock.call_count)
-            self.assertEquals(list(), zones)
+            self.assertEqual(1, mock.call_count)
+            self.assertEqual(list(), zones)
 
         # Reset zone cache so they are queried again
         provider._zones = None
@@ -112,9 +112,9 @@ class TestUltraProvider(TestCase):
                      headers={'Authorization': 'Bearer 123'},
                      json=payload)
             zones = provider.zones
-            self.assertEquals(1, mock.call_count)
-            self.assertEquals(1, len(zones))
-            self.assertEquals('testzone123.com.', zones[0])
+            self.assertEqual(1, mock.call_count)
+            self.assertEqual(1, len(zones))
+            self.assertEqual('testzone123.com.', zones[0])
 
         # Test different paging behavior
         provider._zones = None
@@ -132,7 +132,7 @@ class TestUltraProvider(TestCase):
                                           "returnedCount": 5},
                            "zones": []})
             zones = provider.zones
-            self.assertEquals(2, mock.call_count)
+            self.assertEqual(2, mock.call_count)
 
     def test_request(self):
         provider = _get_provider()
@@ -144,7 +144,7 @@ class TestUltraProvider(TestCase):
                      headers={'Authorization': 'Bearer 123'}, json={})
             with self.assertRaises(Exception) as ctx:
                 provider._get(path)
-            self.assertEquals('Unauthorized', str(ctx.exception))
+            self.assertEqual('Unauthorized', str(ctx.exception))
 
         # Test all GET patterns
         with requests_mock() as mock:
@@ -227,11 +227,11 @@ class TestUltraProvider(TestCase):
 
             zone = Zone('octodns1.test.', [])
             self.assertTrue(provider.zone_records(zone))
-            self.assertEquals(mock.call_count, 2)
+            self.assertEqual(mock.call_count, 2)
 
             # Populate the same zone again and confirm cache is hit
             self.assertTrue(provider.zone_records(zone))
-            self.assertEquals(mock.call_count, 2)
+            self.assertEqual(mock.call_count, 2)
 
     def test_populate(self):
         provider = _get_provider()
@@ -242,13 +242,13 @@ class TestUltraProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             provider.populate(zone)
-            self.assertEquals(set(), zone.records)
+            self.assertEqual(set(), zone.records)
 
         # re-populating the same non-existent zone uses cache and makes no
         # calls
         again = Zone('unit.tests.', [])
         provider.populate(again)
-        self.assertEquals(set(), again.records)
+        self.assertEqual(set(), again.records)
 
         # Test zones with data
         provider._zones = None
@@ -272,9 +272,9 @@ class TestUltraProvider(TestCase):
             zone = Zone('octodns1.test.', [])
 
             self.assertTrue(provider.populate(zone))
-            self.assertEquals('octodns1.test.', zone.name)
-            self.assertEquals(12, len(zone.records))
-            self.assertEquals(4, mock.call_count)
+            self.assertEqual('octodns1.test.', zone.name)
+            self.assertEqual(12, len(zone.records))
+            self.assertEqual(4, mock.call_count)
 
     def test_apply(self):
         provider = _get_provider()
@@ -288,8 +288,8 @@ class TestUltraProvider(TestCase):
 
         # non-existent zone, create everything
         plan = provider.plan(self.expected)
-        self.assertEquals(15, len(plan.changes))
-        self.assertEquals(15, provider.apply(plan))
+        self.assertEqual(15, len(plan.changes))
+        self.assertEqual(15, provider.apply(plan))
         self.assertFalse(plan.exists)
 
         provider._request.assert_has_calls([
@@ -319,7 +319,7 @@ class TestUltraProvider(TestCase):
                                  'p=A/kinda+of/long/string+with+numb3rs']}),
         ], True)
         # expected number of total calls
-        self.assertEquals(17, provider._request.call_count)
+        self.assertEqual(17, provider._request.call_count)
 
         # Create sample rrset payload to attempt to alter
         page1 = json_load(open('tests/fixtures/ultra-records-page-1.json'))
@@ -351,8 +351,8 @@ class TestUltraProvider(TestCase):
         }))
 
         plan = provider.plan(wanted)
-        self.assertEquals(11, len(plan.changes))
-        self.assertEquals(11, provider.apply(plan))
+        self.assertEqual(11, len(plan.changes))
+        self.assertEqual(11, provider.apply(plan))
         self.assertTrue(plan.exists)
 
         provider._request.assert_has_calls([
