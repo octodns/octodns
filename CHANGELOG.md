@@ -20,6 +20,7 @@
    * [GcoreProvider](https://github.com/octodns/octodns-gcore/)
    * [GoogleCloudProvider](https://github.com/octodns/octodns-googlecloud/)
    * [HetznerProvider](https://github.com/octodns/octodns-hetzner/)
+   * [MythicBeastsProvider](https://github.com/octodns/octodns-mythicbeasts/)
    * [Ns1Provider](https://github.com/octodns/octodns-ns1/)
    * [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/)
    * [Route53Provider](https://github.com/octodns/octodns-route53/) also
