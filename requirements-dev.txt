@@ -1,17 +1,10 @@
 build==0.7.0
 coverage
 mock
-nose
-nose-no-network
-nose-timer
 pycodestyle==2.6.0
 pyflakes==2.2.0
+pytest
+pytest-network
 readme_renderer[md]==26.0
 requests_mock
 twine==3.4.2
-
-# Profiling tests...
-# nose-cprof
-# snakeviz
-# ./script/test --with-cprof --cprofile-stats-erase
-# snakeviz stats.dat

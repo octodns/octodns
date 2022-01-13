@@ -30,4 +30,6 @@ export ARM_CLIENT_SECRET=
 export ARM_TENANT_ID=
 export ARM_SUBSCRIPTION_ID=
 
-nosetests --with-no-network "$@"
+export PYTHONPATH=.:$PYTHONPATH
+
+pytest --disable-network "$@"
