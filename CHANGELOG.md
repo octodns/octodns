@@ -22,6 +22,7 @@
    * [HetznerProvider](https://github.com/octodns/octodns-hetzner/)
    * [MythicBeastsProvider](https://github.com/octodns/octodns-mythicbeasts/)
    * [Ns1Provider](https://github.com/octodns/octodns-ns1/)
+   * [OvhProvider](https://github.com/octodns/octodns-ovh/)
    * [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/)
    * [Route53Provider](https://github.com/octodns/octodns-route53/) also
      AwsAcmMangingProcessor
