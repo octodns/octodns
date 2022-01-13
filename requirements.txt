@@ -11,5 +11,5 @@ pycountry-convert==0.7.2
 pycountry==22.1.10
 python-dateutil==2.8.1
 requests==2.25.1
-setuptools==44.1.1
+setuptools==60.5.0
 python-transip==0.5.0
