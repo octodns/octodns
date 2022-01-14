@@ -91,8 +91,8 @@ class TestManager(TestCase):
         with self.assertRaises(ManagerException) as ctx:
             name = 'bad-plan-output-missing-class.yaml'
             Manager(get_config_filename(name)).sync()
-        self.assertEquals('plan_output bad is missing class',
-                          str(ctx.exception))
+        self.assertEqual('plan_output bad is missing class',
+                         str(ctx.exception))
 
     def test_bad_plan_output_config(self):
         with self.assertRaises(ManagerException) as ctx:
@@ -113,45 +113,45 @@ class TestManager(TestCase):
             tc = Manager(get_config_filename('always-dry-run.yaml')) \
                 .sync(dry_run=False)
             # only the stuff from subzone, unit.tests. is always-dry-run
-            self.assertEquals(3, tc)
+            self.assertEqual(3, tc)
 
     def test_simple(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False)
-            self.assertEquals(26, tc)
+            self.assertEqual(26, tc)
 
             # try with just one of the zones
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, eligible_zones=['unit.tests.'])
-            self.assertEquals(20, tc)
+            self.assertEqual(20, tc)
 
             # the subzone, with 2 targets
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, eligible_zones=['subzone.unit.tests.'])
-            self.assertEquals(6, tc)
+            self.assertEqual(6, tc)
 
             # and finally the empty zone
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, eligible_zones=['empty.'])
-            self.assertEquals(0, tc)
+            self.assertEqual(0, tc)
 
             # Again with force
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(26, tc)
+            self.assertEqual(26, tc)
 
             # Again with max_workers = 1
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(26, tc)
+            self.assertEqual(26, tc)
 
             # Include meta
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1,
                          include_meta=True) \
                 .sync(dry_run=False, force=True)
-            self.assertEquals(30, tc)
+            self.assertEqual(30, tc)
 
     def test_eligible_sources(self):
         with TemporaryDirectory() as tmpdir:
@@ -159,7 +159,7 @@ class TestManager(TestCase):
             # Only allow a target that doesn't exist
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(eligible_sources=['foo'])
-            self.assertEquals(0, tc)
+            self.assertEqual(0, tc)
 
     def test_eligible_targets(self):
         with TemporaryDirectory() as tmpdir:
@@ -167,7 +167,7 @@ class TestManager(TestCase):
             # Only allow a target that doesn't exist
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(eligible_targets=['foo'])
-            self.assertEquals(0, tc)
+            self.assertEqual(0, tc)
 
     def test_aliases(self):
         with TemporaryDirectory() as tmpdir:
@@ -175,31 +175,31 @@ class TestManager(TestCase):
             # Alias zones with a valid target.
             tc = Manager(get_config_filename('simple-alias-zone.yaml')) \
                 .sync()
-            self.assertEquals(0, tc)
+            self.assertEqual(0, tc)
 
             # Alias zone with an invalid target.
             with self.assertRaises(ManagerException) as ctx:
                 tc = Manager(get_config_filename('unknown-source-zone.yaml')) \
                     .sync()
-            self.assertEquals('Invalid alias zone alias.tests.: source zone '
-                              'does-not-exists.tests. does not exist',
-                              str(ctx.exception))
+            self.assertEqual('Invalid alias zone alias.tests.: source zone '
+                             'does-not-exists.tests. does not exist',
+                             str(ctx.exception))
 
             # Alias zone that points to another alias zone.
             with self.assertRaises(ManagerException) as ctx:
                 tc = Manager(get_config_filename('alias-zone-loop.yaml')) \
                     .sync()
-            self.assertEquals('Invalid alias zone alias-loop.tests.: source '
-                              'zone alias.tests. is an alias zone',
-                              str(ctx.exception))
+            self.assertEqual('Invalid alias zone alias-loop.tests.: source '
+                             'zone alias.tests. is an alias zone',
+                             str(ctx.exception))
 
             # Sync an alias without the zone it refers to
             with self.assertRaises(ManagerException) as ctx:
                 tc = Manager(get_config_filename('simple-alias-zone.yaml')) \
                     .sync(eligible_zones=["alias.tests."])
-            self.assertEquals('Zone alias.tests. cannot be sync without zone '
-                              'unit.tests. sinced it is aliased',
-                              str(ctx.exception))
+            self.assertEqual('Zone alias.tests. cannot be sync without zone '
+                             'unit.tests. sinced it is aliased',
+                             str(ctx.exception))
 
     def test_compare(self):
         with TemporaryDirectory() as tmpdir:
@@ -207,27 +207,27 @@ class TestManager(TestCase):
             manager = Manager(get_config_filename('simple.yaml'))
 
             # make sure this was pulled in from the config
-            self.assertEquals(2, manager._executor._max_workers)
+            self.assertEqual(2, manager._executor._max_workers)
 
             changes = manager.compare(['in'], ['in'], 'unit.tests.')
-            self.assertEquals([], changes)
+            self.assertEqual([], changes)
 
             # Create an empty unit.test zone config
             with open(join(tmpdir.dirname, 'unit.tests.yaml'), 'w') as fh:
                 fh.write('---\n{}')
 
             changes = manager.compare(['in'], ['dump'], 'unit.tests.')
-            self.assertEquals(20, len(changes))
+            self.assertEqual(20, len(changes))
 
             # Compound sources with varying support
             changes = manager.compare(['in', 'nosshfp'],
                                       ['dump'],
                                       'unit.tests.')
-            self.assertEquals(19, len(changes))
+            self.assertEqual(19, len(changes))
 
             with self.assertRaises(ManagerException) as ctx:
                 manager.compare(['nope'], ['dump'], 'unit.tests.')
-            self.assertEquals('Unknown source: nope', str(ctx.exception))
+            self.assertEqual('Unknown source: nope', str(ctx.exception))
 
     def test_aggregate_target(self):
         simple = SimpleProvider()
@@ -268,7 +268,7 @@ class TestManager(TestCase):
             with self.assertRaises(ManagerException) as ctx:
                 manager.dump('unit.tests.', tmpdir.dirname, False, False,
                              'nope')
-            self.assertEquals('Unknown source: nope', str(ctx.exception))
+            self.assertEqual('Unknown source: nope', str(ctx.exception))
 
             manager.dump('unit.tests.', tmpdir.dirname, False, False, 'in')
 
@@ -297,7 +297,7 @@ class TestManager(TestCase):
             with self.assertRaises(ManagerException) as ctx:
                 manager.dump('unit.tests.', tmpdir.dirname, False, True,
                              'nope')
-            self.assertEquals('Unknown source: nope', str(ctx.exception))
+            self.assertEqual('Unknown source: nope', str(ctx.exception))
 
             manager.dump('unit.tests.', tmpdir.dirname, False, True, 'in')
 
@@ -376,7 +376,7 @@ class TestManager(TestCase):
             with self.assertRaises(TypeError) as ctx:
                 manager._populate_and_plan('unit.tests.', [], [OtherType()],
                                            [])
-            self.assertEquals('something else', str(ctx.exception))
+            self.assertEqual('something else', str(ctx.exception))
 
     def test_plan_processors_fallback(self):
         with TemporaryDirectory() as tmpdir:
@@ -402,7 +402,7 @@ class TestManager(TestCase):
             with self.assertRaises(TypeError) as ctx:
                 manager._populate_and_plan('unit.tests.', [], [],
                                            [OtherType()])
-            self.assertEquals('something else', str(ctx.exception))
+            self.assertEqual('something else', str(ctx.exception))
 
     @patch('octodns.manager.Manager._get_named_class')
     def test_sync_passes_file_handle(self, mock):
@@ -425,7 +425,7 @@ class TestManager(TestCase):
     def test_processor_config(self):
         # Smoke test loading a valid config
         manager = Manager(get_config_filename('processors.yaml'))
-        self.assertEquals(['noop'], list(manager.processors.keys()))
+        self.assertEqual(['noop'], list(manager.processors.keys()))
         # This zone specifies a valid processor
         manager.sync(['unit.tests.'])
 
@@ -469,7 +469,7 @@ class TestManager(TestCase):
         plans, zone = manager._populate_and_plan('unit.tests.', [mock], [],
                                                  targets)
         # Our mock was called and added the record
-        self.assertEquals(record, list(zone.records)[0])
+        self.assertEqual(record, list(zone.records)[0])
         # We got a create for the thing added to the expected state (source)
         self.assertIsInstance(plans[0][1].changes[0], Create)
 
@@ -515,10 +515,10 @@ class TestMainThreadExecutor(TestCase):
         mte = MainThreadExecutor()
 
         future = mte.submit(self.success, 42)
-        self.assertEquals(42, future.result())
+        self.assertEqual(42, future.result())
 
         future = mte.submit(self.success, ret=43)
-        self.assertEquals(43, future.result())
+        self.assertEqual(43, future.result())
 
     def test_exception(self):
         mte = MainThreadExecutor()
@@ -527,12 +527,12 @@ class TestMainThreadExecutor(TestCase):
         future = mte.submit(self.exception, e)
         with self.assertRaises(Exception) as ctx:
             future.result()
-        self.assertEquals(e, ctx.exception)
+        self.assertEqual(e, ctx.exception)
 
         future = mte.submit(self.exception, e=e)
         with self.assertRaises(Exception) as ctx:
             future.result()
-        self.assertEquals(e, ctx.exception)
+        self.assertEqual(e, ctx.exception)
 
     def success(self, ret):
         return ret

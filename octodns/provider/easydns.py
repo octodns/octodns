@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('EasyDns')
 try:
-    logger.warn('octodns_easydns shimmed. Update your provider class to '
-                'octodns_easydns.EasyDnsProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_easydns shimmed. Update your provider class to '
+                   'octodns_easydns.EasyDnsProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_easydns import EasyDnsProvider, EasyDNSProvider
     EasyDnsProvider  # pragma: no cover
     EasyDNSProvider  # pragma: no cover

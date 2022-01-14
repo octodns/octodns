@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('Akamai')
 try:
-    logger.warn('octodns_edgedns shimmed. Update your provider class to '
-                'octodns_edgedns.AkamaiProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_edgedns shimmed. Update your provider class to '
+                   'octodns_edgedns.AkamaiProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_edgedns import AkamaiProvider
     AkamaiProvider  # pragma: no cover
 except ModuleNotFoundError:

@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('Hetzner')
 try:
-    logger.warn('octodns_hetzner shimmed. Update your provider class to '
-                'octodns_hetzner.HetznerProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_hetzner shimmed. Update your provider class to '
+                   'octodns_hetzner.HetznerProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_hetzner import HetznerProvider
     HetznerProvider  # pragma: no cover
 except ModuleNotFoundError:

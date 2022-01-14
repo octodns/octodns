@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('Azure')
 try:
-    logger.warn('octodns_azure shimmed. Update your provider class to '
-                'octodns_azure.AzureProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_azure shimmed. Update your provider class to '
+                   'octodns_azure.AzureProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_azure import AzureProvider
     AzureProvider  # pragma: no cover
 except ModuleNotFoundError:

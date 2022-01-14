@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('DigitalOcean')
 try:
-    logger.warn('octodns_digitalocean shimmed. Update your provider class to '
-                'octodns_digitalocean.DigitalOceanProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_digitalocean shimmed. Update your provider class '
+                   'to octodns_digitalocean.DigitalOceanProvider. Shim will '
+                   'be removed in 1.0')
     from octodns_digitalocean import DigitalOceanProvider
     DigitalOceanProvider  # pragma: no cover
 except ModuleNotFoundError:

@@ -57,7 +57,7 @@ class GeoCodes(object):
         for continent, countries in geo_data.items():
             if country in countries:
                 return f'{continent}-{country}'
-        cls.log.warn('country_to_code: unrecognized country "%s"', country)
+        cls.log.warning('country_to_code: unrecognized country "%s"', country)
         return
 
     @classmethod
@@ -66,8 +66,8 @@ class GeoCodes(object):
         # NA-US, NA-CA
         if (province not in geo_data['NA']['US']['provinces'] and
                 province not in geo_data['NA']['CA']['provinces']):
-            cls.log.warn('country_to_code: unrecognized province "%s"',
-                         province)
+            cls.log.warning('country_to_code: unrecognized province "%s"',
+                            province)
             return
         if province in geo_data['NA']['US']['provinces']:
             country = 'US'

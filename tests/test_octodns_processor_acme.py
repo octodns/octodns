@@ -64,7 +64,7 @@ class TestAcmeMangingProcessor(TestCase):
         source.add_record(records['managed'])
 
         got = acme.process_source_zone(source)
-        self.assertEquals([
+        self.assertEqual([
             '_acme-challenge.managed',
             '_acme-challenge.not-txt',
             'not-acme',
@@ -76,7 +76,7 @@ class TestAcmeMangingProcessor(TestCase):
                 break
         self.assertTrue(managed)
         # Ownership was marked with an extra value
-        self.assertEquals(['*octoDNS*', 'magic bit'], record.values)
+        self.assertEqual(['*octoDNS*', 'magic bit'], record.values)
 
         existing = Zone(zone.name, [])
         # Unrelated stuff that should be untouched
@@ -93,7 +93,7 @@ class TestAcmeMangingProcessor(TestCase):
         existing.add_record(records['going-away'])
 
         got = acme.process_target_zone(existing)
-        self.assertEquals([
+        self.assertEqual([
             '_acme-challenge.going-away',
             '_acme-challenge.managed',
             '_acme-challenge.not-txt',

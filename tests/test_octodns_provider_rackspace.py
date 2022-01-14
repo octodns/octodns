@@ -62,7 +62,7 @@ class TestRackspaceProvider(TestCase):
             with self.assertRaises(HTTPError) as ctx:
                 zone = Zone('unit.tests.', [])
                 self.provider.populate(zone)
-            self.assertEquals(502, ctx.exception.response.status_code)
+            self.assertEqual(502, ctx.exception.response.status_code)
             self.assertTrue(mock.called_once)
 
     def test_nonexistent_zone(self):
@@ -73,7 +73,7 @@ class TestRackspaceProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             exists = self.provider.populate(zone)
-            self.assertEquals(set(), zone.records)
+            self.assertEqual(set(), zone.records)
             self.assertTrue(mock.called_once)
             self.assertFalse(exists)
 
@@ -88,7 +88,7 @@ class TestRackspaceProvider(TestCase):
 
             zone = Zone('unit.tests.', [])
             self.provider.populate(zone)
-            self.assertEquals(5, len(zone.records))
+            self.assertEqual(5, len(zone.records))
 
     def test_plan_disappearing_ns_records(self):
         expected = Zone('unit.tests.', [])
@@ -112,7 +112,7 @@ class TestRackspaceProvider(TestCase):
             self.assertTrue(plan.exists)
 
             # OctoDNS does not propagate top-level NS records.
-            self.assertEquals(1, len(plan.changes))
+            self.assertEqual(1, len(plan.changes))
 
     def test_fqdn_a_record(self):
         expected = Zone('example.com.', [])

@@ -58,7 +58,7 @@ class TestPlanLogger(TestCase):
     def test_invalid_level(self):
         with self.assertRaises(Exception) as ctx:
             PlanLogger('invalid', 'not-a-level')
-        self.assertEquals('Unsupported level: not-a-level', str(ctx.exception))
+        self.assertEqual('Unsupported level: not-a-level', str(ctx.exception))
 
     def test_create(self):
 
@@ -83,7 +83,7 @@ class TestPlanHtml(TestCase):
     def test_empty(self):
         out = StringIO()
         PlanHtml('html').run([], fh=out)
-        self.assertEquals('<b>No changes were planned</b>', out.getvalue())
+        self.assertEqual('<b>No changes were planned</b>', out.getvalue())
 
     def test_simple(self):
         out = StringIO()
@@ -99,7 +99,7 @@ class TestPlanMarkdown(TestCase):
     def test_empty(self):
         out = StringIO()
         PlanMarkdown('markdown').run([], fh=out)
-        self.assertEquals('## No changes were planned\n', out.getvalue())
+        self.assertEqual('## No changes were planned\n', out.getvalue())
 
     def test_simple(self):
         out = StringIO()

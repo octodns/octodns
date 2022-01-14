@@ -35,13 +35,13 @@ class TestAxfrSource(TestCase):
         ]
 
         self.source.populate(got)
-        self.assertEquals(15, len(got.records))
+        self.assertEqual(15, len(got.records))
 
         with self.assertRaises(AxfrSourceZoneTransferFailed) as ctx:
             zone = Zone('unit.tests.', [])
             self.source.populate(zone)
-        self.assertEquals('Unable to Perform Zone Transfer',
-                          str(ctx.exception))
+        self.assertEqual('Unable to Perform Zone Transfer',
+                         str(ctx.exception))
 
 
 class TestZoneFileSource(TestCase):
@@ -52,7 +52,7 @@ class TestZoneFileSource(TestCase):
         # Load zonefiles with a specified file extension
         valid = Zone('ext.unit.tests.', [])
         source.populate(valid)
-        self.assertEquals(1, len(valid.records))
+        self.assertEqual(1, len(valid.records))
 
     def test_zonefiles_without_extension(self):
         # Windows doesn't let files end with a `.` so we add a .tst to them in
@@ -72,18 +72,18 @@ class TestZoneFileSource(TestCase):
         # Load zonefiles without a specified file extension
         valid = Zone('unit.tests.', [])
         source.populate(valid)
-        self.assertEquals(15, len(valid.records))
+        self.assertEqual(15, len(valid.records))
 
     def test_populate(self):
         # Valid zone file in directory
         valid = Zone('unit.tests.', [])
         self.source.populate(valid)
-        self.assertEquals(15, len(valid.records))
+        self.assertEqual(15, len(valid.records))
 
         # 2nd populate does not read file again
         again = Zone('unit.tests.', [])
         self.source.populate(again)
-        self.assertEquals(15, len(again.records))
+        self.assertEqual(15, len(again.records))
 
         # bust the cache
         del self.source._zone_records[valid.name]
@@ -91,24 +91,24 @@ class TestZoneFileSource(TestCase):
         # No zone file in directory
         missing = Zone('missing.zone.', [])
         self.source.populate(missing)
-        self.assertEquals(0, len(missing.records))
+        self.assertEqual(0, len(missing.records))
 
         # Zone file is not valid
         with self.assertRaises(ZoneFileSourceLoadFailure) as ctx:
             zone = Zone('invalid.zone.', [])
             self.source.populate(zone)
-        self.assertEquals('The DNS zone has no NS RRset at its origin.',
-                          str(ctx.exception))
+        self.assertEqual('The DNS zone has no NS RRset at its origin.',
+                         str(ctx.exception))
 
         # Records are not to RFC (lenient=False)
         with self.assertRaises(ValidationError) as ctx:
             zone = Zone('invalid.records.', [])
             self.source.populate(zone)
-        self.assertEquals('Invalid record _invalid.invalid.records.\n'
-                          '  - invalid name for SRV record',
-                          str(ctx.exception))
+        self.assertEqual('Invalid record _invalid.invalid.records.\n'
+                         '  - invalid name for SRV record',
+                         str(ctx.exception))
 
         # Records are not to RFC, but load anyhow (lenient=True)
         invalid = Zone('invalid.records.', [])
         self.source.populate(invalid, lenient=True)
-        self.assertEquals(12, len(invalid.records))
+        self.assertEqual(12, len(invalid.records))

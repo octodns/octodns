@@ -15,7 +15,7 @@ from octodns.yaml import safe_dump, safe_load
 class TestYaml(TestCase):
 
     def test_stuff(self):
-        self.assertEquals({
+        self.assertEqual({
             1: 'a',
             2: 'b',
             '3': 'c',
@@ -29,7 +29,7 @@ class TestYaml(TestCase):
 '11': e
 '''))
 
-        self.assertEquals({
+        self.assertEqual({
             '*.1.2': 'a',
             '*.2.2': 'b',
             '*.10.1': 'c',
@@ -57,8 +57,8 @@ class TestYaml(TestCase):
             '*.11.1': 43,
             '*.2.1': 44,
         }, buf)
-        self.assertEquals("---\n'*.1.1': 42\n'*.2.1': 44\n'*.11.1': 43\n",
-                          buf.getvalue())
+        self.assertEqual("---\n'*.1.1': 42\n'*.2.1': 44\n'*.11.1': 43\n",
+                         buf.getvalue())
 
         # hex sorting isn't ideal, not treated as hex, this make sure we don't
         # change the behavior
@@ -67,4 +67,4 @@ class TestYaml(TestCase):
             '45a03129': 42,
             '45a0392a': 43,
         }, buf)
-        self.assertEquals("---\n45a0392a: 43\n45a03129: 42\n", buf.getvalue())
+        self.assertEqual("---\n45a0392a: 43\n45a03129: 42\n", buf.getvalue())

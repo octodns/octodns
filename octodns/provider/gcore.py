@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('GCore')
 try:
-    logger.warn('octodns_gcore shimmed. Update your provider class to '
-                'octodns_gcore.GCoreProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_gcore shimmed. Update your provider class to '
+                   'octodns_gcore.GCoreProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_gcore import GCoreProvider
     GCoreProvider  # pragma: no cover
 except ModuleNotFoundError:

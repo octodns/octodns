@@ -116,7 +116,7 @@ class Record(EqualityTupleMixin):
             pass
         if reasons:
             if lenient:
-                cls.log.warn(ValidationError.build_message(fqdn, reasons))
+                cls.log.warning(ValidationError.build_message(fqdn, reasons))
             else:
                 raise ValidationError(fqdn, reasons)
         return _class(zone, name, data, source=source)
@@ -429,7 +429,7 @@ class _DynamicPool(object):
         if len(values) == 1:
             weight = data['values'][0].get('weight', 1)
             if weight != 1:
-                self.log.warn(
+                self.log.warning(
                     'Using weight=1 instead of %s for single-value pool %s',
                     weight, _id)
                 values[0]['weight'] = 1

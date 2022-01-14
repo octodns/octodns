@@ -217,7 +217,9 @@ class TinyDnsBaseSource(BaseSource):
                 try:
                     zone.add_record(record, lenient=lenient)
                 except DuplicateRecordException:
-                    self.log.warn(f'Duplicate PTR record for {addr}, skipping')
+                    self.log.warning(
+                        f'Duplicate PTR record for {addr}, skipping'
+                    )
 
 
 class TinyDnsFileSource(TinyDnsBaseSource):

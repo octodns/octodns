@@ -14,11 +14,11 @@ class TestEnvVarSource(TestCase):
         with self.assertRaises(EnvironmentVariableNotFoundException) as ctx:
             source._read_variable()
         msg = f'Unknown environment variable {envvar}'
-        self.assertEquals(msg, str(ctx.exception))
+        self.assertEqual(msg, str(ctx.exception))
 
         with patch.dict('os.environ', {envvar: 'testvalue'}):
             value = source._read_variable()
-        self.assertEquals(value, 'testvalue')
+        self.assertEqual(value, 'testvalue')
 
     def test_populate(self):
         envvar = 'TEST_VAR'
@@ -31,10 +31,10 @@ class TestEnvVarSource(TestCase):
         with patch.dict('os.environ', {envvar: value}):
             source.populate(zone)
 
-        self.assertEquals(1, len(zone.records))
+        self.assertEqual(1, len(zone.records))
         record = list(zone.records)[0]
-        self.assertEquals(name, record.name)
-        self.assertEquals(f'{name}.{zone_name}', record.fqdn)
-        self.assertEquals('TXT', record._type)
-        self.assertEquals(1, len(record.values))
-        self.assertEquals(value, record.values[0])
+        self.assertEqual(name, record.name)
+        self.assertEqual(f'{name}.{zone_name}', record.fqdn)
+        self.assertEqual('TXT', record._type)
+        self.assertEqual(1, len(record.values))
+        self.assertEqual(value, record.values[0])

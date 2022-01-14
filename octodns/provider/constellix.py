@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('Constellix')
 try:
-    logger.warn('octodns_constellix shimmed. Update your provider class to '
-                'octodns_constellix.ConstellixProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_constellix shimmed. Update your provider class to '
+                   'octodns_constellix.ConstellixProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_constellix import ConstellixProvider
     ConstellixProvider  # pragma: no cover
 except ModuleNotFoundError:

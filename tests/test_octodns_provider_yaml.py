@@ -30,14 +30,14 @@ class TestYamlProvider(TestCase):
 
         # With target we don't add anything
         source.populate(zone, target=source)
-        self.assertEquals(0, len(zone.records))
+        self.assertEqual(0, len(zone.records))
 
         # without it we see everything
         source.populate(zone)
-        self.assertEquals(23, len(zone.records))
+        self.assertEqual(23, len(zone.records))
 
         source.populate(dynamic_zone)
-        self.assertEquals(6, len(dynamic_zone.records))
+        self.assertEqual(6, len(dynamic_zone.records))
 
         # Assumption here is that a clean round-trip means that everything
         # worked as expected, data that went in came back out and could be
@@ -57,21 +57,21 @@ class TestYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(20, len([c for c in plan.changes
-                                       if isinstance(c, Create)]))
+            self.assertEqual(20, len([c for c in plan.changes
+                                      if isinstance(c, Create)]))
             self.assertFalse(isfile(yaml_file))
 
             # Now actually do it
-            self.assertEquals(20, target.apply(plan))
+            self.assertEqual(20, target.apply(plan))
             self.assertTrue(isfile(yaml_file))
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
-            self.assertEquals(6, len([c for c in plan.changes
-                                      if isinstance(c, Create)]))
+            self.assertEqual(6, len([c for c in plan.changes
+                                     if isinstance(c, Create)]))
             self.assertFalse(isfile(dynamic_yaml_file))
             # Apply it
-            self.assertEquals(6, target.apply(plan))
+            self.assertEqual(6, target.apply(plan))
             self.assertTrue(isfile(dynamic_yaml_file))
 
             # There should be no changes after the round trip
@@ -86,8 +86,8 @@ class TestYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(20, len([c for c in plan.changes
-                                       if isinstance(c, Create)]))
+            self.assertEqual(20, len([c for c in plan.changes
+                                      if isinstance(c, Create)]))
 
             with open(yaml_file) as fh:
                 data = safe_load(fh.read())
@@ -120,7 +120,7 @@ class TestYamlProvider(TestCase):
                 self.assertTrue('value' in data.pop('www.sub'))
 
                 # make sure nothing is left
-                self.assertEquals([], list(data.keys()))
+                self.assertEqual([], list(data.keys()))
 
             with open(dynamic_yaml_file) as fh:
                 data = safe_load(fh.read())
@@ -153,7 +153,7 @@ class TestYamlProvider(TestCase):
                 # self.assertTrue('dynamic' in dyna)
 
                 # make sure nothing is left
-                self.assertEquals([], list(data.keys()))
+                self.assertEqual([], list(data.keys()))
 
     def test_empty(self):
         source = YamlProvider('test', join(dirname(__file__), 'config'))
@@ -162,7 +162,7 @@ class TestYamlProvider(TestCase):
 
         # without it we see everything
         source.populate(zone)
-        self.assertEquals(0, len(zone.records))
+        self.assertEqual(0, len(zone.records))
 
     def test_unsorted(self):
         source = YamlProvider('test', join(dirname(__file__), 'config'))
@@ -185,8 +185,8 @@ class TestYamlProvider(TestCase):
         zone = Zone('unit.tests.', ['sub'])
         with self.assertRaises(SubzoneRecordException) as ctx:
             source.populate(zone)
-        self.assertEquals('Record www.sub.unit.tests. is under a managed '
-                          'subzone', str(ctx.exception))
+        self.assertEqual('Record www.sub.unit.tests. is under a managed '
+                         'subzone', str(ctx.exception))
 
 
 class TestSplitYamlProvider(TestCase):
@@ -244,14 +244,14 @@ class TestSplitYamlProvider(TestCase):
 
         # With target we don't add anything
         source.populate(zone, target=source)
-        self.assertEquals(0, len(zone.records))
+        self.assertEqual(0, len(zone.records))
 
         # without it we see everything
         source.populate(zone)
-        self.assertEquals(20, len(zone.records))
+        self.assertEqual(20, len(zone.records))
 
         source.populate(dynamic_zone)
-        self.assertEquals(5, len(dynamic_zone.records))
+        self.assertEqual(5, len(dynamic_zone.records))
 
         with TemporaryDirectory() as td:
             # Add some subdirs to make sure that it can create them
@@ -263,20 +263,20 @@ class TestSplitYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEquals(17, len([c for c in plan.changes
-                                       if isinstance(c, Create)]))
+            self.assertEqual(17, len([c for c in plan.changes
+                                      if isinstance(c, Create)]))
             self.assertFalse(isdir(zone_dir))
 
             # Now actually do it
-            self.assertEquals(17, target.apply(plan))
+            self.assertEqual(17, target.apply(plan))
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
-            self.assertEquals(5, len([c for c in plan.changes
-                                      if isinstance(c, Create)]))
+            self.assertEqual(5, len([c for c in plan.changes
+                                     if isinstance(c, Create)]))
             self.assertFalse(isdir(dynamic_zone_dir))
             # Apply it
-            self.assertEquals(5, target.apply(plan))
+            self.assertEqual(5, target.apply(plan))
             self.assertTrue(isdir(dynamic_zone_dir))
 
             # There should be no changes after the round trip
@@ -291,8 +291,8 @@ class TestSplitYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEquals(17, len([c for c in plan.changes
-                                       if isinstance(c, Create)]))
+            self.assertEqual(17, len([c for c in plan.changes
+                                      if isinstance(c, Create)]))
 
             yaml_file = join(zone_dir, '$unit.tests.yaml')
             self.assertTrue(isfile(yaml_file))
@@ -353,7 +353,7 @@ class TestSplitYamlProvider(TestCase):
 
         # without it we see everything
         source.populate(zone)
-        self.assertEquals(0, len(zone.records))
+        self.assertEqual(0, len(zone.records))
 
     def test_unsorted(self):
         source = SplitYamlProvider(
@@ -383,8 +383,8 @@ class TestSplitYamlProvider(TestCase):
         zone = Zone('unit.tests.', ['sub'])
         with self.assertRaises(SubzoneRecordException) as ctx:
             source.populate(zone)
-        self.assertEquals('Record www.sub.unit.tests. is under a managed '
-                          'subzone', str(ctx.exception))
+        self.assertEqual('Record www.sub.unit.tests. is under a managed '
+                         'subzone', str(ctx.exception))
 
 
 class TestOverridingYamlProvider(TestCase):
@@ -401,7 +401,7 @@ class TestOverridingYamlProvider(TestCase):
         # Load the base, should see the 5 records
         base.populate(zone)
         got = {r.name: r for r in zone.records}
-        self.assertEquals(6, len(got))
+        self.assertEqual(6, len(got))
         # We get the "dynamic" A from the base config
         self.assertTrue('dynamic' in got['a'].data)
         # No added
@@ -410,9 +410,9 @@ class TestOverridingYamlProvider(TestCase):
         # Load the overrides, should replace one and add 1
         override.populate(zone)
         got = {r.name: r for r in zone.records}
-        self.assertEquals(7, len(got))
+        self.assertEqual(7, len(got))
         # 'a' was replaced with a generic record
-        self.assertEquals({
+        self.assertEqual({
             'ttl': 3600,
             'values': ['4.4.4.4', '5.5.5.5']
         }, got['a'].data)

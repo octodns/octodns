@@ -132,8 +132,8 @@ class BaseProvider(BaseSource):
         if exists is None:
             # If your code gets this warning see Source.populate for more
             # information
-            self.log.warn('Provider %s used in target mode did not return '
-                          'exists', self.id)
+            self.log.warning('Provider %s used in target mode did not return '
+                             'exists', self.id)
 
         for processor in processors:
             existing = processor.process_target_zone(existing, target=self)

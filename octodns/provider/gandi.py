@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('Gandi')
 try:
-    logger.warn('octodns_gandi shimmed. Update your provider class to '
-                'octodns_gandi.GandiProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_gandi shimmed. Update your provider class to '
+                   'octodns_gandi.GandiProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_gandi import GandiProvider
     GandiProvider  # pragma: no cover
 except ModuleNotFoundError:

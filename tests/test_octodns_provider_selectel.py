@@ -206,7 +206,7 @@ class TestSelectelProvider(TestCase):
         provider = SelectelProvider(123, 'secret_token')
         provider.populate(zone)
 
-        self.assertEquals(self.expected, zone.records)
+        self.assertEqual(self.expected, zone.records)
 
     @requests_mock.Mocker()
     def test_populate_invalid_record(self, fake_http):
@@ -264,8 +264,8 @@ class TestSelectelProvider(TestCase):
             zone.add_record(record)
 
         plan = provider.plan(zone)
-        self.assertEquals(8, len(plan.changes))
-        self.assertEquals(8, provider.apply(plan))
+        self.assertEqual(8, len(plan.changes))
+        self.assertEqual(8, provider.apply(plan))
 
     @requests_mock.Mocker()
     def test_domain_list(self, fake_http):
@@ -277,7 +277,7 @@ class TestSelectelProvider(TestCase):
         provider = SelectelProvider(123, 'test_token')
 
         result = provider.domain_list()
-        self.assertEquals(result, expected)
+        self.assertEqual(result, expected)
 
     @requests_mock.Mocker()
     def test_authentication_fail(self, fake_http):
@@ -287,8 +287,8 @@ class TestSelectelProvider(TestCase):
 
         with self.assertRaises(Exception) as ctx:
             SelectelProvider(123, 'fail_token')
-        self.assertEquals(str(ctx.exception),
-                          'Authorization failed. Invalid or empty token.')
+        self.assertEqual(str(ctx.exception),
+                         'Authorization failed. Invalid or empty token.')
 
     @requests_mock.Mocker()
     def test_not_exist_domain(self, fake_http):
@@ -312,8 +312,8 @@ class TestSelectelProvider(TestCase):
             zone.add_record(record)
 
         plan = provider.plan(zone)
-        self.assertEquals(8, len(plan.changes))
-        self.assertEquals(8, provider.apply(plan))
+        self.assertEqual(8, len(plan.changes))
+        self.assertEqual(8, provider.apply(plan))
 
     @requests_mock.Mocker()
     def test_delete_no_exist_record(self, fake_http):
@@ -365,8 +365,8 @@ class TestSelectelProvider(TestCase):
             zone.add_record(record)
 
         plan = provider.plan(zone)
-        self.assertEquals(8, len(plan.changes))
-        self.assertEquals(8, provider.apply(plan))
+        self.assertEqual(8, len(plan.changes))
+        self.assertEqual(8, provider.apply(plan))
 
     @requests_mock.Mocker()
     def test_include_change_returns_false(self, fake_http):
