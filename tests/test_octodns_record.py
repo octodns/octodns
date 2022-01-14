@@ -3459,6 +3459,12 @@ class TestDynamicRecords(TestCase):
         self.assertTrue(rules)
         self.assertEqual(a_data['dynamic']['rules'][0], rules[0].data)
 
+        # smoke test of _DynamicMixin.__repr__
+        a.__repr__()
+        delattr(a, 'values')
+        a.value = 'abc'
+        a.__repr__()
+
     def test_simple_aaaa_weighted(self):
         aaaa_data = {
             'dynamic': {

@@ -80,4 +80,8 @@ setup(
     python_requires='>=3.6',
     url='https://github.com/octodns/octodns',
     version=octodns.__VERSION__,
+    tests_require=(
+        'pytest',
+        'pytest-network',
+    ),
 )
