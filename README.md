@@ -209,9 +209,9 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [HetznerProvider](https://github.com/octodns/octodns-hetzner/) | [octodns_hetzner](https://github.com/octodns/octodns-hetzner/) | | | | |
 | [MythicBeastsProvider](https://github.com/octodns/octodns-mythicbeasts/) | [octodns_mythicbeasts](https://github.com/octodns/octodns-mythicbeasts/) | | | | |
 | [Ns1Provider](https://github.com/octodns/octodns-ns1/) | [octodns_ns1](https://github.com/octodns/octodns-ns1/) | | | | |
-| [OvhProvider](https://github.com/octodns/octodns-ovh/) | [octodns_ovh](https://github.com/octodns/octodns-ovh/) | | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
+| [OvhProvider](https://github.com/octodns/octodns-ovh/) | [octodns_ovh](https://github.com/octodns/octodns-ovh/) | | | | |
 | [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/) | [octodns_powerdns](https://github.com/octodns/octodns-powerdns/) | | | | |
-| [Rackspace](/octodns/provider/rackspace.py) | | | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
+| [RackspaceProvider](https://github.com/octodns/octodns-rackspace/) | [octodns_rackspace](https://github.com/octodns/octodns-rackspace/) | | | |  |
 | [Route53](https://github.com/octodns/octodns-route53) | [octodns_route53](https://github.com/octodns/octodns-route53) | | | | |
 | [Selectel](/octodns/provider/selectel.py) | | | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | |
 | [Transip](/octodns/provider/transip.py) | | transip | A, AAAA, CNAME, MX, NS, SRV, SPF, TXT, SSHFP, CAA | No | |

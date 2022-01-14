@@ -1512,6 +1512,9 @@ class TestRecord(TestCase):
         self.assertTrue(c >= c)
         self.assertTrue(c <= c)
 
+        self.assertEqual(a.__hash__(), a.__hash__())
+        self.assertNotEqual(a.__hash__(), b.__hash__())
+
     def test_sshfp_value(self):
         a = SshfpValue({'algorithm': 0, 'fingerprint_type': 0,
                         'fingerprint': 'abcd'})
