@@ -192,8 +192,9 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 
 | Provider | Module | Requirements | Record Support | Dynamic | Notes |
 |--|--|--|--|--|--|
-| [Azure DNS](https://azure.microsoft.com/en-us/services/dns/) | [octodns_azure](https://github.com/octodns/octodns-azure/) | | | | |
 | [Akamai Edge DNS](https://www.akamai.com/products/edge-dns) | [octodns_edgedns](https://github.com/octodns/octodns-edgedns/) | | | | |
+| [Amazon Route 53](https://aws.amazon.com/route53/) | [octodns_route53](https://github.com/octodns/octodns-route53) | | | | |
+| [Azure DNS](https://azure.microsoft.com/en-us/services/dns/) | [octodns_azure](https://github.com/octodns/octodns-azure/) | | | | |
 | [Cloudflare DNS](https://www.cloudflare.com/dns/) | [octodns_cloudflare](https://github.com/octodns/octodns-cloudflare/) | | | | |
 | [Constellix](https://constellix.com/) | [octodns_constellix](https://github.com/octodns/octodns-constellix/) | | | | |
 | [DigitalOcean](https://docs.digitalocean.com/products/networking/dns/) | [octodns_digitalocean](https://github.com/octodns/octodns-digitalocean/) | | | | |
@@ -212,7 +213,6 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [OVHcloud DNS](https://www.ovhcloud.com/en/domains/dns-subdomain/) | [octodns_ovh](https://github.com/octodns/octodns-ovh/) | | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
 | [PowerDNS](https://www.powerdns.com/) | [octodns_powerdns](https://github.com/octodns/octodns-powerdns/) | | | | |
 | [Rackspace](/octodns/provider/rackspace.py) | | | A, AAAA, ALIAS, CNAME, MX, NS, PTR, SPF, TXT | No |  |
-| [Route53](https://aws.amazon.com/route53/) | [octodns_route53](https://github.com/octodns/octodns-route53) | | | | |
 | [Selectel](/octodns/provider/selectel.py) | | | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | |
 | [Transip](/octodns/provider/transip.py) | | transip | A, AAAA, CNAME, MX, NS, SRV, SPF, TXT, SSHFP, CAA | No | |
 | [UltraDns](/octodns/provider/ultra.py) | | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | |
