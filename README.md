@@ -214,8 +214,7 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [RackspaceProvider](https://github.com/octodns/octodns-rackspace/) | [octodns_rackspace](https://github.com/octodns/octodns-rackspace/) | | | |  |
 | [Route53Provider](https://github.com/octodns/octodns-route53) | [octodns_route53](https://github.com/octodns/octodns-route53) | | | | |
 | [SelectelProvider](https://github.com/octodns/octodns-selectel/) | [octodns_selectel](https://github.com/octodns/octodns-selectel/) | | | | |
-| [Selectel](/octodns/provider/selectel.py) | | | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | |
-| [Transip](/octodns/provider/transip.py) | | transip | A, AAAA, CNAME, MX, NS, SRV, SPF, TXT, SSHFP, CAA | No | |
+| [TransipProvider](https://github.com/octodns/octodns-transip/) | [octodns_transip](https://github.com/octodns/octodns-transip/) | | | | |
 | [UltraDns](/octodns/provider/ultra.py) | | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | |
 | [AxfrSource](/octodns/source/axfr.py) | | | A, AAAA, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [ZoneFileSource](/octodns/source/axfr.py) | | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
