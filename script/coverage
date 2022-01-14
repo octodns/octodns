@@ -30,19 +30,23 @@ export ARM_CLIENT_SECRET=
 export ARM_TENANT_ID=
 export ARM_SUBSCRIPTION_ID=
 
+SOURCE_DIR="octodns/"
+
 # Don't allow disabling coverage
-grep -r -I --line-number "# pragma: +no.*cover" octodns && {
-  echo "Code coverage should not be disabled"
-  exit 1
+grep -r -I --line-number "# pragma: +no.*cover" $SOURCE_DIR && {
+    echo "Code coverage should not be disabled"
+    exit 1
 }
 
 export PYTHONPATH=.:$PYTHONPATH
 
-coverage run --branch --source=octodns --omit=octodns/cmds/* "$(command -v pytest)" --disable-network "$@"
-coverage html
-coverage xml
-coverage report --show-missing
-coverage report | grep ^TOTAL | grep -qv 100% && {
-    echo "Incomplete code coverage" >&2
-    exit 1
-} || echo "Code coverage 100%"
+pytest \
+  --disable-network \
+  --cov-reset \
+  --cov=$SOURCE_DIR \
+  --cov-fail-under=100 \
+  --cov-report=html \
+  --cov-report=xml \
+  --cov-report=term \
+  --cov-branch \
+  "$@"
