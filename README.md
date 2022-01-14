@@ -212,7 +212,8 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [OvhProvider](https://github.com/octodns/octodns-ovh/) | [octodns_ovh](https://github.com/octodns/octodns-ovh/) | | | | |
 | [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/) | [octodns_powerdns](https://github.com/octodns/octodns-powerdns/) | | | | |
 | [RackspaceProvider](https://github.com/octodns/octodns-rackspace/) | [octodns_rackspace](https://github.com/octodns/octodns-rackspace/) | | | |  |
-| [Route53](https://github.com/octodns/octodns-route53) | [octodns_route53](https://github.com/octodns/octodns-route53) | | | | |
+| [Route53Provider](https://github.com/octodns/octodns-route53) | [octodns_route53](https://github.com/octodns/octodns-route53) | | | | |
+| [SelectelProvider](https://github.com/octodns/octodns-selectel/) | [octodns_selectel](https://github.com/octodns/octodns-selectel/) | | | | |
 | [Selectel](/octodns/provider/selectel.py) | | | A, AAAA, CNAME, MX, NS, SPF, SRV, TXT | No | |
 | [Transip](/octodns/provider/transip.py) | | transip | A, AAAA, CNAME, MX, NS, SRV, SPF, TXT, SSHFP, CAA | No | |
 | [UltraDns](/octodns/provider/ultra.py) | | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | |
