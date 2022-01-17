@@ -192,29 +192,29 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 
 | Provider | Module | Requirements | Record Support | Dynamic | Notes |
 |--|--|--|--|--|--|
-| [AzureProvider](https://github.com/octodns/octodns-azure/) | [octodns_azure](https://github.com/octodns/octodns-azure/) | | | | |
-| [AkamaiProvider](https://github.com/octodns/octodns-edgedns/) | [octodns_edgedns](https://github.com/octodns/octodns-edgedns/) | | | | |
-| [CloudflareProvider](https://github.com/octodns/octodns-cloudflare/) | [octodns_cloudflare](https://github.com/octodns/octodns-cloudflare/) | | | | |
-| [ConstellixProvider](https://github.com/octodns/octodns-constellix/) | [octodns_constellix](https://github.com/octodns/octodns-constellix/) | | | | |
-| [DigitalOceanProvider](https://github.com/octodns/octodns-digitalocean/) | [octodns_digitalocean](https://github.com/octodns/octodns-digitalocean/) | | | | |
-| [DnsMadeEasyProvider](https://github.com/octodns/octodns-dnsmadeeasy/) | [octodns_dnsmadeeasy](https://github.com/octodns/octodns-dnsmadeeasy/) | | | | |
-| [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/) | [octodns_dnsimple](https://github.com/octodns/octodns-dnsimple/) | | | | |
-| [DynProvider](https://github.com/octodns/octodns-dyn/) (deprecated) | [octodns_dyn](https://github.com/octodns/octodns-dyn/) | | | | |
-| [EasyDnsProvider](https://github.com/octodns/octodns-easydns/) | [octodns_easydns](https://github.com/octodns/octodns-easydns/) | | | | |
-| [EtcHostsProvider](https://github.com/octodns/octodns-etchosts/) | [octodns_etchosts](https://github.com/octodns/octodns-etchosts/) | | | | |
+| [Akamai Edge DNS](https://www.akamai.com/products/edge-dns) | [octodns_edgedns](https://github.com/octodns/octodns-edgedns/) | | | | |
+| [Amazon Route 53](https://aws.amazon.com/route53/) | [octodns_route53](https://github.com/octodns/octodns-route53) | | | | |
+| [Azure DNS](https://azure.microsoft.com/en-us/services/dns/) | [octodns_azure](https://github.com/octodns/octodns-azure/) | | | | |
+| [Cloudflare DNS](https://www.cloudflare.com/dns/) | [octodns_cloudflare](https://github.com/octodns/octodns-cloudflare/) | | | | |
+| [Constellix](https://constellix.com/) | [octodns_constellix](https://github.com/octodns/octodns-constellix/) | | | | |
+| [DigitalOcean](https://docs.digitalocean.com/products/networking/dns/) | [octodns_digitalocean](https://github.com/octodns/octodns-digitalocean/) | | | | |
+| [DNS Made Easy](https://dnsmadeeasy.com/) | [octodns_dnsmadeeasy](https://github.com/octodns/octodns-dnsmadeeasy/) | | | | |
+| [DNSimple](https://dnsimple.com/) | [octodns_dnsimple](https://github.com/octodns/octodns-dnsimple/) | | | | |
+| [Dyn](https://www.oracle.com/cloud/networking/dns/) ([deprecated](https://www.oracle.com/corporate/acquisitions/dyn/technologies/migrate-your-services/)) | [octodns_dyn](https://github.com/octodns/octodns-dyn/) | | | | |
+| [easyDNS](https://easydns.com/) | [octodns_easydns](https://github.com/octodns/octodns-easydns/) | | | | |
+| /etc/hosts | [octodns_etchosts](https://github.com/octodns/octodns-etchosts/) | | | | |
 | [EnvVarSource](/octodns/source/envvar.py) | | | TXT | No | read-only environment variable injection |
-| [GandiProvider](https://github.com/octodns/octodns-gandi/) | [octodns_gandi](https://github.com/octodns/octodns-gandi/) | | | | |
-| [GCoreProvider](https://github.com/octodns/octodns-gcore/) | [octodns_gcore](https://github.com/octodns/octodns-gcore/) | | | | |
-| [GoogleCloudProvider](https://github.com/octodns/octodns-googlecloud/) | [octodns_googlecloud](https://github.com/octodns/octodns-googlecloud/) | | | | |
-| [HetznerProvider](https://github.com/octodns/octodns-hetzner/) | [octodns_hetzner](https://github.com/octodns/octodns-hetzner/) | | | | |
-| [MythicBeastsProvider](https://github.com/octodns/octodns-mythicbeasts/) | [octodns_mythicbeasts](https://github.com/octodns/octodns-mythicbeasts/) | | | | |
-| [Ns1Provider](https://github.com/octodns/octodns-ns1/) | [octodns_ns1](https://github.com/octodns/octodns-ns1/) | | | | |
-| [OvhProvider](https://github.com/octodns/octodns-ovh/) | [octodns_ovh](https://github.com/octodns/octodns-ovh/) | | | | |
-| [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/) | [octodns_powerdns](https://github.com/octodns/octodns-powerdns/) | | | | |
-| [RackspaceProvider](https://github.com/octodns/octodns-rackspace/) | [octodns_rackspace](https://github.com/octodns/octodns-rackspace/) | | | |  |
-| [Route53Provider](https://github.com/octodns/octodns-route53) | [octodns_route53](https://github.com/octodns/octodns-route53) | | | | |
-| [SelectelProvider](https://github.com/octodns/octodns-selectel/) | [octodns_selectel](https://github.com/octodns/octodns-selectel/) | | | | |
-| [TransipProvider](https://github.com/octodns/octodns-transip/) | [octodns_transip](https://github.com/octodns/octodns-transip/) | | | | |
+| [Gandi](https://www.gandi.net/en-US/domain/dns) | [octodns_gandi](https://github.com/octodns/octodns-gandi/) | | | | |
+| [G-Core Labs DNS](https://gcorelabs.com/dns/) | [octodns_gcore](https://github.com/octodns/octodns-gcore/) | | | | |
+| [Google Cloud DNS](https://cloud.google.com/dns) | [octodns_googlecloud](https://github.com/octodns/octodns-googlecloud/) | | | | |
+| [Hetzner DNS](https://www.hetzner.com/dns-console) | [octodns_hetzner](https://github.com/octodns/octodns-hetzner/) | | | | |
+| [Mythic Beasts DNS](https://www.mythic-beasts.com/support/hosting/dns) | [octodns_mythicbeasts](https://github.com/octodns/octodns-mythicbeasts/) | | | | |
+| [NS1](https://ns1.com/products/managed-dns) | [octodns_ns1](https://github.com/octodns/octodns-ns1/) | | | | |
+| [OVHcloud DNS](https://www.ovhcloud.com/en/domains/dns-subdomain/) | [octodns_ovh](https://github.com/octodns/octodns-ovh/) | | A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SPF, SRV, SSHFP, TXT, DKIM | No | |
+| [PowerDNS](https://www.powerdns.com/) | [octodns_powerdns](https://github.com/octodns/octodns-powerdns/) | | | | |
+| [Rackspace](/octodns/provider/rackspace.py) | [octodns_rackspace](https://github.com/octodns/octodns-rackspace/) | | | |  |
+| [Selectel](/octodns/provider/selectel.py) | [octodns_selectel](https://github.com/octodns/octodns-selectel/) | | | | |
+| [Transip](/octodns/provider/transip.py) | [octodns_transip](https://github.com/octodns/octodns-transip/) | | | | |
 | [UltraDns](/octodns/provider/ultra.py) | | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | |
 | [AxfrSource](/octodns/source/axfr.py) | | | A, AAAA, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [ZoneFileSource](/octodns/source/axfr.py) | | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
