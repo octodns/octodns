@@ -167,6 +167,29 @@ class TestBaseProvider(TestCase):
         self.assertTrue(plan)
         self.assertEqual(1, len(plan.changes))
 
+    def test_plan_with_unsupported_type(self):
+        zone = Zone('unit.tests.', [])
+
+        # supported
+        supported = Record.new(zone, 'a', {
+            'ttl': 30,
+            'type': 'A',
+            'value': '1.2.3.4',
+        })
+        zone.add_record(supported)
+        # not supported
+        not_supported = Record.new(zone, 'aaaa', {
+            'ttl': 30,
+            'type': 'AAAA',
+            'value': '2601:644:500:e210:62f8:1dff:feb8:947a',
+        })
+        zone.add_record(not_supported)
+        provider = HelperProvider()
+        plan = provider.plan(zone)
+        self.assertTrue(plan)
+        self.assertEqual(1, len(plan.changes))
+        self.assertEqual(supported, plan.changes[0].new)
+
     def test_plan_with_processors(self):
         zone = Zone('unit.tests.', [])
 
