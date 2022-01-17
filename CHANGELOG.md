@@ -24,6 +24,7 @@
    * [Ns1Provider](https://github.com/octodns/octodns-ns1/)
    * [OvhProvider](https://github.com/octodns/octodns-ovh/)
    * [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/)
+   * [RackspaceProvider](https://github.com/octodns/octodns-rackspace/)
    * [Route53Provider](https://github.com/octodns/octodns-route53/) also
      AwsAcmMangingProcessor
 * NS1 provider has received improvements to the dynamic record implementation.

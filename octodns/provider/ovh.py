@@ -9,9 +9,9 @@ from logging import getLogger
 
 logger = getLogger('Ovh')
 try:
-    logger.warn('octodns_ovh shimmed. Update your provider class to '
-                'octodns_ovh.OvhProvider. '
-                'Shim will be removed in 1.0')
+    logger.warning('octodns_ovh shimmed. Update your provider class to '
+                   'octodns_ovh.OvhProvider. '
+                   'Shim will be removed in 1.0')
     from octodns_ovh import OvhProvider
     OvhProvider  # pragma: no cover
 except ModuleNotFoundError:
