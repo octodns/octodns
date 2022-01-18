@@ -214,8 +214,8 @@ The table below lists the providers octoDNS supports. We're currently in the pro
 | [PowerDNS](https://www.powerdns.com/) | [octodns_powerdns](https://github.com/octodns/octodns-powerdns/) | | | | |
 | [Rackspace](https://www.rackspace.com/library/what-is-dns) | [octodns_rackspace](https://github.com/octodns/octodns-rackspace/) | | | |  |
 | [Selectel](https://selectel.ru/en/services/additional/dns/) | [octodns_selectel](https://github.com/octodns/octodns-selectel/) | | | | |
-| [Transip](https://www.transip.eu/knowledgebase/entry/155-dns-and-nameservers/) | [octodns_transip](https://github.com/octodns/octodns-transip/) | | | | |
-| [Ultra Dns](https://www.home.neustar/dns-services) | [octodns_ultra](https://github.com/octodns/octodns-ultra/) | | | | |
+| [TransIP](https://www.transip.eu/knowledgebase/entry/155-dns-and-nameservers/) | [octodns_transip](https://github.com/octodns/octodns-transip/) | | | | |
+| [UltraDNS](https://www.home.neustar/dns-services) | [octodns_ultra](https://github.com/octodns/octodns-ultra/) | | | | |
 | [AxfrSource](/octodns/source/axfr.py) | | | A, AAAA, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [ZoneFileSource](/octodns/source/axfr.py) | | | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [TinyDnsFileSource](/octodns/source/tinydns.py) | | | A, CNAME, MX, NS, PTR | No | read-only |
