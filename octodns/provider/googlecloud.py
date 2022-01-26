@@ -18,5 +18,7 @@ except ModuleNotFoundError:
     logger.exception('GoogleCloudProvider has been moved into a seperate '
                      'module, octodns_googlecloud is now required. Provider '
                      'class should be updated to '
-                     'octodns_googlecloud.GoogleCloudProvider')
+                     'octodns_googlecloud.GoogleCloudProvider. See '
+                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'to-use-extracted-providers for more information.')
     raise

@@ -18,5 +18,7 @@ except ModuleNotFoundError:
     logger.exception('DigitalOceanProvider has been moved into a seperate '
                      'module, octodns_digitalocean is now required. Provider '
                      'class should be updated to '
-                     'octodns_digitalocean.DigitalOceanProvider')
+                     'octodns_digitalocean.DigitalOceanProvider. See '
+                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'to-use-extracted-providers for more information.')
     raise

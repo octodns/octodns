@@ -17,5 +17,7 @@ try:
 except ModuleNotFoundError:
     logger.exception('SelectelProvider has been moved into a seperate module, '
                      'octodns_selectel is now required. Provider class should '
-                     'be updated to octodns_selectel.SelectelProvider')
+                     'be updated to octodns_selectel.SelectelProvider. See '
+                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'to-use-extracted-providers for more information.')
     raise

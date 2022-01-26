@@ -17,5 +17,7 @@ try:
 except ModuleNotFoundError:
     logger.exception('Ns1Provider has been moved into a seperate module, '
                      'octodns_ns1 is now required. Provider class should '
-                     'be updated to octodns_ns1.Ns1Provider')
+                     'be updated to octodns_ns1.Ns1Provider. See '
+                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'to-use-extracted-providers for more information.')
     raise
