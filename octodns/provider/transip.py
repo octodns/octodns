@@ -18,6 +18,6 @@ except ModuleNotFoundError:
     logger.exception('TransipProvider has been moved into a seperate module, '
                      'octodns_transip is now required. Provider class should '
                      'be updated to octodns_transip.TransipProvider. See '
-                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'https://github.com/octodns/octodns#updating-'
                      'to-use-extracted-providers for more information.')
     raise

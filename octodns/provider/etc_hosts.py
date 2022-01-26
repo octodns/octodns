@@ -18,6 +18,6 @@ except ModuleNotFoundError:
     logger.exception('EtcHostsProvider has been moved into a seperate module, '
                      'octodns_etchosts is now required. Provider class should '
                      'be updated to octodns_etchosts.EtcHostsProvider. See '
-                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'See https://github.com/octodns/octodns#updating-'
                      'to-use-extracted-providers for more information.')
     raise

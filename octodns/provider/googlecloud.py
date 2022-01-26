@@ -19,6 +19,6 @@ except ModuleNotFoundError:
                      'module, octodns_googlecloud is now required. Provider '
                      'class should be updated to '
                      'octodns_googlecloud.GoogleCloudProvider. See '
-                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'https://github.com/octodns/octodns#updating-'
                      'to-use-extracted-providers for more information.')
     raise
