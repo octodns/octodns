@@ -18,5 +18,7 @@ try:
 except ModuleNotFoundError:
     logger.exception('PowerDnsProvider has been moved into a seperate module, '
                      'octodns_powerdns is now required. Provider class should '
-                     'be updated to octodns_powerdns.PowerDnsProvider')
+                     'be updated to octodns_powerdns.PowerDnsProvider. See '
+                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'to-use-extracted-providers for more information.')
     raise

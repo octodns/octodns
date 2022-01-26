@@ -17,5 +17,7 @@ try:
 except ModuleNotFoundError:
     logger.exception('OvhProvider has been moved into a seperate module, '
                      'octodns_ovh is now required. Provider class should '
-                     'be updated to octodns_ovh.OvhProvider')
+                     'be updated to octodns_ovh.OvhProvider. See '
+                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'to-use-extracted-providers for more information.')
     raise

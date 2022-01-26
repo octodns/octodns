@@ -18,5 +18,7 @@ except ModuleNotFoundError:
     logger.exception('DnsMadeEasyProvider has been moved into a seperate '
                      'module, octodns_dnsmadeeasy is now required. Provider '
                      'class should be updated to '
-                     'octodns_dnsmadeeasy.DnsMadeEasyProvider')
+                     'octodns_dnsmadeeasy.DnsMadeEasyProvider. See '
+                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'to-use-extracted-providers for more information.')
     raise

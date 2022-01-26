@@ -18,5 +18,7 @@ except ModuleNotFoundError:
     logger.exception('CloudflareProvider has been moved into a seperate '
                      'module, octodns_cloudflare is now required. Provider '
                      'class should be updated to '
-                     'octodns_cloudflare.CloudflareProvider')
+                     'octodns_cloudflare.CloudflareProvider. See '
+                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'to-use-extracted-providers for more information.')
     raise

@@ -17,5 +17,7 @@ try:
 except ModuleNotFoundError:
     logger.exception('AzureProvider has been moved into a seperate module, '
                      'octodns_azure is now required. Provider class should '
-                     'be updated to octodns_azure.AzureProvider')
+                     'be updated to octodns_azure.AzureProvider. See '
+                     'https://github.com/octodns/octodns#updating-'
+                     'to-use-extracted-providers for more information.')
     raise

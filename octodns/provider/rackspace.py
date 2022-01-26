@@ -18,5 +18,7 @@ except ModuleNotFoundError:
     logger.exception('RackspaceProvider has been moved into a seperate '
                      'module, octodns_rackspace is now required. Provider '
                      'class should be updated to '
-                     'octodns_rackspace.RackspaceProvider')
+                     'octodns_rackspace.RackspaceProvider. See '
+                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'to-use-extracted-providers for more information.')
     raise

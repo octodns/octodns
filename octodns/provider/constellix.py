@@ -18,5 +18,7 @@ except ModuleNotFoundError:
     logger.exception('ConstellixProvider has been moved into a seperate '
                      'module, octodns_constellix is now required. Provider '
                      'class should be updated to '
-                     'octodns_constellix.ConstellixProvider')
+                     'octodns_constellix.ConstellixProvider. See '
+                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'to-use-extracted-providers for more information.')
     raise

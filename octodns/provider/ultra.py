@@ -17,5 +17,7 @@ try:
 except ModuleNotFoundError:
     logger.exception('UltraProvider has been moved into a seperate module, '
                      'octodns_ultra is now required. Provider class should '
-                     'be updated to octodns_ultra.UltraProvider')
+                     'be updated to octodns_ultra.UltraProvider. See '
+                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'to-use-extracted-providers for more information.')
     raise

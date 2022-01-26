@@ -17,5 +17,7 @@ try:
 except ModuleNotFoundError:
     logger.exception('DynProvider has been moved into a seperate module, '
                      'octodns_dyn is now required. Provider class should '
-                     'be updated to octodns_dyn.DynProvider')
+                     'be updated to octodns_dyn.DynProvider. See '
+                     'https://github.com/octodns/octodns/README.md#updating-'
+                     'to-use-extracted-providers for more information.')
     raise
