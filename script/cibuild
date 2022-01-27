@@ -36,6 +36,6 @@ python3 -m venv $TMP_DIR
 python setup.py install
 octodns-sync --help
 echo "## validate tests can run against installed code ###############################"
-pip install .[dev]
-pytest --disable-network
+pip install pytest pytest-network
+pytest
 echo "## complete ####################################################################"
