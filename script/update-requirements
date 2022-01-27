@@ -51,13 +51,16 @@ with TemporaryDirectory() as tmpdir:
     dev_frozen = check_output([join(tmpdir, 'bin', 'pip'), 'freeze'])
     dev_frozen = set(dev_frozen.decode('utf-8').split()) - frozen
 
+frozen = sorted(frozen)
+dev_frozen = sorted(dev_frozen)
+
 print_packages(frozen, 'frozen')
 print_packages(dev_frozen, 'dev_frozen')
 
 with open('requirements.txt', 'w') as fh:
-    fh.write('\n'.join(sorted(frozen)))
+    fh.write('\n'.join(frozen))
     fh.write('\n')
 
 with open('requirements-dev.txt', 'w') as fh:
-    fh.write('\n'.join(sorted(dev_frozen)))
+    fh.write('\n'.join(dev_frozen))
     fh.write('\n')
