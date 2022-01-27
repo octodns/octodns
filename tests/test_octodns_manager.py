@@ -15,8 +15,8 @@ from octodns.record import Create, Delete, Record
 from octodns.yaml import safe_load
 from octodns.zone import Zone
 
-from mock import MagicMock, patch
 from unittest import TestCase
+from unittest.mock import MagicMock, patch
 
 from helpers import DynamicProvider, GeoProvider, NoSshFpProvider, \
     PlannableProvider, SimpleProvider, TemporaryDirectory

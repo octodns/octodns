@@ -62,7 +62,7 @@ setup(
     entry_points={
         'console_scripts': console_scripts,
     },
-    install_requires=[
+    install_requires=(
         'PyYaml>=4.2b1',
         'dnspython>=1.15.0',
         'fqdn>=1.5.0',
@@ -70,8 +70,8 @@ setup(
         'pycountry>=19.8.18',
         'pycountry-convert>=0.7.2',
         'python-dateutil>=2.8.1',
-        'requests>=2.20.0'
-    ],
+        'requests>=2.20.0',
+    ),
     license='MIT',
     long_description=long_description(),
     long_description_content_type='text/markdown',
@@ -81,7 +81,7 @@ setup(
     url='https://github.com/octodns/octodns',
     version=octodns.__VERSION__,
     tests_require=(
-        'pytest',
-        'pytest-network',
+        'pytest>=6.2.5',
+        'pytest-network>=0.0.1',
     ),
 )

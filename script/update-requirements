@@ -1,0 +1,63 @@
+#!/usr/bin/env python
+
+from os.path import join
+from subprocess import check_call, check_output
+from tempfile import TemporaryDirectory
+import re
+
+
+def parse_setup(lines, which):
+    match = re.search(fr'{which}\w*=\w*[\(\[](?P<list>[^\)\]]*)', lines,
+                      flags=re.DOTALL)
+    packages = match.groups('list')[0]
+    packages = re.sub(r"[\"'\s]+", '', packages, flags=re.MULTILINE)
+    packages = [p for p in packages.split(',') if p]
+    return packages
+
+
+with open('setup.py') as fh:
+    lines = fh.read()
+
+install_requires = parse_setup(lines, 'install_requires')
+tests_require = parse_setup(lines, 'tests_require')
+dev_requires = [
+    'build>=0.7.0',
+    'pycodestyle>=2.6.0',
+    'pyflakes>=2.2.0',
+    'readme_renderer[md]>=26.0',
+    'twine>=3.4.2',
+]
+
+
+def print_packages(packages, heading):
+    print(f'{heading}:')
+    print('  ', end='')
+    print('\n  '.join(packages))
+
+
+print_packages(install_requires, 'install_requires')
+print_packages(tests_require, 'tests_require')
+print_packages(dev_requires, 'dev_requires')
+
+with TemporaryDirectory() as tmpdir:
+    check_call(['python3', '-m', 'venv', tmpdir])
+
+    check_call([join(tmpdir, 'bin', 'pip'), 'install', *install_requires])
+    frozen = check_output([join(tmpdir, 'bin', 'pip'), 'freeze'])
+    frozen = set(frozen.decode('utf-8').split())
+
+    check_call([join(tmpdir, 'bin', 'pip'), 'install', *tests_require,
+                *dev_requires])
+    dev_frozen = check_output([join(tmpdir, 'bin', 'pip'), 'freeze'])
+    dev_frozen = set(dev_frozen.decode('utf-8').split()) - frozen
+
+print_packages(frozen, 'frozen')
+print_packages(dev_frozen, 'dev_frozen')
+
+with open('requirements.txt', 'w') as fh:
+    fh.write('\n'.join(sorted(frozen)))
+    fh.write('\n')
+
+with open('requirements-dev.txt', 'w') as fh:
+    fh.write('\n'.join(sorted(dev_frozen)))
+    fh.write('\n')
