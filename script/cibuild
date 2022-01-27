@@ -32,7 +32,7 @@ echo "## validate setup.py install #############################################
 deactivate
 TMP_DIR=$(mktemp -d -t ci-XXXXXXXXXX)
 python3 -m venv $TMP_DIR
-source "$TMP_DIR/bin/activate"
+. "$TMP_DIR/bin/activate"
 python setup.py install
 octodns-sync --help
 echo "## validate tests can run against installed code ###############################"
