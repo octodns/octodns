@@ -70,7 +70,6 @@ setup(
         'pycountry>=19.8.18',
         'pycountry-convert>=0.7.2',
         'python-dateutil>=2.8.1',
-        'requests>=2.20.0',
     ),
     license='MIT',
     long_description=long_description(),

@@ -1,10 +1,13 @@
 Pygments==2.11.2
 bleach==4.1.0
 build==0.7.0
+certifi==2021.10.8
 cffi==1.15.0
+charset-normalizer==2.0.10
 cmarkgfm==0.6.0
 colorama==0.4.4
 docutils==0.18.1
+idna==3.3
 importlib-metadata==4.10.1
 keyring==23.5.0
 pep517==0.12.0
@@ -15,8 +18,10 @@ pyflakes==2.4.0
 pytest-network==0.0.1
 readme-renderer==32.0
 requests-toolbelt==0.9.1
+requests==2.27.1
 rfc3986==2.0.0
 tqdm==4.62.3
 twine==3.7.1
+urllib3==1.26.8
 webencodings==0.5.1
 zipp==3.7.0
