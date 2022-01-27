@@ -37,6 +37,5 @@ python setup.py install
 octodns-sync --help
 echo "## validate tests can run against installed code ###############################"
 pip install .[dev]
-cd $TMP_DIR
 pytest --disable-network
 echo "## complete ####################################################################"
