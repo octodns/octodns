@@ -55,12 +55,26 @@ def long_description():
     return buf.getvalue()
 
 
+tests_require = (
+    'pytest>=6.2.5',
+    'pytest-network>=0.0.1',
+)
+
 setup(
     author='Ross McFarland',
     author_email='rwmcfa1@gmail.com',
     description=octodns.__doc__,
     entry_points={
         'console_scripts': console_scripts,
+    },
+    extras_require={
+        'dev': tests_require + (
+            'build>=0.7.0',
+            'pycodestyle>=2.6.0',
+            'pyflakes>=2.2.0',
+            'readme_renderer[md]>=26.0',
+            'twine>=3.4.2',
+        ),
     },
     install_requires=(
         'PyYaml>=4.2b1',
@@ -77,10 +91,7 @@ setup(
     name='octodns',
     packages=find_packages(),
     python_requires='>=3.6',
+    tests_require=tests_require,
     url='https://github.com/octodns/octodns',
     version=octodns.__VERSION__,
-    tests_require=(
-        'pytest>=6.2.5',
-        'pytest-network>=0.0.1',
-    ),
 )

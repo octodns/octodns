@@ -3,30 +3,6 @@
 from os.path import join
 from subprocess import check_call, check_output
 from tempfile import TemporaryDirectory
-import re
-
-
-def parse_setup(lines, which):
-    match = re.search(fr'{which}\w*=\w*[\(\[](?P<list>[^\)\]]*)', lines,
-                      flags=re.DOTALL)
-    packages = match.groups('list')[0]
-    packages = re.sub(r"[\"'\s]+", '', packages, flags=re.MULTILINE)
-    packages = [p for p in packages.split(',') if p]
-    return packages
-
-
-with open('setup.py') as fh:
-    lines = fh.read()
-
-install_requires = parse_setup(lines, 'install_requires')
-tests_require = parse_setup(lines, 'tests_require')
-dev_requires = [
-    'build>=0.7.0',
-    'pycodestyle>=2.6.0',
-    'pyflakes>=2.2.0',
-    'readme_renderer[md]>=26.0',
-    'twine>=3.4.2',
-]
 
 
 def print_packages(packages, heading):
@@ -35,24 +11,31 @@ def print_packages(packages, heading):
     print('\n  '.join(packages))
 
 
-print_packages(install_requires, 'install_requires')
-print_packages(tests_require, 'tests_require')
-print_packages(dev_requires, 'dev_requires')
-
 with TemporaryDirectory() as tmpdir:
     check_call(['python3', '-m', 'venv', tmpdir])
 
-    check_call([join(tmpdir, 'bin', 'pip'), 'install', *install_requires])
+    # base needs
+    check_call([join(tmpdir, 'bin', 'pip'), 'install', '.'])
     frozen = check_output([join(tmpdir, 'bin', 'pip'), 'freeze'])
-    frozen = set(frozen.decode('utf-8').split())
+    frozen = set(frozen.decode('utf-8').strip().split('\n'))
 
-    check_call([join(tmpdir, 'bin', 'pip'), 'install', *tests_require,
-                *dev_requires])
+    # dev additions
+    check_call([join(tmpdir, 'bin', 'pip'), 'install', '.[dev]'])
     dev_frozen = check_output([join(tmpdir, 'bin', 'pip'), 'freeze'])
-    dev_frozen = set(dev_frozen.decode('utf-8').split()) - frozen
+    dev_frozen = set(dev_frozen.decode('utf-8').strip().split('\n')) - frozen
 
-frozen = sorted(frozen)
-dev_frozen = sorted(dev_frozen)
+# pip installs the module itself along with deps so we need to get that out of
+# our list by finding the thing that was file installed during dev
+dev_frozen_sorted = sorted(dev_frozen)
+dev_frozen = []
+for package in dev_frozen_sorted:
+    if 'file://' in package:
+        ours = package.split(' @ ')[0]
+    else:
+        dev_frozen.append(package)
+# now we can build the list of base requiements w/o ourself
+frozen = sorted([p for p in frozen if not p.startswith(ours)])
+# we also sorted things while we were at it above
 
 print_packages(frozen, 'frozen')
 print_packages(dev_frozen, 'dev_frozen')
