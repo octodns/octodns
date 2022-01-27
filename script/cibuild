@@ -7,15 +7,15 @@ cd "$(dirname "$0")/.."
 echo "## bootstrap ###################################################################"
 script/bootstrap
 
-echo "## environment & versions ######################################################"
-python --version
-python -m pip --version
-
 if [ -z "$VENV_NAME" ]; then
     VENV_NAME="env"
 fi
 
 . "$VENV_NAME/bin/activate"
+
+echo "## environment & versions ######################################################"
+python --version
+pip --version
 
 echo "## clean up ####################################################################"
 find octodns tests -name "*.pyc" -exec rm {} \;
