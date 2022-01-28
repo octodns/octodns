@@ -1,4 +1,5 @@
 #!/bin/sh
+
 set -e
 
 cd "$(dirname "$0")/.."
@@ -6,15 +7,15 @@ cd "$(dirname "$0")/.."
 echo "## bootstrap ###################################################################"
 script/bootstrap
 
-echo "## environment & versions ######################################################"
-python --version
-python -m pip --version
-
 if [ -z "$VENV_NAME" ]; then
     VENV_NAME="env"
 fi
 
 . "$VENV_NAME/bin/activate"
+
+echo "## environment & versions ######################################################"
+python --version
+pip --version
 
 echo "## clean up ####################################################################"
 find octodns tests -name "*.pyc" -exec rm {} \;
@@ -27,4 +28,14 @@ echo "## tests/coverage ########################################################
 script/coverage
 echo "## validate setup.py build #####################################################"
 python setup.py build
+echo "## validate setup.py install ###################################################"
+deactivate
+TMP_DIR=$(mktemp -d -t ci-XXXXXXXXXX)
+python3 -m venv $TMP_DIR
+. "$TMP_DIR/bin/activate"
+python setup.py install
+octodns-sync --help
+echo "## validate tests can run against installed code ###############################"
+pip install pytest pytest-network
+pytest --disable-network
 echo "## complete ####################################################################"
