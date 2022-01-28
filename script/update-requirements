@@ -3,6 +3,7 @@
 from os.path import join
 from subprocess import check_call, check_output
 from tempfile import TemporaryDirectory
+import re
 
 
 def print_packages(packages, heading):
@@ -10,6 +11,15 @@ def print_packages(packages, heading):
     print('  ', end='')
     print('\n  '.join(packages))
 
+
+# would  be nice if there was a cleaner way to get this, but I've not found a
+# more reliable one.
+with open('setup.py') as fh:
+    match = re.search(r"name='(?P<pkg>[\w-]+)',", fh.read())
+    if not match:
+        raise Exception('failed to determine our package name')
+    our_package_name = match.group('pkg')
+    print(f'our_package_name: {our_package_name}')
 
 with TemporaryDirectory() as tmpdir:
     check_call(['python3', '-m', 'venv', tmpdir])
@@ -26,16 +36,9 @@ with TemporaryDirectory() as tmpdir:
 
 # pip installs the module itself along with deps so we need to get that out of
 # our list by finding the thing that was file installed during dev
-dev_frozen_sorted = sorted(dev_frozen)
-dev_frozen = []
-for package in dev_frozen_sorted:
-    if 'file://' in package:
-        ours = package.split(' @ ')[0]
-    else:
-        dev_frozen.append(package)
-# now we can build the list of base requiements w/o ourself
-frozen = sorted([p for p in frozen if not p.startswith(ours)])
-# we also sorted things while we were at it above
+frozen = sorted([p for p in frozen if not p.startswith(our_package_name)])
+dev_frozen = sorted([p for p in dev_frozen
+                     if not p.startswith(our_package_name)])
 
 print_packages(frozen, 'frozen')
 print_packages(dev_frozen, 'dev_frozen')
