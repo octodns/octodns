@@ -13,7 +13,7 @@ pycountry-convert==0.7.2
 pycountry==22.1.10
 pyparsing==3.0.7
 pytest-cov==3.0.0
-pytest-mock==3.6.1
+pytest-mock==3.7.0
 pytest==6.2.5
 python-dateutil==2.8.2
 repoze.lru==0.7
