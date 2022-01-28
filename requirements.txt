@@ -1,11 +1,7 @@
-PyYaml==5.4
-dnspython==1.16.0
-docutils==0.16
-fqdn==1.5.0
-jmespath==0.10.0
-natsort==6.2.1
-pycountry-convert==0.7.2
+PyYAML==6.0
+dnspython==2.2.0
+fqdn==1.5.1
+natsort==8.0.2
 pycountry==22.1.10
-python-dateutil==2.8.1
-requests==2.25.1
-setuptools==60.5.0
+python-dateutil==2.8.2
+six==1.16.0

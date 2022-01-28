@@ -6,8 +6,8 @@ from __future__ import absolute_import, division, print_function, \
     unicode_literals
 
 from logging import getLogger
-from mock import MagicMock, call
 from unittest import TestCase
+from unittest.mock import MagicMock, call
 
 from octodns.processor.base import BaseProcessor
 from octodns.provider import SupportsException

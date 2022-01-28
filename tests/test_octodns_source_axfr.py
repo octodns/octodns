@@ -8,10 +8,10 @@ from __future__ import absolute_import, division, print_function, \
 import dns.zone
 from dns.exception import DNSException
 
-from mock import patch
 from os.path import exists
 from shutil import copyfile
 from unittest import TestCase
+from unittest.mock import patch
 
 from octodns.source.axfr import AxfrSource, AxfrSourceZoneTransferFailed, \
     ZoneFileSource, ZoneFileSourceLoadFailure

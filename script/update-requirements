@@ -1,0 +1,52 @@
+#!/usr/bin/env python
+
+from os.path import join
+from subprocess import check_call, check_output
+from tempfile import TemporaryDirectory
+import re
+
+
+def print_packages(packages, heading):
+    print(f'{heading}:')
+    print('  ', end='')
+    print('\n  '.join(packages))
+
+
+# would  be nice if there was a cleaner way to get this, but I've not found a
+# more reliable one.
+with open('setup.py') as fh:
+    match = re.search(r"name='(?P<pkg>[\w-]+)',", fh.read())
+    if not match:
+        raise Exception('failed to determine our package name')
+    our_package_name = match.group('pkg')
+    print(f'our_package_name: {our_package_name}')
+
+with TemporaryDirectory() as tmpdir:
+    check_call(['python3', '-m', 'venv', tmpdir])
+
+    # base needs
+    check_call([join(tmpdir, 'bin', 'pip'), 'install', '.'])
+    frozen = check_output([join(tmpdir, 'bin', 'pip'), 'freeze'])
+    frozen = set(frozen.decode('utf-8').strip().split('\n'))
+
+    # dev additions
+    check_call([join(tmpdir, 'bin', 'pip'), 'install', '.[dev]'])
+    dev_frozen = check_output([join(tmpdir, 'bin', 'pip'), 'freeze'])
+    dev_frozen = set(dev_frozen.decode('utf-8').strip().split('\n')) - frozen
+
+# pip installs the module itself along with deps so we need to get that out of
+# our list by finding the thing that was file installed during dev
+frozen = sorted([p for p in frozen if not p.startswith(our_package_name)])
+dev_frozen = sorted([p for p in dev_frozen
+                     if not p.startswith(our_package_name)])
+
+print_packages(frozen, 'frozen')
+print_packages(dev_frozen, 'dev_frozen')
+
+with open('requirements.txt', 'w') as fh:
+    fh.write('\n'.join(frozen))
+    fh.write('\n')
+
+with open('requirements-dev.txt', 'w') as fh:
+    fh.write('\n'.join(dev_frozen))
+    fh.write('\n')
