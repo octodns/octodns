@@ -71,6 +71,7 @@ setup(
         'dev': tests_require + (
             'build>=0.7.0',
             'pycodestyle>=2.6.0',
+            'pycountry-convert>=0.7.2',
             'pyflakes>=2.2.0',
             'readme_renderer[md]>=26.0',
             'twine>=3.4.2',
@@ -82,7 +83,6 @@ setup(
         'fqdn>=1.5.0',
         'natsort>=5.5.0',
         'pycountry>=19.8.18',
-        'pycountry-convert>=0.7.2',
         'python-dateutil>=2.8.1',
     ),
     license='MIT',
