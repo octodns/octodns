@@ -1,7 +1,6 @@
 PyYAML==6.0
 dnspython==2.2.0
 fqdn==1.5.1
-natsort==8.0.2
-pycountry==22.1.10
+natsort==8.1.0
 python-dateutil==2.8.2
 six==1.16.0
