@@ -30,6 +30,10 @@
    * [SelectelProvider](https://github.com/octodns/octodns-selectel/)
    * [TransipProvider](https://github.com/octodns/octodns-transip/)
    * [UltraDnsProvider](https://github.com/octodns/octodns-ultradns/)
+* As part of the extraction work octoDNS's requirements (setup.py and .txt
+  files) have been updated and minimized and a helper script,
+  script/update-requirements has been added to help manage the txt files going
+  forward.
 * NS1 provider has received improvements to the dynamic record implementation.
   As a result, if octoDNS is downgraded from this version, any dynamic records
   created or updated using this version will show an update.

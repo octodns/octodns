@@ -4,7 +4,7 @@ bleach==4.1.0
 build==0.7.0
 certifi==2021.10.8
 cffi==1.15.0
-charset-normalizer==2.0.10
+charset-normalizer==2.0.11
 cmarkgfm==0.6.0
 colorama==0.4.4
 coverage==6.3
@@ -21,6 +21,7 @@ pprintpp==0.4.0
 py==1.11.0
 pycodestyle==2.8.0
 pycountry-convert==0.7.2
+pycountry==22.1.10
 pycparser==2.21
 pyflakes==2.4.0
 pyparsing==3.0.7
