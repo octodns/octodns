@@ -44,6 +44,11 @@
   records created or updated using this version and matching the said edge-case
   will not be read/parsed correctly by the older version and will show a diff.
 
+#### Stuff
+
+* Additional FQDN validation to ALIAS/CNAME value, MX exchange, SRV target and
+  tests of the functionality.
+
 ## v0.9.14 - 2021-10-10 - A new supports system
 
 #### Noteworthy changes
