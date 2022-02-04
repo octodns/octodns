@@ -2281,6 +2281,26 @@ class TestRecordValidation(TestCase):
         self.assertEqual(['CNAME value "foo.bar.com" missing trailing .'],
                          ctx.exception.reasons)
 
+        # doesn't allow urls
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'CNAME',
+                'ttl': 600,
+                'value': 'https://google.com',
+            })
+        self.assertEqual(['CNAME value "https://google.com" is not a valid '
+                          'FQDN'], ctx.exception.reasons)
+
+        # doesn't allow paths
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'CNAME',
+                'ttl': 600,
+                'value': 'google.com/some/path',
+            })
+        self.assertEqual(['CNAME value "google.com/some/path" is not a valid '
+                          'FQDN'], ctx.exception.reasons)
+
     def test_DNAME(self):
         # A valid DNAME record.
         Record.new(self.zone, 'sub', {
