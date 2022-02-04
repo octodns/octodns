@@ -2291,6 +2291,16 @@ class TestRecordValidation(TestCase):
         self.assertEqual(['CNAME value "https://google.com" is not a valid '
                           'FQDN'], ctx.exception.reasons)
 
+        # doesn't allow urls with paths
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'CNAME',
+                'ttl': 600,
+                'value': 'https://google.com/a/b/c',
+            })
+        self.assertEqual(['CNAME value "https://google.com/a/b/c" is not a '
+                          'valid FQDN'], ctx.exception.reasons)
+
         # doesn't allow paths
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'www', {
