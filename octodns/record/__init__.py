@@ -1091,7 +1091,10 @@ class MxValue(EqualityTupleMixin):
             exchange = None
             try:
                 exchange = value.get('exchange', None) or value['value']
-                if not exchange.endswith('.'):
+                if not FQDN(str(exchange), allow_underscores=True).is_valid:
+                    reasons.append(f'Invalid MX exchange "{exchange}" is not '
+                                   'a valid FQDN.')
+                elif not exchange.endswith('.'):
                     reasons.append(f'MX value "{exchange}" missing trailing .')
             except KeyError:
                 reasons.append('missing exchange')
@@ -1225,7 +1228,10 @@ class _NsValue(object):
             data = (data,)
         reasons = []
         for value in data:
-            if not value.endswith('.'):
+            if not FQDN(str(value), allow_underscores=True).is_valid:
+                reasons.append(f'Invalid NS value "{value}" is not '
+                               'a valid FQDN.')
+            elif not value.endswith('.'):
                 reasons.append(f'NS value "{value}" missing trailing .')
         return reasons
 
@@ -1413,9 +1419,13 @@ class SrvValue(EqualityTupleMixin):
             except ValueError:
                 reasons.append(f'invalid port "{value["port"]}"')
             try:
-                if not value['target'].endswith('.'):
-                    reasons.append(f'SRV value "{value["target"]}" missing '
-                                   'trailing .')
+                target = value['target']
+                if not target.endswith('.'):
+                    reasons.append(f'SRV value "{target}" missing trailing .')
+                if target != '.' and \
+                   not FQDN(str(target), allow_underscores=True).is_valid:
+                    reasons.append(f'Invalid SRV target "{target}" is not '
+                                   'a valid FQDN.')
             except KeyError:
                 reasons.append('missing target')
         return reasons

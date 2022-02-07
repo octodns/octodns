@@ -2281,6 +2281,36 @@ class TestRecordValidation(TestCase):
         self.assertEqual(['CNAME value "foo.bar.com" missing trailing .'],
                          ctx.exception.reasons)
 
+        # doesn't allow urls
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'CNAME',
+                'ttl': 600,
+                'value': 'https://google.com',
+            })
+        self.assertEqual(['CNAME value "https://google.com" is not a valid '
+                          'FQDN'], ctx.exception.reasons)
+
+        # doesn't allow urls with paths
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'CNAME',
+                'ttl': 600,
+                'value': 'https://google.com/a/b/c',
+            })
+        self.assertEqual(['CNAME value "https://google.com/a/b/c" is not a '
+                          'valid FQDN'], ctx.exception.reasons)
+
+        # doesn't allow paths
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'www', {
+                'type': 'CNAME',
+                'ttl': 600,
+                'value': 'google.com/some/path',
+            })
+        self.assertEqual(['CNAME value "google.com/some/path" is not a valid '
+                          'FQDN'], ctx.exception.reasons)
+
     def test_DNAME(self):
         # A valid DNAME record.
         Record.new(self.zone, 'sub', {
@@ -2674,6 +2704,19 @@ class TestRecordValidation(TestCase):
         self.assertEqual(['MX value "foo.bar.com" missing trailing .'],
                          ctx.exception.reasons)
 
+        # exchange must be a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'MX',
+                'ttl': 600,
+                'value': {
+                    'preference': 10,
+                    'exchange': '100 foo.bar.com.'
+                }
+            })
+        self.assertEqual(['Invalid MX exchange "100 foo.bar.com." is not a '
+                          'valid FQDN.'], ctx.exception.reasons)
+
     def test_NXPTR(self):
         # doesn't blow up
         Record.new(self.zone, '', {
@@ -2771,6 +2814,16 @@ class TestRecordValidation(TestCase):
             })
         self.assertEqual(['NS value "foo.bar" missing trailing .'],
                          ctx.exception.reasons)
+
+        # exchange must be a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'NS',
+                'ttl': 600,
+                'value': '100 foo.bar.com.'
+            })
+        self.assertEqual(['Invalid NS value "100 foo.bar.com." is not a '
+                          'valid FQDN.'], ctx.exception.reasons)
 
     def test_PTR(self):
         # doesn't blow up (name & zone here don't make any sense, but not
@@ -3088,6 +3141,21 @@ class TestRecordValidation(TestCase):
             })
         self.assertEqual(['SRV value "foo.bar.baz" missing trailing .'],
                          ctx.exception.reasons)
+
+        # target must be a valid FQDN
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '_srv._tcp', {
+                'type': 'SRV',
+                'ttl': 600,
+                'value': {
+                    'priority': 1,
+                    'weight': 2,
+                    'port': 3,
+                    'target': '100 foo.bar.com.'
+                }
+            })
+        self.assertEqual(['Invalid SRV target "100 foo.bar.com." is not a '
+                          'valid FQDN.'], ctx.exception.reasons)
 
     def test_TXT(self):
         # doesn't blow up (name & zone here don't make any sense, but not
