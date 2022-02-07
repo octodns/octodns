@@ -23,7 +23,7 @@ The architecture is pluggable and the tooling is flexible to make it applicable 
   * [Updating to use extracted providers](#updating-to-use-extracted-providers)
 - [Sources](#sources)
     + [Notes](#notes)
-- [Compatibilty & Compliance](#compatibilty---compliance)
+- [Compatibilty and Compliance](#compatibilty-and-compliance)
   * [`lenient`](#-lenient-)
   * [`strict_supports` (Work In Progress)](#-strict-supports---work-in-progress-)
   * [Configuring `strict_supports`](#configuring--strict-supports-)
@@ -33,7 +33,7 @@ The architecture is pluggable and the tooling is flexible to make it applicable 
   * [Dynamic sources](#dynamic-sources)
 - [Contributing](#contributing)
 - [Getting help](#getting-help)
-- [Related Projects & Resources](#related-projects---resources)
+- [Related Projects and Resources](#related-projects-and-resources)
 - [License](#license)
 - [Authors](#authors)
 
@@ -250,7 +250,7 @@ Similar to providers, but can only serve to populate records into a zone, cannot
    * Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
 * octoDNS itself supports non-ASCII character sets, but in testing Cloudflare is the only provider where that is currently functional end-to-end. Others have failures either in the client libraries or API calls
 
-## Compatibilty & Compliance
+## Compatibilty and Compliance
 
 ### `lenient`
 
@@ -347,7 +347,7 @@ Please see our [contributing document](/CONTRIBUTING.md) if you would like to pa
 
 If you have a problem or suggestion, please [open an issue](https://github.com/octodns/octodns/issues/new) in this repository, and we will do our best to help. Please note that this project adheres to the [Contributor Covenant Code of Conduct](/CODE_OF_CONDUCT.md).
 
-## Related Projects & Resources
+## Related Projects and Resources
 
 - **GitHub Action:** [OctoDNS-Sync](https://github.com/marketplace/actions/octodns-sync)
 - **Sample Implementations.** See how others are using it
