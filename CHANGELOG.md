@@ -1,11 +1,10 @@
-## v0.9.15 - 202?-??-?? - ??
+## v0.9.15 - 2022-02-07 - Where have all the providers gone?
 
 #### Noteworthy changes
 
-* Provider extraction has begun, see
+* Providers extracted from octoDNS core into individual repos
   https://github.com/octodns/octodns/issues/622 &
-  https://github.com/octodns/octodns/pull/822 for more information. Providers
-  that have been extracted in this release include:
+  https://github.com/octodns/octodns/pull/822 for more information.
    * [AzureProvider](https://github.com/octodns/octodns-azure/)
    * [AkamaiProvider](https://github.com/octodns/octodns-edgedns/)
    * [CloudflareProvider](https://github.com/octodns/octodns-cloudflare/)
@@ -34,6 +33,9 @@
   files) have been updated and minimized and a helper script,
   script/update-requirements has been added to help manage the txt files going
   forward.
+
+#### Prior to extraction
+
 * NS1 provider has received improvements to the dynamic record implementation.
   As a result, if octoDNS is downgraded from this version, any dynamic records
   created or updated using this version will show an update.
@@ -43,11 +45,14 @@
   more information. If octoDNS is downgraded from this version, any dynamic
   records created or updated using this version and matching the said edge-case
   will not be read/parsed correctly by the older version and will show a diff.
+* Transip was updated to their new client api
 
 #### Stuff
 
 * Additional FQDN validation to ALIAS/CNAME value, MX exchange, SRV target and
   tests of the functionality.
+* Improvements around dynamic record value weights allowing finer grained
+  control
 
 ## v0.9.14 - 2021-10-10 - A new supports system
 
