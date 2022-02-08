@@ -344,6 +344,45 @@ class TestBaseProvider(TestCase):
             'obey'
         )
 
+        # SUPPORTS_ROOT_NS
+        provider.SUPPORTS_ROOT_NS = False
+        zone1 = Zone('unit.tests.', [])
+        record1 = Record.new(zone1, '', {
+            'type': 'NS',
+            'ttl': 3600,
+            'values': ['foo.com.', 'bar.com.'],
+        })
+        zone1.add_record(record1)
+
+        zone2 = provider._process_desired_zone(zone1.copy())
+        self.assertEqual(0, len(zone2.records))
+
+        provider.SUPPORTS_ROOT_NS = True
+        zone2 = provider._process_desired_zone(zone1.copy())
+        self.assertEqual(1, len(zone2.records))
+        self.assertEqual(record1, list(zone2.records)[0])
+
+    def test_process_existing_zone(self):
+        provider = HelperProvider('test')
+
+        # SUPPORTS_ROOT_NS
+        provider.SUPPORTS_ROOT_NS = False
+        zone1 = Zone('unit.tests.', [])
+        record1 = Record.new(zone1, '', {
+            'type': 'NS',
+            'ttl': 3600,
+            'values': ['foo.com.', 'bar.com.'],
+        })
+        zone1.add_record(record1)
+
+        zone2 = provider._process_existing_zone(zone1.copy())
+        self.assertEqual(0, len(zone2.records))
+
+        provider.SUPPORTS_ROOT_NS = True
+        zone2 = provider._process_existing_zone(zone1.copy())
+        self.assertEqual(1, len(zone2.records))
+        self.assertEqual(record1, list(zone2.records)[0])
+
     def test_safe_none(self):
         # No changes is safe
         Plan(None, None, [], True).raise_if_unsafe()
