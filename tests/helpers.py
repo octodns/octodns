@@ -41,6 +41,7 @@ class SimpleProvider(object):
 class GeoProvider(object):
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = False
+    SUPPORTS = set(('A', 'AAAA', 'TXT'))
     id = 'test'
 
     def __init__(self, id='test'):
@@ -59,6 +60,7 @@ class GeoProvider(object):
 class DynamicProvider(object):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = True
+    SUPPORTS = set(('A', 'AAAA', 'TXT'))
     id = 'test'
 
     def __init__(self, id='test'):

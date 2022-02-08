@@ -48,6 +48,8 @@
 
 * Additional FQDN validation to ALIAS/CNAME value, MX exchange, SRV target and
   tests of the functionality.
+* _AggregateTarget has more complete handling of SUPPORTS* functionality,
+  mostly applicable for the compare operation.
 
 ## v0.9.14 - 2021-10-10 - A new supports system
 
