@@ -20,7 +20,7 @@ from octodns.zone import Zone
 class HelperProvider(BaseProvider):
     log = getLogger('HelperProvider')
 
-    SUPPORTS = set(('A', 'PTR'))
+    SUPPORTS = set(('A', 'NS', 'PTR'))
     SUPPORTS_MULTIVALUE_PTR = False
     SUPPORTS_DYNAMIC = False
 
@@ -36,7 +36,7 @@ class HelperProvider(BaseProvider):
         self.delete_pcent_threshold = Plan.MAX_SAFE_DELETE_PCENT
 
     def populate(self, zone, target=False, lenient=False):
-        pass
+        return True
 
     def _include_change(self, change):
         return not self.include_change_callback or \
@@ -229,6 +229,25 @@ class TestBaseProvider(TestCase):
         self.assertEqual(zone.name, another.existing.name)
         self.assertEqual(1, len(another.existing.records))
 
+    def test_plan_with_root_ns(self):
+        zone = Zone('unit.tests.', [])
+        record = Record.new(zone, '', {
+            'ttl': 30,
+            'type': 'NS',
+            'value': '1.2.3.4.',
+        })
+        zone.add_record(record)
+
+        # No root NS support, no change, thus no plan
+        provider = HelperProvider()
+        self.assertEqual(None, provider.plan(zone))
+
+        # set Support root NS records, see the record
+        provider.SUPPORTS_ROOT_NS = True
+        plan = provider.plan(zone)
+        self.assertTrue(plan)
+        self.assertEqual(1, len(plan.changes))
+
     def test_apply(self):
         ignored = Zone('unit.tests.', [])
 
@@ -278,10 +297,6 @@ class TestBaseProvider(TestCase):
         provider.SUPPORTS_MULTIVALUE_PTR = True
         zone2 = provider._process_desired_zone(zone1.copy())
         record2 = list(zone2.records)[0]
-        from pprint import pprint
-        pprint([
-            record1, record2
-        ])
         self.assertEqual(len(record2.values), 2)
 
         # SUPPORTS_DYNAMIC
