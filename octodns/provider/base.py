@@ -105,37 +105,6 @@ class BaseProvider(BaseSource):
 
         return desired
 
-    def _process_existing_zone(self, existing):
-        '''
-        An opportunity for providers to modify the existing zone records before
-        planning. `existing` is a "shallow" copy, see `Zone.copy` for more
-        information
-
-        - Must call `super` at an appropriate point for their work, generally
-          that means as the final step of the method, returning the result of
-          the `super` call.
-        - May modify `existing` directly.
-        - Must not modify records directly, `record.copy` should be called,
-          the results of which can be modified, and then `Zone.add_record` may
-          be used with `replace=True`.
-        - May call `Zone.remove_record` to remove records from `existing`.
-        - Must call supports_warn_or_except with information about any changes
-          that are made to have them logged or throw errors depending on the
-          provider configuration.
-        '''
-
-        for record in existing.records:
-            if record._type == 'NS' and record.name == '' and \
-                    not self.SUPPORTS_ROOT_NS:
-                # ignore, we can't manage root NS records
-                msg = \
-                    f'root NS record not supported for {record.fqdn}'
-                fallback = 'ignoring it'
-                self.supports_warn_or_except(msg, fallback)
-                existing.remove_record(record)
-
-        return existing
-
     def _include_change(self, change):
         '''
         An opportunity for providers to filter out false positives due to
@@ -173,8 +142,6 @@ class BaseProvider(BaseSource):
             # information
             self.log.warning('Provider %s used in target mode did not return '
                              'exists', self.id)
-
-        existing = self._process_existing_zone(existing)
 
         for processor in processors:
             existing = processor.process_target_zone(existing, target=self)
