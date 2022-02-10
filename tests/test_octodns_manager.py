@@ -113,14 +113,14 @@ class TestManager(TestCase):
             tc = Manager(get_config_filename('always-dry-run.yaml')) \
                 .sync(dry_run=False)
             # only the stuff from subzone, unit.tests. is always-dry-run
-            self.assertEqual(3, tc)
+            self.assertEqual(4, tc)
 
     def test_simple(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False)
-            self.assertEqual(27, tc)
+            self.assertEqual(30, tc)
 
             # try with just one of the zones
             tc = Manager(get_config_filename('simple.yaml')) \
@@ -130,28 +130,28 @@ class TestManager(TestCase):
             # the subzone, with 2 targets
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, eligible_zones=['subzone.unit.tests.'])
-            self.assertEqual(6, tc)
+            self.assertEqual(8, tc)
 
-            # and finally the empty zone
+            # and finally the empty zone (only root NS)
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, eligible_zones=['empty.'])
-            self.assertEqual(0, tc)
+            self.assertEqual(1, tc)
 
             # Again with force
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, force=True)
-            self.assertEqual(27, tc)
+            self.assertEqual(30, tc)
 
             # Again with max_workers = 1
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1) \
                 .sync(dry_run=False, force=True)
-            self.assertEqual(27, tc)
+            self.assertEqual(30, tc)
 
             # Include meta
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1,
                          include_meta=True) \
                 .sync(dry_run=False, force=True)
-            self.assertEqual(31, tc)
+            self.assertEqual(34, tc)
 
     def test_eligible_sources(self):
         with TemporaryDirectory() as tmpdir:
@@ -301,7 +301,8 @@ class TestManager(TestCase):
 
             with open(join(tmpdir.dirname, 'empty.yaml')) as fh:
                 data = safe_load(fh, False)
-                self.assertFalse(data)
+                # just to root NS
+                self.assertEqual(1, len(data))
 
     def test_dump_split(self):
         with TemporaryDirectory() as tmpdir:

@@ -606,3 +606,148 @@ class TestBaseProvider(TestCase):
             strict.supports_warn_or_except('Hello World!', 'Will not see')
         self.assertEqual('minimal: Hello World!', str(ctx.exception))
         strict.log.warning.assert_not_called()
+
+
+class TestBaseProviderSupportsRootNs(TestCase):
+
+    class Provider(BaseProvider):
+        log = getLogger('Provider')
+
+        SUPPORTS = set(('A', 'NS'))
+        SUPPORTS_GEO = False
+        SUPPORTS_ROOT_NS = False
+
+        strict_supports = False
+
+        def __init__(self, existing=None):
+            super().__init__('test')
+            self.existing = existing
+
+        def populate(self, zone, target=False, lenient=False):
+            if self.existing:
+                for record in self.existing.records:
+                    zone.add_record(record)
+                return True
+            return False
+
+    zone = Zone('unit.tests.', [])
+    a_record = Record.new(zone, 'ptr', {
+        'type': 'A',
+        'ttl': 3600,
+        'values': ['1.2.3.4', '2.3.4.5'],
+    })
+    ns_record = Record.new(zone, 'sub', {
+        'type': 'NS',
+        'ttl': 3600,
+        'values': ['ns2.foo.com.', 'ns2.bar.com.'],
+    })
+    no_root = zone.copy()
+    no_root.add_record(a_record)
+    no_root.add_record(ns_record)
+
+    root_ns_record = Record.new(zone, '', {
+        'type': 'NS',
+        'ttl': 3600,
+        'values': ['ns1.foo.com.', 'ns1.bar.com.'],
+    })
+    has_root = no_root.copy()
+    has_root.add_record(root_ns_record)
+
+    other_root_ns_record = Record.new(zone, '', {
+        'type': 'NS',
+        'ttl': 3600,
+        'values': ['ns4.foo.com.', 'ns4.bar.com.'],
+    })
+    different_root = no_root.copy()
+    different_root.add_record(other_root_ns_record)
+
+    # False
+
+    def test_supports_root_ns_false_matches(self):
+        # provider has a matching existing root record
+        provider = self.Provider(self.has_root)
+        provider.SUPPORTS_ROOT_NS = False
+
+        # matching root NS in the desired
+        plan = provider.plan(self.has_root)
+        # there's an existing root record that matches the desired. we don't
+        # support them, so it doesn't matter whether it matches or not.
+        # _process_desired_zone will have removed the desired one since it
+        # can't be managed. this will not result in a plan as
+        # _process_existing_zone will have done so as well.
+        self.assertFalse(plan)
+
+    def test_supports_root_ns_false_different(self):
+        # provider has a non-matching existing record
+        provider = self.Provider(self.different_root)
+        provider.SUPPORTS_ROOT_NS = False
+
+        # different root is in the desired
+        plan = provider.plan(self.has_root)
+        # the mis-match doesn't matter since we can't manage the records
+        # anyway, they will have been removed from the desired and existing.
+        self.assertFalse(plan)
+
+    def test_supports_root_ns_false_missing(self):
+        # provider has an existing record
+        provider = self.Provider(self.has_root)
+        provider.SUPPORTS_ROOT_NS = False
+
+        # desired doesn't have a root
+        plan = provider.plan(self.no_root)
+        # the mis-match doesn't matter since we can't manage the records
+        # anyway, they will have been removed from the desired and existing.
+        self.assertFalse(plan)
+
+    # True
+
+    def test_supports_root_ns_true_matches(self):
+        # provider has a matching existing root record
+        provider = self.Provider(self.has_root)
+        provider.SUPPORTS_ROOT_NS = True
+        # case where we have a root NS in the desired
+        plan = provider.plan(self.has_root)
+        # there's an existing root record that matches the desired state so no
+        # changes are needed
+        self.assertFalse(plan)
+
+    def test_supports_root_ns_true_different(self):
+        # provider has a non-matching existing record
+        provider = self.Provider(self.different_root)
+        provider.SUPPORTS_ROOT_NS = True
+        # case where we have a root NS in the desired
+        plan = provider.plan(self.has_root)
+        # there's an existing root record that doesn't match the desired state.
+        # we'll get a plan that modifies it.
+        self.assertTrue(plan)
+        change = plan.changes[0]
+        self.assertEqual(self.other_root_ns_record, change.existing)
+        self.assertEqual(self.root_ns_record, change.new)
+
+    def test_supports_root_ns_true_create_zone(self):
+        # provider has no existing records (create)
+        provider = self.Provider()
+        provider.SUPPORTS_ROOT_NS = True
+        # case where we have a root NS in the desired
+        plan = provider.plan(self.has_root)
+        # there's no existing root record since we're creating the zone so
+        # we'll get a plan that creates everything, including it
+        self.assertTrue(plan)
+        self.assertEqual(3, len(plan.changes))
+        change = [c for c in plan.changes
+                  if c.new.name == '' and c.new._type == 'NS'][0]
+        self.assertFalse(change.existing)
+        self.assertEqual(self.root_ns_record, change.new)
+
+    def test_supports_root_ns_true_missing(self):
+        # provider has a matching existing root record
+        provider = self.Provider(self.has_root)
+        provider.SUPPORTS_ROOT_NS = True
+        # case where we don't have a configured/desired root NS record. this is
+        # dangerous so we expect an exception to be thrown to prevent trying to
+        # delete the critical record
+        with self.assertRaises(SupportsException) as ctx:
+            provider.plan(self.no_root)
+        self.assertEqual('test: provider supports root NS record management, '
+                         'but no record configured in unit.tests.; aborting',
+                         str(ctx.exception))
