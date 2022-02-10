@@ -24,6 +24,9 @@ class _AggregateTarget(object):
 
     def __init__(self, targets):
         self.targets = targets
+        self.SUPPORTS = targets[0].SUPPORTS
+        for target in targets[1:]:
+            self.SUPPORTS = self.SUPPORTS & target.SUPPORTS
 
     def supports(self, record):
         for target in self.targets:
@@ -31,19 +34,17 @@ class _AggregateTarget(object):
                 return False
         return True
 
-    @property
-    def SUPPORTS_GEO(self):
-        for target in self.targets:
-            if not target.SUPPORTS_GEO:
-                return False
-        return True
-
-    @property
-    def SUPPORTS_DYNAMIC(self):
-        for target in self.targets:
-            if not target.SUPPORTS_DYNAMIC:
-                return False
-        return True
+    def __getattr__(self, name):
+        if name.startswith('SUPPORTS_'):
+            # special case to handle any current or future SUPPORTS_* by
+            # returning whether all providers support the requested
+            # functionality.
+            for target in self.targets:
+                if not getattr(target, name):
+                    return False
+            return True
+        klass = self.__class__.__name__
+        raise AttributeError(f'{klass} object has no attribute {name}')
 
 
 class MakeThreadFuture(object):

@@ -235,6 +235,20 @@ class TestManager(TestCase):
         dynamic = DynamicProvider()
         nosshfp = NoSshFpProvider()
 
+        targets = [simple, geo]
+        at = _AggregateTarget(targets)
+        # expected targets
+        self.assertEqual(targets, at.targets)
+        # union of their SUPPORTS
+        self.assertEqual(set(('A')), at.SUPPORTS)
+
+        # unknown property will go up into super and throw the normal
+        # exception
+        with self.assertRaises(AttributeError) as ctx:
+            at.FOO
+        self.assertEqual('_AggregateTarget object has no attribute FOO',
+                         str(ctx.exception))
+
         self.assertFalse(_AggregateTarget([simple, simple]).SUPPORTS_GEO)
         self.assertFalse(_AggregateTarget([simple, geo]).SUPPORTS_GEO)
         self.assertFalse(_AggregateTarget([geo, simple]).SUPPORTS_GEO)
