@@ -168,13 +168,6 @@ class BaseProvider(BaseSource):
     def plan(self, desired, processors=[]):
         self.log.info('plan: desired=%s', desired.name)
 
-        # Make a (shallow) copy of the desired state so that everything from
-        # now on (in this target) can modify it as they see fit without
-        # worrying about impacting other targets.
-        desired = desired.copy()
-
-        desired = self._process_desired_zone(desired)
-
         existing = Zone(desired.name, desired.sub_zones)
         exists = self.populate(existing, target=True, lenient=True)
         if exists is None:
@@ -182,6 +175,13 @@ class BaseProvider(BaseSource):
             # information
             self.log.warning('Provider %s used in target mode did not return '
                              'exists', self.id)
+
+        # Make a (shallow) copy of the desired state so that everything from
+        # now on (in this target) can modify it as they see fit without
+        # worrying about impacting other targets.
+        desired = desired.copy()
+
+        desired = self._process_desired_zone(desired)
 
         existing = self._process_existing_zone(existing)
 

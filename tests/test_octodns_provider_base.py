@@ -277,6 +277,37 @@ class TestBaseProvider(TestCase):
         # We filtered out the only change
         self.assertFalse(plan)
 
+    def test_plan_order_of_operations(self):
+
+        class MockProvider(BaseProvider):
+            log = getLogger('mock-provider')
+            SUPPORTS = set(('A',))
+            SUPPORTS_GEO = False
+
+            def __init__(self):
+                super().__init__('mock-provider')
+                self.calls = []
+
+            def populate(self, *args, **kwargs):
+                self.calls.append('populate')
+
+            def _process_desired_zone(self, *args, **kwargs):
+                self.calls.append('_process_desired_zone')
+                return super()._process_desired_zone(*args, **kwargs)
+
+            def _process_existing_zone(self, *args, **kwargs):
+                self.calls.append('_process_existing_zone')
+                return super()._process_existing_zone(*args, **kwargs)
+
+        provider = MockProvider()
+
+        zone = Zone('unit.tests.', [])
+        self.assertFalse(provider.plan(zone))
+        # ensure the calls were made in the expected order, populate comes
+        # first, then desired, then existing
+        self.assertEqual(['populate', '_process_desired_zone',
+                          '_process_existing_zone'], provider.calls)
+
     def test_process_desired_zone(self):
         provider = HelperProvider('test')
 
