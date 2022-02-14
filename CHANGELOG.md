@@ -1,5 +1,23 @@
 ## v0.9.16 - 2022-??-?? - ???
 
+#### Noteworthy changes
+
+* Foundational support for root NS record management.
+   * YamlProvider has it enabled and in general everyone should add root NS
+     records that match what is in their provider(s) as of this release if they
+     an're already there.
+   * Note that if you created you config files with `octodns-dump` the records
+     are likely already there and match what was configured at the time of the
+     dump.
+   * Other providers will add root NS support over time once they have had the
+     chance to investigate the functionality and implement management if
+     possible with whatever accomidations are required.
+   * Once you are using this release and an provider version that supports root
+     NS management you will get errors if you do not have root NS records
+     included by your source(s).
+   * Watch your providers README.md and CHANGELOG.md for support and more
+     information.
+
 #### Stuff
 
 * _AggregateTarget has more complete handling of SUPPORTS* functionality,
