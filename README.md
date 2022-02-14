@@ -219,6 +219,7 @@ The table below lists the providers octoDNS supports. They are maintained in the
 | [OVHcloud DNS](https://www.ovhcloud.com/en/domains/dns-subdomain/) | [octodns_ovh](https://github.com/octodns/octodns-ovh/) | |
 | [PowerDNS](https://www.powerdns.com/) | [octodns_powerdns](https://github.com/octodns/octodns-powerdns/) | |
 | [Rackspace](https://www.rackspace.com/library/what-is-dns) | [octodns_rackspace](https://github.com/octodns/octodns-rackspace/) | |
+| [Scaleway](https://www.scaleway.com/en/dns/) | [octodns_scaleway](https://github.com/scaleway/octodns-scaleway) | |
 | [Selectel](https://selectel.ru/en/services/additional/dns/) | [octodns_selectel](https://github.com/octodns/octodns-selectel/) | |
 | [TransIP](https://www.transip.eu/knowledgebase/entry/155-dns-and-nameservers/) | [octodns_transip](https://github.com/octodns/octodns-transip/) | |
 | [UltraDNS](https://www.home.neustar/dns-services) | [octodns_ultra](https://github.com/octodns/octodns-ultra/) | |
@@ -262,7 +263,7 @@ Similar to providers, but can only serve to populate records into a zone, cannot
 
 It is worth noting that these errors will happen during the plan phase of things so that problems will be visible without having to make changes.
 
-This concept is currently a work in progress and only partially implemented. While work is on-going `strict_supports` will default to `false`. Once the work is considered complete & ready the default will change to `true` as it's a much safer and less surprising default as what you configure is what you'll get unless an error is throw telling you why it cannot be done. You will then have the choice to explicitly request that things continue with work-arounds with `strict_supports` set to false`. In the meantime it is encouraged that you manually configure the parameter to `true` in your provider configs.
+This concept is currently a work in progress and only partially implemented. While work is on-going `strict_supports` will default to `false`. Once the work is considered complete & ready the default will change to `true` as it's a much safer and less surprising default as what you configure is what you'll get unless an error is throw telling you why it cannot be done. You will then have the choice to explicitly request that things continue with work-arounds with `strict_supports` set to `false`. In the meantime it is encouraged that you manually configure the parameter to `true` in your provider configs.
 
 ### Configuring `strict_supports`
 
