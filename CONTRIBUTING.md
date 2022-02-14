@@ -42,7 +42,7 @@ Here are a few things you can do that will increase the likelihood of your pull 
 ## Development setup
 
 ```
-./scipt/bootstrap
+./script/bootstrap
 source env/bin/activate
 ```
 
