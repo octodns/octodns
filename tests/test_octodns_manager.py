@@ -301,8 +301,7 @@ class TestManager(TestCase):
 
             with open(join(tmpdir.dirname, 'empty.yaml')) as fh:
                 data = safe_load(fh, False)
-                # just to root NS
-                self.assertEqual(0, len(data))
+                self.assertFalse(data)
 
     def test_dump_split(self):
         with TemporaryDirectory() as tmpdir:

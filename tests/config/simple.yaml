@@ -4,6 +4,7 @@ providers:
   in:
     class: octodns.provider.yaml.YamlProvider
     directory: tests/config
+    supports_root_ns: False
   dump:
     class: octodns.provider.yaml.YamlProvider
     directory: env/YAML_TMP_DIR

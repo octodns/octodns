@@ -522,7 +522,6 @@ class Manager(object):
         plan = target.plan(zone)
         if plan is None:
             plan = Plan(zone, zone, [], False)
-        # We require at least root NS so there'll always be a plan
         target.apply(plan)
 
     def validate_configs(self):

@@ -82,11 +82,15 @@ class TestYamlProvider(TestCase):
                 [x for x in reloaded.records
                  if x.name == 'included'][0]._octodns)
 
+            # manually copy over the root since it will have been ignored
+            # when things were written out
+            reloaded.add_record(zone.root_ns)
+
             self.assertFalse(zone.changes(reloaded, target=source))
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEqual(21, len([c for c in plan.changes
+            self.assertEqual(20, len([c for c in plan.changes
                                       if isinstance(c, Create)]))
 
             with open(yaml_file) as fh:
@@ -150,10 +154,6 @@ class TestYamlProvider(TestCase):
 
                 dyna = data.pop('pool-only-in-fallback')
                 self.assertTrue('value' in dyna)
-                # self.assertTrue('dynamic' in dyna)
-
-                dyna = data.pop('')
-                self.assertTrue('values' in dyna)
                 # self.assertTrue('dynamic' in dyna)
 
                 # make sure nothing is left
@@ -295,11 +295,15 @@ class TestSplitYamlProvider(TestCase):
                 [x for x in reloaded.records
                  if x.name == 'included'][0]._octodns)
 
+            # manually copy over the root since it will have been ignored
+            # when things were written out
+            reloaded.add_record(zone.root_ns)
+
             self.assertFalse(zone.changes(reloaded, target=source))
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEqual(18, len([c for c in plan.changes
+            self.assertEqual(17, len([c for c in plan.changes
                                       if isinstance(c, Create)]))
 
             yaml_file = join(zone_dir, '$unit.tests.yaml')
