@@ -2717,6 +2717,17 @@ class TestRecordValidation(TestCase):
         self.assertEqual(['Invalid MX exchange "100 foo.bar.com." is not a '
                           'valid FQDN.'], ctx.exception.reasons)
 
+        # exchange can be a single `.`
+        record = Record.new(self.zone, '', {
+            'type': 'MX',
+            'ttl': 600,
+            'value': {
+                'preference': 0,
+                'exchange': '.'
+            }
+        })
+        self.assertEqual('.', record.values[0].exchange)
+
     def test_NXPTR(self):
         # doesn't blow up
         Record.new(self.zone, '', {

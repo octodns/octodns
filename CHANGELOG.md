@@ -22,6 +22,8 @@
 
 * _AggregateTarget has more complete handling of SUPPORTS* functionality,
   mostly applicable for the compare operation.
+* Fix null MX record validation error introduced in 0.9.15, `.` is again
+  allowed as a valid `exchange` value.
 
 ## v0.9.15 - 2022-02-07 - Where have all the providers gone?
 
