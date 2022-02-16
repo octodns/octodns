@@ -94,7 +94,8 @@ class BaseProvider(BaseSource):
                 record = record.copy()
                 record.values = [record.value]
                 desired.add_record(record, replace=True)
-            elif record._type == 'NS' and record.name == '':
+            elif record._type == 'NS' and record.name == '' and \
+                    not self.SUPPORTS_ROOT_NS:
                 # ignore, we can't manage root NS records
                 msg = \
                     f'root NS record not supported for {record.fqdn}'
