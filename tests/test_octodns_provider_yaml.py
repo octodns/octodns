@@ -37,7 +37,7 @@ class TestYamlProvider(TestCase):
         self.assertEqual(23, len(zone.records))
 
         source.populate(dynamic_zone)
-        self.assertEqual(7, len(dynamic_zone.records))
+        self.assertEqual(6, len(dynamic_zone.records))
 
         # Assumption here is that a clean round-trip means that everything
         # worked as expected, data that went in came back out and could be
@@ -53,25 +53,25 @@ class TestYamlProvider(TestCase):
             directory = join(td.dirname, 'sub', 'dir')
             yaml_file = join(directory, 'unit.tests.yaml')
             dynamic_yaml_file = join(directory, 'dynamic.tests.yaml')
-            target = YamlProvider('test', directory)
+            target = YamlProvider('test', directory, supports_root_ns=False)
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEqual(21, len([c for c in plan.changes
+            self.assertEqual(20, len([c for c in plan.changes
                                       if isinstance(c, Create)]))
             self.assertFalse(isfile(yaml_file))
 
             # Now actually do it
-            self.assertEqual(21, target.apply(plan))
+            self.assertEqual(20, target.apply(plan))
             self.assertTrue(isfile(yaml_file))
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
-            self.assertEqual(7, len([c for c in plan.changes
+            self.assertEqual(6, len([c for c in plan.changes
                                      if isinstance(c, Create)]))
             self.assertFalse(isfile(dynamic_yaml_file))
             # Apply it
-            self.assertEqual(7, target.apply(plan))
+            self.assertEqual(6, target.apply(plan))
             self.assertTrue(isfile(dynamic_yaml_file))
 
             # There should be no changes after the round trip
@@ -160,16 +160,18 @@ class TestYamlProvider(TestCase):
                 self.assertEqual([], list(data.keys()))
 
     def test_empty(self):
-        source = YamlProvider('test', join(dirname(__file__), 'config'))
+        source = YamlProvider('test', join(dirname(__file__), 'config'),
+                              supports_root_ns=False)
 
         zone = Zone('empty.', [])
 
-        # without it we see everything (root NS record)
+        # without it we see everything
         source.populate(zone)
-        self.assertEqual(1, len(zone.records))
+        self.assertEqual(0, len(zone.records))
 
     def test_unsorted(self):
-        source = YamlProvider('test', join(dirname(__file__), 'config'))
+        source = YamlProvider('test', join(dirname(__file__), 'config'),
+                              supports_root_ns=False)
 
         zone = Zone('unordered.', [])
 
@@ -177,13 +179,14 @@ class TestYamlProvider(TestCase):
             source.populate(zone)
 
         source = YamlProvider('test', join(dirname(__file__), 'config'),
-                              enforce_order=False)
+                              enforce_order=False, supports_root_ns=False)
         # no exception
         source.populate(zone)
         self.assertEqual(2, len(zone.records))
 
     def test_subzone_handling(self):
-        source = YamlProvider('test', join(dirname(__file__), 'config'))
+        source = YamlProvider('test', join(dirname(__file__), 'config'),
+                              supports_root_ns=False)
 
         # If we add `sub` as a sub-zone we'll reject `www.sub`
         zone = Zone('unit.tests.', ['sub'])
@@ -255,7 +258,7 @@ class TestSplitYamlProvider(TestCase):
         self.assertEqual(20, len(zone.records))
 
         source.populate(dynamic_zone)
-        self.assertEqual(6, len(dynamic_zone.records))
+        self.assertEqual(5, len(dynamic_zone.records))
 
         with TemporaryDirectory() as td:
             # Add some subdirs to make sure that it can create them
@@ -263,24 +266,25 @@ class TestSplitYamlProvider(TestCase):
             zone_dir = join(directory, 'unit.tests.tst')
             dynamic_zone_dir = join(directory, 'dynamic.tests.tst')
             target = SplitYamlProvider('test', directory,
-                                       extension='.tst')
+                                       extension='.tst',
+                                       supports_root_ns=False)
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEqual(18, len([c for c in plan.changes
+            self.assertEqual(17, len([c for c in plan.changes
                                       if isinstance(c, Create)]))
             self.assertFalse(isdir(zone_dir))
 
             # Now actually do it
-            self.assertEqual(18, target.apply(plan))
+            self.assertEqual(17, target.apply(plan))
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
-            self.assertEqual(6, len([c for c in plan.changes
+            self.assertEqual(5, len([c for c in plan.changes
                                      if isinstance(c, Create)]))
             self.assertFalse(isdir(dynamic_zone_dir))
             # Apply it
-            self.assertEqual(6, target.apply(plan))
+            self.assertEqual(5, target.apply(plan))
             self.assertTrue(isdir(dynamic_zone_dir))
 
             # There should be no changes after the round trip
@@ -396,16 +400,18 @@ class TestOverridingYamlProvider(TestCase):
     def test_provider(self):
         config = join(dirname(__file__), 'config')
         override_config = join(dirname(__file__), 'config', 'override')
-        base = YamlProvider('base', config, populate_should_replace=False)
+        base = YamlProvider('base', config, populate_should_replace=False,
+                            supports_root_ns=False)
         override = YamlProvider('test', override_config,
-                                populate_should_replace=True)
+                                populate_should_replace=True,
+                                supports_root_ns=False)
 
         zone = Zone('dynamic.tests.', [])
 
         # Load the base, should see the 5 records
         base.populate(zone)
         got = {r.name: r for r in zone.records}
-        self.assertEqual(7, len(got))
+        self.assertEqual(6, len(got))
         # We get the "dynamic" A from the base config
         self.assertTrue('dynamic' in got['a'].data)
         # No added
@@ -414,7 +420,7 @@ class TestOverridingYamlProvider(TestCase):
         # Load the overrides, should replace one and add 1
         override.populate(zone)
         got = {r.name: r for r in zone.records}
-        self.assertEqual(8, len(got))
+        self.assertEqual(7, len(got))
         # 'a' was replaced with a generic record
         self.assertEqual({
             'ttl': 3600,

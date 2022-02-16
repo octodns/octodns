@@ -49,7 +49,6 @@ class BaseProvider(BaseSource):
           provider configuration.
         '''
 
-        have_root_ns = False
         for record in desired.records:
             if record._type not in self.SUPPORTS:
                 msg = f'{record._type} records not supported for {record.fqdn}'
@@ -96,21 +95,12 @@ class BaseProvider(BaseSource):
                 record.values = [record.value]
                 desired.add_record(record, replace=True)
             elif record._type == 'NS' and record.name == '':
-                if self.SUPPORTS_ROOT_NS:
-                    # record that we saw a root NS record
-                    have_root_ns = True
-                else:
-                    # ignore, we can't manage root NS records
-                    msg = \
-                        f'root NS record not supported for {record.fqdn}'
-                    fallback = 'ignoring it'
-                    self.supports_warn_or_except(msg, fallback)
-                    desired.remove_record(record)
-
-        if self.SUPPORTS_ROOT_NS and not have_root_ns:
-            raise SupportsException(f'{self.id}: provider supports root NS '
-                                    'record management, but no record '
-                                    f'configured in {desired.name}; aborting')
+                # ignore, we can't manage root NS records
+                msg = \
+                    f'root NS record not supported for {record.fqdn}'
+                fallback = 'ignoring it'
+                self.supports_warn_or_except(msg, fallback)
+                desired.remove_record(record)
 
         return desired
 

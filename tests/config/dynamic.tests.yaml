@@ -1,9 +1,4 @@
 ---
-? ''
-: - type: NS
-    values:
-    - 8.8.8.8.
-    - 9.9.9.9.
 a:
   dynamic:
     pools:

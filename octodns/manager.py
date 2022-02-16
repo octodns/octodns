@@ -12,6 +12,7 @@ from sys import stdout
 import logging
 
 from .provider.base import BaseProvider
+from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
 from .record import Record
 from .yaml import safe_load
@@ -519,6 +520,8 @@ class Manager(object):
             source.populate(zone, lenient=lenient)
 
         plan = target.plan(zone)
+        if plan is None:
+            plan = Plan(zone, zone, [], False)
         # We require at least root NS so there'll always be a plan
         target.apply(plan)
 
