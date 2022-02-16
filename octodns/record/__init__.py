@@ -1090,8 +1090,9 @@ class MxValue(EqualityTupleMixin):
                 reasons.append(f'invalid preference "{value["preference"]}"')
             exchange = None
             try:
-                exchange = value.get('exchange', None) or value['value']
-                if not FQDN(str(exchange), allow_underscores=True).is_valid:
+                exchange = str(value.get('exchange', None) or value['value'])
+                if exchange != '.' and \
+                        not FQDN(exchange, allow_underscores=True).is_valid:
                     reasons.append(f'Invalid MX exchange "{exchange}" is not '
                                    'a valid FQDN.')
                 elif not exchange.endswith('.'):
