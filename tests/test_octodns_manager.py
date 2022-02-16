@@ -113,45 +113,45 @@ class TestManager(TestCase):
             tc = Manager(get_config_filename('always-dry-run.yaml')) \
                 .sync(dry_run=False)
             # only the stuff from subzone, unit.tests. is always-dry-run
-            self.assertEqual(4, tc)
+            self.assertEqual(3, tc)
 
     def test_simple(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False)
-            self.assertEqual(30, tc)
+            self.assertEqual(26, tc)
 
             # try with just one of the zones
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, eligible_zones=['unit.tests.'])
-            self.assertEqual(21, tc)
+            self.assertEqual(20, tc)
 
             # the subzone, with 2 targets
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, eligible_zones=['subzone.unit.tests.'])
-            self.assertEqual(8, tc)
+            self.assertEqual(6, tc)
 
-            # and finally the empty zone (only root NS)
+            # and finally the empty zone
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, eligible_zones=['empty.'])
-            self.assertEqual(1, tc)
+            self.assertEqual(0, tc)
 
             # Again with force
             tc = Manager(get_config_filename('simple.yaml')) \
                 .sync(dry_run=False, force=True)
-            self.assertEqual(30, tc)
+            self.assertEqual(26, tc)
 
             # Again with max_workers = 1
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1) \
                 .sync(dry_run=False, force=True)
-            self.assertEqual(30, tc)
+            self.assertEqual(26, tc)
 
             # Include meta
             tc = Manager(get_config_filename('simple.yaml'), max_workers=1,
                          include_meta=True) \
                 .sync(dry_run=False, force=True)
-            self.assertEqual(34, tc)
+            self.assertEqual(30, tc)
 
     def test_eligible_sources(self):
         with TemporaryDirectory() as tmpdir:

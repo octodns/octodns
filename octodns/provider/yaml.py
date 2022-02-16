@@ -106,13 +106,13 @@ class YamlProvider(BaseProvider):
     SUPPORTS_DYNAMIC = True
     SUPPORTS_POOL_VALUE_STATUS = True
     SUPPORTS_MULTIVALUE_PTR = True
-    SUPPORTS_ROOT_NS = True
     SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'DNAME', 'LOC', 'MX',
                     'NAPTR', 'NS', 'PTR', 'SSHFP', 'SPF', 'SRV', 'TXT',
                     'URLFWD'))
 
     def __init__(self, id, directory, default_ttl=3600, enforce_order=True,
-                 populate_should_replace=False, *args, **kwargs):
+                 populate_should_replace=False, supports_root_ns=True,
+                 *args, **kwargs):
         klass = self.__class__.__name__
         self.log = logging.getLogger(f'{klass}[{id}]')
         self.log.debug('__init__: id=%s, directory=%s, default_ttl=%d, '
@@ -124,6 +124,11 @@ class YamlProvider(BaseProvider):
         self.default_ttl = default_ttl
         self.enforce_order = enforce_order
         self.populate_should_replace = populate_should_replace
+        self.supports_root_ns = supports_root_ns
+
+    @property
+    def SUPPORTS_ROOT_NS(self):
+        return self.supports_root_ns
 
     def _populate_from_file(self, filename, zone, lenient):
         with open(filename, 'r') as fh:
