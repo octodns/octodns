@@ -216,6 +216,8 @@ class TestManager(TestCase):
             with open(join(tmpdir.dirname, 'unit.tests.yaml'), 'w') as fh:
                 fh.write('---\n{}')
 
+            # compare doesn't use _process_desired_zone and thus doesn't filter
+            # out root NS records, that seems fine/desirable
             changes = manager.compare(['in'], ['dump'], 'unit.tests.')
             self.assertEqual(21, len(changes))
 

@@ -94,14 +94,15 @@ class BaseProvider(BaseSource):
                 record = record.copy()
                 record.values = [record.value]
                 desired.add_record(record, replace=True)
-            elif record._type == 'NS' and record.name == '' and \
-                    not self.SUPPORTS_ROOT_NS:
-                # ignore, we can't manage root NS records
-                msg = \
-                    f'root NS record not supported for {record.fqdn}'
-                fallback = 'ignoring it'
-                self.supports_warn_or_except(msg, fallback)
-                desired.remove_record(record)
+
+        record = desired.root_ns
+        if record and not self.SUPPORTS_ROOT_NS:
+            # ignore, we can't manage root NS records
+            msg = \
+                f'root NS record not supported for {record.fqdn}'
+            fallback = 'ignoring it'
+            self.supports_warn_or_except(msg, fallback)
+            desired.remove_record(record)
 
         return desired
 
@@ -124,15 +125,14 @@ class BaseProvider(BaseSource):
           provider configuration.
         '''
 
-        for record in existing.records:
-            if record._type == 'NS' and record.name == '' and \
-                    not self.SUPPORTS_ROOT_NS:
-                # ignore, we can't manage root NS records
-                msg = \
-                    f'root NS record not supported for {record.fqdn}'
-                fallback = 'ignoring it'
-                self.supports_warn_or_except(msg, fallback)
-                existing.remove_record(record)
+        record = existing.root_ns
+        if record and not self.SUPPORTS_ROOT_NS:
+            # ignore, we can't manage root NS records
+            msg = \
+                f'root NS record not supported for {record.fqdn}'
+            fallback = 'ignoring it'
+            self.supports_warn_or_except(msg, fallback)
+            existing.remove_record(record)
 
         return existing
 
