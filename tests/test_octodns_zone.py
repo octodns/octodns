@@ -7,7 +7,8 @@ from __future__ import absolute_import, division, print_function, \
 
 from unittest import TestCase
 
-from octodns.record import ARecord, AaaaRecord, Create, Delete, Record, Update
+from octodns.record import ARecord, AaaaRecord, Create, Delete, NsRecord, \
+    Record, Update
 from octodns.zone import DuplicateRecordException, InvalidNodeException, \
     SubzoneRecordException, Zone
 
@@ -410,3 +411,50 @@ class TestZone(TestCase):
         self.assertTrue(copy.hydrate())
         # Doesn't the second
         self.assertFalse(copy.hydrate())
+
+    def test_root_ns(self):
+        zone = Zone('unit.tests.', [])
+
+        a = ARecord(zone, 'a', {'ttl': 42, 'value': '1.1.1.1'})
+        zone.add_record(a)
+        # No root NS yet
+        self.assertFalse(zone.root_ns)
+
+        non_root_ns = NsRecord(zone, 'sub', {'ttl': 42, 'values': (
+            'ns1.unit.tests.',
+            'ns2.unit.tests.',
+        )})
+        zone.add_record(non_root_ns)
+        # No root NS yet b/c this was a sub
+        self.assertFalse(zone.root_ns)
+
+        root_ns = NsRecord(zone, '', {'ttl': 42, 'values': (
+            'ns3.unit.tests.',
+            'ns4.unit.tests.',
+        )})
+        zone.add_record(root_ns)
+        # Now we have a root NS
+        self.assertEqual(root_ns, zone.root_ns)
+
+        # make a copy, it has a root_ns
+        copy = zone.copy()
+        self.assertEqual(root_ns, copy.root_ns)
+
+        # remove the root NS from it and we don't
+        copy.remove_record(root_ns)
+        self.assertFalse(copy.root_ns)
+
+        # original still does though
+        self.assertEqual(root_ns, zone.root_ns)
+
+        # remove the A, still has root NS
+        zone.remove_record(a)
+        self.assertEqual(root_ns, zone.root_ns)
+
+        # remove the sub NS, still has root NS
+        zone.remove_record(non_root_ns)
+        self.assertEqual(root_ns, zone.root_ns)
+
+        # finally remove the root NS, no more
+        zone.remove_record(root_ns)
+        self.assertFalse(zone.root_ns)
