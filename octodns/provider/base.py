@@ -98,10 +98,8 @@ class BaseProvider(BaseSource):
         record = desired.root_ns
         if self.SUPPORTS_ROOT_NS:
             if not record:
-                msg = 'root NS record supported, but no record is ' \
-                    f'configured for {desired.name}'
-                fallback = 'ignoring it'
-                self.supports_warn_or_except(msg, fallback)
+                self.log.warning('root NS record supported, but no record '
+                                 'is configured for %s', desired.name)
         else:
             if record:
                 # we can't manage root NS records, get rid of it

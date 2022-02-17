@@ -167,6 +167,28 @@ class TestBaseProvider(TestCase):
         self.assertTrue(plan)
         self.assertEqual(1, len(plan.changes))
 
+    def test_plan_with_process_desired_zone_kwarg_fallback(self):
+        ignored = Zone('unit.tests.', [])
+
+        class OldApiProvider(HelperProvider):
+
+            def _process_desired_zone(self, desired):
+                return desired
+
+        # No change, thus no plan
+        provider = OldApiProvider([])
+        self.assertEqual(None, provider.plan(ignored))
+
+        class OtherTypeErrorProvider(HelperProvider):
+
+            def _process_desired_zone(self, desired, exists=False):
+                raise TypeError('foo')
+
+        provider = OtherTypeErrorProvider([])
+        with self.assertRaises(TypeError) as ctx:
+            provider.plan(ignored)
+        self.assertEqual('foo', str(ctx.exception))
+
     def test_plan_with_unsupported_type(self):
         zone = Zone('unit.tests.', [])
 
@@ -846,13 +868,14 @@ class TestBaseProviderSupportsRootNs(TestCase):
         # aren't configured with one to manage
         self.assertFalse(plan)
 
-        # again with strict supports enabled, this time we throw an exception
-        # b/c it's not being managed and could be
+        # again with strict supports enabled, no difference as non-configured
+        # root NS is a special case that we always just warn about. This is
+        # because we can't known them before it's created and some people may
+        # choose to just leave them unmanaged undefinitely which has been the
+        # behavior up until now.
         provider.strict_supports = True
-        with self.assertRaises(SupportsException) as ctx:
-            provider.plan(self.no_root)
-        self.assertEqual('test: root NS record supported, but no record is '
-                         'configured for unit.tests.', str(ctx.exception))
+        plan = provider.plan(self.no_root)
+        self.assertFalse(plan)
 
     def test_supports_root_ns_true_create_zone(self):
         # provider has no existing records (create)
@@ -892,10 +915,9 @@ class TestBaseProviderSupportsRootNs(TestCase):
         plan = provider.plan(self.no_root)
         self.assertEqual(2, len(plan.changes))
 
-        # again with strict supports enabled, this time we throw an exception
-        # b/c it's not being managed and could be
+        # again with strict supports enabled, we'd normally throw an exception,
+        # but since this is a create and we often can't know the root NS values
+        # before the zone is created it's special cased and will only warn
         provider.strict_supports = True
-        with self.assertRaises(SupportsException) as ctx:
-            provider.plan(self.no_root)
-        self.assertEqual('test: root NS record supported, but no record is '
-                         'configured for unit.tests.', str(ctx.exception))
+        plan = provider.plan(self.no_root)
+        self.assertEqual(2, len(plan.changes))
