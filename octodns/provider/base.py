@@ -96,22 +96,29 @@ class BaseProvider(BaseSource):
                 desired.add_record(record, replace=True)
 
         record = desired.root_ns
-        if record and not self.SUPPORTS_ROOT_NS:
-            # ignore, we can't manage root NS records
-            msg = \
-                f'root NS record not supported for {record.fqdn}'
-            fallback = 'ignoring it'
-            self.supports_warn_or_except(msg, fallback)
-            desired.remove_record(record)
+        if self.SUPPORTS_ROOT_NS:
+            if not record:
+                self.log.warning('%s: root NS record supported by provider, '
+                                 'but no record is configured for %s', self.id,
+                                 desired.name)
+        else:
+            if record:
+                # ignore, we can't manage root NS records
+                msg = \
+                    f'root NS record not supported for {record.fqdn}'
+                fallback = 'ignoring it'
+                self.supports_warn_or_except(msg, fallback)
+                desired.remove_record(record)
 
         return desired
 
-    def _process_existing_zone(self, existing):
+    def _process_existing_zone(self, existing, desired):
         '''
         An opportunity for providers to modify the existing zone records before
         planning. `existing` is a "shallow" copy, see `Zone.copy` for more
         information
 
+        - `desired` must not be modified in anyway, it is only for reference
         - Must call `super` at an appropriate point for their work, generally
           that means as the final step of the method, returning the result of
           the `super` call.
@@ -125,14 +132,18 @@ class BaseProvider(BaseSource):
           provider configuration.
         '''
 
-        record = existing.root_ns
-        if record and not self.SUPPORTS_ROOT_NS:
-            # ignore, we can't manage root NS records
+        existing_root_ns = existing.root_ns
+        if existing_root_ns and (not desired.root_ns or not
+                                 self.SUPPORTS_ROOT_NS):
+            # we have an existing root NS record and either the provider
+            # doesn't support managing them or our desired state doesn't
+            # include one, either way we'll exclude the existing one from
+            # consideration
             msg = \
-                f'root NS record not supported for {record.fqdn}'
+                f'root NS record not supported for {existing_root_ns.fqdn}'
             fallback = 'ignoring it'
             self.supports_warn_or_except(msg, fallback)
-            existing.remove_record(record)
+            existing.remove_record(existing_root_ns)
 
         return existing
 
@@ -174,7 +185,7 @@ class BaseProvider(BaseSource):
 
         desired = self._process_desired_zone(desired)
 
-        existing = self._process_existing_zone(existing)
+        existing = self._process_existing_zone(existing, desired)
 
         for processor in processors:
             existing = processor.process_target_zone(existing, target=self)

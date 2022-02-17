@@ -406,11 +406,11 @@ class TestBaseProvider(TestCase):
         })
         zone1.add_record(record1)
 
-        zone2 = provider._process_existing_zone(zone1.copy())
+        zone2 = provider._process_existing_zone(zone1.copy(), zone1)
         self.assertEqual(0, len(zone2.records))
 
         provider.SUPPORTS_ROOT_NS = True
-        zone2 = provider._process_existing_zone(zone1.copy())
+        zone2 = provider._process_existing_zone(zone1.copy(), zone1)
         self.assertEqual(1, len(zone2.records))
         self.assertEqual(record1, list(zone2.records)[0])
 
@@ -701,12 +701,17 @@ class TestBaseProviderSupportsRootNs(TestCase):
 
         # matching root NS in the desired
         plan = provider.plan(self.has_root)
-        # there's an existing root record that matches the desired. we don't
-        # support them, so it doesn't matter whether it matches or not.
-        # _process_desired_zone will have removed the desired one since it
-        # can't be managed. this will not result in a plan as
-        # _process_existing_zone will have done so as well.
+
+        # no root ns upport on the target provider so doesn't matter, still no
+        # changes
         self.assertFalse(plan)
+
+        # plan again with strict_supports enabled, we should get an exception
+        provider.strict_supports = True
+        with self.assertRaises(SupportsException) as ctx:
+            provider.plan(self.has_root)
+        self.assertEqual('test: root NS record not supported for unit.tests.',
+                         str(ctx.exception))
 
     def test_supports_root_ns_false_different(self):
         # provider has a non-matching existing record
@@ -715,6 +720,7 @@ class TestBaseProviderSupportsRootNs(TestCase):
 
         # different root is in the desired
         plan = provider.plan(self.has_root)
+
         # the mis-match doesn't matter since we can't manage the records
         # anyway, they will have been removed from the desired and existing.
         self.assertFalse(plan)
@@ -726,6 +732,7 @@ class TestBaseProviderSupportsRootNs(TestCase):
 
         # desired doesn't have a root
         plan = provider.plan(self.no_root)
+
         # the mis-match doesn't matter since we can't manage the records
         # anyway, they will have been removed from the desired and existing.
         self.assertFalse(plan)
@@ -734,10 +741,11 @@ class TestBaseProviderSupportsRootNs(TestCase):
         # provider has no existing records (create)
         provider = self.Provider()
         provider.SUPPORTS_ROOT_NS = False
+
         # case where we have a root NS in the desired
         plan = provider.plan(self.has_root)
-        # there's no existing root record since we're creating the zone so
-        # we'll get a plan that creates the other 2 records only
+
+        # no support for root NS so we only create the other two records
         self.assertTrue(plan)
         self.assertEqual(2, len(plan.changes))
 
@@ -747,45 +755,49 @@ class TestBaseProviderSupportsRootNs(TestCase):
         # provider has a matching existing root record
         provider = self.Provider(self.has_root)
         provider.SUPPORTS_ROOT_NS = True
-        # case where we have a root NS in the desired
+
+        # same root NS in the desired
         plan = provider.plan(self.has_root)
-        # there's an existing root record that matches the desired state so no
-        # changes are needed
+
+        # root NS is supported in the target provider, but they match so no
+        # change
         self.assertFalse(plan)
 
     def test_supports_root_ns_true_different(self):
         # provider has a non-matching existing record
         provider = self.Provider(self.different_root)
         provider.SUPPORTS_ROOT_NS = True
-        # case where we have a root NS in the desired
+
+        # non-matching root NS in the desired
         plan = provider.plan(self.has_root)
-        # there's an existing root record that doesn't match the desired state.
-        # we'll get a plan that modifies it.
+
+        # root NS mismatch in a target provider that supports it, we'll see the
+        # change
         self.assertTrue(plan)
         change = plan.changes[0]
         self.assertEqual(self.other_root_ns_record, change.existing)
         self.assertEqual(self.root_ns_record, change.new)
 
-    # TODO: rework
-    def _test_supports_root_ns_true_missing(self):
+    def test_supports_root_ns_true_missing(self):
         # provider has a matching existing root record
         provider = self.Provider(self.has_root)
         provider.SUPPORTS_ROOT_NS = True
-        # case where we don't have a configured/desired root NS record. this is
-        # dangerous so we expect an exception to be thrown to prevent trying to
-        # delete the critical record
-        with self.assertRaises(SupportsException) as ctx:
-            provider.plan(self.no_root)
-        self.assertEqual('test: provider supports root NS record management, '
-                         'but no record configured in unit.tests.; aborting',
-                         str(ctx.exception))
+
+        # there's no root record in the desired
+        plan = provider.plan(self.no_root)
+
+        # the existing root NS in the target is left alone/as is since we
+        # aren't configured with one to manage
+        self.assertFalse(plan)
 
     def test_supports_root_ns_true_create_zone(self):
         # provider has no existing records (create)
         provider = self.Provider()
         provider.SUPPORTS_ROOT_NS = True
+
         # case where we have a root NS in the desired
         plan = provider.plan(self.has_root)
+
         # there's no existing root record since we're creating the zone so
         # we'll get a plan that creates everything, including it
         self.assertTrue(plan)
@@ -795,17 +807,12 @@ class TestBaseProviderSupportsRootNs(TestCase):
         self.assertFalse(change.existing)
         self.assertEqual(self.root_ns_record, change.new)
 
-    # TODO: rework
-    def _test_supports_root_ns_true_create_zone_missing(self):
+    def test_supports_root_ns_true_create_zone_missing(self):
         # provider has no existing records (create)
         provider = self.Provider()
         provider.SUPPORTS_ROOT_NS = True
-        # case where we don't have a configured/desired root NS record. this is
-        # dangerous so we expect an exception to be thrown to prevent trying to
-        # create a zone without the critical record being managed (if they
-        # didn't get it now they'd get it on the next sync)
-        with self.assertRaises(SupportsException) as ctx:
-            provider.plan(self.no_root)
-        self.assertEqual('test: provider supports root NS record management, '
-                         'but no record configured in unit.tests.; aborting',
-                         str(ctx.exception))
+
+        # we don't have a root NS configured so we'll ignore them and just
+        # manage the other records
+        plan = provider.plan(self.no_root)
+        self.assertEqual(2, len(plan.changes))
