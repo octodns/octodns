@@ -98,12 +98,13 @@ class BaseProvider(BaseSource):
         record = desired.root_ns
         if self.SUPPORTS_ROOT_NS:
             if not record:
-                self.log.warning('%s: root NS record supported by provider, '
-                                 'but no record is configured for %s', self.id,
-                                 desired.name)
+                msg = 'root NS record supported, but no record is ' \
+                    f'configured for {desired.name}'
+                fallback = 'ignoring it'
+                self.supports_warn_or_except(msg, fallback)
         else:
             if record:
-                # ignore, we can't manage root NS records
+                # we can't manage root NS records, get rid of it
                 msg = \
                     f'root NS record not supported for {record.fqdn}'
                 fallback = 'ignoring it'
@@ -133,16 +134,10 @@ class BaseProvider(BaseSource):
         '''
 
         existing_root_ns = existing.root_ns
-        if existing_root_ns and (not desired.root_ns or not
-                                 self.SUPPORTS_ROOT_NS):
-            # we have an existing root NS record and either the provider
-            # doesn't support managing them or our desired state doesn't
-            # include one, either way we'll exclude the existing one from
-            # consideration
-            msg = \
-                f'root NS record not supported for {existing_root_ns.fqdn}'
-            fallback = 'ignoring it'
-            self.supports_warn_or_except(msg, fallback)
+        if existing_root_ns and (not self.SUPPORTS_ROOT_NS or
+                                 not desired.root_ns):
+            self.log.info('root NS record in existing, but not supported or '
+                          'not configured; ignoring it')
             existing.remove_record(existing_root_ns)
 
         return existing
