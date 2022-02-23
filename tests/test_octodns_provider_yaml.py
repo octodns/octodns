@@ -53,7 +53,7 @@ class TestYamlProvider(TestCase):
             directory = join(td.dirname, 'sub', 'dir')
             yaml_file = join(directory, 'unit.tests.yaml')
             dynamic_yaml_file = join(directory, 'dynamic.tests.yaml')
-            target = YamlProvider('test', directory)
+            target = YamlProvider('test', directory, supports_root_ns=False)
 
             # We add everything
             plan = target.plan(zone)
@@ -81,6 +81,10 @@ class TestYamlProvider(TestCase):
                 {'included': ['test']},
                 [x for x in reloaded.records
                  if x.name == 'included'][0]._octodns)
+
+            # manually copy over the root since it will have been ignored
+            # when things were written out
+            reloaded.add_record(zone.root_ns)
 
             self.assertFalse(zone.changes(reloaded, target=source))
 
@@ -156,7 +160,8 @@ class TestYamlProvider(TestCase):
                 self.assertEqual([], list(data.keys()))
 
     def test_empty(self):
-        source = YamlProvider('test', join(dirname(__file__), 'config'))
+        source = YamlProvider('test', join(dirname(__file__), 'config'),
+                              supports_root_ns=False)
 
         zone = Zone('empty.', [])
 
@@ -165,7 +170,8 @@ class TestYamlProvider(TestCase):
         self.assertEqual(0, len(zone.records))
 
     def test_unsorted(self):
-        source = YamlProvider('test', join(dirname(__file__), 'config'))
+        source = YamlProvider('test', join(dirname(__file__), 'config'),
+                              supports_root_ns=False)
 
         zone = Zone('unordered.', [])
 
@@ -173,13 +179,14 @@ class TestYamlProvider(TestCase):
             source.populate(zone)
 
         source = YamlProvider('test', join(dirname(__file__), 'config'),
-                              enforce_order=False)
+                              enforce_order=False, supports_root_ns=False)
         # no exception
         source.populate(zone)
         self.assertEqual(2, len(zone.records))
 
     def test_subzone_handling(self):
-        source = YamlProvider('test', join(dirname(__file__), 'config'))
+        source = YamlProvider('test', join(dirname(__file__), 'config'),
+                              supports_root_ns=False)
 
         # If we add `sub` as a sub-zone we'll reject `www.sub`
         zone = Zone('unit.tests.', ['sub'])
@@ -259,7 +266,8 @@ class TestSplitYamlProvider(TestCase):
             zone_dir = join(directory, 'unit.tests.tst')
             dynamic_zone_dir = join(directory, 'dynamic.tests.tst')
             target = SplitYamlProvider('test', directory,
-                                       extension='.tst')
+                                       extension='.tst',
+                                       supports_root_ns=False)
 
             # We add everything
             plan = target.plan(zone)
@@ -286,6 +294,10 @@ class TestSplitYamlProvider(TestCase):
                 {'included': ['test']},
                 [x for x in reloaded.records
                  if x.name == 'included'][0]._octodns)
+
+            # manually copy over the root since it will have been ignored
+            # when things were written out
+            reloaded.add_record(zone.root_ns)
 
             self.assertFalse(zone.changes(reloaded, target=source))
 
@@ -392,9 +404,11 @@ class TestOverridingYamlProvider(TestCase):
     def test_provider(self):
         config = join(dirname(__file__), 'config')
         override_config = join(dirname(__file__), 'config', 'override')
-        base = YamlProvider('base', config, populate_should_replace=False)
+        base = YamlProvider('base', config, populate_should_replace=False,
+                            supports_root_ns=False)
         override = YamlProvider('test', override_config,
-                                populate_should_replace=True)
+                                populate_should_replace=True,
+                                supports_root_ns=False)
 
         zone = Zone('dynamic.tests.', [])
 

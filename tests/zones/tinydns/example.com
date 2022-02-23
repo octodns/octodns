@@ -32,8 +32,8 @@ Ccname.other.foo:www.other.foo
 @smtp.example.com::smtp-2-host.example.com:40:1800
 
 # NS
-.sub.example.com::ns1.ns.com:30
-.sub.example.com::ns2.ns.com:30
+.sub.example.com::ns3.ns.com:30
+.sub.example.com::ns4.ns.com:30
 
 # A, under sub
 +www.sub.example.com::1.2.3.4

@@ -24,12 +24,6 @@ class InvalidNodeException(Exception):
     pass
 
 
-def _is_eligible(record):
-    # Should this record be considered when computing changes
-    # We ignore all top-level NS records
-    return record._type != 'NS' or record.name != ''
-
-
 class Zone(object):
     log = getLogger('Zone')
 
@@ -42,6 +36,7 @@ class Zone(object):
         # We're grouping by node, it allows us to efficiently search for
         # duplicates and detect when CNAMEs co-exist with other records
         self._records = defaultdict(set)
+        self._root_ns = None
         # optional leading . to match empty hostname
         # optional trailing . b/c some sources don't have it on their fqdn
         self._name_re = re.compile(fr'\.?{name}?$')
@@ -58,6 +53,12 @@ class Zone(object):
         if self._origin:
             return self._origin.records
         return set([r for _, node in self._records.items() for r in node])
+
+    @property
+    def root_ns(self):
+        if self._origin:
+            return self._origin.root_ns
+        return self._root_ns
 
     def hostname_from_fqdn(self, fqdn):
         return self._name_re.sub('', fqdn)
@@ -97,11 +98,18 @@ class Zone(object):
                                        f'{record.fqdn} cannot coexist with '
                                        'other records')
 
+        if record._type == 'NS' and record.name == '':
+            self._root_ns = record
+
         node.add(record)
 
     def remove_record(self, record):
         if self._origin:
             self.hydrate()
+
+        if record._type == 'NS' and record.name == '':
+            self._root_ns = None
+
         self._records[record.name].discard(record)
 
     # TODO: delete this
@@ -118,7 +126,7 @@ class Zone(object):
         changes = []
 
         # Find diffs & removes
-        for record in filter(_is_eligible, self.records):
+        for record in self.records:
             if record.ignored:
                 continue
             elif len(record.included) > 0 and \
@@ -168,7 +176,7 @@ class Zone(object):
         # Find additions, things that are in desired, but missing in ourselves.
         # This uses set math and our special __hash__ and __cmp__ functions as
         # well
-        for record in filter(_is_eligible, desired.records - self.records):
+        for record in desired.records - self.records:
             if record.ignored:
                 continue
             elif len(record.included) > 0 and \

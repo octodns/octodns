@@ -223,7 +223,7 @@ The table below lists the providers octoDNS supports. They are maintained in the
 | [Selectel](https://selectel.ru/en/services/additional/dns/) | [octodns_selectel](https://github.com/octodns/octodns-selectel/) | |
 | [TransIP](https://www.transip.eu/knowledgebase/entry/155-dns-and-nameservers/) | [octodns_transip](https://github.com/octodns/octodns-transip/) | |
 | [UltraDNS](https://www.home.neustar/dns-services) | [octodns_ultra](https://github.com/octodns/octodns-ultra/) | |
-| [YamlProvider](/octodns/provider/yaml.py) | built-in | config |
+| [YamlProvider](/octodns/provider/yaml.py) | built-in | Supports all record types and core functionality |
 
 ### Updating to use extracted providers
 
@@ -242,7 +242,6 @@ Similar to providers, but can only serve to populate records into a zone, cannot
 | [AxfrSource](/octodns/source/axfr.py) | A, AAAA, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [ZoneFileSource](/octodns/source/axfr.py) | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [TinyDnsFileSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |
-| [YamlProvider](/octodns/provider/yaml.py) | All | Yes | config |
 
 #### Notes
 

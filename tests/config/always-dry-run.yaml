@@ -5,6 +5,7 @@ providers:
   dump:
     class: octodns.provider.yaml.YamlProvider
     directory: env/YAML_TMP_DIR
+    supports_root_ns: False
 zones:
   unit.tests.:
     always-dry-run: true

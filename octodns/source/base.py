@@ -10,6 +10,7 @@ class BaseSource(object):
 
     SUPPORTS_MULTIVALUE_PTR = False
     SUPPORTS_POOL_VALUE_STATUS = False
+    SUPPORTS_ROOT_NS = False
 
     def __init__(self, id):
         self.id = id

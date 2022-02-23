@@ -9,7 +9,8 @@ from io import StringIO
 from logging import getLogger
 from unittest import TestCase
 
-from octodns.provider.plan import Plan, PlanHtml, PlanLogger, PlanMarkdown
+from octodns.provider.plan import Plan, PlanHtml, PlanLogger, PlanMarkdown, \
+    RootNsChange, TooMuchChange
 from octodns.record import Create, Delete, Record, Update
 from octodns.zone import Zone
 
@@ -110,3 +111,156 @@ class TestPlanMarkdown(TestCase):
         self.assertTrue('Update | a | A | 300 | 1.1.1.1;' in out)
         self.assertTrue('NA-US: 6.6.6.6 | test' in out)
         self.assertTrue('Delete | a | A | 300 | 2.2.2.2;' in out)
+
+
+class HelperPlan(Plan):
+
+    def __init__(self, *args, min_existing=0, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.MIN_EXISTING_RECORDS = min_existing
+
+
+class TestPlanSafety(TestCase):
+    existing = Zone('unit.tests.', [])
+    record_1 = Record.new(existing, '1', data={
+        'type': 'A',
+        'ttl': 42,
+        'value': '1.2.3.4',
+    })
+    record_2 = Record.new(existing, '2', data={
+        'type': 'A',
+        'ttl': 42,
+        'value': '1.2.3.4',
+    })
+    record_3 = Record.new(existing, '3', data={
+        'type': 'A',
+        'ttl': 42,
+        'value': '1.2.3.4',
+    })
+    record_4 = Record.new(existing, '4', data={
+        'type': 'A',
+        'ttl': 42,
+        'value': '1.2.3.4',
+    })
+
+    def test_too_many_updates(self):
+        existing = self.existing.copy()
+        changes = []
+
+        # No records, no changes, we're good
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        # Four records, no changes, we're good
+        existing.add_record(self.record_1)
+        existing.add_record(self.record_2)
+        existing.add_record(self.record_3)
+        existing.add_record(self.record_4)
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        # Creates don't count against us
+        changes.append(Create(self.record_1))
+        changes.append(Create(self.record_2))
+        changes.append(Create(self.record_3))
+        changes.append(Create(self.record_4))
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        # One update, still good (25%, default threshold is 33%)
+        changes.append(Update(self.record_1, self.record_1))
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        # Two and we're over the threshold
+        changes.append(Update(self.record_2, self.record_2))
+        plan = HelperPlan(existing, None, changes, True)
+        with self.assertRaises(TooMuchChange) as ctx:
+            plan.raise_if_unsafe()
+        self.assertTrue('Too many updates', str(ctx.exception))
+
+        # If we require more records before applying we're still OK though
+        plan = HelperPlan(existing, None, changes, True, min_existing=10)
+        plan.raise_if_unsafe()
+
+    def test_too_many_deletes(self):
+        existing = self.existing.copy()
+        changes = []
+
+        # No records, no changes, we're good
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        # Four records, no changes, we're good
+        existing.add_record(self.record_1)
+        existing.add_record(self.record_2)
+        existing.add_record(self.record_3)
+        existing.add_record(self.record_4)
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        # Creates don't count against us
+        changes.append(Create(self.record_1))
+        changes.append(Create(self.record_2))
+        changes.append(Create(self.record_3))
+        changes.append(Create(self.record_4))
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        # One delete, still good (25%, default threshold is 33%)
+        changes.append(Delete(self.record_1))
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        # Two and we're over the threshold
+        changes.append(Delete(self.record_2))
+        plan = HelperPlan(existing, None, changes, True)
+        with self.assertRaises(TooMuchChange) as ctx:
+            plan.raise_if_unsafe()
+        self.assertTrue('Too many deletes', str(ctx.exception))
+
+        # If we require more records before applying we're still OK though
+        plan = HelperPlan(existing, None, changes, True, min_existing=10)
+        plan.raise_if_unsafe()
+
+    def test_root_ns_change(self):
+        existing = self.existing.copy()
+        changes = []
+
+        # No records, no changes, we're good
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        existing.add_record(self.record_1)
+        existing.add_record(self.record_2)
+        existing.add_record(self.record_3)
+        existing.add_record(self.record_4)
+
+        # Non NS changes and we're still good
+        changes.append(Update(self.record_1, self.record_1))
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        # Add a change to a non-root NS record, we're OK
+        ns_record = Record.new(existing, 'sub', data={
+            'type': 'NS',
+            'ttl': 43,
+            'values': ('ns1.unit.tests.', 'ns1.unit.tests.'),
+        })
+        changes.append(Delete(ns_record))
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+        # Remove that Delete so that we don't go over the delete threshold
+        changes.pop(-1)
+
+        # Delete the root NS record and we get an unsafe
+        root_ns_record = Record.new(existing, '', data={
+            'type': 'NS',
+            'ttl': 43,
+            'values': ('ns3.unit.tests.', 'ns4.unit.tests.'),
+        })
+        changes.append(Delete(root_ns_record))
+        plan = HelperPlan(existing, None, changes, True)
+        with self.assertRaises(RootNsChange) as ctx:
+            plan.raise_if_unsafe()
+        self.assertTrue('Root Ns record change', str(ctx.exception))

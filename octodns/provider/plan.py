@@ -12,12 +12,22 @@ from io import StringIO
 
 
 class UnsafePlan(Exception):
+    pass
+
+
+class RootNsChange(UnsafePlan):
+
+    def __init__(self):
+        super().__init__('Root NS record change, force required')
+
+
+class TooMuchChange(UnsafePlan):
 
     def __init__(self, why, update_pcent, update_threshold, change_count,
                  existing_count):
-        msg = f'{why}, {update_pcent:.2f} is over {update_threshold:.2f} %' \
-            f'({change_count}/{existing_count})'
-        super(UnsafePlan, self).__init__(msg)
+        msg = f'{why}, {update_pcent:.2f}% is over {update_threshold:.2f}% ' \
+            f'({change_count}/{existing_count}), force required'
+        super().__init__(msg)
 
 
 class Plan(object):
@@ -67,19 +77,32 @@ class Plan(object):
            len(self.existing.records) >= self.MIN_EXISTING_RECORDS:
 
             existing_record_count = len(self.existing.records)
-            update_pcent = self.change_counts['Update'] / existing_record_count
-            delete_pcent = self.change_counts['Delete'] / existing_record_count
+            if existing_record_count > 0:
+                update_pcent = (self.change_counts['Update'] /
+                                existing_record_count)
+                delete_pcent = (self.change_counts['Delete'] /
+                                existing_record_count)
+            else:
+                update_pcent = 0
+                delete_pcent = 0
 
             if update_pcent > self.update_pcent_threshold:
-                raise UnsafePlan('Too many updates', update_pcent * 100,
-                                 self.update_pcent_threshold * 100,
-                                 self.change_counts['Update'],
-                                 existing_record_count)
+                raise TooMuchChange('Too many updates', update_pcent * 100,
+                                    self.update_pcent_threshold * 100,
+                                    self.change_counts['Update'],
+                                    existing_record_count)
             if delete_pcent > self.delete_pcent_threshold:
-                raise UnsafePlan('Too many deletes', delete_pcent * 100,
-                                 self.delete_pcent_threshold * 100,
-                                 self.change_counts['Delete'],
-                                 existing_record_count)
+                raise TooMuchChange('Too many deletes', delete_pcent * 100,
+                                    self.delete_pcent_threshold * 100,
+                                    self.change_counts['Delete'],
+                                    existing_record_count)
+
+        # If we have any changes of the root NS record for the zone it's a huge
+        # deal and force should always be required for extra care
+        if self.exists and any(c for c in self.changes
+                               if c.record and c.record._type == 'NS' and
+                               c.record.name == ''):
+            raise RootNsChange()
 
     def __repr__(self):
         creates = self.change_counts['Create']
