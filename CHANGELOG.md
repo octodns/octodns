@@ -6,7 +6,7 @@
    * YamlProvider has it enabled and in general everyone should add root NS
      records that match what is in their provider(s) as of this release if they
      aren't already there.
-   * Note that if you created you config files with `octodns-dump` the records
+   * Note that if you created your config files with `octodns-dump`, the records
      are likely already there and match what was configured at the time of the
      dump.
    * Other providers will add root NS support over time once they have had the
