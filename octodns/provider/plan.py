@@ -99,9 +99,9 @@ class Plan(object):
 
         # If we have any changes of the root NS record for the zone it's a huge
         # deal and force should always be required for extra care
-        if self.exists and [True for c in self.changes
-                            if c.record and c.record._type == 'NS' and
-                            c.record.name == '']:
+        if self.exists and any(c for c in self.changes
+                               if c.record and c.record._type == 'NS' and
+                               c.record.name == ''):
             raise RootNsChange()
 
     def __repr__(self):
