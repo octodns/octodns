@@ -9,9 +9,6 @@
    * Other providers will add root NS support over time following this release
      once they have had the chance to investigate the functionality and
      implement management if possible with whatever accomidations are required.
-   * Note that if you created your config files with `octodns-dump`, the records
-     are likely already there and match what was configured at the time of the
-     dump.
    * Watch your providers README.md and CHANGELOG.md for support and more
      information.
    * Root NS record changes will always require `--force` indicating that they
