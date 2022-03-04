@@ -1,3 +1,19 @@
+## v0.9.17 - 2022-??-?? - ???
+
+#### Noteworthy changes
+
+* The changes in plans are now ordered based on change type prior to
+  considering the record name and type as was previously done. The chosen
+  order is: deletes, creates, updates. The reason for that many providers make
+  changes one at a time. When changing the type of a record, e.g. from A to
+  CNAME of vice versa this is done by deleting the old and creating the new.
+  If the CNAME create happens before the A delete it will often violate
+  rules against having typed records live at the same node as a CNAME. Several
+  providers have always handled this by sorting the changes themselves. This
+  just standardizes what they are doing as many other providers appear to need
+  to do so, but weren't. There was an ordering before, but it was essentially
+  arbitrarily picked.
+
 ## v0.9.16 - 2022-??-?? - ???
 
 #### Noteworthy changes

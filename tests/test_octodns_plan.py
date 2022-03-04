@@ -54,6 +54,31 @@ plans = [
 ]
 
 
+class TestPlanSortsChanges(TestCase):
+
+    def test_plan_sorts_changes_pass_to_it(self):
+        # we aren't worried about the details of the sorting, that's tested in
+        # test_octodns_record's TestChanges. We just want to make sure that the
+        # changes are sorted at all.
+        zone = Zone('unit.tests.', [])
+        record_a_1 = Record.new(zone, '1', {
+            'type': 'A',
+            'ttl': 30,
+            'value': '1.2.3.4',
+        })
+        create_a_1 = Create(record_a_1)
+        record_a_2 = Record.new(zone, '2', {
+            'type': 'A',
+            'ttl': 30,
+            'value': '1.2.3.4',
+        })
+        create_a_2 = Create(record_a_2)
+
+        # passed in reverse of expected order
+        plan = Plan(None, None, [create_a_2, create_a_1], False)
+        self.assertEqual([create_a_1, create_a_2], plan.changes)
+
+
 class TestPlanLogger(TestCase):
 
     def test_invalid_level(self):
