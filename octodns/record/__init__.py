@@ -15,7 +15,7 @@ from ..equality import EqualityTupleMixin
 from .geo import GeoCodes
 
 
-class Change(object):
+class Change(EqualityTupleMixin):
 
     def __init__(self, existing, new):
         self.existing = existing
@@ -26,14 +26,12 @@ class Change(object):
         'Returns new if we have one, existing otherwise'
         return self.new or self.existing
 
-    def __lt__(self, other):
-        self_record = self.record
-        other_record = other.record
-        return ((self_record.name, self_record._type) <
-                (other_record.name, other_record._type))
+    def _equality_tuple(self):
+        return (self.CLASS_ORDERING, self.record.name, self.record._type)
 
 
 class Create(Change):
+    CLASS_ORDERING = 1
 
     def __init__(self, new):
         super(Create, self).__init__(None, new)
@@ -44,6 +42,7 @@ class Create(Change):
 
 
 class Update(Change):
+    CLASS_ORDERING = 2
 
     # Leader is just to allow us to work around heven eating leading whitespace
     # in our output. When we call this from the Manager.sync plan summary
@@ -56,6 +55,7 @@ class Update(Change):
 
 
 class Delete(Change):
+    CLASS_ORDERING = 0
 
     def __init__(self, existing):
         super(Delete, self).__init__(existing, None)
