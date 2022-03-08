@@ -14,7 +14,7 @@
   to do so, but weren't. There was an ordering before, but it was essentially
   arbitrarily picked.
 
-## v0.9.16 - 2022-??-?? - ???
+## v0.9.16 - 2022-03-04 - Manage the root of the problem
 
 #### Noteworthy changes
 
@@ -22,14 +22,13 @@
    * YamlProvider has it enabled and in general everyone should add root NS
      records that match what is in their provider(s) as of this release if they
      aren't already there.
-   * Note that if you created your config files with `octodns-dump`, the records
-     are likely already there and match what was configured at the time of the
-     dump.
-   * Other providers will add root NS support over time once they have had the
-     chance to investigate the functionality and implement management if
-     possible with whatever accomidations are required.
+   * Other providers will add root NS support over time following this release
+     once they have had the chance to investigate the functionality and
+     implement management if possible with whatever accomidations are required.
    * Watch your providers README.md and CHANGELOG.md for support and more
      information.
+   * Root NS record changes will always require `--force` indicating that they
+     are impactful changes that need a careful :eyes:
 
 #### Stuff
 
