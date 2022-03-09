@@ -5,8 +5,9 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        modules:
+        module:
           - octodns/octodns-azure
           - octodns/octodns-cloudflare
           - octodns/octodns-constellix
