@@ -1,0 +1,32 @@
+#!/bin/bash
+
+module="$1"
+if [ -z "$module" ]; then
+  echo "Missing required parameter module, e.g. octodns/octodns-powerdns"
+  exit 1
+fi
+
+set -e
+
+TMP_DIR=$(mktemp -d -t ci-XXXXXXXXXX)
+
+echo "## venv ########################################################################"
+VENV_PYTHON=$(command -v python3)
+VENV_NAME="${TMP_DIR}/env"
+"$VENV_PYTHON" -m venv "$VENV_NAME"
+. "${VENV_NAME}/bin/activate"
+echo "## environment & versions ######################################################"
+python --version
+pip --version
+echo "## install octodns from pwd ####################################################"
+python setup.py install
+echo "## checkout provider module ####################################################"
+cd $TMP_DIR
+git clone "https://github.com/${module}.git"
+cd $(basename $module)
+echo "## install module dev requirements #############################################"
+pip install -e .[dev]
+export PYTHONPATH=.:$PYTHONPATH
+echo "## run module tests ############################################################"
+pytest --disable-network
+echo "## complete ####################################################################"

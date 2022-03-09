@@ -1,0 +1,44 @@
+name: OctoDNS Modules
+on: workflow_dispatch
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        modules:
+          - octodns/octodns-azure
+          - octodns/octodns-cloudflare
+          - octodns/octodns-constellix
+          - octodns/octodns-ddns
+          - octodns/octodns-digitalocean
+          - octodns/octodns-dnsimple
+          - octodns/octodns-dnsmadeeasy
+          - octodns/octodns-dyn
+          - octodns/octodns-easydns
+          - octodns/octodns-edgedns
+          - octodns/octodns-etchosts
+          - octodns/octodns-gandi
+          - octodns/octodns-gcore
+          - octodns/octodns-googlecloud
+          - octodns/octodns-hetzner
+          - octodns/octodns-mythicbeasts
+          - octodns/octodns-ns1
+          - octodns/octodns-ovh
+          - octodns/octodns-powerdns
+          - octodns/octodns-rackspace
+          - octodns/octodns-route53
+          - octodns/octodns-selectel
+          - octodns/octodns-transip
+          - octodns/octodns-ultra
+    steps:
+      - uses: actions/checkout@master
+      - name: Setup python
+        uses: actions/setup-python@v1
+        with:
+          # This should generally be the latest stable release of python
+          python-version: '3.10'
+          architecture: x64
+      - name: Test Module
+        run: |
+          ./script/test-module ${{ matrix.module }}
