@@ -1,5 +1,7 @@
 name: OctoDNS Modules
-on: []
+on:
+  repository_dispatch:
+    types: [modules-test]
 
 jobs:
   ci:
