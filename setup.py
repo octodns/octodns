@@ -57,6 +57,7 @@ def long_description():
 
 tests_require = (
     'pytest>=6.2.5',
+    'pytest-cov>=3.0.0',
     'pytest-network>=0.0.1',
 )
 
