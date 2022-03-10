@@ -37,8 +37,11 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v1
         with:
-          # This should generally be the latest stable release of python
-          python-version: '3.10'
+          # This should generally be the latest stable release of python, but
+          # dyn and ovh don't currently support changes made in 3.10 so we'll
+          # leave it 3.9 for now. Once 3.11 lands though we'll bump to it and
+          # if they haven't updated they'll be removed from the matrix
+          python-version: '3.9'
           architecture: x64
       - name: Test Module
         run: |
