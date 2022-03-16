@@ -12,7 +12,8 @@ from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
     LocValue, MxRecord, MxValue, NaptrRecord, NaptrValue, NsRecord, \
     PtrRecord, Record, RecordException, SshfpRecord, SshfpValue, SpfRecord, \
     SrvRecord, SrvValue, TxtRecord, Update, UrlfwdRecord, UrlfwdValue, \
-    ValidationError, _Dynamic, _DynamicPool, _DynamicRule
+    ValidationError, _Dynamic, _DynamicPool, _DynamicRule, _NsValue, \
+    _ValuesMixin
 from octodns.zone import Zone
 
 from helpers import DynamicProvider, GeoProvider, SimpleProvider
@@ -26,6 +27,18 @@ class TestRecord(TestCase):
             Record.register_type('A', None)
         self.assertEqual('Type "A" already registered by '
                          'octodns.record.ARecord', str(ctx.exception))
+
+        class AaRecord(_ValuesMixin, Record):
+            _type = 'AA'
+            _value_type = _NsValue
+
+        Record.register_type('AA', AaRecord)
+        aa = Record.new(self.zone, 'registered', {
+            'ttl': 360,
+            'type': 'AA',
+            'value': 'does.not.matter.',
+        })
+        self.assertEqual(AaRecord, aa.__class__)
 
     def test_lowering(self):
         record = ARecord(self.zone, 'MiXeDcAsE', {
