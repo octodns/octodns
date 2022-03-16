@@ -64,7 +64,11 @@ class Delete(Change):
         return f'Delete {self.existing}'
 
 
-class ValidationError(Exception):
+class RecordException(Exception):
+    pass
+
+
+class ValidationError(RecordException):
 
     @classmethod
     def build_message(cls, fqdn, reasons):
@@ -80,6 +84,18 @@ class ValidationError(Exception):
 class Record(EqualityTupleMixin):
     log = getLogger('Record')
 
+    _CLASSES = {}
+
+    @classmethod
+    def register_type(cls, _type, _class):
+        existing = cls._CLASSES.get(_type, None)
+        if existing:
+            module = existing.__module__
+            name = existing.__name__
+            msg = f'Type "{_type}" already registered by {module}.{name}'
+            raise RecordException(msg)
+        cls._CLASSES[_type] = _class
+
     @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
         name = str(name)
@@ -89,24 +105,7 @@ class Record(EqualityTupleMixin):
         except KeyError:
             raise Exception(f'Invalid record {fqdn}, missing type')
         try:
-            _class = {
-                'A': ARecord,
-                'AAAA': AaaaRecord,
-                'ALIAS': AliasRecord,
-                'CAA': CaaRecord,
-                'CNAME': CnameRecord,
-                'DNAME': DnameRecord,
-                'LOC': LocRecord,
-                'MX': MxRecord,
-                'NAPTR': NaptrRecord,
-                'NS': NsRecord,
-                'PTR': PtrRecord,
-                'SPF': SpfRecord,
-                'SRV': SrvRecord,
-                'SSHFP': SshfpRecord,
-                'TXT': TxtRecord,
-                'URLFWD': UrlfwdRecord,
-            }[_type]
+            _class = cls._CLASSES[_type]
         except KeyError:
             raise Exception(f'Unknown record type: "{_type}"')
         reasons = _class.validate(name, fqdn, data)
@@ -804,9 +803,15 @@ class ARecord(_DynamicMixin, _GeoMixin, Record):
     _value_type = Ipv4List
 
 
+Record.register_type('A', ARecord)
+
+
 class AaaaRecord(_DynamicMixin, _GeoMixin, Record):
     _type = 'AAAA'
     _value_type = Ipv6List
+
+
+Record.register_type('AAAA', AaaaRecord)
 
 
 class AliasValue(_TargetValue):
@@ -824,6 +829,9 @@ class AliasRecord(_ValueMixin, Record):
             reasons.append('non-root ALIAS not allowed')
         reasons.extend(super(AliasRecord, cls).validate(name, fqdn, data))
         return reasons
+
+
+Record.register_type('ALIAS', AliasRecord)
 
 
 class CaaValue(EqualityTupleMixin):
@@ -877,6 +885,9 @@ class CaaRecord(_ValuesMixin, Record):
     _value_type = CaaValue
 
 
+Record.register_type('CAA', CaaRecord)
+
+
 class CnameRecord(_DynamicMixin, _ValueMixin, Record):
     _type = 'CNAME'
     _value_type = CnameValue
@@ -890,9 +901,15 @@ class CnameRecord(_DynamicMixin, _ValueMixin, Record):
         return reasons
 
 
+Record.register_type('CNAME', CnameRecord)
+
+
 class DnameRecord(_DynamicMixin, _ValueMixin, Record):
     _type = 'DNAME'
     _value_type = DnameValue
+
+
+Record.register_type('DNAME', DnameRecord)
 
 
 class LocValue(EqualityTupleMixin):
@@ -1071,6 +1088,9 @@ class LocRecord(_ValuesMixin, Record):
     _value_type = LocValue
 
 
+Record.register_type('LOC', LocRecord)
+
+
 class MxValue(EqualityTupleMixin):
 
     @classmethod
@@ -1139,6 +1159,9 @@ class MxValue(EqualityTupleMixin):
 class MxRecord(_ValuesMixin, Record):
     _type = 'MX'
     _value_type = MxValue
+
+
+Record.register_type('MX', MxRecord)
 
 
 class NaptrValue(EqualityTupleMixin):
@@ -1219,6 +1242,9 @@ class NaptrRecord(_ValuesMixin, Record):
     _value_type = NaptrValue
 
 
+Record.register_type('NAPTR', NaptrRecord)
+
+
 class _NsValue(object):
 
     @classmethod
@@ -1244,6 +1270,9 @@ class _NsValue(object):
 class NsRecord(_ValuesMixin, Record):
     _type = 'NS'
     _value_type = _NsValue
+
+
+Record.register_type('NS', NsRecord)
 
 
 class PtrValue(_TargetValue):
@@ -1277,6 +1306,9 @@ class PtrRecord(_ValuesMixin, Record):
     @property
     def value(self):
         return self.values[0]
+
+
+Record.register_type('PTR', PtrRecord)
 
 
 class SshfpValue(EqualityTupleMixin):
@@ -1343,6 +1375,9 @@ class SshfpRecord(_ValuesMixin, Record):
     _value_type = SshfpValue
 
 
+Record.register_type('SSHFP', SshfpRecord)
+
+
 class _ChunkedValuesMixin(_ValuesMixin):
     CHUNK_SIZE = 255
     _unescaped_semicolon_re = re.compile(r'\w;')
@@ -1390,6 +1425,9 @@ class _ChunkedValue(object):
 class SpfRecord(_ChunkedValuesMixin, Record):
     _type = 'SPF'
     _value_type = _ChunkedValue
+
+
+Record.register_type('SPF', SpfRecord)
 
 
 class SrvValue(EqualityTupleMixin):
@@ -1474,6 +1512,9 @@ class SrvRecord(_ValuesMixin, Record):
         return reasons
 
 
+Record.register_type('SRV', SrvRecord)
+
+
 class _TxtValue(_ChunkedValue):
     pass
 
@@ -1481,6 +1522,9 @@ class _TxtValue(_ChunkedValue):
 class TxtRecord(_ChunkedValuesMixin, Record):
     _type = 'TXT'
     _value_type = _TxtValue
+
+
+Record.register_type('TXT', TxtRecord)
 
 
 class UrlfwdValue(EqualityTupleMixin):
@@ -1558,3 +1602,6 @@ class UrlfwdValue(EqualityTupleMixin):
 class UrlfwdRecord(_ValuesMixin, Record):
     _type = 'URLFWD'
     _value_type = UrlfwdValue
+
+
+Record.register_type('URLFWD', UrlfwdRecord)
