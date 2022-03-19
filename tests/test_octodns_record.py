@@ -13,7 +13,7 @@ from octodns.record import ARecord, AaaaRecord, AliasRecord, CaaRecord, \
     PtrRecord, Record, RecordException, SshfpRecord, SshfpValue, SpfRecord, \
     SrvRecord, SrvValue, TxtRecord, Update, UrlfwdRecord, UrlfwdValue, \
     ValidationError, _Dynamic, _DynamicPool, _DynamicRule, _NsValue, \
-    _ValuesMixin
+    ValuesMixin
 from octodns.zone import Zone
 
 from helpers import DynamicProvider, GeoProvider, SimpleProvider
@@ -24,15 +24,15 @@ class TestRecord(TestCase):
 
     def test_registration(self):
         with self.assertRaises(RecordException) as ctx:
-            Record.register_type('A', None)
+            Record.register_type(None, 'A')
         self.assertEqual('Type "A" already registered by '
                          'octodns.record.ARecord', str(ctx.exception))
 
-        class AaRecord(_ValuesMixin, Record):
+        class AaRecord(ValuesMixin, Record):
             _type = 'AA'
             _value_type = _NsValue
 
-        Record.register_type('AA', AaRecord)
+        Record.register_type(AaRecord)
         aa = Record.new(self.zone, 'registered', {
             'ttl': 360,
             'type': 'AA',
