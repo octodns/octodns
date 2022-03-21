@@ -1,5 +1,8 @@
 name: OctoDNS Modules
-on: workflow_dispatch
+on:
+  workflow_dispatch: # option to run manually if/when needed
+  pull_request_review:
+    types: [submitted]
 
 jobs:
   ci:
