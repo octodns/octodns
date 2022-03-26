@@ -14,6 +14,10 @@
   to do so, but weren't. There was an ordering before, but it was essentially
   arbitrarily picked.
 
+#### Stuff
+
+* Manager includes the octoDNS version in its init log line
+
 ## v0.9.16 - 2022-03-04 - Manage the root of the problem
 
 #### Noteworthy changes

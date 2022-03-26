@@ -11,6 +11,7 @@ from os import environ
 from sys import stdout
 import logging
 
+from . import __VERSION__
 from .provider.base import BaseProvider
 from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
@@ -84,7 +85,8 @@ class Manager(object):
         return len(plan.changes[0].record.zone.name) if plan.changes else 0
 
     def __init__(self, config_file, max_workers=None, include_meta=False):
-        self.log.info('__init__: config_file=%s', config_file)
+        self.log.info('__init__: config_file=%s (octoDNS %s)', config_file,
+                      __VERSION__)
 
         # Read our config file
         with open(config_file, 'r') as fh:
