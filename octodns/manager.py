@@ -119,9 +119,8 @@ class Manager(object):
             kwargs = self._build_kwargs(provider_config)
             try:
                 self.providers[provider_name] = _class(provider_name, **kwargs)
-                if not module.startswith('octodns.'):
-                    self.log.info('__init__: provider=%s (%s %s)',
-                                  provider_name, module, version)
+                self.log.info('__init__: provider=%s (%s %s)', provider_name,
+                              module, version)
             except TypeError:
                 self.log.exception('Invalid provider config')
                 raise ManagerException('Incorrect provider config for ' +
@@ -142,9 +141,8 @@ class Manager(object):
             try:
                 self.processors[processor_name] = _class(processor_name,
                                                          **kwargs)
-                if not module.startswith('octodns.'):
-                    self.log.info('__init__: processor=%s (%s %s)',
-                                  processor_name, module, version)
+                self.log.info('__init__: processor=%s (%s %s)', processor_name,
+                              module, version)
             except TypeError:
                 self.log.exception('Invalid processor config')
                 raise ManagerException('Incorrect processor config for ' +
@@ -172,7 +170,7 @@ class Manager(object):
 
         self.plan_outputs = {}
         plan_outputs = manager_config.get('plan_outputs', {
-            'logger': {
+            '_logger': {
                 'class': 'octodns.provider.plan.PlanLogger',
                 'level': 'info'
             }
@@ -190,7 +188,8 @@ class Manager(object):
             try:
                 self.plan_outputs[plan_output_name] = \
                     _class(plan_output_name, **kwargs)
-                if not module.startswith('octodns.'):
+                # Don't print out version info for the default output
+                if plan_output_name != '_logger':
                     self.log.info('__init__: plan_output=%s (%s %s)',
                                   plan_output_name, module, version)
             except TypeError:
@@ -198,15 +197,29 @@ class Manager(object):
                 raise ManagerException('Incorrect plan_output config for ' +
                                        plan_output_name)
 
+    def _import_module(self, module_name):
+        current = module_name
+        _next = current.rsplit('.', 1)[0]
+        module = import_module(current)
+        version = getattr(module, '__VERSION__', None)
+        # If we didn't find a version in the specific module we're importing,
+        # we'll try walking up the hierarchy, as long as there is one (`.`),
+        # looking for it.
+        while version is None and current != _next:
+            current = _next
+            _next = current.rsplit('.', 1)[0]
+            version = getattr(import_module(current), '__VERSION__', None)
+        return module, version or 'n/a'
+
     def _get_named_class(self, _type, _class):
         try:
             module_name, class_name = _class.rsplit('.', 1)
-            module = import_module(module_name)
+            module, version = self._import_module(module_name)
         except (ImportError, ValueError):
             self.log.exception('_get_{}_class: Unable to import '
                                'module %s', _class)
             raise ManagerException(f'Unknown {_type} class: {_class}')
-        version = getattr(module, '__VERSION__', 'n/a')
+
         try:
             return getattr(module, class_name), module_name, version
         except AttributeError:
