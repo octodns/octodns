@@ -11,6 +11,7 @@ from logging import getLogger
 
 from octodns.processor.base import BaseProcessor
 from octodns.provider.base import BaseProvider
+from octodns.provider.yaml import YamlProvider
 
 
 class SimpleSource(object):
@@ -122,3 +123,11 @@ class PlannableProvider(BaseProvider):
 
     def __repr__(self):
         return self.__class__.__name__
+
+
+class TestYamlProvider(YamlProvider):
+    pass
+
+
+class TestBaseProcessor(BaseProcessor):
+    pass

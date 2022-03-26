@@ -425,7 +425,7 @@ class TestManager(TestCase):
         plan_output_mock = MagicMock()
         plan_output_class_mock = MagicMock()
         plan_output_class_mock.return_value = plan_output_mock
-        mock.return_value = plan_output_class_mock
+        mock.return_value = (plan_output_class_mock, 'ignored', 'ignored')
         fh_mock = MagicMock()
 
         Manager(get_config_filename('plan-output-filehandle.yaml')
@@ -441,7 +441,7 @@ class TestManager(TestCase):
     def test_processor_config(self):
         # Smoke test loading a valid config
         manager = Manager(get_config_filename('processors.yaml'))
-        self.assertEqual(['noop'], list(manager.processors.keys()))
+        self.assertEqual(['noop', 'test'], list(manager.processors.keys()))
         # This zone specifies a valid processor
         manager.sync(['unit.tests.'])
 

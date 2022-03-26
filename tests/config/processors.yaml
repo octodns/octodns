@@ -1,6 +1,7 @@
 providers:
   config:
-    class: octodns.provider.yaml.YamlProvider
+    # This helps us get coverage when printing out provider versions
+    class: helpers.TestYamlProvider
     directory: tests/config
   dump:
     class: octodns.provider.yaml.YamlProvider
@@ -15,6 +16,9 @@ processors:
   # Just testing config so any processor will do
   noop:
     class: octodns.processor.base.BaseProcessor
+  test:
+    # This helps us get coverage when printing out processor versions
+    class: helpers.TestBaseProcessor
 
 zones:
   unit.tests.:

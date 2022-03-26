@@ -115,10 +115,13 @@ class Manager(object):
                 self.log.exception('Invalid provider class')
                 raise ManagerException(f'Provider {provider_name} is missing '
                                        'class')
-            _class = self._get_named_class('provider', _class)
+            _class, module, version = self._get_named_class('provider', _class)
             kwargs = self._build_kwargs(provider_config)
             try:
                 self.providers[provider_name] = _class(provider_name, **kwargs)
+                if not module.startswith('octodns.'):
+                    self.log.info('__init__: provider=%s (%s %s)',
+                                  provider_name, module, version)
             except TypeError:
                 self.log.exception('Invalid provider config')
                 raise ManagerException('Incorrect provider config for ' +
@@ -133,11 +136,15 @@ class Manager(object):
                 self.log.exception('Invalid processor class')
                 raise ManagerException(f'Processor {processor_name} is '
                                        'missing class')
-            _class = self._get_named_class('processor', _class)
+            _class, module, version = self._get_named_class('processor',
+                                                            _class)
             kwargs = self._build_kwargs(processor_config)
             try:
                 self.processors[processor_name] = _class(processor_name,
                                                          **kwargs)
+                if not module.startswith('octodns.'):
+                    self.log.info('__init__: processor=%s (%s %s)',
+                                  processor_name, module, version)
             except TypeError:
                 self.log.exception('Invalid processor config')
                 raise ManagerException('Incorrect processor config for ' +
@@ -177,11 +184,15 @@ class Manager(object):
                 self.log.exception('Invalid plan_output class')
                 raise ManagerException(f'plan_output {plan_output_name} is '
                                        'missing class')
-            _class = self._get_named_class('plan_output', _class)
+            _class, module, version = self._get_named_class('plan_output',
+                                                            _class)
             kwargs = self._build_kwargs(plan_output_config)
             try:
                 self.plan_outputs[plan_output_name] = \
                     _class(plan_output_name, **kwargs)
+                if not module.startswith('octodns.'):
+                    self.log.info('__init__: plan_output=%s (%s %s)',
+                                  plan_output_name, module, version)
             except TypeError:
                 self.log.exception('Invalid plan_output config')
                 raise ManagerException('Incorrect plan_output config for ' +
@@ -195,8 +206,9 @@ class Manager(object):
             self.log.exception('_get_{}_class: Unable to import '
                                'module %s', _class)
             raise ManagerException(f'Unknown {_type} class: {_class}')
+        version = getattr(module, '__VERSION__', 'n/a')
         try:
-            return getattr(module, class_name)
+            return getattr(module, class_name), module_name, version
         except AttributeError:
             self.log.exception('_get_{}_class: Unable to get class %s '
                                'from module %s', class_name, module)
