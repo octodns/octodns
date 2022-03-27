@@ -64,7 +64,11 @@ class Delete(Change):
         return f'Delete {self.existing}'
 
 
-class ValidationError(Exception):
+class RecordException(Exception):
+    pass
+
+
+class ValidationError(RecordException):
 
     @classmethod
     def build_message(cls, fqdn, reasons):
@@ -80,6 +84,20 @@ class ValidationError(Exception):
 class Record(EqualityTupleMixin):
     log = getLogger('Record')
 
+    _CLASSES = {}
+
+    @classmethod
+    def register_type(cls, _class, _type=None):
+        if _type is None:
+            _type = _class._type
+        existing = cls._CLASSES.get(_type)
+        if existing:
+            module = existing.__module__
+            name = existing.__name__
+            msg = f'Type "{_type}" already registered by {module}.{name}'
+            raise RecordException(msg)
+        cls._CLASSES[_type] = _class
+
     @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
         name = str(name)
@@ -89,24 +107,7 @@ class Record(EqualityTupleMixin):
         except KeyError:
             raise Exception(f'Invalid record {fqdn}, missing type')
         try:
-            _class = {
-                'A': ARecord,
-                'AAAA': AaaaRecord,
-                'ALIAS': AliasRecord,
-                'CAA': CaaRecord,
-                'CNAME': CnameRecord,
-                'DNAME': DnameRecord,
-                'LOC': LocRecord,
-                'MX': MxRecord,
-                'NAPTR': NaptrRecord,
-                'NS': NsRecord,
-                'PTR': PtrRecord,
-                'SPF': SpfRecord,
-                'SRV': SrvRecord,
-                'SSHFP': SshfpRecord,
-                'TXT': TxtRecord,
-                'URLFWD': UrlfwdRecord,
-            }[_type]
+            _class = cls._CLASSES[_type]
         except KeyError:
             raise Exception(f'Unknown record type: "{_type}"')
         reasons = _class.validate(name, fqdn, data)
@@ -284,11 +285,11 @@ class GeoValue(EqualityTupleMixin):
             "{self.subdivision_code} {self.values}'"
 
 
-class _ValuesMixin(object):
+class ValuesMixin(object):
 
     @classmethod
     def validate(cls, name, fqdn, data):
-        reasons = super(_ValuesMixin, cls).validate(name, fqdn, data)
+        reasons = super(ValuesMixin, cls).validate(name, fqdn, data)
 
         values = data.get('values', data.get('value', []))
 
@@ -297,7 +298,7 @@ class _ValuesMixin(object):
         return reasons
 
     def __init__(self, zone, name, data, source=None):
-        super(_ValuesMixin, self).__init__(zone, name, data, source=source)
+        super(ValuesMixin, self).__init__(zone, name, data, source=source)
         try:
             values = data['values']
         except KeyError:
@@ -307,10 +308,10 @@ class _ValuesMixin(object):
     def changes(self, other, target):
         if self.values != other.values:
             return Update(self, other)
-        return super(_ValuesMixin, self).changes(other, target)
+        return super(ValuesMixin, self).changes(other, target)
 
     def _data(self):
-        ret = super(_ValuesMixin, self)._data()
+        ret = super(ValuesMixin, self)._data()
         if len(self.values) > 1:
             values = [getattr(v, 'data', v) for v in self.values if v]
             if len(values) > 1:
@@ -330,7 +331,7 @@ class _ValuesMixin(object):
         return f"<{klass} {self._type} {self.ttl}, {self.fqdn}, ['{values}']>"
 
 
-class _GeoMixin(_ValuesMixin):
+class _GeoMixin(ValuesMixin):
     '''
     Adds GeoDNS support to a record.
 
@@ -381,26 +382,26 @@ class _GeoMixin(_ValuesMixin):
         return super(_GeoMixin, self).__repr__()
 
 
-class _ValueMixin(object):
+class ValueMixin(object):
 
     @classmethod
     def validate(cls, name, fqdn, data):
-        reasons = super(_ValueMixin, cls).validate(name, fqdn, data)
+        reasons = super(ValueMixin, cls).validate(name, fqdn, data)
         reasons.extend(cls._value_type.validate(data.get('value', None),
                                                 cls._type))
         return reasons
 
     def __init__(self, zone, name, data, source=None):
-        super(_ValueMixin, self).__init__(zone, name, data, source=source)
+        super(ValueMixin, self).__init__(zone, name, data, source=source)
         self.value = self._value_type.process(data['value'])
 
     def changes(self, other, target):
         if self.value != other.value:
             return Update(self, other)
-        return super(_ValueMixin, self).changes(other, target)
+        return super(ValueMixin, self).changes(other, target)
 
     def _data(self):
-        ret = super(_ValueMixin, self)._data()
+        ret = super(ValueMixin, self)._data()
         if self.value:
             ret['value'] = getattr(self.value, 'data', self.value)
         return ret
@@ -804,16 +805,22 @@ class ARecord(_DynamicMixin, _GeoMixin, Record):
     _value_type = Ipv4List
 
 
+Record.register_type(ARecord)
+
+
 class AaaaRecord(_DynamicMixin, _GeoMixin, Record):
     _type = 'AAAA'
     _value_type = Ipv6List
+
+
+Record.register_type(AaaaRecord)
 
 
 class AliasValue(_TargetValue):
     pass
 
 
-class AliasRecord(_ValueMixin, Record):
+class AliasRecord(ValueMixin, Record):
     _type = 'ALIAS'
     _value_type = AliasValue
 
@@ -824,6 +831,9 @@ class AliasRecord(_ValueMixin, Record):
             reasons.append('non-root ALIAS not allowed')
         reasons.extend(super(AliasRecord, cls).validate(name, fqdn, data))
         return reasons
+
+
+Record.register_type(AliasRecord)
 
 
 class CaaValue(EqualityTupleMixin):
@@ -872,12 +882,15 @@ class CaaValue(EqualityTupleMixin):
         return f'{self.flags} {self.tag} "{self.value}"'
 
 
-class CaaRecord(_ValuesMixin, Record):
+class CaaRecord(ValuesMixin, Record):
     _type = 'CAA'
     _value_type = CaaValue
 
 
-class CnameRecord(_DynamicMixin, _ValueMixin, Record):
+Record.register_type(CaaRecord)
+
+
+class CnameRecord(_DynamicMixin, ValueMixin, Record):
     _type = 'CNAME'
     _value_type = CnameValue
 
@@ -890,9 +903,15 @@ class CnameRecord(_DynamicMixin, _ValueMixin, Record):
         return reasons
 
 
-class DnameRecord(_DynamicMixin, _ValueMixin, Record):
+Record.register_type(CnameRecord)
+
+
+class DnameRecord(_DynamicMixin, ValueMixin, Record):
     _type = 'DNAME'
     _value_type = DnameValue
+
+
+Record.register_type(DnameRecord)
 
 
 class LocValue(EqualityTupleMixin):
@@ -1066,9 +1085,12 @@ class LocValue(EqualityTupleMixin):
             f"{self.precision_horz:.2f}m {self.precision_vert:.2f}m'"
 
 
-class LocRecord(_ValuesMixin, Record):
+class LocRecord(ValuesMixin, Record):
     _type = 'LOC'
     _value_type = LocValue
+
+
+Record.register_type(LocRecord)
 
 
 class MxValue(EqualityTupleMixin):
@@ -1136,9 +1158,12 @@ class MxValue(EqualityTupleMixin):
         return f"'{self.preference} {self.exchange}'"
 
 
-class MxRecord(_ValuesMixin, Record):
+class MxRecord(ValuesMixin, Record):
     _type = 'MX'
     _value_type = MxValue
+
+
+Record.register_type(MxRecord)
 
 
 class NaptrValue(EqualityTupleMixin):
@@ -1214,9 +1239,12 @@ class NaptrValue(EqualityTupleMixin):
             f"\"{regexp}\" {self.replacement}'"
 
 
-class NaptrRecord(_ValuesMixin, Record):
+class NaptrRecord(ValuesMixin, Record):
     _type = 'NAPTR'
     _value_type = NaptrValue
+
+
+Record.register_type(NaptrRecord)
 
 
 class _NsValue(object):
@@ -1241,9 +1269,12 @@ class _NsValue(object):
         return values
 
 
-class NsRecord(_ValuesMixin, Record):
+class NsRecord(ValuesMixin, Record):
     _type = 'NS'
     _value_type = _NsValue
+
+
+Record.register_type(NsRecord)
 
 
 class PtrValue(_TargetValue):
@@ -1268,7 +1299,7 @@ class PtrValue(_TargetValue):
         return [super(PtrValue, cls).process(v) for v in values]
 
 
-class PtrRecord(_ValuesMixin, Record):
+class PtrRecord(ValuesMixin, Record):
     _type = 'PTR'
     _value_type = PtrValue
 
@@ -1277,6 +1308,9 @@ class PtrRecord(_ValuesMixin, Record):
     @property
     def value(self):
         return self.values[0]
+
+
+Record.register_type(PtrRecord)
 
 
 class SshfpValue(EqualityTupleMixin):
@@ -1338,12 +1372,15 @@ class SshfpValue(EqualityTupleMixin):
         return f"'{self.algorithm} {self.fingerprint_type} {self.fingerprint}'"
 
 
-class SshfpRecord(_ValuesMixin, Record):
+class SshfpRecord(ValuesMixin, Record):
     _type = 'SSHFP'
     _value_type = SshfpValue
 
 
-class _ChunkedValuesMixin(_ValuesMixin):
+Record.register_type(SshfpRecord)
+
+
+class _ChunkedValuesMixin(ValuesMixin):
     CHUNK_SIZE = 255
     _unescaped_semicolon_re = re.compile(r'\w;')
 
@@ -1390,6 +1427,9 @@ class _ChunkedValue(object):
 class SpfRecord(_ChunkedValuesMixin, Record):
     _type = 'SPF'
     _value_type = _ChunkedValue
+
+
+Record.register_type(SpfRecord)
 
 
 class SrvValue(EqualityTupleMixin):
@@ -1460,7 +1500,7 @@ class SrvValue(EqualityTupleMixin):
         return f"'{self.priority} {self.weight} {self.port} {self.target}'"
 
 
-class SrvRecord(_ValuesMixin, Record):
+class SrvRecord(ValuesMixin, Record):
     _type = 'SRV'
     _value_type = SrvValue
     _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
@@ -1474,6 +1514,9 @@ class SrvRecord(_ValuesMixin, Record):
         return reasons
 
 
+Record.register_type(SrvRecord)
+
+
 class _TxtValue(_ChunkedValue):
     pass
 
@@ -1481,6 +1524,9 @@ class _TxtValue(_ChunkedValue):
 class TxtRecord(_ChunkedValuesMixin, Record):
     _type = 'TXT'
     _value_type = _TxtValue
+
+
+Record.register_type(TxtRecord)
 
 
 class UrlfwdValue(EqualityTupleMixin):
@@ -1555,6 +1601,9 @@ class UrlfwdValue(EqualityTupleMixin):
             f'{self.masking} {self.query}'
 
 
-class UrlfwdRecord(_ValuesMixin, Record):
+class UrlfwdRecord(ValuesMixin, Record):
     _type = 'URLFWD'
     _value_type = UrlfwdValue
+
+
+Record.register_type(UrlfwdRecord)

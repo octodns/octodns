@@ -124,10 +124,10 @@ If you'd like to enable lenience for a whole zone you can do so with the followi
 
 #### Restrict Record manipulations
 
-OctoDNS currently provides the ability to limit the number of updates/deletes on 
+OctoDNS currently provides the ability to limit the number of updates/deletes on
 DNS records by configuring a percentage of allowed operations as a threshold.
-If left unconfigured, suitable defaults take over instead. In the below example, 
-the Dyn provider is configured with limits of 40% on both update and 
+If left unconfigured, suitable defaults take over instead. In the below example,
+the Dyn provider is configured with limits of 40% on both update and
 delete operations over all the records present.
 
 ````yaml
@@ -136,3 +136,42 @@ dyn:
     update_pcent_threshold: 0.4
     delete_pcent_threshold: 0.4
 ````
+
+## Provider specific record types
+
+### Creating and registering
+
+octoDNS has support for provider specific record types through a dynamic type registration system. This functionality is powered by `Route.register_type` and can be used as follows.
+
+```python
+class _SpecificValue(object):
+    ...
+
+class SomeProviderSpecificRecord(ValuesMixin, Record):
+    _type = 'SomeProvider/SPECIFIC'
+    _value_type = _SpecificValue
+
+Record.register_type(SomeProviderSpecificRecord)
+```
+
+Have a look in [octodns.record](/octodns/record/__init__.py) for examples of how records are implemented. `NsRecord` and `_NsValue` are fairly simple examples to start with. You can also take a look at [`Route53Provider`'s `Route53Provider/ALIAS` type](https://github.com/octodns/octodns-route53/blob/main/octodns_route53/record.py).
+
+In general this support is intended for record types that only make sense for a single provider. If multiple providers have a similar record it may make sense to implement it in octoDNS core.
+
+### Naming
+
+By convention the record type should be prefix with the provider class, e.g. `Route53Provider` followed by a `/` and an all-caps record type name `ALIAS`, e.g. `Route53Provider/ALIAS`.
+
+### YamlProvider support
+
+Once the type is registered `YamlProvider` will automatically gain support for it and they can be included in your zone yaml files.
+
+```yaml
+alias:
+  type: Route53Provider/ALIAS
+  values:
+    - name: www
+      type: A
+    - name: www
+      type: AAAA
+```
