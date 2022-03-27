@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
+from os import environ
 from os.path import dirname, join
+from subprocess import CalledProcessError, check_output
 import octodns
 
 try:
@@ -55,6 +54,19 @@ def long_description():
     return buf.getvalue()
 
 
+def version():
+    # pep440 style public & local version numbers
+    if environ.get('OCTODNS_RELEASE', False):
+        # public
+        return octodns.__VERSION__
+    try:
+        sha = check_output(['git', 'rev-parse', 'HEAD']).decode('utf-8')[:8]
+    except (CalledProcessError, FileNotFoundError):
+        sha = 'unknown'
+    # local
+    return f'{octodns.__VERSION__}+{sha}'
+
+
 tests_require = (
     'pytest>=6.2.5',
     'pytest-cov>=3.0.0',
@@ -94,5 +106,5 @@ setup(
     python_requires='>=3.6',
     tests_require=tests_require,
     url='https://github.com/octodns/octodns',
-    version=octodns.__VERSION__,
+    version=version(),
 )
