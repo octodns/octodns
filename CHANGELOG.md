@@ -13,6 +13,8 @@
   just standardizes what they are doing as many other providers appear to need
   to do so, but weren't. There was an ordering before, but it was essentially
   arbitrarily picked.
+* Record.register_type added so that providers can register custom record
+  types, see [docs/records.md](docs/records.md) for more information
 
 #### Stuff
 

@@ -26,16 +26,4 @@ echo "## lint ##################################################################
 script/lint
 echo "## tests/coverage ##############################################################"
 script/coverage
-echo "## validate setup.py build #####################################################"
-python setup.py build
-echo "## validate setup.py install ###################################################"
-deactivate
-TMP_DIR=$(mktemp -d -t ci-XXXXXXXXXX)
-python3 -m venv $TMP_DIR
-. "$TMP_DIR/bin/activate"
-python setup.py install
-octodns-sync --help
-echo "## validate tests can run against installed code ###############################"
-pip install pytest pytest-network
-pytest --disable-network
 echo "## complete ####################################################################"
