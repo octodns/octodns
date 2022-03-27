@@ -90,7 +90,7 @@ class Record(EqualityTupleMixin):
     def register_type(cls, _class, _type=None):
         if _type is None:
             _type = _class._type
-        existing = cls._CLASSES.get(_type, None)
+        existing = cls._CLASSES.get(_type)
         if existing:
             module = existing.__module__
             name = existing.__name__
