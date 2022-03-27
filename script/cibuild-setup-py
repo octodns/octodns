@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+
+cd "$(dirname "$0")/.."
+
+echo "## create test venv ############################################################"
+TMP_DIR=$(mktemp -d -t ci-XXXXXXXXXX)
+python3 -m venv $TMP_DIR
+. "$TMP_DIR/bin/activate"
+echo "## environment & versions ######################################################"
+python --version
+pip --version
+echo "## validate setup.py build #####################################################"
+python setup.py build
+echo "## validate setup.py install ###################################################"
+python setup.py install
+echo "## validate tests can run against installed code ###############################"
+pip install pytest pytest-network
+pytest --disable-network
+echo "## complete ####################################################################"
