@@ -20,6 +20,18 @@ from .yaml import safe_load
 from .zone import Zone
 
 
+# TODO: this can go away once we no longer support python 3.7
+try:
+    from importlib.metadata import PackageNotFoundError, \
+        version as module_version
+except ModuleNotFoundError:  # pragma: no cover
+    class PackageNotFoundError(Exception):
+        pass
+
+    def module_version(*args, **kargs):
+        raise PackageNotFoundError('placeholder')
+
+
 class _AggregateTarget(object):
     id = 'aggregate'
 
@@ -85,8 +97,9 @@ class Manager(object):
         return len(plan.changes[0].record.zone.name) if plan.changes else 0
 
     def __init__(self, config_file, max_workers=None, include_meta=False):
+        version = self._try_version('octodns', version=__VERSION__)
         self.log.info('__init__: config_file=%s (octoDNS %s)', config_file,
-                      __VERSION__)
+                      version)
 
         # Read our config file
         with open(config_file, 'r') as fh:
@@ -197,18 +210,32 @@ class Manager(object):
                 raise ManagerException('Incorrect plan_output config for ' +
                                        plan_output_name)
 
+    def _try_version(self, module_name, module=None, version=None):
+        try:
+            # Always try and use the official lookup first
+            return module_version(module_name)
+        except PackageNotFoundError:
+            pass
+        # If we were passed a version that's next in line
+        if version is not None:
+            return version
+        # finally try and import the module and see if it has a __VERSION__
+        if module is None:
+            module = import_module(module_name)
+        return getattr(module, '__VERSION__', None)
+
     def _import_module(self, module_name):
         current = module_name
         _next = current.rsplit('.', 1)[0]
         module = import_module(current)
-        version = getattr(module, '__VERSION__', None)
+        version = self._try_version(current, module=module)
         # If we didn't find a version in the specific module we're importing,
         # we'll try walking up the hierarchy, as long as there is one (`.`),
         # looking for it.
         while version is None and current != _next:
             current = _next
             _next = current.rsplit('.', 1)[0]
-            version = getattr(import_module(current), '__VERSION__', None)
+            version = self._try_version(current)
         return module, version or 'n/a'
 
     def _get_named_class(self, _type, _class):

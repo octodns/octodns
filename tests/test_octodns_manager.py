@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function, \
 from os import environ
 from os.path import dirname, join
 
+from octodns import __VERSION__
 from octodns.manager import _AggregateTarget, MainThreadExecutor, Manager, \
     ManagerException
 from octodns.processor.base import BaseProcessor
@@ -523,6 +524,29 @@ class TestManager(TestCase):
         # We planned a delete again, but this time removed it from the plan, so
         # no plans
         self.assertFalse(plans)
+
+    def test_try_version(self):
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        class DummyModule(object):
+            __VERSION__ = '2.3.4'
+
+        dummy_module = DummyModule()
+
+        # use importlib.metadata.version
+        self.assertTrue(__VERSION__,
+                        manager._try_version('octodns',
+                                             module=dummy_module,
+                                             version='1.2.3'))
+
+        # use module
+        self.assertTrue(manager._try_version('doesnt-exist',
+                                             module=dummy_module))
+
+        # fall back to version, preferred over module
+        self.assertEqual('1.2.3', manager._try_version('doesnt-exist',
+                                                       module=dummy_module,
+                                                       version='1.2.3', ))
 
 
 class TestMainThreadExecutor(TestCase):
