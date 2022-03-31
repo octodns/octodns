@@ -16,7 +16,8 @@ cmds = (
     'dump',
     'report',
     'sync',
-    'validate'
+    'validate',
+    'versions',
 )
 cmds_dir = join(dirname(__file__), 'octodns', 'cmds')
 console_scripts = {
