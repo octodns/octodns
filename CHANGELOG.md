@@ -16,6 +16,10 @@
 * Record.register_type added so that providers can register custom record
   types, see [docs/records.md](docs/records.md) for more information
 
+#### Stuff
+
+* Manager includes the octoDNS version in its init log line
+
 ## v0.9.16 - 2022-03-04 - Manage the root of the problem
 
 #### Noteworthy changes

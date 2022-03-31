@@ -11,12 +11,25 @@ from os import environ
 from sys import stdout
 import logging
 
+from . import __VERSION__
 from .provider.base import BaseProvider
 from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
 from .record import Record
 from .yaml import safe_load
 from .zone import Zone
+
+
+# TODO: this can go away once we no longer support python 3.7
+try:
+    from importlib.metadata import PackageNotFoundError, \
+        version as module_version
+except ModuleNotFoundError:  # pragma: no cover
+    class PackageNotFoundError(Exception):
+        pass
+
+    def module_version(*args, **kargs):
+        raise PackageNotFoundError('placeholder')
 
 
 class _AggregateTarget(object):
@@ -84,7 +97,9 @@ class Manager(object):
         return len(plan.changes[0].record.zone.name) if plan.changes else 0
 
     def __init__(self, config_file, max_workers=None, include_meta=False):
-        self.log.info('__init__: config_file=%s', config_file)
+        version = self._try_version('octodns', version=__VERSION__)
+        self.log.info('__init__: config_file=%s (octoDNS %s)', config_file,
+                      version)
 
         # Read our config file
         with open(config_file, 'r') as fh:
@@ -113,10 +128,12 @@ class Manager(object):
                 self.log.exception('Invalid provider class')
                 raise ManagerException(f'Provider {provider_name} is missing '
                                        'class')
-            _class = self._get_named_class('provider', _class)
+            _class, module, version = self._get_named_class('provider', _class)
             kwargs = self._build_kwargs(provider_config)
             try:
                 self.providers[provider_name] = _class(provider_name, **kwargs)
+                self.log.info('__init__: provider=%s (%s %s)', provider_name,
+                              module, version)
             except TypeError:
                 self.log.exception('Invalid provider config')
                 raise ManagerException('Incorrect provider config for ' +
@@ -131,11 +148,14 @@ class Manager(object):
                 self.log.exception('Invalid processor class')
                 raise ManagerException(f'Processor {processor_name} is '
                                        'missing class')
-            _class = self._get_named_class('processor', _class)
+            _class, module, version = self._get_named_class('processor',
+                                                            _class)
             kwargs = self._build_kwargs(processor_config)
             try:
                 self.processors[processor_name] = _class(processor_name,
                                                          **kwargs)
+                self.log.info('__init__: processor=%s (%s %s)', processor_name,
+                              module, version)
             except TypeError:
                 self.log.exception('Invalid processor config')
                 raise ManagerException('Incorrect processor config for ' +
@@ -163,7 +183,7 @@ class Manager(object):
 
         self.plan_outputs = {}
         plan_outputs = manager_config.get('plan_outputs', {
-            'logger': {
+            '_logger': {
                 'class': 'octodns.provider.plan.PlanLogger',
                 'level': 'info'
             }
@@ -175,26 +195,60 @@ class Manager(object):
                 self.log.exception('Invalid plan_output class')
                 raise ManagerException(f'plan_output {plan_output_name} is '
                                        'missing class')
-            _class = self._get_named_class('plan_output', _class)
+            _class, module, version = self._get_named_class('plan_output',
+                                                            _class)
             kwargs = self._build_kwargs(plan_output_config)
             try:
                 self.plan_outputs[plan_output_name] = \
                     _class(plan_output_name, **kwargs)
+                # Don't print out version info for the default output
+                if plan_output_name != '_logger':
+                    self.log.info('__init__: plan_output=%s (%s %s)',
+                                  plan_output_name, module, version)
             except TypeError:
                 self.log.exception('Invalid plan_output config')
                 raise ManagerException('Incorrect plan_output config for ' +
                                        plan_output_name)
 
+    def _try_version(self, module_name, module=None, version=None):
+        try:
+            # Always try and use the official lookup first
+            return module_version(module_name)
+        except PackageNotFoundError:
+            pass
+        # If we were passed a version that's next in line
+        if version is not None:
+            return version
+        # finally try and import the module and see if it has a __VERSION__
+        if module is None:
+            module = import_module(module_name)
+        return getattr(module, '__VERSION__', None)
+
+    def _import_module(self, module_name):
+        current = module_name
+        _next = current.rsplit('.', 1)[0]
+        module = import_module(current)
+        version = self._try_version(current, module=module)
+        # If we didn't find a version in the specific module we're importing,
+        # we'll try walking up the hierarchy, as long as there is one (`.`),
+        # looking for it.
+        while version is None and current != _next:
+            current = _next
+            _next = current.rsplit('.', 1)[0]
+            version = self._try_version(current)
+        return module, version or 'n/a'
+
     def _get_named_class(self, _type, _class):
         try:
             module_name, class_name = _class.rsplit('.', 1)
-            module = import_module(module_name)
+            module, version = self._import_module(module_name)
         except (ImportError, ValueError):
             self.log.exception('_get_{}_class: Unable to import '
                                'module %s', _class)
             raise ManagerException(f'Unknown {_type} class: {_class}')
+
         try:
-            return getattr(module, class_name)
+            return getattr(module, class_name), module_name, version
         except AttributeError:
             self.log.exception('_get_{}_class: Unable to get class %s '
                                'from module %s', class_name, module)
