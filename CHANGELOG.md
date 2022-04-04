@@ -1,4 +1,4 @@
-## v0.9.17 - 2022-??-?? - ???
+## v0.9.17 - 2022-04-02 - Registration required
 
 #### Noteworthy changes
 
@@ -15,10 +15,15 @@
   arbitrarily picked.
 * Record.register_type added so that providers can register custom record
   types, see [docs/records.md](docs/records.md) for more information
+* New `octodns-versions` command which will log out the version of octodns and
+  any provider/processor/plan_output modules you are using.
 
 #### Stuff
 
 * Manager includes the octoDNS version in its init log line
+* Non-official release installs will now include a bit of the sha to indicate
+  specifically what revision is being used, e.g. 0.9.17+abcdef12, these roughly
+  follow PEP440 guidelines
 
 ## v0.9.16 - 2022-03-04 - Manage the root of the problem
 
