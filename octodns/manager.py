@@ -574,14 +574,15 @@ class Manager(object):
                 msg = f'output_provider={output_provider}, does not support ' \
                     'directory'
                 raise ManagerException(msg)
-            if not hasattr(target, 'copy'):
-                msg = f'output_provider={output_provider}, does not support ' \
-                    'copy'
-                raise ManagerException(msg)
-            target = target.copy()
-            self.log.info('dump: setting directory of output_provider copy to '
-                          '%s', output_dir)
-            target.directory = output_dir
+            if target.directory != output_dir:
+                if not hasattr(target, 'copy'):
+                    msg = f'output_provider={output_provider}, does not ' \
+                        'support copy'
+                    raise ManagerException(msg)
+                target = target.copy()
+                self.log.info('dump: setting directory of output_provider '
+                              'copy to %s', output_dir)
+                target.directory = output_dir
         else:
             self.log.info('dump: using custom YamlProvider')
             clz = YamlProvider
