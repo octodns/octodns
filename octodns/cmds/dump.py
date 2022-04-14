@@ -18,6 +18,9 @@ def main():
     parser.add_argument('--output-dir', required=True,
                         help='The directory into which the results will be '
                         'written (Note: will overwrite existing files)')
+    parser.add_argument('--output-provider', required=False,
+                        help='The configured provider to use when dumping '
+                        'records. Must support copy() and directory')
     parser.add_argument('--lenient', action='store_true', default=False,
                         help='Ignore record validations and do a best effort '
                         'dump')
@@ -31,8 +34,9 @@ def main():
     args = parser.parse_args()
 
     manager = Manager(args.config_file)
-    manager.dump(args.zone, args.output_dir, args.lenient, args.split,
-                 *args.source)
+    manager.dump(zone=args.zone, output_dir=args.output_dir,
+                 output_provider=args.output_provider, lenient=args.lenient,
+                 split=args.split, sources=args.source)
 
 
 if __name__ == '__main__':

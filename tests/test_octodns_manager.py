@@ -283,24 +283,26 @@ class TestManager(TestCase):
             manager = Manager(get_config_filename('simple.yaml'))
 
             with self.assertRaises(ManagerException) as ctx:
-                manager.dump('unit.tests.', tmpdir.dirname, False, False,
-                             'nope')
+                manager.dump(zone='unit.tests.', output_dir=tmpdir.dirname,
+                             sources=['nope'])
             self.assertEqual('Unknown source: nope', str(ctx.exception))
 
-            manager.dump('unit.tests.', tmpdir.dirname, False, False, 'in')
+            manager.dump(zone='unit.tests.', output_dir=tmpdir.dirname,
+                         sources=['in'])
 
             # make sure this fails with an IOError and not a KeyError when
             # tyring to find sub zones
             with self.assertRaises(IOError):
-                manager.dump('unknown.zone.', tmpdir.dirname, False, False,
-                             'in')
+                manager.dump(zone='unknown.zone.', output_dir=tmpdir.dirname,
+                             sources=['in'])
 
     def test_dump_empty(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             manager = Manager(get_config_filename('simple.yaml'))
 
-            manager.dump('empty.', tmpdir.dirname, False, False, 'in')
+            manager.dump(zone='empty.', output_dir=tmpdir.dirname,
+                         sources=['in'])
 
             with open(join(tmpdir.dirname, 'empty.yaml')) as fh:
                 data = safe_load(fh, False)
@@ -312,17 +314,18 @@ class TestManager(TestCase):
             manager = Manager(get_config_filename('simple-split.yaml'))
 
             with self.assertRaises(ManagerException) as ctx:
-                manager.dump('unit.tests.', tmpdir.dirname, False, True,
-                             'nope')
+                manager.dump(zone='unit.tests.', output_dir=tmpdir.dirname,
+                             split=True, sources=['nope'])
             self.assertEqual('Unknown source: nope', str(ctx.exception))
 
-            manager.dump('unit.tests.', tmpdir.dirname, False, True, 'in')
+            manager.dump(zone='unit.tests.', output_dir=tmpdir.dirname,
+                         split=True, sources=['in'])
 
             # make sure this fails with an OSError and not a KeyError when
             # tyring to find sub zones
             with self.assertRaises(OSError):
-                manager.dump('unknown.zone.', tmpdir.dirname, False, True,
-                             'in')
+                manager.dump(zone='unknown.zone.', output_dir=tmpdir.dirname,
+                             split=True, sources=['in'])
 
     def test_validate_configs(self):
         Manager(get_config_filename('simple-validate.yaml')).validate_configs()
