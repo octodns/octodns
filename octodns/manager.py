@@ -572,12 +572,12 @@ class Manager(object):
                 raise ManagerException(f'Unknown output_provider: {e.args[0]}')
             if not hasattr(target, 'directory'):
                 msg = f'output_provider={output_provider}, does not support ' \
-                    'directory'
+                    'directory property'
                 raise ManagerException(msg)
             if target.directory != output_dir:
                 if not hasattr(target, 'copy'):
                     msg = f'output_provider={output_provider}, does not ' \
-                        'support copy'
+                        'support copy method'
                     raise ManagerException(msg)
                 target = target.copy()
                 self.log.info('dump: setting directory of output_provider '

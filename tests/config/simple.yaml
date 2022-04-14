@@ -8,12 +8,13 @@ providers:
   dump:
     class: octodns.provider.yaml.YamlProvider
     directory: env/YAML_TMP_DIR
+    default_ttl: 999
     supports_root_ns: False
   # This is sort of ugly, but it shouldn't hurt anything. It'll just write out
   # the target file twice where it and dump are both used
   dump2:
     class: octodns.provider.yaml.YamlProvider
-    directory: env/YAML_TMP_DIR
+    directory: env/YAML_TMP_DIR2
     supports_root_ns: False
   simple:
     class: helpers.SimpleProvider
