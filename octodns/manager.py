@@ -570,11 +570,19 @@ class Manager(object):
                 target = self.providers[output_provider]
             except KeyError as e:
                 raise ManagerException(f'Unknown output_provider: {e.args[0]}')
+            # The chosen output provider has to support a directory property so
+            # that we can tell it where the user has requested the dumped files
+            # to reside.
             if not hasattr(target, 'directory'):
                 msg = f'output_provider={output_provider}, does not support ' \
                     'directory property'
                 raise ManagerException(msg)
             if target.directory != output_dir:
+                # If the requested target doesn't match what's configured in
+                # the chosen provider then we'll need to set it. Before doing
+                # that we make a copy of the provider so that it can remain
+                # unchanged and potentially be used as a source, e.g. copying
+                # from one yaml to another
                 if not hasattr(target, 'copy'):
                     msg = f'output_provider={output_provider}, does not ' \
                         'support copy method'
