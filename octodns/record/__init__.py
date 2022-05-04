@@ -1517,6 +1517,71 @@ class SrvRecord(ValuesMixin, Record):
 Record.register_type(SrvRecord)
 
 
+class TlsaValue(EqualityTupleMixin):
+
+    @classmethod
+    def validate(cls, data, _type):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
+        reasons = []
+        for value in data:
+            try:
+                certificate_usage = int(value.get('certificate_usage', 0))
+                if certificate_usage < 0 or certificate_usage > 3:
+                    reasons.append(f'invalid certificate_usage "{certificate_usage}"')
+            except ValueError:
+                reasons.append(f'invalid certificate_usage "{value["certificate_usage"]}"')
+
+            try:
+                selector = int(value.get('selector', 0))
+                if selector < 0 or selector > 1:
+                    reasons.append(f'invalid selector "{selector}"')
+            except ValueError:
+                reasons.append(f'invalid selector "{value["selector"]}"')
+
+            try:
+                matching_type = int(value.get('matching_type', 0))
+                if matching_type < 0 or matching_type > 2:
+                    reasons.append(f'invalid matching_type "{matching_type}"')
+            except ValueError:
+                reasons.append(f'invalid matching_type "{value["matching_type"]}"')
+
+            if 'certificate_association_data' not in value:
+                reasons.append('missing certificate_association_data')
+        return reasons
+
+    @classmethod
+    def process(cls, values):
+        return [TlsaValue(v) for v in values]
+
+    def __init__(self, value):
+        self.certificate_usage = int(value.get('certificate_usage', 0))
+        self.selector = int(value.get('selector', 0))
+        self.matching_type = int(value.get('matching_type', 0))
+        self.certificate_association_data = value['certificate_association_data']
+
+    @property
+    def data(self):
+        return {
+            'certificate_usage': self.certificate_usage,
+            'selector': self.selector,
+            'matching_type': self.matching_type,
+            'certificate_association_data': self.certificate_association_data,
+        }
+
+    def _equality_tuple(self):
+        return (self.certificate_usage, self.selector, self.matching_type, self.certificate_association_data)
+
+    def __repr__(self):
+        return f'{self.certificate_usage} {self.selector} {self.matching_type}"{self.certificate_association_data}"'
+
+
+class TlsaRecord(ValuesMixin, Record):
+    _type = 'TLSA'
+    _value_type = TlsaValue
+
+Record.register_type(TlsaRecord)
+
 class _TxtValue(_ChunkedValue):
     pass
 
