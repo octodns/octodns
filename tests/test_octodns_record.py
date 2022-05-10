@@ -924,17 +924,24 @@ class TestRecord(TestCase):
         self.assertEqual('a.unit.tests.', a.fqdn)
         self.assertEqual('a', a.name)
         self.assertEqual(30, a.ttl)
-        self.assertEqual(a_values[0]['certificate_usage'], a.values[0].certificate_usage)
+        self.assertEqual(a_values[0]['certificate_usage'],
+                         a.values[0].certificate_usage)
         self.assertEqual(a_values[0]['selector'], a.values[0].selector)
-        self.assertEqual(a_values[0]['matching_type'], a.values[0].matching_type)
-        self.assertEqual(a_values[0]['certificate_association_data'], a.values[0].certificate_association_data)
-        
-        self.assertEqual(a_values[1]['certificate_usage'], a.values[1].certificate_usage)
-        self.assertEqual(a_values[1]['selector'], a.values[1].selector)
-        self.assertEqual(a_values[1]['matching_type'], a.values[1].matching_type)
-        self.assertEqual(a_values[1]['certificate_association_data'], a.values[1].certificate_association_data)
+        self.assertEqual(a_values[0]['matching_type'],
+                         a.values[0].matching_type)
+        self.assertEqual(a_values[0]['certificate_association_data'],
+                         a.values[0].certificate_association_data)
+
+        self.assertEqual(a_values[1]['certificate_usage'],
+                         a.values[1].certificate_usage)
+        self.assertEqual(a_values[1]['selector'],
+                         a.values[1].selector)
+        self.assertEqual(a_values[1]['matching_type'],
+                         a.values[1].matching_type)
+        self.assertEqual(a_values[1]['certificate_association_data'],
+                         a.values[1].certificate_association_data)
         self.assertEqual(a_data, a.data)
-        
+
         b_value = {
             'certificate_usage': 0,
             'selector': 0,
@@ -943,10 +950,13 @@ class TestRecord(TestCase):
         }
         b_data = {'ttl': 30, 'value': b_value}
         b = TlsaRecord(self.zone, 'b', b_data)
-        self.assertEqual(b_value['certificate_usage'], b.values[0].certificate_usage)
+        self.assertEqual(b_value['certificate_usage'],
+                         b.values[0].certificate_usage)
         self.assertEqual(b_value['selector'], b.values[0].selector)
-        self.assertEqual(b_value['matching_type'], b.values[0].matching_type)
-        self.assertEqual(b_value['certificate_association_data'], b.values[0].certificate_association_data)
+        self.assertEqual(b_value['matching_type'],
+                         b.values[0].matching_type)
+        self.assertEqual(b_value['certificate_association_data'],
+                         b.values[0].certificate_association_data)
         self.assertEqual(b_data, b.data)
 
         target = SimpleProvider()
@@ -976,10 +986,9 @@ class TestRecord(TestCase):
         change = a.changes(other, target)
         self.assertEqual(change.existing, a)
         self.assertEqual(change.new, other)
-        
+
         # __repr__ doesn't blow up
         a.__repr__()
-
 
     def test_txt(self):
         a_values = ['a one', 'a two']
@@ -3266,11 +3275,11 @@ class TestRecordValidation(TestCase):
         Record.new(self.zone, '', {
             'type': 'TLSA',
             'ttl': 600,
-            'value' : {
-                'certificate_usage' : 0,
-                'selector' : 0,
-                'matching_type' : 0,
-                'certificate_association_data' : 'AAAAAAAAAAAAA'
+            'value': {
+                'certificate_usage': 0,
+                'selector': 0,
+                'matching_type': 0,
+                'certificate_association_data': 'AAAAAAAAAAAAA'
             }
         })
 
@@ -3279,152 +3288,152 @@ class TestRecordValidation(TestCase):
             Record.new(self.zone, '', {
                 'type': 'TLSA',
                 'ttl': 600,
-                'value' : {
-                    'certificate_usage' : 0,
-                    'selector' : 0,
-                    'matching_type' : 0
+                'value': {
+                    'certificate_usage': 0,
+                    'selector': 0,
+                    'matching_type': 0
                 }
             })
             self.assertEqual(['missing certificate_association_data'],
-                ctx.exception.reasons)
+                             ctx.exception.reasons)
 
-	# missing certificate_usage
+        # missing certificate_usage
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'TLSA',
                 'ttl': 600,
-                'value' : {
-                    'selector' : 0,
-                    'matching_type' : 0,
-	            'certificate_association_data' : 'AAAAAAAAAAAAA'
+                'value': {
+                    'selector': 0,
+                    'matching_type': 0,
+                    'certificate_association_data': 'AAAAAAAAAAAAA'
                 }
             })
             self.assertEqual(['missing certificate_usage'],
-                ctx.exception.reasons)
+                             ctx.exception.reasons)
 
         # False certificate_usage
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'TLSA',
                 'ttl': 600,
-                'value' : {
-                    'certificate_usage' : 4,
-                    'selector' : 0,
-                    'matching_type' : 0,
-	            'certificate_association_data' : 'AAAAAAAAAAAAA'
+                'value': {
+                    'certificate_usage': 4,
+                    'selector': 0,
+                    'matching_type': 0,
+                    'certificate_association_data': 'AAAAAAAAAAAAA'
                 }
             })
             self.assertEqual('invalid certificate_usage '
-		'"{value["certificate_usage"]}"',
-    		ctx.exception.reasons)
+                             '"{value["certificate_usage"]}"',
+                             ctx.exception.reasons)
 
         # Invalid certificate_usage
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'TLSA',
                 'ttl': 600,
-                'value' : {
-                    'certificate_usage' : 'XYZ',
-                    'selector' : 0,
-                    'matching_type' : 0,
-	            'certificate_association_data' : 'AAAAAAAAAAAAA'
+                'value': {
+                    'certificate_usage': 'XYZ',
+                    'selector': 0,
+                    'matching_type': 0,
+                    'certificate_association_data': 'AAAAAAAAAAAAA'
                 }
             })
             self.assertEqual('invalid certificate_usage '
-		'"{value["certificate_usage"]}"',
-    		ctx.exception.reasons)
+                             '"{value["certificate_usage"]}"',
+                             ctx.exception.reasons)
 
-	# missing selector
+        # missing selector
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'TLSA',
                 'ttl': 600,
-                'value' : {
-                    'certificate_usage' : 0,
-                    'matching_type' : 0,
-	            'certificate_association_data' : 'AAAAAAAAAAAAA'
+                'value': {
+                    'certificate_usage': 0,
+                    'matching_type': 0,
+                    'certificate_association_data': 'AAAAAAAAAAAAA'
                 }
             })
             self.assertEqual(['missing selector'],
-                ctx.exception.reasons)
+                             ctx.exception.reasons)
 
-    	# False selector
+        # False selector
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'TLSA',
                 'ttl': 600,
-                'value' : {
-                    'certificate_usage' : 0,
-                    'selector' : 4,
-                    'matching_type' : 0,
-	            'certificate_association_data' : 'AAAAAAAAAAAAA'
+                'value': {
+                    'certificate_usage': 0,
+                    'selector': 4,
+                    'matching_type': 0,
+                    'certificate_association_data': 'AAAAAAAAAAAAA'
                 }
             })
             self.assertEqual('invalid selector '
-		'"{value["selector"]}"',
-    		ctx.exception.reasons)
+                             '"{value["selector"]}"',
+                             ctx.exception.reasons)
 
-    	# Invalid selector
+        # Invalid selector
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'TLSA',
                 'ttl': 600,
-                'value' : {
-                    'certificate_usage' : 0,
-                    'selector' : 'XYZ',
-                    'matching_type' : 0,
-	            'certificate_association_data' : 'AAAAAAAAAAAAA'
+                'value': {
+                    'certificate_usage': 0,
+                    'selector': 'XYZ',
+                    'matching_type': 0,
+                    'certificate_association_data': 'AAAAAAAAAAAAA'
                 }
             })
             self.assertEqual('invalid selector '
-		'"{value["selector"]}"',
-    		ctx.exception.reasons)
-    		
-	# missing matching_type
+                             '"{value["selector"]}"',
+                             ctx.exception.reasons)
+
+        # missing matching_type
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'TLSA',
                 'ttl': 600,
-                'value' : {
-                    'certificate_usage' : 0,
-                    'selector' : 0,
-	            'certificate_association_data' : 'AAAAAAAAAAAAA'
+                'value': {
+                    'certificate_usage': 0,
+                    'selector': 0,
+                    'certificate_association_data': 'AAAAAAAAAAAAA'
                 }
             })
             self.assertEqual(['missing matching_type'],
-                ctx.exception.reasons)
+                             ctx.exception.reasons)
 
-	# False matching_type
+        # False matching_type
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'TLSA',
                 'ttl': 600,
-                'value' : {
-                    'certificate_usage' : 0,
-                    'selector' : 1,
-                    'matching_type' : 3,
-	            'certificate_association_data' : 'AAAAAAAAAAAAA'
+                'value': {
+                    'certificate_usage': 0,
+                    'selector': 1,
+                    'matching_type': 3,
+                    'certificate_association_data': 'AAAAAAAAAAAAA'
                 }
             })
             self.assertEqual('invalid matching_type '
-		'"{value["matching_type"]}"',
-    		ctx.exception.reasons)
+                             '"{value["matching_type"]}"',
+                             ctx.exception.reasons)
 
-	# Invalid matching_type
+        # Invalid matching_type
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {
                 'type': 'TLSA',
                 'ttl': 600,
-                'value' : {
-                    'certificate_usage' : 0,
-                    'selector' : 1,
-                    'matching_type' : 'XYZ',
-	            'certificate_association_data' : 'AAAAAAAAAAAAA'
+                'value': {
+                    'certificate_usage': 0,
+                    'selector': 1,
+                    'matching_type': 'XYZ',
+                    'certificate_association_data': 'AAAAAAAAAAAAA'
                 }
             })
             self.assertEqual('invalid matching_type '
-		'"{value["matching_type"]}"',
-    		ctx.exception.reasons)
+                             '"{value["matching_type"]}"',
+                             ctx.exception.reasons)
 
     def test_TXT(self):
         # doesn't blow up (name & zone here don't make any sense, but not
