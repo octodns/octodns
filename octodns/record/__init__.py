@@ -1528,9 +1528,11 @@ class TlsaValue(EqualityTupleMixin):
             try:
                 certificate_usage = int(value.get('certificate_usage', 0))
                 if certificate_usage < 0 or certificate_usage > 3:
-                    reasons.append(f'invalid certificate_usage "{certificate_usage}"')
+                    reasons.append(f'invalid certificate_usage '
+                                   f'"{certificate_usage}"')
             except ValueError:
-                reasons.append(f'invalid certificate_usage "{value["certificate_usage"]}"')
+                reasons.append(f'invalid certificate_usage '
+                               f'"{value["certificate_usage"]}"')
 
             try:
                 selector = int(value.get('selector', 0))
@@ -1544,8 +1546,15 @@ class TlsaValue(EqualityTupleMixin):
                 if matching_type < 0 or matching_type > 2:
                     reasons.append(f'invalid matching_type "{matching_type}"')
             except ValueError:
-                reasons.append(f'invalid matching_type "{value["matching_type"]}"')
+                reasons.append(f'invalid matching_type '
+                               f'"{value["matching_type"]}"')
 
+            if 'certificate_usage' not in value:
+                reasons.append('missing certificate_usage')
+            if 'selector' not in value:
+                reasons.append('missing selector')
+            if 'matching_type' not in value:
+                reasons.append('missing matching_type')
             if 'certificate_association_data' not in value:
                 reasons.append('missing certificate_association_data')
         return reasons
@@ -1558,7 +1567,8 @@ class TlsaValue(EqualityTupleMixin):
         self.certificate_usage = int(value.get('certificate_usage', 0))
         self.selector = int(value.get('selector', 0))
         self.matching_type = int(value.get('matching_type', 0))
-        self.certificate_association_data = value['certificate_association_data']
+        self.certificate_association_data = \
+            value['certificate_association_data']
 
     @property
     def data(self):
@@ -1570,17 +1580,21 @@ class TlsaValue(EqualityTupleMixin):
         }
 
     def _equality_tuple(self):
-        return (self.certificate_usage, self.selector, self.matching_type, self.certificate_association_data)
+        return (self.certificate_usage, self.selector, self.matching_type,
+                self.certificate_association_data)
 
     def __repr__(self):
-        return f'{self.certificate_usage} {self.selector} {self.matching_type}"{self.certificate_association_data}"'
+        return f"'{self.certificate_usage} {self.selector} '" \
+               f"'{self.matching_type} {self.certificate_association_data}'"
 
 
 class TlsaRecord(ValuesMixin, Record):
     _type = 'TLSA'
     _value_type = TlsaValue
 
+
 Record.register_type(TlsaRecord)
+
 
 class _TxtValue(_ChunkedValue):
     pass
