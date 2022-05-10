@@ -3282,6 +3282,25 @@ class TestRecordValidation(TestCase):
                 'certificate_association_data': 'AAAAAAAAAAAAA'
             }
         })
+        # Multi value, second missing certificate usage
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {
+                'type': 'TLSA',
+                'ttl': 600,
+                'values': [{
+                    'certificate_usage': 0,
+                    'selector': 0,
+                    'matching_type': 0,
+                    'certificate_association_data': 'AAAAAAAAAAAAA'
+                }, {
+                    'selector': 0,
+                    'matching_type': 0,
+                    'certificate_association_data': 'AAAAAAAAAAAAA'
+                }
+                ]
+            })
+            self.assertEqual(['missing certificate_usage'],
+                             ctx.exception.reasons)
 
         # missing certificate_association_data
         with self.assertRaises(ValidationError) as ctx:
