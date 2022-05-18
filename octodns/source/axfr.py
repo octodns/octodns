@@ -26,7 +26,7 @@ class AxfrBaseSource(BaseSource):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('A', 'AAAA', 'CAA', 'CNAME', 'LOC', 'MX', 'NS', 'PTR',
-                    'SPF', 'SRV', 'TXT'))
+                    'SPF', 'SRV', 'SSHFP', 'TXT'))
 
     def __init__(self, id):
         super(AxfrBaseSource, self).__init__(id)
@@ -128,6 +128,22 @@ class AxfrBaseSource(BaseSource):
                 'weight': weight,
                 'port': port,
                 'target': target,
+            })
+        return {
+            'type': _type,
+            'ttl': records[0]['ttl'],
+            'values': values
+        }
+
+    def _data_for_SSHFP(self, _type, records):
+        values = []
+        for record in records:
+            algorithm, fingerprint_type, fingerprint = \
+                record['value'].split(' ', 2)
+            values.append({
+                'algorithm': algorithm,
+                'fingerprint_type': fingerprint_type,
+                'fingerprint': fingerprint,
             })
         return {
             'type': _type,
