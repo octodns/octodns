@@ -1,3 +1,7 @@
+## v0.9.18 - 2022-??-?? - Internationalization
+
+* Added octodns.idna idna_encode/idna_decode helpers
+
 ## v0.9.17 - 2022-04-02 - Registration required
 
 #### Noteworthy changes

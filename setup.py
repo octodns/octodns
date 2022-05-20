@@ -96,6 +96,7 @@ setup(
         'PyYaml>=4.2b1',
         'dnspython>=1.15.0',
         'fqdn>=1.5.0',
+        'idna>=3.3',
         'natsort>=5.5.0',
         'python-dateutil>=2.8.1',
     ),
