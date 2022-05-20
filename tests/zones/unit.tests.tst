@@ -13,6 +13,10 @@ $ORIGIN unit.tests.
 under       3600  IN  NS  ns1.unit.tests.
 under       3600  IN  NS  ns2.unit.tests.
 
+; SSHFP Records
+@           600   IN  SSHFP 1 1 bf6b6825d2977c511a475bbefb88aad54a92ac73
+@           600   IN  SSHFP 1 1 7491973e5f8b39d5327cd4e08bc81b05f7710b49
+
 ; CAA Records
 caa         1800  IN  CAA 0 issue "ca.unit.tests"
 caa         1800  IN  CAA 0 iodef "mailto:admin@unit.tests"
