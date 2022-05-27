@@ -41,7 +41,7 @@ The architecture is pluggable and the tooling is flexible to make it applicable 
 
 ### Workspace
 
-Running through the following commands will install the latest release of OctoDNS and set up a place for your config files to live. To determine if provider specific requirements are necessary see the [Supported providers table](#supported-providers) below.
+Running through the following commands will install the latest release of OctoDNS and set up a place for your config files to live. To determine if provider specific requirements are necessary see the [providers table](#providers) below.
 
 ```shell
 $ mkdir dns
