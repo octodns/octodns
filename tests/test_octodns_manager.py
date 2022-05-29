@@ -290,7 +290,7 @@ class TestManager(TestCase):
             manager.dump('unit.tests.', tmpdir.dirname, False, False, 'in')
 
             # make sure this fails with an IOError and not a KeyError when
-            # tyring to find sub zones
+            # trying to find sub zones
             with self.assertRaises(IOError):
                 manager.dump('unknown.zone.', tmpdir.dirname, False, False,
                              'in')
@@ -319,7 +319,7 @@ class TestManager(TestCase):
             manager.dump('unit.tests.', tmpdir.dirname, False, True, 'in')
 
             # make sure this fails with an OSError and not a KeyError when
-            # tyring to find sub zones
+            # trying to find sub zones
             with self.assertRaises(OSError):
                 manager.dump('unknown.zone.', tmpdir.dirname, False, True,
                              'in')
@@ -447,7 +447,7 @@ class TestManager(TestCase):
         manager.sync(['unit.tests.'])
 
         with self.assertRaises(ManagerException) as ctx:
-            # This zone specifies a non-existant processor
+            # This zone specifies a non-existent processor
             manager.sync(['bad.unit.tests.'])
         self.assertTrue('Zone bad.unit.tests., unknown processor: '
                         'doesnt-exist' in str(ctx.exception))

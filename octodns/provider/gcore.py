@@ -15,7 +15,7 @@ try:
     from octodns_gcore import GCoreProvider
     GCoreProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('GCoreProvider has been moved into a seperate module, '
+    logger.exception('GCoreProvider has been moved into a separate module, '
                      'octodns_gcore is now required. Provider class should '
                      'be updated to octodns_gcore.GCoreProvider. See '
                      'https://github.com/octodns/octodns#updating-'

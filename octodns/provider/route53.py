@@ -15,7 +15,7 @@ try:
     from octodns_route53 import Route53Provider
     Route53Provider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('Route53Provider has been moved into a seperate module, '
+    logger.exception('Route53Provider has been moved into a separate module, '
                      'octodns_route53 is now required. Provider class should '
                      'be updated to octodns_route53.Route53Provider. See '
                      'https://github.com/octodns/octodns#updating-'

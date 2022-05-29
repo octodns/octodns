@@ -15,7 +15,7 @@ try:
     from octodns_route53.processor import AwsAcmMangingProcessor
     AwsAcmMangingProcessor  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('AwsAcmMangingProcessor has been moved into a seperate '
+    logger.exception('AwsAcmMangingProcessor has been moved into a separate '
                      'module, octodns_route53 is now required. Processor '
                      'class should be updated to '
                      'octodns_route53.processor.AwsAcmMangingProcessor')

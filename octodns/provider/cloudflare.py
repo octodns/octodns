@@ -15,7 +15,7 @@ try:
     from octodns_cloudflare import CloudflareProvider
     CloudflareProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('CloudflareProvider has been moved into a seperate '
+    logger.exception('CloudflareProvider has been moved into a separate '
                      'module, octodns_cloudflare is now required. Provider '
                      'class should be updated to '
                      'octodns_cloudflare.CloudflareProvider. See '

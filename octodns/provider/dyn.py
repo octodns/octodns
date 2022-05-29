@@ -15,7 +15,7 @@ try:
     from octodns_dyn import DynProvider
     DynProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('DynProvider has been moved into a seperate module, '
+    logger.exception('DynProvider has been moved into a separate module, '
                      'octodns_dyn is now required. Provider class should '
                      'be updated to octodns_dyn.DynProvider. See '
                      'https://github.com/octodns/octodns#updating-'

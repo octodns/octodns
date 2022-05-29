@@ -15,7 +15,7 @@ try:
     from octodns_edgedns import AkamaiProvider
     AkamaiProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('AkamaiProvider has been moved into a seperate module, '
+    logger.exception('AkamaiProvider has been moved into a separate module, '
                      'octodns_edgedns is now required. Provider class should '
                      'be updated to octodns_edgedns.AkamaiProvider. See '
                      'https://github.com/octodns/octodns#updating-'

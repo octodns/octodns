@@ -15,7 +15,7 @@ try:
     from octodns_googlecloud import GoogleCloudProvider
     GoogleCloudProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('GoogleCloudProvider has been moved into a seperate '
+    logger.exception('GoogleCloudProvider has been moved into a separate '
                      'module, octodns_googlecloud is now required. Provider '
                      'class should be updated to '
                      'octodns_googlecloud.GoogleCloudProvider. See '

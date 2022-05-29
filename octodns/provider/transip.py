@@ -15,7 +15,7 @@ try:
     from octodns_transip import TransipProvider
     TransipProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('TransipProvider has been moved into a seperate module, '
+    logger.exception('TransipProvider has been moved into a separate module, '
                      'octodns_transip is now required. Provider class should '
                      'be updated to octodns_transip.TransipProvider. See '
                      'https://github.com/octodns/octodns#updating-'
