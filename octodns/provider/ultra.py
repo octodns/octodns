@@ -15,7 +15,7 @@ try:
     from octodns_ultra import UltraProvider
     UltraProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('UltraProvider has been moved into a seperate module, '
+    logger.exception('UltraProvider has been moved into a separate module, '
                      'octodns_ultra is now required. Provider class should '
                      'be updated to octodns_ultra.UltraProvider. See '
                      'https://github.com/octodns/octodns#updating-'

@@ -15,7 +15,7 @@ try:
     from octodns_digitalocean import DigitalOceanProvider
     DigitalOceanProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('DigitalOceanProvider has been moved into a seperate '
+    logger.exception('DigitalOceanProvider has been moved into a separate '
                      'module, octodns_digitalocean is now required. Provider '
                      'class should be updated to '
                      'octodns_digitalocean.DigitalOceanProvider. See '

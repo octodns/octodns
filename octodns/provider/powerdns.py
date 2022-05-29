@@ -16,7 +16,7 @@ try:
     PowerDnsProvider  # pragma: no cover
     PowerDnsBaseProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('PowerDnsProvider has been moved into a seperate module, '
+    logger.exception('PowerDnsProvider has been moved into a separate module, '
                      'octodns_powerdns is now required. Provider class should '
                      'be updated to octodns_powerdns.PowerDnsProvider. See '
                      'https://github.com/octodns/octodns#updating-'

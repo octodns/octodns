@@ -16,7 +16,7 @@ try:
     EasyDnsProvider  # pragma: no cover
     EasyDNSProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('EasyDNSProvider has been moved into a seperate module, '
+    logger.exception('EasyDNSProvider has been moved into a separate module, '
                      'octodns_easydns is now required. Provider class should '
                      'be updated to octodns_easydns.EasyDnsProvider. See '
                      'https://github.com/octodns/octodns#updating-'

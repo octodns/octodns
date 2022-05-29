@@ -15,7 +15,7 @@ try:
     from octodns_etchosts import EtcHostsProvider
     EtcHostsProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('EtcHostsProvider has been moved into a seperate module, '
+    logger.exception('EtcHostsProvider has been moved into a separate module, '
                      'octodns_etchosts is now required. Provider class should '
                      'be updated to octodns_etchosts.EtcHostsProvider. See '
                      'See https://github.com/octodns/octodns#updating-'

@@ -15,7 +15,7 @@ try:
     from octodns_dnsimple import DnsimpleProvider
     DnsimpleProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('DnsimpleProvider has been moved into a seperate module, '
+    logger.exception('DnsimpleProvider has been moved into a separate module, '
                      'octodns_dnsimple is now required. Provider class should '
                      'be updated to octodns_dnsimple.DnsimpleProvider. See '
                      'https://github.com/octodns/octodns#updating-'

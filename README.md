@@ -23,7 +23,7 @@ The architecture is pluggable and the tooling is flexible to make it applicable 
   * [Updating to use extracted providers](#updating-to-use-extracted-providers)
 - [Sources](#sources)
     + [Notes](#notes)
-- [Compatibilty and Compliance](#compatibilty-and-compliance)
+- [Compatibility and Compliance](#compatibilty-and-compliance)
   * [`lenient`](#-lenient-)
   * [`strict_supports` (Work In Progress)](#-strict-supports---work-in-progress-)
   * [Configuring `strict_supports`](#configuring--strict-supports-)
@@ -55,7 +55,7 @@ $ mkdir config
 
 #### Installing a specific commit SHA
 
-If you'd like to install a version that has not yet been released in a repetable/safe manner you can do the following. In general octoDNS is fairly stable inbetween releases thanks to the plan and apply process, but care should be taken regardless.
+If you'd like to install a version that has not yet been released in a repetable/safe manner you can do the following. In general octoDNS is fairly stable in between releases thanks to the plan and apply process, but care should be taken regardless.
 
 ```shell
 $ pip install -e git+https://git@github.com/octodns/octodns.git@<SHA>#egg=octodns
@@ -195,7 +195,7 @@ The above command pulled the existing data out of Route53 and placed the results
 
 ## Providers
 
-The table below lists the providers octoDNS supports. They are maintained in their own repositories and released as independant modules. 
+The table below lists the providers octoDNS supports. They are maintained in their own repositories and released as independent modules. 
 
 | Provider | Module | Notes |
 |--|--|--|
@@ -250,7 +250,7 @@ Similar to providers, but can only serve to populate records into a zone, cannot
    * Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
 * octoDNS itself supports non-ASCII character sets, but in testing Cloudflare is the only provider where that is currently functional end-to-end. Others have failures either in the client libraries or API calls
 
-## Compatibilty and Compliance
+## Compatibility and Compliance
 
 ### `lenient`
 

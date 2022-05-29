@@ -1759,7 +1759,7 @@ class TestRecordValidation(TestCase):
         reason = ctx.exception.reasons[0]
         self.assertTrue(reason.startswith('invalid name "@", use "" instead'))
 
-        # fqdn length, DNS defins max as 253
+        # fqdn length, DNS defines max as 253
         with self.assertRaises(ValidationError) as ctx:
             # The . will put this over the edge
             name = 'x' * (253 - len(self.zone.name))

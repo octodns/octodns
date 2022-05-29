@@ -744,13 +744,13 @@ class TestBaseProviderSupportsRootNs(TestCase):
         # different root is in the desired
         plan = provider.plan(self.has_root)
 
-        # the mis-match doesn't matter since we can't manage the records
+        # the mismatch doesn't matter since we can't manage the records
         # anyway, they will have been removed from the desired and existing.
         self.assertFalse(plan)
 
         # plan again with strict_supports enabled, we should get an exception
         # b/c we have something configured that can't be managed (doesn't
-        # matter that it's a mis-match)
+        # matter that it's a mismatch)
         provider.strict_supports = True
         with self.assertRaises(SupportsException) as ctx:
             provider.plan(self.has_root)
@@ -765,7 +765,7 @@ class TestBaseProviderSupportsRootNs(TestCase):
         # desired doesn't have a root
         plan = provider.plan(self.no_root)
 
-        # the mis-match doesn't matter since we can't manage the records
+        # the mismatch doesn't matter since we can't manage the records
         # anyway, they will have been removed from the desired and existing.
         self.assertFalse(plan)
 

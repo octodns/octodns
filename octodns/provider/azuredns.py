@@ -15,7 +15,7 @@ try:
     from octodns_azure import AzureProvider
     AzureProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('AzureProvider has been moved into a seperate module, '
+    logger.exception('AzureProvider has been moved into a separate module, '
                      'octodns_azure is now required. Provider class should '
                      'be updated to octodns_azure.AzureProvider. See '
                      'https://github.com/octodns/octodns#updating-'
