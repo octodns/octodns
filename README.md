@@ -68,6 +68,7 @@ We start by creating a config file to tell OctoDNS about our providers and the z
 ```yaml
 ---
 manager:
+  include_meta: False
   max_workers: 2
 
 providers:
@@ -101,6 +102,8 @@ zones:
 `class` is a special key that tells OctoDNS what python class should be loaded. Any other keys will be passed as configuration values to that provider. In general any sensitive or frequently rotated values should come from environmental variables. When OctoDNS sees a value that starts with `env/` it will look for that value in the process's environment and pass the result along.
 
 Further information can be found in the `docstring` of each source and provider class.
+
+The `include_meta` key in the `manager` section of the config controls the creation of a TXT record at the root of a zone that is managed by OctoDNS. If set to `True`, OctoDNS will create a TXT record for the root of the zone with the value `provider=<target-provider>`. If not specified, the default value for `include_meta` is `False`.
 
 The `max_workers` key in the `manager` section of the config enables threading to parallelize the planning portion of the sync.
 
