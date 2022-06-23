@@ -68,10 +68,10 @@ class Zone(object):
             self.hydrate()
 
         name = record.name
-        last = name.split('.')[-1]
 
-        if not lenient and last in self.sub_zones:
-            if name != last:
+        if not lenient and any(map(lambda sz: name.endswith(sz),
+                                   self.sub_zones)):
+            if name not in self.sub_zones:
                 # it's a record for something under a sub-zone
                 raise SubzoneRecordException(f'Record {record.fqdn} is under '
                                              'a managed subzone')
