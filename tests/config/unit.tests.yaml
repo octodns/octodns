@@ -162,6 +162,11 @@ sub:
   values:
   - 6.2.3.4.
   - 7.2.3.4.
+sub.txt:
+  type: 'NS'
+  values:
+  - ns1.test.
+  - ns2.test.
 txt:
   ttl: 600
   type: TXT

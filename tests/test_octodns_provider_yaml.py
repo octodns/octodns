@@ -34,7 +34,7 @@ class TestYamlProvider(TestCase):
 
         # without it we see everything
         source.populate(zone)
-        self.assertEqual(23, len(zone.records))
+        self.assertEqual(24, len(zone.records))
 
         source.populate(dynamic_zone)
         self.assertEqual(6, len(dynamic_zone.records))
@@ -57,12 +57,12 @@ class TestYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEqual(20, len([c for c in plan.changes
+            self.assertEqual(21, len([c for c in plan.changes
                                       if isinstance(c, Create)]))
             self.assertFalse(isfile(yaml_file))
 
             # Now actually do it
-            self.assertEqual(20, target.apply(plan))
+            self.assertEqual(21, target.apply(plan))
             self.assertTrue(isfile(yaml_file))
 
             # Dynamic plan
@@ -90,7 +90,7 @@ class TestYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEqual(20, len([c for c in plan.changes
+            self.assertEqual(21, len([c for c in plan.changes
                                       if isinstance(c, Create)]))
 
             with open(yaml_file) as fh:
@@ -111,6 +111,7 @@ class TestYamlProvider(TestCase):
                 self.assertTrue('values' in data.pop('txt'))
                 self.assertTrue('values' in data.pop('loc'))
                 self.assertTrue('values' in data.pop('urlfwd'))
+                self.assertTrue('values' in data.pop('sub.txt'))
                 # these are stored as singular 'value'
                 self.assertTrue('value' in data.pop('_imap._tcp'))
                 self.assertTrue('value' in data.pop('_pop3._tcp'))
