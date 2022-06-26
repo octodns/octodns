@@ -15,7 +15,7 @@ try:
     from octodns_ns1 import Ns1Provider
     Ns1Provider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('Ns1Provider has been moved into a seperate module, '
+    logger.exception('Ns1Provider has been moved into a separate module, '
                      'octodns_ns1 is now required. Provider class should '
                      'be updated to octodns_ns1.Ns1Provider. See '
                      'https://github.com/octodns/octodns#updating-'

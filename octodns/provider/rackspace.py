@@ -15,7 +15,7 @@ try:
     from octodns_rackspace import RackspaceProvider
     RackspaceProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('RackspaceProvider has been moved into a seperate '
+    logger.exception('RackspaceProvider has been moved into a separate '
                      'module, octodns_rackspace is now required. Provider '
                      'class should be updated to '
                      'octodns_rackspace.RackspaceProvider. See '

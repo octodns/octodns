@@ -15,7 +15,7 @@ try:
     from octodns_mythicbeasts import MythicBeastsProvider
     MythicBeastsProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('MythicBeastsProvider has been moved into a seperate '
+    logger.exception('MythicBeastsProvider has been moved into a separate '
                      'module, octodns_mythicbeasts is now required. Provider '
                      'class should be updated to '
                      'octodns_mythicbeasts.MythicBeastsProvider. See '

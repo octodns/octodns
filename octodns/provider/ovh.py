@@ -15,7 +15,7 @@ try:
     from octodns_ovh import OvhProvider
     OvhProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('OvhProvider has been moved into a seperate module, '
+    logger.exception('OvhProvider has been moved into a separate module, '
                      'octodns_ovh is now required. Provider class should '
                      'be updated to octodns_ovh.OvhProvider. See '
                      'https://github.com/octodns/octodns#updating-'

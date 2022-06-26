@@ -15,7 +15,7 @@ try:
     from octodns_dnsmadeeasy import DnsMadeEasyProvider
     DnsMadeEasyProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('DnsMadeEasyProvider has been moved into a seperate '
+    logger.exception('DnsMadeEasyProvider has been moved into a separate '
                      'module, octodns_dnsmadeeasy is now required. Provider '
                      'class should be updated to '
                      'octodns_dnsmadeeasy.DnsMadeEasyProvider. See '

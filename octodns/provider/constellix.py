@@ -15,7 +15,7 @@ try:
     from octodns_constellix import ConstellixProvider
     ConstellixProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('ConstellixProvider has been moved into a seperate '
+    logger.exception('ConstellixProvider has been moved into a separate '
                      'module, octodns_constellix is now required. Provider '
                      'class should be updated to '
                      'octodns_constellix.ConstellixProvider. See '

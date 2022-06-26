@@ -15,7 +15,7 @@ try:
     from octodns_gandi import GandiProvider
     GandiProvider  # pragma: no cover
 except ModuleNotFoundError:
-    logger.exception('GandiProvider has been moved into a seperate module, '
+    logger.exception('GandiProvider has been moved into a separate module, '
                      'octodns_gandi is now required. Provider class should '
                      'be updated to octodns_gandi.GandiProvider. See '
                      'https://github.com/octodns/octodns#updating-'
