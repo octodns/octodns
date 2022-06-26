@@ -16,7 +16,7 @@ class TestIdna(TestCase):
         got = idna_encode(value)
         self.assertEqual(expected, got)
         # round tripped
-        self.assertEqual(value, idna_decode(value))
+        self.assertEqual(value, idna_decode(got))
 
     def test_noops(self):
         # empty
@@ -41,3 +41,16 @@ class TestIdna(TestCase):
         # encoded with encoded name
         self.assertIdna('zajęzyk.zajęzyk.pl.',
                         'xn--zajzyk-y4a.xn--zajzyk-y4a.pl.')
+
+        self.assertIdna('déjàvu.com.', 'xn--djvu-1na6c.com.')
+        self.assertIdna('déjà-vu.com.', 'xn--dj-vu-sqa5d.com.')
+
+    def test_underscores(self):
+        # underscores aren't valid in idna names, so these are all ascii
+
+        self.assertIdna('foo_bar.pl.', 'foo_bar.pl.')
+        self.assertIdna('bleep_bloop.foo_bar.pl.', 'bleep_bloop.foo_bar.pl.')
+
+    def test_case_insensitivity(self):
+        # Shouldn't be hit by octoDNS use cases, but checked anyway
+        self.assertEqual('zajęzyk.pl.', idna_decode('XN--ZAJZYK-Y4A.PL.'))
