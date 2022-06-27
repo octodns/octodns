@@ -167,12 +167,15 @@ class Manager(object):
         # reparent children to their parent zone from the tree root.
         for name in sorted(self.config['zones'].keys(),
                            key=lambda s: 0 - s.count('.')):
+            # Trim the trailing dot from FQDN
             name = name[:-1]
             this = {}
-            for sz in filter(
-                lambda k: k.endswith(name), set(zone_tree.keys())
-            ):
+            for sz in [k for k in zone_tree.keys() if k.endswith(name)]:
+                # Found a zone in tree root that is our child, slice the
+                # name and move its tree under ours.
                 this[sz[:-(len(name) + 1)]] = zone_tree.pop(sz)
+            # Add to tree root where it will be reparented as we iterate up
+            # the tree.
             zone_tree[name] = this
         self.zone_tree = zone_tree
 
@@ -272,11 +275,17 @@ class Manager(object):
         name = zone_name[:-1]
         where = self.zone_tree
         while True:
-            parent = next(filter(lambda k: name.endswith(k), where), None)
+            # Find parent if it exists
+            parent = next((k for k in where if name.endswith(k)), None)
             if not parent:
+                # The zone_name in the tree has been reached, stop searching.
                 break
+            # Move down the tree and slice name to get the remainder for the
+            # next round of the search.
             where = where[parent]
             name = name[:-(len(parent) + 1)]
+        # `where` is now pointing at the dictionary of children for zone_name
+        # in the tree
         sub_zone_names = where.keys()
         self.log.debug('configured_sub_zones: subs=%s', sub_zone_names)
         return set(sub_zone_names)

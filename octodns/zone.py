@@ -69,8 +69,7 @@ class Zone(object):
 
         name = record.name
 
-        if not lenient and any(map(lambda sz: name.endswith(sz),
-                                   self.sub_zones)):
+        if not lenient and any((name.endswith(sz) for sz in self.sub_zones)):
             if name not in self.sub_zones:
                 # it's a record for something under a sub-zone
                 raise SubzoneRecordException(f'Record {record.fqdn} is under '
