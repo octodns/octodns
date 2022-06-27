@@ -167,6 +167,11 @@ sub.txt:
   values:
   - ns1.test.
   - ns2.test.
+subzone:
+  type: 'NS'
+  values:
+  - 192.0.2.1.
+  - 192.0.2.8.
 txt:
   ttl: 600
   type: TXT
