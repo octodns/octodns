@@ -1,4 +1,3 @@
-
 import logging
 import os
 
@@ -13,7 +12,8 @@ class EnvVarSourceException(Exception):
 class EnvironmentVariableNotFoundException(EnvVarSourceException):
     def __init__(self, data):
         super(EnvironmentVariableNotFoundException, self).__init__(
-            f'Unknown environment variable {data}')
+            f'Unknown environment variable {data}'
+        )
 
 
 class EnvVarSource(BaseSource):
@@ -56,6 +56,7 @@ class EnvVarSource(BaseSource):
           - ultra
           - ns1
     '''
+
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
     SUPPORTS = set(('TXT'))
@@ -65,8 +66,13 @@ class EnvVarSource(BaseSource):
     def __init__(self, id, variable, name, ttl=DEFAULT_TTL):
         klass = self.__class__.__name__
         self.log = logging.getLogger(f'{klass}[{id}]')
-        self.log.debug('__init__: id=%s, variable=%s, name=%s, '
-                       'ttl=%d', id, variable, name, ttl)
+        self.log.debug(
+            '__init__: id=%s, variable=%s, name=%s, ' 'ttl=%d',
+            id,
+            variable,
+            name,
+            ttl,
+        )
         super(EnvVarSource, self).__init__(id)
         self.envvar = variable
         self.name = name
@@ -77,13 +83,20 @@ class EnvVarSource(BaseSource):
         if value is None:
             raise EnvironmentVariableNotFoundException(self.envvar)
 
-        self.log.debug('_read_variable: successfully loaded var=%s val=%s',
-                       self.envvar, value)
+        self.log.debug(
+            '_read_variable: successfully loaded var=%s val=%s',
+            self.envvar,
+            value,
+        )
         return value
 
     def populate(self, zone, target=False, lenient=False):
-        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
-                       target, lenient)
+        self.log.debug(
+            'populate: name=%s, target=%s, lenient=%s',
+            zone.name,
+            target,
+            lenient,
+        )
 
         before = len(zone.records)
 
@@ -92,9 +105,12 @@ class EnvVarSource(BaseSource):
         # We don't need to worry about conflicting records here because the
         # manager will deconflict sources on our behalf.
         payload = {'ttl': self.ttl, 'type': 'TXT', 'values': [value]}
-        record = Record.new(zone, self.name, payload, source=self,
-                            lenient=lenient)
+        record = Record.new(
+            zone, self.name, payload, source=self, lenient=lenient
+        )
         zone.add_record(record, lenient=lenient)
 
-        self.log.info('populate:   found %s records, exists=False',
-                      len(zone.records) - before)
+        self.log.info(
+            'populate:   found %s records, exists=False',
+            len(zone.records) - before,
+        )

@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from collections import defaultdict
 from logging import getLogger
@@ -72,13 +76,16 @@ class Zone(object):
         if not lenient and any((name.endswith(sz) for sz in self.sub_zones)):
             if name not in self.sub_zones:
                 # it's a record for something under a sub-zone
-                raise SubzoneRecordException(f'Record {record.fqdn} is under '
-                                             'a managed subzone')
+                raise SubzoneRecordException(
+                    f'Record {record.fqdn} is under ' 'a managed subzone'
+                )
             elif record._type != 'NS':
                 # It's a non NS record for exactly a sub-zone
-                raise SubzoneRecordException(f'Record {record.fqdn} a '
-                                             'managed sub-zone and not of '
-                                             'type NS')
+                raise SubzoneRecordException(
+                    f'Record {record.fqdn} a '
+                    'managed sub-zone and not of '
+                    'type NS'
+                )
 
         if replace:
             # will remove it if it exists
@@ -87,15 +94,20 @@ class Zone(object):
         node = self._records[name]
         if record in node:
             # We already have a record at this node of this type
-            raise DuplicateRecordException(f'Duplicate record {record.fqdn}, '
-                                           f'type {record._type}')
-        elif not lenient and ((record._type == 'CNAME' and len(node) > 0) or
-                              ('CNAME' in [r._type for r in node])):
+            raise DuplicateRecordException(
+                f'Duplicate record {record.fqdn}, ' f'type {record._type}'
+            )
+        elif not lenient and (
+            (record._type == 'CNAME' and len(node) > 0)
+            or ('CNAME' in [r._type for r in node])
+        ):
             # We're adding a CNAME to existing records or adding to an existing
             # CNAME
-            raise InvalidNodeException('Invalid state, CNAME at '
-                                       f'{record.fqdn} cannot coexist with '
-                                       'other records')
+            raise InvalidNodeException(
+                'Invalid state, CNAME at '
+                f'{record.fqdn} cannot coexist with '
+                'other records'
+            )
 
         if record._type == 'NS' and record.name == '':
             self._root_ns = record
@@ -128,49 +140,69 @@ class Zone(object):
         for record in self.records:
             if record.ignored:
                 continue
-            elif len(record.included) > 0 and \
-                    target.id not in record.included:
-                self.log.debug('changes:  skipping record=%s %s - %s not'
-                               ' included ', record.fqdn, record._type,
-                               target.id)
+            elif len(record.included) > 0 and target.id not in record.included:
+                self.log.debug(
+                    'changes:  skipping record=%s %s - %s not' ' included ',
+                    record.fqdn,
+                    record._type,
+                    target.id,
+                )
                 continue
             elif target.id in record.excluded:
-                self.log.debug('changes:  skipping record=%s %s - %s '
-                               'excluded ', record.fqdn, record._type,
-                               target.id)
+                self.log.debug(
+                    'changes:  skipping record=%s %s - %s ' 'excluded ',
+                    record.fqdn,
+                    record._type,
+                    target.id,
+                )
                 continue
             try:
                 desired_record = desired_records[record]
                 if desired_record.ignored:
                     continue
-                elif len(desired_record.included) > 0 and \
-                        target.id not in desired_record.included:
-                    self.log.debug('changes:  skipping record=%s %s - %s'
-                                   'not included ', record.fqdn, record._type,
-                                   target.id)
+                elif (
+                    len(desired_record.included) > 0
+                    and target.id not in desired_record.included
+                ):
+                    self.log.debug(
+                        'changes:  skipping record=%s %s - %s' 'not included ',
+                        record.fqdn,
+                        record._type,
+                        target.id,
+                    )
                     continue
                 elif target.id in desired_record.excluded:
                     continue
             except KeyError:
                 if not target.supports(record):
-                    self.log.debug('changes:  skipping record=%s %s - %s does '
-                                   'not support it', record.fqdn, record._type,
-                                   target.id)
+                    self.log.debug(
+                        'changes:  skipping record=%s %s - %s does '
+                        'not support it',
+                        record.fqdn,
+                        record._type,
+                        target.id,
+                    )
                     continue
                 # record has been removed
-                self.log.debug('changes: zone=%s, removed record=%s', self,
-                               record)
+                self.log.debug(
+                    'changes: zone=%s, removed record=%s', self, record
+                )
                 changes.append(Delete(record))
             else:
                 change = record.changes(desired_record, target)
                 if change:
-                    self.log.debug('changes: zone=%s, modified\n'
-                                   '    existing=%s,\n     desired=%s', self,
-                                   record, desired_record)
+                    self.log.debug(
+                        'changes: zone=%s, modified\n'
+                        '    existing=%s,\n     desired=%s',
+                        self,
+                        record,
+                        desired_record,
+                    )
                     changes.append(change)
                 else:
-                    self.log.debug('changes: zone=%s, n.c. record=%s', self,
-                                   record)
+                    self.log.debug(
+                        'changes: zone=%s, n.c. record=%s', self, record
+                    )
 
         # Find additions, things that are in desired, but missing in ourselves.
         # This uses set math and our special __hash__ and __cmp__ functions as
@@ -178,22 +210,31 @@ class Zone(object):
         for record in desired.records - self.records:
             if record.ignored:
                 continue
-            elif len(record.included) > 0 and \
-                    target.id not in record.included:
-                self.log.debug('changes:  skipping record=%s %s - %s not'
-                               ' included ', record.fqdn, record._type,
-                               target.id)
+            elif len(record.included) > 0 and target.id not in record.included:
+                self.log.debug(
+                    'changes:  skipping record=%s %s - %s not' ' included ',
+                    record.fqdn,
+                    record._type,
+                    target.id,
+                )
                 continue
             elif target.id in record.excluded:
-                self.log.debug('changes:  skipping record=%s %s - %s '
-                               'excluded ', record.fqdn, record._type,
-                               target.id)
+                self.log.debug(
+                    'changes:  skipping record=%s %s - %s ' 'excluded ',
+                    record.fqdn,
+                    record._type,
+                    target.id,
+                )
                 continue
 
             if not target.supports(record):
-                self.log.debug('changes:  skipping record=%s %s - %s does not '
-                               'support it', record.fqdn, record._type,
-                               target.id)
+                self.log.debug(
+                    'changes:  skipping record=%s %s - %s does not '
+                    'support it',
+                    record.fqdn,
+                    record._type,
+                    target.id,
+                )
                 continue
             self.log.debug('changes: zone=%s, create record=%s', self, record)
             changes.append(Create(record))

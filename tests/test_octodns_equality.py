@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from unittest import TestCase
 
@@ -11,11 +15,8 @@ from octodns.equality import EqualityTupleMixin
 
 
 class TestEqualityTupleMixin(TestCase):
-
     def test_basics(self):
-
         class Simple(EqualityTupleMixin):
-
             def __init__(self, a, b, c):
                 self.a = a
                 self.b = b
@@ -60,7 +61,6 @@ class TestEqualityTupleMixin(TestCase):
         self.assertTrue(one >= same)
 
     def test_not_implemented(self):
-
         class MissingMethod(EqualityTupleMixin):
             pass
 

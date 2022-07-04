@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from unittest import TestCase
 
@@ -13,46 +17,43 @@ from octodns.zone import Zone
 
 zone = Zone('unit.tests.', [])
 records = {
-    'root-unowned': Record.new(zone, '_acme-challenge', {
-        'ttl': 30,
-        'type': 'TXT',
-        'value': 'magic bit',
-    }),
-    'sub-unowned': Record.new(zone, '_acme-challenge.sub-unowned', {
-        'ttl': 30,
-        'type': 'TXT',
-        'value': 'magic bit',
-    }),
-    'not-txt': Record.new(zone, '_acme-challenge.not-txt', {
-        'ttl': 30,
-        'type': 'AAAA',
-        'value': '::1',
-    }),
-    'not-acme': Record.new(zone, 'not-acme', {
-        'ttl': 30,
-        'type': 'TXT',
-        'value': 'Hello World!',
-    }),
-    'managed': Record.new(zone, '_acme-challenge.managed', {
-        'ttl': 30,
-        'type': 'TXT',
-        'value': 'magic bit',
-    }),
-    'owned': Record.new(zone, '_acme-challenge.owned', {
-        'ttl': 30,
-        'type': 'TXT',
-        'values': ['*octoDNS*', 'magic bit'],
-    }),
-    'going-away': Record.new(zone, '_acme-challenge.going-away', {
-        'ttl': 30,
-        'type': 'TXT',
-        'values': ['*octoDNS*', 'magic bit'],
-    }),
+    'root-unowned': Record.new(
+        zone,
+        '_acme-challenge',
+        {'ttl': 30, 'type': 'TXT', 'value': 'magic bit'},
+    ),
+    'sub-unowned': Record.new(
+        zone,
+        '_acme-challenge.sub-unowned',
+        {'ttl': 30, 'type': 'TXT', 'value': 'magic bit'},
+    ),
+    'not-txt': Record.new(
+        zone,
+        '_acme-challenge.not-txt',
+        {'ttl': 30, 'type': 'AAAA', 'value': '::1'},
+    ),
+    'not-acme': Record.new(
+        zone, 'not-acme', {'ttl': 30, 'type': 'TXT', 'value': 'Hello World!'}
+    ),
+    'managed': Record.new(
+        zone,
+        '_acme-challenge.managed',
+        {'ttl': 30, 'type': 'TXT', 'value': 'magic bit'},
+    ),
+    'owned': Record.new(
+        zone,
+        '_acme-challenge.owned',
+        {'ttl': 30, 'type': 'TXT', 'values': ['*octoDNS*', 'magic bit']},
+    ),
+    'going-away': Record.new(
+        zone,
+        '_acme-challenge.going-away',
+        {'ttl': 30, 'type': 'TXT', 'values': ['*octoDNS*', 'magic bit']},
+    ),
 }
 
 
 class TestAcmeMangingProcessor(TestCase):
-
     def test_process_zones(self):
         acme = AcmeMangingProcessor('acme')
 
@@ -64,11 +65,10 @@ class TestAcmeMangingProcessor(TestCase):
         source.add_record(records['managed'])
 
         got = acme.process_source_zone(source)
-        self.assertEqual([
-            '_acme-challenge.managed',
-            '_acme-challenge.not-txt',
-            'not-acme',
-        ], sorted([r.name for r in got.records]))
+        self.assertEqual(
+            ['_acme-challenge.managed', '_acme-challenge.not-txt', 'not-acme'],
+            sorted([r.name for r in got.records]),
+        )
         managed = None
         for record in got.records:
             if record.name.endswith('managed'):
@@ -93,10 +93,13 @@ class TestAcmeMangingProcessor(TestCase):
         existing.add_record(records['going-away'])
 
         got = acme.process_target_zone(existing)
-        self.assertEqual([
-            '_acme-challenge.going-away',
-            '_acme-challenge.managed',
-            '_acme-challenge.not-txt',
-            '_acme-challenge.owned',
-            'not-acme'
-        ], sorted([r.name for r in got.records]))
+        self.assertEqual(
+            [
+                '_acme-challenge.going-away',
+                '_acme-challenge.managed',
+                '_acme-challenge.not-txt',
+                '_acme-challenge.owned',
+                'not-acme',
+            ],
+            sorted([r.name for r in got.records]),
+        )
