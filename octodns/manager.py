@@ -162,23 +162,21 @@ class Manager(object):
                                        processor_name)
 
         zone_tree = {}
-        # sort by reversed strings so that parent zones always come first
-        for name in sorted(self.config['zones'].keys(), key=lambda s: s[::-1]):
-            # ignore trailing dots, and reverse
-            pieces = name[:-1].split('.')[::-1]
-            # where starts out at the top
-            where = zone_tree
-            # for all the pieces
-            for piece in pieces:
-                try:
-                    where = where[piece]
-                    # our current piece already exists, just point where at
-                    # it's value
-                except KeyError:
-                    # our current piece doesn't exist, create it
-                    where[piece] = {}
-                    # and then point where at it's newly created value
-                    where = where[piece]
+        # Sort so we iterate on the deepest nodes first, ensuring if a parent
+        # zone exists it will be seen after the subzone, thus we can easily
+        # reparent children to their parent zone from the tree root.
+        for name in sorted(self.config['zones'].keys(),
+                           key=lambda s: 0 - s.count('.')):
+            # Trim the trailing dot from FQDN
+            name = name[:-1]
+            this = {}
+            for sz in [k for k in zone_tree.keys() if k.endswith(name)]:
+                # Found a zone in tree root that is our child, slice the
+                # name and move its tree under ours.
+                this[sz[:-(len(name) + 1)]] = zone_tree.pop(sz)
+            # Add to tree root where it will be reparented as we iterate up
+            # the tree.
+            zone_tree[name] = this
         self.zone_tree = zone_tree
 
         self.plan_outputs = {}
@@ -274,21 +272,20 @@ class Manager(object):
         return kwargs
 
     def configured_sub_zones(self, zone_name):
-        # Reversed pieces of the zone name
-        pieces = zone_name[:-1].split('.')[::-1]
-        # Point where at the root of the tree
+        name = zone_name[:-1]
         where = self.zone_tree
-        # Until we've hit the bottom of this zone
-        try:
-            while pieces:
-                # Point where at the value of our current piece
-                where = where[pieces.pop(0)]
-        except KeyError:
-            self.log.debug('configured_sub_zones: unknown zone, %s, no subs',
-                           zone_name)
-            return set()
-        # We're not pointed at the dict for our name, the keys of which will be
-        # any subzones
+        while True:
+            # Find parent if it exists
+            parent = next((k for k in where if name.endswith(k)), None)
+            if not parent:
+                # The zone_name in the tree has been reached, stop searching.
+                break
+            # Move down the tree and slice name to get the remainder for the
+            # next round of the search.
+            where = where[parent]
+            name = name[:-(len(parent) + 1)]
+        # `where` is now pointing at the dictionary of children for zone_name
+        # in the tree
         sub_zone_names = where.keys()
         self.log.debug('configured_sub_zones: subs=%s', sub_zone_names)
         return set(sub_zone_names)
