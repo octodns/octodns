@@ -22,7 +22,7 @@ def idna_encode(name):
 
 def idna_decode(name):
     pieces = name.lower().split('.')
-    if any([p.startswith('xn--') for p in pieces]):
+    if any(p.startswith('xn--') for p in pieces):
         # it's idna
         if name.startswith('*'):
             # idna.decode doesn't like the *
