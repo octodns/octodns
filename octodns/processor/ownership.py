@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from collections import defaultdict
 
@@ -17,7 +21,6 @@ from .base import BaseProcessor
 # delete. We'll take ownership of existing records that we're told to manage
 # and thus "own" them going forward.
 class OwnershipProcessor(BaseProcessor):
-
     def __init__(self, name, txt_name='_owner', txt_value='*octodns*'):
         super(OwnershipProcessor, self).__init__(name)
         self.txt_name = txt_name
@@ -32,19 +35,21 @@ class OwnershipProcessor(BaseProcessor):
                 name = f'{self.txt_name}.{record._type}.{record_name}'
             else:
                 name = f'{self.txt_name}.{record._type}'
-            txt = Record.new(desired, name, {
-                'type': 'TXT',
-                'ttl': 60,
-                'value': self.txt_value,
-            })
+            txt = Record.new(
+                desired,
+                name,
+                {'type': 'TXT', 'ttl': 60, 'value': self.txt_value},
+            )
             desired.add_record(txt)
 
         return desired
 
     def _is_ownership(self, record):
-        return record._type == 'TXT' and \
-            record.name.startswith(self.txt_name) \
+        return (
+            record._type == 'TXT'
+            and record.name.startswith(self.txt_name)
             and record.values == self._txt_values
+        )
 
     def process_plan(self, plan, *args, **kwargs):
         if not plan:
@@ -80,9 +85,11 @@ class OwnershipProcessor(BaseProcessor):
         for change in plan.changes:
             record = change.record
 
-            if not self._is_ownership(record) and \
-               record._type not in owned[record.name] and \
-               record.name != 'octodns-meta':
+            if (
+                not self._is_ownership(record)
+                and record._type not in owned[record.name]
+                and record.name != 'octodns-meta'
+            ):
                 # It's not an ownership TXT, it's not owned, and it's not
                 # special we're going to ignore it
                 continue
@@ -92,8 +99,13 @@ class OwnershipProcessor(BaseProcessor):
             filtered_changes.append(change)
 
         if plan.changes != filtered_changes:
-            return Plan(plan.existing, plan.desired, filtered_changes,
-                        plan.exists, plan.update_pcent_threshold,
-                        plan.delete_pcent_threshold)
+            return Plan(
+                plan.existing,
+                plan.desired,
+                filtered_changes,
+                plan.exists,
+                plan.update_pcent_threshold,
+                plan.delete_pcent_threshold,
+            )
 
         return plan

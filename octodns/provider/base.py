@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from ..source.base import BaseSource
 from ..zone import Zone
@@ -12,19 +16,24 @@ from . import SupportsException
 
 
 class BaseProvider(BaseSource):
-
-    def __init__(self, id, apply_disabled=False,
-                 update_pcent_threshold=Plan.MAX_SAFE_UPDATE_PCENT,
-                 delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT,
-                 strict_supports=False):
+    def __init__(
+        self,
+        id,
+        apply_disabled=False,
+        update_pcent_threshold=Plan.MAX_SAFE_UPDATE_PCENT,
+        delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT,
+        strict_supports=False,
+    ):
         super(BaseProvider, self).__init__(id)
-        self.log.debug('__init__: id=%s, apply_disabled=%s, '
-                       'update_pcent_threshold=%.2f, '
-                       'delete_pcent_threshold=%.2f',
-                       id,
-                       apply_disabled,
-                       update_pcent_threshold,
-                       delete_pcent_threshold)
+        self.log.debug(
+            '__init__: id=%s, apply_disabled=%s, '
+            'update_pcent_threshold=%.2f, '
+            'delete_pcent_threshold=%.2f',
+            id,
+            apply_disabled,
+            update_pcent_threshold,
+            delete_pcent_threshold,
+        )
         self.apply_disabled = apply_disabled
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
@@ -68,8 +77,10 @@ class BaseProvider(BaseSource):
                     if not unsupported_pools:
                         continue
                     unsupported_pools = ','.join(unsupported_pools)
-                    msg = f'"status" flag used in pools {unsupported_pools}' \
+                    msg = (
+                        f'"status" flag used in pools {unsupported_pools}'
                         f' in {record.fqdn} is not supported'
+                    )
                     fallback = 'will ignore it and respect the healthcheck'
                     self.supports_warn_or_except(msg, fallback)
                     record = record.copy()
@@ -84,11 +95,13 @@ class BaseProvider(BaseSource):
                     record = record.copy()
                     record.dynamic = None
                     desired.add_record(record, replace=True)
-            elif record._type == 'PTR' and len(record.values) > 1 and \
-                    not self.SUPPORTS_MULTIVALUE_PTR:
+            elif (
+                record._type == 'PTR'
+                and len(record.values) > 1
+                and not self.SUPPORTS_MULTIVALUE_PTR
+            ):
                 # replace with a single-value copy
-                msg = \
-                    f'multi-value PTR records not supported for {record.fqdn}'
+                msg = f'multi-value PTR records not supported for {record.fqdn}'
                 fallback = f'falling back to single value, {record.value}'
                 self.supports_warn_or_except(msg, fallback)
                 record = record.copy()
@@ -98,13 +111,15 @@ class BaseProvider(BaseSource):
         record = desired.root_ns
         if self.SUPPORTS_ROOT_NS:
             if not record:
-                self.log.warning('root NS record supported, but no record '
-                                 'is configured for %s', desired.name)
+                self.log.warning(
+                    'root NS record supported, but no record '
+                    'is configured for %s',
+                    desired.name,
+                )
         else:
             if record:
                 # we can't manage root NS records, get rid of it
-                msg = \
-                    f'root NS record not supported for {record.fqdn}'
+                msg = f'root NS record not supported for {record.fqdn}'
                 fallback = 'ignoring it'
                 self.supports_warn_or_except(msg, fallback)
                 desired.remove_record(record)
@@ -132,10 +147,13 @@ class BaseProvider(BaseSource):
         '''
 
         existing_root_ns = existing.root_ns
-        if existing_root_ns and (not self.SUPPORTS_ROOT_NS or
-                                 not desired.root_ns):
-            self.log.info('root NS record in existing, but not supported or '
-                          'not configured; ignoring it')
+        if existing_root_ns and (
+            not self.SUPPORTS_ROOT_NS or not desired.root_ns
+        ):
+            self.log.info(
+                'root NS record in existing, but not supported or '
+                'not configured; ignoring it'
+            )
             existing.remove_record(existing_root_ns)
 
         return existing
@@ -168,8 +186,10 @@ class BaseProvider(BaseSource):
         if exists is None:
             # If your code gets this warning see Source.populate for more
             # information
-            self.log.warning('Provider %s used in target mode did not return '
-                             'exists', self.id)
+            self.log.warning(
+                'Provider %s used in target mode did not return ' 'exists',
+                self.id,
+            )
 
         # Make a (shallow) copy of the desired state so that everything from
         # now on (in this target) can modify it as they see fit without
@@ -194,17 +214,25 @@ class BaseProvider(BaseSource):
             self.log.info('plan:   filtered out %s changes', before - after)
 
         # allow the provider to add extra changes it needs
-        extra = self._extra_changes(existing=existing, desired=desired,
-                                    changes=changes)
+        extra = self._extra_changes(
+            existing=existing, desired=desired, changes=changes
+        )
         if extra:
-            self.log.info('plan:   extra changes\n  %s', '\n  '
-                          .join([str(c) for c in extra]))
+            self.log.info(
+                'plan:   extra changes\n  %s',
+                '\n  '.join([str(c) for c in extra]),
+            )
             changes += extra
 
         if changes:
-            plan = Plan(existing, desired, changes, exists,
-                        self.update_pcent_threshold,
-                        self.delete_pcent_threshold)
+            plan = Plan(
+                existing,
+                desired,
+                changes,
+                exists,
+                self.update_pcent_threshold,
+                self.delete_pcent_threshold,
+            )
             self.log.info('plan:   %s', plan)
             return plan
         self.log.info('plan:   No changes')
@@ -221,11 +249,11 @@ class BaseProvider(BaseSource):
 
         zone_name = plan.desired.name
         num_changes = len(plan.changes)
-        self.log.info('apply: making %d changes to %s', num_changes,
-                      zone_name)
+        self.log.info('apply: making %d changes to %s', num_changes, zone_name)
         self._apply(plan)
         return len(plan.changes)
 
     def _apply(self, plan):
-        raise NotImplementedError('Abstract base class, _apply method '
-                                  'missing')
+        raise NotImplementedError(
+            'Abstract base class, _apply method ' 'missing'
+        )

@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from logging import getLogger
 
@@ -34,8 +38,9 @@ class AcmeMangingProcessor(BaseProcessor):
 
     def process_source_zone(self, desired, *args, **kwargs):
         for record in desired.records:
-            if record._type == 'TXT' and \
-               record.name.startswith('_acme-challenge'):
+            if record._type == 'TXT' and record.name.startswith(
+                '_acme-challenge'
+            ):
                 # We have a managed acme challenge record (owned by octoDNS) so
                 # we should mark it as such
                 record = record.copy()
@@ -51,10 +56,12 @@ class AcmeMangingProcessor(BaseProcessor):
         for record in existing.records:
             # Uses a startswith rather than == to ignore subdomain challenges,
             # e.g. _acme-challenge.foo.domain.com when managing domain.com
-            if record._type == 'TXT' and \
-               record.name.startswith('_acme-challenge') and \
-               '*octoDNS*' not in record.values and \
-               record not in self._owned:
+            if (
+                record._type == 'TXT'
+                and record.name.startswith('_acme-challenge')
+                and '*octoDNS*' not in record.values
+                and record not in self._owned
+            ):
                 self.log.info('_process: ignoring %s', record.fqdn)
                 existing.remove_record(record)
 

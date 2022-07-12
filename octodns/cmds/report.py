@@ -3,8 +3,12 @@
 Octo-DNS Reporter
 '''
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from concurrent.futures import ThreadPoolExecutor
 from dns.exception import Timeout
@@ -18,28 +22,38 @@ from octodns.manager import Manager
 
 
 class AsyncResolver(Resolver):
-
     def __init__(self, num_workers, *args, **kwargs):
         super(AsyncResolver, self).__init__(*args, **kwargs)
         self.executor = ThreadPoolExecutor(max_workers=num_workers)
 
     def query(self, *args, **kwargs):
-        return self.executor.submit(super(AsyncResolver, self).query, *args,
-                                    **kwargs)
+        return self.executor.submit(
+            super(AsyncResolver, self).query, *args, **kwargs
+        )
 
 
 def main():
     parser = ArgumentParser(description=__doc__.split('\n')[1])
 
-    parser.add_argument('--config-file', required=True,
-                        help='The Manager configuration file to use')
+    parser.add_argument(
+        '--config-file',
+        required=True,
+        help='The Manager configuration file to use',
+    )
     parser.add_argument('--zone', required=True, help='Zone to dump')
-    parser.add_argument('--source', required=True, default=[], action='append',
-                        help='Source(s) to pull data from')
-    parser.add_argument('--num-workers', default=4,
-                        help='Number of background workers')
-    parser.add_argument('--timeout', default=1,
-                        help='Number seconds to wait for an answer')
+    parser.add_argument(
+        '--source',
+        required=True,
+        default=[],
+        action='append',
+        help='Source(s) to pull data from',
+    )
+    parser.add_argument(
+        '--num-workers', default=4, help='Number of background workers'
+    )
+    parser.add_argument(
+        '--timeout', default=1, help='Number seconds to wait for an answer'
+    )
     parser.add_argument('server', nargs='+', help='Servers to query')
 
     args = parser.parse_args()
@@ -62,8 +76,9 @@ def main():
     resolvers = []
     ip_addr_re = re.compile(r'^[\d\.]+$')
     for server in args.server:
-        resolver = AsyncResolver(configure=False,
-                                 num_workers=int(args.num_workers))
+        resolver = AsyncResolver(
+            configure=False, num_workers=int(args.num_workers)
+        )
         if not ip_addr_re.match(server):
             server = str(query(server, 'A')[0])
         log.info('server=%s', server)
@@ -73,8 +88,9 @@ def main():
 
     queries = {}
     for record in sorted(zone.records):
-        queries[record] = [r.query(record.fqdn, record._type)
-                           for r in resolvers]
+        queries[record] = [
+            r.query(record.fqdn, record._type) for r in resolvers
+        ]
 
     for record, futures in sorted(queries.items(), key=lambda d: d[0]):
         stdout.write(record.fqdn)

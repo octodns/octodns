@@ -2,14 +2,17 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from .base import BaseProcessor
 
 
 class TypeAllowlistFilter(BaseProcessor):
-
     def __init__(self, name, allowlist):
         super(TypeAllowlistFilter, self).__init__(name)
         self.allowlist = set(allowlist)
@@ -26,7 +29,6 @@ class TypeAllowlistFilter(BaseProcessor):
 
 
 class TypeRejectlistFilter(BaseProcessor):
-
     def __init__(self, name, rejectlist):
         super(TypeRejectlistFilter, self).__init__(name)
         self.rejectlist = set(rejectlist)
