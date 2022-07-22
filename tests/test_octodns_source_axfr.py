@@ -34,8 +34,14 @@ class TestAxfrSource(TestCase):
         './tests/zones/unit.tests.tst', 'unit.tests', relativize=False
     )
 
+    reverse_zonefile = dns.zone.from_file(
+        './tests/zones/2.0.192.in-addr.arpa.',
+        '2.0.192.in-addr.arpa',
+        relativize=False,
+    )
+
     @patch('dns.zone.from_xfr')
-    def test_populate(self, from_xfr_mock):
+    def test_populate_forward(self, from_xfr_mock):
         got = Zone('unit.tests.', [])
 
         from_xfr_mock.side_effect = [self.forward_zonefile, DNSException]
@@ -47,6 +53,15 @@ class TestAxfrSource(TestCase):
             zone = Zone('unit.tests.', [])
             self.source.populate(zone)
         self.assertEqual('Unable to Perform Zone Transfer', str(ctx.exception))
+
+    @patch('dns.zone.from_xfr')
+    def test_populate_reverse(self, from_xfr_mock):
+        got = Zone('2.0.192.in-addr.arpa.', [])
+
+        from_xfr_mock.side_effect = [self.reverse_zonefile]
+
+        self.source.populate(got)
+        self.assertEqual(4, len(got.records))
 
 
 class TestZoneFileSource(TestCase):

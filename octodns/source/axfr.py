@@ -59,6 +59,7 @@ class AxfrBaseSource(BaseSource):
     _data_for_A = _data_for_multiple
     _data_for_AAAA = _data_for_multiple
     _data_for_NS = _data_for_multiple
+    _data_for_PTR = _data_for_multiple
 
     def _data_for_CAA(self, _type, records):
         values = []
@@ -122,7 +123,6 @@ class AxfrBaseSource(BaseSource):
         return {'ttl': record['ttl'], 'type': _type, 'value': record['value']}
 
     _data_for_CNAME = _data_for_single
-    _data_for_PTR = _data_for_single
 
     def _data_for_SRV(self, _type, records):
         values = []
