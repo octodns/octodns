@@ -3,8 +3,12 @@
 Octo-DNS Comparator
 '''
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from pprint import pprint
 import sys
@@ -16,16 +20,32 @@ from octodns.manager import Manager
 def main():
     parser = ArgumentParser(description=__doc__.split('\n')[1])
 
-    parser.add_argument('--config-file', required=True,
-                        help='The Manager configuration file to use')
-    parser.add_argument('--a', nargs='+', required=True,
-                        help='First source(s) to pull data from')
-    parser.add_argument('--b', nargs='+', required=True,
-                        help='Second source(s) to pull data from')
-    parser.add_argument('--zone', default=None, required=True,
-                        help='Zone to compare')
-    parser.add_argument('--ignore-prefix', default=None, required=False,
-                        help='Record prefix to ignore from list of changes')
+    parser.add_argument(
+        '--config-file',
+        required=True,
+        help='The Manager configuration file to use',
+    )
+    parser.add_argument(
+        '--a',
+        nargs='+',
+        required=True,
+        help='First source(s) to pull data from',
+    )
+    parser.add_argument(
+        '--b',
+        nargs='+',
+        required=True,
+        help='Second source(s) to pull data from',
+    )
+    parser.add_argument(
+        '--zone', default=None, required=True, help='Zone to compare'
+    )
+    parser.add_argument(
+        '--ignore-prefix',
+        default=None,
+        required=False,
+        help='Record prefix to ignore from list of changes',
+    )
     args = parser.parse_args()
 
     manager = Manager(args.config_file)
@@ -34,8 +54,7 @@ def main():
     # Filter changes list based on ignore-prefix argument if present
     if args.ignore_prefix:
         pattern = args.ignore_prefix
-        changes = [c for c in changes
-                   if not c.record.fqdn.startswith(pattern)]
+        changes = [c for c in changes if not c.record.fqdn.startswith(pattern)]
 
     pprint(changes)
 

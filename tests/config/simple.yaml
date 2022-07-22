@@ -34,6 +34,11 @@ zones:
     targets:
     - dump
     - dump2
+  sub.txt.unit.tests.:
+    sources:
+    - in
+    targets:
+    - dump
   empty.:
     sources:
     - in

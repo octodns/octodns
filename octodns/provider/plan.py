@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from logging import DEBUG, ERROR, INFO, WARN, getLogger
 from sys import stdout
@@ -16,30 +20,37 @@ class UnsafePlan(Exception):
 
 
 class RootNsChange(UnsafePlan):
-
     def __init__(self):
         super().__init__('Root NS record change, force required')
 
 
 class TooMuchChange(UnsafePlan):
-
-    def __init__(self, why, update_pcent, update_threshold, change_count,
-                 existing_count):
-        msg = f'{why}, {update_pcent:.2f}% is over {update_threshold:.2f}% ' \
+    def __init__(
+        self, why, update_pcent, update_threshold, change_count, existing_count
+    ):
+        msg = (
+            f'{why}, {update_pcent:.2f}% is over {update_threshold:.2f}% '
             f'({change_count}/{existing_count}), force required'
+        )
         super().__init__(msg)
 
 
 class Plan(object):
     log = getLogger('Plan')
 
-    MAX_SAFE_UPDATE_PCENT = .3
-    MAX_SAFE_DELETE_PCENT = .3
+    MAX_SAFE_UPDATE_PCENT = 0.3
+    MAX_SAFE_DELETE_PCENT = 0.3
     MIN_EXISTING_RECORDS = 10
 
-    def __init__(self, existing, desired, changes, exists,
-                 update_pcent_threshold=MAX_SAFE_UPDATE_PCENT,
-                 delete_pcent_threshold=MAX_SAFE_DELETE_PCENT):
+    def __init__(
+        self,
+        existing,
+        desired,
+        changes,
+        exists,
+        update_pcent_threshold=MAX_SAFE_UPDATE_PCENT,
+        delete_pcent_threshold=MAX_SAFE_DELETE_PCENT,
+    ):
         self.existing = existing
         self.desired = desired
         # Sort changes to ensure we always have a consistent ordering for
@@ -51,11 +62,7 @@ class Plan(object):
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
 
-        change_counts = {
-            'Create': 0,
-            'Delete': 0,
-            'Update': 0
-        }
+        change_counts = {'Create': 0, 'Delete': 0, 'Update': 0}
         for change in changes:
             change_counts[change.__class__.__name__] += 1
         self.change_counts = change_counts
@@ -65,43 +72,57 @@ class Plan(object):
         except AttributeError:
             existing_n = 0
 
-        self.log.debug('__init__: Creates=%d, Updates=%d, Deletes=%d '
-                       'Existing=%d',
-                       self.change_counts['Create'],
-                       self.change_counts['Update'],
-                       self.change_counts['Delete'], existing_n)
+        self.log.debug(
+            '__init__: Creates=%d, Updates=%d, Deletes=%d ' 'Existing=%d',
+            self.change_counts['Create'],
+            self.change_counts['Update'],
+            self.change_counts['Delete'],
+            existing_n,
+        )
 
     def raise_if_unsafe(self):
         # TODO: what is safe really?
-        if self.existing and \
-           len(self.existing.records) >= self.MIN_EXISTING_RECORDS:
+        if (
+            self.existing
+            and len(self.existing.records) >= self.MIN_EXISTING_RECORDS
+        ):
 
             existing_record_count = len(self.existing.records)
             if existing_record_count > 0:
-                update_pcent = (self.change_counts['Update'] /
-                                existing_record_count)
-                delete_pcent = (self.change_counts['Delete'] /
-                                existing_record_count)
+                update_pcent = (
+                    self.change_counts['Update'] / existing_record_count
+                )
+                delete_pcent = (
+                    self.change_counts['Delete'] / existing_record_count
+                )
             else:
                 update_pcent = 0
                 delete_pcent = 0
 
             if update_pcent > self.update_pcent_threshold:
-                raise TooMuchChange('Too many updates', update_pcent * 100,
-                                    self.update_pcent_threshold * 100,
-                                    self.change_counts['Update'],
-                                    existing_record_count)
+                raise TooMuchChange(
+                    'Too many updates',
+                    update_pcent * 100,
+                    self.update_pcent_threshold * 100,
+                    self.change_counts['Update'],
+                    existing_record_count,
+                )
             if delete_pcent > self.delete_pcent_threshold:
-                raise TooMuchChange('Too many deletes', delete_pcent * 100,
-                                    self.delete_pcent_threshold * 100,
-                                    self.change_counts['Delete'],
-                                    existing_record_count)
+                raise TooMuchChange(
+                    'Too many deletes',
+                    delete_pcent * 100,
+                    self.delete_pcent_threshold * 100,
+                    self.change_counts['Delete'],
+                    existing_record_count,
+                )
 
         # If we have any changes of the root NS record for the zone it's a huge
         # deal and force should always be required for extra care
-        if self.exists and any(c for c in self.changes
-                               if c.record and c.record._type == 'NS' and
-                               c.record.name == ''):
+        if self.exists and any(
+            c
+            for c in self.changes
+            if c.record and c.record._type == 'NS' and c.record.name == ''
+        ):
             raise RootNsChange()
 
     def __repr__(self):
@@ -109,18 +130,18 @@ class Plan(object):
         updates = self.change_counts['Update']
         deletes = self.change_counts['Delete']
         existing = len(self.existing.records)
-        return f'Creates={creates}, Updates={updates}, Deletes={deletes}, ' \
+        return (
+            f'Creates={creates}, Updates={updates}, Deletes={deletes}, '
             f'Existing Records={existing}'
+        )
 
 
 class _PlanOutput(object):
-
     def __init__(self, name):
         self.name = name
 
 
 class PlanLogger(_PlanOutput):
-
     def __init__(self, name, level='info'):
         super(PlanLogger, self).__init__(name)
         try:
@@ -129,14 +150,16 @@ class PlanLogger(_PlanOutput):
                 'info': INFO,
                 'warn': WARN,
                 'warning': WARN,
-                'error': ERROR
+                'error': ERROR,
             }[level.lower()]
         except (AttributeError, KeyError):
             raise Exception(f'Unsupported level: {level}')
 
     def run(self, log, plans, *args, **kwargs):
-        hr = '*************************************************************' \
+        hr = (
+            '*************************************************************'
             '*******************\n'
+        )
         buf = StringIO()
         buf.write('\n')
         if plans:
@@ -188,7 +211,6 @@ def _value_stringifier(record, sep):
 
 
 class PlanMarkdown(_PlanOutput):
-
     def run(self, plans, fh=stdout, *args, **kwargs):
         if plans:
             current_zone = None
@@ -203,8 +225,10 @@ class PlanMarkdown(_PlanOutput):
                 fh.write(target.id)
                 fh.write('\n\n')
 
-                fh.write('| Operation | Name | Type | TTL | Value | Source |\n'
-                         '|--|--|--|--|--|--|\n')
+                fh.write(
+                    '| Operation | Name | Type | TTL | Value | Source |\n'
+                    '|--|--|--|--|--|--|\n'
+                )
 
                 if plan.exists is False:
                     fh.write('| Create | ')
@@ -248,7 +272,6 @@ class PlanMarkdown(_PlanOutput):
 
 
 class PlanHtml(_PlanOutput):
-
     def run(self, plans, fh=stdout, *args, **kwargs):
         if plans:
             current_zone = None
@@ -261,7 +284,8 @@ class PlanHtml(_PlanOutput):
 
                 fh.write('<h3>')
                 fh.write(target.id)
-                fh.write('''</h3>
+                fh.write(
+                    '''</h3>
 <table>
   <tr>
     <th>Operation</th>
@@ -271,7 +295,8 @@ class PlanHtml(_PlanOutput):
     <th>Value</th>
     <th>Source</th>
   </tr>
-''')
+'''
+                )
 
                 if plan.exists is False:
                     fh.write('  <tr>\n    <td>Create</td>\n    <td colspan=5>')

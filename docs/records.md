@@ -18,6 +18,7 @@ OctoDNS supports the following record types:
 * `SPF`
 * `SRV`
 * `SSHFP`
+* `TLSA`
 * `TXT`
 * `URLFWD`
 

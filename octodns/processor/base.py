@@ -2,12 +2,15 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 
 class BaseProcessor(object):
-
     def __init__(self, name):
         self.name = name
 
@@ -15,7 +18,7 @@ class BaseProcessor(object):
         '''
         Called after all sources have completed populate. Provides an
         opportunity for the processor to modify the desired `Zone` that targets
-        will recieve.
+        will receive.
 
         - Will see `desired` after any modifications done by
           `Provider._process_desired_zone` and processors configured to run

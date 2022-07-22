@@ -23,7 +23,7 @@ The architecture is pluggable and the tooling is flexible to make it applicable 
   * [Updating to use extracted providers](#updating-to-use-extracted-providers)
 - [Sources](#sources)
     + [Notes](#notes)
-- [Compatibilty and Compliance](#compatibilty-and-compliance)
+- [Compatibility and Compliance](#compatibilty-and-compliance)
   * [`lenient`](#-lenient-)
   * [`strict_supports` (Work In Progress)](#-strict-supports---work-in-progress-)
   * [Configuring `strict_supports`](#configuring--strict-supports-)
@@ -41,7 +41,7 @@ The architecture is pluggable and the tooling is flexible to make it applicable 
 
 ### Workspace
 
-Running through the following commands will install the latest release of OctoDNS and set up a place for your config files to live. To determine if provider specific requirements are necessary see the [Supported providers table](#supported-providers) below.
+Running through the following commands will install the latest release of OctoDNS and set up a place for your config files to live. To determine if provider specific requirements are necessary see the [providers table](#providers) below.
 
 ```shell
 $ mkdir dns
@@ -55,7 +55,7 @@ $ mkdir config
 
 #### Installing a specific commit SHA
 
-If you'd like to install a version that has not yet been released in a repetable/safe manner you can do the following. In general octoDNS is fairly stable inbetween releases thanks to the plan and apply process, but care should be taken regardless.
+If you'd like to install a version that has not yet been released in a repetable/safe manner you can do the following. In general octoDNS is fairly stable in between releases thanks to the plan and apply process, but care should be taken regardless.
 
 ```shell
 $ pip install -e git+https://git@github.com/octodns/octodns.git@<SHA>#egg=octodns
@@ -68,6 +68,7 @@ We start by creating a config file to tell OctoDNS about our providers and the z
 ```yaml
 ---
 manager:
+  include_meta: False
   max_workers: 2
 
 providers:
@@ -101,6 +102,8 @@ zones:
 `class` is a special key that tells OctoDNS what python class should be loaded. Any other keys will be passed as configuration values to that provider. In general any sensitive or frequently rotated values should come from environmental variables. When OctoDNS sees a value that starts with `env/` it will look for that value in the process's environment and pass the result along.
 
 Further information can be found in the `docstring` of each source and provider class.
+
+The `include_meta` key in the `manager` section of the config controls the creation of a TXT record at the root of a zone that is managed by OctoDNS. If set to `True`, OctoDNS will create a TXT record for the root of the zone with the value `provider=<target-provider>`. If not specified, the default value for `include_meta` is `False`.
 
 The `max_workers` key in the `manager` section of the config enables threading to parallelize the planning portion of the sync.
 
@@ -195,7 +198,7 @@ The above command pulled the existing data out of Route53 and placed the results
 
 ## Providers
 
-The table below lists the providers octoDNS supports. They are maintained in their own repositories and released as independant modules. 
+The table below lists the providers octoDNS supports. They are maintained in their own repositories and released as independent modules. 
 
 | Provider | Module | Notes |
 |--|--|--|
@@ -250,7 +253,7 @@ Similar to providers, but can only serve to populate records into a zone, cannot
    * Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
 * octoDNS itself supports non-ASCII character sets, but in testing Cloudflare is the only provider where that is currently functional end-to-end. Others have failures either in the client libraries or API calls
 
-## Compatibilty and Compliance
+## Compatibility and Compliance
 
 ### `lenient`
 

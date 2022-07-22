@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from collections import defaultdict
 from os import listdir, makedirs
@@ -102,23 +106,54 @@ class YamlProvider(BaseProvider):
     `--config-file=internal.yaml`
 
     '''
+
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
     SUPPORTS_POOL_VALUE_STATUS = True
     SUPPORTS_MULTIVALUE_PTR = True
-    SUPPORTS = set(('A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'DNAME', 'LOC', 'MX',
-                    'NAPTR', 'NS', 'PTR', 'SSHFP', 'SPF', 'SRV', 'TXT',
-                    'URLFWD'))
+    SUPPORTS = set(
+        (
+            'A',
+            'AAAA',
+            'ALIAS',
+            'CAA',
+            'CNAME',
+            'DNAME',
+            'LOC',
+            'MX',
+            'NAPTR',
+            'NS',
+            'PTR',
+            'SSHFP',
+            'SPF',
+            'SRV',
+            'TXT',
+            'URLFWD',
+        )
+    )
 
-    def __init__(self, id, directory, default_ttl=3600, enforce_order=True,
-                 populate_should_replace=False, supports_root_ns=True,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        id,
+        directory,
+        default_ttl=3600,
+        enforce_order=True,
+        populate_should_replace=False,
+        supports_root_ns=True,
+        *args,
+        **kwargs,
+    ):
         klass = self.__class__.__name__
         self.log = logging.getLogger(f'{klass}[{id}]')
-        self.log.debug('__init__: id=%s, directory=%s, default_ttl=%d, '
-                       'enforce_order=%d, populate_should_replace=%d',
-                       id, directory, default_ttl, enforce_order,
-                       populate_should_replace)
+        self.log.debug(
+            '__init__: id=%s, directory=%s, default_ttl=%d, '
+            'enforce_order=%d, populate_should_replace=%d',
+            id,
+            directory,
+            default_ttl,
+            enforce_order,
+            populate_should_replace,
+        )
         super(YamlProvider, self).__init__(id, *args, **kwargs)
         self.directory = directory
         self.default_ttl = default_ttl
@@ -146,16 +181,25 @@ class YamlProvider(BaseProvider):
                     for d in data:
                         if 'ttl' not in d:
                             d['ttl'] = self.default_ttl
-                        record = Record.new(zone, name, d, source=self,
-                                            lenient=lenient)
-                        zone.add_record(record, lenient=lenient,
-                                        replace=self.populate_should_replace)
-            self.log.debug('_populate_from_file: successfully loaded "%s"',
-                           filename)
+                        record = Record.new(
+                            zone, name, d, source=self, lenient=lenient
+                        )
+                        zone.add_record(
+                            record,
+                            lenient=lenient,
+                            replace=self.populate_should_replace,
+                        )
+            self.log.debug(
+                '_populate_from_file: successfully loaded "%s"', filename
+            )
 
     def populate(self, zone, target=False, lenient=False):
-        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
-                       target, lenient)
+        self.log.debug(
+            'populate: name=%s, target=%s, lenient=%s',
+            zone.name,
+            target,
+            lenient,
+        )
 
         if target:
             # When acting as a target we ignore any existing records so that we
@@ -166,15 +210,18 @@ class YamlProvider(BaseProvider):
         filename = join(self.directory, f'{zone.name}yaml')
         self._populate_from_file(filename, zone, lenient)
 
-        self.log.info('populate:   found %s records, exists=False',
-                      len(zone.records) - before)
+        self.log.info(
+            'populate:   found %s records, exists=False',
+            len(zone.records) - before,
+        )
         return False
 
     def _apply(self, plan):
         desired = plan.desired
         changes = plan.changes
-        self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
-                       len(changes))
+        self.log.debug(
+            '_apply: zone=%s, len(changes)=%d', desired.name, len(changes)
+        )
         # Since we don't have existing we'll only see creates
         records = [c.new for c in changes]
         # Order things alphabetically (records sort that way
@@ -263,8 +310,12 @@ class SplitYamlProvider(YamlProvider):
         return join(self.directory, filename)
 
     def populate(self, zone, target=False, lenient=False):
-        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
-                       target, lenient)
+        self.log.debug(
+            'populate: name=%s, target=%s, lenient=%s',
+            zone.name,
+            target,
+            lenient,
+        )
 
         if target:
             # When acting as a target we ignore any existing records so that we
@@ -277,8 +328,10 @@ class SplitYamlProvider(YamlProvider):
         for yaml_filename in yaml_filenames:
             self._populate_from_file(yaml_filename, zone, lenient)
 
-        self.log.info('populate:   found %s records, exists=False',
-                      len(zone.records) - before)
+        self.log.info(
+            'populate:   found %s records, exists=False',
+            len(zone.records) - before,
+        )
         return False
 
     def _do_apply(self, desired, data):
