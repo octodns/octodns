@@ -29,6 +29,12 @@ def main():
         'written (Note: will overwrite existing files)',
     )
     parser.add_argument(
+        '--output-provider',
+        required=False,
+        help='The configured provider to use when dumping '
+        'records. Must support copy() and directory',
+    )
+    parser.add_argument(
         '--lenient',
         action='store_true',
         default=False,
@@ -47,7 +53,12 @@ def main():
 
     manager = Manager(args.config_file)
     manager.dump(
-        args.zone, args.output_dir, args.lenient, args.split, *args.source
+        zone=args.zone,
+        output_dir=args.output_dir,
+        output_provider=args.output_provider,
+        lenient=args.lenient,
+        split=args.split,
+        sources=args.source,
     )
 
 

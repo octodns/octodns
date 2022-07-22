@@ -10,7 +10,7 @@ from __future__ import (
 )
 
 from os import environ
-from os.path import dirname, join
+from os.path import dirname, isfile, join
 
 from octodns import __VERSION__
 from octodns.manager import (
@@ -130,6 +130,7 @@ class TestManager(TestCase):
     def test_always_dry_run(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
             tc = Manager(get_config_filename('always-dry-run.yaml')).sync(
                 dry_run=False
             )
@@ -139,6 +140,7 @@ class TestManager(TestCase):
     def test_simple(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
             tc = Manager(get_config_filename('simple.yaml')).sync(dry_run=False)
             self.assertEqual(28, tc)
 
@@ -183,6 +185,7 @@ class TestManager(TestCase):
     def test_eligible_sources(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
             # Only allow a target that doesn't exist
             tc = Manager(get_config_filename('simple.yaml')).sync(
                 eligible_sources=['foo']
@@ -192,6 +195,7 @@ class TestManager(TestCase):
     def test_eligible_targets(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
             # Only allow a target that doesn't exist
             tc = Manager(get_config_filename('simple.yaml')).sync(
                 eligible_targets=['foo']
@@ -201,6 +205,7 @@ class TestManager(TestCase):
     def test_aliases(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
             # Alias zones with a valid target.
             tc = Manager(get_config_filename('simple-alias-zone.yaml')).sync()
             self.assertEqual(0, tc)
@@ -239,6 +244,7 @@ class TestManager(TestCase):
     def test_compare(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
             manager = Manager(get_config_filename('simple.yaml'))
 
             # make sure this was pulled in from the config
@@ -319,49 +325,157 @@ class TestManager(TestCase):
     def test_dump(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
             manager = Manager(get_config_filename('simple.yaml'))
 
             with self.assertRaises(ManagerException) as ctx:
                 manager.dump(
-                    'unit.tests.', tmpdir.dirname, False, False, 'nope'
+                    zone='unit.tests.',
+                    output_dir=tmpdir.dirname,
+                    split=True,
+                    sources=['nope'],
                 )
             self.assertEqual('Unknown source: nope', str(ctx.exception))
 
-            manager.dump('unit.tests.', tmpdir.dirname, False, False, 'in')
+            manager.dump(
+                zone='unit.tests.',
+                output_dir=tmpdir.dirname,
+                split=True,
+                sources=['in'],
+            )
 
             # make sure this fails with an IOError and not a KeyError when
             # trying to find sub zones
             with self.assertRaises(IOError):
                 manager.dump(
-                    'unknown.zone.', tmpdir.dirname, False, False, 'in'
+                    zone='unknown.zone.',
+                    output_dir=tmpdir.dirname,
+                    split=True,
+                    sources=['in'],
                 )
 
     def test_dump_empty(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
             manager = Manager(get_config_filename('simple.yaml'))
 
-            manager.dump('empty.', tmpdir.dirname, False, False, 'in')
+            manager.dump(
+                zone='empty.', output_dir=tmpdir.dirname, sources=['in']
+            )
 
             with open(join(tmpdir.dirname, 'empty.yaml')) as fh:
                 data = safe_load(fh, False)
                 self.assertFalse(data)
 
+    def test_dump_output_provider(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            # this time we'll use seperate tmp dirs
+            with TemporaryDirectory() as tmpdir2:
+                environ['YAML_TMP_DIR2'] = tmpdir2.dirname
+                manager = Manager(get_config_filename('simple.yaml'))
+
+                # we're going to tell it to use dump2 to do the dumping, but a
+                # copy should be made and directory set to tmpdir.dirname
+                # rather than 2's tmpdir2.dirname
+                manager.dump(
+                    zone='unit.tests.',
+                    output_dir=tmpdir.dirname,
+                    output_provider='dump2',
+                    sources=['in'],
+                )
+
+                self.assertTrue(isfile(join(tmpdir.dirname, 'unit.tests.yaml')))
+                self.assertFalse(
+                    isfile(join(tmpdir2.dirname, 'unit.tests.yaml'))
+                )
+
+                # let's run that again, this time telling it to use tmpdir2 and
+                # dump2 which should allow it to skip the copying
+                manager.dump(
+                    zone='unit.tests.',
+                    output_dir=tmpdir2.dirname,
+                    output_provider='dump2',
+                    sources=['in'],
+                )
+                self.assertTrue(
+                    isfile(join(tmpdir2.dirname, 'unit.tests.yaml'))
+                )
+
+                # tell it to use an output_provider that doesn't exist
+                with self.assertRaises(ManagerException) as ctx:
+                    manager.dump(
+                        zone='unit.tests.',
+                        output_dir=tmpdir.dirname,
+                        output_provider='nope',
+                        sources=['in'],
+                    )
+                self.assertEqual(
+                    'Unknown output_provider: nope', str(ctx.exception)
+                )
+
+                # tell it to use an output_provider that doesn't support
+                # directory
+                with self.assertRaises(ManagerException) as ctx:
+                    manager.dump(
+                        zone='unit.tests.',
+                        output_dir=tmpdir.dirname,
+                        output_provider='simple',
+                        sources=['in'],
+                    )
+                self.assertEqual(
+                    'output_provider=simple, does not support '
+                    'directory property',
+                    str(ctx.exception),
+                )
+
+                # hack a directory property onto the simple provider so that
+                # it'll pass that check and fail the copy one instead
+                manager.providers['simple'].directory = 42
+                with self.assertRaises(ManagerException) as ctx:
+                    manager.dump(
+                        zone='unit.tests.',
+                        output_dir=tmpdir.dirname,
+                        output_provider='simple',
+                        sources=['in'],
+                    )
+                self.assertEqual(
+                    'output_provider=simple, does not support ' 'copy method',
+                    str(ctx.exception),
+                )
+
     def test_dump_split(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
             manager = Manager(get_config_filename('simple-split.yaml'))
 
             with self.assertRaises(ManagerException) as ctx:
-                manager.dump('unit.tests.', tmpdir.dirname, False, True, 'nope')
+                manager.dump(
+                    zone='unit.tests.',
+                    output_dir=tmpdir.dirname,
+                    split=True,
+                    sources=['nope'],
+                )
             self.assertEqual('Unknown source: nope', str(ctx.exception))
 
-            manager.dump('unit.tests.', tmpdir.dirname, False, True, 'in')
+            manager.dump(
+                zone='unit.tests.',
+                output_dir=tmpdir.dirname,
+                split=True,
+                sources=['in'],
+            )
 
             # make sure this fails with an OSError and not a KeyError when
             # trying to find sub zones
             with self.assertRaises(OSError):
-                manager.dump('unknown.zone.', tmpdir.dirname, False, True, 'in')
+                manager.dump(
+                    zone='unknown.zone.',
+                    output_dir=tmpdir.dirname,
+                    split=True,
+                    sources=['in'],
+                )
 
     def test_validate_configs(self):
         Manager(get_config_filename('simple-validate.yaml')).validate_configs()
@@ -419,6 +533,7 @@ class TestManager(TestCase):
     def test_populate_lenient_fallback(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
             # Only allow a target that doesn't exist
             manager = Manager(get_config_filename('simple.yaml'))
 
@@ -441,6 +556,7 @@ class TestManager(TestCase):
     def test_plan_processors_fallback(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
             # Only allow a target that doesn't exist
             manager = Manager(get_config_filename('simple.yaml'))
 

@@ -161,6 +161,12 @@ class YamlProvider(BaseProvider):
         self.populate_should_replace = populate_should_replace
         self.supports_root_ns = supports_root_ns
 
+    def copy(self):
+        args = dict(self.__dict__)
+        args['id'] = f'{args["id"]}-copy'
+        del args['log']
+        return self.__class__(**args)
+
     @property
     def SUPPORTS_ROOT_NS(self):
         return self.supports_root_ns

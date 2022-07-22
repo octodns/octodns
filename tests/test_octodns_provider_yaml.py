@@ -444,6 +444,46 @@ class TestSplitYamlProvider(TestCase):
             str(ctx.exception),
         )
 
+    def test_copy(self):
+        # going to put some sentinal values in here to ensure, these aren't
+        # valid, but we shouldn't hit any code that cares during this test
+        source = YamlProvider(
+            'test',
+            42,
+            default_ttl=43,
+            enforce_order=44,
+            populate_should_replace=45,
+            supports_root_ns=46,
+        )
+        copy = source.copy()
+        self.assertEqual(source.directory, copy.directory)
+        self.assertEqual(source.default_ttl, copy.default_ttl)
+        self.assertEqual(source.enforce_order, copy.enforce_order)
+        self.assertEqual(
+            source.populate_should_replace, copy.populate_should_replace
+        )
+        self.assertEqual(source.supports_root_ns, copy.supports_root_ns)
+
+        # same for split
+        source = SplitYamlProvider(
+            'test',
+            42,
+            extension=42.5,
+            default_ttl=43,
+            enforce_order=44,
+            populate_should_replace=45,
+            supports_root_ns=46,
+        )
+        copy = source.copy()
+        self.assertEqual(source.directory, copy.directory)
+        self.assertEqual(source.extension, copy.extension)
+        self.assertEqual(source.default_ttl, copy.default_ttl)
+        self.assertEqual(source.enforce_order, copy.enforce_order)
+        self.assertEqual(
+            source.populate_should_replace, copy.populate_should_replace
+        )
+        self.assertEqual(source.supports_root_ns, copy.supports_root_ns)
+
 
 class TestOverridingYamlProvider(TestCase):
     def test_provider(self):

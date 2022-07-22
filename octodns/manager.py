@@ -638,25 +638,75 @@ class Manager(object):
 
         return zb.changes(za, _AggregateTarget(a + b))
 
-    def dump(self, zone, output_dir, lenient, split, source, *sources):
+    def dump(
+        self,
+        zone,
+        output_dir,
+        sources,
+        lenient=False,
+        split=False,
+        output_provider=None,
+    ):
         '''
         Dump zone data from the specified source
         '''
-        self.log.info('dump: zone=%s, sources=%s', zone, sources)
-
-        # We broke out source to force at least one to be passed, add it to any
-        # others we got.
-        sources = [source] + list(sources)
+        self.log.info(
+            'dump: zone=%s, output_dir=%s, output_provider=%s, '
+            'lenient=%s, split=%s, sources=%s',
+            zone,
+            output_dir,
+            output_provider,
+            lenient,
+            split,
+            sources,
+        )
 
         try:
             sources = [self.providers[s] for s in sources]
         except KeyError as e:
             raise ManagerException(f'Unknown source: {e.args[0]}')
 
-        clz = YamlProvider
-        if split:
-            clz = SplitYamlProvider
-        target = clz('dump', output_dir)
+        if output_provider:
+            self.log.info(
+                'dump: using specified output_provider=%s', output_provider
+            )
+            try:
+                target = self.providers[output_provider]
+            except KeyError as e:
+                raise ManagerException(f'Unknown output_provider: {e.args[0]}')
+            # The chosen output provider has to support a directory property so
+            # that we can tell it where the user has requested the dumped files
+            # to reside.
+            if not hasattr(target, 'directory'):
+                msg = (
+                    f'output_provider={output_provider}, does not support '
+                    'directory property'
+                )
+                raise ManagerException(msg)
+            if target.directory != output_dir:
+                # If the requested target doesn't match what's configured in
+                # the chosen provider then we'll need to set it. Before doing
+                # that we make a copy of the provider so that it can remain
+                # unchanged and potentially be used as a source, e.g. copying
+                # from one yaml to another
+                if not hasattr(target, 'copy'):
+                    msg = (
+                        f'output_provider={output_provider}, does not '
+                        'support copy method'
+                    )
+                    raise ManagerException(msg)
+                target = target.copy()
+                self.log.info(
+                    'dump: setting directory of output_provider ' 'copy to %s',
+                    output_dir,
+                )
+                target.directory = output_dir
+        else:
+            self.log.info('dump: using custom YamlProvider')
+            clz = YamlProvider
+            if split:
+                clz = SplitYamlProvider
+            target = clz('dump', output_dir)
 
         zone = Zone(zone, self.configured_sub_zones(zone))
         for source in sources:
