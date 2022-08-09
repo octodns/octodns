@@ -1,6 +1,7 @@
-## v0.9.18 - 2022-??-?? - Internationalization
+## v0.9.18 - 2022-09-09 - Internationalization
 
-* Added octodns.idna idna_encode/idna_decode helpers
+* Added octodns.idna idna_encode/idna_decode helpers, providers will need to
+  individually add support via these helpers though :-/
 
 ## v0.9.17 - 2022-04-02 - Registration required
 
