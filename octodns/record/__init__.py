@@ -16,6 +16,7 @@ import re
 from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
+from ..idna import idna_encode
 from .geo import GeoCodes
 
 
@@ -815,9 +816,7 @@ class _TargetValue(object):
             reasons.append('empty value')
         elif not data:
             reasons.append('missing value')
-        # NOTE: FQDN complains if the data it receives isn't a str, it doesn't
-        # allow unicode... This is likely specific to 2.7
-        elif not FQDN(str(data), allow_underscores=True).is_valid:
+        elif not FQDN(idna_encode(data), allow_underscores=True).is_valid:
             reasons.append(f'{_type} value "{data}" is not a valid FQDN')
         elif not data.endswith('.'):
             reasons.append(f'{_type} value "{data}" missing trailing .')
@@ -1151,7 +1150,9 @@ class MxValue(EqualityTupleMixin):
                 exchange = str(value.get('exchange', None) or value['value'])
                 if (
                     exchange != '.'
-                    and not FQDN(exchange, allow_underscores=True).is_valid
+                    and not FQDN(
+                        idna_encode(exchange), allow_underscores=True
+                    ).is_valid
                 ):
                     reasons.append(
                         f'Invalid MX exchange "{exchange}" is not '
@@ -1301,7 +1302,7 @@ class _NsValue(object):
             data = (data,)
         reasons = []
         for value in data:
-            if not FQDN(str(value), allow_underscores=True).is_valid:
+            if not FQDN(idna_encode(value), allow_underscores=True).is_valid:
                 reasons.append(
                     f'Invalid NS value "{value}" is not ' 'a valid FQDN.'
                 )
@@ -1512,7 +1513,9 @@ class SrvValue(EqualityTupleMixin):
                     reasons.append(f'SRV value "{target}" missing trailing .')
                 if (
                     target != '.'
-                    and not FQDN(str(target), allow_underscores=True).is_valid
+                    and not FQDN(
+                        idna_encode(target), allow_underscores=True
+                    ).is_valid
                 ):
                     reasons.append(
                         f'Invalid SRV target "{target}" is not ' 'a valid FQDN.'

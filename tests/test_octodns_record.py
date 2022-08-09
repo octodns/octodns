@@ -849,11 +849,16 @@ class TestRecord(TestCase):
         self.assertEqual(a_values, a.values)
         self.assertEqual(a_data, a.data)
 
-        b_value = '9.8.7.6.'
+        b_value = 'ns1.unit.tests.'
         b_data = {'ttl': 30, 'value': b_value}
         b = NsRecord(self.zone, 'b', b_data)
         self.assertEqual([b_value], b.values)
         self.assertEqual(b_data, b.data)
+
+        # utf-8 value support
+        utf8_value = 'zajęzyk.unit.tests.'
+        u = NsRecord(self.zone, 'b', {'ttl': 33, 'value': utf8_value})
+        self.assertEqual([utf8_value], u.values)
 
     def test_sshfp(self):
         a_values = [
@@ -1700,6 +1705,11 @@ class TestRecord(TestCase):
         self.assertEqual(a.__hash__(), a.__hash__())
         self.assertNotEqual(a.__hash__(), b.__hash__())
 
+        # utf-8 value support
+        utf8_value = 'zajęzyk.unit.tests.'
+        u = MxValue({'preference': 0, 'priority': 'a', 'value': utf8_value})
+        self.assertEqual(utf8_value, u.exchange)
+
     def test_sshfp_value(self):
         a = SshfpValue(
             {'algorithm': 0, 'fingerprint_type': 0, 'fingerprint': 'abcd'}
@@ -1829,6 +1839,13 @@ class TestRecord(TestCase):
         self.assertFalse(b in values)
         values.add(b)
         self.assertTrue(b in values)
+
+        # utf-8 value support
+        utf8_value = 'zajęzyk.unit.tests.'
+        u = SrvValue(
+            {'priority': 0, 'weight': 42, 'port': 80, 'target': utf8_value}
+        )
+        self.assertEqual(utf8_value, u.target)
 
 
 class TestRecordValidation(TestCase):
@@ -2429,6 +2446,13 @@ class TestRecordValidation(TestCase):
             'www',
             {'type': 'CNAME', 'ttl': 600, 'value': 'foo.bar.com.'},
         )
+
+        # utf-8 characters are allowed in values
+        utf8_value = 'zajęzyk.bar.com.'
+        r = Record.new(
+            self.zone, 'www', {'type': 'CNAME', 'ttl': 600, 'value': utf8_value}
+        )
+        self.assertEqual(utf8_value, r.value)
 
         # root cname is a no-no
         with self.assertRaises(ValidationError) as ctx:
