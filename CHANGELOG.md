@@ -1,3 +1,8 @@
+## v0.9.19 - 2022-??-?? -
+
+* Allow utf-8 (IDNA) values in record types that support fqdn for
+  values/targets
+
 ## v0.9.18 - 2022-09-09 - Internationalization
 
 * Added octodns.idna idna_encode/idna_decode helpers, providers will need to
