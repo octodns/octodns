@@ -7,4 +7,4 @@ from __future__ import (
     unicode_literals,
 )
 
-__VERSION__ = '0.9.17'
+__VERSION__ = '0.9.18'

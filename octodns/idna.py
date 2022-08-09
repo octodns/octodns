@@ -4,6 +4,10 @@
 
 from idna import decode as _decode, encode as _encode
 
+# Providers will need to to make calls to these at the appropriate points,
+# generally right before they pass names off to api calls. For an example of
+# usage see https://github.com/octodns/octodns-ns1/pull/20
+
 
 def idna_encode(name):
     # Based on https://github.com/psf/requests/pull/3695/files
