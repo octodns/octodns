@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from logging import getLogger
 from unittest import TestCase
@@ -27,8 +31,12 @@ class HelperProvider(BaseProvider):
     id = 'test'
     strict_supports = False
 
-    def __init__(self, extra_changes=[], apply_disabled=False,
-                 include_change_callback=None):
+    def __init__(
+        self,
+        extra_changes=[],
+        apply_disabled=False,
+        include_change_callback=None,
+    ):
         self.__extra_changes = extra_changes
         self.apply_disabled = apply_disabled
         self.include_change_callback = include_change_callback
@@ -39,8 +47,9 @@ class HelperProvider(BaseProvider):
         return True
 
     def _include_change(self, change):
-        return not self.include_change_callback or \
-            self.include_change_callback(change)
+        return not self.include_change_callback or self.include_change_callback(
+            change
+        )
 
     def _extra_changes(self, **kwargs):
         return self.__extra_changes
@@ -50,7 +59,6 @@ class HelperProvider(BaseProvider):
 
 
 class TrickyProcessor(BaseProcessor):
-
     def __init__(self, name, add_during_process_target_zone):
         super(TrickyProcessor, self).__init__(name)
         self.add_during_process_target_zone = add_during_process_target_zone
@@ -73,20 +81,22 @@ class TrickyProcessor(BaseProcessor):
 
 
 class TestBaseProvider(TestCase):
-
     def test_base_provider(self):
         with self.assertRaises(NotImplementedError) as ctx:
             BaseProvider('base')
-        self.assertEqual('Abstract base class, log property missing',
-                         str(ctx.exception))
+        self.assertEqual(
+            'Abstract base class, log property missing', str(ctx.exception)
+        )
 
         class HasLog(BaseProvider):
             log = getLogger('HasLog')
 
         with self.assertRaises(NotImplementedError) as ctx:
             HasLog('haslog')
-        self.assertEqual('Abstract base class, SUPPORTS_GEO property missing',
-                         str(ctx.exception))
+        self.assertEqual(
+            'Abstract base class, SUPPORTS_GEO property missing',
+            str(ctx.exception),
+        )
 
         class HasSupportsGeo(HasLog):
             SUPPORTS_GEO = False
@@ -94,15 +104,18 @@ class TestBaseProvider(TestCase):
         zone = Zone('unit.tests.', ['sub'])
         with self.assertRaises(NotImplementedError) as ctx:
             HasSupportsGeo('hassupportsgeo').populate(zone)
-        self.assertEqual('Abstract base class, SUPPORTS property missing',
-                         str(ctx.exception))
+        self.assertEqual(
+            'Abstract base class, SUPPORTS property missing', str(ctx.exception)
+        )
 
         class HasSupports(HasSupportsGeo):
             SUPPORTS = set(('A',))
+
         with self.assertRaises(NotImplementedError) as ctx:
             HasSupports('hassupports').populate(zone)
-        self.assertEqual('Abstract base class, populate method missing',
-                         str(ctx.exception))
+        self.assertEqual(
+            'Abstract base class, populate method missing', str(ctx.exception)
+        )
 
         # SUPPORTS_DYNAMIC has a default/fallback
         self.assertFalse(HasSupports('hassupports').SUPPORTS_DYNAMIC)
@@ -111,44 +124,51 @@ class TestBaseProvider(TestCase):
         class HasSupportsDyanmic(HasSupports):
             SUPPORTS_DYNAMIC = True
 
-        self.assertTrue(HasSupportsDyanmic('hassupportsdynamic')
-                        .SUPPORTS_DYNAMIC)
+        self.assertTrue(
+            HasSupportsDyanmic('hassupportsdynamic').SUPPORTS_DYNAMIC
+        )
 
         class HasPopulate(HasSupports):
-
             def populate(self, zone, target=False, lenient=False):
-                zone.add_record(Record.new(zone, '', {
-                    'ttl': 60,
-                    'type': 'A',
-                    'value': '2.3.4.5'
-                }), lenient=lenient)
-                zone.add_record(Record.new(zone, 'going', {
-                    'ttl': 60,
-                    'type': 'A',
-                    'value': '3.4.5.6'
-                }), lenient=lenient)
-                zone.add_record(Record.new(zone, 'foo.sub', {
-                    'ttl': 61,
-                    'type': 'A',
-                    'value': '4.5.6.7'
-                }), lenient=lenient)
+                zone.add_record(
+                    Record.new(
+                        zone, '', {'ttl': 60, 'type': 'A', 'value': '2.3.4.5'}
+                    ),
+                    lenient=lenient,
+                )
+                zone.add_record(
+                    Record.new(
+                        zone,
+                        'going',
+                        {'ttl': 60, 'type': 'A', 'value': '3.4.5.6'},
+                    ),
+                    lenient=lenient,
+                )
+                zone.add_record(
+                    Record.new(
+                        zone,
+                        'foo.sub',
+                        {'ttl': 61, 'type': 'A', 'value': '4.5.6.7'},
+                    ),
+                    lenient=lenient,
+                )
 
-        zone.add_record(Record.new(zone, '', {
-            'ttl': 60,
-            'type': 'A',
-            'value': '1.2.3.4'
-        }))
+        zone.add_record(
+            Record.new(zone, '', {'ttl': 60, 'type': 'A', 'value': '1.2.3.4'})
+        )
 
-        self.assertTrue(HasSupports('hassupportsgeo')
-                        .supports(list(zone.records)[0]))
+        self.assertTrue(
+            HasSupports('hassupportsgeo').supports(list(zone.records)[0])
+        )
 
         plan = HasPopulate('haspopulate').plan(zone)
         self.assertEqual(3, len(plan.changes))
 
         with self.assertRaises(NotImplementedError) as ctx:
             HasPopulate('haspopulate').apply(plan)
-        self.assertEqual('Abstract base class, _apply method missing',
-                         str(ctx.exception))
+        self.assertEqual(
+            'Abstract base class, _apply method missing', str(ctx.exception)
+        )
 
     def test_plan(self):
         ignored = Zone('unit.tests.', [])
@@ -157,11 +177,9 @@ class TestBaseProvider(TestCase):
         provider = HelperProvider([])
         self.assertEqual(None, provider.plan(ignored))
 
-        record = Record.new(ignored, 'a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
+        record = Record.new(
+            ignored, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
         provider = HelperProvider([Create(record)])
         plan = provider.plan(ignored)
         self.assertTrue(plan)
@@ -171,7 +189,6 @@ class TestBaseProvider(TestCase):
         ignored = Zone('unit.tests.', [])
 
         class OldApiProvider(HelperProvider):
-
             def _process_desired_zone(self, desired):
                 return desired
 
@@ -180,7 +197,6 @@ class TestBaseProvider(TestCase):
         self.assertEqual(None, provider.plan(ignored))
 
         class OtherTypeErrorProvider(HelperProvider):
-
             def _process_desired_zone(self, desired, exists=False):
                 raise TypeError('foo')
 
@@ -193,18 +209,20 @@ class TestBaseProvider(TestCase):
         zone = Zone('unit.tests.', [])
 
         # supported
-        supported = Record.new(zone, 'a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
+        supported = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
         zone.add_record(supported)
         # not supported
-        not_supported = Record.new(zone, 'aaaa', {
-            'ttl': 30,
-            'type': 'AAAA',
-            'value': '2601:644:500:e210:62f8:1dff:feb8:947a',
-        })
+        not_supported = Record.new(
+            zone,
+            'aaaa',
+            {
+                'ttl': 30,
+                'type': 'AAAA',
+                'value': '2601:644:500:e210:62f8:1dff:feb8:947a',
+            },
+        )
         zone.add_record(not_supported)
         provider = HelperProvider()
         plan = provider.plan(zone)
@@ -215,11 +233,9 @@ class TestBaseProvider(TestCase):
     def test_plan_with_processors(self):
         zone = Zone('unit.tests.', [])
 
-        record = Record.new(zone, 'a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
         provider = HelperProvider()
         # Processor that adds a record to the zone, which planning will then
         # delete since it won't know anything about it
@@ -233,11 +249,9 @@ class TestBaseProvider(TestCase):
         self.assertEqual(zone.name, tricky.existing.name)
 
         # Chain of processors happen one after the other
-        other = Record.new(zone, 'b', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '5.6.7.8',
-        })
+        other = Record.new(
+            zone, 'b', {'ttl': 30, 'type': 'A', 'value': '5.6.7.8'}
+        )
         # Another processor will add its record, thus 2 deletes
         another = TrickyProcessor('tricky', [other])
         plan = provider.plan(zone, processors=[tricky, another])
@@ -253,11 +267,9 @@ class TestBaseProvider(TestCase):
 
     def test_plan_with_root_ns(self):
         zone = Zone('unit.tests.', [])
-        record = Record.new(zone, '', {
-            'ttl': 30,
-            'type': 'NS',
-            'value': '1.2.3.4.',
-        })
+        record = Record.new(
+            zone, '', {'ttl': 30, 'type': 'NS', 'value': '1.2.3.4.'}
+        )
         zone.add_record(record)
 
         # No root NS support, no change, thus no plan
@@ -273,11 +285,9 @@ class TestBaseProvider(TestCase):
     def test_apply(self):
         ignored = Zone('unit.tests.', [])
 
-        record = Record.new(ignored, 'a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
+        record = Record.new(
+            ignored, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
         provider = HelperProvider([Create(record)], apply_disabled=True)
         plan = provider.plan(ignored)
         provider.apply(plan)
@@ -288,11 +298,9 @@ class TestBaseProvider(TestCase):
     def test_include_change(self):
         zone = Zone('unit.tests.', [])
 
-        record = Record.new(zone, 'a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
         zone.add_record(record)
         provider = HelperProvider([], include_change_callback=lambda c: False)
         plan = provider.plan(zone)
@@ -300,7 +308,6 @@ class TestBaseProvider(TestCase):
         self.assertFalse(plan)
 
     def test_plan_order_of_operations(self):
-
         class MockProvider(BaseProvider):
             log = getLogger('mock-provider')
             SUPPORTS = set(('A',))
@@ -327,8 +334,10 @@ class TestBaseProvider(TestCase):
         self.assertFalse(provider.plan(zone))
         # ensure the calls were made in the expected order, populate comes
         # first, then desired, then existing
-        self.assertEqual(['populate', '_process_desired_zone',
-                          '_process_existing_zone'], provider.calls)
+        self.assertEqual(
+            ['populate', '_process_desired_zone', '_process_existing_zone'],
+            provider.calls,
+        )
 
     def test_process_desired_zone(self):
         provider = HelperProvider('test')
@@ -336,11 +345,11 @@ class TestBaseProvider(TestCase):
         # SUPPORTS_MULTIVALUE_PTR
         provider.SUPPORTS_MULTIVALUE_PTR = False
         zone1 = Zone('unit.tests.', [])
-        record1 = Record.new(zone1, 'ptr', {
-            'type': 'PTR',
-            'ttl': 3600,
-            'values': ['foo.com.', 'bar.com.'],
-        })
+        record1 = Record.new(
+            zone1,
+            'ptr',
+            {'type': 'PTR', 'ttl': 3600, 'values': ['foo.com.', 'bar.com.']},
+        )
         zone1.add_record(record1)
 
         zone2 = provider._process_desired_zone(zone1.copy())
@@ -355,23 +364,19 @@ class TestBaseProvider(TestCase):
         # SUPPORTS_DYNAMIC
         provider.SUPPORTS_DYNAMIC = False
         zone1 = Zone('unit.tests.', [])
-        record1 = Record.new(zone1, 'a', {
-            'dynamic': {
-                'pools': {
-                    'one': {
-                        'values': [{
-                            'value': '1.1.1.1',
-                        }],
-                    },
+        record1 = Record.new(
+            zone1,
+            'a',
+            {
+                'dynamic': {
+                    'pools': {'one': {'values': [{'value': '1.1.1.1'}]}},
+                    'rules': [{'pool': 'one'}],
                 },
-                'rules': [{
-                    'pool': 'one',
-                }],
+                'type': 'A',
+                'ttl': 3600,
+                'values': ['2.2.2.2'],
             },
-            'type': 'A',
-            'ttl': 3600,
-            'values': ['2.2.2.2'],
-        })
+        )
         self.assertTrue(record1.dynamic)
         zone1.add_record(record1)
 
@@ -393,18 +398,17 @@ class TestBaseProvider(TestCase):
         zone2 = provider._process_desired_zone(zone1.copy())
         record2 = list(zone2.records)[0]
         self.assertEqual(
-            record2.dynamic.pools['one'].data['values'][0]['status'],
-            'obey'
+            record2.dynamic.pools['one'].data['values'][0]['status'], 'obey'
         )
 
         # SUPPORTS_ROOT_NS
         provider.SUPPORTS_ROOT_NS = False
         zone1 = Zone('unit.tests.', [])
-        record1 = Record.new(zone1, '', {
-            'type': 'NS',
-            'ttl': 3600,
-            'values': ['foo.com.', 'bar.com.'],
-        })
+        record1 = Record.new(
+            zone1,
+            '',
+            {'type': 'NS', 'ttl': 3600, 'values': ['foo.com.', 'bar.com.']},
+        )
         zone1.add_record(record1)
 
         zone2 = provider._process_desired_zone(zone1.copy())
@@ -421,11 +425,11 @@ class TestBaseProvider(TestCase):
         # SUPPORTS_ROOT_NS
         provider.SUPPORTS_ROOT_NS = False
         zone1 = Zone('unit.tests.', [])
-        record1 = Record.new(zone1, '', {
-            'type': 'NS',
-            'ttl': 3600,
-            'values': ['foo.com.', 'bar.com.'],
-        })
+        record1 = Record.new(
+            zone1,
+            '',
+            {'type': 'NS', 'ttl': 3600, 'values': ['foo.com.', 'bar.com.']},
+        )
         zone1.add_record(record1)
 
         zone2 = provider._process_existing_zone(zone1.copy(), zone1)
@@ -444,42 +448,38 @@ class TestBaseProvider(TestCase):
         # Creates are safe when existing records is under MIN_EXISTING_RECORDS
         zone = Zone('unit.tests.', [])
 
-        record = Record.new(zone, 'a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
-        Plan(zone, zone, [Create(record) for i in range(10)], True) \
-            .raise_if_unsafe()
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        Plan(
+            zone, zone, [Create(record) for i in range(10)], True
+        ).raise_if_unsafe()
 
     def test_safe_min_existing_creates(self):
         # Creates are safe when existing records is over MIN_EXISTING_RECORDS
         zone = Zone('unit.tests.', [])
 
-        record = Record.new(zone, 'a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, str(i), {
-                            'ttl': 60,
-                            'type': 'A',
-                            'value': '2.3.4.5'
-                            }))
+            zone.add_record(
+                Record.new(
+                    zone, str(i), {'ttl': 60, 'type': 'A', 'value': '2.3.4.5'}
+                )
+            )
 
-        Plan(zone, zone, [Create(record) for i in range(10)], True) \
-            .raise_if_unsafe()
+        Plan(
+            zone, zone, [Create(record) for i in range(10)], True
+        ).raise_if_unsafe()
 
     def test_safe_no_existing(self):
         # existing records fewer than MIN_EXISTING_RECORDS is safe
         zone = Zone('unit.tests.', [])
-        record = Record.new(zone, 'a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
 
         updates = [Update(record, record), Update(record, record)]
         Plan(zone, zone, updates, True).raise_if_unsafe()
@@ -488,22 +488,23 @@ class TestBaseProvider(TestCase):
         # MAX_SAFE_UPDATE_PCENT+1 fails when more
         # than MIN_EXISTING_RECORDS exist
         zone = Zone('unit.tests.', [])
-        record = Record.new(zone, 'a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, str(i), {
-                            'ttl': 60,
-                            'type': 'A',
-                            'value': '2.3.4.5'
-                            }))
+            zone.add_record(
+                Record.new(
+                    zone, str(i), {'ttl': 60, 'type': 'A', 'value': '2.3.4.5'}
+                )
+            )
 
-        changes = [Update(record, record)
-                   for i in range(int(Plan.MIN_EXISTING_RECORDS *
-                                      Plan.MAX_SAFE_UPDATE_PCENT) + 1)]
+        changes = [
+            Update(record, record)
+            for i in range(
+                int(Plan.MIN_EXISTING_RECORDS * Plan.MAX_SAFE_UPDATE_PCENT) + 1
+            )
+        ]
 
         with self.assertRaises(UnsafePlan) as ctx:
             Plan(zone, zone, changes, True).raise_if_unsafe()
@@ -514,21 +515,22 @@ class TestBaseProvider(TestCase):
         # MAX_SAFE_UPDATE_PCENT is safe when more
         # than MIN_EXISTING_RECORDS exist
         zone = Zone('unit.tests.', [])
-        record = Record.new(zone, 'a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, str(i), {
-                            'ttl': 60,
-                            'type': 'A',
-                            'value': '2.3.4.5'
-                            }))
-        changes = [Update(record, record)
-                   for i in range(int(Plan.MIN_EXISTING_RECORDS *
-                                      Plan.MAX_SAFE_UPDATE_PCENT))]
+            zone.add_record(
+                Record.new(
+                    zone, str(i), {'ttl': 60, 'type': 'A', 'value': '2.3.4.5'}
+                )
+            )
+        changes = [
+            Update(record, record)
+            for i in range(
+                int(Plan.MIN_EXISTING_RECORDS * Plan.MAX_SAFE_UPDATE_PCENT)
+            )
+        ]
 
         Plan(zone, zone, changes, True).raise_if_unsafe()
 
@@ -536,22 +538,23 @@ class TestBaseProvider(TestCase):
         # MAX_SAFE_DELETE_PCENT+1 fails when more
         # than MIN_EXISTING_RECORDS exist
         zone = Zone('unit.tests.', [])
-        record = Record.new(zone, 'a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, str(i), {
-                            'ttl': 60,
-                            'type': 'A',
-                            'value': '2.3.4.5'
-                            }))
+            zone.add_record(
+                Record.new(
+                    zone, str(i), {'ttl': 60, 'type': 'A', 'value': '2.3.4.5'}
+                )
+            )
 
-        changes = [Delete(record)
-                   for i in range(int(Plan.MIN_EXISTING_RECORDS *
-                                      Plan.MAX_SAFE_DELETE_PCENT) + 1)]
+        changes = [
+            Delete(record)
+            for i in range(
+                int(Plan.MIN_EXISTING_RECORDS * Plan.MAX_SAFE_DELETE_PCENT) + 1
+            )
+        ]
 
         with self.assertRaises(UnsafePlan) as ctx:
             Plan(zone, zone, changes, True).raise_if_unsafe()
@@ -562,77 +565,78 @@ class TestBaseProvider(TestCase):
         # MAX_SAFE_DELETE_PCENT is safe when more
         # than MIN_EXISTING_RECORDS exist
         zone = Zone('unit.tests.', [])
-        record = Record.new(zone, 'a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, str(i), {
-                            'ttl': 60,
-                            'type': 'A',
-                            'value': '2.3.4.5'
-                            }))
-        changes = [Delete(record)
-                   for i in range(int(Plan.MIN_EXISTING_RECORDS *
-                                      Plan.MAX_SAFE_DELETE_PCENT))]
+            zone.add_record(
+                Record.new(
+                    zone, str(i), {'ttl': 60, 'type': 'A', 'value': '2.3.4.5'}
+                )
+            )
+        changes = [
+            Delete(record)
+            for i in range(
+                int(Plan.MIN_EXISTING_RECORDS * Plan.MAX_SAFE_DELETE_PCENT)
+            )
+        ]
 
         Plan(zone, zone, changes, True).raise_if_unsafe()
 
     def test_safe_updates_min_existing_override(self):
-        safe_pcent = .4
+        safe_pcent = 0.4
         # 40% + 1 fails when more
         # than MIN_EXISTING_RECORDS exist
         zone = Zone('unit.tests.', [])
-        record = Record.new(zone, 'a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, str(i), {
-                            'ttl': 60,
-                            'type': 'A',
-                            'value': '2.3.4.5'
-                            }))
+            zone.add_record(
+                Record.new(
+                    zone, str(i), {'ttl': 60, 'type': 'A', 'value': '2.3.4.5'}
+                )
+            )
 
-        changes = [Update(record, record)
-                   for i in range(int(Plan.MIN_EXISTING_RECORDS *
-                                      safe_pcent) + 1)]
+        changes = [
+            Update(record, record)
+            for i in range(int(Plan.MIN_EXISTING_RECORDS * safe_pcent) + 1)
+        ]
 
         with self.assertRaises(UnsafePlan) as ctx:
-            Plan(zone, zone, changes, True,
-                 update_pcent_threshold=safe_pcent).raise_if_unsafe()
+            Plan(
+                zone, zone, changes, True, update_pcent_threshold=safe_pcent
+            ).raise_if_unsafe()
 
         self.assertTrue('Too many updates' in str(ctx.exception))
 
     def test_safe_deletes_min_existing_override(self):
-        safe_pcent = .4
+        safe_pcent = 0.4
         # 40% + 1 fails when more
         # than MIN_EXISTING_RECORDS exist
         zone = Zone('unit.tests.', [])
-        record = Record.new(zone, 'a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '1.2.3.4',
-        })
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
 
         for i in range(int(Plan.MIN_EXISTING_RECORDS)):
-            zone.add_record(Record.new(zone, str(i), {
-                            'ttl': 60,
-                            'type': 'A',
-                            'value': '2.3.4.5'
-                            }))
+            zone.add_record(
+                Record.new(
+                    zone, str(i), {'ttl': 60, 'type': 'A', 'value': '2.3.4.5'}
+                )
+            )
 
-        changes = [Delete(record)
-                   for i in range(int(Plan.MIN_EXISTING_RECORDS *
-                                      safe_pcent) + 1)]
+        changes = [
+            Delete(record)
+            for i in range(int(Plan.MIN_EXISTING_RECORDS * safe_pcent) + 1)
+        ]
 
         with self.assertRaises(UnsafePlan) as ctx:
-            Plan(zone, zone, changes, True,
-                 delete_pcent_threshold=safe_pcent).raise_if_unsafe()
+            Plan(
+                zone, zone, changes, True, delete_pcent_threshold=safe_pcent
+            ).raise_if_unsafe()
 
         self.assertTrue('Too many deletes' in str(ctx.exception))
 
@@ -649,9 +653,9 @@ class TestBaseProvider(TestCase):
         # Should log and not expect
         normal.supports_warn_or_except('Hello World!', 'Goodbye')
         normal.log.warning.assert_called_once()
-        normal.log.warning.assert_has_calls([
-            call('%s; %s', 'Hello World!', 'Goodbye')
-        ])
+        normal.log.warning.assert_has_calls(
+            [call('%s; %s', 'Hello World!', 'Goodbye')]
+        )
 
         strict = MinimalProvider(strict_supports=True)
         # Should log and not expect
@@ -662,7 +666,6 @@ class TestBaseProvider(TestCase):
 
 
 class TestBaseProviderSupportsRootNs(TestCase):
-
     class Provider(BaseProvider):
         log = getLogger('Provider')
 
@@ -684,33 +687,33 @@ class TestBaseProviderSupportsRootNs(TestCase):
             return False
 
     zone = Zone('unit.tests.', [])
-    a_record = Record.new(zone, 'ptr', {
-        'type': 'A',
-        'ttl': 3600,
-        'values': ['1.2.3.4', '2.3.4.5'],
-    })
-    ns_record = Record.new(zone, 'sub', {
-        'type': 'NS',
-        'ttl': 3600,
-        'values': ['ns2.foo.com.', 'ns2.bar.com.'],
-    })
+    a_record = Record.new(
+        zone,
+        'ptr',
+        {'type': 'A', 'ttl': 3600, 'values': ['1.2.3.4', '2.3.4.5']},
+    )
+    ns_record = Record.new(
+        zone,
+        'sub',
+        {'type': 'NS', 'ttl': 3600, 'values': ['ns2.foo.com.', 'ns2.bar.com.']},
+    )
     no_root = zone.copy()
     no_root.add_record(a_record)
     no_root.add_record(ns_record)
 
-    root_ns_record = Record.new(zone, '', {
-        'type': 'NS',
-        'ttl': 3600,
-        'values': ['ns1.foo.com.', 'ns1.bar.com.'],
-    })
+    root_ns_record = Record.new(
+        zone,
+        '',
+        {'type': 'NS', 'ttl': 3600, 'values': ['ns1.foo.com.', 'ns1.bar.com.']},
+    )
     has_root = no_root.copy()
     has_root.add_record(root_ns_record)
 
-    other_root_ns_record = Record.new(zone, '', {
-        'type': 'NS',
-        'ttl': 3600,
-        'values': ['ns4.foo.com.', 'ns4.bar.com.'],
-    })
+    other_root_ns_record = Record.new(
+        zone,
+        '',
+        {'type': 'NS', 'ttl': 3600, 'values': ['ns4.foo.com.', 'ns4.bar.com.']},
+    )
     different_root = no_root.copy()
     different_root.add_record(other_root_ns_record)
 
@@ -733,8 +736,10 @@ class TestBaseProviderSupportsRootNs(TestCase):
         provider.strict_supports = True
         with self.assertRaises(SupportsException) as ctx:
             provider.plan(self.has_root)
-        self.assertEqual('test: root NS record not supported for unit.tests.',
-                         str(ctx.exception))
+        self.assertEqual(
+            'test: root NS record not supported for unit.tests.',
+            str(ctx.exception),
+        )
 
     def test_supports_root_ns_false_different(self):
         # provider has a non-matching existing record
@@ -754,8 +759,10 @@ class TestBaseProviderSupportsRootNs(TestCase):
         provider.strict_supports = True
         with self.assertRaises(SupportsException) as ctx:
             provider.plan(self.has_root)
-        self.assertEqual('test: root NS record not supported for unit.tests.',
-                         str(ctx.exception))
+        self.assertEqual(
+            'test: root NS record not supported for unit.tests.',
+            str(ctx.exception),
+        )
 
     def test_supports_root_ns_false_missing(self):
         # provider has an existing record
@@ -792,8 +799,10 @@ class TestBaseProviderSupportsRootNs(TestCase):
         provider.strict_supports = True
         with self.assertRaises(SupportsException) as ctx:
             provider.plan(self.has_root)
-        self.assertEqual('test: root NS record not supported for unit.tests.',
-                         str(ctx.exception))
+        self.assertEqual(
+            'test: root NS record not supported for unit.tests.',
+            str(ctx.exception),
+        )
 
     def test_supports_root_ns_false_create_zone_missing(self):
         # provider has no existing records (create)
@@ -889,8 +898,9 @@ class TestBaseProviderSupportsRootNs(TestCase):
         # we'll get a plan that creates everything, including it
         self.assertTrue(plan)
         self.assertEqual(3, len(plan.changes))
-        change = [c for c in plan.changes
-                  if c.new.name == '' and c.new._type == 'NS'][0]
+        change = [
+            c for c in plan.changes if c.new.name == '' and c.new._type == 'NS'
+        ][0]
         self.assertFalse(change.existing)
         self.assertEqual(self.root_ns_record, change.new)
 
@@ -900,8 +910,9 @@ class TestBaseProviderSupportsRootNs(TestCase):
         plan = provider.plan(self.has_root)
         self.assertTrue(plan)
         self.assertEqual(3, len(plan.changes))
-        change = [c for c in plan.changes
-                  if c.new.name == '' and c.new._type == 'NS'][0]
+        change = [
+            c for c in plan.changes if c.new.name == '' and c.new._type == 'NS'
+        ][0]
         self.assertFalse(change.existing)
         self.assertEqual(self.root_ns_record, change.new)
 

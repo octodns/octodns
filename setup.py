@@ -11,14 +11,7 @@ try:
 except ImportError:
     from distutils.core import find_packages, setup
 
-cmds = (
-    'compare',
-    'dump',
-    'report',
-    'sync',
-    'validate',
-    'versions',
-)
+cmds = ('compare', 'dump', 'report', 'sync', 'validate', 'versions')
 cmds_dir = join(dirname(__file__), 'octodns', 'cmds')
 console_scripts = {
     'octodns-{name} = octodns.cmds.{name}:main'.format(name=name)
@@ -68,29 +61,24 @@ def version():
     return f'{octodns.__VERSION__}+{sha}'
 
 
-tests_require = (
-    'pytest>=6.2.5',
-    'pytest-cov>=3.0.0',
-    'pytest-network>=0.0.1',
-)
+tests_require = ('pytest>=6.2.5', 'pytest-cov>=3.0.0', 'pytest-network>=0.0.1')
 
 setup(
     author='Ross McFarland',
     author_email='rwmcfa1@gmail.com',
     description=octodns.__doc__,
-    entry_points={
-        'console_scripts': console_scripts,
-    },
+    entry_points={'console_scripts': console_scripts},
     extras_require={
-        'dev': tests_require + (
+        'dev': tests_require
+        + (
+            'black>=22.3.0',
             'build>=0.7.0',
-            'pycodestyle>=2.6.0',
             'pycountry>=19.8.18',
             'pycountry-convert>=0.7.2',
             'pyflakes>=2.2.0',
             'readme_renderer[md]>=26.0',
             'twine>=3.4.2',
-        ),
+        )
     },
     install_requires=(
         'PyYaml>=4.2b1',

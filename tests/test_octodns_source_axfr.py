@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 import dns.zone
 from dns.exception import DNSException
@@ -13,8 +17,12 @@ from shutil import copyfile
 from unittest import TestCase
 from unittest.mock import patch
 
-from octodns.source.axfr import AxfrSource, AxfrSourceZoneTransferFailed, \
-    ZoneFileSource, ZoneFileSourceLoadFailure
+from octodns.source.axfr import (
+    AxfrSource,
+    AxfrSourceZoneTransferFailed,
+    ZoneFileSource,
+    ZoneFileSourceLoadFailure,
+)
 from octodns.zone import Zone
 from octodns.record import ValidationError
 
@@ -22,17 +30,21 @@ from octodns.record import ValidationError
 class TestAxfrSource(TestCase):
     source = AxfrSource('test', 'localhost')
 
-    forward_zonefile = dns.zone.from_file('./tests/zones/unit.tests.tst',
-                                          'unit.tests', relativize=False)
+    forward_zonefile = dns.zone.from_file(
+        './tests/zones/unit.tests.tst', 'unit.tests', relativize=False
+    )
+
+    reverse_zonefile = dns.zone.from_file(
+        './tests/zones/2.0.192.in-addr.arpa.',
+        '2.0.192.in-addr.arpa',
+        relativize=False,
+    )
 
     @patch('dns.zone.from_xfr')
-    def test_populate(self, from_xfr_mock):
+    def test_populate_forward(self, from_xfr_mock):
         got = Zone('unit.tests.', [])
 
-        from_xfr_mock.side_effect = [
-            self.forward_zonefile,
-            DNSException
-        ]
+        from_xfr_mock.side_effect = [self.forward_zonefile, DNSException]
 
         self.source.populate(got)
         self.assertEqual(16, len(got.records))
@@ -40,8 +52,16 @@ class TestAxfrSource(TestCase):
         with self.assertRaises(AxfrSourceZoneTransferFailed) as ctx:
             zone = Zone('unit.tests.', [])
             self.source.populate(zone)
-        self.assertEqual('Unable to Perform Zone Transfer',
-                         str(ctx.exception))
+        self.assertEqual('Unable to Perform Zone Transfer', str(ctx.exception))
+
+    @patch('dns.zone.from_xfr')
+    def test_populate_reverse(self, from_xfr_mock):
+        got = Zone('2.0.192.in-addr.arpa.', [])
+
+        from_xfr_mock.side_effect = [self.reverse_zonefile]
+
+        self.source.populate(got)
+        self.assertEqual(4, len(got.records))
 
 
 class TestZoneFileSource(TestCase):
@@ -65,8 +85,10 @@ class TestZoneFileSource(TestCase):
             # It did so we need to skip this test, that means windows won't
             # have full code coverage, but skipping the test is going out of
             # our way enough for a os-specific/oddball case.
-            self.skipTest('Unable to create unit.tests. (ending with .) so '
-                          'skipping default filename testing.')
+            self.skipTest(
+                'Unable to create unit.tests. (ending with .) so '
+                'skipping default filename testing.'
+            )
 
         source = ZoneFileSource('test', './tests/zones')
         # Load zonefiles without a specified file extension
@@ -97,16 +119,19 @@ class TestZoneFileSource(TestCase):
         with self.assertRaises(ZoneFileSourceLoadFailure) as ctx:
             zone = Zone('invalid.zone.', [])
             self.source.populate(zone)
-        self.assertEqual('The DNS zone has no NS RRset at its origin.',
-                         str(ctx.exception))
+        self.assertEqual(
+            'The DNS zone has no NS RRset at its origin.', str(ctx.exception)
+        )
 
         # Records are not to RFC (lenient=False)
         with self.assertRaises(ValidationError) as ctx:
             zone = Zone('invalid.records.', [])
             self.source.populate(zone)
-        self.assertEqual('Invalid record _invalid.invalid.records.\n'
-                         '  - invalid name for SRV record',
-                         str(ctx.exception))
+        self.assertEqual(
+            'Invalid record _invalid.invalid.records.\n'
+            '  - invalid name for SRV record',
+            str(ctx.exception),
+        )
 
         # Records are not to RFC, but load anyhow (lenient=True)
         invalid = Zone('invalid.records.', [])

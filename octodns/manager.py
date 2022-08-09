@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
@@ -22,9 +26,12 @@ from .zone import Zone
 
 # TODO: this can go away once we no longer support python 3.7
 try:
-    from importlib.metadata import PackageNotFoundError, \
-        version as module_version
+    from importlib.metadata import (
+        PackageNotFoundError,
+        version as module_version,
+    )
 except ModuleNotFoundError:  # pragma: no cover
+
     class PackageNotFoundError(Exception):
         pass
 
@@ -61,7 +68,6 @@ class _AggregateTarget(object):
 
 
 class MakeThreadFuture(object):
-
     def __init__(self, func, args, kwargs):
         self.func = func
         self.args = args
@@ -98,24 +104,29 @@ class Manager(object):
 
     def __init__(self, config_file, max_workers=None, include_meta=False):
         version = self._try_version('octodns', version=__VERSION__)
-        self.log.info('__init__: config_file=%s (octoDNS %s)', config_file,
-                      version)
+        self.log.info(
+            '__init__: config_file=%s (octoDNS %s)', config_file, version
+        )
 
         # Read our config file
         with open(config_file, 'r') as fh:
             self.config = safe_load(fh, enforce_order=False)
 
         manager_config = self.config.get('manager', {})
-        max_workers = manager_config.get('max_workers', 1) \
-            if max_workers is None else max_workers
+        max_workers = (
+            manager_config.get('max_workers', 1)
+            if max_workers is None
+            else max_workers
+        )
         self.log.info('__init__:   max_workers=%d', max_workers)
         if max_workers > 1:
             self._executor = ThreadPoolExecutor(max_workers=max_workers)
         else:
             self._executor = MainThreadExecutor()
 
-        self.include_meta = include_meta or manager_config.get('include_meta',
-                                                               False)
+        self.include_meta = include_meta or manager_config.get(
+            'include_meta', False
+        )
         self.log.info('__init__:   include_meta=%s', self.include_meta)
 
         self.log.debug('__init__:   configuring providers')
@@ -126,89 +137,112 @@ class Manager(object):
                 _class = provider_config.pop('class')
             except KeyError:
                 self.log.exception('Invalid provider class')
-                raise ManagerException(f'Provider {provider_name} is missing '
-                                       'class')
+                raise ManagerException(
+                    f'Provider {provider_name} is missing ' 'class'
+                )
             _class, module, version = self._get_named_class('provider', _class)
             kwargs = self._build_kwargs(provider_config)
             try:
                 self.providers[provider_name] = _class(provider_name, **kwargs)
-                self.log.info('__init__: provider=%s (%s %s)', provider_name,
-                              module, version)
+                self.log.info(
+                    '__init__: provider=%s (%s %s)',
+                    provider_name,
+                    module,
+                    version,
+                )
             except TypeError:
                 self.log.exception('Invalid provider config')
-                raise ManagerException('Incorrect provider config for ' +
-                                       provider_name)
+                raise ManagerException(
+                    'Incorrect provider config for ' + provider_name
+                )
 
         self.processors = {}
-        for processor_name, processor_config in \
-                self.config.get('processors', {}).items():
+        for processor_name, processor_config in self.config.get(
+            'processors', {}
+        ).items():
             try:
                 _class = processor_config.pop('class')
             except KeyError:
                 self.log.exception('Invalid processor class')
-                raise ManagerException(f'Processor {processor_name} is '
-                                       'missing class')
-            _class, module, version = self._get_named_class('processor',
-                                                            _class)
+                raise ManagerException(
+                    f'Processor {processor_name} is ' 'missing class'
+                )
+            _class, module, version = self._get_named_class('processor', _class)
             kwargs = self._build_kwargs(processor_config)
             try:
-                self.processors[processor_name] = _class(processor_name,
-                                                         **kwargs)
-                self.log.info('__init__: processor=%s (%s %s)', processor_name,
-                              module, version)
+                self.processors[processor_name] = _class(
+                    processor_name, **kwargs
+                )
+                self.log.info(
+                    '__init__: processor=%s (%s %s)',
+                    processor_name,
+                    module,
+                    version,
+                )
             except TypeError:
                 self.log.exception('Invalid processor config')
-                raise ManagerException('Incorrect processor config for ' +
-                                       processor_name)
+                raise ManagerException(
+                    'Incorrect processor config for ' + processor_name
+                )
 
         zone_tree = {}
-        # sort by reversed strings so that parent zones always come first
-        for name in sorted(self.config['zones'].keys(), key=lambda s: s[::-1]):
-            # ignore trailing dots, and reverse
-            pieces = name[:-1].split('.')[::-1]
-            # where starts out at the top
-            where = zone_tree
-            # for all the pieces
-            for piece in pieces:
-                try:
-                    where = where[piece]
-                    # our current piece already exists, just point where at
-                    # it's value
-                except KeyError:
-                    # our current piece doesn't exist, create it
-                    where[piece] = {}
-                    # and then point where at it's newly created value
-                    where = where[piece]
+        # Sort so we iterate on the deepest nodes first, ensuring if a parent
+        # zone exists it will be seen after the subzone, thus we can easily
+        # reparent children to their parent zone from the tree root.
+        for name in sorted(
+            self.config['zones'].keys(), key=lambda s: 0 - s.count('.')
+        ):
+            # Trim the trailing dot from FQDN
+            name = name[:-1]
+            this = {}
+            for sz in [k for k in zone_tree.keys() if k.endswith(name)]:
+                # Found a zone in tree root that is our child, slice the
+                # name and move its tree under ours.
+                this[sz[: -(len(name) + 1)]] = zone_tree.pop(sz)
+            # Add to tree root where it will be reparented as we iterate up
+            # the tree.
+            zone_tree[name] = this
         self.zone_tree = zone_tree
 
         self.plan_outputs = {}
-        plan_outputs = manager_config.get('plan_outputs', {
-            '_logger': {
-                'class': 'octodns.provider.plan.PlanLogger',
-                'level': 'info'
-            }
-        })
+        plan_outputs = manager_config.get(
+            'plan_outputs',
+            {
+                '_logger': {
+                    'class': 'octodns.provider.plan.PlanLogger',
+                    'level': 'info',
+                }
+            },
+        )
         for plan_output_name, plan_output_config in plan_outputs.items():
             try:
                 _class = plan_output_config.pop('class')
             except KeyError:
                 self.log.exception('Invalid plan_output class')
-                raise ManagerException(f'plan_output {plan_output_name} is '
-                                       'missing class')
-            _class, module, version = self._get_named_class('plan_output',
-                                                            _class)
+                raise ManagerException(
+                    f'plan_output {plan_output_name} is ' 'missing class'
+                )
+            _class, module, version = self._get_named_class(
+                'plan_output', _class
+            )
             kwargs = self._build_kwargs(plan_output_config)
             try:
-                self.plan_outputs[plan_output_name] = \
-                    _class(plan_output_name, **kwargs)
+                self.plan_outputs[plan_output_name] = _class(
+                    plan_output_name, **kwargs
+                )
                 # Don't print out version info for the default output
                 if plan_output_name != '_logger':
-                    self.log.info('__init__: plan_output=%s (%s %s)',
-                                  plan_output_name, module, version)
+                    self.log.info(
+                        '__init__: plan_output=%s (%s %s)',
+                        plan_output_name,
+                        module,
+                        version,
+                    )
             except TypeError:
                 self.log.exception('Invalid plan_output config')
-                raise ManagerException('Incorrect plan_output config for ' +
-                                       plan_output_name)
+                raise ManagerException(
+                    'Incorrect plan_output config for ' + plan_output_name
+                )
 
     def _try_version(self, module_name, module=None, version=None):
         try:
@@ -243,15 +277,19 @@ class Manager(object):
             module_name, class_name = _class.rsplit('.', 1)
             module, version = self._import_module(module_name)
         except (ImportError, ValueError):
-            self.log.exception('_get_{}_class: Unable to import '
-                               'module %s', _class)
+            self.log.exception(
+                '_get_{}_class: Unable to import ' 'module %s', _class
+            )
             raise ManagerException(f'Unknown {_type} class: {_class}')
 
         try:
             return getattr(module, class_name), module_name, version
         except AttributeError:
-            self.log.exception('_get_{}_class: Unable to get class %s '
-                               'from module %s', class_name, module)
+            self.log.exception(
+                '_get_{}_class: Unable to get class %s ' 'from module %s',
+                class_name,
+                module,
+            )
             raise ManagerException(f'Unknown {_type} class: {_class}')
 
     def _build_kwargs(self, source):
@@ -265,8 +303,10 @@ class Manager(object):
                         v = environ[env_var]
                     except KeyError:
                         self.log.exception('Invalid provider config')
-                        raise ManagerException('Incorrect provider config, '
-                                               'missing env var ' + env_var)
+                        raise ManagerException(
+                            'Incorrect provider config, '
+                            'missing env var ' + env_var
+                        )
             except AttributeError:
                 pass
             kwargs[k] = v
@@ -274,32 +314,38 @@ class Manager(object):
         return kwargs
 
     def configured_sub_zones(self, zone_name):
-        # Reversed pieces of the zone name
-        pieces = zone_name[:-1].split('.')[::-1]
-        # Point where at the root of the tree
+        name = zone_name[:-1]
         where = self.zone_tree
-        # Until we've hit the bottom of this zone
-        try:
-            while pieces:
-                # Point where at the value of our current piece
-                where = where[pieces.pop(0)]
-        except KeyError:
-            self.log.debug('configured_sub_zones: unknown zone, %s, no subs',
-                           zone_name)
-            return set()
-        # We're not pointed at the dict for our name, the keys of which will be
-        # any subzones
+        while True:
+            # Find parent if it exists
+            parent = next((k for k in where if name.endswith(k)), None)
+            if not parent:
+                # The zone_name in the tree has been reached, stop searching.
+                break
+            # Move down the tree and slice name to get the remainder for the
+            # next round of the search.
+            where = where[parent]
+            name = name[: -(len(parent) + 1)]
+        # `where` is now pointing at the dictionary of children for zone_name
+        # in the tree
         sub_zone_names = where.keys()
         self.log.debug('configured_sub_zones: subs=%s', sub_zone_names)
         return set(sub_zone_names)
 
-    def _populate_and_plan(self, zone_name, processors, sources, targets,
-                           desired=None, lenient=False):
+    def _populate_and_plan(
+        self,
+        zone_name,
+        processors,
+        sources,
+        targets,
+        desired=None,
+        lenient=False,
+    ):
 
-        self.log.debug('sync:   populating, zone=%s, lenient=%s',
-                       zone_name, lenient)
-        zone = Zone(zone_name,
-                    sub_zones=self.configured_sub_zones(zone_name))
+        self.log.debug(
+            'sync:   populating, zone=%s, lenient=%s', zone_name, lenient
+        )
+        zone = Zone(zone_name, sub_zones=self.configured_sub_zones(zone_name))
 
         if desired:
             # This is an alias zone, rather than populate it we'll copy the
@@ -312,11 +358,12 @@ class Manager(object):
                 try:
                     source.populate(zone, lenient=lenient)
                 except TypeError as e:
-                    if ("unexpected keyword argument 'lenient'"
-                            not in str(e)):
+                    if "unexpected keyword argument 'lenient'" not in str(e):
                         raise
-                    self.log.warning('provider %s does not accept lenient '
-                                     'param', source.__class__.__name__)
+                    self.log.warning(
+                        'provider %s does not accept lenient ' 'param',
+                        source.__class__.__name__,
+                    )
                     source.populate(zone)
 
         for processor in processors:
@@ -327,38 +374,56 @@ class Manager(object):
 
         for target in targets:
             if self.include_meta:
-                meta = Record.new(zone, 'octodns-meta', {
-                    'type': 'TXT',
-                    'ttl': 60,
-                    'value': f'provider={target.id}',
-                })
+                meta = Record.new(
+                    zone,
+                    'octodns-meta',
+                    {
+                        'type': 'TXT',
+                        'ttl': 60,
+                        'value': f'provider={target.id}',
+                    },
+                )
                 zone.add_record(meta, replace=True)
             try:
                 plan = target.plan(zone, processors=processors)
             except TypeError as e:
                 if "keyword argument 'processors'" not in str(e):
                     raise
-                self.log.warning('provider.plan %s does not accept processors '
-                                 'param', target.__class__.__name__)
+                self.log.warning(
+                    'provider.plan %s does not accept processors ' 'param',
+                    target.__class__.__name__,
+                )
                 plan = target.plan(zone)
 
             for processor in processors:
-                plan = processor.process_plan(plan, sources=sources,
-                                              target=target)
+                plan = processor.process_plan(
+                    plan, sources=sources, target=target
+                )
             if plan:
                 plans.append((target, plan))
 
         # Return the zone as it's the desired state
         return plans, zone
 
-    def sync(self, eligible_zones=[], eligible_sources=[], eligible_targets=[],
-             dry_run=True, force=False, plan_output_fh=stdout):
+    def sync(
+        self,
+        eligible_zones=[],
+        eligible_sources=[],
+        eligible_targets=[],
+        dry_run=True,
+        force=False,
+        plan_output_fh=stdout,
+    ):
 
         self.log.info(
             'sync: eligible_zones=%s, eligible_targets=%s, dry_run=%s, '
             'force=%s, plan_output_fh=%s',
-            eligible_zones, eligible_targets, dry_run, force,
-            getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__))
+            eligible_zones,
+            eligible_targets,
+            dry_run,
+            force,
+            getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__),
+        )
 
         zones = self.config['zones'].items()
         if eligible_zones:
@@ -373,19 +438,27 @@ class Manager(object):
 
                 # Check that the source zone is defined.
                 if source_zone not in self.config['zones']:
-                    self.log.error(f'Invalid alias zone {zone_name}, '
-                                   f'target {source_zone} does not exist')
-                    raise ManagerException(f'Invalid alias zone {zone_name}: '
-                                           f'source zone {source_zone} does '
-                                           'not exist')
+                    self.log.error(
+                        f'Invalid alias zone {zone_name}, '
+                        f'target {source_zone} does not exist'
+                    )
+                    raise ManagerException(
+                        f'Invalid alias zone {zone_name}: '
+                        f'source zone {source_zone} does '
+                        'not exist'
+                    )
 
                 # Check that the source zone is not an alias zone itself.
                 if 'alias' in self.config['zones'][source_zone]:
-                    self.log.error(f'Invalid alias zone {zone_name}, '
-                                   f'target {source_zone} is an alias zone')
-                    raise ManagerException(f'Invalid alias zone {zone_name}: '
-                                           f'source zone {source_zone} is an '
-                                           'alias zone')
+                    self.log.error(
+                        f'Invalid alias zone {zone_name}, '
+                        f'target {source_zone} is an alias zone'
+                    )
+                    raise ManagerException(
+                        f'Invalid alias zone {zone_name}: '
+                        f'source zone {source_zone} is an '
+                        'alias zone'
+                    )
 
                 aliased_zones[zone_name] = source_zone
                 continue
@@ -403,8 +476,9 @@ class Manager(object):
 
             processors = config.get('processors', [])
 
-            if (eligible_sources and not
-                    [s for s in sources if s in eligible_sources]):
+            if eligible_sources and not [
+                s for s in sources if s in eligible_sources
+            ]:
                 self.log.info('sync:   no eligible sources, skipping')
                 continue
 
@@ -426,8 +500,9 @@ class Manager(object):
                     collected.append(self.processors[processor])
                 processors = collected
             except KeyError:
-                raise ManagerException(f'Zone {zone_name}, unknown '
-                                       f'processor: {processor}')
+                raise ManagerException(
+                    f'Zone {zone_name}, unknown ' f'processor: {processor}'
+                )
 
             try:
                 # rather than using a list comprehension, we break this loop
@@ -438,26 +513,35 @@ class Manager(object):
                     collected.append(self.providers[source])
                 sources = collected
             except KeyError:
-                raise ManagerException(f'Zone {zone_name}, unknown '
-                                       f'source: {source}')
+                raise ManagerException(
+                    f'Zone {zone_name}, unknown ' f'source: {source}'
+                )
 
             try:
                 trgs = []
                 for target in targets:
                     trg = self.providers[target]
                     if not isinstance(trg, BaseProvider):
-                        raise ManagerException(f'{trg} - "{target}" does not '
-                                               'support targeting')
+                        raise ManagerException(
+                            f'{trg} - "{target}" does not ' 'support targeting'
+                        )
                     trgs.append(trg)
                 targets = trgs
             except KeyError:
-                raise ManagerException(f'Zone {zone_name}, unknown '
-                                       f'target: {target}')
+                raise ManagerException(
+                    f'Zone {zone_name}, unknown ' f'target: {target}'
+                )
 
-            futures.append(self._executor.submit(self._populate_and_plan,
-                                                 zone_name, processors,
-                                                 sources, targets,
-                                                 lenient=lenient))
+            futures.append(
+                self._executor.submit(
+                    self._populate_and_plan,
+                    zone_name,
+                    processors,
+                    sources,
+                    targets,
+                    lenient=lenient,
+                )
+            )
 
         # Wait on all results and unpack/flatten the plans and store the
         # desired states in case we need them below
@@ -476,18 +560,22 @@ class Manager(object):
             try:
                 desired_config = desired[zone_source]
             except KeyError:
-                raise ManagerException(f'Zone {zone_name} cannot be sync '
-                                       f'without zone {zone_source} sinced '
-                                       'it is aliased')
-            futures.append(self._executor.submit(
-                self._populate_and_plan,
-                zone_name,
-                processors,
-                [],
-                [self.providers[t] for t in source_config['targets']],
-                desired=desired_config,
-                lenient=lenient
-            ))
+                raise ManagerException(
+                    f'Zone {zone_name} cannot be sync '
+                    f'without zone {zone_source} sinced '
+                    'it is aliased'
+                )
+            futures.append(
+                self._executor.submit(
+                    self._populate_and_plan,
+                    zone_name,
+                    processors,
+                    [],
+                    [self.providers[t] for t in source_config['targets']],
+                    desired=desired_config,
+                    lenient=lenient,
+                )
+            )
 
         # Wait on results and unpack/flatten the plans, ignore the desired here
         # as these are aliased zones
@@ -517,8 +605,9 @@ class Manager(object):
         for target, plan in plans:
             zone_name = plan.existing.name
             if zones[zone_name].get('always-dry-run', False):
-                self.log.info('sync: zone=%s skipping always-dry-run',
-                              zone_name)
+                self.log.info(
+                    'sync: zone=%s skipping always-dry-run', zone_name
+                )
                 continue
             total_changes += target.apply(plan)
 
@@ -549,25 +638,75 @@ class Manager(object):
 
         return zb.changes(za, _AggregateTarget(a + b))
 
-    def dump(self, zone, output_dir, lenient, split, source, *sources):
+    def dump(
+        self,
+        zone,
+        output_dir,
+        sources,
+        lenient=False,
+        split=False,
+        output_provider=None,
+    ):
         '''
         Dump zone data from the specified source
         '''
-        self.log.info('dump: zone=%s, sources=%s', zone, sources)
-
-        # We broke out source to force at least one to be passed, add it to any
-        # others we got.
-        sources = [source] + list(sources)
+        self.log.info(
+            'dump: zone=%s, output_dir=%s, output_provider=%s, '
+            'lenient=%s, split=%s, sources=%s',
+            zone,
+            output_dir,
+            output_provider,
+            lenient,
+            split,
+            sources,
+        )
 
         try:
             sources = [self.providers[s] for s in sources]
         except KeyError as e:
             raise ManagerException(f'Unknown source: {e.args[0]}')
 
-        clz = YamlProvider
-        if split:
-            clz = SplitYamlProvider
-        target = clz('dump', output_dir)
+        if output_provider:
+            self.log.info(
+                'dump: using specified output_provider=%s', output_provider
+            )
+            try:
+                target = self.providers[output_provider]
+            except KeyError as e:
+                raise ManagerException(f'Unknown output_provider: {e.args[0]}')
+            # The chosen output provider has to support a directory property so
+            # that we can tell it where the user has requested the dumped files
+            # to reside.
+            if not hasattr(target, 'directory'):
+                msg = (
+                    f'output_provider={output_provider}, does not support '
+                    'directory property'
+                )
+                raise ManagerException(msg)
+            if target.directory != output_dir:
+                # If the requested target doesn't match what's configured in
+                # the chosen provider then we'll need to set it. Before doing
+                # that we make a copy of the provider so that it can remain
+                # unchanged and potentially be used as a source, e.g. copying
+                # from one yaml to another
+                if not hasattr(target, 'copy'):
+                    msg = (
+                        f'output_provider={output_provider}, does not '
+                        'support copy method'
+                    )
+                    raise ManagerException(msg)
+                target = target.copy()
+                self.log.info(
+                    'dump: setting directory of output_provider ' 'copy to %s',
+                    output_dir,
+                )
+                target.directory = output_dir
+        else:
+            self.log.info('dump: using custom YamlProvider')
+            clz = YamlProvider
+            if split:
+                clz = SplitYamlProvider
+            target = clz('dump', output_dir)
 
         zone = Zone(zone, self.configured_sub_zones(zone))
         for source in sources:
@@ -586,15 +725,19 @@ class Manager(object):
             if source_zone:
                 if source_zone not in self.config['zones']:
                     self.log.exception('Invalid alias zone')
-                    raise ManagerException(f'Invalid alias zone {zone_name}: '
-                                           f'source zone {source_zone} does '
-                                           'not exist')
+                    raise ManagerException(
+                        f'Invalid alias zone {zone_name}: '
+                        f'source zone {source_zone} does '
+                        'not exist'
+                    )
 
                 if 'alias' in self.config['zones'][source_zone]:
                     self.log.exception('Invalid alias zone')
-                    raise ManagerException(f'Invalid alias zone {zone_name}: '
-                                           'source zone {source_zone} is an '
-                                           'alias zone')
+                    raise ManagerException(
+                        f'Invalid alias zone {zone_name}: '
+                        'source zone {source_zone} is an '
+                        'alias zone'
+                    )
 
                 # this is just here to satisfy coverage, see
                 # https://github.com/nedbat/coveragepy/issues/198
@@ -616,8 +759,9 @@ class Manager(object):
                     collected.append(self.providers[source])
                 sources = collected
             except KeyError:
-                raise ManagerException(f'Zone {zone_name}, unknown source: ' +
-                                       source)
+                raise ManagerException(
+                    f'Zone {zone_name}, unknown source: ' + source
+                )
 
             for source in sources:
                 if isinstance(source, YamlProvider):
@@ -630,13 +774,15 @@ class Manager(object):
                 for processor in processors:
                     collected.append(self.processors[processor])
             except KeyError:
-                raise ManagerException(f'Zone {zone_name}, unknown '
-                                       f'processor: {processor}')
+                raise ManagerException(
+                    f'Zone {zone_name}, unknown ' f'processor: {processor}'
+                )
 
     def get_zone(self, zone_name):
         if not zone_name[-1] == '.':
-            raise ManagerException(f'Invalid zone name {zone_name}, missing '
-                                   'ending dot')
+            raise ManagerException(
+                f'Invalid zone name {zone_name}, missing ' 'ending dot'
+            )
 
         for name, config in self.config['zones'].items():
             if name == zone_name:

@@ -7,7 +7,6 @@ from octodns.zone import Zone
 
 
 class TestEnvVarSource(TestCase):
-
     def test_read_variable(self):
         envvar = 'OCTODNS_TEST_ENVIRONMENT_VARIABLE'
         source = EnvVarSource('testid', envvar, 'recordname', ttl=120)

@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from unittest import TestCase
 
@@ -17,57 +21,40 @@ from helpers import PlannableProvider
 zone = Zone('unit.tests.', [])
 records = {}
 for record in [
-    Record.new(zone, '', {
-        'ttl': 30,
-        'type': 'A',
-        'values': [
-            '1.2.3.4',
-            '5.6.7.8',
-        ],
-    }),
-    Record.new(zone, 'the-a', {
-        'ttl': 30,
-        'type': 'A',
-        'value': '1.2.3.4',
-    }),
-    Record.new(zone, 'the-aaaa', {
-        'ttl': 30,
-        'type': 'AAAA',
-        'value': '::1',
-    }),
-    Record.new(zone, 'the-txt', {
-        'ttl': 30,
-        'type': 'TXT',
-        'value': 'Hello World!',
-    }),
-    Record.new(zone, '*', {
-        'ttl': 30,
-        'type': 'A',
-        'value': '4.3.2.1',
-    }),
+    Record.new(
+        zone, '', {'ttl': 30, 'type': 'A', 'values': ['1.2.3.4', '5.6.7.8']}
+    ),
+    Record.new(zone, 'the-a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}),
+    Record.new(zone, 'the-aaaa', {'ttl': 30, 'type': 'AAAA', 'value': '::1'}),
+    Record.new(
+        zone, 'the-txt', {'ttl': 30, 'type': 'TXT', 'value': 'Hello World!'}
+    ),
+    Record.new(zone, '*', {'ttl': 30, 'type': 'A', 'value': '4.3.2.1'}),
 ]:
     records[record.name] = record
     zone.add_record(record)
 
 
 class TestOwnershipProcessor(TestCase):
-
     def test_process_source_zone(self):
         ownership = OwnershipProcessor('ownership')
 
         got = ownership.process_source_zone(zone.copy())
-        self.assertEqual([
-            '',
-            '*',
-            '_owner.a',
-            '_owner.a._wildcard',
-            '_owner.a.the-a',
-            '_owner.aaaa.the-aaaa',
-            '_owner.txt.the-txt',
-            'the-a',
-            'the-aaaa',
-            'the-txt',
-        ], sorted([r.name for r in got.records]))
+        self.assertEqual(
+            [
+                '',
+                '*',
+                '_owner.a',
+                '_owner.a._wildcard',
+                '_owner.a.the-a',
+                '_owner.aaaa.the-aaaa',
+                '_owner.txt.the-txt',
+                'the-a',
+                'the-aaaa',
+                'the-txt',
+            ],
+            sorted([r.name for r in got.records]),
+        )
 
         found = False
         for record in got.records:
@@ -101,11 +88,9 @@ class TestOwnershipProcessor(TestCase):
 
         # Something extra exists and doesn't have ownership TXT, leave it
         # alone, we don't own it.
-        extra_a = Record.new(zone, 'extra-a', {
-            'ttl': 30,
-            'type': 'A',
-            'value': '4.4.4.4',
-        })
+        extra_a = Record.new(
+            zone, 'extra-a', {'ttl': 30, 'type': 'A', 'value': '4.4.4.4'}
+        )
         plan.existing.add_record(extra_a)
         # If we'd done a "real" plan we'd have a delete for the extra thing.
         plan.changes.append(Delete(extra_a))
@@ -130,11 +115,9 @@ class TestOwnershipProcessor(TestCase):
         the_a = records['the-a']
         plan.existing.add_record(the_a)
         name = f'{ownership.txt_name}.a.the-a'
-        the_a_ownership = Record.new(zone, name, {
-            'ttl': 30,
-            'type': 'TXT',
-            'value': ownership.txt_value,
-        })
+        the_a_ownership = Record.new(
+            zone, name, {'ttl': 30, 'type': 'TXT', 'value': ownership.txt_value}
+        )
         plan.existing.add_record(the_a_ownership)
         plan.changes.append(Delete(the_a))
         plan.changes.append(Delete(the_a_ownership))

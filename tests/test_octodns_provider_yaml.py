@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from os import makedirs
 from os.path import basename, dirname, isdir, isfile, join
@@ -13,15 +17,17 @@ from yaml.constructor import ConstructorError
 
 from octodns.record import Create
 from octodns.provider.base import Plan
-from octodns.provider.yaml import _list_all_yaml_files, \
-    SplitYamlProvider, YamlProvider
+from octodns.provider.yaml import (
+    _list_all_yaml_files,
+    SplitYamlProvider,
+    YamlProvider,
+)
 from octodns.zone import SubzoneRecordException, Zone
 
 from helpers import TemporaryDirectory
 
 
 class TestYamlProvider(TestCase):
-
     def test_provider(self):
         source = YamlProvider('test', join(dirname(__file__), 'config'))
 
@@ -34,7 +40,7 @@ class TestYamlProvider(TestCase):
 
         # without it we see everything
         source.populate(zone)
-        self.assertEqual(23, len(zone.records))
+        self.assertEqual(25, len(zone.records))
 
         source.populate(dynamic_zone)
         self.assertEqual(6, len(dynamic_zone.records))
@@ -57,18 +63,20 @@ class TestYamlProvider(TestCase):
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEqual(20, len([c for c in plan.changes
-                                      if isinstance(c, Create)]))
+            self.assertEqual(
+                22, len([c for c in plan.changes if isinstance(c, Create)])
+            )
             self.assertFalse(isfile(yaml_file))
 
             # Now actually do it
-            self.assertEqual(20, target.apply(plan))
+            self.assertEqual(22, target.apply(plan))
             self.assertTrue(isfile(yaml_file))
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
-            self.assertEqual(6, len([c for c in plan.changes
-                                     if isinstance(c, Create)]))
+            self.assertEqual(
+                6, len([c for c in plan.changes if isinstance(c, Create)])
+            )
             self.assertFalse(isfile(dynamic_yaml_file))
             # Apply it
             self.assertEqual(6, target.apply(plan))
@@ -79,8 +87,10 @@ class TestYamlProvider(TestCase):
             target.populate(reloaded)
             self.assertDictEqual(
                 {'included': ['test']},
-                [x for x in reloaded.records
-                 if x.name == 'included'][0]._octodns)
+                [x for x in reloaded.records if x.name == 'included'][
+                    0
+                ]._octodns,
+            )
 
             # manually copy over the root since it will have been ignored
             # when things were written out
@@ -90,8 +100,9 @@ class TestYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEqual(20, len([c for c in plan.changes
-                                      if isinstance(c, Create)]))
+            self.assertEqual(
+                22, len([c for c in plan.changes if isinstance(c, Create)])
+            )
 
             with open(yaml_file) as fh:
                 data = safe_load(fh.read())
@@ -100,7 +111,7 @@ class TestYamlProvider(TestCase):
                 roots = sorted(data.pop(''), key=lambda r: r['type'])
                 self.assertTrue('values' in roots[0])  # A
                 self.assertTrue('geo' in roots[0])  # geo made the trip
-                self.assertTrue('value' in roots[1])   # CAA
+                self.assertTrue('value' in roots[1])  # CAA
                 self.assertTrue('values' in roots[2])  # SSHFP
 
                 # these are stored as plural 'values'
@@ -111,6 +122,8 @@ class TestYamlProvider(TestCase):
                 self.assertTrue('values' in data.pop('txt'))
                 self.assertTrue('values' in data.pop('loc'))
                 self.assertTrue('values' in data.pop('urlfwd'))
+                self.assertTrue('values' in data.pop('sub.txt'))
+                self.assertTrue('values' in data.pop('subzone'))
                 # these are stored as singular 'value'
                 self.assertTrue('value' in data.pop('_imap._tcp'))
                 self.assertTrue('value' in data.pop('_pop3._tcp'))
@@ -160,8 +173,9 @@ class TestYamlProvider(TestCase):
                 self.assertEqual([], list(data.keys()))
 
     def test_empty(self):
-        source = YamlProvider('test', join(dirname(__file__), 'config'),
-                              supports_root_ns=False)
+        source = YamlProvider(
+            'test', join(dirname(__file__), 'config'), supports_root_ns=False
+        )
 
         zone = Zone('empty.', [])
 
@@ -170,34 +184,41 @@ class TestYamlProvider(TestCase):
         self.assertEqual(0, len(zone.records))
 
     def test_unsorted(self):
-        source = YamlProvider('test', join(dirname(__file__), 'config'),
-                              supports_root_ns=False)
+        source = YamlProvider(
+            'test', join(dirname(__file__), 'config'), supports_root_ns=False
+        )
 
         zone = Zone('unordered.', [])
 
         with self.assertRaises(ConstructorError):
             source.populate(zone)
 
-        source = YamlProvider('test', join(dirname(__file__), 'config'),
-                              enforce_order=False, supports_root_ns=False)
+        source = YamlProvider(
+            'test',
+            join(dirname(__file__), 'config'),
+            enforce_order=False,
+            supports_root_ns=False,
+        )
         # no exception
         source.populate(zone)
         self.assertEqual(2, len(zone.records))
 
     def test_subzone_handling(self):
-        source = YamlProvider('test', join(dirname(__file__), 'config'),
-                              supports_root_ns=False)
+        source = YamlProvider(
+            'test', join(dirname(__file__), 'config'), supports_root_ns=False
+        )
 
         # If we add `sub` as a sub-zone we'll reject `www.sub`
         zone = Zone('unit.tests.', ['sub'])
         with self.assertRaises(SubzoneRecordException) as ctx:
             source.populate(zone)
-        self.assertEqual('Record www.sub.unit.tests. is under a managed '
-                         'subzone', str(ctx.exception))
+        self.assertEqual(
+            'Record www.sub.unit.tests. is under a managed ' 'subzone',
+            str(ctx.exception),
+        )
 
 
 class TestSplitYamlProvider(TestCase):
-
     def test_list_all_yaml_files(self):
         yaml_files = ('foo.yaml', '1.yaml', '$unit.tests.yaml')
         all_files = ('something', 'else', '1', '$$', '-f') + yaml_files
@@ -221,19 +242,21 @@ class TestSplitYamlProvider(TestCase):
 
     def test_zone_directory(self):
         source = SplitYamlProvider(
-            'test', join(dirname(__file__), 'config/split'),
-            extension='.tst')
+            'test', join(dirname(__file__), 'config/split'), extension='.tst'
+        )
 
         zone = Zone('unit.tests.', [])
 
         self.assertEqual(
             join(dirname(__file__), 'config/split', 'unit.tests.tst'),
-            source._zone_directory(zone))
+            source._zone_directory(zone),
+        )
 
     def test_apply_handles_existing_zone_directory(self):
         with TemporaryDirectory() as td:
-            provider = SplitYamlProvider('test', join(td.dirname, 'config'),
-                                         extension='.tst')
+            provider = SplitYamlProvider(
+                'test', join(td.dirname, 'config'), extension='.tst'
+            )
             makedirs(join(td.dirname, 'config', 'does.exist.tst'))
 
             zone = Zone('does.exist.', [])
@@ -243,8 +266,8 @@ class TestSplitYamlProvider(TestCase):
 
     def test_provider(self):
         source = SplitYamlProvider(
-            'test', join(dirname(__file__), 'config/split'),
-            extension='.tst')
+            'test', join(dirname(__file__), 'config/split'), extension='.tst'
+        )
 
         zone = Zone('unit.tests.', [])
         dynamic_zone = Zone('dynamic.tests.', [])
@@ -265,14 +288,15 @@ class TestSplitYamlProvider(TestCase):
             directory = join(td.dirname, 'sub', 'dir')
             zone_dir = join(directory, 'unit.tests.tst')
             dynamic_zone_dir = join(directory, 'dynamic.tests.tst')
-            target = SplitYamlProvider('test', directory,
-                                       extension='.tst',
-                                       supports_root_ns=False)
+            target = SplitYamlProvider(
+                'test', directory, extension='.tst', supports_root_ns=False
+            )
 
             # We add everything
             plan = target.plan(zone)
-            self.assertEqual(17, len([c for c in plan.changes
-                                      if isinstance(c, Create)]))
+            self.assertEqual(
+                17, len([c for c in plan.changes if isinstance(c, Create)])
+            )
             self.assertFalse(isdir(zone_dir))
 
             # Now actually do it
@@ -280,8 +304,9 @@ class TestSplitYamlProvider(TestCase):
 
             # Dynamic plan
             plan = target.plan(dynamic_zone)
-            self.assertEqual(5, len([c for c in plan.changes
-                                     if isinstance(c, Create)]))
+            self.assertEqual(
+                5, len([c for c in plan.changes if isinstance(c, Create)])
+            )
             self.assertFalse(isdir(dynamic_zone_dir))
             # Apply it
             self.assertEqual(5, target.apply(plan))
@@ -292,8 +317,10 @@ class TestSplitYamlProvider(TestCase):
             target.populate(reloaded)
             self.assertDictEqual(
                 {'included': ['test']},
-                [x for x in reloaded.records
-                 if x.name == 'included'][0]._octodns)
+                [x for x in reloaded.records if x.name == 'included'][
+                    0
+                ]._octodns,
+            )
 
             # manually copy over the root since it will have been ignored
             # when things were written out
@@ -303,8 +330,9 @@ class TestSplitYamlProvider(TestCase):
 
             # A 2nd sync should still create everything
             plan = target.plan(zone)
-            self.assertEqual(17, len([c for c in plan.changes
-                                      if isinstance(c, Create)]))
+            self.assertEqual(
+                17, len([c for c in plan.changes if isinstance(c, Create)])
+            )
 
             yaml_file = join(zone_dir, '$unit.tests.yaml')
             self.assertTrue(isfile(yaml_file))
@@ -313,13 +341,19 @@ class TestSplitYamlProvider(TestCase):
                 roots = sorted(data.pop(''), key=lambda r: r['type'])
                 self.assertTrue('values' in roots[0])  # A
                 self.assertTrue('geo' in roots[0])  # geo made the trip
-                self.assertTrue('value' in roots[1])   # CAA
+                self.assertTrue('value' in roots[1])  # CAA
                 self.assertTrue('values' in roots[2])  # SSHFP
 
             # These records are stored as plural "values." Check each file to
             # ensure correctness.
-            for record_name in ('_srv._tcp', 'mx', 'naptr', 'sub', 'txt',
-                                'urlfwd'):
+            for record_name in (
+                '_srv._tcp',
+                'mx',
+                'naptr',
+                'sub',
+                'txt',
+                'urlfwd',
+            ):
                 yaml_file = join(zone_dir, f'{record_name}.yaml')
                 self.assertTrue(isfile(yaml_file))
                 with open(yaml_file) as fh:
@@ -327,8 +361,16 @@ class TestSplitYamlProvider(TestCase):
                     self.assertTrue('values' in data.pop(record_name))
 
             # These are stored as singular "value." Again, check each file.
-            for record_name in ('aaaa', 'cname', 'dname', 'included', 'ptr',
-                                'spf', 'www.sub', 'www'):
+            for record_name in (
+                'aaaa',
+                'cname',
+                'dname',
+                'included',
+                'ptr',
+                'spf',
+                'www.sub',
+                'www',
+            ):
                 yaml_file = join(zone_dir, f'{record_name}.yaml')
                 self.assertTrue(isfile(yaml_file))
                 with open(yaml_file) as fh:
@@ -337,8 +379,7 @@ class TestSplitYamlProvider(TestCase):
 
             # Again with the plural, this time checking dynamic.tests.
             for record_name in ('a', 'aaaa', 'real-ish-a'):
-                yaml_file = join(
-                    dynamic_zone_dir, f'{record_name}.yaml')
+                yaml_file = join(dynamic_zone_dir, f'{record_name}.yaml')
                 self.assertTrue(isfile(yaml_file))
                 with open(yaml_file) as fh:
                     data = safe_load(fh.read())
@@ -358,8 +399,8 @@ class TestSplitYamlProvider(TestCase):
 
     def test_empty(self):
         source = SplitYamlProvider(
-            'test', join(dirname(__file__), 'config/split'),
-            extension='.tst')
+            'test', join(dirname(__file__), 'config/split'), extension='.tst'
+        )
 
         zone = Zone('empty.', [])
 
@@ -369,8 +410,8 @@ class TestSplitYamlProvider(TestCase):
 
     def test_unsorted(self):
         source = SplitYamlProvider(
-            'test', join(dirname(__file__), 'config/split'),
-            extension='.tst')
+            'test', join(dirname(__file__), 'config/split'), extension='.tst'
+        )
 
         zone = Zone('unordered.', [])
 
@@ -380,35 +421,86 @@ class TestSplitYamlProvider(TestCase):
         zone = Zone('unordered.', [])
 
         source = SplitYamlProvider(
-            'test', join(dirname(__file__), 'config/split'),
-            extension='.tst', enforce_order=False)
+            'test',
+            join(dirname(__file__), 'config/split'),
+            extension='.tst',
+            enforce_order=False,
+        )
         # no exception
         source.populate(zone)
         self.assertEqual(2, len(zone.records))
 
     def test_subzone_handling(self):
         source = SplitYamlProvider(
-            'test', join(dirname(__file__), 'config/split'),
-            extension='.tst')
+            'test', join(dirname(__file__), 'config/split'), extension='.tst'
+        )
 
         # If we add `sub` as a sub-zone we'll reject `www.sub`
         zone = Zone('unit.tests.', ['sub'])
         with self.assertRaises(SubzoneRecordException) as ctx:
             source.populate(zone)
-        self.assertEqual('Record www.sub.unit.tests. is under a managed '
-                         'subzone', str(ctx.exception))
+        self.assertEqual(
+            'Record www.sub.unit.tests. is under a managed ' 'subzone',
+            str(ctx.exception),
+        )
+
+    def test_copy(self):
+        # going to put some sentinal values in here to ensure, these aren't
+        # valid, but we shouldn't hit any code that cares during this test
+        source = YamlProvider(
+            'test',
+            42,
+            default_ttl=43,
+            enforce_order=44,
+            populate_should_replace=45,
+            supports_root_ns=46,
+        )
+        copy = source.copy()
+        self.assertEqual(source.directory, copy.directory)
+        self.assertEqual(source.default_ttl, copy.default_ttl)
+        self.assertEqual(source.enforce_order, copy.enforce_order)
+        self.assertEqual(
+            source.populate_should_replace, copy.populate_should_replace
+        )
+        self.assertEqual(source.supports_root_ns, copy.supports_root_ns)
+
+        # same for split
+        source = SplitYamlProvider(
+            'test',
+            42,
+            extension=42.5,
+            default_ttl=43,
+            enforce_order=44,
+            populate_should_replace=45,
+            supports_root_ns=46,
+        )
+        copy = source.copy()
+        self.assertEqual(source.directory, copy.directory)
+        self.assertEqual(source.extension, copy.extension)
+        self.assertEqual(source.default_ttl, copy.default_ttl)
+        self.assertEqual(source.enforce_order, copy.enforce_order)
+        self.assertEqual(
+            source.populate_should_replace, copy.populate_should_replace
+        )
+        self.assertEqual(source.supports_root_ns, copy.supports_root_ns)
 
 
 class TestOverridingYamlProvider(TestCase):
-
     def test_provider(self):
         config = join(dirname(__file__), 'config')
         override_config = join(dirname(__file__), 'config', 'override')
-        base = YamlProvider('base', config, populate_should_replace=False,
-                            supports_root_ns=False)
-        override = YamlProvider('test', override_config,
-                                populate_should_replace=True,
-                                supports_root_ns=False)
+        base = YamlProvider(
+            'base',
+            config,
+            populate_should_replace=False,
+            supports_root_ns=False,
+        )
+        override = YamlProvider(
+            'test',
+            override_config,
+            populate_should_replace=True,
+            supports_root_ns=False,
+        )
 
         zone = Zone('dynamic.tests.', [])
 
@@ -426,9 +518,8 @@ class TestOverridingYamlProvider(TestCase):
         got = {r.name: r for r in zone.records}
         self.assertEqual(7, len(got))
         # 'a' was replaced with a generic record
-        self.assertEqual({
-            'ttl': 3600,
-            'values': ['4.4.4.4', '5.5.5.5']
-        }, got['a'].data)
+        self.assertEqual(
+            {'ttl': 3600, 'values': ['4.4.4.4', '5.5.5.5']}, got['a'].data
+        )
         # And we have the new one
         self.assertTrue('added' in got)

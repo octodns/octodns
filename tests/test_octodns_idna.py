@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from unittest import TestCase
 
@@ -11,7 +15,6 @@ from octodns.idna import idna_decode, idna_encode
 
 
 class TestIdna(TestCase):
-
     def assertIdna(self, value, expected):
         got = idna_encode(value)
         self.assertEqual(expected, got)
@@ -39,8 +42,9 @@ class TestIdna(TestCase):
         self.assertIdna('noop.zajęzyk.pl.', 'noop.xn--zajzyk-y4a.pl.')
 
         # encoded with encoded name
-        self.assertIdna('zajęzyk.zajęzyk.pl.',
-                        'xn--zajzyk-y4a.xn--zajzyk-y4a.pl.')
+        self.assertIdna(
+            'zajęzyk.zajęzyk.pl.', 'xn--zajzyk-y4a.xn--zajzyk-y4a.pl.'
+        )
 
         self.assertIdna('déjàvu.com.', 'xn--djvu-1na6c.com.')
         self.assertIdna('déjà-vu.com.', 'xn--dj-vu-sqa5d.com.')

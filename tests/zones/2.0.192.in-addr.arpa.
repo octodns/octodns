@@ -1,0 +1,18 @@
+$ORIGIN 2.0.192.in-addr.arpa.
+@           3600 IN	SOA	ns1.unit.tests. root.unit.tests. (
+                        2018071501		; Serial
+                        3600    ; Refresh (1 hour)
+                        600     ; Retry (10 minutes)
+                        604800  ; Expire (1 week)
+                        3600    ; NXDOMAIN ttl (1 hour)
+                    )
+
+; NS Records
+@           3600  IN  NS  ns1.unit.tests.
+@           3600  IN  NS  ns2.unit.tests.
+
+; PTR Records
+1   IN  PTR foo-1.unit.tests.
+2   IN  PTR foo-2.unit.tests.
+3   IN  PTR foo-3.unit.tests.
+3   IN  PTR foo-4.unit.tests.

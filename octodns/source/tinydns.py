@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from collections import defaultdict
 from ipaddress import ip_address
@@ -40,11 +44,7 @@ class TinyDnsBaseSource(BaseSource):
             ttl = records[0][1]
         except IndexError:
             ttl = self.default_ttl
-        return {
-            'ttl': ttl,
-            'type': _type,
-            'values': values,
-        }
+        return {'ttl': ttl, 'type': _type, 'values': values}
 
     def _data_for_AAAA(self, _type, records):
         values = []
@@ -57,29 +57,25 @@ class TinyDnsBaseSource(BaseSource):
             ttl = records[0][1]
         except IndexError:
             ttl = self.default_ttl
-        return {
-            'ttl': ttl,
-            'type': _type,
-            'values': values,
-        }
+        return {'ttl': ttl, 'type': _type, 'values': values}
 
     def _data_for_TXT(self, _type, records):
         values = []
 
         for record in records:
-            new_value = record[0].encode('latin1').decode('unicode-escape') \
+            new_value = (
+                record[0]
+                .encode('latin1')
+                .decode('unicode-escape')
                 .replace(";", "\\;")
+            )
             values.append(new_value)
 
         try:
             ttl = records[0][1]
         except IndexError:
             ttl = self.default_ttl
-        return {
-            'ttl': ttl,
-            'type': _type,
-            'values': values,
-        }
+        return {'ttl': ttl, 'type': _type, 'values': values}
 
     def _data_for_CNAME(self, _type, records):
         first = records[0]
@@ -87,11 +83,7 @@ class TinyDnsBaseSource(BaseSource):
             ttl = first[1]
         except IndexError:
             ttl = self.default_ttl
-        return {
-            'ttl': ttl,
-            'type': _type,
-            'value': f'{first[0]}.'
-        }
+        return {'ttl': ttl, 'type': _type, 'value': f'{first[0]}.'}
 
     def _data_for_MX(self, _type, records):
         try:
@@ -101,10 +93,9 @@ class TinyDnsBaseSource(BaseSource):
         return {
             'ttl': ttl,
             'type': _type,
-            'values': [{
-                'preference': r[1],
-                'exchange': f'{r[0]}.'
-            } for r in records]
+            'values': [
+                {'preference': r[1], 'exchange': f'{r[0]}.'} for r in records
+            ],
         }
 
     def _data_for_NS(self, _type, records):
@@ -115,12 +106,16 @@ class TinyDnsBaseSource(BaseSource):
         return {
             'ttl': ttl,
             'type': _type,
-            'values': [f'{r[0]}.' for r in records]
+            'values': [f'{r[0]}.' for r in records],
         }
 
     def populate(self, zone, target=False, lenient=False):
-        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
-                       target, lenient)
+        self.log.debug(
+            'populate: name=%s, target=%s, lenient=%s',
+            zone.name,
+            target,
+            lenient,
+        )
 
         before = len(zone.records)
 
@@ -129,8 +124,9 @@ class TinyDnsBaseSource(BaseSource):
         else:
             self._populate_normal(zone, lenient)
 
-        self.log.info('populate:   found %s records',
-                      len(zone.records) - before)
+        self.log.info(
+            'populate:   found %s records', len(zone.records) - before
+        )
 
     def _populate_normal(self, zone, lenient):
         type_map = {
@@ -171,13 +167,16 @@ class TinyDnsBaseSource(BaseSource):
                 data_for = getattr(self, f'_data_for_{_type}')
                 data = data_for(_type, d)
                 if data:
-                    record = Record.new(zone, name, data, source=self,
-                                        lenient=lenient)
+                    record = Record.new(
+                        zone, name, data, source=self, lenient=lenient
+                    )
                     try:
                         zone.add_record(record, lenient=lenient)
                     except SubzoneRecordException:
-                        self.log.debug('_populate_normal: skipping subzone '
-                                       'record=%s', record)
+                        self.log.debug(
+                            '_populate_normal: skipping subzone ' 'record=%s',
+                            record,
+                        )
 
     def _populate_in_addr_arpa(self, zone, lenient):
         name_re = re.compile(fr'(?P<name>.+)\.{zone.name[:-1]}$')
@@ -209,11 +208,13 @@ class TinyDnsBaseSource(BaseSource):
                     ttl = self.default_ttl
 
                 name = match.group('name')
-                record = Record.new(zone, name, {
-                    'ttl': ttl,
-                    'type': 'PTR',
-                    'value': value
-                }, source=self, lenient=lenient)
+                record = Record.new(
+                    zone,
+                    name,
+                    {'ttl': ttl, 'type': 'PTR', 'value': value},
+                    source=self,
+                    lenient=lenient,
+                )
                 try:
                     zone.add_record(record, lenient=lenient)
                 except DuplicateRecordException:
@@ -236,10 +237,15 @@ class TinyDnsFileSource(TinyDnsBaseSource):
 
     NOTE: timestamps & lo fields are ignored if present.
     '''
+
     def __init__(self, id, directory, default_ttl=3600):
         self.log = logging.getLogger(f'TinyDnsFileSource[{id}]')
-        self.log.debug('__init__: id=%s, directory=%s, default_ttl=%d', id,
-                       directory, default_ttl)
+        self.log.debug(
+            '__init__: id=%s, directory=%s, default_ttl=%d',
+            id,
+            directory,
+            default_ttl,
+        )
         super(TinyDnsFileSource, self).__init__(id, default_ttl)
         self.directory = directory
         self._cache = None

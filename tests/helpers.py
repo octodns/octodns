@@ -2,8 +2,12 @@
 #
 #
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+from __future__ import (
+    absolute_import,
+    division,
+    print_function,
+    unicode_literals,
+)
 
 from shutil import rmtree
 from tempfile import mkdtemp
@@ -15,7 +19,6 @@ from octodns.provider.yaml import YamlProvider
 
 
 class SimpleSource(object):
-
     def __init__(self, id='test'):
         pass
 
@@ -78,13 +81,11 @@ class DynamicProvider(object):
 
 
 class NoSshFpProvider(SimpleProvider):
-
     def supports(self, record):
         return record._type != 'SSHFP'
 
 
 class TemporaryDirectory(object):
-
     def __init__(self, delete_on_exit=True):
         self.delete_on_exit = delete_on_exit
 
@@ -100,7 +101,6 @@ class TemporaryDirectory(object):
 
 
 class WantsConfigProcessor(BaseProcessor):
-
     def __init__(self, name, some_config):
         super(WantsConfigProcessor, self).__init__(name)
 
