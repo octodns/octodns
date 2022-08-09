@@ -104,7 +104,7 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
-        name = str(name)
+        name = str(name).lower()
         fqdn = f'{name}.{zone.name}' if name else zone.name
         try:
             _type = data['type']
