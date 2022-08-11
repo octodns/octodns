@@ -185,25 +185,6 @@ class Manager(object):
                     'Incorrect processor config for ' + processor_name
                 )
 
-        zone_tree = {}
-        # Sort so we iterate on the deepest nodes first, ensuring if a parent
-        # zone exists it will be seen after the subzone, thus we can easily
-        # reparent children to their parent zone from the tree root.
-        for name in sorted(
-            self.config['zones'].keys(), key=lambda s: 0 - s.count('.')
-        ):
-            # Trim the trailing dot from FQDN
-            name = name[:-1]
-            this = {}
-            for sz in [k for k in zone_tree.keys() if k.endswith(name)]:
-                # Found a zone in tree root that is our child, slice the
-                # name and move its tree under ours.
-                this[sz[: -(len(name) + 1)]] = zone_tree.pop(sz)
-            # Add to tree root where it will be reparented as we iterate up
-            # the tree.
-            zone_tree[name] = this
-        self.zone_tree = zone_tree
-
         self.plan_outputs = {}
         plan_outputs = manager_config.get(
             'plan_outputs',
@@ -243,6 +224,32 @@ class Manager(object):
                 raise ManagerException(
                     'Incorrect plan_output config for ' + plan_output_name
                 )
+
+        self._zone_tree = None
+
+    @property
+    def zone_tree(self):
+        if self._zone_tree is None:
+            zone_tree = {}
+            # Sort so we iterate on the deepest nodes first, ensuring if a parent
+            # zone exists it will be seen after the subzone, thus we can easily
+            # reparent children to their parent zone from the tree root.
+            for name in sorted(
+                self.config['zones'].keys(), key=lambda s: 0 - s.count('.')
+            ):
+                # Trim the trailing dot from FQDN
+                name = name[:-1]
+                this = {}
+                for sz in [k for k in zone_tree.keys() if k.endswith(name)]:
+                    # Found a zone in tree root that is our child, slice the
+                    # name and move its tree under ours.
+                    this[sz[: -(len(name) + 1)]] = zone_tree.pop(sz)
+                # Add to tree root where it will be reparented as we iterate up
+                # the tree.
+                zone_tree[name] = this
+            self._zone_tree = zone_tree
+
+        return self._zone_tree
 
     def _try_version(self, module_name, module=None, version=None):
         try:
