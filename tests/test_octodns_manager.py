@@ -724,15 +724,6 @@ class TestManager(TestCase):
         }
 
         self.assertEqual(
-            {
-                'unit.tests.': {'sub', 'another.sub', 'skipped.alevel'},
-                'sub.unit.tests.': {'another'},
-                'another.sub.unit.tests.': set(),
-                'skipped.alevel.unit.tests.': set(),
-            },
-            manager.zone_tree,
-        )
-        self.assertEqual(
             {'another.sub', 'sub', 'skipped.alevel'},
             manager.configured_sub_zones('unit.tests.'),
         )
@@ -757,20 +748,7 @@ class TestManager(TestCase):
             'skipped.alevel.unit.tests.': {},
             'skipped.alevel.unit2.tests.': {},
         }
-        manager._zone_tree = None
-        self.assertEqual(
-            {
-                'unit.tests.': {'sub', 'another.sub', 'skipped.alevel'},
-                'sub.unit.tests.': {'another'},
-                'another.sub.unit.tests.': set(),
-                'skipped.alevel.unit.tests.': set(),
-                'unit2.tests.': {'sub', 'another.sub', 'skipped.alevel'},
-                'sub.unit2.tests.': {'another'},
-                'another.sub.unit2.tests.': set(),
-                'skipped.alevel.unit2.tests.': set(),
-            },
-            manager.zone_tree,
-        )
+        manager._configured_sub_zones = None
         self.assertEqual(
             {'another.sub', 'sub', 'skipped.alevel'},
             manager.configured_sub_zones('unit.tests.'),

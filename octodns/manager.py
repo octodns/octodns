@@ -228,37 +228,7 @@ class Manager(object):
                     'Incorrect plan_output config for ' + plan_output_name
                 )
 
-        self._zone_tree = None
-
-    @property
-    def zone_tree(self):
-        if self._zone_tree is None:
-            zone_tree = {}
-
-            # Get a list of all of our zone names. Sort them from shortest to
-            # longest so that parents will always come before their subzones
-            zones = sorted(
-                self.config['zones'].keys(), key=lambda z: len(z), reverse=True
-            )
-            zones = deque(zones)
-            # Until we're done processing zones
-            while zones:
-                # Grab the one we'lre going to work on now
-                zone = zones.pop()
-                trimmer = len(zone) + 1
-                subs = set()
-                # look at all the zone names that come after it
-                for candidate in zones:
-                    # If they end with this zone's name them they're a sub
-                    if candidate.endswith(zone):
-                        # We want subs to exclude the zone portion
-                        subs.add(candidate[:-trimmer])
-
-                zone_tree[zone] = subs
-
-            self._zone_tree = zone_tree
-
-        return self._zone_tree
+        self._configured_sub_zones = None
 
     def _try_version(self, module_name, module=None, version=None):
         try:
@@ -330,7 +300,35 @@ class Manager(object):
         return kwargs
 
     def configured_sub_zones(self, zone_name):
-        return self.zone_tree.get(zone_name, set())
+        if self._configured_sub_zones is None:
+            # First time through we compute all the sub-zones
+
+            configured_sub_zones = {}
+
+            # Get a list of all of our zone names. Sort them from shortest to
+            # longest so that parents will always come before their subzones
+            zones = sorted(
+                self.config['zones'].keys(), key=lambda z: len(z), reverse=True
+            )
+            zones = deque(zones)
+            # Until we're done processing zones
+            while zones:
+                # Grab the one we'lre going to work on now
+                zone = zones.pop()
+                trimmer = len(zone) + 1
+                subs = set()
+                # look at all the zone names that come after it
+                for candidate in zones:
+                    # If they end with this zone's name them they're a sub
+                    if candidate.endswith(zone):
+                        # We want subs to exclude the zone portion
+                        subs.add(candidate[:-trimmer])
+
+                configured_sub_zones[zone] = subs
+
+            self._configured_sub_zones = configured_sub_zones
+
+        return self._configured_sub_zones.get(zone_name, set())
 
     def _populate_and_plan(
         self,
