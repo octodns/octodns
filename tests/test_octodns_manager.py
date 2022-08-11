@@ -712,6 +712,34 @@ class TestManager(TestCase):
             ),
         )
 
+    def test_subzone_handling(self):
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        manager.config['zones'] = {
+            'unit.tests.': {},
+            'sub.unit.tests.': {},
+            'another.sub.unit.tests.': {},
+            'skipped.alevel.unit.tests.': {},
+        }
+
+        self.assertEqual(
+            {'unit.tests': {'skipped.alevel': {}, 'sub': {'another': {}}}},
+            manager.zone_tree,
+        )
+        self.assertEqual(
+            {'sub', 'skipped.alevel'},
+            manager.configured_sub_zones('unit.tests.'),
+        )
+        self.assertEqual(
+            {'another'}, manager.configured_sub_zones('sub.unit.tests.')
+        )
+        self.assertEqual(
+            set(), manager.configured_sub_zones('another.unit.tests.')
+        )
+        self.assertEqual(
+            set(), manager.configured_sub_zones('skipped.alevel.unit.tests.')
+        )
+
 
 class TestMainThreadExecutor(TestCase):
     def test_success(self):
