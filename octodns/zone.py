@@ -73,18 +73,22 @@ class Zone(object):
 
         name = record.name
 
-        if not lenient and any((name.endswith(sz) for sz in self.sub_zones)):
+        # Create an exhaustive list of potential subzones for a label
+        parts = name.split('.')
+        name_zones = []
+        for index in range(len(parts)):
+            name_zones.append('.'.join(parts[index:]))
+
+        if not lenient and any(nz in self.sub_zones for nz in name_zones):
             if name not in self.sub_zones:
                 # it's a record for something under a sub-zone
                 raise SubzoneRecordException(
-                    f'Record {record.fqdn} is under ' 'a managed subzone'
+                    f'Record {record.fqdn} is under a managed subzone'
                 )
             elif record._type != 'NS':
                 # It's a non NS record for exactly a sub-zone
                 raise SubzoneRecordException(
-                    f'Record {record.fqdn} a '
-                    'managed sub-zone and not of '
-                    'type NS'
+                    f'Record {record.fqdn} is a managed sub-zone and not of type NS'
                 )
 
         if replace:

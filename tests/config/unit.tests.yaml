@@ -167,6 +167,11 @@ sub.txt:
   values:
   - ns1.test.
   - ns2.test.
+sub_longer_label_not_subzone:
+  type: A
+  values:
+  - 192.0.2.22
+  - 192.0.2.23
 subzone:
   type: 'NS'
   values:
