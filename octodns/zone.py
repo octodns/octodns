@@ -79,9 +79,7 @@ class Zone(object):
                 if not record._type == 'NS':
                     # and not a NS record, this should be in the sub
                     raise SubzoneRecordException(
-                        f'Record {record.fqdn} a '
-                        'managed sub-zone and not of '
-                        'type NS'
+                        f'Record {record.fqdn} a managed sub-zone and not of type NS'
                     )
             else:
                 # It's not an exact match so there has to be a `.` before the
@@ -90,8 +88,7 @@ class Zone(object):
                     if name.endswith(f'.{sub_zone}'):
                         # this should be in a sub
                         raise SubzoneRecordException(
-                            f'Record {record.fqdn} is under '
-                            'a managed subzone'
+                            f'Record {record.fqdn} is under a managed subzone'
                         )
 
         if replace:
