@@ -9,6 +9,7 @@ from __future__ import (
     unicode_literals,
 )
 
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from os import environ
@@ -234,15 +235,16 @@ class Manager(object):
         if self._zone_tree is None:
             zone_tree = {}
 
-            # Get a list of all of our zone names
-            zones = list(self.config['zones'].keys())
-            # Sort them from shortest to longest so that parents will always
-            # come before their subzones
-            zones.sort(key=lambda z: len(z))
+            # Get a list of all of our zone names. Sort them from shortest to
+            # longest so that parents will always come before their subzones
+            zones = sorted(
+                self.config['zones'].keys(), key=lambda z: len(z), reverse=True
+            )
+            zones = deque(zones)
             # Until we're done processing zones
             while zones:
                 # Grab the one we'lre going to work on now
-                zone = zones.pop(0)
+                zone = zones.pop()
                 trimmer = len(zone) + 1
                 subs = set()
                 # look at all the zone names that come after it
