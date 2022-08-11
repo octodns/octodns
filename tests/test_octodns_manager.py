@@ -776,6 +776,17 @@ class TestManager(TestCase):
             set(), manager.configured_sub_zones('skipped.alevel.unit2.tests.')
         )
 
+        # zones that end with names of others
+        manager.config['zones'] = {
+            'unit.tests.': {},
+            'uunit.tests.': {},
+            'uuunit.tests.': {},
+        }
+        manager._configured_sub_zones = None
+        self.assertEqual(set(), manager.configured_sub_zones('unit.tests.'))
+        self.assertEqual(set(), manager.configured_sub_zones('uunit.tests.'))
+        self.assertEqual(set(), manager.configured_sub_zones('uuunit.tests.'))
+
 
 class TestMainThreadExecutor(TestCase):
     def test_success(self):

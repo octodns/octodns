@@ -315,12 +315,13 @@ class Manager(object):
             while zones:
                 # Grab the one we'lre going to work on now
                 zone = zones.pop()
-                trimmer = len(zone) + 1
+                dotted = f'.{zone}'
+                trimmer = len(dotted)
                 subs = set()
                 # look at all the zone names that come after it
                 for candidate in zones:
-                    # If they end with this zone's name them they're a sub
-                    if candidate.endswith(zone):
+                    # If they end with this zone's dotted name, it's a sub
+                    if candidate.endswith(dotted):
                         # We want subs to exclude the zone portion
                         subs.add(candidate[:-trimmer])
 
