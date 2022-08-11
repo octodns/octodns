@@ -715,6 +715,7 @@ class TestManager(TestCase):
     def test_subzone_handling(self):
         manager = Manager(get_config_filename('simple.yaml'))
 
+        # tree with multiple branches, one that skips
         manager.config['zones'] = {
             'unit.tests.': {},
             'sub.unit.tests.': {},
@@ -723,21 +724,78 @@ class TestManager(TestCase):
         }
 
         self.assertEqual(
-            {'unit.tests': {'skipped.alevel': {}, 'sub': {'another': {}}}},
+            {
+                'unit.tests.': {'sub', 'another.sub', 'skipped.alevel'},
+                'sub.unit.tests.': {'another'},
+                'another.sub.unit.tests.': set(),
+                'skipped.alevel.unit.tests.': set(),
+            },
             manager.zone_tree,
         )
         self.assertEqual(
-            {'sub', 'skipped.alevel'},
+            {'another.sub', 'sub', 'skipped.alevel'},
             manager.configured_sub_zones('unit.tests.'),
         )
         self.assertEqual(
             {'another'}, manager.configured_sub_zones('sub.unit.tests.')
         )
         self.assertEqual(
-            set(), manager.configured_sub_zones('another.unit.tests.')
+            set(), manager.configured_sub_zones('another.sub.unit.tests.')
         )
         self.assertEqual(
             set(), manager.configured_sub_zones('skipped.alevel.unit.tests.')
+        )
+
+        # two parallel trees, make sure they don't interfere
+        manager.config['zones'] = {
+            'unit.tests.': {},
+            'unit2.tests.': {},
+            'sub.unit.tests.': {},
+            'sub.unit2.tests.': {},
+            'another.sub.unit.tests.': {},
+            'another.sub.unit2.tests.': {},
+            'skipped.alevel.unit.tests.': {},
+            'skipped.alevel.unit2.tests.': {},
+        }
+        manager._zone_tree = None
+        self.assertEqual(
+            {
+                'unit.tests.': {'sub', 'another.sub', 'skipped.alevel'},
+                'sub.unit.tests.': {'another'},
+                'another.sub.unit.tests.': set(),
+                'skipped.alevel.unit.tests.': set(),
+                'unit2.tests.': {'sub', 'another.sub', 'skipped.alevel'},
+                'sub.unit2.tests.': {'another'},
+                'another.sub.unit2.tests.': set(),
+                'skipped.alevel.unit2.tests.': set(),
+            },
+            manager.zone_tree,
+        )
+        self.assertEqual(
+            {'another.sub', 'sub', 'skipped.alevel'},
+            manager.configured_sub_zones('unit.tests.'),
+        )
+        self.assertEqual(
+            {'another'}, manager.configured_sub_zones('sub.unit.tests.')
+        )
+        self.assertEqual(
+            set(), manager.configured_sub_zones('another.sub.unit.tests.')
+        )
+        self.assertEqual(
+            set(), manager.configured_sub_zones('skipped.alevel.unit.tests.')
+        )
+        self.assertEqual(
+            {'another.sub', 'sub', 'skipped.alevel'},
+            manager.configured_sub_zones('unit2.tests.'),
+        )
+        self.assertEqual(
+            {'another'}, manager.configured_sub_zones('sub.unit2.tests.')
+        )
+        self.assertEqual(
+            set(), manager.configured_sub_zones('another.sub.unit2.tests.')
+        )
+        self.assertEqual(
+            set(), manager.configured_sub_zones('skipped.alevel.unit2.tests.')
         )
 
 

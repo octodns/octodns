@@ -233,22 +233,27 @@ class Manager(object):
     def zone_tree(self):
         if self._zone_tree is None:
             zone_tree = {}
-            # Sort so we iterate on the deepest nodes first, ensuring if a parent
-            # zone exists it will be seen after the subzone, thus we can easily
-            # reparent children to their parent zone from the tree root.
-            for name in sorted(
-                self.config['zones'].keys(), key=lambda s: 0 - s.count('.')
-            ):
-                # Trim the trailing dot from FQDN
-                name = name[:-1]
-                this = {}
-                for sz in [k for k in zone_tree.keys() if k.endswith(name)]:
-                    # Found a zone in tree root that is our child, slice the
-                    # name and move its tree under ours.
-                    this[sz[: -(len(name) + 1)]] = zone_tree.pop(sz)
-                # Add to tree root where it will be reparented as we iterate up
-                # the tree.
-                zone_tree[name] = this
+
+            # Get a list of all of our zone names
+            zones = list(self.config['zones'].keys())
+            # Sort them from shortest to longest so that parents will always
+            # come before their subzones
+            zones.sort(key=lambda z: len(z))
+            # Until we're done processing zones
+            while zones:
+                # Grab the one we'lre going to work on now
+                zone = zones.pop(0)
+                trimmer = len(zone) + 1
+                subs = set()
+                # look at all the zone names that come after it
+                for candidate in zones:
+                    # If they end with this zone's name them they're a sub
+                    if candidate.endswith(zone):
+                        # We want subs to exclude the zone portion
+                        subs.add(candidate[:-trimmer])
+
+                zone_tree[zone] = subs
+
             self._zone_tree = zone_tree
 
         return self._zone_tree
@@ -323,23 +328,7 @@ class Manager(object):
         return kwargs
 
     def configured_sub_zones(self, zone_name):
-        name = zone_name[:-1]
-        where = self.zone_tree
-        while True:
-            # Find parent if it exists
-            parent = next((k for k in where if name.endswith(k)), None)
-            if not parent:
-                # The zone_name in the tree has been reached, stop searching.
-                break
-            # Move down the tree and slice name to get the remainder for the
-            # next round of the search.
-            where = where[parent]
-            name = name[: -(len(parent) + 1)]
-        # `where` is now pointing at the dictionary of children for zone_name
-        # in the tree
-        sub_zone_names = where.keys()
-        self.log.debug('configured_sub_zones: subs=%s', sub_zone_names)
-        return set(sub_zone_names)
+        return self.zone_tree.get(zone_name, set())
 
     def _populate_and_plan(
         self,
@@ -717,6 +706,7 @@ class Manager(object):
                 clz = SplitYamlProvider
             target = clz('dump', output_dir)
 
+        # TODO: use get_zone???
         zone = Zone(zone, self.configured_sub_zones(zone))
         for source in sources:
             source.populate(zone, lenient=lenient)
