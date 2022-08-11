@@ -737,6 +737,9 @@ class TestManager(TestCase):
             set(), manager.configured_sub_zones('skipped.alevel.unit.tests.')
         )
 
+        # unknown zone names return empty set
+        self.assertEqual(set(), manager.configured_sub_zones('unknown.tests.'))
+
         # two parallel trees, make sure they don't interfere
         manager.config['zones'] = {
             'unit.tests.': {},
@@ -786,6 +789,47 @@ class TestManager(TestCase):
         self.assertEqual(set(), manager.configured_sub_zones('unit.tests.'))
         self.assertEqual(set(), manager.configured_sub_zones('uunit.tests.'))
         self.assertEqual(set(), manager.configured_sub_zones('uuunit.tests.'))
+
+        # skipping multiple levels
+        manager.config['zones'] = {
+            'unit.tests.': {},
+            'foo.bar.baz.unit.tests.': {},
+        }
+        manager._configured_sub_zones = None
+        self.assertEqual(
+            {'foo.bar.baz'}, manager.configured_sub_zones('unit.tests.')
+        )
+        self.assertEqual(
+            set(), manager.configured_sub_zones('foo.bar.baz.unit.tests.')
+        )
+
+        # different TLDs
+        manager.config['zones'] = {
+            'unit.tests.': {},
+            'foo.unit.tests.': {},
+            'unit.org.': {},
+            'bar.unit.org.': {},
+        }
+        manager._configured_sub_zones = None
+        self.assertEqual({'foo'}, manager.configured_sub_zones('unit.tests.'))
+        self.assertEqual(set(), manager.configured_sub_zones('foo.unit.tests.'))
+        self.assertEqual({'bar'}, manager.configured_sub_zones('unit.org.'))
+        self.assertEqual(set(), manager.configured_sub_zones('bar.unit.org.'))
+
+        # starting a beyond 2 levels
+        manager.config['zones'] = {
+            'foo.unit.tests.': {},
+            'bar.foo.unit.tests.': {},
+            'bleep.bloop.foo.unit.tests.': {},
+        }
+        manager._configured_sub_zones = None
+        self.assertEqual(
+            {'bar', 'bleep.bloop'},
+            manager.configured_sub_zones('foo.unit.tests.'),
+        )
+        self.assertEqual(
+            set(), manager.configured_sub_zones('bar.foo.unit.tests.')
+        )
 
 
 class TestMainThreadExecutor(TestCase):
