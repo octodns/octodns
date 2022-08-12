@@ -79,7 +79,7 @@ class Zone(object):
                 if not record._type == 'NS':
                     # and not a NS record, this should be in the sub
                     raise SubzoneRecordException(
-                        f'Record {record.fqdn} a managed sub-zone and not of type NS'
+                        f'Record {record.fqdn} is a managed sub-zone and not of type NS'
                     )
             else:
                 # It's not an exact match so there has to be a `.` before the
