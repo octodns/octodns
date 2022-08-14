@@ -1,3 +1,7 @@
+## v0.9.18 - 2022-09-14 - Subzone handling
+
+* Fixed issue with sub-zone handling introduced in 0.9.18
+
 ## v0.9.18 - 2022-09-09 - Internationalization
 
 * Added octodns.idna idna_encode/idna_decode helpers, providers will need to
