@@ -9,6 +9,7 @@ from __future__ import (
     unicode_literals,
 )
 
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from os import environ
@@ -102,6 +103,8 @@ class Manager(object):
         plan = p[1]
         return len(plan.changes[0].record.zone.name) if plan.changes else 0
 
+    # TODO: all of this should get broken up, mainly so that it's not so huge
+    # and each bit can be cleanly tested independently
     def __init__(self, config_file, max_workers=None, include_meta=False):
         version = self._try_version('octodns', version=__VERSION__)
         self.log.info(
@@ -185,25 +188,6 @@ class Manager(object):
                     'Incorrect processor config for ' + processor_name
                 )
 
-        zone_tree = {}
-        # Sort so we iterate on the deepest nodes first, ensuring if a parent
-        # zone exists it will be seen after the subzone, thus we can easily
-        # reparent children to their parent zone from the tree root.
-        for name in sorted(
-            self.config['zones'].keys(), key=lambda s: 0 - s.count('.')
-        ):
-            # Trim the trailing dot from FQDN
-            name = name[:-1]
-            this = {}
-            for sz in [k for k in zone_tree.keys() if k.endswith(name)]:
-                # Found a zone in tree root that is our child, slice the
-                # name and move its tree under ours.
-                this[sz[: -(len(name) + 1)]] = zone_tree.pop(sz)
-            # Add to tree root where it will be reparented as we iterate up
-            # the tree.
-            zone_tree[name] = this
-        self.zone_tree = zone_tree
-
         self.plan_outputs = {}
         plan_outputs = manager_config.get(
             'plan_outputs',
@@ -243,6 +227,8 @@ class Manager(object):
                 raise ManagerException(
                     'Incorrect plan_output config for ' + plan_output_name
                 )
+
+        self._configured_sub_zones = None
 
     def _try_version(self, module_name, module=None, version=None):
         try:
@@ -314,23 +300,36 @@ class Manager(object):
         return kwargs
 
     def configured_sub_zones(self, zone_name):
-        name = zone_name[:-1]
-        where = self.zone_tree
-        while True:
-            # Find parent if it exists
-            parent = next((k for k in where if name.endswith(k)), None)
-            if not parent:
-                # The zone_name in the tree has been reached, stop searching.
-                break
-            # Move down the tree and slice name to get the remainder for the
-            # next round of the search.
-            where = where[parent]
-            name = name[: -(len(parent) + 1)]
-        # `where` is now pointing at the dictionary of children for zone_name
-        # in the tree
-        sub_zone_names = where.keys()
-        self.log.debug('configured_sub_zones: subs=%s', sub_zone_names)
-        return set(sub_zone_names)
+        if self._configured_sub_zones is None:
+            # First time through we compute all the sub-zones
+
+            configured_sub_zones = {}
+
+            # Get a list of all of our zone names. Sort them from shortest to
+            # longest so that parents will always come before their subzones
+            zones = sorted(
+                self.config['zones'].keys(), key=lambda z: len(z), reverse=True
+            )
+            zones = deque(zones)
+            # Until we're done processing zones
+            while zones:
+                # Grab the one we'lre going to work on now
+                zone = zones.pop()
+                dotted = f'.{zone}'
+                trimmer = len(dotted)
+                subs = set()
+                # look at all the zone names that come after it
+                for candidate in zones:
+                    # If they end with this zone's dotted name, it's a sub
+                    if candidate.endswith(dotted):
+                        # We want subs to exclude the zone portion
+                        subs.add(candidate[:-trimmer])
+
+                configured_sub_zones[zone] = subs
+
+            self._configured_sub_zones = configured_sub_zones
+
+        return self._configured_sub_zones.get(zone_name, set())
 
     def _populate_and_plan(
         self,
@@ -708,6 +707,7 @@ class Manager(object):
                 clz = SplitYamlProvider
             target = clz('dump', output_dir)
 
+        # TODO: use get_zone???
         zone = Zone(zone, self.configured_sub_zones(zone))
         for source in sources:
             source.populate(zone, lenient=lenient)
