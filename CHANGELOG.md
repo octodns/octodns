@@ -6,6 +6,11 @@
 
 * Added octodns.idna idna_encode/idna_decode helpers, providers will need to
   individually add support via these helpers though :-/
+* `black` formatting implemented (including .git-blame-ignore-revs)
+* --output-provider support for dump to allow configurable dump
+  formatting/details
+* TLSA record type support
+* Subzones support for skipping levels
 
 ## v0.9.17 - 2022-04-02 - Registration required
 
