@@ -147,7 +147,7 @@ class YamlProvider(BaseProvider):
         self.log = logging.getLogger(f'{klass}[{id}]')
         self.log.debug(
             '__init__: id=%s, directory=%s, default_ttl=%d, '
-            'enforce_order=%d, populate_should_replace=%d',
+            'nforce_order=%d, populate_should_replace=%d',
             id,
             directory,
             default_ttl,
@@ -196,7 +196,7 @@ class YamlProvider(BaseProvider):
     def populate(self, zone, target=False, lenient=False):
         self.log.debug(
             'populate: name=%s, target=%s, lenient=%s',
-            zone.name,
+            zone.decoded_name,
             target,
             lenient,
         )
@@ -207,7 +207,15 @@ class YamlProvider(BaseProvider):
             return False
 
         before = len(zone.records)
-        filename = join(self.directory, f'{zone.name}yaml')
+        filename = join(self.directory, f'{zone.decoded_name}yaml')
+        if not isfile(filename):
+            idna_filename = join(self.directory, f'{zone.name}yaml')
+            self.log.warning(
+                'populate: "%s" does not exist, falling back to idna version "%s"',
+                filename,
+                idna_filename,
+            )
+            filename = idna_filename
         self._populate_from_file(filename, zone, lenient)
 
         self.log.info(
@@ -220,7 +228,9 @@ class YamlProvider(BaseProvider):
         desired = plan.desired
         changes = plan.changes
         self.log.debug(
-            '_apply: zone=%s, len(changes)=%d', desired.name, len(changes)
+            '_apply: zone=%s, len(changes)=%d',
+            desired.decoded_name,
+            len(changes),
         )
         # Since we don't have existing we'll only see creates
         records = [c.new for c in changes]
@@ -248,7 +258,7 @@ class YamlProvider(BaseProvider):
         self._do_apply(desired, data)
 
     def _do_apply(self, desired, data):
-        filename = join(self.directory, f'{desired.name}yaml')
+        filename = join(self.directory, f'{desired.decoded_name}yaml')
         self.log.debug('_apply:   writing filename=%s', filename)
         with open(filename, 'w') as fh:
             safe_dump(dict(data), fh)

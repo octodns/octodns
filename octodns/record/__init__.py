@@ -164,7 +164,7 @@ class Record(EqualityTupleMixin):
     def __init__(self, zone, name, data, source=None):
         self.log.debug(
             '__init__: zone.name=%s, type=%11s, name=%s',
-            zone.name,
+            zone.decoded_name,
             self.__class__.__name__,
             name,
         )

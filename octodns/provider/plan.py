@@ -165,8 +165,8 @@ class PlanLogger(_PlanOutput):
         if plans:
             current_zone = None
             for target, plan in plans:
-                if plan.desired.name != current_zone:
-                    current_zone = plan.desired.name
+                if plan.desired.decoded_name != current_zone:
+                    current_zone = plan.desired.decoded_name
                     buf.write(hr)
                     buf.write('* ')
                     buf.write(current_zone)
@@ -215,8 +215,8 @@ class PlanMarkdown(_PlanOutput):
         if plans:
             current_zone = None
             for target, plan in plans:
-                if plan.desired.name != current_zone:
-                    current_zone = plan.desired.name
+                if plan.desired.decoded_name != current_zone:
+                    current_zone = plan.desired.decoded_name
                     fh.write('## ')
                     fh.write(current_zone)
                     fh.write('\n\n')
@@ -276,8 +276,8 @@ class PlanHtml(_PlanOutput):
         if plans:
             current_zone = None
             for target, plan in plans:
-                if plan.desired.name != current_zone:
-                    current_zone = plan.desired.name
+                if plan.desired.decoded_name != current_zone:
+                    current_zone = plan.desired.decoded_name
                     fh.write('<h2>')
                     fh.write(current_zone)
                     fh.write('</h2>\n')

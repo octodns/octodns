@@ -17,6 +17,7 @@ from sys import stdout
 import logging
 
 from . import __VERSION__
+from .idna import IdnaDict, idna_decode
 from .provider.base import BaseProvider
 from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
@@ -114,6 +115,8 @@ class Manager(object):
         # Read our config file
         with open(config_file, 'r') as fh:
             self.config = safe_load(fh, enforce_order=False)
+        # convert the zones portion of things into an IdnaDict
+        self.config['zones'] = IdnaDict(self.config['zones'])
 
         manager_config = self.config.get('manager', {})
         max_workers = (
@@ -341,10 +344,12 @@ class Manager(object):
         lenient=False,
     ):
 
-        self.log.debug(
-            'sync:   populating, zone=%s, lenient=%s', zone_name, lenient
-        )
         zone = Zone(zone_name, sub_zones=self.configured_sub_zones(zone_name))
+        self.log.debug(
+            'sync:   populating, zone=%s, lenient=%s',
+            zone.decoded_name,
+            lenient,
+        )
 
         if desired:
             # This is an alias zone, rather than populate it we'll copy the
@@ -368,7 +373,7 @@ class Manager(object):
         for processor in processors:
             zone = processor.process_source_zone(zone, sources=sources)
 
-        self.log.debug('sync:   planning, zone=%s', zone_name)
+        self.log.debug('sync:   planning, zone=%s', zone.decoded_name)
         plans = []
 
         for target in targets:
@@ -431,7 +436,7 @@ class Manager(object):
         aliased_zones = {}
         futures = []
         for zone_name, config in zones:
-            self.log.info('sync:   zone=%s', zone_name)
+            self.log.info('sync:   zone=%s', idna_decode(zone_name))
             if 'alias' in config:
                 source_zone = config['alias']
 
@@ -602,7 +607,7 @@ class Manager(object):
         self.log.debug('sync:   applying')
         zones = self.config['zones']
         for target, plan in plans:
-            zone_name = plan.existing.name
+            zone_name = plan.existing.decoded_name
             if zones[zone_name].get('always-dry-run', False):
                 self.log.info(
                     'sync: zone=%s skipping always-dry-run', zone_name

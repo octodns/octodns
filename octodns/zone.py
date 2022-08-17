@@ -13,6 +13,7 @@ from collections import defaultdict
 from logging import getLogger
 import re
 
+from .idna import idna_decode
 from .record import Create, Delete
 
 
@@ -36,6 +37,7 @@ class Zone(object):
             raise Exception(f'Invalid zone name {name}, missing ending dot')
         # Force everything to lowercase just to be safe
         self.name = str(name).lower() if name else name
+        self.decoded_name = idna_decode(self.name)
         self.sub_zones = sub_zones
         # We're grouping by node, it allows us to efficiently search for
         # duplicates and detect when CNAMEs co-exist with other records
@@ -283,4 +285,4 @@ class Zone(object):
         return copy
 
     def __repr__(self):
-        return f'Zone<{self.name}>'
+        return f'Zone<{self.decoded_name}>'
