@@ -69,3 +69,6 @@ class IdnaDict(MutableMapping):
     def decoded_items(self):
         for key, value in self.items():
             yield (idna_decode(key), value)
+
+    def __repr__(self):
+        return self._data.__repr__()

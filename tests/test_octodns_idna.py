@@ -108,6 +108,9 @@ class TestIdnaDict(TestCase):
         self.assertFalse(self.utf8 in d)
         self.assertFalse(idna_encode(self.utf8) in d)
 
+        # smoke test of repr
+        d.__repr__()
+
     def test_keys(self):
         d = IdnaDict(self.normal)
 
