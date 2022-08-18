@@ -13,6 +13,7 @@ from os import environ
 from os.path import dirname, isfile, join
 
 from octodns import __VERSION__
+from octodns.idna import IdnaDict, idna_encode
 from octodns.manager import (
     _AggregateTarget,
     MainThreadExecutor,
@@ -829,6 +830,41 @@ class TestManager(TestCase):
         )
         self.assertEqual(
             set(), manager.configured_sub_zones('bar.foo.unit.tests.')
+        )
+
+    def test_config_zones(self):
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        # empty == empty
+        self.assertEqual({}, manager._config_zones({}))
+
+        # single ascii comes back as-is, but in a IdnaDict
+        zones = manager._config_zones({'unit.tests.': 42})
+        self.assertEqual({'unit.tests.': 42}, zones)
+        self.assertIsInstance(zones, IdnaDict)
+
+        # single utf-8 comes back idna encoded
+        self.assertEqual(
+            {idna_encode('Déjà.vu.'): 42},
+            dict(manager._config_zones({'Déjà.vu.': 42})),
+        )
+
+        # ascii and non-matching idna as ok
+        self.assertEqual(
+            {idna_encode('déjà.vu.'): 42, 'deja.vu.': 43},
+            dict(
+                manager._config_zones(
+                    {idna_encode('déjà.vu.'): 42, 'deja.vu.': 43}
+                )
+            ),
+        )
+
+        with self.assertRaises(ManagerException) as ctx:
+            # zone configured with both utf-8 and idna is an error
+            manager._config_zones({'Déjà.vu.': 42, idna_encode('Déjà.vu.'): 43})
+        self.assertEqual(
+            '"déjà.vu." configured both in utf-8 and idna "xn--dj-kia8a.vu."',
+            str(ctx.exception),
         )
 
 

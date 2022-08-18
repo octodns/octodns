@@ -118,8 +118,8 @@ class Manager(object):
         with open(config_file, 'r') as fh:
             self.config = safe_load(fh, enforce_order=False)
 
-        # convert the zones portion of things into an IdnaDict
-        self.config['zones'] = IdnaDict(self.config['zones'])
+        zones = self.config['zones']
+        self.config['zones'] = self._config_zones(zones)
 
         manager_config = self.config.get('manager', {})
         self._executor = self._config_executor(manager_config, max_workers)
@@ -143,6 +143,24 @@ class Manager(object):
             },
         )
         self.plan_outputs = self._config_plan_outputs(plan_outputs_config)
+
+    def _config_zones(self, zones):
+        # record the set of configured zones we have as they are
+        configured_zones = set([z.lower() for z in zones.keys()])
+        # walk the configured zones
+        for name in configured_zones:
+            if 'xn--' not in name:
+                continue
+            # this is an IDNA format zone name
+            decoded = idna_decode(name)
+            # do we also have a config for its utf-8
+            if decoded in configured_zones:
+                raise ManagerException(
+                    f'"{decoded}" configured both in utf-8 and idna "{name}"'
+                )
+
+        # convert the zones portion of things into an IdnaDict
+        return IdnaDict(zones)
 
     def _config_executor(self, manager_config, max_workers=None):
         max_workers = (
