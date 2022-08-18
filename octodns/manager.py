@@ -112,32 +112,58 @@ class Manager(object):
             '__init__: config_file=%s (octoDNS %s)', config_file, version
         )
 
+        self._configured_sub_zones = None
+
         # Read our config file
         with open(config_file, 'r') as fh:
             self.config = safe_load(fh, enforce_order=False)
+
         # convert the zones portion of things into an IdnaDict
         self.config['zones'] = IdnaDict(self.config['zones'])
 
         manager_config = self.config.get('manager', {})
+        self._executor = self._config_executor(manager_config, max_workers)
+        self.include_meta = self._config_include_meta(
+            manager_config, include_meta
+        )
+
+        providers_config = self.config['providers']
+        self.providers = self._config_providers(providers_config)
+
+        processors_config = self.config.get('processors', {})
+        self.processors = self._config_processors(processors_config)
+
+        plan_outputs_config = manager_config.get(
+            'plan_outputs',
+            {
+                '_logger': {
+                    'class': 'octodns.provider.plan.PlanLogger',
+                    'level': 'info',
+                }
+            },
+        )
+        self.plan_outputs = self._config_plan_outputs(plan_outputs_config)
+
+    def _config_executor(self, manager_config, max_workers=None):
         max_workers = (
             manager_config.get('max_workers', 1)
             if max_workers is None
             else max_workers
         )
-        self.log.info('__init__:   max_workers=%d', max_workers)
+        self.log.info('_config_executor: max_workers=%d', max_workers)
         if max_workers > 1:
-            self._executor = ThreadPoolExecutor(max_workers=max_workers)
-        else:
-            self._executor = MainThreadExecutor()
+            return ThreadPoolExecutor(max_workers=max_workers)
+        return MainThreadExecutor()
 
-        self.include_meta = include_meta or manager_config.get(
-            'include_meta', False
-        )
-        self.log.info('__init__:   include_meta=%s', self.include_meta)
+    def _config_include_meta(self, manager_config, include_meta=False):
+        include_meta = include_meta or manager_config.get('include_meta', False)
+        self.log.info('_config_include_meta: include_meta=%s', include_meta)
+        return include_meta
 
-        self.log.debug('__init__:   configuring providers')
-        self.providers = {}
-        for provider_name, provider_config in self.config['providers'].items():
+    def _config_providers(self, providers_config):
+        self.log.debug('_config_providers: configuring providers')
+        providers = {}
+        for provider_name, provider_config in providers_config.items():
             # Get our class and remove it from the provider_config
             try:
                 _class = provider_config.pop('class')
@@ -149,7 +175,7 @@ class Manager(object):
             _class, module, version = self._get_named_class('provider', _class)
             kwargs = self._build_kwargs(provider_config)
             try:
-                self.providers[provider_name] = _class(provider_name, **kwargs)
+                providers[provider_name] = _class(provider_name, **kwargs)
                 self.log.info(
                     '__init__: provider=%s (%s %s)',
                     provider_name,
@@ -162,10 +188,11 @@ class Manager(object):
                     'Incorrect provider config for ' + provider_name
                 )
 
-        self.processors = {}
-        for processor_name, processor_config in self.config.get(
-            'processors', {}
-        ).items():
+        return providers
+
+    def _config_processors(self, processors_config):
+        processors = {}
+        for processor_name, processor_config in processors_config.items():
             try:
                 _class = processor_config.pop('class')
             except KeyError:
@@ -176,9 +203,7 @@ class Manager(object):
             _class, module, version = self._get_named_class('processor', _class)
             kwargs = self._build_kwargs(processor_config)
             try:
-                self.processors[processor_name] = _class(
-                    processor_name, **kwargs
-                )
+                processors[processor_name] = _class(processor_name, **kwargs)
                 self.log.info(
                     '__init__: processor=%s (%s %s)',
                     processor_name,
@@ -190,18 +215,11 @@ class Manager(object):
                 raise ManagerException(
                     'Incorrect processor config for ' + processor_name
                 )
+        return processors
 
-        self.plan_outputs = {}
-        plan_outputs = manager_config.get(
-            'plan_outputs',
-            {
-                '_logger': {
-                    'class': 'octodns.provider.plan.PlanLogger',
-                    'level': 'info',
-                }
-            },
-        )
-        for plan_output_name, plan_output_config in plan_outputs.items():
+    def _config_plan_outputs(self, plan_outputs_config):
+        plan_outputs = {}
+        for plan_output_name, plan_output_config in plan_outputs_config.items():
             try:
                 _class = plan_output_config.pop('class')
             except KeyError:
@@ -214,7 +232,7 @@ class Manager(object):
             )
             kwargs = self._build_kwargs(plan_output_config)
             try:
-                self.plan_outputs[plan_output_name] = _class(
+                plan_outputs[plan_output_name] = _class(
                     plan_output_name, **kwargs
                 )
                 # Don't print out version info for the default output
@@ -230,8 +248,7 @@ class Manager(object):
                 raise ManagerException(
                     'Incorrect plan_output config for ' + plan_output_name
                 )
-
-        self._configured_sub_zones = None
+        return plan_outputs
 
     def _try_version(self, module_name, module=None, version=None):
         try:
