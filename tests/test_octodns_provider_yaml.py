@@ -15,7 +15,9 @@ from unittest import TestCase
 from yaml import safe_load
 from yaml.constructor import ConstructorError
 
+from octodns.idna import idna_encode
 from octodns.record import Create
+from octodns.provider import ProviderException
 from octodns.provider.base import Plan
 from octodns.provider.yaml import (
     _list_all_yaml_files,
@@ -171,6 +173,40 @@ class TestYamlProvider(TestCase):
 
                 # make sure nothing is left
                 self.assertEqual([], list(data.keys()))
+
+    def test_idna_filenames(self):
+        with TemporaryDirectory() as td:
+            name = 'déjà.vu.'
+            filename = f'{name}yaml'
+
+            provider = YamlProvider('test', td.dirname)
+            zone = Zone(idna_encode(name), [])
+
+            # create a idna named file
+            with open(join(td.dirname, idna_encode(filename)), 'w') as fh:
+                pass
+
+                fh.write(
+                    '''---
+'':
+  type: A
+  value: 1.2.3.4
+'''
+                )
+
+            # populates fine when there's just the idna version (as a fallback)
+            provider.populate(zone)
+            self.assertEqual(1, len(zone.records))
+
+            # create a utf8 named file
+            with open(join(td.dirname, filename), 'w') as fh:
+                pass
+
+            # does not allow both idna and utf8 named files
+            with self.assertRaises(ProviderException) as ctx:
+                provider.populate(zone)
+            msg = str(ctx.exception)
+            self.assertTrue('Both UTF-8' in msg)
 
     def test_empty(self):
         source = YamlProvider(

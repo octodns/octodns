@@ -17,6 +17,7 @@ import logging
 from ..record import Record
 from ..yaml import safe_load, safe_dump
 from .base import BaseProvider
+from . import ProviderException
 
 
 class YamlProvider(BaseProvider):
@@ -207,12 +208,20 @@ class YamlProvider(BaseProvider):
             return False
 
         before = len(zone.records)
-        filename = join(self.directory, f'{zone.decoded_name}yaml')
-        if not isfile(filename):
-            idna_filename = join(self.directory, f'{zone.name}yaml')
+        utf8_filename = join(self.directory, f'{zone.decoded_name}yaml')
+        idna_filename = join(self.directory, f'{zone.name}yaml')
+
+        # we prefer utf8
+        if isfile(utf8_filename):
+            if utf8_filename != idna_filename and isfile(idna_filename):
+                raise ProviderException(
+                    f'Both UTF-8 "{utf8_filename}" and IDNA "{idna_filename}" exist for {zone.decoded_name}'
+                )
+            filename = utf8_filename
+        else:
             self.log.warning(
-                'populate: "%s" does not exist, falling back to idna version "%s"',
-                filename,
+                'populate: "%s" does not exist, falling back to try idna version "%s"',
+                utf8_filename,
                 idna_filename,
             )
             filename = idna_filename
@@ -245,7 +254,7 @@ class YamlProvider(BaseProvider):
                 del d['ttl']
             if record._octodns:
                 d['octodns'] = record._octodns
-            data[record.name].append(d)
+            data[record.decoded_name].append(d)
 
         # Flatten single element lists
         for k in data.keys():
@@ -261,7 +270,7 @@ class YamlProvider(BaseProvider):
         filename = join(self.directory, f'{desired.decoded_name}yaml')
         self.log.debug('_apply:   writing filename=%s', filename)
         with open(filename, 'w') as fh:
-            safe_dump(dict(data), fh)
+            safe_dump(dict(data), fh, allow_unicode=True)
 
 
 def _list_all_yaml_files(directory):
