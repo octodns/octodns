@@ -17,7 +17,7 @@ from sys import stdout
 import logging
 
 from . import __VERSION__
-from .idna import IdnaDict, idna_decode, idna_encode
+from .idna import IdnaDict, idna_decode
 from .provider.base import BaseProvider
 from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
@@ -466,7 +466,7 @@ class Manager(object):
 
         zones = self.config['zones']
         if eligible_zones:
-            zones = {idna_encode(n): zones.get(n) for n in eligible_zones}
+            zones = IdnaDict({n: zones.get(n) for n in eligible_zones})
 
         aliased_zones = {}
         futures = []
