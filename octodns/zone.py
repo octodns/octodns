@@ -35,8 +35,9 @@ class Zone(object):
     def __init__(self, name, sub_zones):
         if not name[-1] == '.':
             raise Exception(f'Invalid zone name {name}, missing ending dot')
-        # Force everything to lowercase just to be safe
+        # internally everything is idna
         self.name = str(name).lower() if name else name
+        # we'll keep a decoded version around for logs and errors
         self.decoded_name = idna_decode(self.name)
         self.sub_zones = sub_zones
         # We're grouping by node, it allows us to efficiently search for

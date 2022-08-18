@@ -16,6 +16,7 @@ import re
 from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
+from ..idna import idna_decode, idna_encode
 from .geo import GeoCodes
 
 
@@ -105,7 +106,11 @@ class Record(EqualityTupleMixin):
     @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
         name = str(name).lower()
-        fqdn = f'{name}.{zone.name}' if name else zone.name
+        fqdn = (
+            f'{idna_decode(name)}.{zone.decoded_name}'
+            if name
+            else zone.decoded_name
+        )
         try:
             _type = data['type']
         except KeyError:
@@ -169,8 +174,13 @@ class Record(EqualityTupleMixin):
             name,
         )
         self.zone = zone
-        # force everything lower-case just to be safe
-        self.name = str(name).lower() if name else name
+        if name:
+            # internally everything is idna
+            self.name = idna_encode(str(name))
+            # we'll keep a decoded version around for logs and errors
+            self.decoded_name = idna_decode(self.name)
+        else:
+            self.name = self.decoded_name = name
         self.source = source
         self.ttl = int(data['ttl'])
 
@@ -188,6 +198,12 @@ class Record(EqualityTupleMixin):
         if self.name:
             return f'{self.name}.{self.zone.name}'
         return self.zone.name
+
+    @property
+    def decoded_fqdn(self):
+        if self.decoded_name:
+            return f'{self.decoded_name}.{self.zone.decoded_name}'
+        return self.zone.decoded_name
 
     @property
     def ignored(self):
@@ -350,7 +366,7 @@ class ValuesMixin(object):
     def __repr__(self):
         values = "', '".join([str(v) for v in self.values])
         klass = self.__class__.__name__
-        return f"<{klass} {self._type} {self.ttl}, {self.fqdn}, ['{values}']>"
+        return f"<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, ['{values}']>"
 
 
 class _GeoMixin(ValuesMixin):
@@ -400,7 +416,7 @@ class _GeoMixin(ValuesMixin):
         if self.geo:
             klass = self.__class__.__name__
             return (
-                f'<{klass} {self._type} {self.ttl}, {self.fqdn}, '
+                f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, '
                 f'{self.values}, {self.geo}>'
             )
         return super(_GeoMixin, self).__repr__()
@@ -432,7 +448,7 @@ class ValueMixin(object):
 
     def __repr__(self):
         klass = self.__class__.__name__
-        return f'<{klass} {self._type} {self.ttl}, {self.fqdn}, {self.value}>'
+        return f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, {self.value}>'
 
 
 class _DynamicPool(object):
@@ -760,7 +776,7 @@ class _DynamicMixin(object):
 
             klass = self.__class__.__name__
             return (
-                f'<{klass} {self._type} {self.ttl}, {self.fqdn}, '
+                f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, '
                 f'{values}, {self.dynamic}>'
             )
         return super(_DynamicMixin, self).__repr__()
