@@ -167,12 +167,6 @@ class Record(EqualityTupleMixin):
         return reasons
 
     def __init__(self, zone, name, data, source=None):
-        self.log.debug(
-            '__init__: zone.name=%s, type=%11s, name=%s',
-            zone.decoded_name,
-            self.__class__.__name__,
-            name,
-        )
         self.zone = zone
         if name:
             # internally everything is idna
@@ -181,6 +175,12 @@ class Record(EqualityTupleMixin):
             self.decoded_name = idna_decode(self.name)
         else:
             self.name = self.decoded_name = name
+        self.log.debug(
+            '__init__: zone.name=%s, type=%11s, name=%s',
+            zone.decoded_name,
+            self.__class__.__name__,
+            self.decoded_name,
+        )
         self.source = source
         self.ttl = int(data['ttl'])
 
