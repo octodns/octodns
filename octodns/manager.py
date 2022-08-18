@@ -341,7 +341,7 @@ class Manager(object):
         if self._configured_sub_zones is None:
             # First time through we compute all the sub-zones
 
-            configured_sub_zones = {}
+            configured_sub_zones = IdnaDict()
 
             # Get a list of all of our zone names. Sort them from shortest to
             # longest so that parents will always come before their subzones
@@ -758,6 +758,7 @@ class Manager(object):
         target.apply(plan)
 
     def validate_configs(self):
+        # TODO: this code can probably be shared with stuff in sync
         for zone_name, config in self.config['zones'].items():
             zone = Zone(zone_name, self.configured_sub_zones(zone_name))
 
@@ -824,8 +825,10 @@ class Manager(object):
                 f'Invalid zone name {zone_name}, missing ' 'ending dot'
             )
 
-        for name, config in self.config['zones'].items():
-            if name == zone_name:
-                return Zone(name, self.configured_sub_zones(name))
+        zone = self.config['zones'].get(zone_name)
+        if zone:
+            return Zone(
+                idna_decode(zone_name), self.configured_sub_zones(zone_name)
+            )
 
         raise ManagerException(f'Unknown zone name {zone_name}')
