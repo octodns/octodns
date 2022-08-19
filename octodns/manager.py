@@ -471,33 +471,22 @@ class Manager(object):
         aliased_zones = {}
         futures = []
         for zone_name, config in zones.items():
-            self.log.info('sync:   zone=%s', idna_decode(zone_name))
+            decoded_zone_name = idna_decode(zone_name)
+            self.log.info('sync:   zone=%s', decoded_zone_name)
             if 'alias' in config:
                 source_zone = config['alias']
 
                 # Check that the source zone is defined.
                 if source_zone not in self.config['zones']:
-                    self.log.error(
-                        f'Invalid alias zone {zone_name}, '
-                        f'target {source_zone} does not exist'
-                    )
-                    raise ManagerException(
-                        f'Invalid alias zone {zone_name}: '
-                        f'source zone {source_zone} does '
-                        'not exist'
-                    )
+                    msg = f'Invalid alias zone {decoded_zone_name}: source zone {idna_decode(source_zone)} does not exist'
+                    self.log.error(msg)
+                    raise ManagerException(msg)
 
                 # Check that the source zone is not an alias zone itself.
                 if 'alias' in self.config['zones'][source_zone]:
-                    self.log.error(
-                        f'Invalid alias zone {zone_name}, '
-                        f'target {source_zone} is an alias zone'
-                    )
-                    raise ManagerException(
-                        f'Invalid alias zone {zone_name}: '
-                        f'source zone {source_zone} is an '
-                        'alias zone'
-                    )
+                    msg = f'Invalid alias zone {decoded_zone_name}: source zone {idna_decode(source_zone)} is an alias zone'
+                    self.log.error(msg)
+                    raise ManagerException(msg)
 
                 aliased_zones[zone_name] = source_zone
                 continue
@@ -506,12 +495,16 @@ class Manager(object):
             try:
                 sources = config['sources']
             except KeyError:
-                raise ManagerException(f'Zone {zone_name} is missing sources')
+                raise ManagerException(
+                    f'Zone {decoded_zone_name} is missing sources'
+                )
 
             try:
                 targets = config['targets']
             except KeyError:
-                raise ManagerException(f'Zone {zone_name} is missing targets')
+                raise ManagerException(
+                    f'Zone {decoded_zone_name} is missing targets'
+                )
 
             processors = config.get('processors', [])
 
@@ -540,7 +533,8 @@ class Manager(object):
                 processors = collected
             except KeyError:
                 raise ManagerException(
-                    f'Zone {zone_name}, unknown ' f'processor: {processor}'
+                    f'Zone {decoded_zone_name}, unknown '
+                    f'processor: {processor}'
                 )
 
             try:
@@ -553,7 +547,7 @@ class Manager(object):
                 sources = collected
             except KeyError:
                 raise ManagerException(
-                    f'Zone {zone_name}, unknown ' f'source: {source}'
+                    f'Zone {decoded_zone_name}, unknown ' f'source: {source}'
                 )
 
             try:
@@ -568,7 +562,7 @@ class Manager(object):
                 targets = trgs
             except KeyError:
                 raise ManagerException(
-                    f'Zone {zone_name}, unknown ' f'target: {target}'
+                    f'Zone {decoded_zone_name}, unknown ' f'target: {target}'
                 )
 
             futures.append(
@@ -600,7 +594,7 @@ class Manager(object):
                 desired_config = desired[zone_source]
             except KeyError:
                 raise ManagerException(
-                    f'Zone {zone_name} cannot be sync '
+                    f'Zone {idna_decode(zone_name)} cannot be synced '
                     f'without zone {zone_source} sinced '
                     'it is aliased'
                 )

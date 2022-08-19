@@ -148,7 +148,7 @@ class YamlProvider(BaseProvider):
         self.log = logging.getLogger(f'{klass}[{id}]')
         self.log.debug(
             '__init__: id=%s, directory=%s, default_ttl=%d, '
-            'nforce_order=%d, populate_should_replace=%d',
+            'enforce_order=%d, populate_should_replace=%d',
             id,
             directory,
             default_ttl,
@@ -254,6 +254,7 @@ class YamlProvider(BaseProvider):
                 del d['ttl']
             if record._octodns:
                 d['octodns'] = record._octodns
+            # we want to output the utf-8 version of the name
             data[record.decoded_name].append(d)
 
         # Flatten single element lists

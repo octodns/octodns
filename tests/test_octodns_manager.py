@@ -183,6 +183,50 @@ class TestManager(TestCase):
             ).sync(dry_run=False, force=True)
             self.assertEqual(33, tc)
 
+    def test_idna_eligible_zones(self):
+        # loading w/simple, but we'll be blowing it away and doing some manual
+        # stuff
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        # these configs won't be valid, but that's fine we can test what we're
+        # after based on exceptions raised
+        manager.config['zones'] = manager._config_zones(
+            {'déjà.vu.': {}, 'deja.vu.': {}, idna_encode('こんにちは.jp.'): {}}
+        )
+        from pprint import pprint
+
+        pprint(manager.config['zones'])
+
+        # refer to them with utf-8
+        with self.assertRaises(ManagerException) as ctx:
+            manager.sync(eligible_zones=('déjà.vu.',))
+        self.assertEqual('Zone déjà.vu. is missing sources', str(ctx.exception))
+
+        with self.assertRaises(ManagerException) as ctx:
+            manager.sync(eligible_zones=('deja.vu.',))
+        self.assertEqual('Zone deja.vu. is missing sources', str(ctx.exception))
+
+        with self.assertRaises(ManagerException) as ctx:
+            manager.sync(eligible_zones=('こんにちは.jp.',))
+        self.assertEqual(
+            'Zone こんにちは.jp. is missing sources', str(ctx.exception)
+        )
+
+        # refer to them with idna (exceptions are still utf-8
+        with self.assertRaises(ManagerException) as ctx:
+            manager.sync(eligible_zones=(idna_encode('déjà.vu.'),))
+        self.assertEqual('Zone déjà.vu. is missing sources', str(ctx.exception))
+
+        with self.assertRaises(ManagerException) as ctx:
+            manager.sync(eligible_zones=(idna_encode('deja.vu.'),))
+        self.assertEqual('Zone deja.vu. is missing sources', str(ctx.exception))
+
+        with self.assertRaises(ManagerException) as ctx:
+            manager.sync(eligible_zones=(idna_encode('こんにちは.jp.'),))
+        self.assertEqual(
+            'Zone こんにちは.jp. is missing sources', str(ctx.exception)
+        )
+
     def test_eligible_sources(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
@@ -237,7 +281,7 @@ class TestManager(TestCase):
                     get_config_filename('simple-alias-zone.yaml')
                 ).sync(eligible_zones=["alias.tests."])
             self.assertEqual(
-                'Zone alias.tests. cannot be sync without zone '
+                'Zone alias.tests. cannot be synced without zone '
                 'unit.tests. sinced it is aliased',
                 str(ctx.exception),
             )
