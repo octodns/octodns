@@ -17,7 +17,7 @@ from sys import stdout
 import logging
 
 from . import __VERSION__
-from .idna import IdnaDict, idna_decode
+from .idna import IdnaDict, idna_decode, idna_encode
 from .provider.base import BaseProvider
 from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
@@ -754,6 +754,7 @@ class Manager(object):
     def validate_configs(self):
         # TODO: this code can probably be shared with stuff in sync
         for zone_name, config in self.config['zones'].items():
+            decoded_zone_name = idna_decode(zone_name)
             zone = Zone(zone_name, self.configured_sub_zones(zone_name))
 
             source_zone = config.get('alias')
@@ -761,7 +762,7 @@ class Manager(object):
                 if source_zone not in self.config['zones']:
                     self.log.exception('Invalid alias zone')
                     raise ManagerException(
-                        f'Invalid alias zone {zone_name}: '
+                        f'Invalid alias zone {decoded_zone_name}: '
                         f'source zone {source_zone} does '
                         'not exist'
                     )
@@ -769,7 +770,7 @@ class Manager(object):
                 if 'alias' in self.config['zones'][source_zone]:
                     self.log.exception('Invalid alias zone')
                     raise ManagerException(
-                        f'Invalid alias zone {zone_name}: '
+                        f'Invalid alias zone {decoded_zone_name}: '
                         'source zone {source_zone} is an '
                         'alias zone'
                     )
@@ -783,7 +784,9 @@ class Manager(object):
             try:
                 sources = config['sources']
             except KeyError:
-                raise ManagerException(f'Zone {zone_name} is missing sources')
+                raise ManagerException(
+                    f'Zone {decoded_zone_name} is missing sources'
+                )
 
             try:
                 # rather than using a list comprehension, we break this
@@ -795,7 +798,7 @@ class Manager(object):
                 sources = collected
             except KeyError:
                 raise ManagerException(
-                    f'Zone {zone_name}, unknown source: ' + source
+                    f'Zone {decoded_zone_name}, unknown source: ' + source
                 )
 
             for source in sources:
@@ -810,19 +813,21 @@ class Manager(object):
                     collected.append(self.processors[processor])
             except KeyError:
                 raise ManagerException(
-                    f'Zone {zone_name}, unknown ' f'processor: {processor}'
+                    f'Zone {decoded_zone_name}, unknown '
+                    f'processor: {processor}'
                 )
 
     def get_zone(self, zone_name):
         if not zone_name[-1] == '.':
             raise ManagerException(
-                f'Invalid zone name {zone_name}, missing ' 'ending dot'
+                f'Invalid zone name {idna_decode(zone_name)}, missing '
+                'ending dot'
             )
 
         zone = self.config['zones'].get(zone_name)
         if zone:
             return Zone(
-                idna_decode(zone_name), self.configured_sub_zones(zone_name)
+                idna_encode(zone_name), self.configured_sub_zones(zone_name)
             )
 
-        raise ManagerException(f'Unknown zone name {zone_name}')
+        raise ManagerException(f'Unknown zone name {idna_decode(zone_name)}')
