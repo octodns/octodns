@@ -78,7 +78,7 @@ class ValidationError(RecordException):
     @classmethod
     def build_message(cls, fqdn, reasons):
         reasons = '\n  - '.join(reasons)
-        return f'Invalid record {fqdn}\n  - {reasons}'
+        return f'Invalid record {idna_decode(fqdn)}\n  - {reasons}'
 
     def __init__(self, fqdn, reasons):
         super(Exception, self).__init__(self.build_message(fqdn, reasons))
@@ -105,16 +105,12 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
-        name = str(name).lower()
-        fqdn = (
-            f'{idna_decode(name)}.{zone.decoded_name}'
-            if name
-            else zone.decoded_name
-        )
+        name = idna_encode(str(name))
+        fqdn = f'{name}.{zone.name}' if name else zone.name
         try:
             _type = data['type']
         except KeyError:
-            raise Exception(f'Invalid record {fqdn}, missing type')
+            raise Exception(f'Invalid record {idna_decode(fqdn)}, missing type')
         try:
             _class = cls._CLASSES[_type]
         except KeyError:
@@ -139,7 +135,7 @@ class Record(EqualityTupleMixin):
         n = len(fqdn)
         if n > 253:
             reasons.append(
-                f'invalid fqdn, "{fqdn}" is too long at {n} '
+                f'invalid fqdn, "{idna_decode(fqdn)}" is too long at {n} '
                 'chars, max is 253'
             )
         for label in name.split('.'):

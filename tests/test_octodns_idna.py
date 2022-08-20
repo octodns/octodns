@@ -59,6 +59,14 @@ class TestIdna(TestCase):
         self.assertEqual('zajęzyk.pl.', idna_decode('XN--ZAJZYK-Y4A.PL.'))
         self.assertEqual('xn--zajzyk-y4a.pl.', idna_encode('ZajęzyK.Pl.'))
 
+    def test_repeated_encode_decoded(self):
+        self.assertEqual(
+            'zajęzyk.pl.', idna_decode(idna_decode('xn--zajzyk-y4a.pl.'))
+        )
+        self.assertEqual(
+            'xn--zajzyk-y4a.pl.', idna_encode(idna_encode('zajęzyk.pl.'))
+        )
+
 
 class TestIdnaDict(TestCase):
     plain = 'testing.tests.'
