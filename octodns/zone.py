@@ -13,7 +13,7 @@ from collections import defaultdict
 from logging import getLogger
 import re
 
-from .idna import idna_decode
+from .idna import idna_decode, idna_encode
 from .record import Create, Delete
 
 
@@ -36,7 +36,7 @@ class Zone(object):
         if not name[-1] == '.':
             raise Exception(f'Invalid zone name {name}, missing ending dot')
         # internally everything is idna
-        self.name = str(name).lower() if name else name
+        self.name = idna_encode(str(name)) if name else name
         # we'll keep a decoded version around for logs and errors
         self.decoded_name = idna_decode(self.name)
         self.sub_zones = sub_zones

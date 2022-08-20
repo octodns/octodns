@@ -11,6 +11,7 @@ from __future__ import (
 
 from unittest import TestCase
 
+from octodns.idna import idna_encode
 from octodns.record import (
     ARecord,
     AaaaRecord,
@@ -82,6 +83,18 @@ class TestRecord(TestCase):
             self.zone, 'MiXeDcAsE', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
         )
         self.assertEqual('mixedcase', record.name)
+
+    def test_utf8(self):
+        zone = Zone('natación.mx.', [])
+        utf8 = 'niño'
+        encoded = idna_encode(utf8)
+        record = ARecord(
+            zone, utf8, {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        self.assertEqual(encoded, record.name)
+        self.assertEqual(utf8, record.decoded_name)
+        self.assertTrue(f'{encoded}.{zone.name}', record.fqdn)
+        self.assertTrue(f'{utf8}.{zone.decoded_name}', record.decoded_fqdn)
 
     def test_alias_lowering_value(self):
         upper_record = AliasRecord(
