@@ -11,7 +11,7 @@ from __future__ import (
 
 from unittest import TestCase
 
-from octodns.idna import IdnaDict, idna_decode, idna_encode
+from octodns.idna import IdnaDict, IdnaError, idna_decode, idna_encode
 
 
 class TestIdna(TestCase):
@@ -66,6 +66,15 @@ class TestIdna(TestCase):
         self.assertEqual(
             'xn--zajzyk-y4a.pl.', idna_encode(idna_encode('zajęzyk.pl.'))
         )
+
+    def test_exception_translation(self):
+        with self.assertRaises(IdnaError) as ctx:
+            idna_encode('déjà..vu.')
+        self.assertEqual('Empty Label', str(ctx.exception))
+
+        with self.assertRaises(IdnaError) as ctx:
+            idna_decode('xn--djvu-1na6c..com.')
+        self.assertEqual('Empty Label', str(ctx.exception))
 
 
 class TestIdnaDict(TestCase):

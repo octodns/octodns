@@ -4,11 +4,16 @@
 
 from collections.abc import MutableMapping
 
-from idna import decode as _decode, encode as _encode
+from idna import IDNAError as _IDNAError, decode as _decode, encode as _encode
 
 # Providers will need to to make calls to these at the appropriate points,
 # generally right before they pass names off to api calls. For an example of
 # usage see https://github.com/octodns/octodns-ns1/pull/20
+
+
+class IdnaError(Exception):
+    def __init__(self, idna_error):
+        super().__init__(str(idna_error))
 
 
 def idna_encode(name):
@@ -20,21 +25,27 @@ def idna_encode(name):
         # No utf8 chars, just use as-is
         return name
     except UnicodeEncodeError:
-        if name.startswith('*'):
-            # idna.encode doesn't like the *
-            name = _encode(name[2:]).decode('utf-8')
-            return f'*.{name}'
-        return _encode(name).decode('utf-8')
+        try:
+            if name.startswith('*'):
+                # idna.encode doesn't like the *
+                name = _encode(name[2:]).decode('utf-8')
+                return f'*.{name}'
+            return _encode(name).decode('utf-8')
+        except _IDNAError as e:
+            raise IdnaError(e)
 
 
 def idna_decode(name):
     pieces = name.lower().split('.')
     if any(p.startswith('xn--') for p in pieces):
-        # it's idna
-        if name.startswith('*'):
-            # idna.decode doesn't like the *
-            return f'*.{_decode(name[2:])}'
-        return _decode(name)
+        try:
+            # it's idna
+            if name.startswith('*'):
+                # idna.decode doesn't like the *
+                return f'*.{_decode(name[2:])}'
+            return _decode(name)
+        except _IDNAError as e:
+            raise IdnaError(e)
     # not idna, just return as-is
     return name
 

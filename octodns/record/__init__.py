@@ -16,7 +16,7 @@ import re
 from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
-from ..idna import idna_decode, idna_encode
+from ..idna import IdnaError, idna_decode, idna_encode
 from .geo import GeoCodes
 
 
@@ -105,7 +105,13 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
-        name = idna_encode(str(name))
+        reasons = []
+        try:
+            name = idna_encode(str(name))
+        except IdnaError as e:
+            # convert the error into a reason
+            reasons.append(str(e))
+            name = str(name)
         fqdn = f'{name}.{zone.name}' if name else zone.name
         try:
             _type = data['type']
@@ -115,7 +121,7 @@ class Record(EqualityTupleMixin):
             _class = cls._CLASSES[_type]
         except KeyError:
             raise Exception(f'Unknown record type: "{_type}"')
-        reasons = _class.validate(name, fqdn, data)
+        reasons.extend(_class.validate(name, fqdn, data))
         try:
             lenient |= data['octodns']['lenient']
         except KeyError:
@@ -145,6 +151,7 @@ class Record(EqualityTupleMixin):
                     f'invalid label, "{label}" is too long at {n}'
                     ' chars, max is 63'
                 )
+        # TODO: look at the idna lib for a lot more potential validations...
         try:
             ttl = int(data['ttl'])
             if ttl < 0:
@@ -191,6 +198,8 @@ class Record(EqualityTupleMixin):
 
     @property
     def fqdn(self):
+        # TODO: these should be calculated and set in __init__ rather than on
+        # each use
         if self.name:
             return f'{self.name}.{self.zone.name}'
         return self.zone.name
