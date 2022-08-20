@@ -41,7 +41,9 @@ class Zone(object):
         self.decoded_name = idna_decode(self.name)
         self.sub_zones = sub_zones
         # We're grouping by node, it allows us to efficiently search for
-        # duplicates and detect when CNAMEs co-exist with other records
+        # duplicates and detect when CNAMEs co-exist with other records. Also
+        # node that we always store things with Record.name which will be idna
+        # encoded thus we don't have to deal with idna/utf8 collisions
         self._records = defaultdict(set)
         self._root_ns = None
         # optional leading . to match empty hostname
