@@ -217,6 +217,20 @@ class TestYamlProvider(TestCase):
             str(ctx.exception),
         )
 
+    def test_supports_everything(self):
+        source = YamlProvider('test', join(dirname(__file__), 'config'))
+
+        class DummyType(object):
+            def __init__(self, _type):
+                self._type = _type
+
+        # No matter what we check it's always supported
+        self.assertTrue(source.supports(DummyType(None)))
+        self.assertTrue(source.supports(DummyType(42)))
+        self.assertTrue(source.supports(DummyType('A')))
+        self.assertTrue(source.supports(DummyType(source)))
+        self.assertTrue(source.supports(DummyType(self)))
+
 
 class TestSplitYamlProvider(TestCase):
     def test_list_all_yaml_files(self):

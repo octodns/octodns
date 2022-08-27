@@ -167,6 +167,14 @@ class YamlProvider(BaseProvider):
         del args['log']
         return self.__class__(**args)
 
+    def supports(self, record):
+        # We're overriding this as a performance tweak, namely to avoid calling
+        # the implementation of the SUPPORTS property to create a set from a
+        # dict_keys every single time something checked whether we support a
+        # record, the answer is always yes so that's overkill and we can just
+        # return True here and be done with it
+        return True
+
     @property
     def SUPPORTS_ROOT_NS(self):
         return self.supports_root_ns
