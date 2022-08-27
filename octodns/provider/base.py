@@ -59,7 +59,7 @@ class BaseProvider(BaseSource):
         '''
 
         for record in desired.records:
-            if record._type not in self.SUPPORTS:
+            if not self.supports(record):
                 msg = f'{record._type} records not supported for {record.fqdn}'
                 fallback = 'omitting record'
                 self.supports_warn_or_except(msg, fallback)
