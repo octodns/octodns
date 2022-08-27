@@ -15,7 +15,7 @@ from unittest import TestCase
 from yaml import safe_load
 from yaml.constructor import ConstructorError
 
-from octodns.record import Create
+from octodns.record import _NsValue, Create, Record, ValuesMixin
 from octodns.provider.base import Plan
 from octodns.provider.yaml import (
     _list_all_yaml_files,
@@ -217,7 +217,23 @@ class TestYamlProvider(TestCase):
             str(ctx.exception),
         )
 
-    def test_supports_everything(self):
+    def test_SUPPORTS(self):
+        source = YamlProvider('test', join(dirname(__file__), 'config'))
+        # make sure the provider supports all the registered types
+        self.assertEqual(Record.registered_types().keys(), source.SUPPORTS)
+
+        class YamlRecord(ValuesMixin, Record):
+            _type = 'YAML'
+            _value_type = _NsValue
+
+        # don't know anything about a yaml type
+        self.assertTrue('YAML' not in source.SUPPORTS)
+        # register it
+        Record.register_type(YamlRecord)
+        # when asked again we'll now include it in our list of supports
+        self.assertTrue('YAML' in source.SUPPORTS)
+
+    def test_supports(self):
         source = YamlProvider('test', join(dirname(__file__), 'config'))
 
         class DummyType(object):

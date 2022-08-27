@@ -111,26 +111,6 @@ class YamlProvider(BaseProvider):
     SUPPORTS_DYNAMIC = True
     SUPPORTS_POOL_VALUE_STATUS = True
     SUPPORTS_MULTIVALUE_PTR = True
-    SUPPORTS = set(
-        (
-            'A',
-            'AAAA',
-            'ALIAS',
-            'CAA',
-            'CNAME',
-            'DNAME',
-            'LOC',
-            'MX',
-            'NAPTR',
-            'NS',
-            'PTR',
-            'SSHFP',
-            'SPF',
-            'SRV',
-            'TXT',
-            'URLFWD',
-        )
-    )
 
     def __init__(
         self,
@@ -166,6 +146,14 @@ class YamlProvider(BaseProvider):
         args['id'] = f'{args["id"]}-copy'
         del args['log']
         return self.__class__(**args)
+
+    @property
+    def SUPPORTS(self):
+        # The yaml provider supports all record types even those defined by 3rd
+        # party modules that we know nothing about, thus we dynamically return
+        # the types list that is registered in Record, everything that's know as
+        # of the point in time we're asked
+        return set(Record.registered_types().keys())
 
     def supports(self, record):
         # We're overriding this as a performance tweak, namely to avoid calling

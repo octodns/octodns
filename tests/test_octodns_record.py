@@ -69,6 +69,8 @@ class TestRecord(TestCase):
             _type = 'AA'
             _value_type = _NsValue
 
+        self.assertTrue('AA' not in Record.registered_types())
+
         Record.register_type(AaRecord)
         aa = Record.new(
             self.zone,
@@ -76,6 +78,8 @@ class TestRecord(TestCase):
             {'ttl': 360, 'type': 'AA', 'value': 'does.not.matter.'},
         )
         self.assertEqual(AaRecord, aa.__class__)
+
+        self.assertTrue('AA' in Record.registered_types())
 
     def test_lowering(self):
         record = ARecord(

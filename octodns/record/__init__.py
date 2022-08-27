@@ -103,6 +103,10 @@ class Record(EqualityTupleMixin):
         cls._CLASSES[_type] = _class
 
     @classmethod
+    def registered_types(cls):
+        return cls._CLASSES
+
+    @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
         name = str(name).lower()
         fqdn = f'{name}.{zone.name}' if name else zone.name
