@@ -1,3 +1,17 @@
+## v0.9.19 - 2022-??-?? - ???
+
+* Addressed shortcomings with YamlProvider.SUPPORTS in that it didn't include
+  dynamically registered types, was a static list that could have drifted over
+  time even ignoring 3rd party types.
+* Provider._process_desired_zone needed to call Provider.supports rather than
+  doing it's own `_type in provider.SUPPORTS`. The default behavior in
+  Source.supports is ^, but it's possible for providers to override that
+  behavior and do special checking and `_process_desired_zone` wasn't taking
+  that into account.
+* Now that it's used as it needed to be YamlProvider overrides
+  Provider.supports and just always says Yes so that any dynamically registered
+  types will be supported.
+
 ## v0.9.18 - 2022-08-14 - Subzone handling
 
 * Fixed issue with sub-zone handling introduced in 0.9.18
