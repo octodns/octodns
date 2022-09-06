@@ -1,2 +1,4 @@
 # Commit that added in black formatting support
 e116d26eeca0891c31b689e43db5bb60b62f73f6
+# Commit that fixed a bunch of uneeded '...' '...' string joins from ^
+fa4225b625654c51c7b0be6efcfd6a1109768a72
