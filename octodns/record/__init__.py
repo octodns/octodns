@@ -832,8 +832,7 @@ class _IpAddress(str):
         return [cls(v) if v != '' else '' for v in values]
 
     def __new__(cls, v):
-        if v:
-            v = str(cls._address_type(v))
+        v = str(cls._address_type(v))
         return super().__new__(cls, v)
 
 
