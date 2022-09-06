@@ -9,7 +9,7 @@ from __future__ import (
     unicode_literals,
 )
 
-from ipaddress import IPv4Address, IPv6Address
+from ipaddress import IPv4Address as _IPv4Address, IPv6Address as _IPv6Address
 from logging import getLogger
 import re
 
@@ -326,7 +326,7 @@ class ValuesMixin(object):
     def __init__(self, zone, name, data, source=None):
         super(ValuesMixin, self).__init__(zone, name, data, source=source)
         try:
-            values = data['values']
+            values = [v for v in data['values']]
         except KeyError:
             values = [data['value']]
         self.values = sorted(self._value_type.process(values))
@@ -770,48 +770,7 @@ class _DynamicMixin(object):
         return super(_DynamicMixin, self).__repr__()
 
 
-class _IpList(object):
-    @classmethod
-    def validate(cls, data, _type):
-        if not isinstance(data, (list, tuple)):
-            data = (data,)
-        if len(data) == 0:
-            return ['missing value(s)']
-        reasons = []
-        for value in data:
-            if value == '':
-                reasons.append('empty value')
-            elif value is None:
-                reasons.append('missing value(s)')
-            else:
-                try:
-                    cls._address_type(str(value))
-                except Exception:
-                    addr_name = cls._address_name
-                    reasons.append(f'invalid {addr_name} address "{value}"')
-        return reasons
-
-    @classmethod
-    def process(cls, values):
-        # Translating None into '' so that the list will be sortable in
-        # python3, get everything to str first
-        values = [str(v) if v is not None else '' for v in values]
-        # Now round trip all non-'' through the address type and back to a str
-        # to normalize the address representation.
-        return [str(cls._address_type(v)) if v != '' else '' for v in values]
-
-
-class Ipv4List(_IpList):
-    _address_name = 'IPv4'
-    _address_type = IPv4Address
-
-
-class Ipv6List(_IpList):
-    _address_name = 'IPv6'
-    _address_type = IPv6Address
-
-
-class _TargetValue(object):
+class _TargetValue(str):
     @classmethod
     def validate(cls, data, _type):
         reasons = []
@@ -842,17 +801,63 @@ class DnameValue(_TargetValue):
     pass
 
 
+class _IpAddress(str):
+    @classmethod
+    def validate(cls, data, _type):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
+        if len(data) == 0:
+            return ['missing value(s)']
+        reasons = []
+        for value in data:
+            if value == '':
+                reasons.append('empty value')
+            elif value is None:
+                reasons.append('missing value(s)')
+            else:
+                try:
+                    cls._address_type(str(value))
+                except Exception:
+                    addr_name = cls._address_name
+                    reasons.append(f'invalid {addr_name} address "{value}"')
+        return reasons
+
+    @classmethod
+    def process(cls, values):
+        # Translating None into '' so that the list will be sortable in
+        # python3, get everything to str first
+        values = [v if v is not None else '' for v in values]
+        # Now round trip all non-'' through the address type and back to a str
+        # to normalize the address representation.
+        return [cls(v) if v != '' else '' for v in values]
+
+    def __new__(cls, v):
+        if v:
+            v = str(cls._address_type(v))
+        return super().__new__(cls, v)
+
+
+class Ipv4Address(_IpAddress):
+    _address_type = _IPv4Address
+    _address_name = 'IPv4'
+
+
 class ARecord(_DynamicMixin, _GeoMixin, Record):
     _type = 'A'
-    _value_type = Ipv4List
+    _value_type = Ipv4Address
 
 
 Record.register_type(ARecord)
 
 
+class Ipv6Address(_IpAddress):
+    _address_type = _IPv6Address
+    _address_name = 'IPv6'
+
+
 class AaaaRecord(_DynamicMixin, _GeoMixin, Record):
     _type = 'AAAA'
-    _value_type = Ipv6List
+    _value_type = Ipv6Address
 
 
 Record.register_type(AaaaRecord)
@@ -878,7 +883,7 @@ class AliasRecord(ValueMixin, Record):
 Record.register_type(AliasRecord)
 
 
-class CaaValue(EqualityTupleMixin):
+class CaaValue(EqualityTupleMixin, dict):
     # https://tools.ietf.org/html/rfc6844#page-5
 
     @classmethod
@@ -905,13 +910,41 @@ class CaaValue(EqualityTupleMixin):
         return [CaaValue(v) for v in values]
 
     def __init__(self, value):
-        self.flags = int(value.get('flags', 0))
-        self.tag = value['tag']
-        self.value = value['value']
+        super().__init__(
+            {
+                'flags': int(value.get('flags', 0)),
+                'tag': value['tag'],
+                'value': value['value'],
+            }
+        )
+
+    @property
+    def flags(self):
+        return self['flags']
+
+    @flags.setter
+    def flags(self, value):
+        self['flags'] = value
+
+    @property
+    def tag(self):
+        return self['tag']
+
+    @tag.setter
+    def tag(self, value):
+        self['tag'] = value
+
+    @property
+    def value(self):
+        return self['value']
+
+    @value.setter
+    def value(self, value):
+        self['value'] = value
 
     @property
     def data(self):
-        return {'flags': self.flags, 'tag': self.tag, 'value': self.value}
+        return self
 
     def _equality_tuple(self):
         return (self.flags, self.tag, self.value)
@@ -952,7 +985,7 @@ class DnameRecord(_DynamicMixin, ValueMixin, Record):
 Record.register_type(DnameRecord)
 
 
-class LocValue(EqualityTupleMixin):
+class LocValue(EqualityTupleMixin, dict):
     # TODO: work out how to do defaults per RFC
 
     @classmethod
@@ -1051,35 +1084,122 @@ class LocValue(EqualityTupleMixin):
         return [LocValue(v) for v in values]
 
     def __init__(self, value):
-        self.lat_degrees = int(value['lat_degrees'])
-        self.lat_minutes = int(value['lat_minutes'])
-        self.lat_seconds = float(value['lat_seconds'])
-        self.lat_direction = value['lat_direction'].upper()
-        self.long_degrees = int(value['long_degrees'])
-        self.long_minutes = int(value['long_minutes'])
-        self.long_seconds = float(value['long_seconds'])
-        self.long_direction = value['long_direction'].upper()
-        self.altitude = float(value['altitude'])
-        self.size = float(value['size'])
-        self.precision_horz = float(value['precision_horz'])
-        self.precision_vert = float(value['precision_vert'])
+        super().__init__(
+            {
+                'lat_degrees': int(value['lat_degrees']),
+                'lat_minutes': int(value['lat_minutes']),
+                'lat_seconds': float(value['lat_seconds']),
+                'lat_direction': value['lat_direction'].upper(),
+                'long_degrees': int(value['long_degrees']),
+                'long_minutes': int(value['long_minutes']),
+                'long_seconds': float(value['long_seconds']),
+                'long_direction': value['long_direction'].upper(),
+                'altitude': float(value['altitude']),
+                'size': float(value['size']),
+                'precision_horz': float(value['precision_horz']),
+                'precision_vert': float(value['precision_vert']),
+            }
+        )
+
+    @property
+    def lat_degrees(self):
+        return self['lat_degrees']
+
+    @lat_degrees.setter
+    def lat_degrees(self, value):
+        self['lat_degrees'] = value
+
+    @property
+    def lat_minutes(self):
+        return self['lat_minutes']
+
+    @lat_minutes.setter
+    def lat_minutes(self, value):
+        self['lat_minutes'] = value
+
+    @property
+    def lat_seconds(self):
+        return self['lat_seconds']
+
+    @lat_seconds.setter
+    def lat_seconds(self, value):
+        self['lat_seconds'] = value
+
+    @property
+    def lat_direction(self):
+        return self['lat_direction']
+
+    @lat_direction.setter
+    def lat_direction(self, value):
+        self['lat_direction'] = value
+
+    @property
+    def long_degrees(self):
+        return self['long_degrees']
+
+    @long_degrees.setter
+    def long_degrees(self, value):
+        self['long_degrees'] = value
+
+    @property
+    def long_minutes(self):
+        return self['long_minutes']
+
+    @long_minutes.setter
+    def long_minutes(self, value):
+        self['long_minutes'] = value
+
+    @property
+    def long_seconds(self):
+        return self['long_seconds']
+
+    @long_seconds.setter
+    def long_seconds(self, value):
+        self['long_seconds'] = value
+
+    @property
+    def long_direction(self):
+        return self['long_direction']
+
+    @long_direction.setter
+    def long_direction(self, value):
+        self['long_direction'] = value
+
+    @property
+    def altitude(self):
+        return self['altitude']
+
+    @altitude.setter
+    def altitude(self, value):
+        self['altitude'] = value
+
+    @property
+    def size(self):
+        return self['size']
+
+    @size.setter
+    def size(self, value):
+        self['size'] = value
+
+    @property
+    def precision_horz(self):
+        return self['precision_horz']
+
+    @precision_horz.setter
+    def precision_horz(self, value):
+        self['precision_horz'] = value
+
+    @property
+    def precision_vert(self):
+        return self['precision_vert']
+
+    @precision_vert.setter
+    def precision_vert(self, value):
+        self['precision_vert'] = value
 
     @property
     def data(self):
-        return {
-            'lat_degrees': self.lat_degrees,
-            'lat_minutes': self.lat_minutes,
-            'lat_seconds': self.lat_seconds,
-            'lat_direction': self.lat_direction,
-            'long_degrees': self.long_degrees,
-            'long_minutes': self.long_minutes,
-            'long_seconds': self.long_seconds,
-            'long_direction': self.long_direction,
-            'altitude': self.altitude,
-            'size': self.size,
-            'precision_horz': self.precision_horz,
-            'precision_vert': self.precision_vert,
-        }
+        return self
 
     def __hash__(self):
         return hash(
@@ -1134,7 +1254,7 @@ class LocRecord(ValuesMixin, Record):
 Record.register_type(LocRecord)
 
 
-class MxValue(EqualityTupleMixin):
+class MxValue(EqualityTupleMixin, dict):
     @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
@@ -1177,17 +1297,34 @@ class MxValue(EqualityTupleMixin):
             preference = value['preference']
         except KeyError:
             preference = value['priority']
-        self.preference = int(preference)
         # UNTIL 1.0 remove value fallback
         try:
             exchange = value['exchange']
         except KeyError:
             exchange = value['value']
-        self.exchange = exchange.lower()
+        super().__init__(
+            {'preference': int(preference), 'exchange': exchange.lower()}
+        )
+
+    @property
+    def preference(self):
+        return self['preference']
+
+    @preference.setter
+    def preference(self, value):
+        self['preference'] = value
+
+    @property
+    def exchange(self):
+        return self['exchange']
+
+    @exchange.setter
+    def exchange(self, value):
+        self['exchange'] = value
 
     @property
     def data(self):
-        return {'preference': self.preference, 'exchange': self.exchange}
+        return self
 
     def __hash__(self):
         return hash((self.preference, self.exchange))
@@ -1207,7 +1344,7 @@ class MxRecord(ValuesMixin, Record):
 Record.register_type(MxRecord)
 
 
-class NaptrValue(EqualityTupleMixin):
+class NaptrValue(EqualityTupleMixin, dict):
     VALID_FLAGS = ('S', 'A', 'U', 'P')
 
     @classmethod
@@ -1247,23 +1384,68 @@ class NaptrValue(EqualityTupleMixin):
         return [NaptrValue(v) for v in values]
 
     def __init__(self, value):
-        self.order = int(value['order'])
-        self.preference = int(value['preference'])
-        self.flags = value['flags']
-        self.service = value['service']
-        self.regexp = value['regexp']
-        self.replacement = value['replacement']
+        super().__init__(
+            {
+                'order': int(value['order']),
+                'preference': int(value['preference']),
+                'flags': value['flags'],
+                'service': value['service'],
+                'regexp': value['regexp'],
+                'replacement': value['replacement'],
+            }
+        )
+
+    @property
+    def order(self):
+        return self['order']
+
+    @order.setter
+    def order(self, value):
+        self['order'] = value
+
+    @property
+    def preference(self):
+        return self['preference']
+
+    @preference.setter
+    def preference(self, value):
+        self['preference'] = value
+
+    @property
+    def flags(self):
+        return self['flags']
+
+    @flags.setter
+    def flags(self, value):
+        self['flags'] = value
+
+    @property
+    def service(self):
+        return self['service']
+
+    @service.setter
+    def service(self, value):
+        self['service'] = value
+
+    @property
+    def regexp(self):
+        return self['regexp']
+
+    @regexp.setter
+    def regexp(self, value):
+        self['regexp'] = value
+
+    @property
+    def replacement(self):
+        return self['replacement']
+
+    @replacement.setter
+    def replacement(self, value):
+        self['replacement'] = value
 
     @property
     def data(self):
-        return {
-            'order': self.order,
-            'preference': self.preference,
-            'flags': self.flags,
-            'service': self.service,
-            'regexp': self.regexp,
-            'replacement': self.replacement,
-        }
+        return self
 
     def __hash__(self):
         return hash(self.__repr__())
@@ -1296,7 +1478,7 @@ class NaptrRecord(ValuesMixin, Record):
 Record.register_type(NaptrRecord)
 
 
-class _NsValue(object):
+class _NsValue(str):
     @classmethod
     def validate(cls, data, _type):
         if not data:
@@ -1361,7 +1543,7 @@ class PtrRecord(ValuesMixin, Record):
 Record.register_type(PtrRecord)
 
 
-class SshfpValue(EqualityTupleMixin):
+class SshfpValue(EqualityTupleMixin, dict):
     VALID_ALGORITHMS = (1, 2, 3, 4)
     VALID_FINGERPRINT_TYPES = (1, 2)
 
@@ -1400,17 +1582,41 @@ class SshfpValue(EqualityTupleMixin):
         return [SshfpValue(v) for v in values]
 
     def __init__(self, value):
-        self.algorithm = int(value['algorithm'])
-        self.fingerprint_type = int(value['fingerprint_type'])
-        self.fingerprint = value['fingerprint']
+        super().__init__(
+            {
+                'algorithm': int(value['algorithm']),
+                'fingerprint_type': int(value['fingerprint_type']),
+                'fingerprint': value['fingerprint'],
+            }
+        )
+
+    @property
+    def algorithm(self):
+        return self['algorithm']
+
+    @algorithm.setter
+    def algorithm(self, value):
+        self['algorithm'] = value
+
+    @property
+    def fingerprint_type(self):
+        return self['fingerprint_type']
+
+    @fingerprint_type.setter
+    def fingerprint_type(self, value):
+        self['fingerprint_type'] = value
+
+    @property
+    def fingerprint(self):
+        return self['fingerprint']
+
+    @fingerprint.setter
+    def fingerprint(self, value):
+        self['fingerprint'] = value
 
     @property
     def data(self):
-        return {
-            'algorithm': self.algorithm,
-            'fingerprint_type': self.fingerprint_type,
-            'fingerprint': self.fingerprint,
-        }
+        return self
 
     def __hash__(self):
         return hash(self.__repr__())
@@ -1451,7 +1657,7 @@ class _ChunkedValuesMixin(ValuesMixin):
         return values
 
 
-class _ChunkedValue(object):
+class _ChunkedValue(str):
     _unescaped_semicolon_re = re.compile(r'\w;')
 
     @classmethod
@@ -1472,7 +1678,7 @@ class _ChunkedValue(object):
         for v in values:
             if v and v[0] == '"':
                 v = v[1:-1]
-            ret.append(v.replace('" "', ''))
+            ret.append(cls(v.replace('" "', '')))
         return ret
 
 
@@ -1484,7 +1690,7 @@ class SpfRecord(_ChunkedValuesMixin, Record):
 Record.register_type(SpfRecord)
 
 
-class SrvValue(EqualityTupleMixin):
+class SrvValue(EqualityTupleMixin, dict):
     @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
@@ -1530,19 +1736,50 @@ class SrvValue(EqualityTupleMixin):
         return [SrvValue(v) for v in values]
 
     def __init__(self, value):
-        self.priority = int(value['priority'])
-        self.weight = int(value['weight'])
-        self.port = int(value['port'])
-        self.target = value['target'].lower()
+        super().__init__(
+            {
+                'priority': int(value['priority']),
+                'weight': int(value['weight']),
+                'port': int(value['port']),
+                'target': value['target'].lower(),
+            }
+        )
+
+    @property
+    def priority(self):
+        return self['priority']
+
+    @priority.setter
+    def priority(self, value):
+        self['priority'] = value
+
+    @property
+    def weight(self):
+        return self['weight']
+
+    @weight.setter
+    def weight(self, value):
+        self['weight'] = value
+
+    @property
+    def port(self):
+        return self['port']
+
+    @port.setter
+    def port(self, value):
+        self['port'] = value
+
+    @property
+    def target(self):
+        return self['target']
+
+    @target.setter
+    def target(self, value):
+        self['target'] = value
 
     @property
     def data(self):
-        return {
-            'priority': self.priority,
-            'weight': self.weight,
-            'port': self.port,
-            'target': self.target,
-        }
+        return self
 
     def __hash__(self):
         return hash(self.__repr__())
@@ -1571,7 +1808,7 @@ class SrvRecord(ValuesMixin, Record):
 Record.register_type(SrvRecord)
 
 
-class TlsaValue(EqualityTupleMixin):
+class TlsaValue(EqualityTupleMixin, dict):
     @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
@@ -1621,21 +1858,48 @@ class TlsaValue(EqualityTupleMixin):
         return [TlsaValue(v) for v in values]
 
     def __init__(self, value):
-        self.certificate_usage = int(value.get('certificate_usage', 0))
-        self.selector = int(value.get('selector', 0))
-        self.matching_type = int(value.get('matching_type', 0))
-        self.certificate_association_data = value[
-            'certificate_association_data'
-        ]
+        super().__init__(
+            {
+                'certificate_usage': int(value.get('certificate_usage', 0)),
+                'selector': int(value.get('selector', 0)),
+                'matching_type': int(value.get('matching_type', 0)),
+                'certificate_association_data': value[
+                    'certificate_association_data'
+                ],
+            }
+        )
 
     @property
-    def data(self):
-        return {
-            'certificate_usage': self.certificate_usage,
-            'selector': self.selector,
-            'matching_type': self.matching_type,
-            'certificate_association_data': self.certificate_association_data,
-        }
+    def certificate_usage(self):
+        return self['certificate_usage']
+
+    @certificate_usage.setter
+    def certificate_usage(self, value):
+        self['certificate_usage'] = value
+
+    @property
+    def selector(self):
+        return self['selector']
+
+    @selector.setter
+    def selector(self, value):
+        self['selector'] = value
+
+    @property
+    def matching_type(self):
+        return self['matching_type']
+
+    @matching_type.setter
+    def matching_type(self, value):
+        self['matching_type'] = value
+
+    @property
+    def certificate_association_data(self):
+        return self['certificate_association_data']
+
+    @certificate_association_data.setter
+    def certificate_association_data(self, value):
+        self['certificate_association_data'] = value
 
     def _equality_tuple(self):
         return (
@@ -1672,7 +1936,7 @@ class TxtRecord(_ChunkedValuesMixin, Record):
 Record.register_type(TxtRecord)
 
 
-class UrlfwdValue(EqualityTupleMixin):
+class UrlfwdValue(EqualityTupleMixin, dict):
     VALID_CODES = (301, 302)
     VALID_MASKS = (0, 1, 2)
     VALID_QUERY = (0, 1)
@@ -1717,33 +1981,66 @@ class UrlfwdValue(EqualityTupleMixin):
         return [UrlfwdValue(v) for v in values]
 
     def __init__(self, value):
-        self.path = value['path']
-        self.target = value['target']
-        self.code = int(value['code'])
-        self.masking = int(value['masking'])
-        self.query = int(value['query'])
+        super().__init__(
+            {
+                'path': value['path'],
+                'target': value['target'],
+                'code': int(value['code']),
+                'masking': int(value['masking']),
+                'query': int(value['query']),
+            }
+        )
 
     @property
-    def data(self):
-        return {
-            'path': self.path,
-            'target': self.target,
-            'code': self.code,
-            'masking': self.masking,
-            'query': self.query,
-        }
+    def path(self):
+        return self['path']
 
-    def __hash__(self):
-        return hash(self.__repr__())
+    @path.setter
+    def path(self, value):
+        self['path'] = value
+
+    @property
+    def target(self):
+        return self['target']
+
+    @target.setter
+    def target(self, value):
+        self['target'] = value
+
+    @property
+    def code(self):
+        return self['code']
+
+    @code.setter
+    def code(self, value):
+        self['code'] = value
+
+    @property
+    def masking(self):
+        return self['masking']
+
+    @masking.setter
+    def masking(self, value):
+        self['masking'] = value
+
+    @property
+    def query(self):
+        return self['query']
+
+    @query.setter
+    def query(self, value):
+        self['query'] = value
 
     def _equality_tuple(self):
         return (self.path, self.target, self.code, self.masking, self.query)
 
-    def __repr__(self):
-        return (
-            f'"{self.path}" "{self.target}" {self.code} '
-            f'{self.masking} {self.query}'
+    def __hash__(self):
+        return hash(
+            (self.path, self.target, self.code, self.masking, self.query)
         )
+
+    def __repr__(self):
+        return f'"{self.path}" "{self.target}" {self.code} {self.masking} {self.query}'
 
 
 class UrlfwdRecord(ValuesMixin, Record):

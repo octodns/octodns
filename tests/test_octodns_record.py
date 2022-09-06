@@ -38,6 +38,7 @@ from octodns.record import (
     SrvRecord,
     SrvValue,
     TlsaRecord,
+    TlsaValue,
     TxtRecord,
     Update,
     UrlfwdRecord,
@@ -380,12 +381,14 @@ class TestRecord(TestCase):
 
     def test_caa(self):
         a_values = [
-            {'flags': 0, 'tag': 'issue', 'value': 'ca.example.net'},
-            {
-                'flags': 128,
-                'tag': 'iodef',
-                'value': 'mailto:security@example.com',
-            },
+            CaaValue({'flags': 0, 'tag': 'issue', 'value': 'ca.example.net'}),
+            CaaValue(
+                {
+                    'flags': 128,
+                    'tag': 'iodef',
+                    'value': 'mailto:security@example.com',
+                }
+            ),
         ]
         a_data = {'ttl': 30, 'values': a_values}
         a = CaaRecord(self.zone, 'a', a_data)
@@ -400,7 +403,9 @@ class TestRecord(TestCase):
         self.assertEqual(a_values[1]['value'], a.values[1].value)
         self.assertEqual(a_data, a.data)
 
-        b_value = {'tag': 'iodef', 'value': 'http://iodef.example.com/'}
+        b_value = CaaValue(
+            {'tag': 'iodef', 'value': 'http://iodef.example.com/'}
+        )
         b_data = {'ttl': 30, 'value': b_value}
         b = CaaRecord(self.zone, 'b', b_data)
         self.assertEqual(0, b.values[0].flags)
@@ -442,20 +447,22 @@ class TestRecord(TestCase):
 
     def test_loc(self):
         a_values = [
-            {
-                'lat_degrees': 31,
-                'lat_minutes': 58,
-                'lat_seconds': 52.1,
-                'lat_direction': 'S',
-                'long_degrees': 115,
-                'long_minutes': 49,
-                'long_seconds': 11.7,
-                'long_direction': 'E',
-                'altitude': 20,
-                'size': 10,
-                'precision_horz': 10,
-                'precision_vert': 2,
-            }
+            LocValue(
+                {
+                    'lat_degrees': 31,
+                    'lat_minutes': 58,
+                    'lat_seconds': 52.1,
+                    'lat_direction': 'S',
+                    'long_degrees': 115,
+                    'long_minutes': 49,
+                    'long_seconds': 11.7,
+                    'long_direction': 'E',
+                    'altitude': 20,
+                    'size': 10,
+                    'precision_horz': 10,
+                    'precision_vert': 2,
+                }
+            )
         ]
         a_data = {'ttl': 30, 'values': a_values}
         a = LocRecord(self.zone, 'a', a_data)
@@ -483,20 +490,22 @@ class TestRecord(TestCase):
             a_values[0]['precision_vert'], a.values[0].precision_vert
         )
 
-        b_value = {
-            'lat_degrees': 32,
-            'lat_minutes': 7,
-            'lat_seconds': 19,
-            'lat_direction': 'S',
-            'long_degrees': 116,
-            'long_minutes': 2,
-            'long_seconds': 25,
-            'long_direction': 'E',
-            'altitude': 10,
-            'size': 1,
-            'precision_horz': 10000,
-            'precision_vert': 10,
-        }
+        b_value = LocValue(
+            {
+                'lat_degrees': 32,
+                'lat_minutes': 7,
+                'lat_seconds': 19,
+                'lat_direction': 'S',
+                'long_degrees': 116,
+                'long_minutes': 2,
+                'long_seconds': 25,
+                'long_direction': 'E',
+                'altitude': 10,
+                'size': 1,
+                'precision_horz': 10000,
+                'precision_vert': 10,
+            }
+        )
         b_data = {'ttl': 30, 'value': b_value}
         b = LocRecord(self.zone, 'b', b_data)
         self.assertEqual(b_value['lat_degrees'], b.values[0].lat_degrees)
@@ -534,8 +543,8 @@ class TestRecord(TestCase):
 
     def test_mx(self):
         a_values = [
-            {'preference': 10, 'exchange': 'smtp1.'},
-            {'priority': 20, 'value': 'smtp2.'},
+            MxValue({'preference': 10, 'exchange': 'smtp1.'}),
+            MxValue({'priority': 20, 'value': 'smtp2.'}),
         ]
         a_data = {'ttl': 30, 'values': a_values}
         a = MxRecord(self.zone, 'a', a_data)
@@ -544,12 +553,12 @@ class TestRecord(TestCase):
         self.assertEqual(30, a.ttl)
         self.assertEqual(a_values[0]['preference'], a.values[0].preference)
         self.assertEqual(a_values[0]['exchange'], a.values[0].exchange)
-        self.assertEqual(a_values[1]['priority'], a.values[1].preference)
-        self.assertEqual(a_values[1]['value'], a.values[1].exchange)
-        a_data['values'][1] = {'preference': 20, 'exchange': 'smtp2.'}
+        self.assertEqual(a_values[1]['preference'], a.values[1].preference)
+        self.assertEqual(a_values[1]['exchange'], a.values[1].exchange)
+        a_data['values'][1] = MxValue({'preference': 20, 'exchange': 'smtp2.'})
         self.assertEqual(a_data, a.data)
 
-        b_value = {'preference': 0, 'exchange': 'smtp3.'}
+        b_value = MxValue({'preference': 0, 'exchange': 'smtp3.'})
         b_data = {'ttl': 30, 'value': b_value}
         b = MxRecord(self.zone, 'b', b_data)
         self.assertEqual(b_value['preference'], b.values[0].preference)
@@ -585,22 +594,26 @@ class TestRecord(TestCase):
 
     def test_naptr(self):
         a_values = [
-            {
-                'order': 10,
-                'preference': 11,
-                'flags': 'X',
-                'service': 'Y',
-                'regexp': 'Z',
-                'replacement': '.',
-            },
-            {
-                'order': 20,
-                'preference': 21,
-                'flags': 'A',
-                'service': 'B',
-                'regexp': 'C',
-                'replacement': 'foo.com',
-            },
+            NaptrValue(
+                {
+                    'order': 10,
+                    'preference': 11,
+                    'flags': 'X',
+                    'service': 'Y',
+                    'regexp': 'Z',
+                    'replacement': '.',
+                }
+            ),
+            NaptrValue(
+                {
+                    'order': 20,
+                    'preference': 21,
+                    'flags': 'A',
+                    'service': 'B',
+                    'regexp': 'C',
+                    'replacement': 'foo.com',
+                }
+            ),
         ]
         a_data = {'ttl': 30, 'values': a_values}
         a = NaptrRecord(self.zone, 'a', a_data)
@@ -612,14 +625,16 @@ class TestRecord(TestCase):
                 self.assertEqual(a_values[i][k], getattr(a.values[i], k))
         self.assertEqual(a_data, a.data)
 
-        b_value = {
-            'order': 30,
-            'preference': 31,
-            'flags': 'M',
-            'service': 'N',
-            'regexp': 'O',
-            'replacement': 'x',
-        }
+        b_value = NaptrValue(
+            {
+                'order': 30,
+                'preference': 31,
+                'flags': 'M',
+                'service': 'N',
+                'regexp': 'O',
+                'replacement': 'x',
+            }
+        )
         b_data = {'ttl': 30, 'value': b_value}
         b = NaptrRecord(self.zone, 'b', b_data)
         for k in a_values[0].keys():
@@ -861,8 +876,20 @@ class TestRecord(TestCase):
 
     def test_sshfp(self):
         a_values = [
-            {'algorithm': 10, 'fingerprint_type': 11, 'fingerprint': 'abc123'},
-            {'algorithm': 20, 'fingerprint_type': 21, 'fingerprint': 'def456'},
+            SshfpValue(
+                {
+                    'algorithm': 10,
+                    'fingerprint_type': 11,
+                    'fingerprint': 'abc123',
+                }
+            ),
+            SshfpValue(
+                {
+                    'algorithm': 20,
+                    'fingerprint_type': 21,
+                    'fingerprint': 'def456',
+                }
+            ),
         ]
         a_data = {'ttl': 30, 'values': a_values}
         a = SshfpRecord(self.zone, 'a', a_data)
@@ -876,11 +903,9 @@ class TestRecord(TestCase):
         self.assertEqual(a_values[0]['fingerprint'], a.values[0].fingerprint)
         self.assertEqual(a_data, a.data)
 
-        b_value = {
-            'algorithm': 30,
-            'fingerprint_type': 31,
-            'fingerprint': 'ghi789',
-        }
+        b_value = SshfpValue(
+            {'algorithm': 30, 'fingerprint_type': 31, 'fingerprint': 'ghi789'}
+        )
         b_data = {'ttl': 30, 'value': b_value}
         b = SshfpRecord(self.zone, 'b', b_data)
         self.assertEqual(b_value['algorithm'], b.values[0].algorithm)
@@ -924,8 +949,12 @@ class TestRecord(TestCase):
 
     def test_srv(self):
         a_values = [
-            {'priority': 10, 'weight': 11, 'port': 12, 'target': 'server1'},
-            {'priority': 20, 'weight': 21, 'port': 22, 'target': 'server2'},
+            SrvValue(
+                {'priority': 10, 'weight': 11, 'port': 12, 'target': 'server1'}
+            ),
+            SrvValue(
+                {'priority': 20, 'weight': 21, 'port': 22, 'target': 'server2'}
+            ),
         ]
         a_data = {'ttl': 30, 'values': a_values}
         a = SrvRecord(self.zone, '_a._tcp', a_data)
@@ -936,14 +965,21 @@ class TestRecord(TestCase):
         self.assertEqual(a_values[0]['weight'], a.values[0].weight)
         self.assertEqual(a_values[0]['port'], a.values[0].port)
         self.assertEqual(a_values[0]['target'], a.values[0].target)
+        from pprint import pprint
+
+        pprint(
+            {
+                'a_values': a_values,
+                'self': a_data,
+                'other': a.data,
+                'a.values': a.values,
+            }
+        )
         self.assertEqual(a_data, a.data)
 
-        b_value = {
-            'priority': 30,
-            'weight': 31,
-            'port': 32,
-            'target': 'server3',
-        }
+        b_value = SrvValue(
+            {'priority': 30, 'weight': 31, 'port': 32, 'target': 'server3'}
+        )
         b_data = {'ttl': 30, 'value': b_value}
         b = SrvRecord(self.zone, '_b._tcp', b_data)
         self.assertEqual(b_value['priority'], b.values[0].priority)
@@ -987,18 +1023,22 @@ class TestRecord(TestCase):
 
     def test_tlsa(self):
         a_values = [
-            {
-                'certificate_usage': 1,
-                'selector': 1,
-                'matching_type': 1,
-                'certificate_association_data': 'ABABABABABABABABAB',
-            },
-            {
-                'certificate_usage': 2,
-                'selector': 0,
-                'matching_type': 2,
-                'certificate_association_data': 'ABABABABABABABABAC',
-            },
+            TlsaValue(
+                {
+                    'certificate_usage': 1,
+                    'selector': 1,
+                    'matching_type': 1,
+                    'certificate_association_data': 'ABABABABABABABABAB',
+                }
+            ),
+            TlsaValue(
+                {
+                    'certificate_usage': 2,
+                    'selector': 0,
+                    'matching_type': 2,
+                    'certificate_association_data': 'ABABABABABABABABAC',
+                }
+            ),
         ]
         a_data = {'ttl': 30, 'values': a_values}
         a = TlsaRecord(self.zone, 'a', a_data)
@@ -1030,12 +1070,14 @@ class TestRecord(TestCase):
         )
         self.assertEqual(a_data, a.data)
 
-        b_value = {
-            'certificate_usage': 0,
-            'selector': 0,
-            'matching_type': 0,
-            'certificate_association_data': 'AAAAAAAAAAAAAAA',
-        }
+        b_value = TlsaValue(
+            {
+                'certificate_usage': 0,
+                'selector': 0,
+                'matching_type': 0,
+                'certificate_association_data': 'AAAAAAAAAAAAAAA',
+            }
+        )
         b_data = {'ttl': 30, 'value': b_value}
         b = TlsaRecord(self.zone, 'b', b_data)
         self.assertEqual(
@@ -1087,20 +1129,24 @@ class TestRecord(TestCase):
 
     def test_urlfwd(self):
         a_values = [
-            {
-                'path': '/',
-                'target': 'http://foo',
-                'code': 301,
-                'masking': 2,
-                'query': 0,
-            },
-            {
-                'path': '/target',
-                'target': 'http://target',
-                'code': 302,
-                'masking': 2,
-                'query': 0,
-            },
+            UrlfwdValue(
+                {
+                    'path': '/',
+                    'target': 'http://foo',
+                    'code': 301,
+                    'masking': 2,
+                    'query': 0,
+                }
+            ),
+            UrlfwdValue(
+                {
+                    'path': '/target',
+                    'target': 'http://target',
+                    'code': 302,
+                    'masking': 2,
+                    'query': 0,
+                }
+            ),
         ]
         a_data = {'ttl': 30, 'values': a_values}
         a = UrlfwdRecord(self.zone, 'a', a_data)
@@ -1119,13 +1165,15 @@ class TestRecord(TestCase):
         self.assertEqual(a_values[1]['query'], a.values[1].query)
         self.assertEqual(a_data, a.data)
 
-        b_value = {
-            'path': '/',
-            'target': 'http://location',
-            'code': 301,
-            'masking': 2,
-            'query': 0,
-        }
+        b_value = UrlfwdValue(
+            {
+                'path': '/',
+                'target': 'http://location',
+                'code': 301,
+                'masking': 2,
+                'query': 0,
+            }
+        )
         b_data = {'ttl': 30, 'value': b_value}
         b = UrlfwdRecord(self.zone, 'b', b_data)
         self.assertEqual(b_value['path'], b.values[0].path)
@@ -2987,7 +3035,7 @@ class TestRecordValidation(TestCase):
         )
         self.assertEqual('.', record.values[0].exchange)
 
-    def test_NXPTR(self):
+    def test_NAPTR(self):
         # doesn't blow up
         Record.new(
             self.zone,
