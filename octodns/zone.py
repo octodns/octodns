@@ -146,7 +146,7 @@ class Zone(object):
                 continue
             elif len(record.included) > 0 and target.id not in record.included:
                 self.log.debug(
-                    'changes:  skipping record=%s %s - %s not' ' included ',
+                    'changes:  skipping record=%s %s - %s not included ',
                     record.fqdn,
                     record._type,
                     target.id,
@@ -154,7 +154,7 @@ class Zone(object):
                 continue
             elif target.id in record.excluded:
                 self.log.debug(
-                    'changes:  skipping record=%s %s - %s ' 'excluded ',
+                    'changes:  skipping record=%s %s - %s excluded ',
                     record.fqdn,
                     record._type,
                     target.id,
@@ -169,7 +169,7 @@ class Zone(object):
                     and target.id not in desired_record.included
                 ):
                     self.log.debug(
-                        'changes:  skipping record=%s %s - %s' 'not included ',
+                        'changes:  skipping record=%s %s - %s not included',
                         record.fqdn,
                         record._type,
                         target.id,
@@ -216,7 +216,7 @@ class Zone(object):
                 continue
             elif len(record.included) > 0 and target.id not in record.included:
                 self.log.debug(
-                    'changes:  skipping record=%s %s - %s not' ' included ',
+                    'changes:  skipping record=%s %s - %s not included ',
                     record.fqdn,
                     record._type,
                     target.id,
@@ -224,7 +224,7 @@ class Zone(object):
                 continue
             elif target.id in record.excluded:
                 self.log.debug(
-                    'changes:  skipping record=%s %s - %s ' 'excluded ',
+                    'changes:  skipping record=%s %s - %s excluded ',
                     record.fqdn,
                     record._type,
                     target.id,

@@ -61,7 +61,7 @@ class TestRecord(TestCase):
         with self.assertRaises(RecordException) as ctx:
             Record.register_type(None, 'A')
         self.assertEqual(
-            'Type "A" already registered by ' 'octodns.record.ARecord',
+            'Type "A" already registered by octodns.record.ARecord',
             str(ctx.exception),
         )
 
@@ -1859,7 +1859,7 @@ class TestRecordValidation(TestCase):
         self.assertTrue(reason.startswith('invalid fqdn, "xxxx'))
         self.assertTrue(
             reason.endswith(
-                '.unit.tests." is too long at 254' ' chars, max is 253'
+                '.unit.tests." is too long at 254 chars, max is 253'
             )
         )
 
@@ -1873,7 +1873,7 @@ class TestRecordValidation(TestCase):
         reason = ctx.exception.reasons[0]
         self.assertTrue(reason.startswith('invalid label, "xxxx'))
         self.assertTrue(
-            reason.endswith('xxx" is too long at 64' ' chars, max is 63')
+            reason.endswith('xxx" is too long at 64 chars, max is 63')
         )
 
         with self.assertRaises(ValidationError) as ctx:
@@ -1884,7 +1884,7 @@ class TestRecordValidation(TestCase):
         reason = ctx.exception.reasons[0]
         self.assertTrue(reason.startswith('invalid label, "xxxx'))
         self.assertTrue(
-            reason.endswith('xxx" is too long at 64' ' chars, max is 63')
+            reason.endswith('xxx" is too long at 64 chars, max is 63')
         )
 
         # should not raise with dots
@@ -2472,7 +2472,7 @@ class TestRecordValidation(TestCase):
                 {'type': 'CNAME', 'ttl': 600, 'value': 'https://google.com'},
             )
         self.assertEqual(
-            ['CNAME value "https://google.com" is not a valid ' 'FQDN'],
+            ['CNAME value "https://google.com" is not a valid FQDN'],
             ctx.exception.reasons,
         )
 
@@ -2488,7 +2488,7 @@ class TestRecordValidation(TestCase):
                 },
             )
         self.assertEqual(
-            ['CNAME value "https://google.com/a/b/c" is not a ' 'valid FQDN'],
+            ['CNAME value "https://google.com/a/b/c" is not a valid FQDN'],
             ctx.exception.reasons,
         )
 
@@ -2500,7 +2500,7 @@ class TestRecordValidation(TestCase):
                 {'type': 'CNAME', 'ttl': 600, 'value': 'google.com/some/path'},
             )
         self.assertEqual(
-            ['CNAME value "google.com/some/path" is not a valid ' 'FQDN'],
+            ['CNAME value "google.com/some/path" is not a valid FQDN'],
             ctx.exception.reasons,
         )
 
@@ -2971,7 +2971,7 @@ class TestRecordValidation(TestCase):
                 },
             )
         self.assertEqual(
-            ['Invalid MX exchange "100 foo.bar.com." is not a ' 'valid FQDN.'],
+            ['Invalid MX exchange "100 foo.bar.com." is not a valid FQDN.'],
             ctx.exception.reasons,
         )
 
@@ -3082,7 +3082,7 @@ class TestRecordValidation(TestCase):
                 {'type': 'NS', 'ttl': 600, 'value': '100 foo.bar.com.'},
             )
         self.assertEqual(
-            ['Invalid NS value "100 foo.bar.com." is not a ' 'valid FQDN.'],
+            ['Invalid NS value "100 foo.bar.com." is not a valid FQDN.'],
             ctx.exception.reasons,
         )
 
@@ -3283,7 +3283,7 @@ class TestRecordValidation(TestCase):
                 },
             )
         self.assertEqual(
-            ['unescaped ; in "this has some; ' 'semi-colons\\; in it"'],
+            ['unescaped ; in "this has some; semi-colons\\; in it"'],
             ctx.exception.reasons,
         )
 
@@ -3487,7 +3487,7 @@ class TestRecordValidation(TestCase):
                 },
             )
         self.assertEqual(
-            ['Invalid SRV target "100 foo.bar.com." is not a ' 'valid FQDN.'],
+            ['Invalid SRV target "100 foo.bar.com." is not a valid FQDN.'],
             ctx.exception.reasons,
         )
 
@@ -3589,7 +3589,7 @@ class TestRecordValidation(TestCase):
                 },
             )
             self.assertEqual(
-                'invalid certificate_usage ' '"{value["certificate_usage"]}"',
+                'invalid certificate_usage "{value["certificate_usage"]}"',
                 ctx.exception.reasons,
             )
 
@@ -3610,7 +3610,7 @@ class TestRecordValidation(TestCase):
                 },
             )
             self.assertEqual(
-                'invalid certificate_usage ' '"{value["certificate_usage"]}"',
+                'invalid certificate_usage "{value["certificate_usage"]}"',
                 ctx.exception.reasons,
             )
 
@@ -3648,8 +3648,7 @@ class TestRecordValidation(TestCase):
                 },
             )
             self.assertEqual(
-                'invalid selector ' '"{value["selector"]}"',
-                ctx.exception.reasons,
+                'invalid selector "{value["selector"]}"', ctx.exception.reasons
             )
 
         # Invalid selector
@@ -3669,8 +3668,7 @@ class TestRecordValidation(TestCase):
                 },
             )
             self.assertEqual(
-                'invalid selector ' '"{value["selector"]}"',
-                ctx.exception.reasons,
+                'invalid selector "{value["selector"]}"', ctx.exception.reasons
             )
 
         # missing matching_type
@@ -3707,7 +3705,7 @@ class TestRecordValidation(TestCase):
                 },
             )
             self.assertEqual(
-                'invalid matching_type ' '"{value["matching_type"]}"',
+                'invalid matching_type "{value["matching_type"]}"',
                 ctx.exception.reasons,
             )
 
@@ -3728,7 +3726,7 @@ class TestRecordValidation(TestCase):
                 },
             )
             self.assertEqual(
-                'invalid matching_type ' '"{value["matching_type"]}"',
+                'invalid matching_type "{value["matching_type"]}"',
                 ctx.exception.reasons,
             )
 
@@ -3765,7 +3763,7 @@ class TestRecordValidation(TestCase):
                 },
             )
         self.assertEqual(
-            ['unescaped ; in "this has some; semi-colons\\; ' 'in it"'],
+            ['unescaped ; in "this has some; semi-colons\\; in it"'],
             ctx.exception.reasons,
         )
 

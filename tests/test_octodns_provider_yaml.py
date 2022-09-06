@@ -213,7 +213,7 @@ class TestYamlProvider(TestCase):
         with self.assertRaises(SubzoneRecordException) as ctx:
             source.populate(zone)
         self.assertEqual(
-            'Record www.sub.unit.tests. is under a managed ' 'subzone',
+            'Record www.sub.unit.tests. is under a managed subzone',
             str(ctx.exception),
         )
 
@@ -470,7 +470,7 @@ class TestSplitYamlProvider(TestCase):
         with self.assertRaises(SubzoneRecordException) as ctx:
             source.populate(zone)
         self.assertEqual(
-            'Record www.sub.unit.tests. is under a managed ' 'subzone',
+            'Record www.sub.unit.tests. is under a managed subzone',
             str(ctx.exception),
         )
 

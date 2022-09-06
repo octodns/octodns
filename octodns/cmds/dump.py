@@ -38,13 +38,13 @@ def main():
         '--lenient',
         action='store_true',
         default=False,
-        help='Ignore record validations and do a best effort ' 'dump',
+        help='Ignore record validations and do a best effort dump',
     )
     parser.add_argument(
         '--split',
         action='store_true',
         default=False,
-        help='Split the dumped zone into a YAML file per ' 'record',
+        help='Split the dumped zone into a YAML file per record',
     )
     parser.add_argument('zone', help='Zone to dump')
     parser.add_argument('source', nargs='+', help='Source(s) to pull data from')

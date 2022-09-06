@@ -624,7 +624,7 @@ class _DynamicMixin(object):
 
                 if len(values) == 1 and values[0].get('weight', 1) != 1:
                     reasons.append(
-                        f'pool "{_id}" has single value with ' 'weight!=1'
+                        f'pool "{_id}" has single value with weight!=1'
                     )
 
                 fallback = pool.get('fallback', None)
@@ -1307,7 +1307,7 @@ class _NsValue(object):
         for value in data:
             if not FQDN(str(value), allow_underscores=True).is_valid:
                 reasons.append(
-                    f'Invalid NS value "{value}" is not ' 'a valid FQDN.'
+                    f'Invalid NS value "{value}" is not a valid FQDN.'
                 )
             elif not value.endswith('.'):
                 reasons.append(f'NS value "{value}" missing trailing .')
@@ -1519,7 +1519,7 @@ class SrvValue(EqualityTupleMixin):
                     and not FQDN(str(target), allow_underscores=True).is_valid
                 ):
                     reasons.append(
-                        f'Invalid SRV target "{target}" is not ' 'a valid FQDN.'
+                        f'Invalid SRV target "{target}" is not a valid FQDN.'
                     )
             except KeyError:
                 reasons.append('missing target')
