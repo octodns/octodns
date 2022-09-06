@@ -858,6 +858,30 @@ class TestRecord(TestCase):
         values.add(o)
         self.assertTrue(o in values)
 
+        self.assertEqual(30, o.order)
+        o.order = o.order + 1
+        self.assertEqual(31, o.order)
+
+        self.assertEqual(32, o.preference)
+        o.preference = o.preference + 1
+        self.assertEqual(33, o.preference)
+
+        self.assertEqual('M', o.flags)
+        o.flags = 'P'
+        self.assertEqual('P', o.flags)
+
+        self.assertEqual('N', o.service)
+        o.service = 'Q'
+        self.assertEqual('Q', o.service)
+
+        self.assertEqual('O', o.regexp)
+        o.regexp = 'R'
+        self.assertEqual('R', o.regexp)
+
+        self.assertEqual('z', o.replacement)
+        o.replacement = '1'
+        self.assertEqual('1', o.replacement)
+
     def test_ns(self):
         a_values = ['5.6.7.8.', '6.7.8.9.', '7.8.9.0.']
         a_data = {'ttl': 30, 'values': a_values}
@@ -1694,6 +1718,54 @@ class TestRecord(TestCase):
         self.assertTrue(c >= b)
         self.assertTrue(c >= c)
         self.assertTrue(c <= c)
+
+        self.assertEqual(31, a.lat_degrees)
+        a.lat_degrees = a.lat_degrees + 1
+        self.assertEqual(32, a.lat_degrees)
+
+        self.assertEqual(58, a.lat_minutes)
+        a.lat_minutes = a.lat_minutes + 1
+        self.assertEqual(59, a.lat_minutes)
+
+        self.assertEqual(52.1, a.lat_seconds)
+        a.lat_seconds = a.lat_seconds + 1
+        self.assertEqual(53.1, a.lat_seconds)
+
+        self.assertEqual('S', a.lat_direction)
+        a.lat_direction = 'N'
+        self.assertEqual('N', a.lat_direction)
+
+        self.assertEqual(115, a.long_degrees)
+        a.long_degrees = a.long_degrees + 1
+        self.assertEqual(116, a.long_degrees)
+
+        self.assertEqual(49, a.long_minutes)
+        a.long_minutes = a.long_minutes + 1
+        self.assertEqual(50, a.long_minutes)
+
+        self.assertEqual(11.7, a.long_seconds)
+        a.long_seconds = a.long_seconds + 1
+        self.assertEqual(12.7, a.long_seconds)
+
+        self.assertEqual('E', a.long_direction)
+        a.long_direction = 'W'
+        self.assertEqual('W', a.long_direction)
+
+        self.assertEqual(20, a.altitude)
+        a.altitude = a.altitude + 1
+        self.assertEqual(21, a.altitude)
+
+        self.assertEqual(10, a.size)
+        a.size = a.size + 1
+        self.assertEqual(11, a.size)
+
+        self.assertEqual(10, a.precision_horz)
+        a.precision_horz = a.precision_horz + 1
+        self.assertEqual(11, a.precision_horz)
+
+        self.assertEqual(2, a.precision_vert)
+        a.precision_vert = a.precision_vert + 1
+        self.assertEqual(3, a.precision_vert)
 
         # Hash
         values = set()
