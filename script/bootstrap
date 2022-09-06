@@ -29,8 +29,17 @@ if [ "$ENV" != "production" ]; then
     python -m pip install -r requirements-dev.txt
 fi
 
-if [ ! -L ".git/hooks/pre-commit" ]; then
-    ln -s "$ROOT/.git_hooks_pre-commit" ".git/hooks/pre-commit"
+if [ -d ".git" ]; then
+    if [ -f ".git-blame-ignore-revs" ]; then
+        echo ""
+        echo "Setting blame.ignoreRevsFile to .git-blame-ingore-revs"
+        git config --local blame.ignoreRevsFile .git-blame-ignore-revs
+    fi
+    if [ ! -L ".git/hooks/pre-commit" ]; then
+        echo ""
+        echo "Installing pre-commit hook"
+        ln -s "$ROOT/.git_hooks_pre-commit" ".git/hooks/pre-commit"
+    fi
 fi
 
 echo ""
