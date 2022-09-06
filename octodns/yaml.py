@@ -11,6 +11,7 @@ from __future__ import (
 
 from natsort import natsort_keygen
 from yaml import SafeDumper, SafeLoader, load, dump
+from yaml.representer import SafeRepresenter
 from yaml.constructor import ConstructorError
 
 
@@ -61,6 +62,10 @@ class SortingDumper(SafeDumper):
 
 
 SortingDumper.add_representer(dict, SortingDumper._representer)
+# This should handle all the record value types which are ultimately either str
+# or dict at some point in their inheritance hierarchy
+SortingDumper.add_multi_representer(str, SafeRepresenter.represent_str)
+SortingDumper.add_multi_representer(dict, SortingDumper._representer)
 
 
 def safe_dump(data, fh, **options):
