@@ -174,7 +174,7 @@ class TinyDnsBaseSource(BaseSource):
                         zone.add_record(record, lenient=lenient)
                     except SubzoneRecordException:
                         self.log.debug(
-                            '_populate_normal: skipping subzone ' 'record=%s',
+                            '_populate_normal: skipping subzone record=%s',
                             record,
                         )
 

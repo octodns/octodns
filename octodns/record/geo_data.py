@@ -288,7 +288,7 @@ geo_data = {
                 'SD': {'name': 'South Dakota'},
                 'TN': {'name': 'Tennessee'},
                 'TX': {'name': 'Texas'},
-                'UM': {'name': 'United States Minor Outlying ' 'Islands'},
+                'UM': {'name': 'United States Minor Outlying Islands'},
                 'UT': {'name': 'Utah'},
                 'VA': {'name': 'Virginia'},
                 'VI': {'name': 'Virgin Islands'},

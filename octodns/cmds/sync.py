@@ -26,7 +26,7 @@ def main():
         '--doit',
         action='store_true',
         default=False,
-        help='Whether to take action or just show what would ' 'change',
+        help='Whether to take action or just show what would change',
     )
     parser.add_argument(
         '--force',
