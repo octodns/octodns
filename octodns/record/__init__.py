@@ -339,6 +339,10 @@ class ValuesMixin(object):
     def _data(self):
         ret = super(ValuesMixin, self)._data()
         if len(self.values) > 1:
+            # we still look for a .data here for backwards compat reasons, any
+            # 3rd party value types may still rely on it (they should be
+            # transitioned, perhaps we should deprecate,  warn if it exists and
+            # remove it in 1.0
             values = [getattr(v, 'data', v) for v in self.values if v]
             if len(values) > 1:
                 ret['values'] = values
@@ -347,6 +351,7 @@ class ValuesMixin(object):
         elif len(self.values) == 1:
             v = self.values[0]
             if v:
+                # see getattr note above
                 ret['value'] = getattr(v, 'data', v)
 
         return ret
@@ -431,6 +436,7 @@ class ValueMixin(object):
     def _data(self):
         ret = super(ValueMixin, self)._data()
         if self.value:
+            # see getattr note above
             ret['value'] = getattr(self.value, 'data', self.value)
         return ret
 
@@ -941,10 +947,6 @@ class CaaValue(EqualityTupleMixin, dict):
     def value(self, value):
         self['value'] = value
 
-    @property
-    def data(self):
-        return self
-
     def _equality_tuple(self):
         return (self.flags, self.tag, self.value)
 
@@ -1196,10 +1198,6 @@ class LocValue(EqualityTupleMixin, dict):
     def precision_vert(self, value):
         self['precision_vert'] = value
 
-    @property
-    def data(self):
-        return self
-
     def __hash__(self):
         return hash(
             (
@@ -1321,10 +1319,6 @@ class MxValue(EqualityTupleMixin, dict):
     def exchange(self, value):
         self['exchange'] = value
 
-    @property
-    def data(self):
-        return self
-
     def __hash__(self):
         return hash((self.preference, self.exchange))
 
@@ -1441,10 +1435,6 @@ class NaptrValue(EqualityTupleMixin, dict):
     @replacement.setter
     def replacement(self, value):
         self['replacement'] = value
-
-    @property
-    def data(self):
-        return self
 
     def __hash__(self):
         return hash(self.__repr__())
@@ -1613,10 +1603,6 @@ class SshfpValue(EqualityTupleMixin, dict):
     def fingerprint(self, value):
         self['fingerprint'] = value
 
-    @property
-    def data(self):
-        return self
-
     def __hash__(self):
         return hash(self.__repr__())
 
@@ -1775,10 +1761,6 @@ class SrvValue(EqualityTupleMixin, dict):
     @target.setter
     def target(self, value):
         self['target'] = value
-
-    @property
-    def data(self):
-        return self
 
     def __hash__(self):
         return hash(self.__repr__())
