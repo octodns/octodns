@@ -32,6 +32,7 @@ from octodns.record import (
     PtrRecord,
     Record,
     RecordException,
+    RrParseError,
     SshfpRecord,
     SshfpValue,
     SpfRecord,
@@ -591,6 +592,68 @@ class TestRecord(TestCase):
 
         # __repr__ doesn't blow up
         a.__repr__()
+
+    def test_mx_rr_text(self):
+
+        # empty string won't parse
+        with self.assertRaises(RrParseError):
+            MxValue.parse_rr_text('')
+
+        # single word won't parse
+        with self.assertRaises(RrParseError):
+            MxValue.parse_rr_text('nope')
+
+        # 3rd word won't parse
+        with self.assertRaises(RrParseError):
+            MxValue.parse_rr_text('10 mx.unit.tests. another')
+
+        # preference not an int, will parse
+        self.assertEqual(
+            {'preference': 10, 'exchange': 'mx.unit.tests.'},
+            MxValue.parse_rr_text('10 mx.unit.tests.'),
+        )
+
+        # preference not an int
+        self.assertEqual(
+            {'preference': 'abc', 'exchange': 'mx.unit.tests.'},
+            MxValue.parse_rr_text('abc mx.unit.tests.'),
+        )
+
+        # make sure that validate is using parse_rr_text when passed string
+        # values
+        reasons = MxRecord.validate(
+            'mx', 'mx.unit.tests.', {'ttl': 32, 'value': ''}
+        )
+        self.assertEqual(['failed to parse string value as RR text'], reasons)
+        reasons = MxRecord.validate(
+            'mx', 'mx.unit.tests.', {'ttl': 32, 'values': ['nope']}
+        )
+        self.assertEqual(['failed to parse string value as RR text'], reasons)
+        reasons = MxRecord.validate(
+            'mx', 'mx.unit.tests.', {'ttl': 32, 'value': '10 mail.unit.tests.'}
+        )
+        self.assertFalse(reasons)
+
+        # make sure that the cstor is using parse_rr_text
+        zone = Zone('unit.tests.', [])
+        a = MxRecord(zone, 'mx', {'ttl': 32, 'value': '10 mail.unit.tests.'})
+        self.assertEqual(10, a.values[0].preference)
+        self.assertEqual('10 mail.unit.tests.', a.values[0].rr_text)
+        self.assertEqual('mail.unit.tests.', a.values[0].exchange)
+        a = MxRecord(
+            zone,
+            'mx',
+            {
+                'ttl': 32,
+                'values': ['11 mail1.unit.tests.', '12 mail2.unit.tests.'],
+            },
+        )
+        self.assertEqual(11, a.values[0].preference)
+        self.assertEqual('mail1.unit.tests.', a.values[0].exchange)
+        self.assertEqual('11 mail1.unit.tests.', a.values[0].rr_text)
+        self.assertEqual(12, a.values[1].preference)
+        self.assertEqual('mail2.unit.tests.', a.values[1].exchange)
+        self.assertEqual('12 mail2.unit.tests.', a.values[1].rr_text)
 
     def test_naptr(self):
         a_values = [

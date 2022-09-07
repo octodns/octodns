@@ -73,6 +73,10 @@ class RecordException(Exception):
     pass
 
 
+class RrParseError(RecordException):
+    pass
+
+
 class ValidationError(RecordException):
     @classmethod
     def build_message(cls, fqdn, reasons):
@@ -1255,11 +1259,31 @@ Record.register_type(LocRecord)
 
 class MxValue(EqualityTupleMixin, dict):
     @classmethod
+    def parse_rr_text(self, value):
+        try:
+            preference, exchange = value.split(' ')
+        except ValueError:
+            raise RrParseError('failed to parse string value as RR text')
+        try:
+            preference = int(preference)
+        except ValueError:
+            pass
+        return {'preference': preference, 'exchange': exchange}
+
+    @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         reasons = []
         for value in data:
+            if isinstance(value, str):
+                # it's hopefully RR formatted, give parsing a try
+                try:
+                    value = cls.parse_rr_text(value)
+                except RrParseError as e:
+                    reasons.append(str(e))
+                    # not a dict so no point in continuing
+                    continue
             try:
                 try:
                     int(value['preference'])
@@ -1291,6 +1315,8 @@ class MxValue(EqualityTupleMixin, dict):
         return [cls(v) for v in values]
 
     def __init__(self, value):
+        if isinstance(value, str):
+            value = self.parse_rr_text(value)
         # RFC1035 says preference, half the providers use priority
         try:
             preference = value['preference']
@@ -1324,6 +1350,10 @@ class MxValue(EqualityTupleMixin, dict):
     @property
     def data(self):
         return self
+
+    @property
+    def rr_text(self):
+        return f'{self.preference} {self.exchange}'
 
     def __hash__(self):
         return hash((self.preference, self.exchange))
