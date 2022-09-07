@@ -326,7 +326,7 @@ class ValuesMixin(object):
     def __init__(self, zone, name, data, source=None):
         super(ValuesMixin, self).__init__(zone, name, data, source=source)
         try:
-            values = [v for v in data['values']]
+            values = data['values']
         except KeyError:
             values = [data['value']]
         self.values = sorted(self._value_type.process(values))
