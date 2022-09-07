@@ -620,7 +620,7 @@ class TestRecord(TestCase):
         )
 
         # make sure that validate is using parse_rr_text when passed string
-        # values
+        # value(s)
         reasons = MxRecord.validate(
             'mx', 'mx.unit.tests.', {'ttl': 32, 'value': ''}
         )
@@ -638,8 +638,8 @@ class TestRecord(TestCase):
         zone = Zone('unit.tests.', [])
         a = MxRecord(zone, 'mx', {'ttl': 32, 'value': '10 mail.unit.tests.'})
         self.assertEqual(10, a.values[0].preference)
-        self.assertEqual('10 mail.unit.tests.', a.values[0].rr_text)
         self.assertEqual('mail.unit.tests.', a.values[0].exchange)
+        self.assertEqual('10 mail.unit.tests.', a.values[0].rr_text)
         a = MxRecord(
             zone,
             'mx',
@@ -944,6 +944,75 @@ class TestRecord(TestCase):
         self.assertEqual('z', o.replacement)
         o.replacement = '1'
         self.assertEqual('1', o.replacement)
+
+    def test_naptr_rr_text(self):
+        # things with the wrong number of words won't parse
+        for v in (
+            '',
+            'one',
+            'one two',
+            'one two three',
+            'one two three four',
+            'one two three four five',
+            'one two three four five six seven',
+        ):
+            with self.assertRaises(RrParseError):
+                NaptrValue.parse_rr_text(v)
+
+        # we don't care if the types of things are correct when parsing rr text
+        self.assertEqual(
+            {
+                'order': 'one',
+                'preference': 'two',
+                'flags': 'three',
+                'service': 'four',
+                'regexp': 'five',
+                'replacement': 'six',
+            },
+            NaptrValue.parse_rr_text('one two three four five six'),
+        )
+
+        # order and preference will be converted to int's when possible
+        self.assertEqual(
+            {
+                'order': 1,
+                'preference': 2,
+                'flags': 'three',
+                'service': 'four',
+                'regexp': 'five',
+                'replacement': 'six',
+            },
+            NaptrValue.parse_rr_text('1 2 three four five six'),
+        )
+
+        # make sure that validate is using parse_rr_text when passed string
+        # value(s)
+        reasons = NaptrRecord.validate(
+            'naptr', 'naptr.unit.tests.', {'ttl': 32, 'value': ''}
+        )
+        self.assertEqual(['failed to parse string value as RR text'], reasons)
+        reasons = NaptrRecord.validate(
+            'naptr', 'naptr.unit.tests.', {'ttl': 32, 'value': ['']}
+        )
+        self.assertEqual(['failed to parse string value as RR text'], reasons)
+        reasons = NaptrRecord.validate(
+            'naptr',
+            'naptr.unit.tests.',
+            {'ttl': 32, 'value': ['1 2 S service regexp replacement']},
+        )
+        self.assertFalse(reasons)
+
+        # make sure that the cstor is using parse_rr_text
+        zone = Zone('unit.tests.', [])
+        s = '1 2 S service regexp replacement'
+        a = NaptrRecord(zone, 'naptr', {'ttl': 32, 'value': s})
+        self.assertEqual(1, a.values[0].order)
+        self.assertEqual(2, a.values[0].preference)
+        self.assertEqual('S', a.values[0].flags)
+        self.assertEqual('service', a.values[0].service)
+        self.assertEqual('regexp', a.values[0].regexp)
+        self.assertEqual('replacement', a.values[0].replacement)
+        self.assertEqual(s, a.values[0].rr_text)
 
     def test_ns(self):
         a_values = ['5.6.7.8.', '6.7.8.9.', '7.8.9.0.']

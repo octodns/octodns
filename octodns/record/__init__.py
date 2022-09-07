@@ -1377,11 +1377,46 @@ class NaptrValue(EqualityTupleMixin, dict):
     VALID_FLAGS = ('S', 'A', 'U', 'P')
 
     @classmethod
+    def parse_rr_text(self, value):
+        try:
+            (
+                order,
+                preference,
+                flags,
+                service,
+                regexp,
+                replacement,
+            ) = value.split(' ')
+        except ValueError:
+            raise RrParseError('failed to parse string value as RR text')
+        try:
+            order = int(order)
+            preference = int(preference)
+        except ValueError:
+            pass
+        return {
+            'order': order,
+            'preference': preference,
+            'flags': flags,
+            'service': service,
+            'regexp': regexp,
+            'replacement': replacement,
+        }
+
+    @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         reasons = []
         for value in data:
+            if isinstance(value, str):
+                # it's hopefully RR formatted, give parsing a try
+                try:
+                    value = cls.parse_rr_text(value)
+                except RrParseError as e:
+                    reasons.append(str(e))
+                    # not a dict so no point in continuing
+                    continue
             try:
                 int(value['order'])
             except KeyError:
@@ -1413,6 +1448,8 @@ class NaptrValue(EqualityTupleMixin, dict):
         return [cls(v) for v in values]
 
     def __init__(self, value):
+        if isinstance(value, str):
+            value = self.parse_rr_text(value)
         super().__init__(
             {
                 'order': int(value['order']),
@@ -1475,6 +1512,10 @@ class NaptrValue(EqualityTupleMixin, dict):
     @property
     def data(self):
         return self
+
+    @property
+    def rr_text(self):
+        return f'{self.order} {self.preference} {self.flags} {self.service} {self.regexp} {self.replacement}'
 
     def __hash__(self):
         return hash(self.__repr__())
