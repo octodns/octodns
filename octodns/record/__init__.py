@@ -1978,7 +1978,7 @@ class UrlfwdValue(EqualityTupleMixin, dict):
 
     @classmethod
     def process(cls, values):
-        return [UrlfwdValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
         super().__init__(
