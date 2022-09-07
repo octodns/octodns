@@ -787,10 +787,10 @@ class _TargetValue(str):
         return reasons
 
     @classmethod
-    def process(self, value):
+    def process(cls, value):
         if value:
-            return value.lower()
-        return value
+            return cls(value.lower())
+        return None
 
 
 class CnameValue(_TargetValue):
@@ -906,7 +906,7 @@ class CaaValue(EqualityTupleMixin, dict):
 
     @classmethod
     def process(cls, values):
-        return [CaaValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
         super().__init__(
@@ -1080,7 +1080,7 @@ class LocValue(EqualityTupleMixin, dict):
 
     @classmethod
     def process(cls, values):
-        return [LocValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
         super().__init__(
@@ -1288,7 +1288,7 @@ class MxValue(EqualityTupleMixin, dict):
 
     @classmethod
     def process(cls, values):
-        return [MxValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
         # RFC1035 says preference, half the providers use priority
@@ -1380,7 +1380,7 @@ class NaptrValue(EqualityTupleMixin, dict):
 
     @classmethod
     def process(cls, values):
-        return [NaptrValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
         super().__init__(
@@ -1496,7 +1496,7 @@ class _NsValue(str):
 
     @classmethod
     def process(cls, values):
-        return values
+        return [cls(v) for v in values]
 
 
 class NsRecord(ValuesMixin, Record):
@@ -1525,7 +1525,8 @@ class PtrValue(_TargetValue):
 
     @classmethod
     def process(cls, values):
-        return [super(PtrValue, cls).process(v) for v in values]
+        supr = super()
+        return [supr.process(v) for v in values]
 
 
 class PtrRecord(ValuesMixin, Record):
@@ -1578,7 +1579,7 @@ class SshfpValue(EqualityTupleMixin, dict):
 
     @classmethod
     def process(cls, values):
-        return [SshfpValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
         super().__init__(
@@ -1732,7 +1733,7 @@ class SrvValue(EqualityTupleMixin, dict):
 
     @classmethod
     def process(cls, values):
-        return [SrvValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
         super().__init__(
@@ -1854,7 +1855,7 @@ class TlsaValue(EqualityTupleMixin, dict):
 
     @classmethod
     def process(cls, values):
-        return [TlsaValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
         super().__init__(
