@@ -52,6 +52,7 @@ from octodns.record import (
     _DynamicPool,
     _DynamicRule,
     _NsValue,
+    _TargetValue,
 )
 from octodns.zone import Zone
 
@@ -419,7 +420,7 @@ class TestRecord(TestCase):
             '1.2.word.4',
             '1.2.3.4',
         ):
-            self.assertEqual(s, Ipv4Address.parse_rr_text(s))
+            self.assertEqual(s, _TargetValue.parse_rr_text(s))
 
         # since we're a noop there's no need/way to check whether validate or
         # __init__ call parse_rr_text
@@ -656,11 +657,32 @@ class TestRecord(TestCase):
         a.__repr__()
 
     def test_loc_value_rr_text(self):
-        # only the exact correct number of words
+        # only the exact correct number of words is allowed
         for i in tuple(range(0, 12)) + (13,):
             s = ''.join(['word'] * i)
             with self.assertRaises(RrParseError):
                 LocValue.parse_rr_text(s)
+
+        # type conversions are best effort
+        self.assertEqual(
+            {
+                'altitude': 'six',
+                'lat_degrees': 'zero',
+                'lat_direction': 'S',
+                'lat_minutes': 'one',
+                'lat_seconds': 'two',
+                'long_degrees': 'three',
+                'long_direction': 'W',
+                'long_minutes': 'four',
+                'long_seconds': 'five',
+                'precision_horz': 'eight',
+                'precision_vert': 'nine',
+                'size': 'seven',
+            },
+            LocValue.parse_rr_text(
+                'zero one two S three four five W six seven eight nine'
+            ),
+        )
 
         # valid
         s = '0 1 2.2 N 3 4 5.5 E 6.6m 7.7m 8.8m 9.9m'
@@ -1385,16 +1407,6 @@ class TestRecord(TestCase):
         self.assertEqual(a_values[0]['weight'], a.values[0].weight)
         self.assertEqual(a_values[0]['port'], a.values[0].port)
         self.assertEqual(a_values[0]['target'], a.values[0].target)
-        from pprint import pprint
-
-        pprint(
-            {
-                'a_values': a_values,
-                'self': a_data,
-                'other': a.data,
-                'a.values': a.values,
-            }
-        )
         self.assertEqual(a_data, a.data)
 
         b_value = SrvValue(
@@ -1440,6 +1452,73 @@ class TestRecord(TestCase):
 
         # __repr__ doesn't blow up
         a.__repr__()
+
+    def test_srv_value_rr_text(self):
+
+        # empty string won't parse
+        with self.assertRaises(RrParseError):
+            SrvValue.parse_rr_text('')
+
+        # single word won't parse
+        with self.assertRaises(RrParseError):
+            SrvValue.parse_rr_text('nope')
+
+        # 2nd word won't parse
+        with self.assertRaises(RrParseError):
+            SrvValue.parse_rr_text('1 2')
+
+        # 3rd word won't parse
+        with self.assertRaises(RrParseError):
+            SrvValue.parse_rr_text('1 2 3')
+
+        # 5th word won't parse
+        with self.assertRaises(RrParseError):
+            SrvValue.parse_rr_text('1 2 3 4 5')
+
+        # priority weight and port not ints
+        self.assertEqual(
+            {
+                'priority': 'one',
+                'weight': 'two',
+                'port': 'three',
+                'target': 'srv.unit.tests.',
+            },
+            SrvValue.parse_rr_text('one two three srv.unit.tests.'),
+        )
+
+        # valid
+        self.assertEqual(
+            {
+                'priority': 1,
+                'weight': 2,
+                'port': 3,
+                'target': 'srv.unit.tests.',
+            },
+            SrvValue.parse_rr_text('1 2 3 srv.unit.tests.'),
+        )
+
+        # make sure that validate is using parse_rr_text when passed string
+        # value(s)
+        reasons = SrvRecord.validate(
+            '_srv._tcp', '_srv._tcp.unit.tests.', {'ttl': 32, 'value': ''}
+        )
+        self.assertEqual(['failed to parse string value as RR text'], reasons)
+        reasons = SrvRecord.validate(
+            '_srv._tcp',
+            '_srv._tcp.unit.tests.',
+            {'ttl': 32, 'value': '1 2 3 srv.unit.tests.'},
+        )
+        self.assertFalse(reasons)
+
+        # make sure that the cstor is using parse_rr_text
+        zone = Zone('unit.tests.', [])
+        a = SrvRecord(
+            zone, '_srv._tcp', {'ttl': 32, 'value': '1 2 3 srv.unit.tests.'}
+        )
+        self.assertEqual(1, a.values[0].priority)
+        self.assertEqual(2, a.values[0].weight)
+        self.assertEqual(3, a.values[0].port)
+        self.assertEqual('srv.unit.tests.', a.values[0].target)
 
     def test_tlsa(self):
         a_values = [
@@ -1541,6 +1620,70 @@ class TestRecord(TestCase):
 
         # __repr__ doesn't blow up
         a.__repr__()
+
+    def test_tsla_value_rr_text(self):
+
+        # empty string won't parse
+        with self.assertRaises(RrParseError):
+            TlsaValue.parse_rr_text('')
+
+        # single word won't parse
+        with self.assertRaises(RrParseError):
+            TlsaValue.parse_rr_text('nope')
+
+        # 2nd word won't parse
+        with self.assertRaises(RrParseError):
+            TlsaValue.parse_rr_text('1 2')
+
+        # 3rd word won't parse
+        with self.assertRaises(RrParseError):
+            TlsaValue.parse_rr_text('1 2 3')
+
+        # 5th word won't parse
+        with self.assertRaises(RrParseError):
+            TlsaValue.parse_rr_text('1 2 3 abcd another')
+
+        # non-ints
+        self.assertEqual(
+            {
+                'certificate_usage': 'one',
+                'selector': 'two',
+                'matching_type': 'three',
+                'certificate_association_data': 'abcd',
+            },
+            TlsaValue.parse_rr_text('one two three abcd'),
+        )
+
+        # valid
+        self.assertEqual(
+            {
+                'certificate_usage': 1,
+                'selector': 2,
+                'matching_type': 3,
+                'certificate_association_data': 'abcd',
+            },
+            TlsaValue.parse_rr_text('1 2 3 abcd'),
+        )
+
+        # make sure that validate is using parse_rr_text when passed string
+        # value(s)
+        reasons = TlsaRecord.validate(
+            'tlsa', 'tlsa.unit.tests.', {'ttl': 32, 'value': ''}
+        )
+        self.assertEqual(['failed to parse string value as RR text'], reasons)
+        reasons = TlsaRecord.validate(
+            'tlsa', 'tlsa.unit.tests.', {'ttl': 32, 'value': '2 1 0 abcd'}
+        )
+        self.assertFalse(reasons)
+
+        # make sure that the cstor is using parse_rr_text
+        zone = Zone('unit.tests.', [])
+        a = TlsaRecord(zone, 'tlsa', {'ttl': 32, 'value': '2 1 0 abcd'})
+        self.assertEqual(2, a.values[0].certificate_usage)
+        self.assertEqual(1, a.values[0].selector)
+        self.assertEqual(0, a.values[0].matching_type)
+        self.assertEqual('abcd', a.values[0].certificate_association_data)
+        self.assertEqual('2 1 0 abcd', a.values[0].rr_text)
 
     def test_txt(self):
         a_values = ['a one', 'a two']
@@ -1665,6 +1808,81 @@ class TestRecord(TestCase):
 
         # __repr__ doesn't blow up
         a.__repr__()
+
+    def test_urlfwd_value_rr_text(self):
+
+        # empty string won't parse
+        with self.assertRaises(RrParseError):
+            UrlfwdValue.parse_rr_text('')
+
+        # single word won't parse
+        with self.assertRaises(RrParseError):
+            UrlfwdValue.parse_rr_text('nope')
+
+        # 2nd word won't parse
+        with self.assertRaises(RrParseError):
+            UrlfwdValue.parse_rr_text('one two')
+
+        # 3rd word won't parse
+        with self.assertRaises(RrParseError):
+            UrlfwdValue.parse_rr_text('one two three')
+
+        # 4th word won't parse
+        with self.assertRaises(RrParseError):
+            UrlfwdValue.parse_rr_text('one two three four')
+
+        # 6th word won't parse
+        with self.assertRaises(RrParseError):
+            UrlfwdValue.parse_rr_text('one two three four five size')
+
+        # non-ints
+        self.assertEqual(
+            {
+                'code': 'one',
+                'masking': 'two',
+                'query': 'three',
+                'path': 'four',
+                'target': 'five',
+            },
+            UrlfwdValue.parse_rr_text('one two three four five'),
+        )
+
+        # valid
+        self.assertEqual(
+            {
+                'code': 301,
+                'masking': 0,
+                'query': 1,
+                'path': 'four',
+                'target': 'five',
+            },
+            UrlfwdValue.parse_rr_text('301 0 1 four five'),
+        )
+
+        # make sure that validate is using parse_rr_text when passed string
+        # value(s)
+        reasons = UrlfwdRecord.validate(
+            'urlfwd', 'urlfwd.unit.tests.', {'ttl': 32, 'value': ''}
+        )
+        self.assertEqual(['failed to parse string value as RR text'], reasons)
+        reasons = UrlfwdRecord.validate(
+            'urlfwd',
+            'urlfwd.unit.tests.',
+            {'ttl': 32, 'value': '301 0 1 four five'},
+        )
+        self.assertFalse(reasons)
+
+        # make sure that the cstor is using parse_rr_text
+        zone = Zone('unit.tests.', [])
+        a = UrlfwdRecord(
+            zone, 'urlfwd', {'ttl': 32, 'value': '301 0 1 four five'}
+        )
+        self.assertEqual(301, a.values[0].code)
+        self.assertEqual(0, a.values[0].masking)
+        self.assertEqual(1, a.values[0].query)
+        self.assertEqual('four', a.values[0].path)
+        self.assertEqual('five', a.values[0].target)
+        self.assertEqual('301 0 1 four five', a.values[0].rr_text)
 
     def test_record_new(self):
         txt = Record.new(

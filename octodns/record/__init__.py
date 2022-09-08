@@ -1954,16 +1954,29 @@ Record.register_type(SpfRecord)
 
 class SrvValue(EqualityTupleMixin, dict):
     @classmethod
-    def preprocess_value(self, value):
-        if isinstance(value, str):
-            priority, weight, port, target = value.split(' ', 3)
-            return {
-                'priority': priority,
-                'weight': weight,
-                'port': port,
-                'target': target,
-            }
-        return value
+    def parse_rr_text(self, value):
+        try:
+            priority, weight, port, target = value.split(' ')
+        except ValueError:
+            raise RrParseError()
+        try:
+            priority = int(priority)
+        except ValueError:
+            pass
+        try:
+            weight = int(weight)
+        except ValueError:
+            pass
+        try:
+            port = int(port)
+        except ValueError:
+            pass
+        return {
+            'priority': priority,
+            'weight': weight,
+            'port': port,
+            'target': target,
+        }
 
     @classmethod
     def validate(cls, data, _type):
@@ -1971,6 +1984,14 @@ class SrvValue(EqualityTupleMixin, dict):
             data = (data,)
         reasons = []
         for value in data:
+            if isinstance(value, str):
+                # it's hopefully RR formatted, give parsing a try
+                try:
+                    value = cls.parse_rr_text(value)
+                except RrParseError as e:
+                    reasons.append(str(e))
+                    # not a dict so no point in continuing
+                    continue
             # TODO: validate algorithm and fingerprint_type values
             try:
                 int(value['priority'])
@@ -2010,6 +2031,8 @@ class SrvValue(EqualityTupleMixin, dict):
         return [cls(v) for v in values]
 
     def __init__(self, value):
+        if isinstance(value, str):
+            value = self.parse_rr_text(value)
         super().__init__(
             {
                 'priority': int(value['priority']),
@@ -2084,21 +2107,34 @@ Record.register_type(SrvRecord)
 
 class TlsaValue(EqualityTupleMixin, dict):
     @classmethod
-    def preprocess_value(self, value):
-        if isinstance(value, str):
+    def parse_rr_text(self, value):
+        try:
             (
                 certificate_usage,
-                certificate_association_data,
+                selector,
                 matching_type,
                 certificate_association_data,
-            ) = value.split(' ', 3)
-            return {
-                'certificate_usage': certificate_usage,
-                'certificate_association_data': certificate_association_data,
-                'matching_type': matching_type,
-                'certificate_association_data': certificate_association_data,
-            }
-        return value
+            ) = value.split(' ')
+        except ValueError:
+            raise RrParseError()
+        try:
+            certificate_usage = int(certificate_usage)
+        except ValueError:
+            pass
+        try:
+            selector = int(selector)
+        except ValueError:
+            pass
+        try:
+            matching_type = int(matching_type)
+        except ValueError:
+            pass
+        return {
+            'certificate_usage': certificate_usage,
+            'selector': selector,
+            'matching_type': matching_type,
+            'certificate_association_data': certificate_association_data,
+        }
 
     @classmethod
     def validate(cls, data, _type):
@@ -2106,6 +2142,14 @@ class TlsaValue(EqualityTupleMixin, dict):
             data = (data,)
         reasons = []
         for value in data:
+            if isinstance(value, str):
+                # it's hopefully RR formatted, give parsing a try
+                try:
+                    value = cls.parse_rr_text(value)
+                except RrParseError as e:
+                    reasons.append(str(e))
+                    # not a dict so no point in continuing
+                    continue
             try:
                 certificate_usage = int(value.get('certificate_usage', 0))
                 if certificate_usage < 0 or certificate_usage > 3:
@@ -2149,6 +2193,8 @@ class TlsaValue(EqualityTupleMixin, dict):
         return [cls(v) for v in values]
 
     def __init__(self, value):
+        if isinstance(value, str):
+            value = self.parse_rr_text(value)
         super().__init__(
             {
                 'certificate_usage': int(value.get('certificate_usage', 0)),
@@ -2192,6 +2238,10 @@ class TlsaValue(EqualityTupleMixin, dict):
     def certificate_association_data(self, value):
         self['certificate_association_data'] = value
 
+    @property
+    def rr_text(self):
+        return f'{self.certificate_usage} {self.selector} {self.matching_type} {self.certificate_association_data}'
+
     def _equality_tuple(self):
         return (
             self.certificate_usage,
@@ -2233,9 +2283,30 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     VALID_QUERY = (0, 1)
 
     @classmethod
-    def preprocess_value(self, value):
-        # TODO:
-        return value
+    def parse_rr_text(self, value):
+        try:
+            code, masking, query, path, target = value.split(' ')
+        except ValueError:
+            raise RrParseError()
+        try:
+            code = int(code)
+        except ValueError:
+            pass
+        try:
+            masking = int(masking)
+        except ValueError:
+            pass
+        try:
+            query = int(query)
+        except ValueError:
+            pass
+        return {
+            'code': code,
+            'masking': masking,
+            'query': query,
+            'path': path,
+            'target': target,
+        }
 
     @classmethod
     def validate(cls, data, _type):
@@ -2243,6 +2314,14 @@ class UrlfwdValue(EqualityTupleMixin, dict):
             data = (data,)
         reasons = []
         for value in data:
+            if isinstance(value, str):
+                # it's hopefully RR formatted, give parsing a try
+                try:
+                    value = cls.parse_rr_text(value)
+                except RrParseError as e:
+                    reasons.append(str(e))
+                    # not a dict so no point in continuing
+                    continue
             try:
                 code = int(value['code'])
                 if code not in cls.VALID_CODES:
@@ -2277,6 +2356,8 @@ class UrlfwdValue(EqualityTupleMixin, dict):
         return [UrlfwdValue(v) for v in values]
 
     def __init__(self, value):
+        if isinstance(value, str):
+            value = self.parse_rr_text(value)
         super().__init__(
             {
                 'path': value['path'],
@@ -2326,6 +2407,12 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     @query.setter
     def query(self, value):
         self['query'] = value
+
+    @property
+    def rr_text(self):
+        return (
+            f'{self.code} {self.masking} {self.query} {self.path} {self.target}'
+        )
 
     def _equality_tuple(self):
         return (self.path, self.target, self.code, self.masking, self.query)
