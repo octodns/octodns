@@ -2283,45 +2283,11 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     VALID_QUERY = (0, 1)
 
     @classmethod
-    def parse_rr_text(self, value):
-        try:
-            code, masking, query, path, target = value.split(' ')
-        except ValueError:
-            raise RrParseError()
-        try:
-            code = int(code)
-        except ValueError:
-            pass
-        try:
-            masking = int(masking)
-        except ValueError:
-            pass
-        try:
-            query = int(query)
-        except ValueError:
-            pass
-        return {
-            'code': code,
-            'masking': masking,
-            'query': query,
-            'path': path,
-            'target': target,
-        }
-
-    @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         reasons = []
         for value in data:
-            if isinstance(value, str):
-                # it's hopefully RR formatted, give parsing a try
-                try:
-                    value = cls.parse_rr_text(value)
-                except RrParseError as e:
-                    reasons.append(str(e))
-                    # not a dict so no point in continuing
-                    continue
             try:
                 code = int(value['code'])
                 if code not in cls.VALID_CODES:
@@ -2356,8 +2322,6 @@ class UrlfwdValue(EqualityTupleMixin, dict):
         return [UrlfwdValue(v) for v in values]
 
     def __init__(self, value):
-        if isinstance(value, str):
-            value = self.parse_rr_text(value)
         super().__init__(
             {
                 'path': value['path'],
@@ -2407,12 +2371,6 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     @query.setter
     def query(self, value):
         self['query'] = value
-
-    @property
-    def rr_text(self):
-        return (
-            f'{self.code} {self.masking} {self.query} {self.path} {self.target}'
-        )
 
     def _equality_tuple(self):
         return (self.path, self.target, self.code, self.masking, self.query)
