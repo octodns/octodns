@@ -363,6 +363,7 @@ If you have a problem or suggestion, please [open an issue](https://github.com/o
   - [`doddo/octodns-lexicon`](https://github.com/doddo/octodns-lexicon): Use [Lexicon](https://github.com/AnalogJ/lexicon) providers as octoDNS providers.
   - [`asyncon/octoblox`](https://github.com/asyncon/octoblox): [Infoblox](https://www.infoblox.com/) provider.
   - [`sukiyaki/octodns-netbox`](https://github.com/sukiyaki/octodns-netbox): [NetBox](https://github.com/netbox-community/netbox) source.
+  - [`jcollie/octodns-netbox-dns`](https://github.com/jcollie/octodns-netbox-dns): [NetBox-DNS Plugin](https://github.com/auroraresearchlab/netbox-dns) provider. 
   - [`kompetenzbolzen/octodns-custom-provider`](https://github.com/kompetenzbolzen/octodns-custom-provider): zonefile provider & phpIPAM source.
 - **Resources.**
   - Article: [Visualising DNS records with Neo4j](https://medium.com/@costask/querying-and-visualising-octodns-records-with-neo4j-f4f72ab2d474) + code
