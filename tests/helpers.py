@@ -131,3 +131,13 @@ class TestYamlProvider(YamlProvider):
 
 class TestBaseProcessor(BaseProcessor):
     pass
+
+
+class CountingProcessor(BaseProcessor):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.count = 0
+
+    def process_source_zone(self, zone, *args, **kwargs):
+        self.count += len(zone.records)
+        return zone
