@@ -11,6 +11,8 @@
 * Now that it's used as it needed to be YamlProvider overrides
   Provider.supports and just always says Yes so that any dynamically registered
   types will be supported.
+* Support for configuring global processors that apply to all zones with
+  `manager.processors`
 
 ## v0.9.18 - 2022-08-14 - Subzone handling
 
