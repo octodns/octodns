@@ -40,6 +40,7 @@ class TestTtlRestrictionFilter(TestCase):
         restricted = restrictor.process_source_zone(zone)
         self.assertEqual(zone.records, restricted.records)
 
+        # too low
         low = Record.new(
             zone, 'low', {'type': 'A', 'ttl': 16, 'value': '1.2.3.4'}
         )
@@ -51,6 +52,23 @@ class TestTtlRestrictionFilter(TestCase):
             'low.unit.tests. ttl=16 too low, min_ttl=32', str(ctx.exception)
         )
 
+        # with lenient set, we can go lower
+        lenient = Record.new(
+            zone,
+            'low',
+            {
+                'octodns': {'lenient': True},
+                'type': 'A',
+                'ttl': 16,
+                'value': '1.2.3.4',
+            },
+        )
+        copy = zone.copy()
+        copy.add_record(lenient)
+        restricted = restrictor.process_source_zone(copy)
+        self.assertEqual(copy.records, restricted.records)
+
+        # too high
         high = Record.new(
             zone, 'high', {'type': 'A', 'ttl': 2048, 'value': '1.2.3.4'}
         )
@@ -63,7 +81,7 @@ class TestTtlRestrictionFilter(TestCase):
             str(ctx.exception),
         )
 
-        # defaults
+        # too low defaults
         restrictor = TtlRestrictionFilter('test')
         low = Record.new(
             zone, 'low', {'type': 'A', 'ttl': 0, 'value': '1.2.3.4'}
@@ -76,6 +94,7 @@ class TestTtlRestrictionFilter(TestCase):
             'low.unit.tests. ttl=0 too low, min_ttl=1', str(ctx.exception)
         )
 
+        # too high defaults
         high = Record.new(
             zone, 'high', {'type': 'A', 'ttl': 999999, 'value': '1.2.3.4'}
         )

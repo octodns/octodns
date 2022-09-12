@@ -38,6 +38,18 @@ class TtlRestrictionFilter(BaseProcessor):
           - min-max-ttl
         targets:
           - azure
+
+    The restriction can be skipped for specific records by setting the lenient
+    flag, e.g.
+
+    a:
+      octodns:
+        lenient: true
+      ttl: 0
+      value: 1.2.3.4
+
+    The higher level lenient flags are not checked as it would make more sense
+    to just avoid enabling the processor in those cases.
     '''
 
     SEVEN_DAYS = 60 * 60 * 24 * 7
@@ -49,6 +61,8 @@ class TtlRestrictionFilter(BaseProcessor):
 
     def process_source_zone(self, zone, *args, **kwargs):
         for record in zone.records:
+            if record._octodns.get('lenient'):
+                continue
             if record.ttl < self.min_ttl:
                 raise RestrictionException(
                     f'{record.fqdn} ttl={record.ttl} too low, min_ttl={self.min_ttl}'
