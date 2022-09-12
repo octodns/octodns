@@ -59,7 +59,7 @@ class BaseProvider(BaseSource):
         '''
 
         for record in desired.records:
-            if record._type not in self.SUPPORTS:
+            if not self.supports(record):
                 msg = f'{record._type} records not supported for {record.fqdn}'
                 fallback = 'omitting record'
                 self.supports_warn_or_except(msg, fallback)
@@ -187,8 +187,7 @@ class BaseProvider(BaseSource):
             # If your code gets this warning see Source.populate for more
             # information
             self.log.warning(
-                'Provider %s used in target mode did not return ' 'exists',
-                self.id,
+                'Provider %s used in target mode did not return exists', self.id
             )
 
         # Make a (shallow) copy of the desired state so that everything from
@@ -254,6 +253,4 @@ class BaseProvider(BaseSource):
         return len(plan.changes)
 
     def _apply(self, plan):
-        raise NotImplementedError(
-            'Abstract base class, _apply method ' 'missing'
-        )
+        raise NotImplementedError('Abstract base class, _apply method missing')

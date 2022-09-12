@@ -20,15 +20,15 @@ class BaseSource(object):
         self.id = id
         if not getattr(self, 'log', False):
             raise NotImplementedError(
-                'Abstract base class, log property ' 'missing'
+                'Abstract base class, log property missing'
             )
         if not hasattr(self, 'SUPPORTS_GEO'):
             raise NotImplementedError(
-                'Abstract base class, SUPPORTS_GEO ' 'property missing'
+                'Abstract base class, SUPPORTS_GEO property missing'
             )
         if not hasattr(self, 'SUPPORTS'):
             raise NotImplementedError(
-                'Abstract base class, SUPPORTS ' 'property missing'
+                'Abstract base class, SUPPORTS property missing'
             )
 
     @property
@@ -51,7 +51,7 @@ class BaseSource(object):
         True if the zone exists or False if it does not.
         '''
         raise NotImplementedError(
-            'Abstract base class, populate method ' 'missing'
+            'Abstract base class, populate method missing'
         )
 
     def supports(self, record):

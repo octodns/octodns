@@ -486,7 +486,7 @@ class TestManager(TestCase):
                         sources=['in'],
                     )
                 self.assertEqual(
-                    'output_provider=simple, does not support ' 'copy method',
+                    'output_provider=simple, does not support copy method',
                     str(ctx.exception),
                 )
 

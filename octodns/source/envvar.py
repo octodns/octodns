@@ -67,7 +67,7 @@ class EnvVarSource(BaseSource):
         klass = self.__class__.__name__
         self.log = logging.getLogger(f'{klass}[{id}]')
         self.log.debug(
-            '__init__: id=%s, variable=%s, name=%s, ' 'ttl=%d',
+            '__init__: id=%s, variable=%s, name=%s, ttl=%d',
             id,
             variable,
             name,

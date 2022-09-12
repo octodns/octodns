@@ -16,7 +16,7 @@ from yaml import safe_load
 from yaml.constructor import ConstructorError
 
 from octodns.idna import idna_encode
-from octodns.record import Create
+from octodns.record import _NsValue, Create, Record, ValuesMixin
 from octodns.provider import ProviderException
 from octodns.provider.base import Plan
 from octodns.provider.yaml import (
@@ -267,9 +267,39 @@ xn--dj-kia8a:
         with self.assertRaises(SubzoneRecordException) as ctx:
             source.populate(zone)
         self.assertEqual(
-            'Record www.sub.unit.tests. is under a managed ' 'subzone',
+            'Record www.sub.unit.tests. is under a managed subzone',
             str(ctx.exception),
         )
+
+    def test_SUPPORTS(self):
+        source = YamlProvider('test', join(dirname(__file__), 'config'))
+        # make sure the provider supports all the registered types
+        self.assertEqual(Record.registered_types().keys(), source.SUPPORTS)
+
+        class YamlRecord(ValuesMixin, Record):
+            _type = 'YAML'
+            _value_type = _NsValue
+
+        # don't know anything about a yaml type
+        self.assertTrue('YAML' not in source.SUPPORTS)
+        # register it
+        Record.register_type(YamlRecord)
+        # when asked again we'll now include it in our list of supports
+        self.assertTrue('YAML' in source.SUPPORTS)
+
+    def test_supports(self):
+        source = YamlProvider('test', join(dirname(__file__), 'config'))
+
+        class DummyType(object):
+            def __init__(self, _type):
+                self._type = _type
+
+        # No matter what we check it's always supported
+        self.assertTrue(source.supports(DummyType(None)))
+        self.assertTrue(source.supports(DummyType(42)))
+        self.assertTrue(source.supports(DummyType('A')))
+        self.assertTrue(source.supports(DummyType(source)))
+        self.assertTrue(source.supports(DummyType(self)))
 
 
 class TestSplitYamlProvider(TestCase):
@@ -494,7 +524,7 @@ class TestSplitYamlProvider(TestCase):
         with self.assertRaises(SubzoneRecordException) as ctx:
             source.populate(zone)
         self.assertEqual(
-            'Record www.sub.unit.tests. is under a managed ' 'subzone',
+            'Record www.sub.unit.tests. is under a managed subzone',
             str(ctx.exception),
         )
 

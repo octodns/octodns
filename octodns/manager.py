@@ -188,7 +188,7 @@ class Manager(object):
             except KeyError:
                 self.log.exception('Invalid provider class')
                 raise ManagerException(
-                    f'Provider {provider_name} is missing ' 'class'
+                    f'Provider {provider_name} is missing class'
                 )
             _class, module, version = self._get_named_class('provider', _class)
             kwargs = self._build_kwargs(provider_config)
@@ -216,7 +216,7 @@ class Manager(object):
             except KeyError:
                 self.log.exception('Invalid processor class')
                 raise ManagerException(
-                    f'Processor {processor_name} is ' 'missing class'
+                    f'Processor {processor_name} is missing class'
                 )
             _class, module, version = self._get_named_class('processor', _class)
             kwargs = self._build_kwargs(processor_config)
@@ -243,7 +243,7 @@ class Manager(object):
             except KeyError:
                 self.log.exception('Invalid plan_output class')
                 raise ManagerException(
-                    f'plan_output {plan_output_name} is ' 'missing class'
+                    f'plan_output {plan_output_name} is missing class'
                 )
             _class, module, version = self._get_named_class(
                 'plan_output', _class
@@ -302,7 +302,7 @@ class Manager(object):
             module, version = self._import_module(module_name)
         except (ImportError, ValueError):
             self.log.exception(
-                '_get_{}_class: Unable to import ' 'module %s', _class
+                '_get_{}_class: Unable to import module %s', _class
             )
             raise ManagerException(f'Unknown {_type} class: {_class}')
 
@@ -310,7 +310,7 @@ class Manager(object):
             return getattr(module, class_name), module_name, version
         except AttributeError:
             self.log.exception(
-                '_get_{}_class: Unable to get class %s ' 'from module %s',
+                '_get_{}_class: Unable to get class %s from module %s',
                 class_name,
                 module,
             )
@@ -411,7 +411,7 @@ class Manager(object):
                     if "unexpected keyword argument 'lenient'" not in str(e):
                         raise
                     self.log.warning(
-                        'provider %s does not accept lenient ' 'param',
+                        'provider %s does not accept lenient param',
                         source.__class__.__name__,
                     )
                     source.populate(zone)
@@ -440,7 +440,7 @@ class Manager(object):
                 if "keyword argument 'processors'" not in str(e):
                     raise
                 self.log.warning(
-                    'provider.plan %s does not accept processors ' 'param',
+                    'provider.plan %s does not accept processors param',
                     target.__class__.__name__,
                 )
                 plan = target.plan(zone)
@@ -567,7 +567,7 @@ class Manager(object):
                     trg = self.providers[target]
                     if not isinstance(trg, BaseProvider):
                         raise ManagerException(
-                            f'{trg} - "{target}" does not ' 'support targeting'
+                            f'{trg} - "{target}" does not support targeting'
                         )
                     trgs.append(trg)
                 targets = trgs
@@ -741,7 +741,7 @@ class Manager(object):
                     raise ManagerException(msg)
                 target = target.copy()
                 self.log.info(
-                    'dump: setting directory of output_provider ' 'copy to %s',
+                    'dump: setting directory of output_provider copy to %s',
                     output_dir,
                 )
                 target.directory = output_dir
@@ -831,8 +831,7 @@ class Manager(object):
     def get_zone(self, zone_name):
         if not zone_name[-1] == '.':
             raise ManagerException(
-                f'Invalid zone name {idna_decode(zone_name)}, missing '
-                'ending dot'
+                f'Invalid zone name {idna_decode(zone_name)}, missing ending dot'
             )
 
         zone = self.config['zones'].get(zone_name)
