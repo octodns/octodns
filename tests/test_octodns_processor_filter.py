@@ -11,7 +11,12 @@ from __future__ import (
 
 from unittest import TestCase
 
-from octodns.processor.filter import TypeAllowlistFilter, TypeRejectlistFilter
+from octodns.processor.filter import (
+    NameAllowlistFilter,
+    NameRejectlistFilter,
+    TypeAllowlistFilter,
+    TypeRejectlistFilter,
+)
 from octodns.record import Record
 from octodns.zone import Zone
 
@@ -76,3 +81,83 @@ class TestTypeRejectListFilter(TestCase):
         filter_a_aaaa = TypeRejectlistFilter('not-a-aaaa', set(('A', 'AAAA')))
         got = filter_a_aaaa.process_target_zone(zone.copy())
         self.assertEqual(['txt', 'txt2'], sorted([r.name for r in got.records]))
+
+
+class TestNameAllowListFilter(TestCase):
+    zone = Zone('unit.tests.', [])
+    matches = Record.new(
+        zone, 'matches', {'type': 'A', 'ttl': 42, 'value': '1.2.3.4'}
+    )
+    zone.add_record(matches)
+    doesnt = Record.new(
+        zone, 'doesnt', {'type': 'A', 'ttl': 42, 'value': '2.3.4.5'}
+    )
+    zone.add_record(doesnt)
+    matchable1 = Record.new(
+        zone, 'start-f43ad96-end', {'type': 'A', 'ttl': 42, 'value': '3.4.5.6'}
+    )
+    zone.add_record(matchable1)
+    matchable2 = Record.new(
+        zone, 'start-a3b444c-end', {'type': 'A', 'ttl': 42, 'value': '4.5.6.7'}
+    )
+    zone.add_record(matchable2)
+
+    def test_exact(self):
+        allows = NameAllowlistFilter('exact', ('matches',))
+
+        self.assertEqual(4, len(self.zone.records))
+        filtered = allows.process_source_zone(self.zone.copy())
+        self.assertEqual(1, len(filtered.records))
+        self.assertEqual(['matches'], [r.name for r in filtered.records])
+
+    def test_regex(self):
+        allows = NameAllowlistFilter('exact', ('/^start-.+-end$/',))
+
+        self.assertEqual(4, len(self.zone.records))
+        filtered = allows.process_source_zone(self.zone.copy())
+        self.assertEqual(2, len(filtered.records))
+        self.assertEqual(
+            ['start-a3b444c-end', 'start-f43ad96-end'],
+            sorted([r.name for r in filtered.records]),
+        )
+
+
+class TestNameRejectListFilter(TestCase):
+    zone = Zone('unit.tests.', [])
+    matches = Record.new(
+        zone, 'matches', {'type': 'A', 'ttl': 42, 'value': '1.2.3.4'}
+    )
+    zone.add_record(matches)
+    doesnt = Record.new(
+        zone, 'doesnt', {'type': 'A', 'ttl': 42, 'value': '2.3.4.5'}
+    )
+    zone.add_record(doesnt)
+    matchable1 = Record.new(
+        zone, 'start-f43ad96-end', {'type': 'A', 'ttl': 42, 'value': '3.4.5.6'}
+    )
+    zone.add_record(matchable1)
+    matchable2 = Record.new(
+        zone, 'start-a3b444c-end', {'type': 'A', 'ttl': 42, 'value': '4.5.6.7'}
+    )
+    zone.add_record(matchable2)
+
+    def test_exact(self):
+        rejects = NameRejectlistFilter('exact', ('matches',))
+
+        self.assertEqual(4, len(self.zone.records))
+        filtered = rejects.process_source_zone(self.zone.copy())
+        self.assertEqual(3, len(filtered.records))
+        self.assertEqual(
+            ['doesnt', 'start-a3b444c-end', 'start-f43ad96-end'],
+            sorted([r.name for r in filtered.records]),
+        )
+
+    def test_regex(self):
+        rejects = NameRejectlistFilter('exact', ('/^start-.+-end$/',))
+
+        self.assertEqual(4, len(self.zone.records))
+        filtered = rejects.process_source_zone(self.zone.copy())
+        self.assertEqual(2, len(filtered.records))
+        self.assertEqual(
+            ['doesnt', 'matches'], sorted([r.name for r in filtered.records])
+        )

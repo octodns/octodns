@@ -114,7 +114,7 @@ class BaseProvider(BaseSource):
                 self.log.warning(
                     'root NS record supported, but no record '
                     'is configured for %s',
-                    desired.name,
+                    desired.decoded_name,
                 )
         else:
             if record:
@@ -179,7 +179,7 @@ class BaseProvider(BaseSource):
         self.log.warning('%s; %s', msg, fallback)
 
     def plan(self, desired, processors=[]):
-        self.log.info('plan: desired=%s', desired.name)
+        self.log.info('plan: desired=%s', desired.decoded_name)
 
         existing = Zone(desired.name, desired.sub_zones)
         exists = self.populate(existing, target=True, lenient=True)
@@ -246,7 +246,7 @@ class BaseProvider(BaseSource):
             self.log.info('apply: disabled')
             return 0
 
-        zone_name = plan.desired.name
+        zone_name = plan.desired.decoded_name
         num_changes = len(plan.changes)
         self.log.info('apply: making %d changes to %s', num_changes, zone_name)
         self._apply(plan)

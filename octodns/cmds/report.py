@@ -93,7 +93,7 @@ def main():
         ]
 
     for record, futures in sorted(queries.items(), key=lambda d: d[0]):
-        stdout.write(record.fqdn)
+        stdout.write(record.decoded_fqdn)
         stdout.write(',')
         stdout.write(record._type)
         stdout.write(',')
