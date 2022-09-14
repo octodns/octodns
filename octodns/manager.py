@@ -127,6 +127,9 @@ class Manager(object):
             manager_config, include_meta
         )
 
+        self.global_processors = manager_config.get('processors', [])
+        self.log.info('__init__: global_processors=%s', self.global_processors)
+
         providers_config = self.config['providers']
         self.providers = self._config_providers(providers_config)
 
@@ -539,7 +542,7 @@ class Manager(object):
 
             try:
                 collected = []
-                for processor in processors:
+                for processor in self.global_processors + processors:
                     collected.append(self.processors[processor])
                 processors = collected
             except KeyError:
