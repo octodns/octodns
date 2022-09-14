@@ -23,6 +23,7 @@ from octodns.record import (
     Create,
     Delete,
     GeoValue,
+    Ipv4Address,
     LocRecord,
     LocValue,
     MxRecord,
@@ -100,6 +101,81 @@ class TestRecord(TestCase):
         self.assertEqual(utf8, record.decoded_name)
         self.assertTrue(f'{encoded}.{zone.name}', record.fqdn)
         self.assertTrue(f'{utf8}.{zone.decoded_name}', record.decoded_fqdn)
+
+    def test_utf8_values(self):
+        zone = Zone('unit.tests.', [])
+        utf8 = 'гэрбүл.mn.'
+        encoded = idna_encode(utf8)
+
+        # ALIAS
+        record = Record.new(
+            zone, '', {'type': 'ALIAS', 'ttl': 300, 'value': utf8}
+        )
+        self.assertEqual(encoded, record.value)
+
+        # CNAME
+        record = Record.new(
+            zone, 'cname', {'type': 'CNAME', 'ttl': 300, 'value': utf8}
+        )
+        self.assertEqual(encoded, record.value)
+
+        # DNAME
+        record = Record.new(
+            zone, 'dname', {'type': 'DNAME', 'ttl': 300, 'value': utf8}
+        )
+        self.assertEqual(encoded, record.value)
+
+        # MX
+        record = Record.new(
+            zone,
+            'mx',
+            {
+                'type': 'MX',
+                'ttl': 300,
+                'value': {'preference': 10, 'exchange': utf8},
+            },
+        )
+        self.assertEqual(
+            MxValue({'preference': 10, 'exchange': encoded}), record.values[0]
+        )
+
+        # NS
+        record = Record.new(
+            zone, 'ns', {'type': 'NS', 'ttl': 300, 'value': utf8}
+        )
+        self.assertEqual(encoded, record.values[0])
+
+        # PTR
+        another_utf8 = 'niño.mx.'
+        another_encoded = idna_encode(another_utf8)
+        record = Record.new(
+            zone,
+            'ptr',
+            {'type': 'PTR', 'ttl': 300, 'values': [utf8, another_utf8]},
+        )
+        self.assertEqual([encoded, another_encoded], record.values)
+
+        # SRV
+        record = Record.new(
+            zone,
+            '_srv._tcp',
+            {
+                'type': 'SRV',
+                'ttl': 300,
+                'value': {
+                    'priority': 0,
+                    'weight': 10,
+                    'port': 80,
+                    'target': utf8,
+                },
+            },
+        )
+        self.assertEqual(
+            SrvValue(
+                {'priority': 0, 'weight': 10, 'port': 80, 'target': encoded}
+            ),
+            record.values[0],
+        )
 
     def test_alias_lowering_value(self):
         upper_record = AliasRecord(
@@ -1002,16 +1078,6 @@ class TestRecord(TestCase):
         self.assertEqual(a_values[0]['weight'], a.values[0].weight)
         self.assertEqual(a_values[0]['port'], a.values[0].port)
         self.assertEqual(a_values[0]['target'], a.values[0].target)
-        from pprint import pprint
-
-        pprint(
-            {
-                'a_values': a_values,
-                'self': a_data,
-                'other': a.data,
-                'a.values': a.values,
-            }
-        )
         self.assertEqual(a_data, a.data)
 
         b_value = SrvValue(
@@ -2604,7 +2670,7 @@ class TestRecordValidation(TestCase):
             )
         self.assertEqual(['missing value'], ctx.exception.reasons)
 
-    def test_CNAME(self):
+    def test_cname_validation(self):
         # doesn't blow up
         Record.new(
             self.zone,
@@ -3153,6 +3219,19 @@ class TestRecordValidation(TestCase):
             ctx.exception.reasons,
         )
 
+        # if exchange doesn't exist value can not be None/falsey
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                '',
+                {
+                    'type': 'MX',
+                    'ttl': 600,
+                    'value': {'preference': 10, 'value': ''},
+                },
+            )
+        self.assertEqual(['missing exchange'], ctx.exception.reasons)
+
         # exchange can be a single `.`
         record = Record.new(
             self.zone,
@@ -3647,6 +3726,24 @@ class TestRecordValidation(TestCase):
             ['SRV value "foo.bar.baz" missing trailing .'],
             ctx.exception.reasons,
         )
+
+        # falsey target
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                '_srv._tcp',
+                {
+                    'type': 'SRV',
+                    'ttl': 600,
+                    'value': {
+                        'priority': 1,
+                        'weight': 2,
+                        'port': 3,
+                        'target': '',
+                    },
+                },
+            )
+        self.assertEqual(['missing target'], ctx.exception.reasons)
 
         # target must be a valid FQDN
         with self.assertRaises(ValidationError) as ctx:
@@ -5333,7 +5430,6 @@ class TestDynamicRecords(TestCase):
                 'pools': {
                     'one': {'values': [{'value': '3.3.3.3'}]},
                     'two': {
-                        # Testing out of order value sorting here
                         'values': [{'value': '5.5.5.5'}, {'value': '4.4.4.4'}]
                     },
                     'three': {
@@ -5361,9 +5457,12 @@ class TestDynamicRecords(TestCase):
         )
 
     def test_dynamic_eqs(self):
-
-        pool_one = _DynamicPool('one', {'values': [{'value': '1.2.3.4'}]})
-        pool_two = _DynamicPool('two', {'values': [{'value': '1.2.3.5'}]})
+        pool_one = _DynamicPool(
+            'one', {'values': [{'value': '1.2.3.4'}]}, Ipv4Address
+        )
+        pool_two = _DynamicPool(
+            'two', {'values': [{'value': '1.2.3.5'}]}, Ipv4Address
+        )
         self.assertEqual(pool_one, pool_one)
         self.assertNotEqual(pool_one, pool_two)
         self.assertNotEqual(pool_one, 42)
@@ -5381,6 +5480,61 @@ class TestDynamicRecords(TestCase):
         self.assertEqual(dynamic, dynamic)
         self.assertNotEqual(dynamic, other)
         self.assertNotEqual(dynamic, 42)
+
+    def test_dynamic_cname_idna(self):
+        a_utf8 = 'natación.mx.'
+        a_encoded = idna_encode(a_utf8)
+        b_utf8 = 'гэрбүл.mn.'
+        b_encoded = idna_encode(b_utf8)
+        cname_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {
+                        # Testing out of order value sorting here
+                        'values': [
+                            {'value': 'b.unit.tests.'},
+                            {'value': 'a.unit.tests.'},
+                        ]
+                    },
+                    'two': {
+                        'values': [
+                            # some utf8 values we expect to be idna encoded
+                            {'weight': 10, 'value': a_utf8},
+                            {'weight': 12, 'value': b_utf8},
+                        ]
+                    },
+                },
+                'rules': [
+                    {'geos': ['NA-US-CA'], 'pool': 'two'},
+                    {'pool': 'one'},
+                ],
+            },
+            'type': 'CNAME',
+            'ttl': 60,
+            'value': a_utf8,
+        }
+        cname = Record.new(self.zone, 'cname', cname_data)
+        self.assertEqual(a_encoded, cname.value)
+        self.assertEqual(
+            {
+                'fallback': None,
+                'values': [
+                    {'weight': 1, 'value': 'a.unit.tests.', 'status': 'obey'},
+                    {'weight': 1, 'value': 'b.unit.tests.', 'status': 'obey'},
+                ],
+            },
+            cname.dynamic.pools['one'].data,
+        )
+        self.assertEqual(
+            {
+                'fallback': None,
+                'values': [
+                    {'weight': 12, 'value': b_encoded, 'status': 'obey'},
+                    {'weight': 10, 'value': a_encoded, 'status': 'obey'},
+                ],
+            },
+            cname.dynamic.pools['two'].data,
+        )
 
 
 class TestChanges(TestCase):

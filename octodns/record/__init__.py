@@ -463,12 +463,12 @@ class ValueMixin(object):
 class _DynamicPool(object):
     log = getLogger('_DynamicPool')
 
-    def __init__(self, _id, data):
+    def __init__(self, _id, data, value_type):
         self._id = _id
 
         values = [
             {
-                'value': d['value'],
+                'value': value_type(d['value']),
                 'weight': d.get('weight', 1),
                 'status': d.get('status', 'obey'),
             }
@@ -745,7 +745,7 @@ class _DynamicMixin(object):
             pools = {}
 
         for _id, pool in sorted(pools.items()):
-            pools[_id] = _DynamicPool(_id, pool)
+            pools[_id] = _DynamicPool(_id, pool, self._value_type)
 
         # rules
         try:
@@ -799,19 +799,23 @@ class _TargetValue(str):
             reasons.append('empty value')
         elif not data:
             reasons.append('missing value')
-        # NOTE: FQDN complains if the data it receives isn't a str, it doesn't
-        # allow unicode... This is likely specific to 2.7
-        elif not FQDN(str(data), allow_underscores=True).is_valid:
-            reasons.append(f'{_type} value "{data}" is not a valid FQDN')
-        elif not data.endswith('.'):
-            reasons.append(f'{_type} value "{data}" missing trailing .')
+        else:
+            data = idna_encode(data)
+            if not FQDN(str(data), allow_underscores=True).is_valid:
+                reasons.append(f'{_type} value "{data}" is not a valid FQDN')
+            elif not data.endswith('.'):
+                reasons.append(f'{_type} value "{data}" missing trailing .')
         return reasons
 
     @classmethod
     def process(cls, value):
         if value:
-            return cls(value.lower())
+            return cls(value)
         return None
+
+    def __new__(cls, v):
+        v = idna_encode(v)
+        return super().__new__(cls, v)
 
 
 class CnameValue(_TargetValue):
@@ -1292,7 +1296,11 @@ class MxValue(EqualityTupleMixin, dict):
                 reasons.append(f'invalid preference "{value["preference"]}"')
             exchange = None
             try:
-                exchange = str(value.get('exchange', None) or value['value'])
+                exchange = value.get('exchange', None) or value['value']
+                if not exchange:
+                    reasons.append('missing exchange')
+                    continue
+                exchange = idna_encode(exchange)
                 if (
                     exchange != '.'
                     and not FQDN(exchange, allow_underscores=True).is_valid
@@ -1323,7 +1331,7 @@ class MxValue(EqualityTupleMixin, dict):
         except KeyError:
             exchange = value['value']
         super().__init__(
-            {'preference': int(preference), 'exchange': exchange.lower()}
+            {'preference': int(preference), 'exchange': idna_encode(exchange)}
         )
 
     @property
@@ -1507,7 +1515,8 @@ class _NsValue(str):
             data = (data,)
         reasons = []
         for value in data:
-            if not FQDN(str(value), allow_underscores=True).is_valid:
+            value = idna_encode(value)
+            if not FQDN(value, allow_underscores=True).is_valid:
                 reasons.append(
                     f'Invalid NS value "{value}" is not a valid FQDN.'
                 )
@@ -1518,6 +1527,10 @@ class _NsValue(str):
     @classmethod
     def process(cls, values):
         return [cls(v) for v in values]
+
+    def __new__(cls, v):
+        v = idna_encode(v)
+        return super().__new__(cls, v)
 
 
 class NsRecord(ValuesMixin, Record):
@@ -1739,11 +1752,15 @@ class SrvValue(EqualityTupleMixin, dict):
                 reasons.append(f'invalid port "{value["port"]}"')
             try:
                 target = value['target']
+                if not target:
+                    reasons.append('missing target')
+                    continue
+                target = idna_encode(target)
                 if not target.endswith('.'):
                     reasons.append(f'SRV value "{target}" missing trailing .')
                 if (
                     target != '.'
-                    and not FQDN(str(target), allow_underscores=True).is_valid
+                    and not FQDN(target, allow_underscores=True).is_valid
                 ):
                     reasons.append(
                         f'Invalid SRV target "{target}" is not a valid FQDN.'
@@ -1762,7 +1779,7 @@ class SrvValue(EqualityTupleMixin, dict):
                 'priority': int(value['priority']),
                 'weight': int(value['weight']),
                 'port': int(value['port']),
-                'target': value['target'].lower(),
+                'target': idna_encode(value['target']),
             }
         )
 
