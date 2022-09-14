@@ -10,6 +10,10 @@ from __future__ import (
 )
 
 
+class ProcessorException(Exception):
+    pass
+
+
 class BaseProcessor(object):
     def __init__(self, name):
         self.name = name

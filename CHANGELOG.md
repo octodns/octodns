@@ -11,6 +11,7 @@
 * Now that it's used as it needed to be YamlProvider overrides
   Provider.supports and just always says Yes so that any dynamically registered
   types will be supported.
+* Add TtlRestrictionFilter processor for adding ttl restriction/checking
 
 ## v0.9.18 - 2022-08-14 - Subzone handling
 
