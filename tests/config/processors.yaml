@@ -1,3 +1,7 @@
+manager:
+  processors:
+    - global-counter
+
 providers:
   config:
     # This helps us get coverage when printing out provider versions
@@ -19,6 +23,8 @@ processors:
   test:
     # This helps us get coverage when printing out processor versions
     class: helpers.TestBaseProcessor
+  global-counter:
+    class: helpers.CountingProcessor
 
 zones:
   unit.tests.:
