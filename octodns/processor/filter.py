@@ -137,8 +137,7 @@ class NameAllowlistFilter(_NameBaseFilter):
             name = record.name
             if name in self.exact:
                 continue
-
-            if any(r.search(name) for r in self.regex):
+            elif any(r.search(name) for r in self.regex):
                 continue
 
             zone.remove_record(record)
