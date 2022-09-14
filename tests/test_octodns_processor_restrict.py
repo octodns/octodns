@@ -9,24 +9,6 @@ from octodns.zone import Zone
 
 
 class TestTtlRestrictionFilter(TestCase):
-    zone = Zone('unit.tests.', [])
-    matches = Record.new(
-        zone, 'matches', {'type': 'A', 'ttl': 42, 'value': '1.2.3.4'}
-    )
-    zone.add_record(matches)
-    doesnt = Record.new(
-        zone, 'doesnt', {'type': 'A', 'ttl': 42, 'value': '2.3.4.5'}
-    )
-    zone.add_record(doesnt)
-    matchable1 = Record.new(
-        zone, 'start-f43ad96-end', {'type': 'A', 'ttl': 42, 'value': '3.4.5.6'}
-    )
-    zone.add_record(matchable1)
-    matchable2 = Record.new(
-        zone, 'start-a3b444c-end', {'type': 'A', 'ttl': 42, 'value': '4.5.6.7'}
-    )
-    zone.add_record(matchable2)
-
     def test_restrict_ttl(self):
         # configured values
         restrictor = TtlRestrictionFilter('test', min_ttl=32, max_ttl=1024)
@@ -104,5 +86,28 @@ class TestTtlRestrictionFilter(TestCase):
             restrictor.process_source_zone(copy)
         self.assertEqual(
             'high.unit.tests. ttl=999999 too high, max_ttl=604800',
+            str(ctx.exception),
+        )
+
+        # allowed_ttls
+        restrictor = TtlRestrictionFilter('test', allowed_ttls=[42, 300])
+
+        # add 300 (42 is already there)
+        another = Record.new(
+            zone, 'another', {'type': 'A', 'ttl': 300, 'value': '4.5.6.7'}
+        )
+        zone.add_record(another)
+
+        # 42 and 300 are allowed through
+        restricted = restrictor.process_source_zone(zone)
+        self.assertEqual(zone.records, restricted.records)
+
+        # 16 is not
+        copy = zone.copy()
+        copy.add_record(low)
+        with self.assertRaises(RestrictionException) as ctx:
+            restrictor.process_source_zone(copy)
+        self.assertEqual(
+            'low.unit.tests. ttl=0 not an allowed value, allowed_ttls={42, 300}',
             str(ctx.exception),
         )
