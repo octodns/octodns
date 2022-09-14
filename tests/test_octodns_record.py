@@ -11,6 +11,7 @@ from __future__ import (
 
 from unittest import TestCase
 
+from octodns.idna import idna_encode
 from octodns.record import (
     ARecord,
     AaaaRecord,
@@ -86,6 +87,18 @@ class TestRecord(TestCase):
             self.zone, 'MiXeDcAsE', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
         )
         self.assertEqual('mixedcase', record.name)
+
+    def test_utf8(self):
+        zone = Zone('natación.mx.', [])
+        utf8 = 'niño'
+        encoded = idna_encode(utf8)
+        record = ARecord(
+            zone, utf8, {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        self.assertEqual(encoded, record.name)
+        self.assertEqual(utf8, record.decoded_name)
+        self.assertTrue(f'{encoded}.{zone.name}', record.fqdn)
+        self.assertTrue(f'{utf8}.{zone.decoded_name}', record.decoded_fqdn)
 
     def test_alias_lowering_value(self):
         upper_record = AliasRecord(
@@ -1892,6 +1905,51 @@ class TestRecordValidation(TestCase):
         Record.new(
             self.zone, name, {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
         )
+
+        # make sure we're validating with encoded fqdns
+        utf8 = 'déjà-vu'
+        padding = ('.' + ('x' * 57)) * 4
+        utf8_name = f'{utf8}{padding}'
+        # make sure our test is valid here, we're under 253 chars long as utf8
+        self.assertEqual(251, len(f'{utf8_name}.{self.zone.name}'))
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                utf8_name,
+                {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'},
+            )
+        reason = ctx.exception.reasons[0]
+        self.assertTrue(reason.startswith('invalid fqdn, "déjà-vu'))
+        self.assertTrue(
+            reason.endswith(
+                '.unit.tests." is too long at 259' ' chars, max is 253'
+            )
+        )
+
+        # same, but with ascii version of things
+        plain = 'deja-vu'
+        plain_name = f'{plain}{padding}'
+        self.assertEqual(251, len(f'{plain_name}.{self.zone.name}'))
+        Record.new(
+            self.zone, plain_name, {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
+        )
+
+        # check that we're validating encoded labels
+        padding = 'x' * (60 - len(utf8))
+        utf8_name = f'{utf8}{padding}'
+        # make sure the test is valid, we're at 63 chars
+        self.assertEqual(60, len(utf8_name))
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                utf8_name,
+                {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'},
+            )
+        reason = ctx.exception.reasons[0]
+        # Unfortunately this is a translated IDNAError so we don't have much
+        # control over the exact message :-/ (doesn't give context like octoDNS
+        # does)
+        self.assertEqual('Label too long', reason)
 
         # no ttl
         with self.assertRaises(ValidationError) as ctx:

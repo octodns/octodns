@@ -16,6 +16,7 @@ import re
 from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
+from ..idna import IdnaError, idna_decode, idna_encode
 from .geo import GeoCodes
 
 
@@ -77,7 +78,7 @@ class ValidationError(RecordException):
     @classmethod
     def build_message(cls, fqdn, reasons):
         reasons = '\n  - '.join(reasons)
-        return f'Invalid record {fqdn}\n  - {reasons}'
+        return f'Invalid record {idna_decode(fqdn)}\n  - {reasons}'
 
     def __init__(self, fqdn, reasons):
         super(Exception, self).__init__(self.build_message(fqdn, reasons))
@@ -108,17 +109,23 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
-        name = str(name).lower()
+        reasons = []
+        try:
+            name = idna_encode(str(name))
+        except IdnaError as e:
+            # convert the error into a reason
+            reasons.append(str(e))
+            name = str(name)
         fqdn = f'{name}.{zone.name}' if name else zone.name
         try:
             _type = data['type']
         except KeyError:
-            raise Exception(f'Invalid record {fqdn}, missing type')
+            raise Exception(f'Invalid record {idna_decode(fqdn)}, missing type')
         try:
             _class = cls._CLASSES[_type]
         except KeyError:
             raise Exception(f'Unknown record type: "{_type}"')
-        reasons = _class.validate(name, fqdn, data)
+        reasons.extend(_class.validate(name, fqdn, data))
         try:
             lenient |= data['octodns']['lenient']
         except KeyError:
@@ -138,7 +145,7 @@ class Record(EqualityTupleMixin):
         n = len(fqdn)
         if n > 253:
             reasons.append(
-                f'invalid fqdn, "{fqdn}" is too long at {n} '
+                f'invalid fqdn, "{idna_decode(fqdn)}" is too long at {n} '
                 'chars, max is 253'
             )
         for label in name.split('.'):
@@ -148,6 +155,7 @@ class Record(EqualityTupleMixin):
                     f'invalid label, "{label}" is too long at {n}'
                     ' chars, max is 63'
                 )
+        # TODO: look at the idna lib for a lot more potential validations...
         try:
             ttl = int(data['ttl'])
             if ttl < 0:
@@ -166,15 +174,20 @@ class Record(EqualityTupleMixin):
         return reasons
 
     def __init__(self, zone, name, data, source=None):
+        self.zone = zone
+        if name:
+            # internally everything is idna
+            self.name = idna_encode(str(name))
+            # we'll keep a decoded version around for logs and errors
+            self.decoded_name = idna_decode(self.name)
+        else:
+            self.name = self.decoded_name = name
         self.log.debug(
             '__init__: zone.name=%s, type=%11s, name=%s',
-            zone.name,
+            zone.decoded_name,
             self.__class__.__name__,
-            name,
+            self.decoded_name,
         )
-        self.zone = zone
-        # force everything lower-case just to be safe
-        self.name = str(name).lower() if name else name
         self.source = source
         self.ttl = int(data['ttl'])
 
@@ -189,9 +202,17 @@ class Record(EqualityTupleMixin):
 
     @property
     def fqdn(self):
+        # TODO: these should be calculated and set in __init__ rather than on
+        # each use
         if self.name:
             return f'{self.name}.{self.zone.name}'
         return self.zone.name
+
+    @property
+    def decoded_fqdn(self):
+        if self.decoded_name:
+            return f'{self.decoded_name}.{self.zone.decoded_name}'
+        return self.zone.decoded_name
 
     @property
     def ignored(self):
@@ -354,7 +375,7 @@ class ValuesMixin(object):
     def __repr__(self):
         values = "', '".join([str(v) for v in self.values])
         klass = self.__class__.__name__
-        return f"<{klass} {self._type} {self.ttl}, {self.fqdn}, ['{values}']>"
+        return f"<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, ['{values}']>"
 
 
 class _GeoMixin(ValuesMixin):
@@ -404,7 +425,7 @@ class _GeoMixin(ValuesMixin):
         if self.geo:
             klass = self.__class__.__name__
             return (
-                f'<{klass} {self._type} {self.ttl}, {self.fqdn}, '
+                f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, '
                 f'{self.values}, {self.geo}>'
             )
         return super(_GeoMixin, self).__repr__()
@@ -436,7 +457,7 @@ class ValueMixin(object):
 
     def __repr__(self):
         klass = self.__class__.__name__
-        return f'<{klass} {self._type} {self.ttl}, {self.fqdn}, {self.value}>'
+        return f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, {self.value}>'
 
 
 class _DynamicPool(object):
@@ -764,7 +785,7 @@ class _DynamicMixin(object):
 
             klass = self.__class__.__name__
             return (
-                f'<{klass} {self._type} {self.ttl}, {self.fqdn}, '
+                f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, '
                 f'{values}, {self.dynamic}>'
             )
         return super(_DynamicMixin, self).__repr__()
