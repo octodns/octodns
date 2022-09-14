@@ -643,9 +643,16 @@ class TestManager(TestCase):
     def test_processor_config(self):
         # Smoke test loading a valid config
         manager = Manager(get_config_filename('processors.yaml'))
-        self.assertEqual(['noop', 'test'], list(manager.processors.keys()))
+        self.assertEqual(
+            ['noop', 'test', 'global-counter'], list(manager.processors.keys())
+        )
+        # make sure we got the global processor and that it's count is 0 now
+        self.assertEqual(['global-counter'], manager.global_processors)
+        self.assertEqual(0, manager.processors['global-counter'].count)
         # This zone specifies a valid processor
         manager.sync(['unit.tests.'])
+        # make sure the global processor ran and counted some records
+        self.assertTrue(manager.processors['global-counter'].count >= 25)
 
         with self.assertRaises(ManagerException) as ctx:
             # This zone specifies a non-existent processor

@@ -11,6 +11,8 @@
   decoded form. Both forms should be accepted in command line arguments.
   Providers may need to be updated to display the decoded form in their logs,
   until then they'd display the IDNA version.
+* Support for configuring global processors that apply to all zones with
+  `manager.processors`
 
 #### Stuff
 
