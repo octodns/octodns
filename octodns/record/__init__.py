@@ -373,8 +373,10 @@ class ValuesMixin(object):
         return ret
 
     def __repr__(self):
-        values = "', '".join([str(v) for v in self.values])
         klass = self.__class__.__name__
+        values = self.values
+        values = [v.display() for v in values]
+        values = "', '".join(values)
         return f"<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, ['{values}']>"
 
 
@@ -457,7 +459,10 @@ class ValueMixin(object):
 
     def __repr__(self):
         klass = self.__class__.__name__
-        return f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, {self.value}>'
+        value = self.value.display()
+        return (
+            f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, {value}>'
+        )
 
 
 class _DynamicPool(object):
@@ -505,7 +510,14 @@ class _DynamicPool(object):
         return not self.__eq__(other)
 
     def __repr__(self):
-        return f'{self.data}'
+        values = []
+        data = self.data
+        for value in data['values']:
+            # make a copy so we can muck with it safely
+            value = dict(value)
+            value['value'] = value['value'].display()
+            values.append(value)
+        return str({'fallback': data['fallback'], 'values': values})
 
 
 class _DynamicRule(object):
@@ -779,9 +791,9 @@ class _DynamicMixin(object):
             # improvements the value types should deal with serializing their
             # value
             try:
-                values = self.values
+                values = [v.display() for v in self.values]
             except AttributeError:
-                values = self.value
+                values = self.value.display()
 
             klass = self.__class__.__name__
             return (
@@ -816,6 +828,9 @@ class _TargetValue(str):
     def __new__(cls, v):
         v = idna_encode(v)
         return super().__new__(cls, v)
+
+    def display(self):
+        return idna_decode(self)
 
 
 class CnameValue(_TargetValue):
@@ -859,6 +874,9 @@ class _IpAddress(str):
     def __new__(cls, v):
         v = str(cls._address_type(v))
         return super().__new__(cls, v)
+
+    def display(self):
+        return self
 
 
 class Ipv4Address(_IpAddress):
@@ -975,6 +993,8 @@ class CaaValue(EqualityTupleMixin, dict):
 
     def __repr__(self):
         return f'{self.flags} {self.tag} "{self.value}"'
+
+    display = __repr__
 
 
 class CaaRecord(ValuesMixin, Record):
@@ -1269,6 +1289,8 @@ class LocValue(EqualityTupleMixin, dict):
             f"{self.precision_horz:.2f}m {self.precision_vert:.2f}m'"
         )
 
+    display = __repr__
+
 
 class LocRecord(ValuesMixin, Record):
     _type = 'LOC'
@@ -1361,7 +1383,9 @@ class MxValue(EqualityTupleMixin, dict):
         return (self.preference, self.exchange)
 
     def __repr__(self):
-        return f"'{self.preference} {self.exchange}'"
+        return f"'{self.preference} {idna_decode(self.exchange)}'"
+
+    display = __repr__
 
 
 class MxRecord(ValuesMixin, Record):
@@ -1497,6 +1521,8 @@ class NaptrValue(EqualityTupleMixin, dict):
             f"\"{regexp}\" {self.replacement}'"
         )
 
+    display = __repr__
+
 
 class NaptrRecord(ValuesMixin, Record):
     _type = 'NAPTR'
@@ -1531,6 +1557,9 @@ class _NsValue(str):
     def __new__(cls, v):
         v = idna_encode(v)
         return super().__new__(cls, v)
+
+    def display(self):
+        return idna_decode(self)
 
 
 class NsRecord(ValuesMixin, Record):
@@ -1661,6 +1690,8 @@ class SshfpValue(EqualityTupleMixin, dict):
     def __repr__(self):
         return f"'{self.algorithm} {self.fingerprint_type} {self.fingerprint}'"
 
+    display = __repr__
+
 
 class SshfpRecord(ValuesMixin, Record):
     _type = 'SSHFP'
@@ -1714,6 +1745,9 @@ class _ChunkedValue(str):
                 v = v[1:-1]
             ret.append(cls(v.replace('" "', '')))
         return ret
+
+    def display(self):
+        return self
 
 
 class SpfRecord(_ChunkedValuesMixin, Record):
@@ -1826,7 +1860,10 @@ class SrvValue(EqualityTupleMixin, dict):
         return (self.priority, self.weight, self.port, self.target)
 
     def __repr__(self):
-        return f"'{self.priority} {self.weight} {self.port} {self.target}'"
+        target = idna_decode(self.target)
+        return f"'{self.priority} {self.weight} {self.port} {target}'"
+
+    display = __repr__
 
 
 class SrvRecord(ValuesMixin, Record):
@@ -1952,6 +1989,8 @@ class TlsaValue(EqualityTupleMixin, dict):
             f"'{self.certificate_usage} {self.selector} '"
             f"'{self.matching_type} {self.certificate_association_data}'"
         )
+
+    display = __repr__
 
 
 class TlsaRecord(ValuesMixin, Record):
@@ -2079,6 +2118,8 @@ class UrlfwdValue(EqualityTupleMixin, dict):
 
     def __repr__(self):
         return f'"{self.path}" "{self.target}" {self.code} {self.masking} {self.query}'
+
+    display = __repr__
 
 
 class UrlfwdRecord(ValuesMixin, Record):
