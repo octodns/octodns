@@ -2,13 +2,6 @@
 #
 #
 
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
-
 from collections import defaultdict
 from os import listdir, makedirs
 from os.path import isdir, isfile, join
