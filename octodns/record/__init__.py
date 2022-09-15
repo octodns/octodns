@@ -31,7 +31,7 @@ class Create(Change):
     CLASS_ORDERING = 1
 
     def __init__(self, new):
-        super(Create, self).__init__(None, new)
+        super().__init__(None, new)
 
     def __repr__(self, leader=''):
         source = self.new.source.id if self.new.source else ''
@@ -57,7 +57,7 @@ class Delete(Change):
     CLASS_ORDERING = 0
 
     def __init__(self, existing):
-        super(Delete, self).__init__(existing, None)
+        super().__init__(existing, None)
 
     def __repr__(self, leader=''):
         return f'Delete {self.existing}'
@@ -74,7 +74,7 @@ class ValidationError(RecordException):
         return f'Invalid record {idna_decode(fqdn)}\n  - {reasons}'
 
     def __init__(self, fqdn, reasons):
-        super(Exception, self).__init__(self.build_message(fqdn, reasons))
+        super().__init__(self.build_message(fqdn, reasons))
         self.fqdn = fqdn
         self.reasons = reasons
 
@@ -329,7 +329,7 @@ class GeoValue(EqualityTupleMixin):
 class ValuesMixin(object):
     @classmethod
     def validate(cls, name, fqdn, data):
-        reasons = super(ValuesMixin, cls).validate(name, fqdn, data)
+        reasons = super().validate(name, fqdn, data)
 
         values = data.get('values', data.get('value', []))
 
@@ -338,7 +338,7 @@ class ValuesMixin(object):
         return reasons
 
     def __init__(self, zone, name, data, source=None):
-        super(ValuesMixin, self).__init__(zone, name, data, source=source)
+        super().__init__(zone, name, data, source=source)
         try:
             values = data['values']
         except KeyError:
@@ -348,10 +348,10 @@ class ValuesMixin(object):
     def changes(self, other, target):
         if self.values != other.values:
             return Update(self, other)
-        return super(ValuesMixin, self).changes(other, target)
+        return super().changes(other, target)
 
     def _data(self):
-        ret = super(ValuesMixin, self)._data()
+        ret = super()._data()
         if len(self.values) > 1:
             values = [getattr(v, 'data', v) for v in self.values if v]
             if len(values) > 1:
@@ -380,7 +380,7 @@ class _GeoMixin(ValuesMixin):
 
     @classmethod
     def validate(cls, name, fqdn, data):
-        reasons = super(_GeoMixin, cls).validate(name, fqdn, data)
+        reasons = super().validate(name, fqdn, data)
         try:
             geo = dict(data['geo'])
             for code, values in geo.items():
@@ -391,7 +391,7 @@ class _GeoMixin(ValuesMixin):
         return reasons
 
     def __init__(self, zone, name, data, *args, **kwargs):
-        super(_GeoMixin, self).__init__(zone, name, data, *args, **kwargs)
+        super().__init__(zone, name, data, *args, **kwargs)
         try:
             self.geo = dict(data['geo'])
         except KeyError:
@@ -400,7 +400,7 @@ class _GeoMixin(ValuesMixin):
             self.geo[code] = GeoValue(code, values)
 
     def _data(self):
-        ret = super(_GeoMixin, self)._data()
+        ret = super()._data()
         if self.geo:
             geo = {}
             for code, value in self.geo.items():
@@ -412,7 +412,7 @@ class _GeoMixin(ValuesMixin):
         if target.SUPPORTS_GEO:
             if self.geo != other.geo:
                 return Update(self, other)
-        return super(_GeoMixin, self).changes(other, target)
+        return super().changes(other, target)
 
     def __repr__(self):
         if self.geo:
@@ -421,29 +421,29 @@ class _GeoMixin(ValuesMixin):
                 f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, '
                 f'{self.values}, {self.geo}>'
             )
-        return super(_GeoMixin, self).__repr__()
+        return super().__repr__()
 
 
 class ValueMixin(object):
     @classmethod
     def validate(cls, name, fqdn, data):
-        reasons = super(ValueMixin, cls).validate(name, fqdn, data)
+        reasons = super().validate(name, fqdn, data)
         reasons.extend(
             cls._value_type.validate(data.get('value', None), cls._type)
         )
         return reasons
 
     def __init__(self, zone, name, data, source=None):
-        super(ValueMixin, self).__init__(zone, name, data, source=source)
+        super().__init__(zone, name, data, source=source)
         self.value = self._value_type.process(data['value'])
 
     def changes(self, other, target):
         if self.value != other.value:
             return Update(self, other)
-        return super(ValueMixin, self).changes(other, target)
+        return super().changes(other, target)
 
     def _data(self):
-        ret = super(ValueMixin, self)._data()
+        ret = super()._data()
         if self.value:
             ret['value'] = getattr(self.value, 'data', self.value)
         return ret
@@ -565,7 +565,7 @@ class _DynamicMixin(object):
 
     @classmethod
     def validate(cls, name, fqdn, data):
-        reasons = super(_DynamicMixin, cls).validate(name, fqdn, data)
+        reasons = super().validate(name, fqdn, data)
 
         if 'dynamic' not in data:
             return reasons
@@ -724,7 +724,7 @@ class _DynamicMixin(object):
         return reasons
 
     def __init__(self, zone, name, data, *args, **kwargs):
-        super(_DynamicMixin, self).__init__(zone, name, data, *args, **kwargs)
+        super().__init__(zone, name, data, *args, **kwargs)
 
         self.dynamic = {}
 
@@ -754,7 +754,7 @@ class _DynamicMixin(object):
         self.dynamic = _Dynamic(pools, parsed)
 
     def _data(self):
-        ret = super(_DynamicMixin, self)._data()
+        ret = super()._data()
         if self.dynamic:
             ret['dynamic'] = self.dynamic._data()
         return ret
@@ -763,7 +763,7 @@ class _DynamicMixin(object):
         if target.SUPPORTS_DYNAMIC:
             if self.dynamic != other.dynamic:
                 return Update(self, other)
-        return super(_DynamicMixin, self).changes(other, target)
+        return super().changes(other, target)
 
     def __repr__(self):
         # TODO: improve this whole thing, we need multi-line...
@@ -781,7 +781,7 @@ class _DynamicMixin(object):
                 f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, '
                 f'{values}, {self.dynamic}>'
             )
-        return super(_DynamicMixin, self).__repr__()
+        return super().__repr__()
 
 
 class _IpList(object):
@@ -885,7 +885,7 @@ class AliasRecord(ValueMixin, Record):
         reasons = []
         if name != '':
             reasons.append('non-root ALIAS not allowed')
-        reasons.extend(super(AliasRecord, cls).validate(name, fqdn, data))
+        reasons.extend(super().validate(name, fqdn, data))
         return reasons
 
 
@@ -951,7 +951,7 @@ class CnameRecord(_DynamicMixin, ValueMixin, Record):
         reasons = []
         if name == '':
             reasons.append('root CNAME not allowed')
-        reasons.extend(super(CnameRecord, cls).validate(name, fqdn, data))
+        reasons.extend(super().validate(name, fqdn, data))
         return reasons
 
 
@@ -1352,7 +1352,7 @@ class PtrValue(_TargetValue):
             reasons.append('missing values')
 
         for value in values:
-            reasons.extend(super(PtrValue, cls).validate(value, _type))
+            reasons.extend(super().validate(value, _type))
 
         return reasons
 
@@ -1578,7 +1578,7 @@ class SrvRecord(ValuesMixin, Record):
         reasons = []
         if not cls._name_re.match(name):
             reasons.append('invalid name for SRV record')
-        reasons.extend(super(SrvRecord, cls).validate(name, fqdn, data))
+        reasons.extend(super().validate(name, fqdn, data))
         return reasons
 
 

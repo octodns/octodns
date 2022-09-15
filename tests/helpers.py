@@ -95,7 +95,7 @@ class TemporaryDirectory(object):
 
 class WantsConfigProcessor(BaseProcessor):
     def __init__(self, name, some_config):
-        super(WantsConfigProcessor, self).__init__(name)
+        super().__init__(name)
 
 
 class PlannableProvider(BaseProvider):
@@ -106,7 +106,7 @@ class PlannableProvider(BaseProvider):
     SUPPORTS = set(('A', 'AAAA', 'TXT'))
 
     def __init__(self, *args, **kwargs):
-        super(PlannableProvider, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def populate(self, zone, source=False, target=False, lenient=False):
         pass
