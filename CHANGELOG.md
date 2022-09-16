@@ -30,6 +30,8 @@
 * Add TtlRestrictionFilter processor for adding ttl restriction/checking
 * NameAllowlistFilter & NameRejectlistFilter implementations to support
   filtering on record names to include/exclude records from management.
+* ALIAS should not be allowed to coexist with other records, same as CNAME,
+  fix/improve error messages when there are problems with them
 
 ## v0.9.19 - 2022-08-14 - Subzone handling
 

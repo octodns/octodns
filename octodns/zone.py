@@ -99,17 +99,23 @@ class Zone(object):
             raise DuplicateRecordException(
                 f'Duplicate record {record.fqdn}, ' f'type {record._type}'
             )
-        elif not lenient and (
-            (record._type == 'CNAME' and len(node) > 0)
-            or ('CNAME' in [r._type for r in node])
-        ):
-            # We're adding a CNAME to existing records or adding to an existing
-            # CNAME
-            raise InvalidNodeException(
-                'Invalid state, CNAME at '
-                f'{record.fqdn} cannot coexist with '
-                'other records'
-            )
+        elif not lenient:
+            node_types = set([r._type for r in node])
+            if record._type in ('ALIAS', 'CNAME') and len(node) > 0:
+                # this is an ALIAS/CNAME and there's already other records
+                raise InvalidNodeException(
+                    f'Invalid state, {record._type} at {record.fqdn} cannot coexist with other records'
+                )
+            elif 'ALIAS' in node_types:
+                # there's already an ALIAS
+                raise InvalidNodeException(
+                    f'Invalid state, {record._type} at {record.fqdn} cannot coexist with an ALIAS'
+                )
+            elif 'CNAME' in node_types:
+                # there's already a CNAME
+                raise InvalidNodeException(
+                    f'Invalid state, {record._type} at {record.fqdn} cannot coexist with a CNAME'
+                )
 
         if record._type == 'NS' and record.name == '':
             self._root_ns = record

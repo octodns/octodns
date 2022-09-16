@@ -273,6 +273,38 @@ class TestZone(TestCase):
         self.assertTrue(zone_missing.changes(zone_normal, provider))
         self.assertFalse(zone_missing.changes(zone_ignored, provider))
 
+    def test_alias_coexisting(self):
+        zone = Zone('unit.tests.', [])
+        a = Record.new(zone, '', {'ttl': 60, 'type': 'A', 'value': '9.9.9.9'})
+        alias = Record.new(
+            zone, '', {'ttl': 60, 'type': 'ALIAS', 'value': 'foo.bar.com.'}
+        )
+
+        # add alias to a
+        zone.add_record(a)
+        with self.assertRaises(InvalidNodeException) as ctx:
+            zone.add_record(alias)
+        self.assertEqual(
+            'Invalid state, ALIAS at unit.tests. cannot coexist with other records',
+            str(ctx.exception),
+        )
+        self.assertEqual(set([a]), zone.records)
+        zone.add_record(alias, lenient=True)
+        self.assertEqual(set([a, alias]), zone.records)
+
+        # add a to alias
+        zone = Zone('unit.tests.', [])
+        zone.add_record(alias)
+        with self.assertRaises(InvalidNodeException) as ctx:
+            zone.add_record(a)
+        self.assertEqual(
+            'Invalid state, A at unit.tests. cannot coexist with an ALIAS',
+            str(ctx.exception),
+        )
+        self.assertEqual(set([alias]), zone.records)
+        zone.add_record(a, lenient=True)
+        self.assertEqual(set([a, alias]), zone.records)
+
     def test_cname_coexisting(self):
         zone = Zone('unit.tests.', [])
         a = Record.new(
@@ -284,8 +316,12 @@ class TestZone(TestCase):
 
         # add cname to a
         zone.add_record(a)
-        with self.assertRaises(InvalidNodeException):
+        with self.assertRaises(InvalidNodeException) as ctx:
             zone.add_record(cname)
+        self.assertEqual(
+            'Invalid state, CNAME at www.unit.tests. cannot coexist with other records',
+            str(ctx.exception),
+        )
         self.assertEqual(set([a]), zone.records)
         zone.add_record(cname, lenient=True)
         self.assertEqual(set([a, cname]), zone.records)
@@ -293,8 +329,12 @@ class TestZone(TestCase):
         # add a to cname
         zone = Zone('unit.tests.', [])
         zone.add_record(cname)
-        with self.assertRaises(InvalidNodeException):
+        with self.assertRaises(InvalidNodeException) as ctx:
             zone.add_record(a)
+        self.assertEqual(
+            'Invalid state, A at www.unit.tests. cannot coexist with a CNAME',
+            str(ctx.exception),
+        )
         self.assertEqual(set([cname]), zone.records)
         zone.add_record(a, lenient=True)
         self.assertEqual(set([a, cname]), zone.records)
