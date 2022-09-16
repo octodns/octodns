@@ -41,7 +41,8 @@ class Zone(object):
         self._root_ns = None
         # optional leading . to match empty hostname
         # optional trailing . b/c some sources don't have it on their fqdn
-        self._name_re = re.compile(fr'\.?{name}?$')
+        self._utf8_name_re = re.compile(fr'\.?{idna_decode(name)}?$')
+        self._idna_name_re = re.compile(fr'\.?{self.name}?$')
 
         # Copy-on-write semantics support, when `not None` this property will
         # point to a location with records for this `Zone`. Once `hydrated`
@@ -63,7 +64,13 @@ class Zone(object):
         return self._root_ns
 
     def hostname_from_fqdn(self, fqdn):
-        return self._name_re.sub('', fqdn)
+        try:
+            fqdn.encode('ascii')
+            # it's non-idna or idna encoded
+            return self._idna_name_re.sub('', idna_encode(fqdn))
+        except UnicodeEncodeError:
+            # it has utf8 chars
+            return self._utf8_name_re.sub('', fqdn)
 
     def add_record(self, record, replace=False, lenient=False):
         if self._origin:
