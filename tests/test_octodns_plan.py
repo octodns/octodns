@@ -2,13 +2,6 @@
 #
 #
 
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
-
 from io import StringIO
 from logging import getLogger
 from unittest import TestCase

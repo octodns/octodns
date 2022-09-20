@@ -3,13 +3,6 @@
 octoDNS Versions
 '''
 
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
-
 from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
 
