@@ -3,13 +3,6 @@
 Octo-DNS Reporter
 '''
 
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
-
 from concurrent.futures import ThreadPoolExecutor
 from dns.exception import Timeout
 from dns.resolver import NXDOMAIN, NoAnswer, NoNameservers, Resolver, query

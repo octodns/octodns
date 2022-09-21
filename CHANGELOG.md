@@ -1,4 +1,4 @@
-## v0.9.19 - 2022-??-?? - ???
+## v0.9.20 - 2022-??-?? - ???
 
 #### Noteworthy changes
 
@@ -32,8 +32,10 @@
 * Add TtlRestrictionFilter processor for adding ttl restriction/checking
 * NameAllowlistFilter & NameRejectlistFilter implementations to support
   filtering on record names to include/exclude records from management.
+* All Record values are now first class objects. This shouldn't be an externally
+  visible change, but will enable future improvements.
 
-## v0.9.18 - 2022-08-14 - Subzone handling
+## v0.9.19 - 2022-08-14 - Subzone handling
 
 * Fixed issue with sub-zone handling introduced in 0.9.18
 

@@ -2,13 +2,6 @@
 #
 #
 
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
-
 from ipaddress import IPv4Address as _IPv4Address, IPv6Address as _IPv6Address
 from logging import getLogger
 import re

@@ -2,13 +2,6 @@
 #
 #
 
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
-
 from argparse import ArgumentParser as _Base
 from logging import DEBUG, INFO, WARN, Formatter, StreamHandler, getLogger
 from logging.handlers import SysLogHandler
