@@ -2,17 +2,11 @@
 #
 #
 
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
-
 from collections import defaultdict
 from logging import getLogger
 import re
 
+from .idna import idna_decode, idna_encode
 from .record import Create, Delete
 
 
@@ -34,11 +28,15 @@ class Zone(object):
     def __init__(self, name, sub_zones):
         if not name[-1] == '.':
             raise Exception(f'Invalid zone name {name}, missing ending dot')
-        # Force everything to lowercase just to be safe
-        self.name = str(name).lower() if name else name
+        # internally everything is idna
+        self.name = idna_encode(str(name)) if name else name
+        # we'll keep a decoded version around for logs and errors
+        self.decoded_name = idna_decode(self.name)
         self.sub_zones = sub_zones
         # We're grouping by node, it allows us to efficiently search for
-        # duplicates and detect when CNAMEs co-exist with other records
+        # duplicates and detect when CNAMEs co-exist with other records. Also
+        # node that we always store things with Record.name which will be idna
+        # encoded thus we don't have to deal with idna/utf8 collisions
         self._records = defaultdict(set)
         self._root_ns = None
         # optional leading . to match empty hostname
@@ -283,4 +281,4 @@ class Zone(object):
         return copy
 
     def __repr__(self):
-        return f'Zone<{self.name}>'
+        return f'Zone<{self.decoded_name}>'

@@ -2,13 +2,6 @@
 #
 #
 
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
-
 from natsort import natsort_keygen
 from yaml import SafeDumper, SafeLoader, load, dump
 from yaml.representer import SafeRepresenter

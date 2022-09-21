@@ -2,13 +2,6 @@
 #
 #
 
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
-
 from shutil import rmtree
 from tempfile import mkdtemp
 from logging import getLogger
@@ -131,3 +124,13 @@ class TestYamlProvider(YamlProvider):
 
 class TestBaseProcessor(BaseProcessor):
     pass
+
+
+class CountingProcessor(BaseProcessor):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.count = 0
+
+    def process_source_zone(self, zone, *args, **kwargs):
+        self.count += len(zone.records)
+        return zone

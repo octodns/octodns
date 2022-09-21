@@ -2,13 +2,6 @@
 #
 #
 
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
-
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
@@ -17,6 +10,7 @@ from sys import stdout
 import logging
 
 from . import __VERSION__
+from .idna import IdnaDict, idna_decode, idna_encode
 from .provider.base import BaseProvider
 from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
@@ -111,30 +105,79 @@ class Manager(object):
             '__init__: config_file=%s (octoDNS %s)', config_file, version
         )
 
+        self._configured_sub_zones = None
+
         # Read our config file
         with open(config_file, 'r') as fh:
             self.config = safe_load(fh, enforce_order=False)
 
+        zones = self.config['zones']
+        self.config['zones'] = self._config_zones(zones)
+
         manager_config = self.config.get('manager', {})
+        self._executor = self._config_executor(manager_config, max_workers)
+        self.include_meta = self._config_include_meta(
+            manager_config, include_meta
+        )
+
+        self.global_processors = manager_config.get('processors', [])
+        self.log.info('__init__: global_processors=%s', self.global_processors)
+
+        providers_config = self.config['providers']
+        self.providers = self._config_providers(providers_config)
+
+        processors_config = self.config.get('processors', {})
+        self.processors = self._config_processors(processors_config)
+
+        plan_outputs_config = manager_config.get(
+            'plan_outputs',
+            {
+                '_logger': {
+                    'class': 'octodns.provider.plan.PlanLogger',
+                    'level': 'info',
+                }
+            },
+        )
+        self.plan_outputs = self._config_plan_outputs(plan_outputs_config)
+
+    def _config_zones(self, zones):
+        # record the set of configured zones we have as they are
+        configured_zones = set([z.lower() for z in zones.keys()])
+        # walk the configured zones
+        for name in configured_zones:
+            if 'xn--' not in name:
+                continue
+            # this is an IDNA format zone name
+            decoded = idna_decode(name)
+            # do we also have a config for its utf-8
+            if decoded in configured_zones:
+                raise ManagerException(
+                    f'"{decoded}" configured both in utf-8 and idna "{name}"'
+                )
+
+        # convert the zones portion of things into an IdnaDict
+        return IdnaDict(zones)
+
+    def _config_executor(self, manager_config, max_workers=None):
         max_workers = (
             manager_config.get('max_workers', 1)
             if max_workers is None
             else max_workers
         )
-        self.log.info('__init__:   max_workers=%d', max_workers)
+        self.log.info('_config_executor: max_workers=%d', max_workers)
         if max_workers > 1:
-            self._executor = ThreadPoolExecutor(max_workers=max_workers)
-        else:
-            self._executor = MainThreadExecutor()
+            return ThreadPoolExecutor(max_workers=max_workers)
+        return MainThreadExecutor()
 
-        self.include_meta = include_meta or manager_config.get(
-            'include_meta', False
-        )
-        self.log.info('__init__:   include_meta=%s', self.include_meta)
+    def _config_include_meta(self, manager_config, include_meta=False):
+        include_meta = include_meta or manager_config.get('include_meta', False)
+        self.log.info('_config_include_meta: include_meta=%s', include_meta)
+        return include_meta
 
-        self.log.debug('__init__:   configuring providers')
-        self.providers = {}
-        for provider_name, provider_config in self.config['providers'].items():
+    def _config_providers(self, providers_config):
+        self.log.debug('_config_providers: configuring providers')
+        providers = {}
+        for provider_name, provider_config in providers_config.items():
             # Get our class and remove it from the provider_config
             try:
                 _class = provider_config.pop('class')
@@ -146,7 +189,7 @@ class Manager(object):
             _class, module, version = self._get_named_class('provider', _class)
             kwargs = self._build_kwargs(provider_config)
             try:
-                self.providers[provider_name] = _class(provider_name, **kwargs)
+                providers[provider_name] = _class(provider_name, **kwargs)
                 self.log.info(
                     '__init__: provider=%s (%s %s)',
                     provider_name,
@@ -159,10 +202,11 @@ class Manager(object):
                     'Incorrect provider config for ' + provider_name
                 )
 
-        self.processors = {}
-        for processor_name, processor_config in self.config.get(
-            'processors', {}
-        ).items():
+        return providers
+
+    def _config_processors(self, processors_config):
+        processors = {}
+        for processor_name, processor_config in processors_config.items():
             try:
                 _class = processor_config.pop('class')
             except KeyError:
@@ -173,9 +217,7 @@ class Manager(object):
             _class, module, version = self._get_named_class('processor', _class)
             kwargs = self._build_kwargs(processor_config)
             try:
-                self.processors[processor_name] = _class(
-                    processor_name, **kwargs
-                )
+                processors[processor_name] = _class(processor_name, **kwargs)
                 self.log.info(
                     '__init__: processor=%s (%s %s)',
                     processor_name,
@@ -187,18 +229,11 @@ class Manager(object):
                 raise ManagerException(
                     'Incorrect processor config for ' + processor_name
                 )
+        return processors
 
-        self.plan_outputs = {}
-        plan_outputs = manager_config.get(
-            'plan_outputs',
-            {
-                '_logger': {
-                    'class': 'octodns.provider.plan.PlanLogger',
-                    'level': 'info',
-                }
-            },
-        )
-        for plan_output_name, plan_output_config in plan_outputs.items():
+    def _config_plan_outputs(self, plan_outputs_config):
+        plan_outputs = {}
+        for plan_output_name, plan_output_config in plan_outputs_config.items():
             try:
                 _class = plan_output_config.pop('class')
             except KeyError:
@@ -211,7 +246,7 @@ class Manager(object):
             )
             kwargs = self._build_kwargs(plan_output_config)
             try:
-                self.plan_outputs[plan_output_name] = _class(
+                plan_outputs[plan_output_name] = _class(
                     plan_output_name, **kwargs
                 )
                 # Don't print out version info for the default output
@@ -227,8 +262,7 @@ class Manager(object):
                 raise ManagerException(
                     'Incorrect plan_output config for ' + plan_output_name
                 )
-
-        self._configured_sub_zones = None
+        return plan_outputs
 
     def _try_version(self, module_name, module=None, version=None):
         try:
@@ -300,10 +334,21 @@ class Manager(object):
         return kwargs
 
     def configured_sub_zones(self, zone_name):
+        '''
+        Accepts either UTF-8 or IDNA encoded zone name and returns the list of
+        any configured sub-zones in IDNA form. E.g. for the following
+        configured zones:
+          some.com.
+          other.some.com.
+          deep.thing.some.com.
+        It would return
+          other
+          deep.thing
+        '''
         if self._configured_sub_zones is None:
             # First time through we compute all the sub-zones
 
-            configured_sub_zones = {}
+            configured_sub_zones = IdnaDict()
 
             # Get a list of all of our zone names. Sort them from shortest to
             # longest so that parents will always come before their subzones
@@ -341,10 +386,12 @@ class Manager(object):
         lenient=False,
     ):
 
-        self.log.debug(
-            'sync:   populating, zone=%s, lenient=%s', zone_name, lenient
-        )
         zone = Zone(zone_name, sub_zones=self.configured_sub_zones(zone_name))
+        self.log.debug(
+            'sync:   populating, zone=%s, lenient=%s',
+            zone.decoded_name,
+            lenient,
+        )
 
         if desired:
             # This is an alias zone, rather than populate it we'll copy the
@@ -368,7 +415,7 @@ class Manager(object):
         for processor in processors:
             zone = processor.process_source_zone(zone, sources=sources)
 
-        self.log.debug('sync:   planning, zone=%s', zone_name)
+        self.log.debug('sync:   planning, zone=%s', zone.decoded_name)
         plans = []
 
         for target in targets:
@@ -424,40 +471,29 @@ class Manager(object):
             getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__),
         )
 
-        zones = self.config['zones'].items()
+        zones = self.config['zones']
         if eligible_zones:
-            zones = [z for z in zones if z[0] in eligible_zones]
+            zones = IdnaDict({n: zones.get(n) for n in eligible_zones})
 
         aliased_zones = {}
         futures = []
-        for zone_name, config in zones:
-            self.log.info('sync:   zone=%s', zone_name)
+        for zone_name, config in zones.items():
+            decoded_zone_name = idna_decode(zone_name)
+            self.log.info('sync:   zone=%s', decoded_zone_name)
             if 'alias' in config:
                 source_zone = config['alias']
 
                 # Check that the source zone is defined.
                 if source_zone not in self.config['zones']:
-                    self.log.error(
-                        f'Invalid alias zone {zone_name}, '
-                        f'target {source_zone} does not exist'
-                    )
-                    raise ManagerException(
-                        f'Invalid alias zone {zone_name}: '
-                        f'source zone {source_zone} does '
-                        'not exist'
-                    )
+                    msg = f'Invalid alias zone {decoded_zone_name}: source zone {idna_decode(source_zone)} does not exist'
+                    self.log.error(msg)
+                    raise ManagerException(msg)
 
                 # Check that the source zone is not an alias zone itself.
                 if 'alias' in self.config['zones'][source_zone]:
-                    self.log.error(
-                        f'Invalid alias zone {zone_name}, '
-                        f'target {source_zone} is an alias zone'
-                    )
-                    raise ManagerException(
-                        f'Invalid alias zone {zone_name}: '
-                        f'source zone {source_zone} is an '
-                        'alias zone'
-                    )
+                    msg = f'Invalid alias zone {decoded_zone_name}: source zone {idna_decode(source_zone)} is an alias zone'
+                    self.log.error(msg)
+                    raise ManagerException(msg)
 
                 aliased_zones[zone_name] = source_zone
                 continue
@@ -466,12 +502,16 @@ class Manager(object):
             try:
                 sources = config['sources']
             except KeyError:
-                raise ManagerException(f'Zone {zone_name} is missing sources')
+                raise ManagerException(
+                    f'Zone {decoded_zone_name} is missing sources'
+                )
 
             try:
                 targets = config['targets']
             except KeyError:
-                raise ManagerException(f'Zone {zone_name} is missing targets')
+                raise ManagerException(
+                    f'Zone {decoded_zone_name} is missing targets'
+                )
 
             processors = config.get('processors', [])
 
@@ -495,12 +535,13 @@ class Manager(object):
 
             try:
                 collected = []
-                for processor in processors:
+                for processor in self.global_processors + processors:
                     collected.append(self.processors[processor])
                 processors = collected
             except KeyError:
                 raise ManagerException(
-                    f'Zone {zone_name}, unknown ' f'processor: {processor}'
+                    f'Zone {decoded_zone_name}, unknown '
+                    f'processor: {processor}'
                 )
 
             try:
@@ -513,7 +554,7 @@ class Manager(object):
                 sources = collected
             except KeyError:
                 raise ManagerException(
-                    f'Zone {zone_name}, unknown ' f'source: {source}'
+                    f'Zone {decoded_zone_name}, unknown ' f'source: {source}'
                 )
 
             try:
@@ -528,7 +569,7 @@ class Manager(object):
                 targets = trgs
             except KeyError:
                 raise ManagerException(
-                    f'Zone {zone_name}, unknown ' f'target: {target}'
+                    f'Zone {decoded_zone_name}, unknown ' f'target: {target}'
                 )
 
             futures.append(
@@ -560,7 +601,7 @@ class Manager(object):
                 desired_config = desired[zone_source]
             except KeyError:
                 raise ManagerException(
-                    f'Zone {zone_name} cannot be sync '
+                    f'Zone {idna_decode(zone_name)} cannot be synced '
                     f'without zone {zone_source} sinced '
                     'it is aliased'
                 )
@@ -602,7 +643,7 @@ class Manager(object):
         self.log.debug('sync:   applying')
         zones = self.config['zones']
         for target, plan in plans:
-            zone_name = plan.existing.name
+            zone_name = plan.existing.decoded_name
             if zones[zone_name].get('always-dry-run', False):
                 self.log.info(
                     'sync: zone=%s skipping always-dry-run', zone_name
@@ -718,7 +759,9 @@ class Manager(object):
         target.apply(plan)
 
     def validate_configs(self):
+        # TODO: this code can probably be shared with stuff in sync
         for zone_name, config in self.config['zones'].items():
+            decoded_zone_name = idna_decode(zone_name)
             zone = Zone(zone_name, self.configured_sub_zones(zone_name))
 
             source_zone = config.get('alias')
@@ -726,7 +769,7 @@ class Manager(object):
                 if source_zone not in self.config['zones']:
                     self.log.exception('Invalid alias zone')
                     raise ManagerException(
-                        f'Invalid alias zone {zone_name}: '
+                        f'Invalid alias zone {decoded_zone_name}: '
                         f'source zone {source_zone} does '
                         'not exist'
                     )
@@ -734,7 +777,7 @@ class Manager(object):
                 if 'alias' in self.config['zones'][source_zone]:
                     self.log.exception('Invalid alias zone')
                     raise ManagerException(
-                        f'Invalid alias zone {zone_name}: '
+                        f'Invalid alias zone {decoded_zone_name}: '
                         'source zone {source_zone} is an '
                         'alias zone'
                     )
@@ -748,7 +791,9 @@ class Manager(object):
             try:
                 sources = config['sources']
             except KeyError:
-                raise ManagerException(f'Zone {zone_name} is missing sources')
+                raise ManagerException(
+                    f'Zone {decoded_zone_name} is missing sources'
+                )
 
             try:
                 # rather than using a list comprehension, we break this
@@ -760,7 +805,7 @@ class Manager(object):
                 sources = collected
             except KeyError:
                 raise ManagerException(
-                    f'Zone {zone_name}, unknown source: ' + source
+                    f'Zone {decoded_zone_name}, unknown source: ' + source
                 )
 
             for source in sources:
@@ -775,17 +820,20 @@ class Manager(object):
                     collected.append(self.processors[processor])
             except KeyError:
                 raise ManagerException(
-                    f'Zone {zone_name}, unknown ' f'processor: {processor}'
+                    f'Zone {decoded_zone_name}, unknown '
+                    f'processor: {processor}'
                 )
 
     def get_zone(self, zone_name):
         if not zone_name[-1] == '.':
             raise ManagerException(
-                f'Invalid zone name {zone_name}, missing ending dot'
+                f'Invalid zone name {idna_decode(zone_name)}, missing ending dot'
             )
 
-        for name, config in self.config['zones'].items():
-            if name == zone_name:
-                return Zone(name, self.configured_sub_zones(name))
+        zone = self.config['zones'].get(zone_name)
+        if zone:
+            return Zone(
+                idna_encode(zone_name), self.configured_sub_zones(zone_name)
+            )
 
-        raise ManagerException(f'Unknown zone name {zone_name}')
+        raise ManagerException(f'Unknown zone name {idna_decode(zone_name)}')

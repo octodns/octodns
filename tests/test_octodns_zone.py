@@ -2,15 +2,9 @@
 #
 #
 
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
-
 from unittest import TestCase
 
+from octodns.idna import idna_encode
 from octodns.record import (
     ARecord,
     AaaaRecord,
@@ -35,6 +29,13 @@ class TestZone(TestCase):
         zone = Zone('UniT.TEsTs.', [])
         self.assertEqual('unit.tests.', zone.name)
 
+    def test_utf8(self):
+        utf8 = 'grüßen.de.'
+        encoded = idna_encode(utf8)
+        zone = Zone(utf8, [])
+        self.assertEqual(encoded, zone.name)
+        self.assertEqual(utf8, zone.decoded_name)
+
     def test_hostname_from_fqdn(self):
         zone = Zone('unit.tests.', [])
         for hostname, fqdn in (
@@ -46,6 +47,27 @@ class TestZone(TestCase):
             ('foo.bar', 'foo.bar.unit.tests'),
             ('foo.unit.tests', 'foo.unit.tests.unit.tests.'),
             ('foo.unit.tests', 'foo.unit.tests.unit.tests'),
+            ('déjà', 'déjà.unit.tests'),
+            ('déjà.foo', 'déjà.foo.unit.tests'),
+            ('bar.déjà', 'bar.déjà.unit.tests'),
+            ('bar.déjà.foo', 'bar.déjà.foo.unit.tests'),
+        ):
+            self.assertEqual(hostname, zone.hostname_from_fqdn(fqdn))
+
+        zone = Zone('grüßen.de.', [])
+        for hostname, fqdn in (
+            ('', 'grüßen.de.'),
+            ('', 'grüßen.de'),
+            ('foo', 'foo.grüßen.de.'),
+            ('foo', 'foo.grüßen.de'),
+            ('foo.bar', 'foo.bar.grüßen.de.'),
+            ('foo.bar', 'foo.bar.grüßen.de'),
+            ('foo.grüßen.de', 'foo.grüßen.de.grüßen.de.'),
+            ('foo.grüßen.de', 'foo.grüßen.de.grüßen.de'),
+            ('déjà', 'déjà.grüßen.de'),
+            ('déjà.foo', 'déjà.foo.grüßen.de'),
+            ('bar.déjà', 'bar.déjà.grüßen.de'),
+            ('bar.déjà.foo', 'bar.déjà.foo.grüßen.de'),
         ):
             self.assertEqual(hostname, zone.hostname_from_fqdn(fqdn))
 

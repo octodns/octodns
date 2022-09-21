@@ -1,4 +1,20 @@
-## v0.9.19 - 2022-??-?? - ???
+## v0.9.20 - 2022-??-?? - ???
+
+#### Noteworthy changes
+
+* Added support for automatic handling of IDNA (utf-8) zones. Everything is
+  stored IDNA encoded internally. For ASCII zones that's a noop. For zones with
+  utf-8 chars they will be converted and all internals/providers will see the
+  encoded version and work with it without any knowledge of it having been
+  converted. This means that all providers will automatically support IDNA as of
+  this version. IDNA zones will generally be displayed in the logs in their
+  decoded form. Both forms should be accepted in command line arguments.
+  Providers may need to be updated to display the decoded form in their logs,
+  until then they'd display the IDNA version.
+* Support for configuring global processors that apply to all zones with
+  `manager.processors`
+
+#### Stuff
 
 * Addressed shortcomings with YamlProvider.SUPPORTS in that it didn't include
   dynamically registered types, was a static list that could have drifted over
@@ -11,8 +27,13 @@
 * Now that it's used as it needed to be YamlProvider overrides
   Provider.supports and just always says Yes so that any dynamically registered
   types will be supported.
+* Add TtlRestrictionFilter processor for adding ttl restriction/checking
+* NameAllowlistFilter & NameRejectlistFilter implementations to support
+  filtering on record names to include/exclude records from management.
+* All Record values are now first class objects. This shouldn't be an externally
+  visible change, but will enable future improvements.
 
-## v0.9.18 - 2022-08-14 - Subzone handling
+## v0.9.19 - 2022-08-14 - Subzone handling
 
 * Fixed issue with sub-zone handling introduced in 0.9.18
 

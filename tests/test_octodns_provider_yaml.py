@@ -2,20 +2,15 @@
 #
 #
 
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
-
 from os import makedirs
 from os.path import basename, dirname, isdir, isfile, join
 from unittest import TestCase
 from yaml import safe_load
 from yaml.constructor import ConstructorError
 
+from octodns.idna import idna_encode
 from octodns.record import _NsValue, Create, Record, ValuesMixin
+from octodns.provider import ProviderException
 from octodns.provider.base import Plan
 from octodns.provider.yaml import (
     _list_all_yaml_files,
@@ -171,6 +166,58 @@ class TestYamlProvider(TestCase):
 
                 # make sure nothing is left
                 self.assertEqual([], list(data.keys()))
+
+    def test_idna(self):
+        with TemporaryDirectory() as td:
+            name = 'déjà.vu.'
+            filename = f'{name}yaml'
+
+            provider = YamlProvider('test', td.dirname)
+            zone = Zone(idna_encode(name), [])
+
+            # create a idna named file
+            with open(join(td.dirname, idna_encode(filename)), 'w') as fh:
+                fh.write(
+                    '''---
+'':
+  type: A
+  value: 1.2.3.4
+# something in idna notation
+xn--dj-kia8a:
+  type: A
+  value: 2.3.4.5
+# something with utf-8
+これはテストです:
+  type: A
+  value: 3.4.5.6
+'''
+                )
+
+            # populates fine when there's just the idna version (as a fallback)
+            provider.populate(zone)
+            d = {r.name: r for r in zone.records}
+            self.assertEqual(3, len(d))
+            # verify that we loaded the expected records, including idna/utf-8
+            # named ones
+            self.assertEqual(['1.2.3.4'], d[''].values)
+            self.assertEqual(['2.3.4.5'], d['xn--dj-kia8a'].values)
+            self.assertEqual(['3.4.5.6'], d['xn--28jm5b5a8k5k8cra'].values)
+
+            # create a utf8 named file (provider always writes utf-8 filenames
+            plan = provider.plan(zone)
+            provider.apply(plan)
+
+            with open(join(td.dirname, filename), 'r') as fh:
+                content = fh.read()
+                # verify that the non-ascii records were written out in utf-8
+                self.assertTrue('déjà:' in content)
+                self.assertTrue('これはテストです:' in content)
+
+            # does not allow both idna and utf8 named files
+            with self.assertRaises(ProviderException) as ctx:
+                provider.populate(zone)
+            msg = str(ctx.exception)
+            self.assertTrue('Both UTF-8' in msg)
 
     def test_empty(self):
         source = YamlProvider(

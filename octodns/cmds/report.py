@@ -3,13 +3,6 @@
 Octo-DNS Reporter
 '''
 
-from __future__ import (
-    absolute_import,
-    division,
-    print_function,
-    unicode_literals,
-)
-
 from concurrent.futures import ThreadPoolExecutor
 from dns.exception import Timeout
 from dns.resolver import NXDOMAIN, NoAnswer, NoNameservers, Resolver, query
@@ -93,7 +86,7 @@ def main():
         ]
 
     for record, futures in sorted(queries.items(), key=lambda d: d[0]):
-        stdout.write(record.fqdn)
+        stdout.write(record.decoded_fqdn)
         stdout.write(',')
         stdout.write(record._type)
         stdout.write(',')
