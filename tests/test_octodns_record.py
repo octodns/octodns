@@ -235,10 +235,10 @@ class TestRecord(TestCase):
             '1.2.word.4',
             '1.2.3.4',
         ):
-            self.assertEqual(s, Ipv4Address.parse_rr_text(s))
+            self.assertEqual(s, Ipv4Address.parse_rdata_text(s))
 
         # since we're a noop there's no need/way to check whether validate or
-        # __init__ call parse_rr_text
+        # __init__ call parse_rdata_text
 
         zone = Zone('unit.tests.', [])
         a = ARecord(zone, 'a', {'ttl': 42, 'value': '1.2.3.4'})
@@ -426,10 +426,10 @@ class TestRecord(TestCase):
             '1.2.word.4',
             '1.2.3.4',
         ):
-            self.assertEqual(s, _TargetValue.parse_rr_text(s))
+            self.assertEqual(s, _TargetValue.parse_rdata_text(s))
 
         # since we're a noop there's no need/way to check whether validate or
-        # __init__ call parse_rr_text
+        # __init__ call parse_rdata_text
 
         zone = Zone('unit.tests.', [])
         a = AliasRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
@@ -498,33 +498,33 @@ class TestRecord(TestCase):
     def test_caa_value_rr_text(self):
         # empty string won't parse
         with self.assertRaises(RrParseError):
-            CaaValue.parse_rr_text('')
+            CaaValue.parse_rdata_text('')
 
         # single word won't parse
         with self.assertRaises(RrParseError):
-            CaaValue.parse_rr_text('nope')
+            CaaValue.parse_rdata_text('nope')
 
         # 2nd word won't parse
         with self.assertRaises(RrParseError):
-            CaaValue.parse_rr_text('0 tag')
+            CaaValue.parse_rdata_text('0 tag')
 
         # 4th word won't parse
         with self.assertRaises(RrParseError):
-            CaaValue.parse_rr_text('1 tag value another')
+            CaaValue.parse_rdata_text('1 tag value another')
 
         # flags not an int, will parse
         self.assertEqual(
             {'flags': 'one', 'tag': 'tag', 'value': 'value'},
-            CaaValue.parse_rr_text('one tag value'),
+            CaaValue.parse_rdata_text('one tag value'),
         )
 
         # valid
         self.assertEqual(
             {'flags': 0, 'tag': 'tag', 'value': '99148c81'},
-            CaaValue.parse_rr_text('0 tag 99148c81'),
+            CaaValue.parse_rdata_text('0 tag 99148c81'),
         )
 
-        # make sure that validate is using parse_rr_text when passed string
+        # make sure that validate is using parse_rdata_text when passed string
         # value(s)
         reasons = CaaRecord.validate(
             'caa', 'caa.unit.tests.', {'ttl': 32, 'value': ''}
@@ -539,7 +539,7 @@ class TestRecord(TestCase):
         )
         self.assertFalse(reasons)
 
-        # make sure that the cstor is using parse_rr_text
+        # make sure that the cstor is using parse_rdata_text
         zone = Zone('unit.tests.', [])
         a = CaaRecord(zone, 'caa', {'ttl': 32, 'value': '0 tag 99148c81'})
         self.assertEqual(0, a.values[0].flags)
@@ -667,7 +667,7 @@ class TestRecord(TestCase):
         for i in tuple(range(0, 12)) + (13,):
             s = ''.join(['word'] * i)
             with self.assertRaises(RrParseError):
-                LocValue.parse_rr_text(s)
+                LocValue.parse_rdata_text(s)
 
         # type conversions are best effort
         self.assertEqual(
@@ -685,7 +685,7 @@ class TestRecord(TestCase):
                 'precision_vert': 'nine',
                 'size': 'seven',
             },
-            LocValue.parse_rr_text(
+            LocValue.parse_rdata_text(
                 'zero one two S three four five W six seven eight nine'
             ),
         )
@@ -707,10 +707,10 @@ class TestRecord(TestCase):
                 'precision_vert': 9.9,
                 'size': 7.7,
             },
-            LocValue.parse_rr_text(s),
+            LocValue.parse_rdata_text(s),
         )
 
-        # make sure validate is using parse_rr_text when passed string values
+        # make sure validate is using parse_rdata_text when passed string values
         reasons = LocRecord.validate(
             'loc', 'loc.unit.tests', {'ttl': 42, 'value': ''}
         )
@@ -720,7 +720,7 @@ class TestRecord(TestCase):
         )
         self.assertFalse(reasons)
 
-        # make sure that the cstor is using parse_rr_text
+        # make sure that the cstor is using parse_rdata_text
         zone = Zone('unit.tests.', [])
         a = LocRecord(zone, 'mx', {'ttl': 32, 'value': s})
         self.assertEqual(0, a.values[0].lat_degrees)
@@ -792,29 +792,29 @@ class TestRecord(TestCase):
 
         # empty string won't parse
         with self.assertRaises(RrParseError):
-            MxValue.parse_rr_text('')
+            MxValue.parse_rdata_text('')
 
         # single word won't parse
         with self.assertRaises(RrParseError):
-            MxValue.parse_rr_text('nope')
+            MxValue.parse_rdata_text('nope')
 
         # 3rd word won't parse
         with self.assertRaises(RrParseError):
-            MxValue.parse_rr_text('10 mx.unit.tests. another')
+            MxValue.parse_rdata_text('10 mx.unit.tests. another')
 
         # preference not an int
         self.assertEqual(
             {'preference': 'abc', 'exchange': 'mx.unit.tests.'},
-            MxValue.parse_rr_text('abc mx.unit.tests.'),
+            MxValue.parse_rdata_text('abc mx.unit.tests.'),
         )
 
         # valid
         self.assertEqual(
             {'preference': 10, 'exchange': 'mx.unit.tests.'},
-            MxValue.parse_rr_text('10 mx.unit.tests.'),
+            MxValue.parse_rdata_text('10 mx.unit.tests.'),
         )
 
-        # make sure that validate is using parse_rr_text when passed string
+        # make sure that validate is using parse_rdata_text when passed string
         # value(s)
         reasons = MxRecord.validate(
             'mx', 'mx.unit.tests.', {'ttl': 32, 'value': ''}
@@ -829,7 +829,7 @@ class TestRecord(TestCase):
         )
         self.assertFalse(reasons)
 
-        # make sure that the cstor is using parse_rr_text
+        # make sure that the cstor is using parse_rdata_text
         zone = Zone('unit.tests.', [])
         a = MxRecord(zone, 'mx', {'ttl': 32, 'value': '10 mail.unit.tests.'})
         self.assertEqual(10, a.values[0].preference)
@@ -1152,7 +1152,7 @@ class TestRecord(TestCase):
             'one two three four five six seven',
         ):
             with self.assertRaises(RrParseError):
-                NaptrValue.parse_rr_text(v)
+                NaptrValue.parse_rdata_text(v)
 
         # we don't care if the types of things are correct when parsing rr text
         self.assertEqual(
@@ -1164,7 +1164,7 @@ class TestRecord(TestCase):
                 'regexp': 'five',
                 'replacement': 'six',
             },
-            NaptrValue.parse_rr_text('one two three four five six'),
+            NaptrValue.parse_rdata_text('one two three four five six'),
         )
 
         # order and preference will be converted to int's when possible
@@ -1177,10 +1177,10 @@ class TestRecord(TestCase):
                 'regexp': 'five',
                 'replacement': 'six',
             },
-            NaptrValue.parse_rr_text('1 2 three four five six'),
+            NaptrValue.parse_rdata_text('1 2 three four five six'),
         )
 
-        # make sure that validate is using parse_rr_text when passed string
+        # make sure that validate is using parse_rdata_text when passed string
         # value(s)
         reasons = NaptrRecord.validate(
             'naptr', 'naptr.unit.tests.', {'ttl': 32, 'value': ''}
@@ -1197,7 +1197,7 @@ class TestRecord(TestCase):
         )
         self.assertFalse(reasons)
 
-        # make sure that the cstor is using parse_rr_text
+        # make sure that the cstor is using parse_rdata_text
         zone = Zone('unit.tests.', [])
         s = '1 2 S service regexp replacement'
         a = NaptrRecord(zone, 'naptr', {'ttl': 32, 'value': s})
@@ -1238,10 +1238,10 @@ class TestRecord(TestCase):
             '1.2.word.4',
             '1.2.3.4',
         ):
-            self.assertEqual(s, _NsValue.parse_rr_text(s))
+            self.assertEqual(s, _NsValue.parse_rdata_text(s))
 
         # since we're a noop there's no need/way to check whether validate or
-        # __init__ call parse_rr_text
+        # __init__ call parse_rdata_text
 
         zone = Zone('unit.tests.', [])
         a = NsRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
@@ -1319,15 +1319,15 @@ class TestRecord(TestCase):
 
         # empty string won't parse
         with self.assertRaises(RrParseError):
-            SshfpValue.parse_rr_text('')
+            SshfpValue.parse_rdata_text('')
 
         # single word won't parse
         with self.assertRaises(RrParseError):
-            SshfpValue.parse_rr_text('nope')
+            SshfpValue.parse_rdata_text('nope')
 
         # 3rd word won't parse
         with self.assertRaises(RrParseError):
-            SshfpValue.parse_rr_text('0 1 00479b27 another')
+            SshfpValue.parse_rdata_text('0 1 00479b27 another')
 
         # algorithm and fingerprint_type not ints
         self.assertEqual(
@@ -1336,16 +1336,16 @@ class TestRecord(TestCase):
                 'fingerprint_type': 'two',
                 'fingerprint': '00479b27',
             },
-            SshfpValue.parse_rr_text('one two 00479b27'),
+            SshfpValue.parse_rdata_text('one two 00479b27'),
         )
 
         # valid
         self.assertEqual(
             {'algorithm': 1, 'fingerprint_type': 2, 'fingerprint': '00479b27'},
-            SshfpValue.parse_rr_text('1 2 00479b27'),
+            SshfpValue.parse_rdata_text('1 2 00479b27'),
         )
 
-        # make sure that validate is using parse_rr_text when passed string
+        # make sure that validate is using parse_rdata_text when passed string
         # value(s)
         reasons = SshfpRecord.validate(
             'sshfp', 'sshfp.unit.tests.', {'ttl': 32, 'value': ''}
@@ -1360,7 +1360,7 @@ class TestRecord(TestCase):
         )
         self.assertFalse(reasons)
 
-        # make sure that the cstor is using parse_rr_text
+        # make sure that the cstor is using parse_rdata_text
         zone = Zone('unit.tests.', [])
         a = SshfpRecord(zone, 'sshfp', {'ttl': 32, 'value': '1 2 00479b27'})
         self.assertEqual(1, a.values[0].algorithm)
@@ -1386,10 +1386,10 @@ class TestRecord(TestCase):
             '1.2.word.4',
             '1.2.3.4',
         ):
-            self.assertEqual(s, _ChunkedValue.parse_rr_text(s))
+            self.assertEqual(s, _ChunkedValue.parse_rdata_text(s))
 
         # since we're a noop there's no need/way to check whether validate or
-        # __init__ call parse_rr_text
+        # __init__ call parse_rdata_text
 
         zone = Zone('unit.tests.', [])
         a = SpfRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
@@ -1463,23 +1463,23 @@ class TestRecord(TestCase):
 
         # empty string won't parse
         with self.assertRaises(RrParseError):
-            SrvValue.parse_rr_text('')
+            SrvValue.parse_rdata_text('')
 
         # single word won't parse
         with self.assertRaises(RrParseError):
-            SrvValue.parse_rr_text('nope')
+            SrvValue.parse_rdata_text('nope')
 
         # 2nd word won't parse
         with self.assertRaises(RrParseError):
-            SrvValue.parse_rr_text('1 2')
+            SrvValue.parse_rdata_text('1 2')
 
         # 3rd word won't parse
         with self.assertRaises(RrParseError):
-            SrvValue.parse_rr_text('1 2 3')
+            SrvValue.parse_rdata_text('1 2 3')
 
         # 5th word won't parse
         with self.assertRaises(RrParseError):
-            SrvValue.parse_rr_text('1 2 3 4 5')
+            SrvValue.parse_rdata_text('1 2 3 4 5')
 
         # priority weight and port not ints
         self.assertEqual(
@@ -1489,7 +1489,7 @@ class TestRecord(TestCase):
                 'port': 'three',
                 'target': 'srv.unit.tests.',
             },
-            SrvValue.parse_rr_text('one two three srv.unit.tests.'),
+            SrvValue.parse_rdata_text('one two three srv.unit.tests.'),
         )
 
         # valid
@@ -1500,10 +1500,10 @@ class TestRecord(TestCase):
                 'port': 3,
                 'target': 'srv.unit.tests.',
             },
-            SrvValue.parse_rr_text('1 2 3 srv.unit.tests.'),
+            SrvValue.parse_rdata_text('1 2 3 srv.unit.tests.'),
         )
 
-        # make sure that validate is using parse_rr_text when passed string
+        # make sure that validate is using parse_rdata_text when passed string
         # value(s)
         reasons = SrvRecord.validate(
             '_srv._tcp', '_srv._tcp.unit.tests.', {'ttl': 32, 'value': ''}
@@ -1516,7 +1516,7 @@ class TestRecord(TestCase):
         )
         self.assertFalse(reasons)
 
-        # make sure that the cstor is using parse_rr_text
+        # make sure that the cstor is using parse_rdata_text
         zone = Zone('unit.tests.', [])
         a = SrvRecord(
             zone, '_srv._tcp', {'ttl': 32, 'value': '1 2 3 srv.unit.tests.'}
@@ -1631,23 +1631,23 @@ class TestRecord(TestCase):
 
         # empty string won't parse
         with self.assertRaises(RrParseError):
-            TlsaValue.parse_rr_text('')
+            TlsaValue.parse_rdata_text('')
 
         # single word won't parse
         with self.assertRaises(RrParseError):
-            TlsaValue.parse_rr_text('nope')
+            TlsaValue.parse_rdata_text('nope')
 
         # 2nd word won't parse
         with self.assertRaises(RrParseError):
-            TlsaValue.parse_rr_text('1 2')
+            TlsaValue.parse_rdata_text('1 2')
 
         # 3rd word won't parse
         with self.assertRaises(RrParseError):
-            TlsaValue.parse_rr_text('1 2 3')
+            TlsaValue.parse_rdata_text('1 2 3')
 
         # 5th word won't parse
         with self.assertRaises(RrParseError):
-            TlsaValue.parse_rr_text('1 2 3 abcd another')
+            TlsaValue.parse_rdata_text('1 2 3 abcd another')
 
         # non-ints
         self.assertEqual(
@@ -1657,7 +1657,7 @@ class TestRecord(TestCase):
                 'matching_type': 'three',
                 'certificate_association_data': 'abcd',
             },
-            TlsaValue.parse_rr_text('one two three abcd'),
+            TlsaValue.parse_rdata_text('one two three abcd'),
         )
 
         # valid
@@ -1668,10 +1668,10 @@ class TestRecord(TestCase):
                 'matching_type': 3,
                 'certificate_association_data': 'abcd',
             },
-            TlsaValue.parse_rr_text('1 2 3 abcd'),
+            TlsaValue.parse_rdata_text('1 2 3 abcd'),
         )
 
-        # make sure that validate is using parse_rr_text when passed string
+        # make sure that validate is using parse_rdata_text when passed string
         # value(s)
         reasons = TlsaRecord.validate(
             'tlsa', 'tlsa.unit.tests.', {'ttl': 32, 'value': ''}
@@ -1682,7 +1682,7 @@ class TestRecord(TestCase):
         )
         self.assertFalse(reasons)
 
-        # make sure that the cstor is using parse_rr_text
+        # make sure that the cstor is using parse_rdata_text
         zone = Zone('unit.tests.', [])
         a = TlsaRecord(zone, 'tlsa', {'ttl': 32, 'value': '2 1 0 abcd'})
         self.assertEqual(2, a.values[0].certificate_usage)
