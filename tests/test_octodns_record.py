@@ -221,7 +221,7 @@ class TestRecord(TestCase):
 
             DummyRecord().__repr__()
 
-    def test_ip_address_rr_text(self):
+    def test_ip_address_rdata_text(self):
 
         # anything goes, we're a noop
         for s in (
@@ -242,7 +242,7 @@ class TestRecord(TestCase):
 
         zone = Zone('unit.tests.', [])
         a = ARecord(zone, 'a', {'ttl': 42, 'value': '1.2.3.4'})
-        self.assertEqual('1.2.3.4', a.values[0].rr_text)
+        self.assertEqual('1.2.3.4', a.values[0].rdata_text)
 
     def test_values_mixin_data(self):
         # no values, no value or values in data
@@ -412,7 +412,7 @@ class TestRecord(TestCase):
         # __repr__ doesn't blow up
         a.__repr__()
 
-    def test_target_rr_text(self):
+    def test_target_rdata_text(self):
 
         # anything goes, we're a noop
         for s in (
@@ -433,7 +433,7 @@ class TestRecord(TestCase):
 
         zone = Zone('unit.tests.', [])
         a = AliasRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
-        self.assertEqual('some.target.', a.value.rr_text)
+        self.assertEqual('some.target.', a.value.rdata_text)
 
     def test_caa(self):
         a_values = [
@@ -495,7 +495,7 @@ class TestRecord(TestCase):
         # __repr__ doesn't blow up
         a.__repr__()
 
-    def test_caa_value_rr_text(self):
+    def test_caa_value_rdata_text(self):
         # empty string won't parse
         with self.assertRaises(RrParseError):
             CaaValue.parse_rdata_text('')
@@ -545,7 +545,7 @@ class TestRecord(TestCase):
         self.assertEqual(0, a.values[0].flags)
         self.assertEqual('tag', a.values[0].tag)
         self.assertEqual('99148c81', a.values[0].value)
-        self.assertEqual('0 tag 99148c81', a.values[0].rr_text)
+        self.assertEqual('0 tag 99148c81', a.values[0].rdata_text)
         a = CaaRecord(
             zone,
             'caa',
@@ -554,11 +554,11 @@ class TestRecord(TestCase):
         self.assertEqual(1, a.values[0].flags)
         self.assertEqual('tag1', a.values[0].tag)
         self.assertEqual('99148c81', a.values[0].value)
-        self.assertEqual('1 tag1 99148c81', a.values[0].rr_text)
+        self.assertEqual('1 tag1 99148c81', a.values[0].rdata_text)
         self.assertEqual(2, a.values[1].flags)
         self.assertEqual('tag2', a.values[1].tag)
         self.assertEqual('99148c44', a.values[1].value)
-        self.assertEqual('2 tag2 99148c44', a.values[1].rr_text)
+        self.assertEqual('2 tag2 99148c44', a.values[1].rdata_text)
 
     def test_cname(self):
         self.assertSingleValue(CnameRecord, 'target.foo.com.', 'other.foo.com.')
@@ -662,7 +662,7 @@ class TestRecord(TestCase):
         # __repr__ doesn't blow up
         a.__repr__()
 
-    def test_loc_value_rr_text(self):
+    def test_loc_value_rdata_text(self):
         # only the exact correct number of words is allowed
         for i in tuple(range(0, 12)) + (13,):
             s = ''.join(['word'] * i)
@@ -735,7 +735,7 @@ class TestRecord(TestCase):
         self.assertEqual(7.7, a.values[0].size)
         self.assertEqual(8.8, a.values[0].precision_horz)
         self.assertEqual(9.9, a.values[0].precision_vert)
-        self.assertEqual(s, a.values[0].rr_text)
+        self.assertEqual(s, a.values[0].rdata_text)
 
     def test_mx(self):
         a_values = [
@@ -788,7 +788,7 @@ class TestRecord(TestCase):
         # __repr__ doesn't blow up
         a.__repr__()
 
-    def test_mx_value_rr_text(self):
+    def test_mx_value_rdata_text(self):
 
         # empty string won't parse
         with self.assertRaises(RrParseError):
@@ -834,7 +834,7 @@ class TestRecord(TestCase):
         a = MxRecord(zone, 'mx', {'ttl': 32, 'value': '10 mail.unit.tests.'})
         self.assertEqual(10, a.values[0].preference)
         self.assertEqual('mail.unit.tests.', a.values[0].exchange)
-        self.assertEqual('10 mail.unit.tests.', a.values[0].rr_text)
+        self.assertEqual('10 mail.unit.tests.', a.values[0].rdata_text)
         a = MxRecord(
             zone,
             'mx',
@@ -845,10 +845,10 @@ class TestRecord(TestCase):
         )
         self.assertEqual(11, a.values[0].preference)
         self.assertEqual('mail1.unit.tests.', a.values[0].exchange)
-        self.assertEqual('11 mail1.unit.tests.', a.values[0].rr_text)
+        self.assertEqual('11 mail1.unit.tests.', a.values[0].rdata_text)
         self.assertEqual(12, a.values[1].preference)
         self.assertEqual('mail2.unit.tests.', a.values[1].exchange)
-        self.assertEqual('12 mail2.unit.tests.', a.values[1].rr_text)
+        self.assertEqual('12 mail2.unit.tests.', a.values[1].rdata_text)
 
     def test_naptr(self):
         a_values = [
@@ -1140,7 +1140,7 @@ class TestRecord(TestCase):
         o.replacement = '1'
         self.assertEqual('1', o.replacement)
 
-    def test_naptr_value_rr_text(self):
+    def test_naptr_value_rdata_text(self):
         # things with the wrong number of words won't parse
         for v in (
             '',
@@ -1207,7 +1207,7 @@ class TestRecord(TestCase):
         self.assertEqual('service', a.values[0].service)
         self.assertEqual('regexp', a.values[0].regexp)
         self.assertEqual('replacement', a.values[0].replacement)
-        self.assertEqual(s, a.values[0].rr_text)
+        self.assertEqual(s, a.values[0].rdata_text)
 
     def test_ns(self):
         a_values = ['5.6.7.8.', '6.7.8.9.', '7.8.9.0.']
@@ -1225,7 +1225,7 @@ class TestRecord(TestCase):
         self.assertEqual([b_value], b.values)
         self.assertEqual(b_data, b.data)
 
-    def test_ns_value_rr_text(self):
+    def test_ns_value_rdata_text(self):
         # anything goes, we're a noop
         for s in (
             None,
@@ -1245,7 +1245,7 @@ class TestRecord(TestCase):
 
         zone = Zone('unit.tests.', [])
         a = NsRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
-        self.assertEqual('some.target.', a.values[0].rr_text)
+        self.assertEqual('some.target.', a.values[0].rdata_text)
 
     def test_sshfp(self):
         a_values = [
@@ -1315,7 +1315,7 @@ class TestRecord(TestCase):
         # __repr__ doesn't blow up
         a.__repr__()
 
-    def test_sshfp_value_rr_text(self):
+    def test_sshfp_value_rdata_text(self):
 
         # empty string won't parse
         with self.assertRaises(RrParseError):
@@ -1366,7 +1366,7 @@ class TestRecord(TestCase):
         self.assertEqual(1, a.values[0].algorithm)
         self.assertEqual(2, a.values[0].fingerprint_type)
         self.assertEqual('00479b27', a.values[0].fingerprint)
-        self.assertEqual('1 2 00479b27', a.values[0].rr_text)
+        self.assertEqual('1 2 00479b27', a.values[0].rdata_text)
 
     def test_spf(self):
         a_values = ['spf1 -all', 'spf1 -hrm']
@@ -1374,7 +1374,6 @@ class TestRecord(TestCase):
         self.assertMultipleValues(SpfRecord, a_values, b_value)
 
     def test_chunked_value_rr_text(self):
-        # anything goes, we're a noop
         for s in (
             None,
             '',
@@ -1388,12 +1387,17 @@ class TestRecord(TestCase):
         ):
             self.assertEqual(s, _ChunkedValue.parse_rdata_text(s))
 
-        # since we're a noop there's no need/way to check whether validate or
-        # __init__ call parse_rdata_text
+        # semi-colons are escaped
+        self.assertEqual(
+            'Hello\\; World!', _ChunkedValue.parse_rdata_text('Hello; World!')
+        )
+
+        # since we're always a string validate and __init__ don't
+        # parse_rdata_text
 
         zone = Zone('unit.tests.', [])
         a = SpfRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
-        self.assertEqual('some.target.', a.values[0].rr_text)
+        self.assertEqual('some.target.', a.values[0].rdata_text)
 
     def test_srv(self):
         a_values = [
@@ -1689,7 +1693,7 @@ class TestRecord(TestCase):
         self.assertEqual(1, a.values[0].selector)
         self.assertEqual(0, a.values[0].matching_type)
         self.assertEqual('abcd', a.values[0].certificate_association_data)
-        self.assertEqual('2 1 0 abcd', a.values[0].rr_text)
+        self.assertEqual('2 1 0 abcd', a.values[0].rdata_text)
 
     def test_txt(self):
         a_values = ['a one', 'a two']

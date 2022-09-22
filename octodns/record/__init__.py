@@ -874,7 +874,7 @@ class _TargetValue(str):
         return None
 
     @property
-    def rr_text(self):
+    def rdata_text(self):
         return self
 
 
@@ -927,7 +927,7 @@ class _IpAddress(str):
         return super().__new__(cls, v)
 
     @property
-    def rr_text(self):
+    def rdata_text(self):
         return self
 
 
@@ -1063,7 +1063,7 @@ class CaaValue(EqualityTupleMixin, dict):
         return self
 
     @property
-    def rr_text(self):
+    def rdata_text(self):
         return f'{self.flags} {self.tag} {self.value}'
 
     def _equality_tuple(self):
@@ -1410,7 +1410,7 @@ class LocValue(EqualityTupleMixin, dict):
         return self
 
     @property
-    def rr_text(self):
+    def rdata_text(self):
         return f'{self.lat_degrees} {self.lat_minutes} {self.lat_seconds} {self.lat_direction} {self.long_degrees} {self.long_minutes} {self.long_seconds} {self.long_direction} {self.altitude}m {self.size}m {self.precision_horz}m {self.precision_vert}m'
 
     def __hash__(self):
@@ -1561,7 +1561,7 @@ class MxValue(EqualityTupleMixin, dict):
         return self
 
     @property
-    def rr_text(self):
+    def rdata_text(self):
         return f'{self.preference} {self.exchange}'
 
     def __hash__(self):
@@ -1723,7 +1723,7 @@ class NaptrValue(EqualityTupleMixin, dict):
         return self
 
     @property
-    def rr_text(self):
+    def rdata_text(self):
         return f'{self.order} {self.preference} {self.flags} {self.service} {self.regexp} {self.replacement}'
 
     def __hash__(self):
@@ -1784,7 +1784,7 @@ class _NsValue(str):
         return [cls(v) for v in values]
 
     @property
-    def rr_text(self):
+    def rdata_text(self):
         return self
 
 
@@ -1938,7 +1938,7 @@ class SshfpValue(EqualityTupleMixin, dict):
         return self
 
     @property
-    def rr_text(self):
+    def rdata_text(self):
         return f'{self.algorithm} {self.fingerprint_type} {self.fingerprint}'
 
     def __hash__(self):
@@ -1984,8 +1984,11 @@ class _ChunkedValue(str):
     _unescaped_semicolon_re = re.compile(r'\w;')
 
     @classmethod
-    def parse_rr_text(cls, value):
-        return value
+    def parse_rdata_text(cls, value):
+        try:
+            return value.replace(';', '\\;')
+        except AttributeError:
+            return value
 
     @classmethod
     def validate(cls, data, _type):
@@ -2010,7 +2013,7 @@ class _ChunkedValue(str):
         return ret
 
     @property
-    def rr_text(self):
+    def rdata_text(self):
         return self
 
 
@@ -2309,7 +2312,7 @@ class TlsaValue(EqualityTupleMixin, dict):
         self['certificate_association_data'] = value
 
     @property
-    def rr_text(self):
+    def rdata_text(self):
         return f'{self.certificate_usage} {self.selector} {self.matching_type} {self.certificate_association_data}'
 
     def _equality_tuple(self):
