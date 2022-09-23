@@ -2515,7 +2515,7 @@ class TestRecord(TestCase):
             {'ttl': 42, 'type': 'A', 'values': ['1.2.3.4', '2.3.4.5']},
         )
         self.assertEqual(
-            ('a.unit.tests.', 'A', 42, ['1.2.3.4', '2.3.4.5']), record.rrs
+            ('a.unit.tests.', 42, 'A', ['1.2.3.4', '2.3.4.5']), record.rrs
         )
 
         record = Record.new(
@@ -2524,7 +2524,7 @@ class TestRecord(TestCase):
             {'ttl': 43, 'type': 'CNAME', 'value': 'target.unit.tests.'},
         )
         self.assertEqual(
-            ('cname.unit.tests.', 'CNAME', 43, ['target.unit.tests.']),
+            ('cname.unit.tests.', 43, 'CNAME', ['target.unit.tests.']),
             record.rrs,
         )
 
