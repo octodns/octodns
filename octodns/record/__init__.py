@@ -531,12 +531,12 @@ class ValueMixin(object):
 class _DynamicPool(object):
     log = getLogger('_DynamicPool')
 
-    def __init__(self, _id, data):
+    def __init__(self, _id, data, value_type):
         self._id = _id
 
         values = [
             {
-                'value': d['value'],
+                'value': value_type(d['value']),
                 'weight': d.get('weight', 1),
                 'status': d.get('status', 'obey'),
             }
@@ -813,7 +813,7 @@ class _DynamicMixin(object):
             pools = {}
 
         for _id, pool in sorted(pools.items()):
-            pools[_id] = _DynamicPool(_id, pool)
+            pools[_id] = _DynamicPool(_id, pool, self._value_type)
 
         # rules
         try:
@@ -866,26 +866,28 @@ class _TargetValue(str):
 
     @classmethod
     def validate(cls, data, _type):
-        # no need to call parse_rdata_text since it's a noop
         reasons = []
         if data == '':
             reasons.append('empty value')
         elif not data:
             reasons.append('missing value')
-        # NOTE: FQDN complains if the data it receives isn't a str, it doesn't
-        # allow unicode... This is likely specific to 2.7
-        elif not FQDN(str(data), allow_underscores=True).is_valid:
-            reasons.append(f'{_type} value "{data}" is not a valid FQDN')
-        elif not data.endswith('.'):
-            reasons.append(f'{_type} value "{data}" missing trailing .')
+        else:
+            data = idna_encode(data)
+            if not FQDN(str(data), allow_underscores=True).is_valid:
+                reasons.append(f'{_type} value "{data}" is not a valid FQDN')
+            elif not data.endswith('.'):
+                reasons.append(f'{_type} value "{data}" missing trailing .')
         return reasons
 
     @classmethod
     def process(cls, value):
-        # no need to call parse_rdata_text since it's a noop
         if value:
-            return cls(value.lower())
+            return cls(value)
         return None
+
+    def __new__(cls, v):
+        v = idna_encode(v)
+        return super().__new__(cls, v)
 
     @property
     def rdata_text(self):
@@ -913,7 +915,6 @@ class _IpAddress(str):
             return ['missing value(s)']
         reasons = []
         for value in data:
-            # no need to call parse_rdata_text here as it's a noop
             if value == '':
                 reasons.append('empty value')
             elif value is None:
@@ -936,7 +937,6 @@ class _IpAddress(str):
         return [cls(v) if v != '' else '' for v in values]
 
     def __new__(cls, v):
-        # no need to call parse_rdata_text here as it's a noop
         v = str(cls._address_type(v))
         return super().__new__(cls, v)
 
@@ -1012,14 +1012,6 @@ class CaaValue(EqualityTupleMixin, dict):
             data = (data,)
         reasons = []
         for value in data:
-            if isinstance(value, str):
-                # it's hopefully RR formatted, give parsing a try
-                try:
-                    value = cls.parse_rdata_text(value)
-                except RrParseError as e:
-                    reasons.append(str(e))
-                    # not a dict so no point in continuing
-                    continue
             try:
                 flags = int(value.get('flags', 0))
                 if flags < 0 or flags > 255:
@@ -1038,8 +1030,6 @@ class CaaValue(EqualityTupleMixin, dict):
         return [cls(v) for v in values]
 
     def __init__(self, value):
-        if isinstance(value, str):
-            value = self.parse_rdata_text(value)
         super().__init__(
             {
                 'flags': int(value.get('flags', 0)),
@@ -1224,14 +1214,6 @@ class LocValue(EqualityTupleMixin, dict):
             data = (data,)
         reasons = []
         for value in data:
-            if isinstance(value, str):
-                # it's hopefully RR formatted, give parsing a try
-                try:
-                    value = cls.parse_rdata_text(value)
-                except RrParseError as e:
-                    reasons.append(str(e))
-                    # not a dict so no point in continuing
-                    continue
             for key in int_keys:
                 try:
                     int(value[key])
@@ -1304,8 +1286,6 @@ class LocValue(EqualityTupleMixin, dict):
         return [cls(v) for v in values]
 
     def __init__(self, value):
-        if isinstance(value, str):
-            value = self.parse_rdata_text(value)
         super().__init__(
             {
                 'lat_degrees': int(value['lat_degrees']),
@@ -1499,14 +1479,6 @@ class MxValue(EqualityTupleMixin, dict):
             data = (data,)
         reasons = []
         for value in data:
-            if isinstance(value, str):
-                # it's hopefully RR formatted, give parsing a try
-                try:
-                    value = cls.parse_rdata_text(value)
-                except RrParseError as e:
-                    reasons.append(str(e))
-                    # not a dict so no point in continuing
-                    continue
             try:
                 try:
                     int(value['preference'])
@@ -1518,7 +1490,11 @@ class MxValue(EqualityTupleMixin, dict):
                 reasons.append(f'invalid preference "{value["preference"]}"')
             exchange = None
             try:
-                exchange = str(value.get('exchange', None) or value['value'])
+                exchange = value.get('exchange', None) or value['value']
+                if not exchange:
+                    reasons.append('missing exchange')
+                    continue
+                exchange = idna_encode(exchange)
                 if (
                     exchange != '.'
                     and not FQDN(exchange, allow_underscores=True).is_valid
@@ -1538,8 +1514,6 @@ class MxValue(EqualityTupleMixin, dict):
         return [cls(v) for v in values]
 
     def __init__(self, value):
-        if isinstance(value, str):
-            value = self.parse_rdata_text(value)
         # RFC1035 says preference, half the providers use priority
         try:
             preference = value['preference']
@@ -1551,7 +1525,7 @@ class MxValue(EqualityTupleMixin, dict):
         except KeyError:
             exchange = value['value']
         super().__init__(
-            {'preference': int(preference), 'exchange': exchange.lower()}
+            {'preference': int(preference), 'exchange': idna_encode(exchange)}
         )
 
     @property
@@ -1632,14 +1606,6 @@ class NaptrValue(EqualityTupleMixin, dict):
             data = (data,)
         reasons = []
         for value in data:
-            if isinstance(value, str):
-                # it's hopefully RR formatted, give parsing a try
-                try:
-                    value = cls.parse_rdata_text(value)
-                except RrParseError as e:
-                    reasons.append(str(e))
-                    # not a dict so no point in continuing
-                    continue
             try:
                 int(value['order'])
             except KeyError:
@@ -1671,8 +1637,6 @@ class NaptrValue(EqualityTupleMixin, dict):
         return [cls(v) for v in values]
 
     def __init__(self, value):
-        if isinstance(value, str):
-            value = self.parse_rdata_text(value)
         super().__init__(
             {
                 'order': int(value['order']),
@@ -1784,8 +1748,8 @@ class _NsValue(str):
             data = (data,)
         reasons = []
         for value in data:
-            # no need to consider parse_rdata_text as it's a noop
-            if not FQDN(str(value), allow_underscores=True).is_valid:
+            value = idna_encode(value)
+            if not FQDN(value, allow_underscores=True).is_valid:
                 reasons.append(
                     f'Invalid NS value "{value}" is not a valid FQDN.'
                 )
@@ -1796,6 +1760,10 @@ class _NsValue(str):
     @classmethod
     def process(cls, values):
         return [cls(v) for v in values]
+
+    def __new__(cls, v):
+        v = idna_encode(v)
+        return super().__new__(cls, v)
 
     @property
     def rdata_text(self):
@@ -1876,14 +1844,6 @@ class SshfpValue(EqualityTupleMixin, dict):
             data = (data,)
         reasons = []
         for value in data:
-            if isinstance(value, str):
-                # it's hopefully RR formatted, give parsing a try
-                try:
-                    value = cls.parse_rdata_text(value)
-                except RrParseError as e:
-                    reasons.append(str(e))
-                    # not a dict so no point in continuing
-                    continue
             try:
                 algorithm = int(value['algorithm'])
                 if algorithm not in cls.VALID_ALGORITHMS:
@@ -1913,8 +1873,6 @@ class SshfpValue(EqualityTupleMixin, dict):
         return [cls(v) for v in values]
 
     def __init__(self, value):
-        if isinstance(value, str):
-            value = self.parse_rdata_text(value)
         super().__init__(
             {
                 'algorithm': int(value['algorithm']),
@@ -2012,7 +1970,6 @@ class _ChunkedValue(str):
             data = (data,)
         reasons = []
         for value in data:
-            # no need to try parse_rdata_text here as it's a noop
             if cls._unescaped_semicolon_re.search(value):
                 reasons.append(f'unescaped ; in "{value}"')
         return reasons
@@ -2071,14 +2028,6 @@ class SrvValue(EqualityTupleMixin, dict):
             data = (data,)
         reasons = []
         for value in data:
-            if isinstance(value, str):
-                # it's hopefully RR formatted, give parsing a try
-                try:
-                    value = cls.parse_rdata_text(value)
-                except RrParseError as e:
-                    reasons.append(str(e))
-                    # not a dict so no point in continuing
-                    continue
             # TODO: validate algorithm and fingerprint_type values
             try:
                 int(value['priority'])
@@ -2100,11 +2049,15 @@ class SrvValue(EqualityTupleMixin, dict):
                 reasons.append(f'invalid port "{value["port"]}"')
             try:
                 target = value['target']
+                if not target:
+                    reasons.append('missing target')
+                    continue
+                target = idna_encode(target)
                 if not target.endswith('.'):
                     reasons.append(f'SRV value "{target}" missing trailing .')
                 if (
                     target != '.'
-                    and not FQDN(str(target), allow_underscores=True).is_valid
+                    and not FQDN(target, allow_underscores=True).is_valid
                 ):
                     reasons.append(
                         f'Invalid SRV target "{target}" is not a valid FQDN.'
@@ -2118,14 +2071,12 @@ class SrvValue(EqualityTupleMixin, dict):
         return [cls(v) for v in values]
 
     def __init__(self, value):
-        if isinstance(value, str):
-            value = self.parse_rdata_text(value)
         super().__init__(
             {
                 'priority': int(value['priority']),
                 'weight': int(value['weight']),
                 'port': int(value['port']),
-                'target': value['target'].lower(),
+                'target': idna_encode(value['target']),
             }
         )
 
@@ -2229,14 +2180,6 @@ class TlsaValue(EqualityTupleMixin, dict):
             data = (data,)
         reasons = []
         for value in data:
-            if isinstance(value, str):
-                # it's hopefully RR formatted, give parsing a try
-                try:
-                    value = cls.parse_rdata_text(value)
-                except RrParseError as e:
-                    reasons.append(str(e))
-                    # not a dict so no point in continuing
-                    continue
             try:
                 certificate_usage = int(value.get('certificate_usage', 0))
                 if certificate_usage < 0 or certificate_usage > 3:
@@ -2280,8 +2223,6 @@ class TlsaValue(EqualityTupleMixin, dict):
         return [cls(v) for v in values]
 
     def __init__(self, value):
-        if isinstance(value, str):
-            value = self.parse_rdata_text(value)
         super().__init__(
             {
                 'certificate_usage': int(value.get('certificate_usage', 0)),
