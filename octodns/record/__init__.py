@@ -86,6 +86,12 @@ class ValidationError(RecordException):
 
 
 class Rr(object):
+    '''
+    Simple object intended to be used with Record.from_rrs to allow providers
+    that work with RFC formatted rdata to share centralized parsing/encoding
+    code
+    '''
+
     def __init__(self, name, _type, ttl, rdata):
         self.name = name
         self._type = _type
@@ -185,28 +191,23 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def from_rrs(cls, zone, rrs, lenient=False):
-        from pprint import pprint
-
-        pprint({'zone': zone, 'rrs': rrs, 'lenient': lenient})
-
+        # group records by name & type so that multiple rdatas can be combined
+        # into a single record when needed
         grouped = defaultdict(list)
         for rr in rrs:
             grouped[(rr.name, rr._type)].append(rr)
 
-        pprint({'grouped': grouped})
-
         records = []
+        # walk the grouped rrs converting each one to data and then create a
+        # record with that data
         for _, rrs in sorted(grouped.items()):
             rr = rrs[0]
             name = zone.hostname_from_fqdn(rr.name)
             _class = cls._CLASSES[rr._type]
-            pprint({'rr': rr, 'name': name, 'class': _class})
             data = _class.data_from_rrs(rrs)
-            pprint({'data': data})
             record = Record.new(zone, name, data, lenient=lenient)
             records.append(record)
 
-        pprint({'records': records})
         return records
 
     def __init__(self, zone, name, data, source=None):
@@ -382,11 +383,10 @@ class ValuesMixin(object):
 
     @classmethod
     def data_from_rrs(cls, rrs):
-        values = [cls._value_type.parse_rdata_text(rr.rdata) for rr in rrs]
-        from pprint import pprint
-
-        pprint({'values': values})
+        # type and TTL come from the first rr
         rr = rrs[0]
+        # values come from parsing the rdata portion of all rrs
+        values = [cls._value_type.parse_rdata_text(rr.rdata) for rr in rrs]
         return {'ttl': rr.ttl, 'type': rr._type, 'values': values}
 
     def __init__(self, zone, name, data, source=None):
@@ -487,6 +487,7 @@ class ValueMixin(object):
 
     @classmethod
     def data_from_rrs(cls, rrs):
+        # single value, so single rr only...
         rr = rrs[0]
         return {
             'ttl': rr.ttl,

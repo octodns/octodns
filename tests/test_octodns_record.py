@@ -27,6 +27,7 @@ from octodns.record import (
     PtrRecord,
     Record,
     RecordException,
+    Rr,
     RrParseError,
     SshfpRecord,
     SshfpValue,
@@ -2502,6 +2503,10 @@ class TestRecord(TestCase):
         self.assertFalse(b in values)
         values.add(b)
         self.assertTrue(b in values)
+
+    def test_rr(self):
+        # nothing much to test, just make sure that things don't blow up
+        Rr('name', 'type', 42, 'Hello World!').__repr__()
 
 
 class TestRecordValidation(TestCase):
