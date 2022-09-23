@@ -8,7 +8,7 @@ If you have questions, or you'd like to check with us before embarking on a majo
 
 ## How to contribute
 
-This project uses the [GitHub Flow](https://guides.github.com/introduction/flow/). That means that the `master` branch is stable and new development is done in feature branches. Feature branches are merged into the `master` branch via a Pull Request.
+This project uses the [GitHub Flow](https://guides.github.com/introduction/flow/). That means that the `main` branch is stable and new development is done in feature branches. Feature branches are merged into the `main` branch via a Pull Request.
 
 0. Fork and clone the repository
 0. Configure and install the dependencies: `./script/bootstrap`
