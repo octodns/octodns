@@ -417,6 +417,15 @@ class ValuesMixin(object):
 
         return ret
 
+    @property
+    def rrs(self):
+        return (
+            self.fqdn,
+            self._type,
+            self.ttl,
+            [v.rdata_text for v in self.values],
+        )
+
     def __repr__(self):
         values = "', '".join([str(v) for v in self.values])
         klass = self.__class__.__name__
@@ -509,6 +518,10 @@ class ValueMixin(object):
         if self.value:
             ret['value'] = getattr(self.value, 'data', self.value)
         return ret
+
+    @property
+    def rrs(self):
+        return self.fqdn, self._type, self.ttl, [self.value.rdata_text]
 
     def __repr__(self):
         klass = self.__class__.__name__

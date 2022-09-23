@@ -2508,6 +2508,26 @@ class TestRecord(TestCase):
         # nothing much to test, just make sure that things don't blow up
         Rr('name', 'type', 42, 'Hello World!').__repr__()
 
+        zone = Zone('unit.tests.', [])
+        record = Record.new(
+            zone,
+            'a',
+            {'ttl': 42, 'type': 'A', 'values': ['1.2.3.4', '2.3.4.5']},
+        )
+        self.assertEqual(
+            ('a.unit.tests.', 'A', 42, ['1.2.3.4', '2.3.4.5']), record.rrs
+        )
+
+        record = Record.new(
+            zone,
+            'cname',
+            {'ttl': 43, 'type': 'CNAME', 'value': 'target.unit.tests.'},
+        )
+        self.assertEqual(
+            ('cname.unit.tests.', 'CNAME', 43, ['target.unit.tests.']),
+            record.rrs,
+        )
+
 
 class TestRecordValidation(TestCase):
     zone = Zone('unit.tests.', [])
