@@ -15,7 +15,7 @@ from .base import BaseProcessor
 # and thus "own" them going forward.
 class OwnershipProcessor(BaseProcessor):
     def __init__(self, name, txt_name='_owner', txt_value='*octodns*'):
-        super(OwnershipProcessor, self).__init__(name)
+        super().__init__(name)
         self.txt_name = txt_name
         self.txt_value = txt_value
         self._txt_values = [txt_value]

@@ -25,7 +25,7 @@ class AcmeMangingProcessor(BaseProcessor):
             - acme
           ...
         '''
-        super(AcmeMangingProcessor, self).__init__(name)
+        super().__init__(name)
 
         self._owned = set()
 

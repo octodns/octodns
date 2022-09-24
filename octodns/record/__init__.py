@@ -2,7 +2,7 @@
 #
 #
 
-from ipaddress import IPv4Address, IPv6Address
+from ipaddress import IPv4Address as _IPv4Address, IPv6Address as _IPv6Address
 from logging import getLogger
 import re
 
@@ -31,7 +31,7 @@ class Create(Change):
     CLASS_ORDERING = 1
 
     def __init__(self, new):
-        super(Create, self).__init__(None, new)
+        super().__init__(None, new)
 
     def __repr__(self, leader=''):
         source = self.new.source.id if self.new.source else ''
@@ -57,7 +57,7 @@ class Delete(Change):
     CLASS_ORDERING = 0
 
     def __init__(self, existing):
-        super(Delete, self).__init__(existing, None)
+        super().__init__(existing, None)
 
     def __repr__(self, leader=''):
         return f'Delete {self.existing}'
@@ -74,7 +74,7 @@ class ValidationError(RecordException):
         return f'Invalid record {idna_decode(fqdn)}\n  - {reasons}'
 
     def __init__(self, fqdn, reasons):
-        super(Exception, self).__init__(self.build_message(fqdn, reasons))
+        super().__init__(self.build_message(fqdn, reasons))
         self.fqdn = fqdn
         self.reasons = reasons
 
@@ -329,7 +329,7 @@ class GeoValue(EqualityTupleMixin):
 class ValuesMixin(object):
     @classmethod
     def validate(cls, name, fqdn, data):
-        reasons = super(ValuesMixin, cls).validate(name, fqdn, data)
+        reasons = super().validate(name, fqdn, data)
 
         values = data.get('values', data.get('value', []))
 
@@ -338,7 +338,7 @@ class ValuesMixin(object):
         return reasons
 
     def __init__(self, zone, name, data, source=None):
-        super(ValuesMixin, self).__init__(zone, name, data, source=source)
+        super().__init__(zone, name, data, source=source)
         try:
             values = data['values']
         except KeyError:
@@ -348,10 +348,10 @@ class ValuesMixin(object):
     def changes(self, other, target):
         if self.values != other.values:
             return Update(self, other)
-        return super(ValuesMixin, self).changes(other, target)
+        return super().changes(other, target)
 
     def _data(self):
-        ret = super(ValuesMixin, self)._data()
+        ret = super()._data()
         if len(self.values) > 1:
             values = [getattr(v, 'data', v) for v in self.values if v]
             if len(values) > 1:
@@ -380,7 +380,7 @@ class _GeoMixin(ValuesMixin):
 
     @classmethod
     def validate(cls, name, fqdn, data):
-        reasons = super(_GeoMixin, cls).validate(name, fqdn, data)
+        reasons = super().validate(name, fqdn, data)
         try:
             geo = dict(data['geo'])
             for code, values in geo.items():
@@ -391,7 +391,7 @@ class _GeoMixin(ValuesMixin):
         return reasons
 
     def __init__(self, zone, name, data, *args, **kwargs):
-        super(_GeoMixin, self).__init__(zone, name, data, *args, **kwargs)
+        super().__init__(zone, name, data, *args, **kwargs)
         try:
             self.geo = dict(data['geo'])
         except KeyError:
@@ -400,7 +400,7 @@ class _GeoMixin(ValuesMixin):
             self.geo[code] = GeoValue(code, values)
 
     def _data(self):
-        ret = super(_GeoMixin, self)._data()
+        ret = super()._data()
         if self.geo:
             geo = {}
             for code, value in self.geo.items():
@@ -412,7 +412,7 @@ class _GeoMixin(ValuesMixin):
         if target.SUPPORTS_GEO:
             if self.geo != other.geo:
                 return Update(self, other)
-        return super(_GeoMixin, self).changes(other, target)
+        return super().changes(other, target)
 
     def __repr__(self):
         if self.geo:
@@ -421,29 +421,29 @@ class _GeoMixin(ValuesMixin):
                 f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, '
                 f'{self.values}, {self.geo}>'
             )
-        return super(_GeoMixin, self).__repr__()
+        return super().__repr__()
 
 
 class ValueMixin(object):
     @classmethod
     def validate(cls, name, fqdn, data):
-        reasons = super(ValueMixin, cls).validate(name, fqdn, data)
+        reasons = super().validate(name, fqdn, data)
         reasons.extend(
             cls._value_type.validate(data.get('value', None), cls._type)
         )
         return reasons
 
     def __init__(self, zone, name, data, source=None):
-        super(ValueMixin, self).__init__(zone, name, data, source=source)
+        super().__init__(zone, name, data, source=source)
         self.value = self._value_type.process(data['value'])
 
     def changes(self, other, target):
         if self.value != other.value:
             return Update(self, other)
-        return super(ValueMixin, self).changes(other, target)
+        return super().changes(other, target)
 
     def _data(self):
-        ret = super(ValueMixin, self)._data()
+        ret = super()._data()
         if self.value:
             ret['value'] = getattr(self.value, 'data', self.value)
         return ret
@@ -456,12 +456,12 @@ class ValueMixin(object):
 class _DynamicPool(object):
     log = getLogger('_DynamicPool')
 
-    def __init__(self, _id, data):
+    def __init__(self, _id, data, value_type):
         self._id = _id
 
         values = [
             {
-                'value': d['value'],
+                'value': value_type(d['value']),
                 'weight': d.get('weight', 1),
                 'status': d.get('status', 'obey'),
             }
@@ -565,7 +565,7 @@ class _DynamicMixin(object):
 
     @classmethod
     def validate(cls, name, fqdn, data):
-        reasons = super(_DynamicMixin, cls).validate(name, fqdn, data)
+        reasons = super().validate(name, fqdn, data)
 
         if 'dynamic' not in data:
             return reasons
@@ -724,7 +724,7 @@ class _DynamicMixin(object):
         return reasons
 
     def __init__(self, zone, name, data, *args, **kwargs):
-        super(_DynamicMixin, self).__init__(zone, name, data, *args, **kwargs)
+        super().__init__(zone, name, data, *args, **kwargs)
 
         self.dynamic = {}
 
@@ -738,7 +738,7 @@ class _DynamicMixin(object):
             pools = {}
 
         for _id, pool in sorted(pools.items()):
-            pools[_id] = _DynamicPool(_id, pool)
+            pools[_id] = _DynamicPool(_id, pool, self._value_type)
 
         # rules
         try:
@@ -754,7 +754,7 @@ class _DynamicMixin(object):
         self.dynamic = _Dynamic(pools, parsed)
 
     def _data(self):
-        ret = super(_DynamicMixin, self)._data()
+        ret = super()._data()
         if self.dynamic:
             ret['dynamic'] = self.dynamic._data()
         return ret
@@ -763,7 +763,7 @@ class _DynamicMixin(object):
         if target.SUPPORTS_DYNAMIC:
             if self.dynamic != other.dynamic:
                 return Update(self, other)
-        return super(_DynamicMixin, self).changes(other, target)
+        return super().changes(other, target)
 
     def __repr__(self):
         # TODO: improve this whole thing, we need multi-line...
@@ -781,10 +781,45 @@ class _DynamicMixin(object):
                 f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, '
                 f'{values}, {self.dynamic}>'
             )
-        return super(_DynamicMixin, self).__repr__()
+        return super().__repr__()
 
 
-class _IpList(object):
+class _TargetValue(str):
+    @classmethod
+    def validate(cls, data, _type):
+        reasons = []
+        if data == '':
+            reasons.append('empty value')
+        elif not data:
+            reasons.append('missing value')
+        else:
+            data = idna_encode(data)
+            if not FQDN(str(data), allow_underscores=True).is_valid:
+                reasons.append(f'{_type} value "{data}" is not a valid FQDN')
+            elif not data.endswith('.'):
+                reasons.append(f'{_type} value "{data}" missing trailing .')
+        return reasons
+
+    @classmethod
+    def process(cls, value):
+        if value:
+            return cls(value)
+        return None
+
+    def __new__(cls, v):
+        v = idna_encode(v)
+        return super().__new__(cls, v)
+
+
+class CnameValue(_TargetValue):
+    pass
+
+
+class DnameValue(_TargetValue):
+    pass
+
+
+class _IpAddress(str):
     @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
@@ -809,64 +844,37 @@ class _IpList(object):
     def process(cls, values):
         # Translating None into '' so that the list will be sortable in
         # python3, get everything to str first
-        values = [str(v) if v is not None else '' for v in values]
+        values = [v if v is not None else '' for v in values]
         # Now round trip all non-'' through the address type and back to a str
         # to normalize the address representation.
-        return [str(cls._address_type(v)) if v != '' else '' for v in values]
+        return [cls(v) if v != '' else '' for v in values]
+
+    def __new__(cls, v):
+        v = str(cls._address_type(v))
+        return super().__new__(cls, v)
 
 
-class Ipv4List(_IpList):
+class Ipv4Address(_IpAddress):
+    _address_type = _IPv4Address
     _address_name = 'IPv4'
-    _address_type = IPv4Address
-
-
-class Ipv6List(_IpList):
-    _address_name = 'IPv6'
-    _address_type = IPv6Address
-
-
-class _TargetValue(object):
-    @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        if data == '':
-            reasons.append('empty value')
-        elif not data:
-            reasons.append('missing value')
-        # NOTE: FQDN complains if the data it receives isn't a str, it doesn't
-        # allow unicode... This is likely specific to 2.7
-        elif not FQDN(str(data), allow_underscores=True).is_valid:
-            reasons.append(f'{_type} value "{data}" is not a valid FQDN')
-        elif not data.endswith('.'):
-            reasons.append(f'{_type} value "{data}" missing trailing .')
-        return reasons
-
-    @classmethod
-    def process(self, value):
-        if value:
-            return value.lower()
-        return value
-
-
-class CnameValue(_TargetValue):
-    pass
-
-
-class DnameValue(_TargetValue):
-    pass
 
 
 class ARecord(_DynamicMixin, _GeoMixin, Record):
     _type = 'A'
-    _value_type = Ipv4List
+    _value_type = Ipv4Address
 
 
 Record.register_type(ARecord)
 
 
+class Ipv6Address(_IpAddress):
+    _address_type = _IPv6Address
+    _address_name = 'IPv6'
+
+
 class AaaaRecord(_DynamicMixin, _GeoMixin, Record):
     _type = 'AAAA'
-    _value_type = Ipv6List
+    _value_type = Ipv6Address
 
 
 Record.register_type(AaaaRecord)
@@ -885,14 +893,14 @@ class AliasRecord(ValueMixin, Record):
         reasons = []
         if name != '':
             reasons.append('non-root ALIAS not allowed')
-        reasons.extend(super(AliasRecord, cls).validate(name, fqdn, data))
+        reasons.extend(super().validate(name, fqdn, data))
         return reasons
 
 
 Record.register_type(AliasRecord)
 
 
-class CaaValue(EqualityTupleMixin):
+class CaaValue(EqualityTupleMixin, dict):
     # https://tools.ietf.org/html/rfc6844#page-5
 
     @classmethod
@@ -916,16 +924,44 @@ class CaaValue(EqualityTupleMixin):
 
     @classmethod
     def process(cls, values):
-        return [CaaValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
-        self.flags = int(value.get('flags', 0))
-        self.tag = value['tag']
-        self.value = value['value']
+        super().__init__(
+            {
+                'flags': int(value.get('flags', 0)),
+                'tag': value['tag'],
+                'value': value['value'],
+            }
+        )
+
+    @property
+    def flags(self):
+        return self['flags']
+
+    @flags.setter
+    def flags(self, value):
+        self['flags'] = value
+
+    @property
+    def tag(self):
+        return self['tag']
+
+    @tag.setter
+    def tag(self, value):
+        self['tag'] = value
+
+    @property
+    def value(self):
+        return self['value']
+
+    @value.setter
+    def value(self, value):
+        self['value'] = value
 
     @property
     def data(self):
-        return {'flags': self.flags, 'tag': self.tag, 'value': self.value}
+        return self
 
     def _equality_tuple(self):
         return (self.flags, self.tag, self.value)
@@ -951,7 +987,7 @@ class CnameRecord(_DynamicMixin, ValueMixin, Record):
         reasons = []
         if name == '':
             reasons.append('root CNAME not allowed')
-        reasons.extend(super(CnameRecord, cls).validate(name, fqdn, data))
+        reasons.extend(super().validate(name, fqdn, data))
         return reasons
 
 
@@ -966,7 +1002,7 @@ class DnameRecord(_DynamicMixin, ValueMixin, Record):
 Record.register_type(DnameRecord)
 
 
-class LocValue(EqualityTupleMixin):
+class LocValue(EqualityTupleMixin, dict):
     # TODO: work out how to do defaults per RFC
 
     @classmethod
@@ -1062,38 +1098,125 @@ class LocValue(EqualityTupleMixin):
 
     @classmethod
     def process(cls, values):
-        return [LocValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
-        self.lat_degrees = int(value['lat_degrees'])
-        self.lat_minutes = int(value['lat_minutes'])
-        self.lat_seconds = float(value['lat_seconds'])
-        self.lat_direction = value['lat_direction'].upper()
-        self.long_degrees = int(value['long_degrees'])
-        self.long_minutes = int(value['long_minutes'])
-        self.long_seconds = float(value['long_seconds'])
-        self.long_direction = value['long_direction'].upper()
-        self.altitude = float(value['altitude'])
-        self.size = float(value['size'])
-        self.precision_horz = float(value['precision_horz'])
-        self.precision_vert = float(value['precision_vert'])
+        super().__init__(
+            {
+                'lat_degrees': int(value['lat_degrees']),
+                'lat_minutes': int(value['lat_minutes']),
+                'lat_seconds': float(value['lat_seconds']),
+                'lat_direction': value['lat_direction'].upper(),
+                'long_degrees': int(value['long_degrees']),
+                'long_minutes': int(value['long_minutes']),
+                'long_seconds': float(value['long_seconds']),
+                'long_direction': value['long_direction'].upper(),
+                'altitude': float(value['altitude']),
+                'size': float(value['size']),
+                'precision_horz': float(value['precision_horz']),
+                'precision_vert': float(value['precision_vert']),
+            }
+        )
+
+    @property
+    def lat_degrees(self):
+        return self['lat_degrees']
+
+    @lat_degrees.setter
+    def lat_degrees(self, value):
+        self['lat_degrees'] = value
+
+    @property
+    def lat_minutes(self):
+        return self['lat_minutes']
+
+    @lat_minutes.setter
+    def lat_minutes(self, value):
+        self['lat_minutes'] = value
+
+    @property
+    def lat_seconds(self):
+        return self['lat_seconds']
+
+    @lat_seconds.setter
+    def lat_seconds(self, value):
+        self['lat_seconds'] = value
+
+    @property
+    def lat_direction(self):
+        return self['lat_direction']
+
+    @lat_direction.setter
+    def lat_direction(self, value):
+        self['lat_direction'] = value
+
+    @property
+    def long_degrees(self):
+        return self['long_degrees']
+
+    @long_degrees.setter
+    def long_degrees(self, value):
+        self['long_degrees'] = value
+
+    @property
+    def long_minutes(self):
+        return self['long_minutes']
+
+    @long_minutes.setter
+    def long_minutes(self, value):
+        self['long_minutes'] = value
+
+    @property
+    def long_seconds(self):
+        return self['long_seconds']
+
+    @long_seconds.setter
+    def long_seconds(self, value):
+        self['long_seconds'] = value
+
+    @property
+    def long_direction(self):
+        return self['long_direction']
+
+    @long_direction.setter
+    def long_direction(self, value):
+        self['long_direction'] = value
+
+    @property
+    def altitude(self):
+        return self['altitude']
+
+    @altitude.setter
+    def altitude(self, value):
+        self['altitude'] = value
+
+    @property
+    def size(self):
+        return self['size']
+
+    @size.setter
+    def size(self, value):
+        self['size'] = value
+
+    @property
+    def precision_horz(self):
+        return self['precision_horz']
+
+    @precision_horz.setter
+    def precision_horz(self, value):
+        self['precision_horz'] = value
+
+    @property
+    def precision_vert(self):
+        return self['precision_vert']
+
+    @precision_vert.setter
+    def precision_vert(self, value):
+        self['precision_vert'] = value
 
     @property
     def data(self):
-        return {
-            'lat_degrees': self.lat_degrees,
-            'lat_minutes': self.lat_minutes,
-            'lat_seconds': self.lat_seconds,
-            'lat_direction': self.lat_direction,
-            'long_degrees': self.long_degrees,
-            'long_minutes': self.long_minutes,
-            'long_seconds': self.long_seconds,
-            'long_direction': self.long_direction,
-            'altitude': self.altitude,
-            'size': self.size,
-            'precision_horz': self.precision_horz,
-            'precision_vert': self.precision_vert,
-        }
+        return self
 
     def __hash__(self):
         return hash(
@@ -1148,7 +1271,7 @@ class LocRecord(ValuesMixin, Record):
 Record.register_type(LocRecord)
 
 
-class MxValue(EqualityTupleMixin):
+class MxValue(EqualityTupleMixin, dict):
     @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
@@ -1166,7 +1289,11 @@ class MxValue(EqualityTupleMixin):
                 reasons.append(f'invalid preference "{value["preference"]}"')
             exchange = None
             try:
-                exchange = str(value.get('exchange', None) or value['value'])
+                exchange = value.get('exchange', None) or value['value']
+                if not exchange:
+                    reasons.append('missing exchange')
+                    continue
+                exchange = idna_encode(exchange)
                 if (
                     exchange != '.'
                     and not FQDN(exchange, allow_underscores=True).is_valid
@@ -1183,7 +1310,7 @@ class MxValue(EqualityTupleMixin):
 
     @classmethod
     def process(cls, values):
-        return [MxValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
         # RFC1035 says preference, half the providers use priority
@@ -1191,17 +1318,34 @@ class MxValue(EqualityTupleMixin):
             preference = value['preference']
         except KeyError:
             preference = value['priority']
-        self.preference = int(preference)
         # UNTIL 1.0 remove value fallback
         try:
             exchange = value['exchange']
         except KeyError:
             exchange = value['value']
-        self.exchange = exchange.lower()
+        super().__init__(
+            {'preference': int(preference), 'exchange': idna_encode(exchange)}
+        )
+
+    @property
+    def preference(self):
+        return self['preference']
+
+    @preference.setter
+    def preference(self, value):
+        self['preference'] = value
+
+    @property
+    def exchange(self):
+        return self['exchange']
+
+    @exchange.setter
+    def exchange(self, value):
+        self['exchange'] = value
 
     @property
     def data(self):
-        return {'preference': self.preference, 'exchange': self.exchange}
+        return self
 
     def __hash__(self):
         return hash((self.preference, self.exchange))
@@ -1221,7 +1365,7 @@ class MxRecord(ValuesMixin, Record):
 Record.register_type(MxRecord)
 
 
-class NaptrValue(EqualityTupleMixin):
+class NaptrValue(EqualityTupleMixin, dict):
     VALID_FLAGS = ('S', 'A', 'U', 'P')
 
     @classmethod
@@ -1258,26 +1402,71 @@ class NaptrValue(EqualityTupleMixin):
 
     @classmethod
     def process(cls, values):
-        return [NaptrValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
-        self.order = int(value['order'])
-        self.preference = int(value['preference'])
-        self.flags = value['flags']
-        self.service = value['service']
-        self.regexp = value['regexp']
-        self.replacement = value['replacement']
+        super().__init__(
+            {
+                'order': int(value['order']),
+                'preference': int(value['preference']),
+                'flags': value['flags'],
+                'service': value['service'],
+                'regexp': value['regexp'],
+                'replacement': value['replacement'],
+            }
+        )
+
+    @property
+    def order(self):
+        return self['order']
+
+    @order.setter
+    def order(self, value):
+        self['order'] = value
+
+    @property
+    def preference(self):
+        return self['preference']
+
+    @preference.setter
+    def preference(self, value):
+        self['preference'] = value
+
+    @property
+    def flags(self):
+        return self['flags']
+
+    @flags.setter
+    def flags(self, value):
+        self['flags'] = value
+
+    @property
+    def service(self):
+        return self['service']
+
+    @service.setter
+    def service(self, value):
+        self['service'] = value
+
+    @property
+    def regexp(self):
+        return self['regexp']
+
+    @regexp.setter
+    def regexp(self, value):
+        self['regexp'] = value
+
+    @property
+    def replacement(self):
+        return self['replacement']
+
+    @replacement.setter
+    def replacement(self, value):
+        self['replacement'] = value
 
     @property
     def data(self):
-        return {
-            'order': self.order,
-            'preference': self.preference,
-            'flags': self.flags,
-            'service': self.service,
-            'regexp': self.regexp,
-            'replacement': self.replacement,
-        }
+        return self
 
     def __hash__(self):
         return hash(self.__repr__())
@@ -1310,7 +1499,7 @@ class NaptrRecord(ValuesMixin, Record):
 Record.register_type(NaptrRecord)
 
 
-class _NsValue(object):
+class _NsValue(str):
     @classmethod
     def validate(cls, data, _type):
         if not data:
@@ -1319,7 +1508,8 @@ class _NsValue(object):
             data = (data,)
         reasons = []
         for value in data:
-            if not FQDN(str(value), allow_underscores=True).is_valid:
+            value = idna_encode(value)
+            if not FQDN(value, allow_underscores=True).is_valid:
                 reasons.append(
                     f'Invalid NS value "{value}" is not a valid FQDN.'
                 )
@@ -1329,7 +1519,11 @@ class _NsValue(object):
 
     @classmethod
     def process(cls, values):
-        return values
+        return [cls(v) for v in values]
+
+    def __new__(cls, v):
+        v = idna_encode(v)
+        return super().__new__(cls, v)
 
 
 class NsRecord(ValuesMixin, Record):
@@ -1352,13 +1546,14 @@ class PtrValue(_TargetValue):
             reasons.append('missing values')
 
         for value in values:
-            reasons.extend(super(PtrValue, cls).validate(value, _type))
+            reasons.extend(super().validate(value, _type))
 
         return reasons
 
     @classmethod
     def process(cls, values):
-        return [super(PtrValue, cls).process(v) for v in values]
+        supr = super()
+        return [supr.process(v) for v in values]
 
 
 class PtrRecord(ValuesMixin, Record):
@@ -1375,7 +1570,7 @@ class PtrRecord(ValuesMixin, Record):
 Record.register_type(PtrRecord)
 
 
-class SshfpValue(EqualityTupleMixin):
+class SshfpValue(EqualityTupleMixin, dict):
     VALID_ALGORITHMS = (1, 2, 3, 4)
     VALID_FINGERPRINT_TYPES = (1, 2)
 
@@ -1411,20 +1606,44 @@ class SshfpValue(EqualityTupleMixin):
 
     @classmethod
     def process(cls, values):
-        return [SshfpValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
-        self.algorithm = int(value['algorithm'])
-        self.fingerprint_type = int(value['fingerprint_type'])
-        self.fingerprint = value['fingerprint']
+        super().__init__(
+            {
+                'algorithm': int(value['algorithm']),
+                'fingerprint_type': int(value['fingerprint_type']),
+                'fingerprint': value['fingerprint'],
+            }
+        )
+
+    @property
+    def algorithm(self):
+        return self['algorithm']
+
+    @algorithm.setter
+    def algorithm(self, value):
+        self['algorithm'] = value
+
+    @property
+    def fingerprint_type(self):
+        return self['fingerprint_type']
+
+    @fingerprint_type.setter
+    def fingerprint_type(self, value):
+        self['fingerprint_type'] = value
+
+    @property
+    def fingerprint(self):
+        return self['fingerprint']
+
+    @fingerprint.setter
+    def fingerprint(self, value):
+        self['fingerprint'] = value
 
     @property
     def data(self):
-        return {
-            'algorithm': self.algorithm,
-            'fingerprint_type': self.fingerprint_type,
-            'fingerprint': self.fingerprint,
-        }
+        return self
 
     def __hash__(self):
         return hash(self.__repr__())
@@ -1465,7 +1684,7 @@ class _ChunkedValuesMixin(ValuesMixin):
         return values
 
 
-class _ChunkedValue(object):
+class _ChunkedValue(str):
     _unescaped_semicolon_re = re.compile(r'\w;')
 
     @classmethod
@@ -1486,7 +1705,7 @@ class _ChunkedValue(object):
         for v in values:
             if v and v[0] == '"':
                 v = v[1:-1]
-            ret.append(v.replace('" "', ''))
+            ret.append(cls(v.replace('" "', '')))
         return ret
 
 
@@ -1498,7 +1717,7 @@ class SpfRecord(_ChunkedValuesMixin, Record):
 Record.register_type(SpfRecord)
 
 
-class SrvValue(EqualityTupleMixin):
+class SrvValue(EqualityTupleMixin, dict):
     @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
@@ -1526,11 +1745,15 @@ class SrvValue(EqualityTupleMixin):
                 reasons.append(f'invalid port "{value["port"]}"')
             try:
                 target = value['target']
+                if not target:
+                    reasons.append('missing target')
+                    continue
+                target = idna_encode(target)
                 if not target.endswith('.'):
                     reasons.append(f'SRV value "{target}" missing trailing .')
                 if (
                     target != '.'
-                    and not FQDN(str(target), allow_underscores=True).is_valid
+                    and not FQDN(target, allow_underscores=True).is_valid
                 ):
                     reasons.append(
                         f'Invalid SRV target "{target}" is not a valid FQDN.'
@@ -1541,22 +1764,53 @@ class SrvValue(EqualityTupleMixin):
 
     @classmethod
     def process(cls, values):
-        return [SrvValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
-        self.priority = int(value['priority'])
-        self.weight = int(value['weight'])
-        self.port = int(value['port'])
-        self.target = value['target'].lower()
+        super().__init__(
+            {
+                'priority': int(value['priority']),
+                'weight': int(value['weight']),
+                'port': int(value['port']),
+                'target': idna_encode(value['target']),
+            }
+        )
+
+    @property
+    def priority(self):
+        return self['priority']
+
+    @priority.setter
+    def priority(self, value):
+        self['priority'] = value
+
+    @property
+    def weight(self):
+        return self['weight']
+
+    @weight.setter
+    def weight(self, value):
+        self['weight'] = value
+
+    @property
+    def port(self):
+        return self['port']
+
+    @port.setter
+    def port(self, value):
+        self['port'] = value
+
+    @property
+    def target(self):
+        return self['target']
+
+    @target.setter
+    def target(self, value):
+        self['target'] = value
 
     @property
     def data(self):
-        return {
-            'priority': self.priority,
-            'weight': self.weight,
-            'port': self.port,
-            'target': self.target,
-        }
+        return self
 
     def __hash__(self):
         return hash(self.__repr__())
@@ -1578,14 +1832,14 @@ class SrvRecord(ValuesMixin, Record):
         reasons = []
         if not cls._name_re.match(name):
             reasons.append('invalid name for SRV record')
-        reasons.extend(super(SrvRecord, cls).validate(name, fqdn, data))
+        reasons.extend(super().validate(name, fqdn, data))
         return reasons
 
 
 Record.register_type(SrvRecord)
 
 
-class TlsaValue(EqualityTupleMixin):
+class TlsaValue(EqualityTupleMixin, dict):
     @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
@@ -1632,24 +1886,51 @@ class TlsaValue(EqualityTupleMixin):
 
     @classmethod
     def process(cls, values):
-        return [TlsaValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
-        self.certificate_usage = int(value.get('certificate_usage', 0))
-        self.selector = int(value.get('selector', 0))
-        self.matching_type = int(value.get('matching_type', 0))
-        self.certificate_association_data = value[
-            'certificate_association_data'
-        ]
+        super().__init__(
+            {
+                'certificate_usage': int(value.get('certificate_usage', 0)),
+                'selector': int(value.get('selector', 0)),
+                'matching_type': int(value.get('matching_type', 0)),
+                'certificate_association_data': value[
+                    'certificate_association_data'
+                ],
+            }
+        )
 
     @property
-    def data(self):
-        return {
-            'certificate_usage': self.certificate_usage,
-            'selector': self.selector,
-            'matching_type': self.matching_type,
-            'certificate_association_data': self.certificate_association_data,
-        }
+    def certificate_usage(self):
+        return self['certificate_usage']
+
+    @certificate_usage.setter
+    def certificate_usage(self, value):
+        self['certificate_usage'] = value
+
+    @property
+    def selector(self):
+        return self['selector']
+
+    @selector.setter
+    def selector(self, value):
+        self['selector'] = value
+
+    @property
+    def matching_type(self):
+        return self['matching_type']
+
+    @matching_type.setter
+    def matching_type(self, value):
+        self['matching_type'] = value
+
+    @property
+    def certificate_association_data(self):
+        return self['certificate_association_data']
+
+    @certificate_association_data.setter
+    def certificate_association_data(self, value):
+        self['certificate_association_data'] = value
 
     def _equality_tuple(self):
         return (
@@ -1686,7 +1967,7 @@ class TxtRecord(_ChunkedValuesMixin, Record):
 Record.register_type(TxtRecord)
 
 
-class UrlfwdValue(EqualityTupleMixin):
+class UrlfwdValue(EqualityTupleMixin, dict):
     VALID_CODES = (301, 302)
     VALID_MASKS = (0, 1, 2)
     VALID_QUERY = (0, 1)
@@ -1728,36 +2009,69 @@ class UrlfwdValue(EqualityTupleMixin):
 
     @classmethod
     def process(cls, values):
-        return [UrlfwdValue(v) for v in values]
+        return [cls(v) for v in values]
 
     def __init__(self, value):
-        self.path = value['path']
-        self.target = value['target']
-        self.code = int(value['code'])
-        self.masking = int(value['masking'])
-        self.query = int(value['query'])
+        super().__init__(
+            {
+                'path': value['path'],
+                'target': value['target'],
+                'code': int(value['code']),
+                'masking': int(value['masking']),
+                'query': int(value['query']),
+            }
+        )
 
     @property
-    def data(self):
-        return {
-            'path': self.path,
-            'target': self.target,
-            'code': self.code,
-            'masking': self.masking,
-            'query': self.query,
-        }
+    def path(self):
+        return self['path']
 
-    def __hash__(self):
-        return hash(self.__repr__())
+    @path.setter
+    def path(self, value):
+        self['path'] = value
+
+    @property
+    def target(self):
+        return self['target']
+
+    @target.setter
+    def target(self, value):
+        self['target'] = value
+
+    @property
+    def code(self):
+        return self['code']
+
+    @code.setter
+    def code(self, value):
+        self['code'] = value
+
+    @property
+    def masking(self):
+        return self['masking']
+
+    @masking.setter
+    def masking(self, value):
+        self['masking'] = value
+
+    @property
+    def query(self):
+        return self['query']
+
+    @query.setter
+    def query(self, value):
+        self['query'] = value
 
     def _equality_tuple(self):
         return (self.path, self.target, self.code, self.masking, self.query)
 
-    def __repr__(self):
-        return (
-            f'"{self.path}" "{self.target}" {self.code} '
-            f'{self.masking} {self.query}'
+    def __hash__(self):
+        return hash(
+            (self.path, self.target, self.code, self.masking, self.query)
         )
+
+    def __repr__(self):
+        return f'"{self.path}" "{self.target}" {self.code} {self.masking} {self.query}'
 
 
 class UrlfwdRecord(ValuesMixin, Record):
