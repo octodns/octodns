@@ -136,7 +136,7 @@ class _PlanOutput(object):
 
 class PlanLogger(_PlanOutput):
     def __init__(self, name, level='info'):
-        super(PlanLogger, self).__init__(name)
+        super().__init__(name)
         try:
             self.level = {
                 'debug': DEBUG,

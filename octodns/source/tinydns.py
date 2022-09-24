@@ -23,7 +23,7 @@ class TinyDnsBaseSource(BaseSource):
     split_re = re.compile(r':+')
 
     def __init__(self, id, default_ttl=3600):
-        super(TinyDnsBaseSource, self).__init__(id)
+        super().__init__(id)
         self.default_ttl = default_ttl
 
     def _data_for_A(self, _type, records):
@@ -239,7 +239,7 @@ class TinyDnsFileSource(TinyDnsBaseSource):
             directory,
             default_ttl,
         )
-        super(TinyDnsFileSource, self).__init__(id, default_ttl)
+        super().__init__(id, default_ttl)
         self.directory = directory
         self._cache = None
 

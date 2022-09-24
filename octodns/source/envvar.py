@@ -11,9 +11,7 @@ class EnvVarSourceException(Exception):
 
 class EnvironmentVariableNotFoundException(EnvVarSourceException):
     def __init__(self, data):
-        super(EnvironmentVariableNotFoundException, self).__init__(
-            f'Unknown environment variable {data}'
-        )
+        super().__init__(f'Unknown environment variable {data}')
 
 
 class EnvVarSource(BaseSource):
@@ -73,7 +71,7 @@ class EnvVarSource(BaseSource):
             name,
             ttl,
         )
-        super(EnvVarSource, self).__init__(id)
+        super().__init__(id)
         self.envvar = variable
         self.name = name
         self.ttl = ttl

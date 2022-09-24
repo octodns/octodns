@@ -18,7 +18,7 @@ class ArgumentParser(_Base):
     '''
 
     def __init__(self, *args, **kwargs):
-        super(ArgumentParser, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def parse_args(self, default_log_level=INFO):
         version = f'octoDNS {__VERSION__}'
@@ -50,7 +50,7 @@ class ArgumentParser(_Base):
             '--debug', action='store_true', default=False, help=_help
         )
 
-        args = super(ArgumentParser, self).parse_args()
+        args = super().parse_args()
         self._setup_logging(args, default_log_level)
         return args
 
