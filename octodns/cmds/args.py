@@ -50,6 +50,11 @@ class ArgumentParser(_Base):
             '--debug', action='store_true', default=False, help=_help
         )
 
+        _help = 'Decrease verbosity to show only warnings, errors, and the plan'
+        self.add_argument(
+            '--quiet', action='store_true', default=False, help=_help
+        )
+
         args = super().parse_args()
         self._setup_logging(args, default_log_level)
         return args
@@ -74,7 +79,11 @@ class ArgumentParser(_Base):
             handler.setFormatter(Formatter(fmt=fmt))
             logger.addHandler(handler)
 
-        logger.level = DEBUG if args.debug else default_log_level
+        logger.level = default_log_level
+        if args.debug:
+            logger.level = DEBUG
+        elif args.quiet:
+            logger.level = WARNING
 
         # boto is noisy, set it to warn
         getLogger('botocore').level = WARNING
