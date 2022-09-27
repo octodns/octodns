@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/octodns/octodns/master/docs/logos/octodns-logo.png?" alt="OctoDNS Logo" height=251 width=404>
+<img src="https://raw.githubusercontent.com/octodns/octodns/main/docs/logos/octodns-logo.png?" alt="OctoDNS Logo" height=251 width=404>
 
 ## DNS as code - Tools for managing DNS across multiple providers
 
@@ -178,7 +178,7 @@ After the reviews it's time to branch deploy the change.
 
 ![Output of a deployment command](/docs/assets/deploy.png)
 
-If that goes smoothly, you again see the expected changes, and verify them with `dig` and/or `octodns-report` you're good to hit the merge button. If there are problems you can quickly do a `.deploy dns/master` to go back to the previous state.
+If that goes smoothly, you again see the expected changes, and verify them with `dig` and/or `octodns-report` you're good to hit the merge button. If there are problems you can quickly do a `.deploy dns/main` to go back to the previous state.
 
 ### Bootstrapping config files
 
@@ -378,7 +378,7 @@ If you know of any other resources, please do let us know!
 
 OctoDNS is licensed under the [MIT license](LICENSE).
 
-The MIT license grant is not for GitHub's trademarks, which include the logo designs. GitHub reserves all trademark and copyright rights in and to all GitHub trademarks. GitHub's logos include, for instance, the stylized designs that include "logo" in the file title in the following folder: https://github.com/octodns/octodns/tree/master/docs/logos/
+The MIT license grant is not for GitHub's trademarks, which include the logo designs. GitHub reserves all trademark and copyright rights in and to all GitHub trademarks. GitHub's logos include, for instance, the stylized designs that include "logo" in the file title in the following folder: https://github.com/octodns/octodns/tree/main/docs/logos/
 
 GitHub® and its stylized versions and the Invertocat mark are GitHub's Trademarks or registered Trademarks. When using GitHub's logos, be sure to follow the GitHub logo guidelines.
 
