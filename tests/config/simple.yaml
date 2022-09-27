@@ -1,4 +1,5 @@
 manager:
+  auto-arpa: true
   max_workers: 2
 providers:
   in:
@@ -42,5 +43,10 @@ zones:
   empty.:
     sources:
     - in
+    targets:
+    - dump
+  3.2.1.in-addr.arpa.:
+    sources:
+      - auto-arpa
     targets:
     - dump
