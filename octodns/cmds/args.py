@@ -3,7 +3,7 @@
 #
 
 from argparse import ArgumentParser as _Base
-from logging import DEBUG, INFO, WARN, Formatter, StreamHandler, getLogger
+from logging import DEBUG, INFO, WARNING, Formatter, StreamHandler, getLogger
 from logging.handlers import SysLogHandler
 from sys import stderr, stdout
 
@@ -77,6 +77,6 @@ class ArgumentParser(_Base):
         logger.level = DEBUG if args.debug else default_log_level
 
         # boto is noisy, set it to warn
-        getLogger('botocore').level = WARN
+        getLogger('botocore').level = WARNING
         # DynectSession is noisy too
-        getLogger('DynectSession').level = WARN
+        getLogger('DynectSession').level = WARNING
