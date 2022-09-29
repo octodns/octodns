@@ -10,7 +10,6 @@ from sys import stdout
 import logging
 
 from . import __VERSION__
-from .auto_arpa import AutoArpa
 from .idna import IdnaDict, idna_decode, idna_encode
 from .provider.base import BaseProvider
 from .provider.plan import Plan
@@ -63,7 +62,7 @@ class _AggregateTarget(object):
         raise AttributeError(f'{klass} object has no attribute {name}')
 
 
-class FakeThreadFuture(object):
+class MakeThreadFuture(object):
     def __init__(self, func, args, kwargs):
         self.func = func
         self.args = args
@@ -83,7 +82,7 @@ class MainThreadExecutor(object):
     '''
 
     def submit(self, func, *args, **kwargs):
-        return FakeThreadFuture(func, args, kwargs)
+        return MakeThreadFuture(func, args, kwargs)
 
 
 class ManagerException(Exception):
@@ -100,9 +99,7 @@ class Manager(object):
 
     # TODO: all of this should get broken up, mainly so that it's not so huge
     # and each bit can be cleanly tested independently
-    def __init__(
-        self, config_file, max_workers=None, include_meta=False, auto_arpa=False
-    ):
+    def __init__(self, config_file, max_workers=None, include_meta=False):
         version = self._try_version('octodns', version=__VERSION__)
         self.log.info(
             '__init__: config_file=%s (octoDNS %s)', config_file, version
@@ -122,7 +119,6 @@ class Manager(object):
         self.include_meta = self._config_include_meta(
             manager_config, include_meta
         )
-        self.auto_arpa = self._config_auto_arpa(manager_config, auto_arpa)
 
         self.global_processors = manager_config.get('processors', [])
         self.log.info('__init__: global_processors=%s', self.global_processors)
@@ -178,15 +174,6 @@ class Manager(object):
         self.log.info('_config_include_meta: include_meta=%s', include_meta)
         return include_meta
 
-    def _config_auto_arpa(self, manager_config, auto_arpa=False):
-        auto_arpa = auto_arpa or manager_config.get('auto-arpa', False)
-        self.log.info('_config_auto_arpa: auto_arpa=%s', auto_arpa)
-        if auto_arpa:
-            if not isinstance(auto_arpa, dict):
-                auto_arpa = {}
-            return AutoArpa(**auto_arpa)
-        return None
-
     def _config_providers(self, providers_config):
         self.log.debug('_config_providers: configuring providers')
         providers = {}
@@ -215,9 +202,6 @@ class Manager(object):
                     'Incorrect provider config for ' + provider_name
                 )
 
-        if self.auto_arpa:
-            providers['auto-arpa'] = self.auto_arpa
-
         return providers
 
     def _config_processors(self, processors_config):
@@ -245,10 +229,6 @@ class Manager(object):
                 raise ManagerException(
                     'Incorrect processor config for ' + processor_name
                 )
-
-        if self.auto_arpa:
-            processors['auto-arpa'] = self.auto_arpa
-
         return processors
 
     def _config_plan_outputs(self, plan_outputs_config):
@@ -497,7 +477,6 @@ class Manager(object):
 
         aliased_zones = {}
         futures = []
-        arpa_kwargs = []
         for zone_name, config in zones.items():
             decoded_zone_name = idna_decode(zone_name)
             self.log.info('sync:   zone=%s', decoded_zone_name)
@@ -558,9 +537,6 @@ class Manager(object):
                 collected = []
                 for processor in self.global_processors + processors:
                     collected.append(self.processors[processor])
-                # always goes last
-                if self.auto_arpa:
-                    collected.append(self.auto_arpa)
                 processors = collected
             except KeyError:
                 raise ManagerException(
@@ -596,25 +572,16 @@ class Manager(object):
                     f'Zone {decoded_zone_name}, unknown ' f'target: {target}'
                 )
 
-            kwargs = {
-                'zone_name': zone_name,
-                'processors': processors,
-                'sources': sources,
-                'targets': targets,
-                'lenient': lenient,
-            }
-            if self.auto_arpa and (
-                zone_name.endswith('in-addr.arpa.')
-                or zone_name.endswith('ip6.arpa.')
-            ):
-                # auto arpa is enabled so we need to defer processing all arpa
-                # zones until after general ones have completed (async) so that
-                # they'll have access to all the recorded A/AAAA values
-                arpa_kwargs.append(kwargs)
-            else:
-                futures.append(
-                    self._executor.submit(self._populate_and_plan, **kwargs)
+            futures.append(
+                self._executor.submit(
+                    self._populate_and_plan,
+                    zone_name,
+                    processors,
+                    sources,
+                    targets,
+                    lenient=lenient,
                 )
+            )
 
         # Wait on all results and unpack/flatten the plans and store the
         # desired states in case we need them below
@@ -653,24 +620,6 @@ class Manager(object):
         # Wait on results and unpack/flatten the plans, ignore the desired here
         # as these are aliased zones
         plans += [p for f in futures for p in f.result()[0]]
-
-        if self.auto_arpa and arpa_kwargs:
-            self.log.info(
-                'sync: processing %d arpa reverse dns zones', len(arpa_kwargs)
-            )
-            # all the general zones are done and we've recorded the A/AAAA
-            # records with the AutoPtr. We can no process ptr zones
-            futures = []
-            for kwargs in arpa_kwargs:
-                futures.append(
-                    self._executor.submit(self._populate_and_plan, **kwargs)
-                )
-
-            for future in futures:
-                ps, d = future.result()
-                desired[d.name] = d
-                for plan in ps:
-                    plans.append(plan)
 
         # Best effort sort plans children first so that we create/update
         # children zones before parents which should allow us to more safely

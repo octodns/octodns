@@ -136,7 +136,7 @@ class TestManager(TestCase):
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             environ['YAML_TMP_DIR2'] = tmpdir.dirname
             tc = Manager(get_config_filename('simple.yaml')).sync(dry_run=False)
-            self.assertEqual(30, tc)
+            self.assertEqual(28, tc)
 
             # try with just one of the zones
             tc = Manager(get_config_filename('simple.yaml')).sync(
@@ -160,13 +160,13 @@ class TestManager(TestCase):
             tc = Manager(get_config_filename('simple.yaml')).sync(
                 dry_run=False, force=True
             )
-            self.assertEqual(30, tc)
+            self.assertEqual(28, tc)
 
             # Again with max_workers = 1
             tc = Manager(
                 get_config_filename('simple.yaml'), max_workers=1
             ).sync(dry_run=False, force=True)
-            self.assertEqual(30, tc)
+            self.assertEqual(28, tc)
 
             # Include meta
             tc = Manager(
@@ -174,7 +174,7 @@ class TestManager(TestCase):
                 max_workers=1,
                 include_meta=True,
             ).sync(dry_run=False, force=True)
-            self.assertEqual(36, tc)
+            self.assertEqual(33, tc)
 
     def test_idna_eligible_zones(self):
         # loading w/simple, but we'll be blowing it away and doing some manual
@@ -186,6 +186,9 @@ class TestManager(TestCase):
         manager.config['zones'] = manager._config_zones(
             {'déjà.vu.': {}, 'deja.vu.': {}, idna_encode('こんにちは.jp.'): {}}
         )
+        from pprint import pprint
+
+        pprint(manager.config['zones'])
 
         # refer to them with utf-8
         with self.assertRaises(ManagerException) as ctx:
