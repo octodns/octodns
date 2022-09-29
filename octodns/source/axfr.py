@@ -39,7 +39,7 @@ class AxfrBaseSource(BaseSource):
     )
 
     def __init__(self, id):
-        super(AxfrBaseSource, self).__init__(id)
+        super().__init__(id)
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug(
@@ -65,9 +65,7 @@ class AxfrSourceException(Exception):
 
 class AxfrSourceZoneTransferFailed(AxfrSourceException):
     def __init__(self):
-        super(AxfrSourceZoneTransferFailed, self).__init__(
-            'Unable to Perform Zone Transfer'
-        )
+        super().__init__('Unable to Perform Zone Transfer')
 
 
 class AxfrSource(AxfrBaseSource):
@@ -83,7 +81,7 @@ class AxfrSource(AxfrBaseSource):
     def __init__(self, id, master):
         self.log = logging.getLogger(f'AxfrSource[{id}]')
         self.log.debug('__init__: id=%s, master=%s', id, master)
-        super(AxfrSource, self).__init__(id)
+        super().__init__(id)
         self.master = master
 
     def zone_records(self, zone):
@@ -111,12 +109,12 @@ class ZoneFileSourceException(Exception):
 
 class ZoneFileSourceNotFound(ZoneFileSourceException):
     def __init__(self):
-        super(ZoneFileSourceNotFound, self).__init__('Zone file not found')
+        super().__init__('Zone file not found')
 
 
 class ZoneFileSourceLoadFailure(ZoneFileSourceException):
     def __init__(self, error):
-        super(ZoneFileSourceLoadFailure, self).__init__(str(error))
+        super().__init__(str(error))
 
 
 class ZoneFileSource(AxfrBaseSource):
@@ -148,7 +146,7 @@ class ZoneFileSource(AxfrBaseSource):
             file_extension,
             check_origin,
         )
-        super(ZoneFileSource, self).__init__(id)
+        super().__init__(id)
         self.directory = directory
         self.file_extension = file_extension
         self.check_origin = check_origin

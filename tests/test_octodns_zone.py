@@ -47,10 +47,16 @@ class TestZone(TestCase):
             ('foo.bar', 'foo.bar.unit.tests'),
             ('foo.unit.tests', 'foo.unit.tests.unit.tests.'),
             ('foo.unit.tests', 'foo.unit.tests.unit.tests'),
+            # if we pass utf8 we get utf8
             ('déjà', 'déjà.unit.tests'),
             ('déjà.foo', 'déjà.foo.unit.tests'),
             ('bar.déjà', 'bar.déjà.unit.tests'),
             ('bar.déjà.foo', 'bar.déjà.foo.unit.tests'),
+            # if we pass idna we get idna
+            ('xn--dj-kia8a', 'xn--dj-kia8a.unit.tests'),
+            ('xn--dj-kia8a.foo', 'xn--dj-kia8a.foo.unit.tests'),
+            ('bar.xn--dj-kia8a', 'bar.xn--dj-kia8a.unit.tests'),
+            ('bar.xn--dj-kia8a.foo', 'bar.xn--dj-kia8a.foo.unit.tests'),
         ):
             self.assertEqual(hostname, zone.hostname_from_fqdn(fqdn))
 
@@ -68,6 +74,10 @@ class TestZone(TestCase):
             ('déjà.foo', 'déjà.foo.grüßen.de'),
             ('bar.déjà', 'bar.déjà.grüßen.de'),
             ('bar.déjà.foo', 'bar.déjà.foo.grüßen.de'),
+            ('xn--dj-kia8a', 'xn--dj-kia8a.xn--gren-wna7o.de'),
+            ('xn--dj-kia8a.foo', 'xn--dj-kia8a.foo.xn--gren-wna7o.de'),
+            ('bar.xn--dj-kia8a', 'bar.xn--dj-kia8a.xn--gren-wna7o.de'),
+            ('bar.xn--dj-kia8a.foo', 'bar.xn--dj-kia8a.foo.xn--gren-wna7o.de'),
         ):
             self.assertEqual(hostname, zone.hostname_from_fqdn(fqdn))
 

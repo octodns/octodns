@@ -53,7 +53,7 @@ class HelperProvider(BaseProvider):
 
 class TrickyProcessor(BaseProcessor):
     def __init__(self, name, add_during_process_target_zone):
-        super(TrickyProcessor, self).__init__(name)
+        super().__init__(name)
         self.add_during_process_target_zone = add_during_process_target_zone
         self.reset()
 
@@ -640,7 +640,7 @@ class TestBaseProvider(TestCase):
 
             def __init__(self, **kwargs):
                 self.log = MagicMock()
-                super(MinimalProvider, self).__init__('minimal', **kwargs)
+                super().__init__('minimal', **kwargs)
 
         normal = MinimalProvider(strict_supports=False)
         # Should log and not expect

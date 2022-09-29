@@ -128,7 +128,7 @@ class YamlProvider(BaseProvider):
             enforce_order,
             populate_should_replace,
         )
-        super(YamlProvider, self).__init__(id, *args, **kwargs)
+        super().__init__(id, *args, **kwargs)
         self.directory = directory
         self.default_ttl = default_ttl
         self.enforce_order = enforce_order
@@ -311,7 +311,7 @@ class SplitYamlProvider(YamlProvider):
     CATCHALL_RECORD_NAMES = ('*', '')
 
     def __init__(self, id, directory, extension='.', *args, **kwargs):
-        super(SplitYamlProvider, self).__init__(id, directory, *args, **kwargs)
+        super().__init__(id, directory, *args, **kwargs)
         self.extension = extension
 
     def _zone_directory(self, zone):

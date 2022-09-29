@@ -16,13 +16,11 @@ from octodns.manager import Manager
 
 class AsyncResolver(Resolver):
     def __init__(self, num_workers, *args, **kwargs):
-        super(AsyncResolver, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.executor = ThreadPoolExecutor(max_workers=num_workers)
 
     def query(self, *args, **kwargs):
-        return self.executor.submit(
-            super(AsyncResolver, self).query, *args, **kwargs
-        )
+        return self.executor.submit(super().query, *args, **kwargs)
 
 
 def main():
