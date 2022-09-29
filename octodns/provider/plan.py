@@ -134,19 +134,6 @@ class _PlanOutput(object):
         self.name = name
 
 
-class _LogLevelSetter:
-    def __init__(self, logger, level):
-        self.logger = getLogger()
-        self.level = level
-
-    def __enter__(self, *args, **kwargs):
-        self.original_level = self.logger.level
-        self.logger.setLevel(self.level)
-
-    def __exit__(self, *args, **kwargs):
-        self.logger.setLevel(self.original_level)
-
-
 class PlanLogger(_PlanOutput):
     def __init__(self, name, level='info'):
         super().__init__(name)
@@ -203,8 +190,7 @@ class PlanLogger(_PlanOutput):
         buf.write(hr)
         buf.write('\n')
 
-        with _LogLevelSetter(log, INFO):
-            log.log(self.level, buf.getvalue())
+        log.log(self.level, buf.getvalue())
 
 
 def _value_stringifier(record, sep):
