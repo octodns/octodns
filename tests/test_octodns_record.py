@@ -27,6 +27,8 @@ from octodns.record import (
     PtrRecord,
     Record,
     RecordException,
+    Rr,
+    RrParseError,
     SshfpRecord,
     SshfpValue,
     SpfRecord,
@@ -39,11 +41,13 @@ from octodns.record import (
     UrlfwdRecord,
     UrlfwdValue,
     ValidationError,
+    ValuesMixin,
+    _ChunkedValue,
     _Dynamic,
     _DynamicPool,
     _DynamicRule,
     _NsValue,
-    ValuesMixin,
+    _TargetValue,
 )
 from octodns.zone import Zone
 
@@ -293,6 +297,26 @@ class TestRecord(TestCase):
 
             DummyRecord().__repr__()
 
+    def test_ip_address_rdata_text(self):
+
+        # anything goes, we're a noop
+        for s in (
+            None,
+            '',
+            'word',
+            42,
+            42.43,
+            '1.2.3',
+            'some.words.that.here',
+            '1.2.word.4',
+            '1.2.3.4',
+        ):
+            self.assertEqual(s, Ipv4Address.parse_rdata_text(s))
+
+        zone = Zone('unit.tests.', [])
+        a = ARecord(zone, 'a', {'ttl': 42, 'value': '1.2.3.4'})
+        self.assertEqual('1.2.3.4', a.values[0].rdata_text)
+
     def test_values_mixin_data(self):
         # no values, no value or values in data
         a = ARecord(self.zone, '', {'type': 'A', 'ttl': 600, 'values': []})
@@ -461,6 +485,26 @@ class TestRecord(TestCase):
         # __repr__ doesn't blow up
         a.__repr__()
 
+    def test_target_rdata_text(self):
+
+        # anything goes, we're a noop
+        for s in (
+            None,
+            '',
+            'word',
+            42,
+            42.43,
+            '1.2.3',
+            'some.words.that.here',
+            '1.2.word.4',
+            '1.2.3.4',
+        ):
+            self.assertEqual(s, _TargetValue.parse_rdata_text(s))
+
+        zone = Zone('unit.tests.', [])
+        a = AliasRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
+        self.assertEqual('some.target.', a.value.rdata_text)
+
     def test_caa(self):
         a_values = [
             CaaValue({'flags': 0, 'tag': 'issue', 'value': 'ca.example.net'}),
@@ -520,6 +564,56 @@ class TestRecord(TestCase):
 
         # __repr__ doesn't blow up
         a.__repr__()
+
+    def test_caa_value_rdata_text(self):
+        # empty string won't parse
+        with self.assertRaises(RrParseError):
+            CaaValue.parse_rdata_text('')
+
+        # single word won't parse
+        with self.assertRaises(RrParseError):
+            CaaValue.parse_rdata_text('nope')
+
+        # 2nd word won't parse
+        with self.assertRaises(RrParseError):
+            CaaValue.parse_rdata_text('0 tag')
+
+        # 4th word won't parse
+        with self.assertRaises(RrParseError):
+            CaaValue.parse_rdata_text('1 tag value another')
+
+        # flags not an int, will parse
+        self.assertEqual(
+            {'flags': 'one', 'tag': 'tag', 'value': 'value'},
+            CaaValue.parse_rdata_text('one tag value'),
+        )
+
+        # valid
+        self.assertEqual(
+            {'flags': 0, 'tag': 'tag', 'value': '99148c81'},
+            CaaValue.parse_rdata_text('0 tag 99148c81'),
+        )
+
+        zone = Zone('unit.tests.', [])
+        a = CaaRecord(
+            zone,
+            'caa',
+            {
+                'ttl': 32,
+                'values': [
+                    {'flags': 1, 'tag': 'tag1', 'value': '99148c81'},
+                    {'flags': 2, 'tag': 'tag2', 'value': '99148c44'},
+                ],
+            },
+        )
+        self.assertEqual(1, a.values[0].flags)
+        self.assertEqual('tag1', a.values[0].tag)
+        self.assertEqual('99148c81', a.values[0].value)
+        self.assertEqual('1 tag1 99148c81', a.values[0].rdata_text)
+        self.assertEqual(2, a.values[1].flags)
+        self.assertEqual('tag2', a.values[1].tag)
+        self.assertEqual('99148c44', a.values[1].value)
+        self.assertEqual('2 tag2 99148c44', a.values[1].rdata_text)
 
     def test_cname(self):
         self.assertSingleValue(CnameRecord, 'target.foo.com.', 'other.foo.com.')
@@ -623,6 +717,92 @@ class TestRecord(TestCase):
         # __repr__ doesn't blow up
         a.__repr__()
 
+    def test_loc_value_rdata_text(self):
+        # only the exact correct number of words is allowed
+        for i in tuple(range(0, 12)) + (13,):
+            s = ''.join(['word'] * i)
+            with self.assertRaises(RrParseError):
+                LocValue.parse_rdata_text(s)
+
+        # type conversions are best effort
+        self.assertEqual(
+            {
+                'altitude': 'six',
+                'lat_degrees': 'zero',
+                'lat_direction': 'S',
+                'lat_minutes': 'one',
+                'lat_seconds': 'two',
+                'long_degrees': 'three',
+                'long_direction': 'W',
+                'long_minutes': 'four',
+                'long_seconds': 'five',
+                'precision_horz': 'eight',
+                'precision_vert': 'nine',
+                'size': 'seven',
+            },
+            LocValue.parse_rdata_text(
+                'zero one two S three four five W six seven eight nine'
+            ),
+        )
+
+        # valid
+        s = '0 1 2.2 N 3 4 5.5 E 6.6m 7.7m 8.8m 9.9m'
+        self.assertEqual(
+            {
+                'altitude': 6.6,
+                'lat_degrees': 0,
+                'lat_direction': 'N',
+                'lat_minutes': 1,
+                'lat_seconds': 2.2,
+                'long_degrees': 3,
+                'long_direction': 'E',
+                'long_minutes': 4,
+                'long_seconds': 5.5,
+                'precision_horz': 8.8,
+                'precision_vert': 9.9,
+                'size': 7.7,
+            },
+            LocValue.parse_rdata_text(s),
+        )
+
+        # make sure that the cstor is using parse_rdata_text
+        zone = Zone('unit.tests.', [])
+        a = LocRecord(
+            zone,
+            'mx',
+            {
+                'type': 'LOC',
+                'ttl': 42,
+                'value': {
+                    'altitude': 6.6,
+                    'lat_degrees': 0,
+                    'lat_direction': 'N',
+                    'lat_minutes': 1,
+                    'lat_seconds': 2.2,
+                    'long_degrees': 3,
+                    'long_direction': 'E',
+                    'long_minutes': 4,
+                    'long_seconds': 5.5,
+                    'precision_horz': 8.8,
+                    'precision_vert': 9.9,
+                    'size': 7.7,
+                },
+            },
+        )
+        self.assertEqual(0, a.values[0].lat_degrees)
+        self.assertEqual(1, a.values[0].lat_minutes)
+        self.assertEqual(2.2, a.values[0].lat_seconds)
+        self.assertEqual('N', a.values[0].lat_direction)
+        self.assertEqual(3, a.values[0].long_degrees)
+        self.assertEqual(4, a.values[0].long_minutes)
+        self.assertEqual(5.5, a.values[0].long_seconds)
+        self.assertEqual('E', a.values[0].long_direction)
+        self.assertEqual(6.6, a.values[0].altitude)
+        self.assertEqual(7.7, a.values[0].size)
+        self.assertEqual(8.8, a.values[0].precision_horz)
+        self.assertEqual(9.9, a.values[0].precision_vert)
+        self.assertEqual(s, a.values[0].rdata_text)
+
     def test_mx(self):
         a_values = [
             MxValue({'preference': 10, 'exchange': 'smtp1.'}),
@@ -673,6 +853,51 @@ class TestRecord(TestCase):
 
         # __repr__ doesn't blow up
         a.__repr__()
+
+    def test_mx_value_rdata_text(self):
+
+        # empty string won't parse
+        with self.assertRaises(RrParseError):
+            MxValue.parse_rdata_text('')
+
+        # single word won't parse
+        with self.assertRaises(RrParseError):
+            MxValue.parse_rdata_text('nope')
+
+        # 3rd word won't parse
+        with self.assertRaises(RrParseError):
+            MxValue.parse_rdata_text('10 mx.unit.tests. another')
+
+        # preference not an int
+        self.assertEqual(
+            {'preference': 'abc', 'exchange': 'mx.unit.tests.'},
+            MxValue.parse_rdata_text('abc mx.unit.tests.'),
+        )
+
+        # valid
+        self.assertEqual(
+            {'preference': 10, 'exchange': 'mx.unit.tests.'},
+            MxValue.parse_rdata_text('10 mx.unit.tests.'),
+        )
+
+        zone = Zone('unit.tests.', [])
+        a = MxRecord(
+            zone,
+            'mx',
+            {
+                'ttl': 32,
+                'values': [
+                    {'preference': 11, 'exchange': 'mail1.unit.tests.'},
+                    {'preference': 12, 'exchange': 'mail2.unit.tests.'},
+                ],
+            },
+        )
+        self.assertEqual(11, a.values[0].preference)
+        self.assertEqual('mail1.unit.tests.', a.values[0].exchange)
+        self.assertEqual('11 mail1.unit.tests.', a.values[0].rdata_text)
+        self.assertEqual(12, a.values[1].preference)
+        self.assertEqual('mail2.unit.tests.', a.values[1].exchange)
+        self.assertEqual('12 mail2.unit.tests.', a.values[1].rdata_text)
 
     def test_naptr(self):
         a_values = [
@@ -964,6 +1189,72 @@ class TestRecord(TestCase):
         o.replacement = '1'
         self.assertEqual('1', o.replacement)
 
+    def test_naptr_value_rdata_text(self):
+        # things with the wrong number of words won't parse
+        for v in (
+            '',
+            'one',
+            'one two',
+            'one two three',
+            'one two three four',
+            'one two three four five',
+            'one two three four five six seven',
+        ):
+            with self.assertRaises(RrParseError):
+                NaptrValue.parse_rdata_text(v)
+
+        # we don't care if the types of things are correct when parsing rr text
+        self.assertEqual(
+            {
+                'order': 'one',
+                'preference': 'two',
+                'flags': 'three',
+                'service': 'four',
+                'regexp': 'five',
+                'replacement': 'six',
+            },
+            NaptrValue.parse_rdata_text('one two three four five six'),
+        )
+
+        # order and preference will be converted to int's when possible
+        self.assertEqual(
+            {
+                'order': 1,
+                'preference': 2,
+                'flags': 'three',
+                'service': 'four',
+                'regexp': 'five',
+                'replacement': 'six',
+            },
+            NaptrValue.parse_rdata_text('1 2 three four five six'),
+        )
+
+        # make sure that the cstor is using parse_rdata_text
+        zone = Zone('unit.tests.', [])
+        a = NaptrRecord(
+            zone,
+            'naptr',
+            {
+                'ttl': 32,
+                'value': {
+                    'order': 1,
+                    'preference': 2,
+                    'flags': 'S',
+                    'service': 'service',
+                    'regexp': 'regexp',
+                    'replacement': 'replacement',
+                },
+            },
+        )
+        self.assertEqual(1, a.values[0].order)
+        self.assertEqual(2, a.values[0].preference)
+        self.assertEqual('S', a.values[0].flags)
+        self.assertEqual('service', a.values[0].service)
+        self.assertEqual('regexp', a.values[0].regexp)
+        self.assertEqual('replacement', a.values[0].replacement)
+        s = '1 2 S service regexp replacement'
+        self.assertEqual(s, a.values[0].rdata_text)
+
     def test_ns(self):
         a_values = ['5.6.7.8.', '6.7.8.9.', '7.8.9.0.']
         a_data = {'ttl': 30, 'values': a_values}
@@ -979,6 +1270,25 @@ class TestRecord(TestCase):
         b = NsRecord(self.zone, 'b', b_data)
         self.assertEqual([b_value], b.values)
         self.assertEqual(b_data, b.data)
+
+    def test_ns_value_rdata_text(self):
+        # anything goes, we're a noop
+        for s in (
+            None,
+            '',
+            'word',
+            42,
+            42.43,
+            '1.2.3',
+            'some.words.that.here',
+            '1.2.word.4',
+            '1.2.3.4',
+        ):
+            self.assertEqual(s, _NsValue.parse_rdata_text(s))
+
+        zone = Zone('unit.tests.', [])
+        a = NsRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
+        self.assertEqual('some.target.', a.values[0].rdata_text)
 
     def test_sshfp(self):
         a_values = [
@@ -1048,10 +1358,84 @@ class TestRecord(TestCase):
         # __repr__ doesn't blow up
         a.__repr__()
 
+    def test_sshfp_value_rdata_text(self):
+
+        # empty string won't parse
+        with self.assertRaises(RrParseError):
+            SshfpValue.parse_rdata_text('')
+
+        # single word won't parse
+        with self.assertRaises(RrParseError):
+            SshfpValue.parse_rdata_text('nope')
+
+        # 3rd word won't parse
+        with self.assertRaises(RrParseError):
+            SshfpValue.parse_rdata_text('0 1 00479b27 another')
+
+        # algorithm and fingerprint_type not ints
+        self.assertEqual(
+            {
+                'algorithm': 'one',
+                'fingerprint_type': 'two',
+                'fingerprint': '00479b27',
+            },
+            SshfpValue.parse_rdata_text('one two 00479b27'),
+        )
+
+        # valid
+        self.assertEqual(
+            {'algorithm': 1, 'fingerprint_type': 2, 'fingerprint': '00479b27'},
+            SshfpValue.parse_rdata_text('1 2 00479b27'),
+        )
+
+        zone = Zone('unit.tests.', [])
+        a = SshfpRecord(
+            zone,
+            'sshfp',
+            {
+                'ttl': 32,
+                'value': {
+                    'algorithm': 1,
+                    'fingerprint_type': 2,
+                    'fingerprint': '00479b27',
+                },
+            },
+        )
+        self.assertEqual(1, a.values[0].algorithm)
+        self.assertEqual(2, a.values[0].fingerprint_type)
+        self.assertEqual('00479b27', a.values[0].fingerprint)
+        self.assertEqual('1 2 00479b27', a.values[0].rdata_text)
+
     def test_spf(self):
         a_values = ['spf1 -all', 'spf1 -hrm']
         b_value = 'spf1 -other'
         self.assertMultipleValues(SpfRecord, a_values, b_value)
+
+    def test_chunked_value_rdata_text(self):
+        for s in (
+            None,
+            '',
+            'word',
+            42,
+            42.43,
+            '1.2.3',
+            'some.words.that.here',
+            '1.2.word.4',
+            '1.2.3.4',
+        ):
+            self.assertEqual(s, _ChunkedValue.parse_rdata_text(s))
+
+        # semi-colons are escaped
+        self.assertEqual(
+            'Hello\\; World!', _ChunkedValue.parse_rdata_text('Hello; World!')
+        )
+
+        # since we're always a string validate and __init__ don't
+        # parse_rdata_text
+
+        zone = Zone('unit.tests.', [])
+        a = SpfRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
+        self.assertEqual('some.target.', a.values[0].rdata_text)
 
     def test_srv(self):
         a_values = [
@@ -1116,6 +1500,69 @@ class TestRecord(TestCase):
 
         # __repr__ doesn't blow up
         a.__repr__()
+
+    def test_srv_value_rdata_text(self):
+
+        # empty string won't parse
+        with self.assertRaises(RrParseError):
+            SrvValue.parse_rdata_text('')
+
+        # single word won't parse
+        with self.assertRaises(RrParseError):
+            SrvValue.parse_rdata_text('nope')
+
+        # 2nd word won't parse
+        with self.assertRaises(RrParseError):
+            SrvValue.parse_rdata_text('1 2')
+
+        # 3rd word won't parse
+        with self.assertRaises(RrParseError):
+            SrvValue.parse_rdata_text('1 2 3')
+
+        # 5th word won't parse
+        with self.assertRaises(RrParseError):
+            SrvValue.parse_rdata_text('1 2 3 4 5')
+
+        # priority weight and port not ints
+        self.assertEqual(
+            {
+                'priority': 'one',
+                'weight': 'two',
+                'port': 'three',
+                'target': 'srv.unit.tests.',
+            },
+            SrvValue.parse_rdata_text('one two three srv.unit.tests.'),
+        )
+
+        # valid
+        self.assertEqual(
+            {
+                'priority': 1,
+                'weight': 2,
+                'port': 3,
+                'target': 'srv.unit.tests.',
+            },
+            SrvValue.parse_rdata_text('1 2 3 srv.unit.tests.'),
+        )
+
+        zone = Zone('unit.tests.', [])
+        a = SrvRecord(
+            zone,
+            '_srv._tcp',
+            {
+                'ttl': 32,
+                'value': {
+                    'priority': 1,
+                    'weight': 2,
+                    'port': 3,
+                    'target': 'srv.unit.tests.',
+                },
+            },
+        )
+        self.assertEqual(1, a.values[0].priority)
+        self.assertEqual(2, a.values[0].weight)
+        self.assertEqual(3, a.values[0].port)
+        self.assertEqual('srv.unit.tests.', a.values[0].target)
 
     def test_tlsa(self):
         a_values = [
@@ -1217,6 +1664,70 @@ class TestRecord(TestCase):
 
         # __repr__ doesn't blow up
         a.__repr__()
+
+    def test_tsla_value_rdata_text(self):
+
+        # empty string won't parse
+        with self.assertRaises(RrParseError):
+            TlsaValue.parse_rdata_text('')
+
+        # single word won't parse
+        with self.assertRaises(RrParseError):
+            TlsaValue.parse_rdata_text('nope')
+
+        # 2nd word won't parse
+        with self.assertRaises(RrParseError):
+            TlsaValue.parse_rdata_text('1 2')
+
+        # 3rd word won't parse
+        with self.assertRaises(RrParseError):
+            TlsaValue.parse_rdata_text('1 2 3')
+
+        # 5th word won't parse
+        with self.assertRaises(RrParseError):
+            TlsaValue.parse_rdata_text('1 2 3 abcd another')
+
+        # non-ints
+        self.assertEqual(
+            {
+                'certificate_usage': 'one',
+                'selector': 'two',
+                'matching_type': 'three',
+                'certificate_association_data': 'abcd',
+            },
+            TlsaValue.parse_rdata_text('one two three abcd'),
+        )
+
+        # valid
+        self.assertEqual(
+            {
+                'certificate_usage': 1,
+                'selector': 2,
+                'matching_type': 3,
+                'certificate_association_data': 'abcd',
+            },
+            TlsaValue.parse_rdata_text('1 2 3 abcd'),
+        )
+
+        zone = Zone('unit.tests.', [])
+        a = TlsaRecord(
+            zone,
+            'tlsa',
+            {
+                'ttl': 32,
+                'value': {
+                    'certificate_usage': 2,
+                    'selector': 1,
+                    'matching_type': 0,
+                    'certificate_association_data': 'abcd',
+                },
+            },
+        )
+        self.assertEqual(2, a.values[0].certificate_usage)
+        self.assertEqual(1, a.values[0].selector)
+        self.assertEqual(0, a.values[0].matching_type)
+        self.assertEqual('abcd', a.values[0].certificate_association_data)
+        self.assertEqual('2 1 0 abcd', a.values[0].rdata_text)
 
     def test_txt(self):
         a_values = ['a one', 'a two']
@@ -2025,6 +2536,30 @@ class TestRecord(TestCase):
         self.assertFalse(b in values)
         values.add(b)
         self.assertTrue(b in values)
+
+    def test_rr(self):
+        # nothing much to test, just make sure that things don't blow up
+        Rr('name', 'type', 42, 'Hello World!').__repr__()
+
+        zone = Zone('unit.tests.', [])
+        record = Record.new(
+            zone,
+            'a',
+            {'ttl': 42, 'type': 'A', 'values': ['1.2.3.4', '2.3.4.5']},
+        )
+        self.assertEqual(
+            ('a.unit.tests.', 42, 'A', ['1.2.3.4', '2.3.4.5']), record.rrs
+        )
+
+        record = Record.new(
+            zone,
+            'cname',
+            {'ttl': 43, 'type': 'CNAME', 'value': 'target.unit.tests.'},
+        )
+        self.assertEqual(
+            ('cname.unit.tests.', 43, 'CNAME', ['target.unit.tests.']),
+            record.rrs,
+        )
 
 
 class TestRecordValidation(TestCase):

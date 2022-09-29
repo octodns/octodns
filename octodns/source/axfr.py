@@ -9,12 +9,11 @@ import dns.rdatatype
 
 from dns.exception import DNSException
 
-from collections import defaultdict
 from os import listdir
 from os.path import join
 import logging
 
-from ..record import Record
+from ..record import Record, Rr
 from .base import BaseSource
 
 
@@ -42,110 +41,6 @@ class AxfrBaseSource(BaseSource):
     def __init__(self, id):
         super().__init__(id)
 
-    def _data_for_multiple(self, _type, records):
-        return {
-            'ttl': records[0]['ttl'],
-            'type': _type,
-            'values': [r['value'] for r in records],
-        }
-
-    _data_for_A = _data_for_multiple
-    _data_for_AAAA = _data_for_multiple
-    _data_for_NS = _data_for_multiple
-    _data_for_PTR = _data_for_multiple
-
-    def _data_for_CAA(self, _type, records):
-        values = []
-        for record in records:
-            flags, tag, value = record['value'].split(' ', 2)
-            values.append(
-                {'flags': flags, 'tag': tag, 'value': value.replace('"', '')}
-            )
-        return {'ttl': records[0]['ttl'], 'type': _type, 'values': values}
-
-    def _data_for_LOC(self, _type, records):
-        values = []
-        for record in records:
-            (
-                lat_degrees,
-                lat_minutes,
-                lat_seconds,
-                lat_direction,
-                long_degrees,
-                long_minutes,
-                long_seconds,
-                long_direction,
-                altitude,
-                size,
-                precision_horz,
-                precision_vert,
-            ) = (record['value'].replace('m', '').split(' ', 11))
-            values.append(
-                {
-                    'lat_degrees': lat_degrees,
-                    'lat_minutes': lat_minutes,
-                    'lat_seconds': lat_seconds,
-                    'lat_direction': lat_direction,
-                    'long_degrees': long_degrees,
-                    'long_minutes': long_minutes,
-                    'long_seconds': long_seconds,
-                    'long_direction': long_direction,
-                    'altitude': altitude,
-                    'size': size,
-                    'precision_horz': precision_horz,
-                    'precision_vert': precision_vert,
-                }
-            )
-        return {'ttl': records[0]['ttl'], 'type': _type, 'values': values}
-
-    def _data_for_MX(self, _type, records):
-        values = []
-        for record in records:
-            preference, exchange = record['value'].split(' ', 1)
-            values.append({'preference': preference, 'exchange': exchange})
-        return {'ttl': records[0]['ttl'], 'type': _type, 'values': values}
-
-    def _data_for_TXT(self, _type, records):
-        values = [value['value'].replace(';', '\\;') for value in records]
-        return {'ttl': records[0]['ttl'], 'type': _type, 'values': values}
-
-    _data_for_SPF = _data_for_TXT
-
-    def _data_for_single(self, _type, records):
-        record = records[0]
-        return {'ttl': record['ttl'], 'type': _type, 'value': record['value']}
-
-    _data_for_CNAME = _data_for_single
-
-    def _data_for_SRV(self, _type, records):
-        values = []
-        for record in records:
-            priority, weight, port, target = record['value'].split(' ', 3)
-            values.append(
-                {
-                    'priority': priority,
-                    'weight': weight,
-                    'port': port,
-                    'target': target,
-                }
-            )
-        return {'type': _type, 'ttl': records[0]['ttl'], 'values': values}
-
-    def _data_for_SSHFP(self, _type, records):
-        values = []
-        for record in records:
-            algorithm, fingerprint_type, fingerprint = record['value'].split(
-                ' ', 2
-            )
-            values.append(
-                {
-                    'algorithm': algorithm,
-                    'fingerprint_type': fingerprint_type,
-                    'fingerprint': fingerprint,
-                }
-            )
-        return {'type': _type, 'ttl': records[0]['ttl'], 'values': values}
-
     def populate(self, zone, target=False, lenient=False):
         self.log.debug(
             'populate: name=%s, target=%s, lenient=%s',
@@ -154,26 +49,10 @@ class AxfrBaseSource(BaseSource):
             lenient,
         )
 
-        values = defaultdict(lambda: defaultdict(list))
-        for record in self.zone_records(zone):
-            _type = record['type']
-            if _type not in self.SUPPORTS:
-                continue
-            name = zone.hostname_from_fqdn(record['name'])
-            values[name][record['type']].append(record)
-
         before = len(zone.records)
-        for name, types in values.items():
-            for _type, records in types.items():
-                data_for = getattr(self, f'_data_for_{_type}')
-                record = Record.new(
-                    zone,
-                    name,
-                    data_for(_type, records),
-                    source=self,
-                    lenient=lenient,
-                )
-                zone.add_record(record, lenient=lenient)
+        rrs = self.zone_records(zone)
+        for record in Record.from_rrs(zone, rrs, lenient=lenient):
+            zone.add_record(record, lenient=lenient)
 
         self.log.info(
             'populate:   found %s records', len(zone.records) - before
@@ -218,14 +97,8 @@ class AxfrSource(AxfrBaseSource):
 
         for (name, ttl, rdata) in z.iterate_rdatas():
             rdtype = dns.rdatatype.to_text(rdata.rdtype)
-            records.append(
-                {
-                    "name": name.to_text(),
-                    "ttl": ttl,
-                    "type": rdtype,
-                    "value": rdata.to_text(),
-                }
-            )
+            if rdtype in self.SUPPORTS:
+                records.append(Rr(name.to_text(), rdtype, ttl, rdata.to_text()))
 
         return records
 
@@ -302,20 +175,17 @@ class ZoneFileSource(AxfrBaseSource):
         if zone.name not in self._zone_records:
             try:
                 z = self._load_zone_file(zone.name)
-                records = []
-                for (name, ttl, rdata) in z.iterate_rdatas():
-                    rdtype = dns.rdatatype.to_text(rdata.rdtype)
-                    records.append(
-                        {
-                            "name": name.to_text(),
-                            "ttl": ttl,
-                            "type": rdtype,
-                            "value": rdata.to_text(),
-                        }
-                    )
-
-                self._zone_records[zone.name] = records
             except ZoneFileSourceNotFound:
                 return []
+
+            records = []
+            for (name, ttl, rdata) in z.iterate_rdatas():
+                rdtype = dns.rdatatype.to_text(rdata.rdtype)
+                if rdtype in self.SUPPORTS:
+                    records.append(
+                        Rr(name.to_text(), rdtype, ttl, rdata.to_text())
+                    )
+
+            self._zone_records[zone.name] = records
 
         return self._zone_records[zone.name]

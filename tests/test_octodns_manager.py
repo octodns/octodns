@@ -186,6 +186,9 @@ class TestManager(TestCase):
         manager.config['zones'] = manager._config_zones(
             {'déjà.vu.': {}, 'deja.vu.': {}, idna_encode('こんにちは.jp.'): {}}
         )
+        from pprint import pprint
+
+        pprint(manager.config['zones'])
 
         # refer to them with utf-8
         with self.assertRaises(ManagerException) as ctx:
