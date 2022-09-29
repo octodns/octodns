@@ -4,8 +4,10 @@
 
 from argparse import ArgumentParser as _Base
 from logging import DEBUG, INFO, WARNING, Formatter, StreamHandler, getLogger
+from logging.config import dictConfig
 from logging.handlers import SysLogHandler
 from sys import stderr, stdout
+from yaml import safe_load
 
 from octodns import __VERSION__
 
@@ -55,11 +57,22 @@ class ArgumentParser(_Base):
             '--quiet', action='store_true', default=False, help=_help
         )
 
+        _help = 'Configure logging with a YAML file, see https://docs.python.org/3/library/logging.config.html#logging-config-dictschema for schema details'
+        self.add_argument('--logging-config', default=False, help=_help)
+
         args = super().parse_args()
         self._setup_logging(args, default_log_level)
         return args
 
     def _setup_logging(self, args, default_log_level):
+        if args.logging_config:
+            with open(args.logging_config) as fh:
+                config = safe_load(fh.read())
+            dictConfig(config)
+            # if we're provided a logging_config we won't do any of our normal
+            # configuration
+            return
+
         fmt = '%(asctime)s [%(thread)d] %(levelname)-5s %(name)s %(message)s'
         formatter = Formatter(fmt=fmt, datefmt='%Y-%m-%dT%H:%M:%S ')
         stream = stdout if args.log_stream_stdout else stderr
