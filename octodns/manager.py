@@ -10,6 +10,7 @@ from sys import stdout
 import logging
 
 from . import __VERSION__
+from .auto_arpa import AutoArpa
 from .idna import IdnaDict, idna_decode, idna_encode
 from .provider.base import BaseProvider
 from .provider.plan import Plan
@@ -99,7 +100,13 @@ class Manager(object):
 
     # TODO: all of this should get broken up, mainly so that it's not so huge
     # and each bit can be cleanly tested independently
-    def __init__(self, config_file, max_workers=None, include_meta=False):
+    def __init__(
+        self,
+        config_file,
+        max_workers=None,
+        include_meta=False,
+        enable_auto_arpa=False,
+    ):
         version = self._try_version('octodns', version=__VERSION__)
         self.log.info(
             '__init__: config_file=%s (octoDNS %s)', config_file, version
@@ -119,8 +126,15 @@ class Manager(object):
         self.include_meta = self._config_include_meta(
             manager_config, include_meta
         )
+        self.auto_arpa = self._config_auto_arpa(
+            manager_config, enable_auto_arpa
+        )
 
         self.global_processors = manager_config.get('processors', [])
+        if self.auto_arpa:
+            # if enabled this need to run last on every zone so that it can get
+            # the final picture of any A/AAAA records
+            self.global_processors.append('auto-arpa')
         self.log.info('__init__: global_processors=%s', self.global_processors)
 
         providers_config = self.config['providers']
@@ -174,6 +188,17 @@ class Manager(object):
         self.log.info('_config_include_meta: include_meta=%s', include_meta)
         return include_meta
 
+    def _config_auto_arpa(self, manager_config, enable_auto_arpa=False):
+        enable_auto_arpa = enable_auto_arpa or manager_config.get(
+            'enable_auto_arpa', False
+        )
+        self.log.info(
+            '_config_auto_arpa: enable_auto_arpa=%s', enable_auto_arpa
+        )
+        if enable_auto_arpa:
+            return AutoArpa()
+        return None
+
     def _config_providers(self, providers_config):
         self.log.debug('_config_providers: configuring providers')
         providers = {}
@@ -202,6 +227,9 @@ class Manager(object):
                     'Incorrect provider config for ' + provider_name
                 )
 
+        if self.auto_arpa:
+            providers['auto-arpa'] = self.auto_arpa
+
         return providers
 
     def _config_processors(self, processors_config):
@@ -229,6 +257,10 @@ class Manager(object):
                 raise ManagerException(
                     'Incorrect processor config for ' + processor_name
                 )
+
+        if self.auto_arpa:
+            processors['auto-arpa'] = self.auto_arpa
+
         return processors
 
     def _config_plan_outputs(self, plan_outputs_config):
@@ -476,6 +508,7 @@ class Manager(object):
             zones = IdnaDict({n: zones.get(n) for n in eligible_zones})
 
         aliased_zones = {}
+        deferred_kwargs = []
         futures = []
         for zone_name, config in zones.items():
             decoded_zone_name = idna_decode(zone_name)
@@ -505,6 +538,10 @@ class Manager(object):
                 raise ManagerException(
                     f'Zone {decoded_zone_name} is missing sources'
                 )
+
+            # if auto-arpa is in the list (while it's still ids) this zone needs
+            # to be deferred until after everything else has run
+            deferred = 'auto-arpa' in sources
 
             try:
                 targets = config['targets']
@@ -572,16 +609,20 @@ class Manager(object):
                     f'Zone {decoded_zone_name}, unknown ' f'target: {target}'
                 )
 
-            futures.append(
-                self._executor.submit(
-                    self._populate_and_plan,
-                    zone_name,
-                    processors,
-                    sources,
-                    targets,
-                    lenient=lenient,
+            kwargs = {
+                'zone_name': zone_name,
+                'processors': processors,
+                'sources': sources,
+                'targets': targets,
+                'lenient': lenient,
+            }
+            if deferred:
+                self.log.debug('sync:   deferring %s', zone_name)
+                deferred_kwargs.append(kwargs)
+            else:
+                futures.append(
+                    self._executor.submit(self._populate_and_plan, **kwargs)
                 )
-            )
 
         # Wait on all results and unpack/flatten the plans and store the
         # desired states in case we need them below
@@ -620,6 +661,17 @@ class Manager(object):
         # Wait on results and unpack/flatten the plans, ignore the desired here
         # as these are aliased zones
         plans += [p for f in futures for p in f.result()[0]]
+
+        if deferred_kwargs:
+            self.log.debug('sync: planning deferred zones')
+            # now we need to run any deferred planning
+            futures = []
+            for kwargs in deferred_kwargs:
+                futures.append(
+                    self._executor.submit(self._populate_and_plan, **kwargs)
+                )
+            # wait for them to finish
+            plans += [p for f in futures for p in f.result()[0]]
 
         # Best effort sort plans children first so that we create/update
         # children zones before parents which should allow us to more safely

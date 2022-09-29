@@ -176,6 +176,16 @@ class TestManager(TestCase):
             ).sync(dry_run=False, force=True)
             self.assertEqual(33, tc)
 
+    def test_auto_arpa(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
+
+            manager = Manager(get_config_filename('auto-arpa.yaml'))
+            tc = manager.sync(dry_run=False)
+            # we expect 22 records from unit.tests and 2 PTRs in the arpa zone
+            self.assertEqual(24, tc)
+
     def test_idna_eligible_zones(self):
         # loading w/simple, but we'll be blowing it away and doing some manual
         # stuff

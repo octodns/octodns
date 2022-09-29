@@ -1,0 +1,26 @@
+manager:
+  enable_auto_arpa: true
+  max_workers: 2
+
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+    supports_root_ns: False
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+    default_ttl: 999
+    supports_root_ns: False
+
+zones:
+  1.in-addr.arpa.:
+    sources:
+    - auto-arpa
+    targets:
+    - dump
+  unit.tests.:
+    sources:
+    - in
+    targets:
+    - dump
