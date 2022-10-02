@@ -1735,7 +1735,8 @@ class NaptrRecord(ValuesMixin, Record):
 Record.register_type(NaptrRecord)
 
 
-class _NsValue(str):
+# much like _TargetValue, but geared towards multiple values
+class _TargetsValue(str):
     @classmethod
     def parse_rdata_text(cls, value):
         return value
@@ -1751,10 +1752,10 @@ class _NsValue(str):
             value = idna_encode(value)
             if not FQDN(value, allow_underscores=True).is_valid:
                 reasons.append(
-                    f'Invalid NS value "{value}" is not a valid FQDN.'
+                    f'Invalid {_type} value "{value}" is not a valid FQDN.'
                 )
             elif not value.endswith('.'):
-                reasons.append(f'NS value "{value}" missing trailing .')
+                reasons.append(f'{_type} value "{value}" missing trailing .')
         return reasons
 
     @classmethod
@@ -1768,6 +1769,10 @@ class _NsValue(str):
     @property
     def rdata_text(self):
         return self
+
+
+class _NsValue(_TargetsValue):
+    pass
 
 
 class NsRecord(ValuesMixin, Record):
@@ -1778,39 +1783,8 @@ class NsRecord(ValuesMixin, Record):
 Record.register_type(NsRecord)
 
 
-class PtrValue(str):
-    @classmethod
-    def parse_rdata_text(self, value):
-        return value
-
-    @classmethod
-    def validate(cls, data, _type):
-        if not data:
-            return ['missing value(s)']
-        elif not isinstance(data, (list, tuple)):
-            data = (data,)
-        reasons = []
-        for value in data:
-            value = idna_encode(value)
-            if not FQDN(value, allow_underscores=True).is_valid:
-                reasons.append(
-                    f'Invalid PTR value "{value}" is not a valid FQDN.'
-                )
-            elif not value.endswith('.'):
-                reasons.append(f'PTR value "{value}" missing trailing .')
-        return reasons
-
-    @classmethod
-    def process(cls, values):
-        return [cls(v) for v in values]
-
-    def __new__(cls, v):
-        v = idna_encode(v)
-        return super().__new__(cls, v)
-
-    @property
-    def rdata_text(self):
-        return self
+class PtrValue(_TargetsValue):
+    pass
 
 
 class PtrRecord(ValuesMixin, Record):
