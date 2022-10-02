@@ -1778,26 +1778,39 @@ class NsRecord(ValuesMixin, Record):
 Record.register_type(NsRecord)
 
 
-class PtrValue(_TargetValue):
+class PtrValue(str):
     @classmethod
-    def validate(cls, values, _type):
-        if not isinstance(values, list):
-            values = [values]
+    def parse_rdata_text(self, value):
+        return value
 
+    @classmethod
+    def validate(cls, data, _type):
+        if not data:
+            return ['missing value(s)']
+        elif not isinstance(data, (list, tuple)):
+            data = (data,)
         reasons = []
-
-        if not values:
-            reasons.append('missing values')
-
-        for value in values:
-            reasons.extend(super().validate(value, _type))
-
+        for value in data:
+            value = idna_encode(value)
+            if not FQDN(value, allow_underscores=True).is_valid:
+                reasons.append(
+                    f'Invalid PTR value "{value}" is not a valid FQDN.'
+                )
+            elif not value.endswith('.'):
+                reasons.append(f'PTR value "{value}" missing trailing .')
         return reasons
 
     @classmethod
     def process(cls, values):
-        supr = super()
-        return [supr.process(v) for v in values]
+        return [cls(v) for v in values]
+
+    def __new__(cls, v):
+        v = idna_encode(v)
+        return super().__new__(cls, v)
+
+    @property
+    def rdata_text(self):
+        return self
 
 
 class PtrRecord(ValuesMixin, Record):
