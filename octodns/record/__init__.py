@@ -2,6 +2,7 @@
 #
 #
 
+from collections import defaultdict
 from ipaddress import IPv4Address as _IPv4Address, IPv6Address as _IPv6Address
 from logging import getLogger
 import re
@@ -67,6 +68,11 @@ class RecordException(Exception):
     pass
 
 
+class RrParseError(RecordException):
+    def __init__(self, message='failed to parse string value as RR text'):
+        super().__init__(message)
+
+
 class ValidationError(RecordException):
     @classmethod
     def build_message(cls, fqdn, reasons):
@@ -77,6 +83,23 @@ class ValidationError(RecordException):
         super().__init__(self.build_message(fqdn, reasons))
         self.fqdn = fqdn
         self.reasons = reasons
+
+
+class Rr(object):
+    '''
+    Simple object intended to be used with Record.from_rrs to allow providers
+    that work with RFC formatted rdata to share centralized parsing/encoding
+    code
+    '''
+
+    def __init__(self, name, _type, ttl, rdata):
+        self.name = name
+        self._type = _type
+        self.ttl = ttl
+        self.rdata = rdata
+
+    def __repr__(self):
+        return f'Rr<{self.name}, {self._type}, {self.ttl}, {self.rdata}'
 
 
 class Record(EqualityTupleMixin):
@@ -165,6 +188,27 @@ class Record(EqualityTupleMixin):
         except KeyError:
             pass
         return reasons
+
+    @classmethod
+    def from_rrs(cls, zone, rrs, lenient=False):
+        # group records by name & type so that multiple rdatas can be combined
+        # into a single record when needed
+        grouped = defaultdict(list)
+        for rr in rrs:
+            grouped[(rr.name, rr._type)].append(rr)
+
+        records = []
+        # walk the grouped rrs converting each one to data and then create a
+        # record with that data
+        for _, rrs in sorted(grouped.items()):
+            rr = rrs[0]
+            name = zone.hostname_from_fqdn(rr.name)
+            _class = cls._CLASSES[rr._type]
+            data = _class.data_from_rrs(rrs)
+            record = Record.new(zone, name, data, lenient=lenient)
+            records.append(record)
+
+        return records
 
     def __init__(self, zone, name, data, source=None):
         self.zone = zone
@@ -337,6 +381,14 @@ class ValuesMixin(object):
 
         return reasons
 
+    @classmethod
+    def data_from_rrs(cls, rrs):
+        # type and TTL come from the first rr
+        rr = rrs[0]
+        # values come from parsing the rdata portion of all rrs
+        values = [cls._value_type.parse_rdata_text(rr.rdata) for rr in rrs]
+        return {'ttl': rr.ttl, 'type': rr._type, 'values': values}
+
     def __init__(self, zone, name, data, source=None):
         super().__init__(zone, name, data, source=source)
         try:
@@ -364,6 +416,15 @@ class ValuesMixin(object):
                 ret['value'] = getattr(v, 'data', v)
 
         return ret
+
+    @property
+    def rrs(self):
+        return (
+            self.fqdn,
+            self.ttl,
+            self._type,
+            [v.rdata_text for v in self.values],
+        )
 
     def __repr__(self):
         values = "', '".join([str(v) for v in self.values])
@@ -433,6 +494,16 @@ class ValueMixin(object):
         )
         return reasons
 
+    @classmethod
+    def data_from_rrs(cls, rrs):
+        # single value, so single rr only...
+        rr = rrs[0]
+        return {
+            'ttl': rr.ttl,
+            'type': rr._type,
+            'value': cls._value_type.parse_rdata_text(rr.rdata),
+        }
+
     def __init__(self, zone, name, data, source=None):
         super().__init__(zone, name, data, source=source)
         self.value = self._value_type.process(data['value'])
@@ -447,6 +518,10 @@ class ValueMixin(object):
         if self.value:
             ret['value'] = getattr(self.value, 'data', self.value)
         return ret
+
+    @property
+    def rrs(self):
+        return self.fqdn, self.ttl, self._type, [self.value.rdata_text]
 
     def __repr__(self):
         klass = self.__class__.__name__
@@ -786,6 +861,10 @@ class _DynamicMixin(object):
 
 class _TargetValue(str):
     @classmethod
+    def parse_rdata_text(self, value):
+        return value
+
+    @classmethod
     def validate(cls, data, _type):
         reasons = []
         if data == '':
@@ -810,6 +889,10 @@ class _TargetValue(str):
         v = idna_encode(v)
         return super().__new__(cls, v)
 
+    @property
+    def rdata_text(self):
+        return self
+
 
 class CnameValue(_TargetValue):
     pass
@@ -820,6 +903,10 @@ class DnameValue(_TargetValue):
 
 
 class _IpAddress(str):
+    @classmethod
+    def parse_rdata_text(cls, value):
+        return value
+
     @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
@@ -852,6 +939,10 @@ class _IpAddress(str):
     def __new__(cls, v):
         v = str(cls._address_type(v))
         return super().__new__(cls, v)
+
+    @property
+    def rdata_text(self):
+        return self
 
 
 class Ipv4Address(_IpAddress):
@@ -902,6 +993,18 @@ Record.register_type(AliasRecord)
 
 class CaaValue(EqualityTupleMixin, dict):
     # https://tools.ietf.org/html/rfc6844#page-5
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        try:
+            flags, tag, value = value.split(' ')
+        except ValueError:
+            raise RrParseError()
+        try:
+            flags = int(flags)
+        except ValueError:
+            pass
+        return {'flags': flags, 'tag': tag, 'value': value}
 
     @classmethod
     def validate(cls, data, _type):
@@ -963,6 +1066,10 @@ class CaaValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    @property
+    def rdata_text(self):
+        return f'{self.flags} {self.tag} {self.value}'
+
     def _equality_tuple(self):
         return (self.flags, self.tag, self.value)
 
@@ -1003,7 +1110,85 @@ Record.register_type(DnameRecord)
 
 
 class LocValue(EqualityTupleMixin, dict):
-    # TODO: work out how to do defaults per RFC
+    # TODO: this does not really match the RFC, but it's stuck using the details
+    # of how the type was impelemented. Would be nice to rework things to match
+    # while maintaining backwards compatibility.
+    # https://www.rfc-editor.org/rfc/rfc1876.html
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        try:
+            value = value.replace('m', '')
+            (
+                lat_degrees,
+                lat_minutes,
+                lat_seconds,
+                lat_direction,
+                long_degrees,
+                long_minutes,
+                long_seconds,
+                long_direction,
+                altitude,
+                size,
+                precision_horz,
+                precision_vert,
+            ) = value.split(' ')
+        except ValueError:
+            raise RrParseError()
+        try:
+            lat_degrees = int(lat_degrees)
+        except ValueError:
+            pass
+        try:
+            lat_minutes = int(lat_minutes)
+        except ValueError:
+            pass
+        try:
+            long_degrees = int(long_degrees)
+        except ValueError:
+            pass
+        try:
+            long_minutes = int(long_minutes)
+        except ValueError:
+            pass
+        try:
+            lat_seconds = float(lat_seconds)
+        except ValueError:
+            pass
+        try:
+            long_seconds = float(long_seconds)
+        except ValueError:
+            pass
+        try:
+            altitude = float(altitude)
+        except ValueError:
+            pass
+        try:
+            size = float(size)
+        except ValueError:
+            pass
+        try:
+            precision_horz = float(precision_horz)
+        except ValueError:
+            pass
+        try:
+            precision_vert = float(precision_vert)
+        except ValueError:
+            pass
+        return {
+            'lat_degrees': lat_degrees,
+            'lat_minutes': lat_minutes,
+            'lat_seconds': lat_seconds,
+            'lat_direction': lat_direction,
+            'long_degrees': long_degrees,
+            'long_minutes': long_minutes,
+            'long_seconds': long_seconds,
+            'long_direction': long_direction,
+            'altitude': altitude,
+            'size': size,
+            'precision_horz': precision_horz,
+            'precision_vert': precision_vert,
+        }
 
     @classmethod
     def validate(cls, data, _type):
@@ -1218,6 +1403,10 @@ class LocValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    @property
+    def rdata_text(self):
+        return f'{self.lat_degrees} {self.lat_minutes} {self.lat_seconds} {self.lat_direction} {self.long_degrees} {self.long_minutes} {self.long_seconds} {self.long_direction} {self.altitude}m {self.size}m {self.precision_horz}m {self.precision_vert}m'
+
     def __hash__(self):
         return hash(
             (
@@ -1272,6 +1461,18 @@ Record.register_type(LocRecord)
 
 
 class MxValue(EqualityTupleMixin, dict):
+    @classmethod
+    def parse_rdata_text(cls, value):
+        try:
+            preference, exchange = value.split(' ')
+        except ValueError:
+            raise RrParseError()
+        try:
+            preference = int(preference)
+        except ValueError:
+            pass
+        return {'preference': preference, 'exchange': exchange}
+
     @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
@@ -1347,6 +1548,10 @@ class MxValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    @property
+    def rdata_text(self):
+        return f'{self.preference} {self.exchange}'
+
     def __hash__(self):
         return hash((self.preference, self.exchange))
 
@@ -1367,6 +1572,33 @@ Record.register_type(MxRecord)
 
 class NaptrValue(EqualityTupleMixin, dict):
     VALID_FLAGS = ('S', 'A', 'U', 'P')
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        try:
+            (
+                order,
+                preference,
+                flags,
+                service,
+                regexp,
+                replacement,
+            ) = value.split(' ')
+        except ValueError:
+            raise RrParseError()
+        try:
+            order = int(order)
+            preference = int(preference)
+        except ValueError:
+            pass
+        return {
+            'order': order,
+            'preference': preference,
+            'flags': flags,
+            'service': service,
+            'regexp': regexp,
+            'replacement': replacement,
+        }
 
     @classmethod
     def validate(cls, data, _type):
@@ -1468,6 +1700,10 @@ class NaptrValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    @property
+    def rdata_text(self):
+        return f'{self.order} {self.preference} {self.flags} {self.service} {self.regexp} {self.replacement}'
+
     def __hash__(self):
         return hash(self.__repr__())
 
@@ -1501,6 +1737,10 @@ Record.register_type(NaptrRecord)
 
 class _NsValue(str):
     @classmethod
+    def parse_rdata_text(cls, value):
+        return value
+
+    @classmethod
     def validate(cls, data, _type):
         if not data:
             return ['missing value(s)']
@@ -1524,6 +1764,10 @@ class _NsValue(str):
     def __new__(cls, v):
         v = idna_encode(v)
         return super().__new__(cls, v)
+
+    @property
+    def rdata_text(self):
+        return self
 
 
 class NsRecord(ValuesMixin, Record):
@@ -1573,6 +1817,26 @@ Record.register_type(PtrRecord)
 class SshfpValue(EqualityTupleMixin, dict):
     VALID_ALGORITHMS = (1, 2, 3, 4)
     VALID_FINGERPRINT_TYPES = (1, 2)
+
+    @classmethod
+    def parse_rdata_text(self, value):
+        try:
+            algorithm, fingerprint_type, fingerprint = value.split(' ')
+        except ValueError:
+            raise RrParseError()
+        try:
+            algorithm = int(algorithm)
+        except ValueError:
+            pass
+        try:
+            fingerprint_type = int(fingerprint_type)
+        except ValueError:
+            pass
+        return {
+            'algorithm': algorithm,
+            'fingerprint_type': fingerprint_type,
+            'fingerprint': fingerprint,
+        }
 
     @classmethod
     def validate(cls, data, _type):
@@ -1645,6 +1909,10 @@ class SshfpValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    @property
+    def rdata_text(self):
+        return f'{self.algorithm} {self.fingerprint_type} {self.fingerprint}'
+
     def __hash__(self):
         return hash(self.__repr__())
 
@@ -1688,6 +1956,13 @@ class _ChunkedValue(str):
     _unescaped_semicolon_re = re.compile(r'\w;')
 
     @classmethod
+    def parse_rdata_text(cls, value):
+        try:
+            return value.replace(';', '\\;')
+        except AttributeError:
+            return value
+
+    @classmethod
     def validate(cls, data, _type):
         if not data:
             return ['missing value(s)']
@@ -1708,6 +1983,10 @@ class _ChunkedValue(str):
             ret.append(cls(v.replace('" "', '')))
         return ret
 
+    @property
+    def rdata_text(self):
+        return self
+
 
 class SpfRecord(_ChunkedValuesMixin, Record):
     _type = 'SPF'
@@ -1718,6 +1997,31 @@ Record.register_type(SpfRecord)
 
 
 class SrvValue(EqualityTupleMixin, dict):
+    @classmethod
+    def parse_rdata_text(self, value):
+        try:
+            priority, weight, port, target = value.split(' ')
+        except ValueError:
+            raise RrParseError()
+        try:
+            priority = int(priority)
+        except ValueError:
+            pass
+        try:
+            weight = int(weight)
+        except ValueError:
+            pass
+        try:
+            port = int(port)
+        except ValueError:
+            pass
+        return {
+            'priority': priority,
+            'weight': weight,
+            'port': port,
+            'target': target,
+        }
+
     @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
@@ -1841,6 +2145,36 @@ Record.register_type(SrvRecord)
 
 class TlsaValue(EqualityTupleMixin, dict):
     @classmethod
+    def parse_rdata_text(self, value):
+        try:
+            (
+                certificate_usage,
+                selector,
+                matching_type,
+                certificate_association_data,
+            ) = value.split(' ')
+        except ValueError:
+            raise RrParseError()
+        try:
+            certificate_usage = int(certificate_usage)
+        except ValueError:
+            pass
+        try:
+            selector = int(selector)
+        except ValueError:
+            pass
+        try:
+            matching_type = int(matching_type)
+        except ValueError:
+            pass
+        return {
+            'certificate_usage': certificate_usage,
+            'selector': selector,
+            'matching_type': matching_type,
+            'certificate_association_data': certificate_association_data,
+        }
+
+    @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
@@ -1931,6 +2265,10 @@ class TlsaValue(EqualityTupleMixin, dict):
     @certificate_association_data.setter
     def certificate_association_data(self, value):
         self['certificate_association_data'] = value
+
+    @property
+    def rdata_text(self):
+        return f'{self.certificate_usage} {self.selector} {self.matching_type} {self.certificate_association_data}'
 
     def _equality_tuple(self):
         return (
