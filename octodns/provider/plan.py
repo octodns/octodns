@@ -189,6 +189,7 @@ class PlanLogger(_PlanOutput):
             buf.write('No changes were planned\n')
         buf.write(hr)
         buf.write('\n')
+
         log.log(self.level, buf.getvalue())
 
 

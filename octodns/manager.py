@@ -5,9 +5,9 @@
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
+from logging import getLogger
 from os import environ
 from sys import stdout
-import logging
 
 from . import __VERSION__
 from .idna import IdnaDict, idna_decode, idna_encode
@@ -90,7 +90,8 @@ class ManagerException(Exception):
 
 
 class Manager(object):
-    log = logging.getLogger('Manager')
+    log = getLogger('Manager')
+    plan_log = getLogger('Plan')
 
     @classmethod
     def _plan_keyer(cls, p):
@@ -629,7 +630,7 @@ class Manager(object):
         plans.sort(key=self._plan_keyer, reverse=True)
 
         for output in self.plan_outputs.values():
-            output.run(plans=plans, log=self.log, fh=plan_output_fh)
+            output.run(plans=plans, log=self.plan_log, fh=plan_output_fh)
 
         if not force:
             self.log.debug('sync:   checking safety')
