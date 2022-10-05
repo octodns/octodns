@@ -1735,7 +1735,8 @@ class NaptrRecord(ValuesMixin, Record):
 Record.register_type(NaptrRecord)
 
 
-class _NsValue(str):
+# much like _TargetValue, but geared towards multiple values
+class _TargetsValue(str):
     @classmethod
     def parse_rdata_text(cls, value):
         return value
@@ -1751,10 +1752,10 @@ class _NsValue(str):
             value = idna_encode(value)
             if not FQDN(value, allow_underscores=True).is_valid:
                 reasons.append(
-                    f'Invalid NS value "{value}" is not a valid FQDN.'
+                    f'Invalid {_type} value "{value}" is not a valid FQDN.'
                 )
             elif not value.endswith('.'):
-                reasons.append(f'NS value "{value}" missing trailing .')
+                reasons.append(f'{_type} value "{value}" missing trailing .')
         return reasons
 
     @classmethod
@@ -1770,6 +1771,10 @@ class _NsValue(str):
         return self
 
 
+class _NsValue(_TargetsValue):
+    pass
+
+
 class NsRecord(ValuesMixin, Record):
     _type = 'NS'
     _value_type = _NsValue
@@ -1778,26 +1783,8 @@ class NsRecord(ValuesMixin, Record):
 Record.register_type(NsRecord)
 
 
-class PtrValue(_TargetValue):
-    @classmethod
-    def validate(cls, values, _type):
-        if not isinstance(values, list):
-            values = [values]
-
-        reasons = []
-
-        if not values:
-            reasons.append('missing values')
-
-        for value in values:
-            reasons.extend(super().validate(value, _type))
-
-        return reasons
-
-    @classmethod
-    def process(cls, values):
-        supr = super()
-        return [supr.process(v) for v in values]
+class PtrValue(_TargetsValue):
+    pass
 
 
 class PtrRecord(ValuesMixin, Record):

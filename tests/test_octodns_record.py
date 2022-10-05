@@ -25,6 +25,7 @@ from octodns.record import (
     NaptrValue,
     NsRecord,
     PtrRecord,
+    PtrValue,
     Record,
     RecordException,
     Rr,
@@ -217,12 +218,12 @@ class TestRecord(TestCase):
         upper_record = PtrRecord(
             self.zone,
             'PtrUppwerValue',
-            {'ttl': 30, 'type': 'PTR', 'value': 'GITHUB.COM'},
+            {'ttl': 30, 'type': 'PTR', 'value': 'GITHUB.COM.'},
         )
         lower_record = PtrRecord(
             self.zone,
             'PtrLowerValue',
-            {'ttl': 30, 'type': 'PTR', 'value': 'github.com'},
+            {'ttl': 30, 'type': 'PTR', 'value': 'github.com.'},
         )
         self.assertEqual(upper_record.value, lower_record.value)
 
@@ -3871,7 +3872,7 @@ class TestRecordValidation(TestCase):
             ctx.exception.reasons,
         )
 
-    def test_PTR(self):
+    def test_ptr(self):
         # doesn't blow up (name & zone here don't make any sense, but not
         # important)
         Record.new(
@@ -3881,7 +3882,12 @@ class TestRecordValidation(TestCase):
         # missing value
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {'type': 'PTR', 'ttl': 600})
-        self.assertEqual(['missing values'], ctx.exception.reasons)
+        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
+
+        # empty value
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, '', {'type': 'PTR', 'ttl': 600, 'value': ''})
+        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
 
         # not a valid FQDN
         with self.assertRaises(ValidationError) as ctx:
@@ -3889,7 +3895,8 @@ class TestRecordValidation(TestCase):
                 self.zone, '', {'type': 'PTR', 'ttl': 600, 'value': '_.'}
             )
         self.assertEqual(
-            ['PTR value "_." is not a valid FQDN'], ctx.exception.reasons
+            ['Invalid PTR value "_." is not a valid FQDN.'],
+            ctx.exception.reasons,
         )
 
         # no trailing .
@@ -3900,6 +3907,32 @@ class TestRecordValidation(TestCase):
         self.assertEqual(
             ['PTR value "foo.bar" missing trailing .'], ctx.exception.reasons
         )
+
+    def test_ptr_rdata_text(self):
+
+        # anything goes, we're a noop
+        for s in (
+            None,
+            '',
+            'word',
+            42,
+            42.43,
+            '1.2.3',
+            'some.words.that.here',
+            '1.2.word.4',
+            '1.2.3.4',
+        ):
+            self.assertEqual(s, PtrValue.parse_rdata_text(s))
+
+        zone = Zone('unit.tests.', [])
+        a = PtrRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
+        self.assertEqual('some.target.', a.values[0].rdata_text)
+
+        a = PtrRecord(
+            zone, 'a', {'ttl': 42, 'values': ['some.target.', 'second.target.']}
+        )
+        self.assertEqual('second.target.', a.values[0].rdata_text)
+        self.assertEqual('some.target.', a.values[1].rdata_text)
 
     def test_SSHFP(self):
         # doesn't blow up
