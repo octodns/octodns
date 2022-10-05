@@ -1,4 +1,4 @@
-## v0.9.20 - 2022-??-?? - ???
+## v0.9.20 - 2022-10-05 - International friendly
 
 #### Noteworthy changes
 
@@ -34,6 +34,15 @@
   filtering on record names to include/exclude records from management.
 * All Record values are now first class objects. This shouldn't be an externally
   visible change, but will enable future improvements.
+* --quiet command line option added to raise log level to WARNING, plan
+  output now comes from `plan` logger rather than `Manager` so that it can stay
+  at info
+* --logging-config command line option added to allow complete logging config
+  customization, see
+  https://docs.python.org/3/library/logging.config.html#logging-config-dictschema
+  for file format and
+  https://github.com/octodns/octodns/pull/945#issuecomment-1262839550 for an
+  example config
 
 ## v0.9.19 - 2022-08-14 - Subzone handling
 
