@@ -298,6 +298,38 @@ class TestRecord(TestCase):
 
             DummyRecord().__repr__()
 
+    def test_from_rrs(self):
+        # also tests ValuesMixin.data_from_rrs and ValueMixin.data_from_rrs
+        rrs = (
+            Rr('unit.tests.', 'A', 42, '1.2.3.4'),
+            Rr('unit.tests.', 'AAAA', 43, 'fc00::1'),
+            Rr('www.unit.tests.', 'A', 44, '3.4.5.6'),
+            Rr('unit.tests.', 'A', 42, '2.3.4.5'),
+            Rr('cname.unit.tests.', 'CNAME', 46, 'target.unit.tests.'),
+            Rr('unit.tests.', 'AAAA', 43, 'fc00::0002'),
+            Rr('www.unit.tests.', 'AAAA', 45, 'fc00::3'),
+        )
+
+        zone = Zone('unit.tests.', [])
+        records = {(r._type, r.name): r for r in Record.from_rrs(zone, rrs)}
+        record = records[('A', '')]
+        self.assertEqual(42, record.ttl)
+        self.assertEqual(['1.2.3.4', '2.3.4.5'], record.values)
+        record = records[('AAAA', '')]
+        self.assertEqual(43, record.ttl)
+        self.assertEqual(['fc00::1', 'fc00::2'], record.values)
+        record = records[('A', 'www')]
+        self.assertEqual(44, record.ttl)
+        self.assertEqual(['3.4.5.6'], record.values)
+        record = records[('AAAA', 'www')]
+        self.assertEqual(45, record.ttl)
+        self.assertEqual(['fc00::3'], record.values)
+        record = records[('CNAME', 'cname')]
+        self.assertEqual(46, record.ttl)
+        self.assertEqual('target.unit.tests.', record.value)
+        # make sure there's nothing extra
+        self.assertEqual(5, len(records))
+
     def test_ip_address_rdata_text(self):
 
         # anything goes, we're a noop
