@@ -12,6 +12,7 @@ jobs:
       matrix:
         module:
           - octodns/octodns-azure
+          - octodns/octodns-bind
           - octodns/octodns-cloudflare
           - octodns/octodns-constellix
           - octodns/octodns-ddns
