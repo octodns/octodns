@@ -27,7 +27,7 @@ cd $(basename $module)
 echo "## install module dev requirements #############################################"
 if [ -e setup.py ]; then
   pip install -e .[dev]
-elif [ -f poetry.toml ]; then
+elif [ -f pyproject.toml ]; then
   # install poetry
   pip install poetry
   # make sure that poetry doesn't blow away our locally installed octodns
