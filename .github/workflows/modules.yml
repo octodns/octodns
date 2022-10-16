@@ -36,6 +36,7 @@ jobs:
           - octodns/octodns-selectel
           - octodns/octodns-transip
           - octodns/octodns-ultra
+          - sukiyaki/octodns-netbox
     steps:
       - uses: actions/checkout@master
       - name: Setup python

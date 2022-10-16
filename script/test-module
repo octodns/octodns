@@ -25,8 +25,24 @@ cd $TMP_DIR
 git clone "https://github.com/${module}.git"
 cd $(basename $module)
 echo "## install module dev requirements #############################################"
-pip install -e .[dev]
-export PYTHONPATH=.:$PYTHONPATH
+if [ -e setup.py ]; then
+  pip install -e .[dev]
+elif [ -f poetry.toml ]; then
+  # install poetry
+  pip install poetry
+  # make sure that poetry doesn't blow away our locally installed octodns
+  sed -i '' '/^octodns =/d' pyproject.toml
+  # now install all the deps
+  poetry install --no-root -v
+else
+  echo "Unrecognized module management. Supports setup.py and poetry"
+  exit 1
+fi
 echo "## run module tests ############################################################"
-pytest --disable-network
+export PYTHONPATH=.:$PYTHONPATH
+if [ -e setup.py ]; then
+  pytest --disable-network
+elif [ -f poetry.toml ]; then
+  poetry run pytest []
+fi
 echo "## complete ####################################################################"
