@@ -24,9 +24,9 @@ echo "## checkout provider module ##############################################
 cd $TMP_DIR
 git clone "https://github.com/${module}.git"
 cd $(basename $module)
-echo "## install module dev requirements #############################################"
+echo "## install module test requirements #############################################"
 if [ -e setup.py ]; then
-  pip install -e .[dev]
+  pip install -e .[test]
 elif [ -f pyproject.toml ]; then
   # install poetry
   pip install poetry
