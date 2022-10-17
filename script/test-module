@@ -31,7 +31,7 @@ elif [ -f pyproject.toml ]; then
   # install poetry
   pip install poetry
   # make sure that poetry doesn't blow away our locally installed octodns
-  sed -i '' '/^octodns =/d' pyproject.toml
+  sed -i'.bak' '/^octodns =/d' pyproject.toml
   # now install all the deps
   poetry install --no-root -v
 else
