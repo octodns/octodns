@@ -11,7 +11,9 @@ jobs:
       fail-fast: false
       matrix:
         module:
+          - asyncon/octoblox
           - octodns/octodns-azure
+          - octodns/octodns-bind
           - octodns/octodns-cloudflare
           - octodns/octodns-constellix
           - octodns/octodns-ddns
@@ -35,6 +37,7 @@ jobs:
           - octodns/octodns-selectel
           - octodns/octodns-transip
           - octodns/octodns-ultra
+          - sukiyaki/octodns-netbox
     steps:
       - uses: actions/checkout@master
       - name: Setup python
