@@ -1,4 +1,4 @@
-## v0.9.21 - 2022-??-?? - ???
+## v0.9.21 - 2022-10-16 - Last of the oughts
 
 * Shim AxfrSource and ZoneFileSource post extraction into
   https://github.com/octodns/octodns-bind
