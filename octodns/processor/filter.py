@@ -188,3 +188,33 @@ class NameRejectlistFilter(_NameBaseFilter):
 
     process_source_zone = _process
     process_target_zone = _process
+
+
+class IgnoreRootNsFilter(BaseProcessor):
+    '''Do not manage Root NS Records.
+
+    Example usage:
+
+    processors:
+      no-root-ns:
+        class: octodns.processor.filter.IgnoreRootNsFilter
+
+    zones:
+      exxampled.com.:
+        sources:
+          - config
+        processors:
+          - no-root-ns
+        targets:
+          - ns1
+    '''
+
+    def _process(self, zone, *args, **kwargs):
+        for record in zone.records:
+            if record._type == 'NS' and not record.name:
+                zone.remove_record(record)
+
+        return zone
+
+    process_source_zone = _process
+    process_target_zone = _process
