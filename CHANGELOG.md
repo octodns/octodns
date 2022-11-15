@@ -1,3 +1,11 @@
+## v1.0.0.rc0 - 2022-??-?? - First of the ones
+
+#### Noteworthy changes
+
+#### Stuff
+
+* Added simple IgnoreRootNsFilter
+
 ## v0.9.21 - 2022-10-16 - Last of the oughts
 
 * Shim AxfrSource and ZoneFileSource post extraction into

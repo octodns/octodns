@@ -5,6 +5,7 @@
 from unittest import TestCase
 
 from octodns.processor.filter import (
+    IgnoreRootNsFilter,
     NameAllowlistFilter,
     NameRejectlistFilter,
     TypeAllowlistFilter,
@@ -153,4 +154,29 @@ class TestNameRejectListFilter(TestCase):
         self.assertEqual(2, len(filtered.records))
         self.assertEqual(
             ['doesnt', 'matches'], sorted([r.name for r in filtered.records])
+        )
+
+
+class TestIgnoreRootNsFilter(TestCase):
+    zone = Zone('unit.tests.', [])
+    root = Record.new(
+        zone, '', {'type': 'NS', 'ttl': 42, 'value': 'ns1.unit.tests.'}
+    )
+    zone.add_record(root)
+    not_root = Record.new(
+        zone, 'sub', {'type': 'NS', 'ttl': 43, 'value': 'ns2.unit.tests.'}
+    )
+    zone.add_record(not_root)
+    not_ns = Record.new(zone, '', {'type': 'A', 'ttl': 42, 'value': '3.4.5.6'})
+    zone.add_record(not_ns)
+
+    def test_filtering(self):
+        proc = IgnoreRootNsFilter('no-root')
+
+        self.assertEqual(3, len(self.zone.records))
+        filtered = proc.process_source_zone(self.zone.copy())
+        self.assertEqual(2, len(filtered.records))
+        self.assertEqual(
+            [('A', ''), ('NS', 'sub')],
+            sorted([(r._type, r.name) for r in filtered.records]),
         )
