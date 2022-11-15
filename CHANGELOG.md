@@ -2,6 +2,11 @@
 
 #### Noteworthy changes
 
+* 1.x Deprecation removals
+   * Provider, Source, and Processor shims removed, they've been warnings for >
+     1yr.  Everything should be using and referring to provider-specific
+     modules now.
+
 #### Stuff
 
 * Added simple IgnoreRootNsFilter
