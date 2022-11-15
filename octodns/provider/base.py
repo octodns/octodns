@@ -15,7 +15,7 @@ class BaseProvider(BaseSource):
         apply_disabled=False,
         update_pcent_threshold=Plan.MAX_SAFE_UPDATE_PCENT,
         delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT,
-        strict_supports=False,
+        strict_supports=True,
     ):
         super().__init__(id)
         self.log.debug(

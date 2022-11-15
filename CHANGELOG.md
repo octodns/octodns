@@ -2,6 +2,9 @@
 
 #### Noteworthy changes
 
+* Provider.strict_supports defaults to true, can be returned to the old
+  behavior by setting strict_supports=False in your provider params.
+
 #### Stuff
 
 * Added simple IgnoreRootNsFilter

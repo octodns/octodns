@@ -715,6 +715,7 @@ class TestBaseProviderSupportsRootNs(TestCase):
     def test_supports_root_ns_false_matches(self):
         # provider has a matching existing root record
         provider = self.Provider(self.has_root)
+        provider.strict_supports = False
         provider.SUPPORTS_ROOT_NS = False
 
         # matching root NS in the desired
@@ -737,6 +738,7 @@ class TestBaseProviderSupportsRootNs(TestCase):
     def test_supports_root_ns_false_different(self):
         # provider has a non-matching existing record
         provider = self.Provider(self.different_root)
+        provider.strict_supports = False
         provider.SUPPORTS_ROOT_NS = False
 
         # different root is in the desired
@@ -760,6 +762,7 @@ class TestBaseProviderSupportsRootNs(TestCase):
     def test_supports_root_ns_false_missing(self):
         # provider has an existing record
         provider = self.Provider(self.has_root)
+        provider.strict_supports = False
         provider.SUPPORTS_ROOT_NS = False
 
         # desired doesn't have a root
@@ -778,6 +781,7 @@ class TestBaseProviderSupportsRootNs(TestCase):
     def test_supports_root_ns_false_create_zone(self):
         # provider has no existing records (create)
         provider = self.Provider()
+        provider.strict_supports = False
         provider.SUPPORTS_ROOT_NS = False
 
         # case where we have a root NS in the desired
