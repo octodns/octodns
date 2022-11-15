@@ -132,9 +132,6 @@ class Zone(object):
 
         self._records[record.name].discard(record)
 
-    # TODO: delete this
-    _remove_record = remove_record
-
     def changes(self, desired, target):
         self.log.debug('changes: zone=%s, target=%s', self, target)
 

@@ -125,7 +125,7 @@ class TestZone(TestCase):
         # add a record, delete a record -> [Delete, Create]
         c = ARecord(before, 'c', {'ttl': 42, 'value': '1.1.1.1'})
         after.add_record(c)
-        after._remove_record(b)
+        after.remove_record(b)
         self.assertEqual(after.records, set([a, c]))
         changes = before.changes(after, target)
         self.assertEqual(2, len(changes))
