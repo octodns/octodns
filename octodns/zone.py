@@ -25,7 +25,7 @@ class InvalidNodeException(Exception):
 class Zone(object):
     log = getLogger('Zone')
 
-    def __init__(self, name, sub_zones):
+    def __init__(self, name, sub_zones, config={}):
         if not name[-1] == '.':
             raise Exception(f'Invalid zone name {name}, missing ending dot')
         # internally everything is idna
@@ -33,6 +33,7 @@ class Zone(object):
         # we'll keep a decoded version around for logs and errors
         self.decoded_name = idna_decode(self.name)
         self.sub_zones = sub_zones
+        self.config = config
         # We're grouping by node, it allows us to efficiently search for
         # duplicates and detect when CNAMEs co-exist with other records. Also
         # node that we always store things with Record.name which will be idna

@@ -833,6 +833,6 @@ class Manager(object):
         zone = self.config['zones'].get(zone_name)
         if zone is not None:
             sub_zones = self.configured_sub_zones(zone_name)
-            return Zone(idna_encode(zone_name), sub_zones)
+            return Zone(idna_encode(zone_name), sub_zones, config=zone)
 
         raise ManagerException(f'Unknown zone name {idna_decode(zone_name)}')
