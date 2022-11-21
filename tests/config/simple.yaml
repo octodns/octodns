@@ -5,17 +5,20 @@ providers:
     class: octodns.provider.yaml.YamlProvider
     directory: tests/config
     supports_root_ns: False
+    strict_supports: False
   dump:
     class: octodns.provider.yaml.YamlProvider
     directory: env/YAML_TMP_DIR
     default_ttl: 999
     supports_root_ns: False
+    strict_supports: False
   # This is sort of ugly, but it shouldn't hurt anything. It'll just write out
   # the target file twice where it and dump are both used
   dump2:
     class: octodns.provider.yaml.YamlProvider
     directory: env/YAML_TMP_DIR2
     supports_root_ns: False
+    strict_supports: False
   simple:
     class: helpers.SimpleProvider
   geo:

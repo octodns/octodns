@@ -54,7 +54,9 @@ class TestYamlProvider(TestCase):
             directory = join(td.dirname, 'sub', 'dir')
             yaml_file = join(directory, 'unit.tests.yaml')
             dynamic_yaml_file = join(directory, 'dynamic.tests.yaml')
-            target = YamlProvider('test', directory, supports_root_ns=False)
+            target = YamlProvider(
+                'test', directory, supports_root_ns=False, strict_supports=False
+            )
 
             # We add everything
             plan = target.plan(zone)
@@ -343,7 +345,10 @@ class TestSplitYamlProvider(TestCase):
 
     def test_provider(self):
         source = SplitYamlProvider(
-            'test', join(dirname(__file__), 'config/split'), extension='.tst'
+            'test',
+            join(dirname(__file__), 'config/split'),
+            extension='.tst',
+            strict_supports=False,
         )
 
         zone = Zone('unit.tests.', [])
@@ -366,7 +371,11 @@ class TestSplitYamlProvider(TestCase):
             zone_dir = join(directory, 'unit.tests.tst')
             dynamic_zone_dir = join(directory, 'dynamic.tests.tst')
             target = SplitYamlProvider(
-                'test', directory, extension='.tst', supports_root_ns=False
+                'test',
+                directory,
+                extension='.tst',
+                supports_root_ns=False,
+                strict_supports=False,
             )
 
             # We add everything

@@ -6,6 +6,8 @@
    * Provider, Source, and Processor shims removed, they've been warnings for >
      1yr.  Everything should be using and referring to provider-specific
      modules now.
+   * Provider.strict_supports defaults to true, can be returned to the old
+     behavior by setting strict_supports=False in your provider params.
 
 #### Stuff
 
