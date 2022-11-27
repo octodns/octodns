@@ -98,8 +98,6 @@ class Manager(object):
         plan = p[1]
         return len(plan.changes[0].record.zone.name) if plan.changes else 0
 
-    # TODO: all of this should get broken up, mainly so that it's not so huge
-    # and each bit can be cleanly tested independently
     def __init__(self, config_file, max_workers=None, include_meta=False):
         version = self._try_version('octodns', version=__VERSION__)
         self.log.info(
