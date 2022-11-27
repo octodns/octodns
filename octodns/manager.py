@@ -385,7 +385,7 @@ class Manager(object):
         lenient=False,
     ):
 
-        zone = Zone(zone_name, sub_zones=self.configured_sub_zones(zone_name))
+        zone = self.get_zone(zone_name)
         self.log.debug(
             'sync:   populating, zone=%s, lenient=%s',
             zone.decoded_name,
@@ -747,8 +747,7 @@ class Manager(object):
                 clz = SplitYamlProvider
             target = clz('dump', output_dir)
 
-        # TODO: use get_zone???
-        zone = Zone(zone, self.configured_sub_zones(zone))
+        zone = self.get_zone(zone)
         for source in sources:
             source.populate(zone, lenient=lenient)
 
@@ -761,7 +760,7 @@ class Manager(object):
         # TODO: this code can probably be shared with stuff in sync
         for zone_name, config in self.config['zones'].items():
             decoded_zone_name = idna_decode(zone_name)
-            zone = Zone(zone_name, self.configured_sub_zones(zone_name))
+            zone = self.get_zone(zone_name)
 
             source_zone = config.get('alias')
             if source_zone:
@@ -830,9 +829,8 @@ class Manager(object):
             )
 
         zone = self.config['zones'].get(zone_name)
-        if zone:
-            return Zone(
-                idna_encode(zone_name), self.configured_sub_zones(zone_name)
-            )
+        if zone is not None:
+            sub_zones = self.configured_sub_zones(zone_name)
+            return Zone(idna_encode(zone_name), sub_zones)
 
         raise ManagerException(f'Unknown zone name {idna_decode(zone_name)}')

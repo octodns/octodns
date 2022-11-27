@@ -379,9 +379,9 @@ class TestManager(TestCase):
                 sources=['in'],
             )
 
-            # make sure this fails with an IOError and not a KeyError when
-            # trying to find sub zones
-            with self.assertRaises(IOError):
+            # make sure this fails with an ManagerException and not a KeyError
+            # when trying to find sub zones
+            with self.assertRaises(ManagerException):
                 manager.dump(
                     zone='unknown.zone.',
                     output_dir=tmpdir.dirname,
@@ -502,9 +502,9 @@ class TestManager(TestCase):
                 sources=['in'],
             )
 
-            # make sure this fails with an OSError and not a KeyError when
-            # trying to find sub zones
-            with self.assertRaises(OSError):
+            # make sure this fails with an ManagerException and not a KeyError
+            # when trying to find sub zones
+            with self.assertRaises(ManagerException):
                 manager.dump(
                     zone='unknown.zone.',
                     output_dir=tmpdir.dirname,
