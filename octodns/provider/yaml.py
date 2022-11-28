@@ -21,6 +21,10 @@ class YamlProvider(BaseProvider):
         class: octodns.provider.yaml.YamlProvider
         # The location of yaml config files (required)
         directory: ./config
+        # Specify a custom zone file name
+        # File present in the directory declared in "directory" without specifying the extension.
+        # (optional, default empty)
+        file_name: "test"
         # The ttl to use for records when not specified in the data
         # (optional, default 3600)
         default_ttl: 3600
@@ -105,11 +109,13 @@ class YamlProvider(BaseProvider):
     SUPPORTS_DYNAMIC = True
     SUPPORTS_POOL_VALUE_STATUS = True
     SUPPORTS_MULTIVALUE_PTR = True
+    FILE_NAME = ""
 
     def __init__(
         self,
         id,
         directory,
+        file_name="",
         default_ttl=3600,
         enforce_order=True,
         populate_should_replace=False,
@@ -129,6 +135,7 @@ class YamlProvider(BaseProvider):
             populate_should_replace,
         )
         super().__init__(id, *args, **kwargs)
+        self.file_name = file_name
         self.directory = directory
         self.default_ttl = default_ttl
         self.enforce_order = enforce_order
@@ -198,7 +205,11 @@ class YamlProvider(BaseProvider):
 
         before = len(zone.records)
         utf8_filename = join(self.directory, f'{zone.decoded_name}yaml')
-        idna_filename = join(self.directory, f'{zone.name}yaml')
+
+        if self.file_name == "":
+            idna_filename = join(self.directory, f'{zone.name}yaml')
+        else:
+            idna_filename = join(self.directory, f'{self.file_name}.yaml')
 
         # we prefer utf8
         if isfile(utf8_filename):
@@ -298,6 +309,10 @@ class SplitYamlProvider(YamlProvider):
         class: octodns.provider.yaml.SplitYamlProvider
         # The location of yaml config files (required)
         directory: ./config
+        # Specify a custom zone file name
+        # File present in the directory declared in "directory" without specifying the extension.
+        # (optional, default empty)
+        file_name: "test"
         # The ttl to use for records when not specified in the data
         # (optional, default 3600)
         default_ttl: 3600
@@ -310,12 +325,16 @@ class SplitYamlProvider(YamlProvider):
     # instead of a file matching the record name.
     CATCHALL_RECORD_NAMES = ('*', '')
 
-    def __init__(self, id, directory, extension='.', *args, **kwargs):
+    def __init__(
+        self, id, directory, file_name='', extension='.', *args, **kwargs
+    ):
         super().__init__(id, directory, *args, **kwargs)
         self.extension = extension
+        self.file_name = file_name
 
     def _zone_directory(self, zone):
         filename = f'{zone.name[:-1]}{self.extension}'
+
         return join(self.directory, filename)
 
     def populate(self, zone, target=False, lenient=False):
