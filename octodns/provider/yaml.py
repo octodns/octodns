@@ -148,6 +148,11 @@ class YamlProvider(BaseProvider):
         del args['log']
         return self.__class__(**args)
 
+    def get_filenames(self, zone):
+        utf8_filename = join(self.directory, f'{zone.decoded_name}yaml')
+        idna_filename = join(self.directory, f'{zone.name}yaml')
+        return utf8_filename, idna_filename
+
     @property
     def SUPPORTS(self):
         # The yaml provider supports all record types even those defined by 3rd
@@ -204,10 +209,10 @@ class YamlProvider(BaseProvider):
             return False
 
         before = len(zone.records)
-        utf8_filename = join(self.directory, f'{zone.decoded_name}yaml')
 
+        utf8_filename = join(self.directory, f'{zone.decoded_name}yaml')
         if self.file_name == "":
-            idna_filename = join(self.directory, f'{zone.name}yaml')
+            utf8_filename, idna_filename = self.get_filenames(zone)
         else:
             idna_filename = join(self.directory, f'{self.file_name}.yaml')
 
