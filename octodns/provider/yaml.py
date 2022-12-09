@@ -183,6 +183,12 @@ class YamlProvider(BaseProvider):
                 '_populate_from_file: successfully loaded "%s"', filename
             )
 
+    def get_filenames(self, zone):
+        return (
+            join(self.directory, f'{zone.decoded_name}yaml'),
+            join(self.directory, f'{zone.name}yaml'),
+        )
+
     def populate(self, zone, target=False, lenient=False):
         self.log.debug(
             'populate: name=%s, target=%s, lenient=%s',
@@ -197,8 +203,7 @@ class YamlProvider(BaseProvider):
             return False
 
         before = len(zone.records)
-        utf8_filename = join(self.directory, f'{zone.decoded_name}yaml')
-        idna_filename = join(self.directory, f'{zone.name}yaml')
+        utf8_filename, idna_filename = self.get_filenames(zone)
 
         # we prefer utf8
         if isfile(utf8_filename):
