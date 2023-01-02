@@ -26,6 +26,7 @@ from octodns.record import (
     NaptrRecord,
     NaptrValue,
     NsRecord,
+    NsValue,
     PtrRecord,
     PtrValue,
     Record,
@@ -46,12 +47,9 @@ from octodns.record import (
     ValidationError,
     ValuesMixin,
     _ChunkedValue,
-    _Dynamic,
-    _DynamicPool,
-    _DynamicRule,
-    _NsValue,
-    _TargetValue,
 )
+from octodns.record.dynamic import _Dynamic, _DynamicPool, _DynamicRule
+from octodns.record.target import _TargetValue
 from octodns.zone import Zone
 
 from helpers import DynamicProvider, GeoProvider, SimpleProvider
@@ -64,13 +62,13 @@ class TestRecord(TestCase):
         with self.assertRaises(RecordException) as ctx:
             Record.register_type(None, 'A')
         self.assertEqual(
-            'Type "A" already registered by octodns.record.ARecord',
+            'Type "A" already registered by octodns.record.ipaddress.ARecord',
             str(ctx.exception),
         )
 
         class AaRecord(ValuesMixin, Record):
             _type = 'AA'
-            _value_type = _NsValue
+            _value_type = NsValue
 
         self.assertTrue('AA' not in Record.registered_types())
 
@@ -1514,7 +1512,7 @@ class TestRecord(TestCase):
             '1.2.word.4',
             '1.2.3.4',
         ):
-            self.assertEqual(s, _NsValue.parse_rdata_text(s))
+            self.assertEqual(s, NsValue.parse_rdata_text(s))
 
         zone = Zone('unit.tests.', [])
         a = NsRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})

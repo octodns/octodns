@@ -8,6 +8,12 @@
      modules now.
    * Provider.strict_supports defaults to true, can be returned to the old
      behavior by setting strict_supports=False in your provider params.
+* octodns.record has been broken up into multiple files/modules. Most of the
+  primary things that were available at that module path still will be, but if
+  you are importing things like idna_encode/decode that actually live elsewhere
+  from octodns.record you'll need to update and pull them from their actual
+  home. Classes beginning with _ are not exported from octodns.record any
+  longer as they were considered private/protected.
 
 #### Stuff
 
