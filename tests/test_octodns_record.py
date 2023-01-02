@@ -46,8 +46,8 @@ from octodns.record import (
     UrlfwdValue,
     ValidationError,
     ValuesMixin,
-    _ChunkedValue,
 )
+from octodns.record.chunked import _ChunkedValue
 from octodns.record.dynamic import _Dynamic, _DynamicPool, _DynamicRule
 from octodns.record.target import _TargetValue
 from octodns.zone import Zone
