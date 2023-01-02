@@ -11,6 +11,7 @@
 
 #### Stuff
 
+* Added new DsRecord type (provider support will be added over time)
 * Added simple IgnoreRootNsFilter
 * Minor refactor on YamlProvider to add get_filenames making it a bit easier to
   create specialized providers inheriting from it
