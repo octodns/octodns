@@ -5,8 +5,6 @@
 from fqdn import FQDN
 
 from ..idna import idna_encode
-from .base import Record, ValueMixin, ValuesMixin
-from .dynamic import _DynamicMixin
 
 
 class _TargetValue(str):
@@ -79,85 +77,3 @@ class _TargetsValue(str):
     @property
     def rdata_text(self):
         return self
-
-
-class AliasValue(_TargetValue):
-    pass
-
-
-class AliasRecord(ValueMixin, Record):
-    _type = 'ALIAS'
-    _value_type = AliasValue
-
-    @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = []
-        if name != '':
-            reasons.append('non-root ALIAS not allowed')
-        reasons.extend(super().validate(name, fqdn, data))
-        return reasons
-
-
-Record.register_type(AliasRecord)
-
-
-class CnameValue(_TargetValue):
-    pass
-
-
-class CnameRecord(_DynamicMixin, ValueMixin, Record):
-    _type = 'CNAME'
-    _value_type = CnameValue
-
-    @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = []
-        if name == '':
-            reasons.append('root CNAME not allowed')
-        reasons.extend(super().validate(name, fqdn, data))
-        return reasons
-
-
-Record.register_type(CnameRecord)
-
-
-class DnameValue(_TargetValue):
-    pass
-
-
-class DnameRecord(_DynamicMixin, ValueMixin, Record):
-    _type = 'DNAME'
-    _value_type = DnameValue
-
-
-Record.register_type(DnameRecord)
-
-
-class NsValue(_TargetsValue):
-    pass
-
-
-class NsRecord(ValuesMixin, Record):
-    _type = 'NS'
-    _value_type = NsValue
-
-
-Record.register_type(NsRecord)
-
-
-class PtrValue(_TargetsValue):
-    pass
-
-
-class PtrRecord(ValuesMixin, Record):
-    _type = 'PTR'
-    _value_type = PtrValue
-
-    # This is for backward compatibility with providers that don't support
-    # multi-value PTR records.
-    @property
-    def value(self):
-        return self.values[0]
-
-
-Record.register_type(PtrRecord)

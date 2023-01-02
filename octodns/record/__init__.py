@@ -3,34 +3,29 @@
 #
 
 
+from .a import ARecord, Ipv4Address, Ipv4Value
+from .aaaa import AaaaRecord, Ipv6Address, Ipv6Value
+from .alias import AliasRecord, AliasValue
 from .base import Record, ValueMixin, ValuesMixin
-from .change import Change, Create, Delete, Update
 from .caa import CaaRecord, CaaValue
+from .change import Change, Create, Delete, Update
+from .cname import CnameRecord, CnameValue
+from .dname import DnameRecord, DnameValue
 from .ds import DsRecord, DsValue
 from .exception import RecordException, ValidationError
 from .geo import GeoCodes, GeoValue
 from .loc import LocRecord, LocValue
 from .mx import MxRecord, MxValue
 from .naptr import NaptrRecord, NaptrValue
+from .ns import NsValue, NsRecord
+from .ptr import PtrValue, PtrRecord
 from .rr import Rr, RrParseError
-from .tlsa import TlsaRecord, TlsaValue
-from .url import UrlfwdRecord, UrlfwdValue
+from .spf import SpfRecord
 from .srv import SrvRecord, SrvValue
 from .sshfp import SshfpRecord, SshfpValue
-from .target import (
-    AliasRecord,
-    AliasValue,
-    CnameRecord,
-    CnameValue,
-    DnameRecord,
-    DnameValue,
-    NsValue,
-    NsRecord,
-    PtrValue,
-    PtrRecord,
-)
-from .ipaddress import ARecord, AaaaRecord, Ipv4Address, Ipv6Address
-from .chunked import SpfRecord, TxtValue, TxtRecord
+from .tlsa import TlsaRecord, TlsaValue
+from .txt import TxtValue, TxtRecord
+from .url import UrlfwdRecord, UrlfwdValue
 
 # quell warnings
 ARecord
@@ -51,7 +46,9 @@ DsValue
 GeoCodes
 GeoValue
 Ipv4Address
+Ipv4Value
 Ipv6Address
+Ipv6Value
 LocRecord
 LocValue
 MxRecord

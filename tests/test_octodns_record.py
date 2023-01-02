@@ -62,7 +62,7 @@ class TestRecord(TestCase):
         with self.assertRaises(RecordException) as ctx:
             Record.register_type(None, 'A')
         self.assertEqual(
-            'Type "A" already registered by octodns.record.ipaddress.ARecord',
+            'Type "A" already registered by octodns.record.a.ARecord',
             str(ctx.exception),
         )
 

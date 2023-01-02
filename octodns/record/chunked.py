@@ -2,7 +2,7 @@
 #
 #
 
-from .base import Record, ValuesMixin
+from .base import ValuesMixin
 import re
 
 
@@ -61,23 +61,3 @@ class _ChunkedValue(str):
     @property
     def rdata_text(self):
         return self
-
-
-class SpfRecord(_ChunkedValuesMixin, Record):
-    _type = 'SPF'
-    _value_type = _ChunkedValue
-
-
-Record.register_type(SpfRecord)
-
-
-class TxtValue(_ChunkedValue):
-    pass
-
-
-class TxtRecord(_ChunkedValuesMixin, Record):
-    _type = 'TXT'
-    _value_type = TxtValue
-
-
-Record.register_type(TxtRecord)

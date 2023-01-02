@@ -2,14 +2,8 @@
 #
 #
 
-from ipaddress import IPv4Address as _IPv4Address, IPv6Address as _IPv6Address
 
-from .base import Record
-from .dynamic import _DynamicMixin
-from .geo import _GeoMixin
-
-
-class _IpAddress(str):
+class _IpValue(str):
     @classmethod
     def parse_rdata_text(cls, value):
         return value
@@ -52,27 +46,4 @@ class _IpAddress(str):
         return self
 
 
-class Ipv4Address(_IpAddress):
-    _address_type = _IPv4Address
-    _address_name = 'IPv4'
-
-
-class ARecord(_DynamicMixin, _GeoMixin, Record):
-    _type = 'A'
-    _value_type = Ipv4Address
-
-
-Record.register_type(ARecord)
-
-
-class Ipv6Address(_IpAddress):
-    _address_type = _IPv6Address
-    _address_name = 'IPv6'
-
-
-class AaaaRecord(_DynamicMixin, _GeoMixin, Record):
-    _type = 'AAAA'
-    _value_type = Ipv6Address
-
-
-Record.register_type(AaaaRecord)
+_IpAddress = _IpValue
