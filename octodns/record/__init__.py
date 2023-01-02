@@ -11,7 +11,7 @@ from ..idna import idna_encode
 from .geo import GeoCodes, GeoValue
 
 from .base import Record, ValueMixin, ValuesMixin
-from .change import Create, Delete, Update
+from .change import Change, Create, Delete, Update
 from .exception import RecordException, ValidationError
 from .rr import Rr, RrParseError
 from .target import (
@@ -33,6 +33,7 @@ ARecord
 AaaaRecord
 AliasRecord
 AliasValue
+Change
 CnameRecord
 CnameValue
 Create
