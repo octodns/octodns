@@ -25,7 +25,7 @@ from .srv import SrvRecord, SrvValue
 from .sshfp import SshfpRecord, SshfpValue
 from .tlsa import TlsaRecord, TlsaValue
 from .txt import TxtValue, TxtRecord
-from .url import UrlfwdRecord, UrlfwdValue
+from .urlfwd import UrlfwdRecord, UrlfwdValue
 
 # quell warnings
 ARecord

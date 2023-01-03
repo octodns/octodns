@@ -4,10 +4,74 @@
 
 from unittest import TestCase
 
-from octodns.record.geo import GeoCodes
+from octodns.record import Record
+from octodns.record.a import ARecord
+from octodns.record.geo import GeoCodes, GeoValue
+from octodns.record.exception import ValidationError
+from octodns.zone import Zone
+
+from helpers import SimpleProvider, GeoProvider
+
+
+class TestRecordGeo(TestCase):
+    zone = Zone('unit.tests.', [])
+
+    def test_geo(self):
+        geo_data = {
+            'ttl': 42,
+            'values': ['5.2.3.4', '6.2.3.4'],
+            'geo': {
+                'AF': ['1.1.1.1'],
+                'AS-JP': ['2.2.2.2', '3.3.3.3'],
+                'NA-US': ['4.4.4.4', '5.5.5.5'],
+                'NA-US-CA': ['6.6.6.6', '7.7.7.7'],
+            },
+        }
+        geo = ARecord(self.zone, 'geo', geo_data)
+        self.assertEqual(geo_data, geo.data)
+
+        other_data = {
+            'ttl': 42,
+            'values': ['5.2.3.4', '6.2.3.4'],
+            'geo': {
+                'AF': ['1.1.1.1'],
+                'AS-JP': ['2.2.2.2', '3.3.3.3'],
+                'NA-US': ['4.4.4.4', '5.5.5.5'],
+                'NA-US-CA': ['6.6.6.6', '7.7.7.7'],
+            },
+        }
+        other = ARecord(self.zone, 'geo', other_data)
+        self.assertEqual(other_data, other.data)
+
+        simple_target = SimpleProvider()
+        geo_target = GeoProvider()
+
+        # Geo provider doesn't consider identical geo to be changes
+        self.assertFalse(geo.changes(geo, geo_target))
+
+        # geo values don't impact equality
+        other.geo['AF'].values = ['9.9.9.9']
+        self.assertTrue(geo == other)
+        # Non-geo supporting provider doesn't consider geo diffs to be changes
+        self.assertFalse(geo.changes(other, simple_target))
+        # Geo provider does consider geo diffs to be changes
+        self.assertTrue(geo.changes(other, geo_target))
+
+        # Object without geo doesn't impact equality
+        other.geo = {}
+        self.assertTrue(geo == other)
+        # Non-geo supporting provider doesn't consider lack of geo a diff
+        self.assertFalse(geo.changes(other, simple_target))
+        # Geo provider does consider lack of geo diffs to be changes
+        self.assertTrue(geo.changes(other, geo_target))
+
+        # __repr__ doesn't blow up
+        geo.__repr__()
 
 
 class TestRecordGeoCodes(TestCase):
+    zone = Zone('unit.tests.', [])
+
     def test_validate(self):
         prefix = 'xyz '
 
@@ -104,3 +168,122 @@ class TestRecordGeoCodes(TestCase):
         self.assertEqual('NA-CA-AB', GeoCodes.province_to_code('AB'))
         self.assertEqual('NA-CA-BC', GeoCodes.province_to_code('BC'))
         self.assertFalse(GeoCodes.province_to_code('XX'))
+
+    def test_geo_value(self):
+        code = 'NA-US-CA'
+        values = ['1.2.3.4']
+        geo = GeoValue(code, values)
+        self.assertEqual(code, geo.code)
+        self.assertEqual('NA', geo.continent_code)
+        self.assertEqual('US', geo.country_code)
+        self.assertEqual('CA', geo.subdivision_code)
+        self.assertEqual(values, geo.values)
+        self.assertEqual(['NA-US', 'NA'], list(geo.parents))
+
+        a = GeoValue('NA-US-CA', values)
+        b = GeoValue('AP-JP', values)
+        c = GeoValue('NA-US-CA', ['2.3.4.5'])
+
+        self.assertEqual(a, a)
+        self.assertEqual(b, b)
+        self.assertEqual(c, c)
+
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(b, a)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(c, a)
+        self.assertNotEqual(c, b)
+
+        self.assertTrue(a > b)
+        self.assertTrue(a < c)
+        self.assertTrue(b < a)
+        self.assertTrue(b < c)
+        self.assertTrue(c > a)
+        self.assertTrue(c > b)
+
+        self.assertTrue(a >= a)
+        self.assertTrue(a >= b)
+        self.assertTrue(a <= c)
+        self.assertTrue(b <= a)
+        self.assertTrue(b <= b)
+        self.assertTrue(b <= c)
+        self.assertTrue(c > a)
+        self.assertTrue(c > b)
+        self.assertTrue(c >= b)
+
+    def test_validation(self):
+        Record.new(
+            self.zone,
+            '',
+            {
+                'geo': {'NA': ['1.2.3.5'], 'NA-US': ['1.2.3.5', '1.2.3.6']},
+                'type': 'A',
+                'ttl': 600,
+                'value': '1.2.3.4',
+            },
+        )
+
+        # invalid ip address
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                '',
+                {
+                    'geo': {'NA': ['hello'], 'NA-US': ['1.2.3.5', '1.2.3.6']},
+                    'type': 'A',
+                    'ttl': 600,
+                    'value': '1.2.3.4',
+                },
+            )
+        self.assertEqual(
+            ['invalid IPv4 address "hello"'], ctx.exception.reasons
+        )
+
+        # invalid geo code
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                '',
+                {
+                    'geo': {'XYZ': ['1.2.3.4']},
+                    'type': 'A',
+                    'ttl': 600,
+                    'value': '1.2.3.4',
+                },
+            )
+        self.assertEqual(['invalid geo "XYZ"'], ctx.exception.reasons)
+
+        # invalid ip address
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                '',
+                {
+                    'geo': {'NA': ['hello'], 'NA-US': ['1.2.3.5', 'goodbye']},
+                    'type': 'A',
+                    'ttl': 600,
+                    'value': '1.2.3.4',
+                },
+            )
+        self.assertEqual(
+            ['invalid IPv4 address "hello"', 'invalid IPv4 address "goodbye"'],
+            ctx.exception.reasons,
+        )
+
+        # invalid healthcheck protocol
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                'a',
+                {
+                    'geo': {'NA': ['1.2.3.5'], 'NA-US': ['1.2.3.5', '1.2.3.6']},
+                    'type': 'A',
+                    'ttl': 600,
+                    'value': '1.2.3.4',
+                    'octodns': {'healthcheck': {'protocol': 'FTP'}},
+                },
+            )
+        self.assertEqual(
+            ['invalid healthcheck protocol'], ctx.exception.reasons
+        )
