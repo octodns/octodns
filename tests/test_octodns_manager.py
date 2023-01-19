@@ -908,6 +908,33 @@ class TestManager(TestCase):
             str(ctx.exception),
         )
 
+    def test_delayed_arpa(self):
+        manager = Manager(
+            get_config_filename('simple-arpa.yaml'), delay_arpa=True
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+
+            # we can sync eligible_zones so long as they're not arpa
+            tc = manager.sync(dry_run=False, eligible_zones=['unit.tests.'])
+            self.assertEqual(22, tc)
+
+            # can't do partial syncs that include arpa zones
+            with self.assertRaises(ManagerException) as ctx:
+                manager.sync(
+                    dry_run=False,
+                    eligible_zones=['unit.tests.', '3.2.2.in-addr.arpa.'],
+                )
+            self.assertEqual(
+                'ARPA zones cannot be synced during partial runs when delay_arpa is enabled',
+                str(ctx.exception),
+            )
+
+            # full sync with arpa is fine, 2 extra records from it
+            tc = manager.sync(dry_run=False)
+            self.assertEqual(24, tc)
+
 
 class TestMainThreadExecutor(TestCase):
     def test_success(self):

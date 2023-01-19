@@ -98,11 +98,21 @@ class Manager(object):
         plan = p[1]
         return len(plan.changes[0].record.zone.name) if plan.changes else 0
 
-    def __init__(self, config_file, max_workers=None, include_meta=False):
+    def __init__(
+        self,
+        config_file,
+        max_workers=None,
+        include_meta=False,
+        delay_arpa=False,
+    ):
         version = self._try_version('octodns', version=__VERSION__)
         self.log.info(
-            '__init__: config_file=%s (octoDNS %s)', config_file, version
+            '__init__: config_file=%s, delay_arpa=%s (octoDNS %s)',
+            config_file,
+            version,
+            delay_arpa,
         )
+        self.delay_arpa = delay_arpa
 
         self._configured_sub_zones = None
 
@@ -384,7 +394,6 @@ class Manager(object):
         desired=None,
         lenient=False,
     ):
-
         zone = self.get_zone(zone_name)
         self.log.debug(
             'sync:   populating, zone=%s, lenient=%s',
@@ -470,11 +479,21 @@ class Manager(object):
             getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__),
         )
 
+        if (
+            self.delay_arpa
+            and eligible_zones
+            and any(e.endswith('arpa.') for e in eligible_zones)
+        ):
+            raise ManagerException(
+                'ARPA zones cannot be synced during partial runs when delay_arpa is enabled'
+            )
+
         zones = self.config['zones']
         if eligible_zones:
             zones = IdnaDict({n: zones.get(n) for n in eligible_zones})
 
         aliased_zones = {}
+        delayed_arpa = []
         futures = []
         for zone_name, config in zones.items():
             decoded_zone_name = idna_decode(zone_name)
@@ -571,16 +590,20 @@ class Manager(object):
                     f'Zone {decoded_zone_name}, unknown ' f'target: {target}'
                 )
 
-            futures.append(
-                self._executor.submit(
-                    self._populate_and_plan,
-                    zone_name,
-                    processors,
-                    sources,
-                    targets,
-                    lenient=lenient,
+            kwargs = {
+                'zone_name': zone_name,
+                'processors': processors,
+                'sources': sources,
+                'targets': targets,
+                'lenient': lenient,
+            }
+
+            if self.delay_arpa and zone_name.endswith('arpa.'):
+                delayed_arpa.append(kwargs)
+            else:
+                futures.append(
+                    self._executor.submit(self._populate_and_plan, **kwargs)
                 )
-            )
 
         # Wait on all results and unpack/flatten the plans and store the
         # desired states in case we need them below
@@ -619,6 +642,20 @@ class Manager(object):
         # Wait on results and unpack/flatten the plans, ignore the desired here
         # as these are aliased zones
         plans += [p for f in futures for p in f.result()[0]]
+
+        if delayed_arpa:
+            # if delaying arpa all of the non-arpa zones have been processed now
+            # so it's time to plan them
+            self.log.info(
+                'sync: processing %d delayed arpa zones', len(delayed_arpa)
+            )
+            # populate and plan them
+            futures = [
+                self._executor.submit(self._populate_and_plan, **kwargs)
+                for kwargs in delayed_arpa
+            ]
+            # wait on the results and unpack/flatten the plans
+            plans += [p for f in futures for p in f.result()[0]]
 
         # Best effort sort plans children first so that we create/update
         # children zones before parents which should allow us to more safely
