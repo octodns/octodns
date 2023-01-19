@@ -11,6 +11,7 @@ from sys import stdout
 
 from . import __VERSION__
 from .idna import IdnaDict, idna_decode, idna_encode
+from .processor.arpa import AutoArpa
 from .provider.base import BaseProvider
 from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
@@ -99,20 +100,12 @@ class Manager(object):
         return len(plan.changes[0].record.zone.name) if plan.changes else 0
 
     def __init__(
-        self,
-        config_file,
-        max_workers=None,
-        include_meta=False,
-        delay_arpa=False,
+        self, config_file, max_workers=None, include_meta=False, auto_arpa=False
     ):
         version = self._try_version('octodns', version=__VERSION__)
         self.log.info(
-            '__init__: config_file=%s, delay_arpa=%s (octoDNS %s)',
-            config_file,
-            version,
-            delay_arpa,
+            '__init__: config_file=%s, (octoDNS %s)', config_file, version
         )
-        self.delay_arpa = delay_arpa
 
         self._configured_sub_zones = None
 
@@ -129,6 +122,8 @@ class Manager(object):
             manager_config, include_meta
         )
 
+        self.auto_arpa = self._config_auto_arpa(manager_config, auto_arpa)
+
         self.global_processors = manager_config.get('processors', [])
         self.log.info('__init__: global_processors=%s', self.global_processors)
 
@@ -137,6 +132,16 @@ class Manager(object):
 
         processors_config = self.config.get('processors', {})
         self.processors = self._config_processors(processors_config)
+
+        if self.auto_arpa:
+            self.log.info(
+                '__init__: adding auto-arpa to processors and providers, appending it to global_processors list'
+            )
+            kwargs = self.auto_arpa if isinstance(auto_arpa, dict) else {}
+            auto_arpa = AutoArpa('auto-arpa', **kwargs)
+            self.providers[auto_arpa.name] = auto_arpa
+            self.processors[auto_arpa.name] = auto_arpa
+            self.global_processors.append(auto_arpa.name)
 
         plan_outputs_config = manager_config.get(
             'plan_outputs',
@@ -182,6 +187,11 @@ class Manager(object):
         include_meta = include_meta or manager_config.get('include_meta', False)
         self.log.info('_config_include_meta: include_meta=%s', include_meta)
         return include_meta
+
+    def _config_auto_arpa(self, manager_config, auto_arpa=False):
+        auto_arpa = auto_arpa or manager_config.get('auto_arpa', False)
+        self.log.info('_config_auto_arpa: auto_arpa=%s', auto_arpa)
+        return auto_arpa
 
     def _config_providers(self, providers_config):
         self.log.debug('_config_providers: configuring providers')
@@ -480,12 +490,12 @@ class Manager(object):
         )
 
         if (
-            self.delay_arpa
+            self.auto_arpa
             and eligible_zones
             and any(e.endswith('arpa.') for e in eligible_zones)
         ):
             raise ManagerException(
-                'ARPA zones cannot be synced during partial runs when delay_arpa is enabled'
+                'ARPA zones cannot be synced during partial runs when auto_arpa is enabled'
             )
 
         zones = self.config['zones']
@@ -598,7 +608,7 @@ class Manager(object):
                 'lenient': lenient,
             }
 
-            if self.delay_arpa and zone_name.endswith('arpa.'):
+            if self.auto_arpa and zone_name.endswith('arpa.'):
                 delayed_arpa.append(kwargs)
             else:
                 futures.append(

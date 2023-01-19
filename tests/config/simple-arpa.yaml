@@ -1,6 +1,7 @@
 manager:
   max_workers: 2
-  delayed_arpa: true
+  auto_arpa:
+    ttl: 1800
 
 providers:
   in:
@@ -22,6 +23,11 @@ zones:
     - dump
   3.2.2.in-addr.arpa.:
     sources:
-    - in
+    - auto-arpa
+    targets:
+    - dump
+  b.e.f.f.f.d.1.8.f.2.6.0.1.2.e.0.0.5.0.4.4.6.0.1.0.6.2.ip6.arpa.:
+    sources:
+    - auto-arpa
     targets:
     - dump
