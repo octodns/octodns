@@ -489,18 +489,27 @@ class Manager(object):
             getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__),
         )
 
-        if (
-            self.auto_arpa
-            and eligible_zones
-            and any(e.endswith('arpa.') for e in eligible_zones)
-        ):
-            raise ManagerException(
-                'ARPA zones cannot be synced during partial runs when auto_arpa is enabled'
-            )
-
         zones = self.config['zones']
         if eligible_zones:
             zones = IdnaDict({n: zones.get(n) for n in eligible_zones})
+
+        includes_arpa = any(e.endswith('arpa.') for e in zones.keys())
+        if self.auto_arpa and includes_arpa:
+            # it's not safe to mess with auto_arpa when we don't have a complete
+            # picture of records, so if any filtering is happening while arpa
+            # zones are in play we need to abort
+            if any(e.endswith('arpa.') for e in eligible_zones):
+                raise ManagerException(
+                    'ARPA zones cannot be synced during partial runs when auto_arpa is enabled'
+                )
+            if eligible_sources:
+                raise ManagerException(
+                    'eligible_sources is incompatible with auto_arpa'
+                )
+            if eligible_targets:
+                raise ManagerException(
+                    'eligible_targets is incompatible with auto_arpa'
+                )
 
         aliased_zones = {}
         delayed_arpa = []

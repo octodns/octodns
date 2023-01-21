@@ -908,7 +908,7 @@ class TestManager(TestCase):
             str(ctx.exception),
         )
 
-    def test_delayed_arpa(self):
+    def test_auto_arpa(self):
         manager = Manager(get_config_filename('simple-arpa.yaml'))
 
         with TemporaryDirectory() as tmpdir:
@@ -917,7 +917,6 @@ class TestManager(TestCase):
             # we can sync eligible_zones so long as they're not arpa
             tc = manager.sync(dry_run=False, eligible_zones=['unit.tests.'])
             self.assertEqual(22, tc)
-
             # can't do partial syncs that include arpa zones
             with self.assertRaises(ManagerException) as ctx:
                 manager.sync(
@@ -926,6 +925,36 @@ class TestManager(TestCase):
                 )
             self.assertEqual(
                 'ARPA zones cannot be synced during partial runs when auto_arpa is enabled',
+                str(ctx.exception),
+            )
+
+            # same for eligible_sources
+            tc = manager.sync(
+                dry_run=False,
+                eligible_zones=['unit.tests.'],
+                eligible_sources=['in'],
+            )
+            self.assertEqual(22, tc)
+            # can't do partial syncs that include arpa zones
+            with self.assertRaises(ManagerException) as ctx:
+                manager.sync(dry_run=False, eligible_sources=['in'])
+            self.assertEqual(
+                'eligible_sources is incompatible with auto_arpa',
+                str(ctx.exception),
+            )
+
+            # same for eligible_targets
+            tc = manager.sync(
+                dry_run=False,
+                eligible_zones=['unit.tests.'],
+                eligible_targets=['dump'],
+            )
+            self.assertEqual(22, tc)
+            # can't do partial syncs that include arpa zones
+            with self.assertRaises(ManagerException) as ctx:
+                manager.sync(dry_run=False, eligible_targets=['dump'])
+            self.assertEqual(
+                'eligible_targets is incompatible with auto_arpa',
                 str(ctx.exception),
             )
 
