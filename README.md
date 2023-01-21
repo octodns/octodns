@@ -213,7 +213,7 @@ The table below lists the providers octoDNS supports. They are maintained in the
 | [DNSimple](https://dnsimple.com/) | [octodns_dnsimple](https://github.com/octodns/octodns-dnsimple/) | |
 | [Dyn](https://www.oracle.com/cloud/networking/dns/) ([deprecated](https://www.oracle.com/corporate/acquisitions/dyn/technologies/migrate-your-services/)) | [octodns_dyn](https://github.com/octodns/octodns-dyn/) | |
 | [easyDNS](https://easydns.com/) | [octodns_easydns](https://github.com/octodns/octodns-easydns/) | |
-| [EdgeCenter DNS](https://edgecenter.ru/dns/) | [octodns_gcore](https://github.com/octodns/octodns-gcore/) | |
+| [EdgeCenter DNS](https://edgecenter.ru/dns/) | [octodns_edgecenter](https://github.com/octodns/octodns-edgecenter/) | |
 | /etc/hosts | [octodns_etchosts](https://github.com/octodns/octodns-etchosts/) | |
 | [Gandi](https://www.gandi.net/en-US/domain/dns) | [octodns_gandi](https://github.com/octodns/octodns-gandi/) | |
 | [G-Core Labs DNS](https://gcorelabs.com/dns/) | [octodns_gcore](https://github.com/octodns/octodns-gcore/) | |
