@@ -7,6 +7,7 @@ from logging import DEBUG, INFO, WARNING, Formatter, StreamHandler, getLogger
 from logging.config import dictConfig
 from logging.handlers import SysLogHandler
 from sys import stderr, stdout
+
 from yaml import safe_load
 
 from octodns import __VERSION__

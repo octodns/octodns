@@ -4,13 +4,13 @@
 
 from unittest import TestCase
 
+from helpers import GeoProvider, SimpleProvider
+
 from octodns.record import Record
 from octodns.record.a import ARecord
-from octodns.record.geo import GeoCodes, GeoValue
 from octodns.record.exception import ValidationError
+from octodns.record.geo import GeoCodes, GeoValue
 from octodns.zone import Zone
-
-from helpers import SimpleProvider, GeoProvider
 
 
 class TestRecordGeo(TestCase):

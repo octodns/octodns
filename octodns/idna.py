@@ -4,7 +4,9 @@
 
 from collections.abc import MutableMapping
 
-from idna import IDNAError as _IDNAError, decode as _decode, encode as _encode
+from idna import IDNAError as _IDNAError
+from idna import decode as _decode
+from idna import encode as _encode
 
 # Providers will need to to make calls to these at the appropriate points,
 # generally right before they pass names off to api calls. For an example of

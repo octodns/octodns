@@ -3,12 +3,13 @@
 Octo-DNS Reporter
 '''
 
+import re
 from concurrent.futures import ThreadPoolExecutor
-from dns.exception import Timeout
-from dns.resolver import NXDOMAIN, NoAnswer, NoNameservers, Resolver, query
 from logging import getLogger
 from sys import stdout
-import re
+
+from dns.exception import Timeout
+from dns.resolver import NXDOMAIN, NoAnswer, NoNameservers, Resolver, query
 
 from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager

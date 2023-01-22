@@ -4,20 +4,6 @@
 
 from os import environ
 from os.path import dirname, isfile, join
-
-from octodns import __VERSION__
-from octodns.idna import IdnaDict, idna_encode
-from octodns.manager import (
-    _AggregateTarget,
-    MainThreadExecutor,
-    Manager,
-    ManagerException,
-)
-from octodns.processor.base import BaseProcessor
-from octodns.record import Create, Delete, Record
-from octodns.yaml import safe_load
-from octodns.zone import Zone
-
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
@@ -29,6 +15,19 @@ from helpers import (
     SimpleProvider,
     TemporaryDirectory,
 )
+
+from octodns import __VERSION__
+from octodns.idna import IdnaDict, idna_encode
+from octodns.manager import (
+    MainThreadExecutor,
+    Manager,
+    ManagerException,
+    _AggregateTarget,
+)
+from octodns.processor.base import BaseProcessor
+from octodns.record import Create, Delete, Record
+from octodns.yaml import safe_load
+from octodns.zone import Zone
 
 config_dir = join(dirname(__file__), 'config')
 

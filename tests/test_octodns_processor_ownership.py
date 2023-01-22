@@ -4,12 +4,11 @@
 
 from unittest import TestCase
 
+from helpers import PlannableProvider
+
 from octodns.processor.ownership import OwnershipProcessor
 from octodns.record import Delete, Record
 from octodns.zone import Zone
-
-from helpers import PlannableProvider
-
 
 zone = Zone('unit.tests.', [])
 records = {}

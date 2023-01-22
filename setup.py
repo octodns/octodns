@@ -4,6 +4,7 @@ from io import StringIO
 from os import environ
 from os.path import dirname, join
 from subprocess import CalledProcessError, check_output
+
 import octodns
 
 try:
