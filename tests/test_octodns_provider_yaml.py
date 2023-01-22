@@ -9,7 +9,7 @@ from yaml import safe_load
 from yaml.constructor import ConstructorError
 
 from octodns.idna import idna_encode
-from octodns.record import _NsValue, Create, Record, ValuesMixin
+from octodns.record import NsValue, Create, Record, ValuesMixin
 from octodns.provider import ProviderException
 from octodns.provider.base import Plan
 from octodns.provider.yaml import (
@@ -273,7 +273,7 @@ xn--dj-kia8a:
 
         class YamlRecord(ValuesMixin, Record):
             _type = 'YAML'
-            _value_type = _NsValue
+            _value_type = NsValue
 
         # don't know anything about a yaml type
         self.assertTrue('YAML' not in source.SUPPORTS)
