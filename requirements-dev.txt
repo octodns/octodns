@@ -14,6 +14,7 @@ docutils==0.19
 exceptiongroup==1.0.0
 importlib-metadata==5.0.0
 iniconfig==1.1.1
+isort==5.11.4
 jaraco.classes==3.2.3
 keyring==23.9.3
 more-itertools==9.0.0

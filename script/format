@@ -6,4 +6,5 @@ SOURCES=$(find *.py octodns tests -name "*.py")
 
 . env/bin/activate
 
-black --line-length=80 --skip-string-normalization --skip-magic-trailing-comma "$@" $SOURCES
+isort "$@" $SOURCES
+black "$@" $SOURCES
