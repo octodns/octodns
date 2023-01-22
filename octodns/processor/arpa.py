@@ -2,6 +2,7 @@
 #
 #
 
+from collections import defaultdict
 from ipaddress import ip_address
 from logging import getLogger
 
@@ -14,7 +15,7 @@ class AutoArpa(BaseProcessor):
         super().__init__(name)
         self.log = getLogger(f'AutoArpa[{name}]')
         self.ttl = ttl
-        self._records = {}
+        self._records = defaultdict(set)
 
     def process_source_zone(self, desired, sources):
         for record in desired.records:
@@ -30,7 +31,7 @@ class AutoArpa(BaseProcessor):
 
                 for ip in ips:
                     ptr = ip_address(ip).reverse_pointer
-                    self._records[f'{ptr}.'] = record.fqdn
+                    self._records[f'{ptr}.'].add(record.fqdn)
 
         return desired
 
@@ -46,11 +47,14 @@ class AutoArpa(BaseProcessor):
 
         zone_name = zone.name
         n = len(zone_name) + 1
-        for arpa, fqdn in self._records.items():
+        for arpa, fqdns in self._records.items():
             if arpa.endswith(zone_name):
                 name = arpa[:-n]
+                fqdns = sorted(fqdns)
                 record = Record.new(
-                    zone, name, {'ttl': self.ttl, 'type': 'PTR', 'value': fqdn}
+                    zone,
+                    name,
+                    {'ttl': self.ttl, 'type': 'PTR', 'values': fqdns},
                 )
                 zone.add_record(record)
 

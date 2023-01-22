@@ -27,7 +27,7 @@ class TestAutoArpa(TestCase):
         aa = AutoArpa('auto-arpa')
         aa.process_source_zone(zone, [])
         self.assertEqual(
-            {'4.3.2.1.in-addr.arpa.': 'a.unit.tests.'}, aa._records
+            {'4.3.2.1.in-addr.arpa.': {'a.unit.tests.'}}, aa._records
         )
 
         # matching zone
@@ -56,8 +56,8 @@ class TestAutoArpa(TestCase):
         aa.process_source_zone(zone, [])
         self.assertEqual(
             {
-                '4.3.2.1.in-addr.arpa.': 'a.unit.tests.',
-                '5.3.2.1.in-addr.arpa.': 'a.unit.tests.',
+                '4.3.2.1.in-addr.arpa.': {'a.unit.tests.'},
+                '5.3.2.1.in-addr.arpa.': {'a.unit.tests.'},
             },
             aa._records,
         )
@@ -81,7 +81,7 @@ class TestAutoArpa(TestCase):
         aa = AutoArpa('auto-arpa')
         aa.process_source_zone(zone, [])
         ip6_arpa = '2.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.c.0.0.0.f.f.0.0.ip6.arpa.'
-        self.assertEqual({ip6_arpa: 'aaaa.unit.tests.'}, aa._records)
+        self.assertEqual({ip6_arpa: {'aaaa.unit.tests.'}}, aa._records)
 
         # matching zone
         arpa = Zone('c.0.0.0.f.f.0.0.ip6.arpa.', [])
@@ -117,13 +117,13 @@ class TestAutoArpa(TestCase):
         aa.process_source_zone(zone, [])
         self.assertEqual(
             {
-                '1.1.1.1.in-addr.arpa.': 'geo.unit.tests.',
-                '2.2.2.2.in-addr.arpa.': 'geo.unit.tests.',
-                '3.3.3.3.in-addr.arpa.': 'geo.unit.tests.',
-                '4.4.4.4.in-addr.arpa.': 'geo.unit.tests.',
-                '5.5.5.5.in-addr.arpa.': 'geo.unit.tests.',
-                '4.3.2.1.in-addr.arpa.': 'geo.unit.tests.',
-                '5.3.2.1.in-addr.arpa.': 'geo.unit.tests.',
+                '1.1.1.1.in-addr.arpa.': {'geo.unit.tests.'},
+                '2.2.2.2.in-addr.arpa.': {'geo.unit.tests.'},
+                '3.3.3.3.in-addr.arpa.': {'geo.unit.tests.'},
+                '4.4.4.4.in-addr.arpa.': {'geo.unit.tests.'},
+                '5.5.5.5.in-addr.arpa.': {'geo.unit.tests.'},
+                '4.3.2.1.in-addr.arpa.': {'geo.unit.tests.'},
+                '5.3.2.1.in-addr.arpa.': {'geo.unit.tests.'},
             },
             aa._records,
         )
@@ -167,11 +167,37 @@ class TestAutoArpa(TestCase):
         aa.process_source_zone(zone, [])
         self.assertEqual(
             {
-                '3.3.3.3.in-addr.arpa.': 'dynamic.unit.tests.',
-                '4.4.4.4.in-addr.arpa.': 'dynamic.unit.tests.',
-                '5.5.5.5.in-addr.arpa.': 'dynamic.unit.tests.',
-                '4.3.2.1.in-addr.arpa.': 'dynamic.unit.tests.',
-                '5.3.2.1.in-addr.arpa.': 'dynamic.unit.tests.',
+                '3.3.3.3.in-addr.arpa.': {'dynamic.unit.tests.'},
+                '4.4.4.4.in-addr.arpa.': {'dynamic.unit.tests.'},
+                '5.5.5.5.in-addr.arpa.': {'dynamic.unit.tests.'},
+                '4.3.2.1.in-addr.arpa.': {'dynamic.unit.tests.'},
+                '5.3.2.1.in-addr.arpa.': {'dynamic.unit.tests.'},
             },
             aa._records,
         )
+
+    def test_multiple_names(self):
+        zone = Zone('unit.tests.', [])
+        record1 = Record.new(
+            zone, 'a1', {'ttl': 32, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        zone.add_record(record1)
+        record2 = Record.new(
+            zone, 'a2', {'ttl': 32, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        zone.add_record(record2)
+        aa = AutoArpa('auto-arpa')
+        aa.process_source_zone(zone, [])
+        self.assertEqual(
+            {'4.3.2.1.in-addr.arpa.': {'a1.unit.tests.', 'a2.unit.tests.'}},
+            aa._records,
+        )
+
+        # matching zone
+        arpa = Zone('3.2.1.in-addr.arpa.', [])
+        aa.populate(arpa)
+        self.assertEqual(1, len(arpa.records))
+        (ptr,) = arpa.records
+        self.assertEqual('4.3.2.1.in-addr.arpa.', ptr.fqdn)
+        self.assertEqual([record1.fqdn, record2.fqdn], ptr.values)
+        self.assertEqual(3600, ptr.ttl)
