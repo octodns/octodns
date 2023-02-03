@@ -14,6 +14,8 @@
   from octodns.record you'll need to update and pull them from their actual
   home. Classes beginning with _ are not exported from octodns.record any
   longer as they were considered private/protected.
+* Beta support for auto-arpa has been added, See the
+  [auto-arpa documentation](/docs/auto_arpa.md) for more information.
 
 #### Stuff
 
