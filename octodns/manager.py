@@ -19,7 +19,7 @@ from .yaml import safe_load
 from .zone import Zone
 
 # TODO: this can go away once we no longer support python 3.7
-try:
+try:  # pragma: no cover
     from importlib.metadata import PackageNotFoundError
     from importlib.metadata import version as module_version
 except ModuleNotFoundError:  # pragma: no cover
