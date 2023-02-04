@@ -2,13 +2,13 @@
 #
 #
 
+import logging
+import re
+import textwrap
 from collections import defaultdict
 from ipaddress import ip_address
 from os import listdir
 from os.path import join
-import logging
-import re
-import textwrap
 
 from ..record import Record
 from ..zone import DuplicateRecordException, SubzoneRecordException

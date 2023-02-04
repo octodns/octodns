@@ -6,7 +6,6 @@ from collections import defaultdict
 
 from ..provider.plan import Plan
 from ..record import Record
-
 from .base import BaseProcessor
 
 

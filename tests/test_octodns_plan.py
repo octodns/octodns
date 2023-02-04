@@ -6,6 +6,8 @@ from io import StringIO
 from logging import getLogger
 from unittest import TestCase
 
+from helpers import SimpleProvider
+
 from octodns.provider.plan import (
     Plan,
     PlanHtml,
@@ -16,9 +18,6 @@ from octodns.provider.plan import (
 )
 from octodns.record import Create, Delete, Record, Update
 from octodns.zone import Zone
-
-from helpers import SimpleProvider
-
 
 simple = SimpleProvider()
 zone = Zone('unit.tests.', [])

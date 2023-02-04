@@ -4,13 +4,13 @@
 
 from unittest import TestCase
 
+from helpers import SimpleProvider
+
 from octodns.record import Record
-from octodns.record.loc import LocRecord, LocValue
 from octodns.record.exception import ValidationError
+from octodns.record.loc import LocRecord, LocValue
 from octodns.record.rr import RrParseError
 from octodns.zone import Zone
-
-from helpers import SimpleProvider
 
 
 class TestRecordLoc(TestCase):

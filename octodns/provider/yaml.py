@@ -2,15 +2,15 @@
 #
 #
 
+import logging
 from collections import defaultdict
 from os import listdir, makedirs
 from os.path import isdir, isfile, join
-import logging
 
 from ..record import Record
-from ..yaml import safe_load, safe_dump
-from .base import BaseProvider
+from ..yaml import safe_dump, safe_load
 from . import ProviderException
+from .base import BaseProvider
 
 
 class YamlProvider(BaseProvider):

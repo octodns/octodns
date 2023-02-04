@@ -4,12 +4,12 @@
 
 from unittest import TestCase
 
-from octodns.record import Record
-from octodns.record.urlfwd import UrlfwdRecord, UrlfwdValue
-from octodns.record.exception import ValidationError
-from octodns.zone import Zone
-
 from helpers import SimpleProvider
+
+from octodns.record import Record
+from octodns.record.exception import ValidationError
+from octodns.record.urlfwd import UrlfwdRecord, UrlfwdValue
+from octodns.zone import Zone
 
 
 class TestRecordUrlfwd(TestCase):

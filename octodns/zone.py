@@ -2,9 +2,9 @@
 #
 #
 
+import re
 from collections import defaultdict
 from logging import getLogger
-import re
 
 from .idna import idna_decode, idna_encode
 from .record import Create, Delete

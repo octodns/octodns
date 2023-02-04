@@ -2,3 +2,5 @@
 e116d26eeca0891c31b689e43db5bb60b62f73f6
 # Commit that fixed a bunch of uneeded '...' '...' string joins from ^
 fa4225b625654c51c7b0be6efcfd6a1109768a72
+# Commit that added in isort formatting support
+6be0a8133a4fd9e12e6ac3affbdd69555b6c2503

@@ -4,11 +4,11 @@
 
 from unittest import TestCase
 
+from helpers import SimpleProvider
+
 from octodns.record import Record
 from octodns.source.tinydns import TinyDnsFileSource
 from octodns.zone import Zone
-
-from helpers import SimpleProvider
 
 
 class TestTinyDnsFileSource(TestCase):

@@ -4,10 +4,12 @@
 
 from unittest import TestCase
 
+from helpers import SimpleProvider
+
 from octodns.idna import idna_encode
 from octodns.record import (
-    ARecord,
     AaaaRecord,
+    ARecord,
     Create,
     Delete,
     NsRecord,
@@ -20,8 +22,6 @@ from octodns.zone import (
     SubzoneRecordException,
     Zone,
 )
-
-from helpers import SimpleProvider
 
 
 class TestZone(TestCase):

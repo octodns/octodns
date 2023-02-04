@@ -1,0 +1,12 @@
+[tool.black]
+line-length=80
+skip-string-normalization=true
+skip-magic-trailing-comma=true
+
+[tool.isort]
+profile = "black"
+known_first_party="octodns"
+line_length=80
+
+[tool.pytest.ini_options]
+pythonpath = "."

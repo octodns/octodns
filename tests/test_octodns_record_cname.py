@@ -4,12 +4,12 @@
 
 from unittest import TestCase
 
+from helpers import SimpleProvider
+
 from octodns.record import Record
 from octodns.record.cname import CnameRecord
 from octodns.record.exception import ValidationError
 from octodns.zone import Zone
-
-from helpers import SimpleProvider
 
 
 class TestRecordCname(TestCase):

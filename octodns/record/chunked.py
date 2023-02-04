@@ -2,8 +2,9 @@
 #
 #
 
-from .base import ValuesMixin
 import re
+
+from .base import ValuesMixin
 
 
 class _ChunkedValuesMixin(ValuesMixin):

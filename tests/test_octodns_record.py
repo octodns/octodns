@@ -6,8 +6,8 @@ from unittest import TestCase
 
 from octodns.idna import idna_encode
 from octodns.record import (
-    ARecord,
     AliasRecord,
+    ARecord,
     Create,
     Delete,
     MxValue,

@@ -2,8 +2,8 @@
 #
 #
 
-from logging import getLogger
 import re
+from logging import getLogger
 
 from ..equality import EqualityTupleMixin
 from .base import ValuesMixin

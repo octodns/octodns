@@ -2,9 +2,9 @@
 #
 #
 
+from logging import getLogger
 from shutil import rmtree
 from tempfile import mkdtemp
-from logging import getLogger
 
 from octodns.processor.base import BaseProcessor
 from octodns.provider.base import BaseProvider

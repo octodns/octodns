@@ -5,8 +5,8 @@
 from unittest import TestCase
 
 from octodns.record import Record
-from octodns.record.ns import NsRecord, NsValue
 from octodns.record.exception import ValidationError
+from octodns.record.ns import NsRecord, NsValue
 from octodns.zone import Zone
 
 
