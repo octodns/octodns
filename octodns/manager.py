@@ -11,6 +11,7 @@ from sys import stdout
 
 from . import __VERSION__
 from .idna import IdnaDict, idna_decode, idna_encode
+from .processor.arpa import AutoArpa
 from .provider.base import BaseProvider
 from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
@@ -95,10 +96,12 @@ class Manager(object):
         plan = p[1]
         return len(plan.changes[0].record.zone.name) if plan.changes else 0
 
-    def __init__(self, config_file, max_workers=None, include_meta=False):
+    def __init__(
+        self, config_file, max_workers=None, include_meta=False, auto_arpa=False
+    ):
         version = self._try_version('octodns', version=__VERSION__)
         self.log.info(
-            '__init__: config_file=%s (octoDNS %s)', config_file, version
+            '__init__: config_file=%s, (octoDNS %s)', config_file, version
         )
 
         self._configured_sub_zones = None
@@ -116,6 +119,8 @@ class Manager(object):
             manager_config, include_meta
         )
 
+        self.auto_arpa = self._config_auto_arpa(manager_config, auto_arpa)
+
         self.global_processors = manager_config.get('processors', [])
         self.log.info('__init__: global_processors=%s', self.global_processors)
 
@@ -124,6 +129,16 @@ class Manager(object):
 
         processors_config = self.config.get('processors', {})
         self.processors = self._config_processors(processors_config)
+
+        if self.auto_arpa:
+            self.log.info(
+                '__init__: adding auto-arpa to processors and providers, appending it to global_processors list'
+            )
+            kwargs = self.auto_arpa if isinstance(auto_arpa, dict) else {}
+            auto_arpa = AutoArpa('auto-arpa', **kwargs)
+            self.providers[auto_arpa.name] = auto_arpa
+            self.processors[auto_arpa.name] = auto_arpa
+            self.global_processors.append(auto_arpa.name)
 
         plan_outputs_config = manager_config.get(
             'plan_outputs',
@@ -169,6 +184,11 @@ class Manager(object):
         include_meta = include_meta or manager_config.get('include_meta', False)
         self.log.info('_config_include_meta: include_meta=%s', include_meta)
         return include_meta
+
+    def _config_auto_arpa(self, manager_config, auto_arpa=False):
+        auto_arpa = auto_arpa or manager_config.get('auto_arpa', False)
+        self.log.info('_config_auto_arpa: auto_arpa=%s', auto_arpa)
+        return auto_arpa
 
     def _config_providers(self, providers_config):
         self.log.debug('_config_providers: configuring providers')
@@ -381,7 +401,6 @@ class Manager(object):
         desired=None,
         lenient=False,
     ):
-
         zone = self.get_zone(zone_name)
         self.log.debug(
             'sync:   populating, zone=%s, lenient=%s',
@@ -471,7 +490,26 @@ class Manager(object):
         if eligible_zones:
             zones = IdnaDict({n: zones.get(n) for n in eligible_zones})
 
+        includes_arpa = any(e.endswith('arpa.') for e in zones.keys())
+        if self.auto_arpa and includes_arpa:
+            # it's not safe to mess with auto_arpa when we don't have a complete
+            # picture of records, so if any filtering is happening while arpa
+            # zones are in play we need to abort
+            if any(e.endswith('arpa.') for e in eligible_zones):
+                raise ManagerException(
+                    'ARPA zones cannot be synced during partial runs when auto_arpa is enabled'
+                )
+            if eligible_sources:
+                raise ManagerException(
+                    'eligible_sources is incompatible with auto_arpa'
+                )
+            if eligible_targets:
+                raise ManagerException(
+                    'eligible_targets is incompatible with auto_arpa'
+                )
+
         aliased_zones = {}
+        delayed_arpa = []
         futures = []
         for zone_name, config in zones.items():
             decoded_zone_name = idna_decode(zone_name)
@@ -568,16 +606,20 @@ class Manager(object):
                     f'Zone {decoded_zone_name}, unknown ' f'target: {target}'
                 )
 
-            futures.append(
-                self._executor.submit(
-                    self._populate_and_plan,
-                    zone_name,
-                    processors,
-                    sources,
-                    targets,
-                    lenient=lenient,
+            kwargs = {
+                'zone_name': zone_name,
+                'processors': processors,
+                'sources': sources,
+                'targets': targets,
+                'lenient': lenient,
+            }
+
+            if self.auto_arpa and zone_name.endswith('arpa.'):
+                delayed_arpa.append(kwargs)
+            else:
+                futures.append(
+                    self._executor.submit(self._populate_and_plan, **kwargs)
                 )
-            )
 
         # Wait on all results and unpack/flatten the plans and store the
         # desired states in case we need them below
@@ -616,6 +658,20 @@ class Manager(object):
         # Wait on results and unpack/flatten the plans, ignore the desired here
         # as these are aliased zones
         plans += [p for f in futures for p in f.result()[0]]
+
+        if delayed_arpa:
+            # if delaying arpa all of the non-arpa zones have been processed now
+            # so it's time to plan them
+            self.log.info(
+                'sync: processing %d delayed arpa zones', len(delayed_arpa)
+            )
+            # populate and plan them
+            futures = [
+                self._executor.submit(self._populate_and_plan, **kwargs)
+                for kwargs in delayed_arpa
+            ]
+            # wait on the results and unpack/flatten the plans
+            plans += [p for f in futures for p in f.result()[0]]
 
         # Best effort sort plans children first so that we create/update
         # children zones before parents which should allow us to more safely

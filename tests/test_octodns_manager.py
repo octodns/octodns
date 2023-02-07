@@ -907,6 +907,60 @@ class TestManager(TestCase):
             str(ctx.exception),
         )
 
+    def test_auto_arpa(self):
+        manager = Manager(get_config_filename('simple-arpa.yaml'))
+
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+
+            # we can sync eligible_zones so long as they're not arpa
+            tc = manager.sync(dry_run=False, eligible_zones=['unit.tests.'])
+            self.assertEqual(22, tc)
+            # can't do partial syncs that include arpa zones
+            with self.assertRaises(ManagerException) as ctx:
+                manager.sync(
+                    dry_run=False,
+                    eligible_zones=['unit.tests.', '3.2.2.in-addr.arpa.'],
+                )
+            self.assertEqual(
+                'ARPA zones cannot be synced during partial runs when auto_arpa is enabled',
+                str(ctx.exception),
+            )
+
+            # same for eligible_sources
+            tc = manager.sync(
+                dry_run=False,
+                eligible_zones=['unit.tests.'],
+                eligible_sources=['in'],
+            )
+            self.assertEqual(22, tc)
+            # can't do partial syncs that include arpa zones
+            with self.assertRaises(ManagerException) as ctx:
+                manager.sync(dry_run=False, eligible_sources=['in'])
+            self.assertEqual(
+                'eligible_sources is incompatible with auto_arpa',
+                str(ctx.exception),
+            )
+
+            # same for eligible_targets
+            tc = manager.sync(
+                dry_run=False,
+                eligible_zones=['unit.tests.'],
+                eligible_targets=['dump'],
+            )
+            self.assertEqual(22, tc)
+            # can't do partial syncs that include arpa zones
+            with self.assertRaises(ManagerException) as ctx:
+                manager.sync(dry_run=False, eligible_targets=['dump'])
+            self.assertEqual(
+                'eligible_targets is incompatible with auto_arpa',
+                str(ctx.exception),
+            )
+
+            # full sync with arpa is fine, 2 extra records from it
+            tc = manager.sync(dry_run=False)
+            self.assertEqual(26, tc)
+
 
 class TestMainThreadExecutor(TestCase):
     def test_success(self):

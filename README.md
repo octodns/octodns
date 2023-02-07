@@ -255,6 +255,10 @@ Similar to providers, but can only serve to populate records into a zone, cannot
    * Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
 * octoDNS itself supports non-ASCII character sets, but in testing Cloudflare is the only provider where that is currently functional end-to-end. Others have failures either in the client libraries or API calls
 
+## Automatic PTR generation
+
+octoDNS supports automatically generating PTR records from the `A`/`AAAA` records it manages. For more information see the [auto-arpa documentation](/docs/auto_arpa.md).
+
 ## Compatibility and Compliance
 
 ### `lenient`
