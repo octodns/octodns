@@ -5,21 +5,21 @@
 from os import makedirs
 from os.path import basename, dirname, isdir, isfile, join
 from unittest import TestCase
+
+from helpers import TemporaryDirectory
 from yaml import safe_load
 from yaml.constructor import ConstructorError
 
 from octodns.idna import idna_encode
-from octodns.record import NsValue, Create, Record, ValuesMixin
 from octodns.provider import ProviderException
 from octodns.provider.base import Plan
 from octodns.provider.yaml import (
-    _list_all_yaml_files,
     SplitYamlProvider,
     YamlProvider,
+    _list_all_yaml_files,
 )
+from octodns.record import Create, NsValue, Record, ValuesMixin
 from octodns.zone import SubzoneRecordException, Zone
-
-from helpers import TemporaryDirectory
 
 
 class TestYamlProvider(TestCase):

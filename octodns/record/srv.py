@@ -2,8 +2,9 @@
 #
 #
 
-from fqdn import FQDN
 import re
+
+from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode

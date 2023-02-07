@@ -3,10 +3,9 @@
 #
 
 from natsort import natsort_keygen
-from yaml import SafeDumper, SafeLoader, load, dump
-from yaml.representer import SafeRepresenter
+from yaml import SafeDumper, SafeLoader, dump, load
 from yaml.constructor import ConstructorError
-
+from yaml.representer import SafeRepresenter
 
 _natsort_key = natsort_keygen()
 

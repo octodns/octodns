@@ -4,6 +4,7 @@ from io import StringIO
 from os import environ
 from os.path import dirname, join
 from subprocess import CalledProcessError, check_output
+
 import octodns
 
 try:
@@ -73,6 +74,7 @@ setup(
         + (
             'black>=22.3.0',
             'build>=0.7.0',
+            'isort>=5.11.4',
             'pycountry>=19.8.18',
             'pycountry-convert>=0.7.2',
             'pyflakes>=2.2.0',

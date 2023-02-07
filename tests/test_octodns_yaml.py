@@ -4,6 +4,7 @@
 
 from io import StringIO
 from unittest import TestCase
+
 from yaml.constructor import ConstructorError
 
 from octodns.yaml import safe_dump, safe_load

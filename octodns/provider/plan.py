@@ -2,10 +2,9 @@
 #
 #
 
+from io import StringIO
 from logging import DEBUG, ERROR, INFO, WARN, getLogger
 from sys import stdout
-
-from io import StringIO
 
 
 class UnsafePlan(Exception):

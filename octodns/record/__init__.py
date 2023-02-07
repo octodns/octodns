@@ -17,14 +17,14 @@ from .geo import GeoCodes, GeoValue
 from .loc import LocRecord, LocValue
 from .mx import MxRecord, MxValue
 from .naptr import NaptrRecord, NaptrValue
-from .ns import NsValue, NsRecord
-from .ptr import PtrValue, PtrRecord
+from .ns import NsRecord, NsValue
+from .ptr import PtrRecord, PtrValue
 from .rr import Rr, RrParseError
 from .spf import SpfRecord
 from .srv import SrvRecord, SrvValue
 from .sshfp import SshfpRecord, SshfpValue
 from .tlsa import TlsaRecord, TlsaValue
-from .txt import TxtValue, TxtRecord
+from .txt import TxtRecord, TxtValue
 from .urlfwd import UrlfwdRecord, UrlfwdValue
 
 # quell warnings

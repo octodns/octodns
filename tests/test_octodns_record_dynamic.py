@@ -4,6 +4,8 @@
 
 from unittest import TestCase
 
+from helpers import DynamicProvider, SimpleProvider
+
 from octodns.idna import idna_encode
 from octodns.record import Record
 from octodns.record.a import ARecord, Ipv4Value
@@ -12,8 +14,6 @@ from octodns.record.cname import CnameRecord
 from octodns.record.dynamic import _Dynamic, _DynamicPool, _DynamicRule
 from octodns.record.exception import ValidationError
 from octodns.zone import Zone
-
-from helpers import SimpleProvider, DynamicProvider
 
 
 class TestRecordDynamic(TestCase):

@@ -4,13 +4,13 @@
 
 from unittest import TestCase
 
+from helpers import SimpleProvider
+
 from octodns.record.base import Record
 from octodns.record.exception import ValidationError
-from octodns.record.sshfp import SshfpRecord, SshfpValue
 from octodns.record.rr import RrParseError
+from octodns.record.sshfp import SshfpRecord, SshfpValue
 from octodns.zone import Zone
-
-from helpers import SimpleProvider
 
 
 class TestRecordSshfp(TestCase):

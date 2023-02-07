@@ -1,8 +1,10 @@
 from unittest import TestCase
 from unittest.mock import patch
 
-from octodns.source.envvar import EnvVarSource
-from octodns.source.envvar import EnvironmentVariableNotFoundException
+from octodns.source.envvar import (
+    EnvironmentVariableNotFoundException,
+    EnvVarSource,
+)
 from octodns.zone import Zone
 
 

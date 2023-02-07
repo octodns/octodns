@@ -2,8 +2,8 @@
 #
 #
 
-from logging import getLogger
 import re
+from logging import getLogger
 
 from .change import Update
 from .geo import GeoCodes

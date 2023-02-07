@@ -3,8 +3,8 @@
 Octo-DNS Comparator
 '''
 
-from pprint import pprint
 import sys
+from pprint import pprint
 
 from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
