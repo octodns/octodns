@@ -23,7 +23,10 @@ class TestSpfDnsLookupProcessor(TestCase):
                 {
                     'type': 'TXT',
                     'ttl': 86400,
-                    'values': ['v=spf1 a ~all', 'v=DMARC1\; p=reject\;'],
+                    'values': [
+                        'v=spf1 a include:_spf.google.com ~all',
+                        'v=DMARC1\; p=reject\;',
+                    ],
                 },
             )
         )
@@ -38,7 +41,7 @@ class TestSpfDnsLookupProcessor(TestCase):
                     'type': 'TXT',
                     'ttl': 86400,
                     'values': [
-                        'v=spf1 a a a a a a a a a a -all',
+                        'v=spf1 a ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 -all',
                         'v=DMARC1\; p=reject\;',
                     ],
                 },
@@ -56,7 +59,26 @@ class TestSpfDnsLookupProcessor(TestCase):
                     'type': 'TXT',
                     'ttl': 86400,
                     'values': [
-                        'v=spf1 a mx exists redirect a a a a a a a ~all',
+                        'v=spf1 a mx exists:example.com a a a a a a a a ~all',
+                        'v=DMARC1\; p=reject\;',
+                    ],
+                },
+            )
+        )
+
+        with self.assertRaises(SpfDnsLookupException):
+            processor.process_source_zone(zone)
+
+        zone = Zone('unit.tests.', [])
+        zone.add_record(
+            Record.new(
+                zone,
+                '',
+                {
+                    'type': 'TXT',
+                    'ttl': 86400,
+                    'values': [
+                        'v=spf1 include:example.com include:_spf.google.com include:_spf.google.com include:_spf.google.com ~all',
                         'v=DMARC1\; p=reject\;',
                     ],
                 },
