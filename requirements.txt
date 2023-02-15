@@ -1,5 +1,5 @@
 PyYAML==6.0
-dnspython==2.2.1
+dnspython==2.3.0
 fqdn==1.5.1
 idna==3.4
 natsort==8.2.0
