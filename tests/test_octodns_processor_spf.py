@@ -13,41 +13,13 @@ from octodns.zone import Zone
 class TestSpfDnsLookupProcessor(TestCase):
     def test_get_spf_from_txt_values(self):
         processor = SpfDnsLookupProcessor('test')
+
+        # Used in logging
         record = Record.new(
             Zone('unit.tests.', []),
             '',
-            {'type': 'TXT', 'ttl': 86400, 'values': ['v=DMARC1\; p=reject\;']},
+            {'type': 'TXT', 'ttl': 86400, 'values': ['']},
         )
-
-        self.assertEqual(
-            'v=spf1 include:example.com ~all',
-            processor._get_spf_from_txt_values(
-                record,
-                ['v=DMARC1\; p=reject\;', 'v=spf1 include:example.com ~all'],
-            ),
-        )
-
-        with self.assertRaises(SpfValueException):
-            processor._get_spf_from_txt_values(
-                record,
-                [
-                    'v=spf1 include:example.com ~all',
-                    'v=spf1 include:example.com ~all',
-                ],
-            )
-
-        self.assertEqual(
-            'v=spf1 include:example.com ~all',
-            processor._get_spf_from_txt_values(
-                record,
-                ['v=DMARC1\; p=reject\;', 'v=spf1 include:example.com ~all'],
-            ),
-        )
-
-        with self.assertRaises(SpfValueException):
-            processor._get_spf_from_txt_values(
-                record, ['v=spf1 include:example.com']
-            )
 
         self.assertIsNone(
             processor._get_spf_from_txt_values(
@@ -55,21 +27,33 @@ class TestSpfDnsLookupProcessor(TestCase):
             )
         )
 
-        # SPF record split across multiple character-strings, https://www.rfc-editor.org/rfc/rfc7208#section-3.3
         self.assertEqual(
-            'v=spf1 include:example.com ip4:1.2.3.4 ~all',
+            'v=spf1 include:example.com ~all',
+            processor._get_spf_from_txt_values(
+                record,
+                ['v=DMARC1\; p=reject\;', 'v=spf1 include:example.com ~all'],
+            ),
+        )
+
+        with self.assertRaises(SpfValueException):
             processor._get_spf_from_txt_values(
                 record,
                 [
-                    'v=spf1 include:example.com',
-                    ' ip4:1.2.3.4 ~all',
-                    'v=DMARC1\; p=reject\;',
+                    'v=spf1 include:example.com ~all',
+                    'v=spf1 include:example.com ~all',
                 ],
+            )
+
+        # Missing "all" or "redirect" at the end
+        self.assertEqual(
+            'v=spf1 include:example.com',
+            processor._get_spf_from_txt_values(
+                record, ['v=spf1 include:example.com', 'v=DMARC1\; p=reject\;']
             ),
         )
 
         self.assertEqual(
-            'v=spf1 +mx redirect=',
+            'v=spf1 +mx redirect=example.com',
             processor._get_spf_from_txt_values(
                 record,
                 ['v=spf1 +mx redirect=example.com', 'v=DMARC1\; p=reject\;'],
@@ -117,7 +101,7 @@ class TestSpfDnsLookupProcessor(TestCase):
             )
         )
 
-        resolver_mock.reset_mock()
+        resolver_mock.reset_mock(return_value=True, side_effect=True)
         txt_value_mock = MagicMock()
         txt_value_mock.to_text.return_value = '"v=spf1 -all"'
         resolver_mock.return_value = [txt_value_mock]
@@ -178,7 +162,7 @@ class TestSpfDnsLookupProcessor(TestCase):
             )
         )
 
-        resolver_mock.reset_mock()
+        resolver_mock.reset_mock(return_value=True, side_effect=True)
         txt_value_mock = MagicMock()
         txt_value_mock.to_text.return_value = (
             '"v=spf1 a a a a a a a a a a a -all"'
@@ -205,7 +189,33 @@ class TestSpfDnsLookupProcessor(TestCase):
             )
         )
 
-        resolver_mock.reset_mock()
+        resolver_mock.reset_mock(return_value=True, side_effect=True)
+        txt_value_mock = MagicMock()
+        txt_value_mock.to_text.return_value = (
+            '"v=spf1 ip4:1.2.3.4" " ip4:4.3.2.1 -all"'
+        )
+        resolver_mock.return_value = [txt_value_mock]
+
+        self.assertEqual(zone, processor.process_source_zone(zone))
+        resolver_mock.assert_called_once_with('example.com', 'TXT')
+
+        zone = Zone('unit.tests.', [])
+        zone.add_record(
+            Record.new(
+                zone,
+                '',
+                {
+                    'type': 'TXT',
+                    'ttl': 86400,
+                    'values': [
+                        'v=spf1 include:example.com -all',
+                        'v=DMARC1\; p=reject\;',
+                    ],
+                },
+            )
+        )
+
+        resolver_mock.reset_mock(return_value=True, side_effect=True)
         first_txt_value_mock = MagicMock()
         first_txt_value_mock.to_text.return_value = (
             '"v=spf1 include:_spf.example.com -all"'
