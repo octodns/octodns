@@ -244,9 +244,13 @@ class TestSpfDnsLookupProcessor(TestCase):
                     'type': 'TXT',
                     'ttl': 86400,
                     'value': (
-                        '"v=spf1 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334"'
-                        ' " ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334"'
-                        ' " ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 ~all"'
+                        'v=spf1 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334'
+                        ' ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334'
+                        ' ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334'
+                        ' ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334'
+                        ' ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334'
+                        ' ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334'
+                        ' ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 ~all'
                     ),
                 },
             )
@@ -254,7 +258,8 @@ class TestSpfDnsLookupProcessor(TestCase):
 
         self.assertEqual(zone, processor.process_source_zone(zone))
 
-    def test_processor_with_lenient_record(self):
+    @patch('dns.resolver.resolve')
+    def test_processor_with_lenient_record(self, resolver_mock):
         processor = SpfDnsLookupProcessor('test')
         zone = Zone('unit.tests.', [])
 
@@ -271,8 +276,10 @@ class TestSpfDnsLookupProcessor(TestCase):
         zone.add_record(lenient)
 
         self.assertEqual(zone, processor.process_source_zone(zone))
+        resolver_mock.assert_not_called()
 
-    def test_processor_errors_on_too_many_spf_values(self):
+    @patch('dns.resolver.resolve')
+    def test_processor_errors_on_too_many_spf_values(self, resolver_mock):
         processor = SpfDnsLookupProcessor('test')
         zone = Zone('unit.tests.', [])
 
@@ -283,8 +290,8 @@ class TestSpfDnsLookupProcessor(TestCase):
                 'type': 'TXT',
                 'ttl': 86400,
                 'values': [
-                    'v=spf1 include:mailgun.org ~all',
                     'v=spf1 include:_spf.google.com ~all',
+                    'v=spf1 include:mailgun.org ~all',
                 ],
             },
         )
@@ -292,6 +299,7 @@ class TestSpfDnsLookupProcessor(TestCase):
 
         with self.assertRaises(SpfValueException):
             processor.process_source_zone(zone)
+        resolver_mock.assert_not_called()
 
     @patch('dns.resolver.resolve')
     def test_processor_errors_ptr_mechanisms(self, resolver_mock):
@@ -312,6 +320,7 @@ class TestSpfDnsLookupProcessor(TestCase):
             'unit.tests. uses the deprecated ptr mechanism',
             str(context.exception),
         )
+        resolver_mock.assert_not_called()
 
         zone = Zone('unit.tests.', [])
 
@@ -327,12 +336,15 @@ class TestSpfDnsLookupProcessor(TestCase):
             )
         )
 
+        resolver_mock.reset_mock(return_value=True, side_effect=True)
+
         with self.assertRaises(SpfValueException) as context:
             processor.process_source_zone(zone)
         self.assertEqual(
             'unit.tests. uses the deprecated ptr mechanism',
             str(context.exception),
         )
+        resolver_mock.assert_not_called()
 
         zone = Zone('unit.tests.', [])
 
@@ -348,6 +360,7 @@ class TestSpfDnsLookupProcessor(TestCase):
             )
         )
 
+        resolver_mock.reset_mock(return_value=True, side_effect=True)
         txt_value_mock = MagicMock()
         txt_value_mock.to_text.return_value = '"v=spf1 ptr -all"'
         resolver_mock.return_value = [txt_value_mock]
