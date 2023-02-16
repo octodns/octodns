@@ -73,10 +73,13 @@ class SpfDnsLookupProcessor(BaseProcessor):
                     f"{record.fqdn} exceeds the 10 DNS lookup limit in the SPF record"
                 )
 
+            if term.startswith('ptr'):
+                raise SpfValueException(
+                    f"{record.fqdn} uses the deprecated ptr mechanism"
+                )
+
             # These mechanisms cost one DNS lookup each
-            if term.startswith(
-                ('a', 'mx', 'exists:', 'redirect', 'include:', 'ptr')
-            ):
+            if term.startswith(('a', 'mx', 'exists:', 'redirect', 'include:')):
                 lookups += 1
 
             # The include mechanism can result in further lookups after resolving the DNS record

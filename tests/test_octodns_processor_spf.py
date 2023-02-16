@@ -245,3 +245,69 @@ class TestSpfDnsLookupProcessor(TestCase):
 
         with self.assertRaises(SpfValueException):
             processor.process_source_zone(zone)
+
+    @patch('dns.resolver.resolve')
+    def test_processor_errors_ptr_mechanisms(self, resolver_mock):
+        processor = SpfDnsLookupProcessor('test')
+        zone = Zone('unit.tests.', [])
+
+        zone.add_record(
+            Record.new(
+                zone,
+                '',
+                {'type': 'TXT', 'ttl': 86400, 'values': ['v=spf1 ptr ~all']},
+            )
+        )
+
+        with self.assertRaises(SpfValueException) as context:
+            processor.process_source_zone(zone)
+        self.assertEqual(
+            'unit.tests. uses the deprecated ptr mechanism',
+            str(context.exception),
+        )
+
+        zone = Zone('unit.tests.', [])
+
+        zone.add_record(
+            Record.new(
+                zone,
+                '',
+                {
+                    'type': 'TXT',
+                    'ttl': 86400,
+                    'values': ['v=spf1 ptr:example.com ~all'],
+                },
+            )
+        )
+
+        with self.assertRaises(SpfValueException) as context:
+            processor.process_source_zone(zone)
+        self.assertEqual(
+            'unit.tests. uses the deprecated ptr mechanism',
+            str(context.exception),
+        )
+
+        zone = Zone('unit.tests.', [])
+
+        zone.add_record(
+            Record.new(
+                zone,
+                '',
+                {
+                    'type': 'TXT',
+                    'ttl': 86400,
+                    'values': ['v=spf1 include:example.com ~all'],
+                },
+            )
+        )
+
+        txt_value_mock = MagicMock()
+        txt_value_mock.to_text.return_value = '"v=spf1 ptr -all"'
+        resolver_mock.return_value = [txt_value_mock]
+
+        with self.assertRaises(SpfValueException) as context:
+            processor.process_source_zone(zone)
+        self.assertEqual(
+            'unit.tests. uses the deprecated ptr mechanism',
+            str(context.exception),
+        )
