@@ -1,4 +1,5 @@
 from unittest import TestCase
+from unittest.mock import MagicMock, patch
 
 from octodns.processor.spf import (
     SpfDnsLookupException,
@@ -19,12 +20,9 @@ class TestSpfDnsLookupProcessor(TestCase):
         )
 
         self.assertEqual(
-            'v=spf1 include:_spf.google.com ~all',
+            'v=spf1 include:example.com ~all',
             processor._get_spf_from_txt_values(
-                [
-                    'v=DMARC1\; p=reject\;',
-                    'v=spf1 include:_spf.google.com ~all',
-                ],
+                ['v=DMARC1\; p=reject\;', 'v=spf1 include:example.com ~all'],
                 record,
             ),
         )
@@ -32,26 +30,23 @@ class TestSpfDnsLookupProcessor(TestCase):
         with self.assertRaises(SpfValueException):
             processor._get_spf_from_txt_values(
                 [
-                    'v=spf1 include:_spf.google.com ~all',
-                    'v=spf1 include:_spf.google.com ~all',
+                    'v=spf1 include:example.com ~all',
+                    'v=spf1 include:example.com ~all',
                 ],
                 record,
             )
 
         self.assertEqual(
-            'v=spf1 include:_spf.google.com ~all',
+            'v=spf1 include:example.com ~all',
             processor._get_spf_from_txt_values(
-                [
-                    'v=DMARC1\; p=reject\;',
-                    'v=spf1 include:_spf.google.com ~all',
-                ],
+                ['v=DMARC1\; p=reject\;', 'v=spf1 include:example.com ~all'],
                 record,
             ),
         )
 
         with self.assertRaises(SpfValueException):
             processor._get_spf_from_txt_values(
-                ['v=spf1 include:_spf.google.com'], record
+                ['v=spf1 include:example.com'], record
             )
 
         self.assertIsNone(
@@ -62,10 +57,10 @@ class TestSpfDnsLookupProcessor(TestCase):
 
         # SPF record split across multiple character-strings, https://www.rfc-editor.org/rfc/rfc7208#section-3.3
         self.assertEqual(
-            'v=spf1 include:_spf.google.com ip4:1.2.3.4 ~all',
+            'v=spf1 include:example.com ip4:1.2.3.4 ~all',
             processor._get_spf_from_txt_values(
                 [
-                    'v=spf1 include:_spf.google.com',
+                    'v=spf1 include:example.com',
                     ' ip4:1.2.3.4 ~all',
                     'v=DMARC1\; p=reject\;',
                 ],
@@ -76,19 +71,16 @@ class TestSpfDnsLookupProcessor(TestCase):
         self.assertEqual(
             'v=spf1 +mx redirect=',
             processor._get_spf_from_txt_values(
-                [
-                    'v=spf1 +mx redirect=_spf.example.com',
-                    'v=DMARC1\; p=reject\;',
-                ],
+                ['v=spf1 +mx redirect=example.com', 'v=DMARC1\; p=reject\;'],
                 record,
             ),
         )
 
-    def test_processor(self):
+    @patch('dns.resolver.resolve')
+    def test_processor(self, resolver_mock):
         processor = SpfDnsLookupProcessor('test')
         self.assertEqual('test', processor.name)
 
-        processor = SpfDnsLookupProcessor('test')
         zone = Zone('unit.tests.', [])
         zone.add_record(
             Record.new(
@@ -97,11 +89,13 @@ class TestSpfDnsLookupProcessor(TestCase):
                 {
                     'type': 'TXT',
                     'ttl': 86400,
-                    'values': [
-                        'v=spf1 a include:_spf.google.com ~all',
-                        'v=DMARC1\; p=reject\;',
-                    ],
+                    'values': ['v=DMARC1\; p=reject\;'],
                 },
+            )
+        )
+        zone.add_record(
+            Record.new(
+                zone, '', {'type': 'A', 'ttl': 86400, 'value': '1.2.3.4'}
             )
         )
 
@@ -116,7 +110,29 @@ class TestSpfDnsLookupProcessor(TestCase):
                     'type': 'TXT',
                     'ttl': 86400,
                     'values': [
-                        'v=spf1 a ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 ip4:1.2.3.4 -all',
+                        'v=spf1 a include:example.com ~all',
+                        'v=DMARC1\; p=reject\;',
+                    ],
+                },
+            )
+        )
+
+        txt_value_mock = MagicMock()
+        txt_value_mock.to_text.return_value = '"v=spf1 -all"'
+        resolver_mock.return_value = [txt_value_mock]
+
+        self.assertEqual(zone, processor.process_source_zone(zone))
+
+        zone = Zone('unit.tests.', [])
+        zone.add_record(
+            Record.new(
+                zone,
+                '',
+                {
+                    'type': 'TXT',
+                    'ttl': 86400,
+                    'values': [
+                        'v=spf1 a ip4:1.2.3.4 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 -all',
                         'v=DMARC1\; p=reject\;',
                     ],
                 },
@@ -153,17 +169,23 @@ class TestSpfDnsLookupProcessor(TestCase):
                     'type': 'TXT',
                     'ttl': 86400,
                     'values': [
-                        'v=spf1 include:example.com include:_spf.google.com include:_spf.google.com include:_spf.google.com ~all',
+                        'v=spf1 include:example.com -all',
                         'v=DMARC1\; p=reject\;',
                     ],
                 },
             )
         )
 
+        txt_value_mock = MagicMock()
+        txt_value_mock.to_text.return_value = (
+            '"v=spf1 a a a a a a a a a a a -all"'
+        )
+        resolver_mock.return_value = [txt_value_mock]
+
         with self.assertRaises(SpfDnsLookupException):
             processor.process_source_zone(zone)
 
-    def test_processor_with_long_txt_values(self):
+    def test_processor_with_long_txt_value(self):
         processor = SpfDnsLookupProcessor('test')
         zone = Zone('unit.tests.', [])
 
@@ -185,7 +207,7 @@ class TestSpfDnsLookupProcessor(TestCase):
 
         self.assertEqual(zone, processor.process_source_zone(zone))
 
-    def test_processor_skips_lenient_records(self):
+    def test_processor_with_lenient_record(self):
         processor = SpfDnsLookupProcessor('test')
         zone = Zone('unit.tests.', [])
 
@@ -203,7 +225,7 @@ class TestSpfDnsLookupProcessor(TestCase):
 
         self.assertEqual(zone, processor.process_source_zone(zone))
 
-    def test_processor_errors_on_many_spf_values_in_record(self):
+    def test_processor_errors_on_too_many_spf_values(self):
         processor = SpfDnsLookupProcessor('test')
         zone = Zone('unit.tests.', [])
 
@@ -223,48 +245,3 @@ class TestSpfDnsLookupProcessor(TestCase):
 
         with self.assertRaises(SpfValueException):
             processor.process_source_zone(zone)
-
-    def test_processor_filters_to_records_with_spf_values(self):
-        processor = SpfDnsLookupProcessor('test')
-        zone = Zone('unit.tests.', [])
-
-        zone.add_record(
-            Record.new(
-                zone, '', {'type': 'A', 'ttl': 86400, 'value': '1.2.3.4'}
-            )
-        )
-        zone.add_record(
-            Record.new(
-                zone,
-                '',
-                {
-                    'type': 'TXT',
-                    'ttl': 86400,
-                    'value': 'v=spf1 a a a a a a a a a a a ~all',
-                },
-            )
-        )
-
-        with self.assertRaises(SpfDnsLookupException):
-            processor.process_source_zone(zone)
-
-        zone = Zone('unit.tests.', [])
-
-        zone.add_record(
-            Record.new(
-                zone, '', {'type': 'A', 'ttl': 86400, 'value': '1.2.3.4'}
-            )
-        )
-        zone.add_record(
-            Record.new(
-                zone,
-                '',
-                {
-                    'type': 'TXT',
-                    'ttl': 86400,
-                    'values': ['AAAAAAAAAAA', 'v=spf10'],
-                },
-            )
-        )
-
-        self.assertEqual(zone, processor.process_source_zone(zone))
