@@ -10,9 +10,83 @@ from octodns.zone import Zone
 
 
 class TestSpfDnsLookupProcessor(TestCase):
+    def test_get_spf_from_txt_values(self):
+        processor = SpfDnsLookupProcessor('test')
+        record = Record.new(
+            Zone('unit.tests.', []),
+            '',
+            {'type': 'TXT', 'ttl': 86400, 'values': ['v=DMARC1\; p=reject\;']},
+        )
+
+        self.assertEqual(
+            'v=spf1 include:_spf.google.com ~all',
+            processor._get_spf_from_txt_values(
+                [
+                    'v=DMARC1\; p=reject\;',
+                    'v=spf1 include:_spf.google.com ~all',
+                ],
+                record,
+            ),
+        )
+
+        with self.assertRaises(SpfValueException):
+            processor._get_spf_from_txt_values(
+                [
+                    'v=spf1 include:_spf.google.com ~all',
+                    'v=spf1 include:_spf.google.com ~all',
+                ],
+                record,
+            )
+
+        self.assertEqual(
+            'v=spf1 include:_spf.google.com ~all',
+            processor._get_spf_from_txt_values(
+                [
+                    'v=DMARC1\; p=reject\;',
+                    'v=spf1 include:_spf.google.com ~all',
+                ],
+                record,
+            ),
+        )
+
+        with self.assertRaises(SpfValueException):
+            processor._get_spf_from_txt_values(
+                ['v=spf1 include:_spf.google.com'], record
+            )
+
+        self.assertIsNone(
+            processor._get_spf_from_txt_values(
+                ['v=DMARC1\; p=reject\;'], record
+            )
+        )
+
+        # SPF record split across multiple character-strings, https://www.rfc-editor.org/rfc/rfc7208#section-3.3
+        self.assertEqual(
+            'v=spf1 include:_spf.google.com ip4:1.2.3.4 ~all',
+            processor._get_spf_from_txt_values(
+                [
+                    'v=spf1 include:_spf.google.com',
+                    ' ip4:1.2.3.4 ~all',
+                    'v=DMARC1\; p=reject\;',
+                ],
+                record,
+            ),
+        )
+
+        self.assertEqual(
+            'v=spf1 +mx redirect=',
+            processor._get_spf_from_txt_values(
+                [
+                    'v=spf1 +mx redirect=_spf.example.com',
+                    'v=DMARC1\; p=reject\;',
+                ],
+                record,
+            ),
+        )
+
     def test_processor(self):
         processor = SpfDnsLookupProcessor('test')
-        assert processor.name == 'test'
+        self.assertEqual('test', processor.name)
 
         processor = SpfDnsLookupProcessor('test')
         zone = Zone('unit.tests.', [])
@@ -31,7 +105,8 @@ class TestSpfDnsLookupProcessor(TestCase):
             )
         )
 
-        assert zone == processor.process_source_zone(zone)
+        self.assertEqual(zone, processor.process_source_zone(zone))
+
         zone = Zone('unit.tests.', [])
         zone.add_record(
             Record.new(
@@ -48,7 +123,7 @@ class TestSpfDnsLookupProcessor(TestCase):
             )
         )
 
-        assert zone == processor.process_source_zone(zone)
+        self.assertEqual(zone, processor.process_source_zone(zone))
 
         zone = Zone('unit.tests.', [])
         zone.add_record(
@@ -88,6 +163,28 @@ class TestSpfDnsLookupProcessor(TestCase):
         with self.assertRaises(SpfDnsLookupException):
             processor.process_source_zone(zone)
 
+    def test_processor_with_long_txt_values(self):
+        processor = SpfDnsLookupProcessor('test')
+        zone = Zone('unit.tests.', [])
+
+        zone.add_record(
+            Record.new(
+                zone,
+                '',
+                {
+                    'type': 'TXT',
+                    'ttl': 86400,
+                    'value': (
+                        '"v=spf1 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334"'
+                        ' " ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334"'
+                        ' " ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 ~all"'
+                    ),
+                },
+            )
+        )
+
+        self.assertEqual(zone, processor.process_source_zone(zone))
+
     def test_processor_skips_lenient_records(self):
         processor = SpfDnsLookupProcessor('test')
         zone = Zone('unit.tests.', [])
@@ -104,9 +201,7 @@ class TestSpfDnsLookupProcessor(TestCase):
         )
         zone.add_record(lenient)
 
-        processed = processor.process_source_zone(zone)
-
-        assert zone == processed
+        self.assertEqual(zone, processor.process_source_zone(zone))
 
     def test_processor_errors_on_many_spf_values_in_record(self):
         processor = SpfDnsLookupProcessor('test')
@@ -172,4 +267,4 @@ class TestSpfDnsLookupProcessor(TestCase):
             )
         )
 
-        assert zone == processor.process_source_zone(zone)
+        self.assertEqual(zone, processor.process_source_zone(zone))

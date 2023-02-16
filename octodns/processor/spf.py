@@ -2,7 +2,9 @@
 #
 #
 
+import re
 from logging import getLogger
+from typing import Optional
 
 import dns.resolver
 
@@ -26,21 +28,42 @@ class SpfDnsLookupProcessor(BaseProcessor):
         self.log.debug(f"SpfDnsLookupProcessor: {name}")
         super().__init__(name)
 
-    def _lookup(
-        self, record: Record, values: list[str], lookups: int = 0
-    ) -> int:
+    def _get_spf_from_txt_values(
+        self, values: list[str], record: Record
+    ) -> Optional[str]:
+        self.log.debug(
+            f"_get_spf_from_txt_values: record={record.fqdn} values={values}"
+        )
+
         # SPF values must begin with 'v=spf1 '
         spf = [value for value in values if value.startswith('v=spf1 ')]
 
         if len(spf) == 0:
-            return lookups
+            return None
 
         if len(spf) > 1:
             raise SpfValueException(
                 f"{record.fqdn} has more than one SPF value"
             )
 
-        spf = spf[0]
+        match = re.search(r"(v=spf1\s.+(?:all|redirect=))", "".join(values))
+
+        if match is None:
+            raise SpfValueException(f"{record.fqdn} has an invalid SPF value")
+
+        return match.group()
+
+    def _check_dns_lookups(
+        self, record: Record, values: list[str], lookups: int = 0
+    ) -> int:
+        self.log.debug(
+            f"_check_dns_lookups: record={record.fqdn} values={values} lookups={lookups}"
+        )
+
+        spf = self._get_spf_from_txt_values(values, record)
+
+        if spf is None:
+            return lookups
 
         terms = spf.removeprefix('v=spf1 ').split(' ')
 
@@ -61,7 +84,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
                 answer = dns.resolver.resolve(
                     term.removeprefix('include:'), 'TXT'
                 )
-                lookups = self._lookup(
+                lookups = self._check_dns_lookups(
                     record, [value.to_text()[1:-1] for value in answer], lookups
                 )
 
@@ -75,6 +98,6 @@ class SpfDnsLookupProcessor(BaseProcessor):
             if record._octodns.get('lenient'):
                 continue
 
-            self._lookup(record, record.values)
+            self._check_dns_lookups(record, record.values)
 
         return zone
