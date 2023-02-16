@@ -29,7 +29,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
         super().__init__(name)
 
     def _get_spf_from_txt_values(
-        self, values: list[str], record: Record
+        self, record: Record, values: list[str]
     ) -> Optional[str]:
         self.log.debug(
             f"_get_spf_from_txt_values: record={record.fqdn} values={values}"
@@ -43,7 +43,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
 
         if len(spf) > 1:
             raise SpfValueException(
-                f"{record.fqdn} has more than one SPF value"
+                f"{record.fqdn} has more than one SPF value in the TXT record"
             )
 
         match = re.search(r"(v=spf1\s.+(?:all|redirect=))", "".join(values))
@@ -60,7 +60,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
             f"_check_dns_lookups: record={record.fqdn} values={values} lookups={lookups}"
         )
 
-        spf = self._get_spf_from_txt_values(values, record)
+        spf = self._get_spf_from_txt_values(record, values)
 
         if spf is None:
             return lookups
@@ -84,11 +84,11 @@ class SpfDnsLookupProcessor(BaseProcessor):
 
             # The include mechanism can result in further lookups after resolving the DNS record
             if term.startswith('include:'):
-                answer = dns.resolver.resolve(
-                    term.removeprefix('include:'), 'TXT'
-                )
+                domain = term.removeprefix('include:')
+                answer = dns.resolver.resolve(domain, 'TXT')
+                answer_values = [value.to_text()[1:-1] for value in answer]
                 lookups = self._check_dns_lookups(
-                    record, [value.to_text()[1:-1] for value in answer], lookups
+                    record, answer_values, lookups
                 )
 
         return lookups
@@ -101,6 +101,6 @@ class SpfDnsLookupProcessor(BaseProcessor):
             if record._octodns.get('lenient'):
                 continue
 
-            self._check_dns_lookups(record, record.values)
+            self._check_dns_lookups(record, record.values, 0)
 
         return zone
