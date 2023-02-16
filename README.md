@@ -293,7 +293,7 @@ Most of the things included in OctoDNS are providers, the obvious difference bei
 
 The `class` key in the providers config section can be used to point to arbitrary classes in the python path so internal or 3rd party providers can easily be included with no coordination beyond getting them into PYTHONPATH, most likely installed into the virtualenv with OctoDNS.
 
-For examples of building third-party sources and providers, see [Related Projects & Resources](#related-projects--resources).
+For examples of building third-party sources and providers, see [Related Projects & Resources](#related-projects-and-resources).
 
 ## Other Uses
 
@@ -371,6 +371,7 @@ If you have a problem or suggestion, please [open an issue](https://github.com/o
   - [`sukiyaki/octodns-netbox`](https://github.com/sukiyaki/octodns-netbox): [NetBox](https://github.com/netbox-community/netbox) source.
   - [`jcollie/octodns-netbox-dns`](https://github.com/jcollie/octodns-netbox-dns): [NetBox-DNS Plugin](https://github.com/auroraresearchlab/netbox-dns) provider. 
   - [`kompetenzbolzen/octodns-custom-provider`](https://github.com/kompetenzbolzen/octodns-custom-provider): zonefile provider & phpIPAM source.
+  - [`Financial-Times/octodns-fastly`](https://github.com/Financial-Times/octodns-fastly): An OctoDNS source for Fastly.
 - **Resources.**
   - Article: [Visualising DNS records with Neo4j](https://medium.com/@costask/querying-and-visualising-octodns-records-with-neo4j-f4f72ab2d474) + code
   - Video: [FOSDEM 2019 - DNS as code with octodns](https://archive.fosdem.org/2019/schedule/event/dns_octodns/)
