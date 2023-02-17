@@ -83,7 +83,7 @@ providers:
     username: 'username'
     password: env/DYN_PASSWORD
   route53:
-    class: octodns.provider.route53.Route53Provider
+    class: octodns_route53.Route53Provider
     access_key_id: env/AWS_ACCESS_KEY_ID
     secret_access_key: env/AWS_SECRET_ACCESS_KEY
 
