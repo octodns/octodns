@@ -23,7 +23,7 @@ class TestSpfDnsLookupProcessor(TestCase):
 
         self.assertIsNone(
             processor._get_spf_from_txt_values(
-                record, ['v=DMARC1\; p=reject\;']
+                record, ['v=DMARC1\\; p=reject\\;']
             )
         )
 
@@ -31,7 +31,7 @@ class TestSpfDnsLookupProcessor(TestCase):
             'v=spf1 include:example.com ~all',
             processor._get_spf_from_txt_values(
                 record,
-                ['v=DMARC1\; p=reject\;', 'v=spf1 include:example.com ~all'],
+                ['v=DMARC1\\; p=reject\\;', 'v=spf1 include:example.com ~all'],
             ),
         )
 
@@ -48,7 +48,8 @@ class TestSpfDnsLookupProcessor(TestCase):
         self.assertEqual(
             'v=spf1 include:example.com',
             processor._get_spf_from_txt_values(
-                record, ['v=spf1 include:example.com', 'v=DMARC1\; p=reject\;']
+                record,
+                ['v=spf1 include:example.com', 'v=DMARC1\\; p=reject\\;'],
             ),
         )
 
@@ -56,7 +57,7 @@ class TestSpfDnsLookupProcessor(TestCase):
             'v=spf1 +mx redirect=example.com',
             processor._get_spf_from_txt_values(
                 record,
-                ['v=spf1 +mx redirect=example.com', 'v=DMARC1\; p=reject\;'],
+                ['v=spf1 +mx redirect=example.com', 'v=DMARC1\\; p=reject\\;'],
             ),
         )
 
@@ -73,7 +74,7 @@ class TestSpfDnsLookupProcessor(TestCase):
                 {
                     'type': 'TXT',
                     'ttl': 86400,
-                    'values': ['v=DMARC1\; p=reject\;'],
+                    'values': ['v=DMARC1\\; p=reject\\;'],
                 },
             )
         )
@@ -95,7 +96,7 @@ class TestSpfDnsLookupProcessor(TestCase):
                     'ttl': 86400,
                     'values': [
                         'v=spf1 a include:example.com ~all',
-                        'v=DMARC1\; p=reject\;',
+                        'v=DMARC1\\; p=reject\\;',
                     ],
                 },
             )
@@ -119,7 +120,7 @@ class TestSpfDnsLookupProcessor(TestCase):
                     'ttl': 86400,
                     'values': [
                         'v=spf1 a ip4:1.2.3.4 ip6:2001:0db8:85a3:0000:0000:8a2e:0370:7334 -all',
-                        'v=DMARC1\; p=reject\;',
+                        'v=DMARC1\\; p=reject\\;',
                     ],
                 },
             )
@@ -137,7 +138,7 @@ class TestSpfDnsLookupProcessor(TestCase):
                     'ttl': 86400,
                     'values': [
                         'v=spf1 a mx exists:example.com a a a a a a a a ~all',
-                        'v=DMARC1\; p=reject\;',
+                        'v=DMARC1\\; p=reject\\;',
                     ],
                 },
             )
@@ -156,7 +157,7 @@ class TestSpfDnsLookupProcessor(TestCase):
                     'ttl': 86400,
                     'values': [
                         'v=spf1 include:example.com -all',
-                        'v=DMARC1\; p=reject\;',
+                        'v=DMARC1\\; p=reject\\;',
                     ],
                 },
             )
@@ -183,7 +184,7 @@ class TestSpfDnsLookupProcessor(TestCase):
                     'ttl': 86400,
                     'values': [
                         'v=spf1 include:example.com -all',
-                        'v=DMARC1\; p=reject\;',
+                        'v=DMARC1\\; p=reject\\;',
                     ],
                 },
             )
@@ -209,7 +210,7 @@ class TestSpfDnsLookupProcessor(TestCase):
                     'ttl': 86400,
                     'values': [
                         'v=spf1 include:example.com -all',
-                        'v=DMARC1\; p=reject\;',
+                        'v=DMARC1\\; p=reject\\;',
                     ],
                 },
             )
