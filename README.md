@@ -49,6 +49,7 @@ $ cd dns
 $ python -m venv env
 ...
 $ source env/bin/activate
+# provider-specific-requiremnts would be things like: octodns-route53 octodns-azure
 $ pip install octodns <provider-specific-requirements>
 $ mkdir config
 ```
@@ -198,7 +199,7 @@ The above command pulled the existing data out of Route53 and placed the results
 
 ## Providers
 
-The table below lists the providers octoDNS supports. They are maintained in their own repositories and released as independent modules. 
+The table below lists the providers octoDNS supports. They are maintained in their own repositories and released as independent modules.
 
 | Provider | Module | Notes |
 |--|--|--|
@@ -369,7 +370,7 @@ If you have a problem or suggestion, please [open an issue](https://github.com/o
   - [`doddo/octodns-lexicon`](https://github.com/doddo/octodns-lexicon): Use [Lexicon](https://github.com/AnalogJ/lexicon) providers as octoDNS providers.
   - [`asyncon/octoblox`](https://github.com/asyncon/octoblox): [Infoblox](https://www.infoblox.com/) provider.
   - [`sukiyaki/octodns-netbox`](https://github.com/sukiyaki/octodns-netbox): [NetBox](https://github.com/netbox-community/netbox) source.
-  - [`jcollie/octodns-netbox-dns`](https://github.com/jcollie/octodns-netbox-dns): [NetBox-DNS Plugin](https://github.com/auroraresearchlab/netbox-dns) provider. 
+  - [`jcollie/octodns-netbox-dns`](https://github.com/jcollie/octodns-netbox-dns): [NetBox-DNS Plugin](https://github.com/auroraresearchlab/netbox-dns) provider.
   - [`kompetenzbolzen/octodns-custom-provider`](https://github.com/kompetenzbolzen/octodns-custom-provider): zonefile provider & phpIPAM source.
   - [`Financial-Times/octodns-fastly`](https://github.com/Financial-Times/octodns-fastly): An OctoDNS source for Fastly.
 - **Resources.**
