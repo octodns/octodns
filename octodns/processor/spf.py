@@ -101,7 +101,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
         if spf is None:
             return lookups
 
-        terms = spf.removeprefix('v=spf1 ').split(' ')
+        terms = spf[len('v=spf1 ') :].split(' ')
 
         for term in terms:
             if lookups > 10:
@@ -120,7 +120,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
 
             # The include mechanism can result in further lookups after resolving the DNS record
             if term.startswith('include:'):
-                domain = term.removeprefix('include:')
+                domain = term[len('include:') :]
                 answer = dns.resolver.resolve(domain, 'TXT')
                 answer_values = self._process_answer(answer)
                 lookups = self._check_dns_lookups(
