@@ -21,13 +21,21 @@ manager:
     ttl: 1800
 ```
 
-Once enabled a singleton `AutoArpa` instance, `auto-arpa`, will be added to the pool of providers and globally configured to run as the very last global processor so that it will see all records as they will be seen by targets. Further all zones ending with `arpa.` will be held back and processed after all other zones have been completed so that all `A` and `AAAA` records will have been seen prior to planning the `arpa.` zones. 
+Once enabled a singleton `AutoArpa` instance, `auto-arpa`, will be added to the pool of providers and globally configured to run as the very last global processor so that it will see all records as they will be seen by targets. Further all zones ending with `arpa.` will be held back and processed after all other zones have been completed so that all `A` and `AAAA` records will have been seen prior to planning the `arpa.` zones.
 
 In order to add `PTR` records for a zone the `auto-arpa` source should be added to the list of sources for the zone.
 
 ```yaml
+# Zones are matched on suffix so `0.10.in-addr.arpa.` would match anything
+# under `10.0/16` or `0.8.e.f.ip6-.arpa.` would match any IPv6 address under
+# `fe80::`, 0.0.10 here matches 10.0.0/24.
 0.0.10.in-addr.arpa.:
   sources:
+    # In most cases you'll have some statically configured records combined in
+    # with the auto-generated records as shown here, but that's not strictly
+    # required and this could just be `auto-arpa`.
+    # would throw an DuplicateRecordException.
+    - config
     - auto-arpa
   targets:
     - ...
@@ -48,24 +56,23 @@ providers:
     class: octodns.provider.yaml.YamlProvider
     directory: tests/config
 
-  powerdns:
-    class: octodns_powerdns.PowerDnsProvider
-    host: 10.0.0.53
-    port: 8081
-    api_key: env/POWERDNS_API_KEY
+  route53:
+    class: octodns_route53.Route53Provider
+    access_key_id: env/AWS_ACCESS_KEY_ID
+    secret_access_key: env/AWS_SECRET_ACCESS_KEY
 
 zones:
   exxampled.com.:
     sources:
       - config
     targets:
-      - powerdns
+      - route53
 
   0.0.10.in-addr.arpa.:
     sources:
       - auto-arpa
     targets:
-      - powerdns
+      - route53
 ```
 
 #### config/exxampled.com.yaml
