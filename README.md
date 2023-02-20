@@ -49,6 +49,7 @@ $ cd dns
 $ python -m venv env
 ...
 $ source env/bin/activate
+# provider-specific-requiremnts would be things like: octodns-route53 octodns-azure
 $ pip install octodns <provider-specific-requirements>
 $ mkdir config
 ```
