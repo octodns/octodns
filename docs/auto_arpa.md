@@ -14,6 +14,10 @@ Alternatively the value can be a dictionary with configuration options for the A
 ---
 manager:
   auto_arpa:
+    # Replace duplicate records rather than throw an error, default is False
+    # which throws an error
+    replace: False
+    # Explicitly set the TTL of auto-created records, default is 3600s, 1hr
     ttl: 1800
 ```
 
