@@ -3,7 +3,7 @@
 #
 
 from logging import getLogger
-from typing import Optional
+from typing import List, Optional
 
 import dns.resolver
 from dns.resolver import Answer
@@ -58,7 +58,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
         super().__init__(name)
 
     def _get_spf_from_txt_values(
-        self, record: Record, values: list[str]
+        self, record: Record, values: List[str]
     ) -> Optional[str]:
         self.log.debug(
             f"_get_spf_from_txt_values: record={record.fqdn} values={values}"
@@ -79,7 +79,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
 
         return spf[0]
 
-    def _process_answer(self, answer: Answer) -> list[str]:
+    def _process_answer(self, answer: Answer) -> List[str]:
         values = []
 
         for value in answer:
@@ -90,7 +90,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
         return values
 
     def _check_dns_lookups(
-        self, record: Record, values: list[str], lookups: int = 0
+        self, record: Record, values: List[str], lookups: int = 0
     ) -> int:
         self.log.debug(
             f"_check_dns_lookups: record={record.fqdn} values={values} lookups={lookups}"
