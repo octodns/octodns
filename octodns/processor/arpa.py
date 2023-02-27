@@ -54,7 +54,7 @@ class AutoArpa(BaseProcessor):
         zone_name = zone.name
         n = len(zone_name) + 1
         for arpa, fqdns in self._records.items():
-            if arpa.endswith(zone_name):
+            if arpa.endswith(f'.{zone_name}'):
                 name = arpa[:-n]
                 fqdns = sorted(fqdns)
                 record = Record.new(
