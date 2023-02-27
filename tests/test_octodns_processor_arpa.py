@@ -201,3 +201,29 @@ class TestAutoArpa(TestCase):
         self.assertEqual('4.3.2.1.in-addr.arpa.', ptr.fqdn)
         self.assertEqual([record1.fqdn, record2.fqdn], ptr.values)
         self.assertEqual(3600, ptr.ttl)
+
+    def test_address_boundaries(self):
+        zone = Zone('unit.tests.', [])
+        record = Record.new(
+            zone, 'a', {'ttl': 32, 'type': 'A', 'value': '10.20.3.4'}
+        )
+        zone.add_record(record)
+        aa = AutoArpa('auto-arpa')
+        aa.process_source_zone(zone, [])
+        self.assertEqual(
+            {'4.3.20.10.in-addr.arpa.': {'a.unit.tests.'}}, aa._records
+        )
+
+        # matching zone
+        arpa = Zone('20.10.in-addr.arpa.', [])
+        aa.populate(arpa)
+        self.assertEqual(1, len(arpa.records))
+        (ptr,) = arpa.records
+        self.assertEqual('4.3.20.10.in-addr.arpa.', ptr.fqdn)
+        self.assertEqual(record.fqdn, ptr.value)
+        self.assertEqual(3600, ptr.ttl)
+
+        # non-matching boundary edge case
+        arpa = Zone('0.10.in-addr.arpa.', [])
+        aa.populate(arpa)
+        self.assertEqual(0, len(arpa.records))
