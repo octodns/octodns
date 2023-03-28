@@ -271,7 +271,11 @@ class _DynamicMixin(object):
                         # currently looking at, e.g. geo=NA-US and there was a
                         # previous rule with NA
                         for seen, where in geos_seen.items():
-                            if geo.startswith(seen):
+                            if geo == seen:
+                                reasons.append(
+                                    f'rule {rule_num} targets geo {geo} which has previously been seen in rule {where}'
+                                )
+                            elif geo.startswith(seen):
                                 reasons.append(
                                     f'rule {rule_num} targets geo {geo} which is more specific than the previously seen {seen} in rule {where}'
                                 )

@@ -1299,6 +1299,7 @@ class TestRecordDynamic(TestCase):
         self.assertFalse(reasons)
         self.assertEqual({'sfo', 'iad'}, pools_seen)
 
+        # this one targets NA in rule 0 and then NA-Ca in rule 1
         pools = {'iad', 'sfo'}
         rules = [
             {'geos': ('AS', 'NA'), 'pool': 'sfo'},
@@ -1312,6 +1313,7 @@ class TestRecordDynamic(TestCase):
             reasons,
         )
 
+        # this one targets NA and NA-US in rule 0
         pools = {'sfo'}
         rules = [{'geos': ('AS', 'NA-US', 'NA'), 'pool': 'sfo'}]
         reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
@@ -1319,5 +1321,17 @@ class TestRecordDynamic(TestCase):
             [
                 'rule 1 targets geo NA-US which is more specific than the previously seen NA in rule 1'
             ],
+            reasons,
+        )
+
+        # this one targets the same geo in multiple rules
+        pools = {'iad', 'sfo'}
+        rules = [
+            {'geos': ('AS', 'NA'), 'pool': 'sfo'},
+            {'geos': ('EU', 'NA'), 'pool': 'iad'},
+        ]
+        reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
+        self.assertEqual(
+            ['rule 2 targets geo NA which has previously been seen in rule 1'],
             reasons,
         )
