@@ -120,21 +120,9 @@ class _DynamicMixin(object):
     )
 
     @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = super().validate(name, fqdn, data)
-
-        if 'dynamic' not in data:
-            return reasons
-        elif 'geo' in data:
-            reasons.append('"dynamic" record with "geo" content')
-
-        try:
-            pools = data['dynamic']['pools']
-        except KeyError:
-            pools = {}
-
+    def _validate_pools(cls, pools):
+        reasons = []
         pools_exist = set()
-        pools_seen = set()
         pools_seen_as_fallback = set()
         if not isinstance(pools, dict):
             reasons.append('pools must be a dict')
@@ -220,10 +208,12 @@ class _DynamicMixin(object):
                         break
                     seen.append(fallback)
 
-        try:
-            rules = data['dynamic']['rules']
-        except KeyError:
-            rules = []
+        return reasons, pools_exist, pools_seen_as_fallback
+
+    @classmethod
+    def _validate_rules(cls, pools, rules):
+        reasons = []
+        pools_seen = set()
 
         if not isinstance(rules, (list, tuple)):
             reasons.append('rules must be a list')
@@ -271,6 +261,35 @@ class _DynamicMixin(object):
                         reasons.extend(
                             GeoCodes.validate(geo, f'rule {rule_num} ')
                         )
+
+        return reasons, pools_seen
+
+    @classmethod
+    def validate(cls, name, fqdn, data):
+        reasons = super().validate(name, fqdn, data)
+
+        if 'dynamic' not in data:
+            return reasons
+        elif 'geo' in data:
+            reasons.append('"dynamic" record with "geo" content')
+
+        try:
+            pools = data['dynamic']['pools']
+        except KeyError:
+            pools = {}
+
+        pool_reasons, pools_exist, pools_seen_as_fallback = cls._validate_pools(
+            pools
+        )
+        reasons.extend(pool_reasons)
+
+        try:
+            rules = data['dynamic']['rules']
+        except KeyError:
+            rules = []
+
+        rule_reasons, pools_seen = cls._validate_rules(pools, rules)
+        reasons.extend(rule_reasons)
 
         unused = pools_exist - pools_seen - pools_seen_as_fallback
         if unused:
