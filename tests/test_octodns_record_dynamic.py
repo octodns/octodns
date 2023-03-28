@@ -11,7 +11,12 @@ from octodns.record import Record
 from octodns.record.a import ARecord, Ipv4Value
 from octodns.record.aaaa import AaaaRecord
 from octodns.record.cname import CnameRecord
-from octodns.record.dynamic import _Dynamic, _DynamicPool, _DynamicRule
+from octodns.record.dynamic import (
+    _Dynamic,
+    _DynamicMixin,
+    _DynamicPool,
+    _DynamicRule,
+)
 from octodns.record.exception import ValidationError
 from octodns.zone import Zone
 
@@ -1281,4 +1286,38 @@ class TestRecordDynamic(TestCase):
                 ],
             },
             cname.dynamic.pools['two'].data,
+        )
+
+    def test_dynamic_mixin_validate_rules(self):
+        # this one is fine we get more generic with subsequent rules
+        pools = {'iad', 'sfo'}
+        rules = [
+            {'geos': ('AS', 'NA-CA', 'NA-US-OR'), 'pool': 'sfo'},
+            {'geos': ('EU', 'NA'), 'pool': 'iad'},
+        ]
+        reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
+        self.assertFalse(reasons)
+        self.assertEqual({'sfo', 'iad'}, pools_seen)
+
+        pools = {'iad', 'sfo'}
+        rules = [
+            {'geos': ('AS', 'NA'), 'pool': 'sfo'},
+            {'geos': ('EU', 'NA-CA'), 'pool': 'iad'},
+        ]
+        reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
+        self.assertEqual(
+            [
+                'rule 2 targets geo NA-CA which is more specific than the previously seen NA in rule 1'
+            ],
+            reasons,
+        )
+
+        pools = {'sfo'}
+        rules = [{'geos': ('AS', 'NA-US', 'NA'), 'pool': 'sfo'}]
+        reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
+        self.assertEqual(
+            [
+                'rule 1 targets geo NA-US which is more specific than the previously seen NA in rule 1'
+            ],
+            reasons,
         )

@@ -215,6 +215,8 @@ class _DynamicMixin(object):
         reasons = []
         pools_seen = set()
 
+        geos_seen = {}
+
         if not isinstance(rules, (list, tuple)):
             reasons.append('rules must be a list')
         elif not rules:
@@ -257,10 +259,24 @@ class _DynamicMixin(object):
                 if not isinstance(geos, (list, tuple)):
                     reasons.append(f'rule {rule_num} geos must be a list')
                 else:
-                    for geo in geos:
+                    # sorted so that NA would come before NA-US so that the code
+                    # below can detect rules that have needlessly targeted a
+                    # more specific location along with it's parent/ancestor
+                    for geo in sorted(geos):
                         reasons.extend(
                             GeoCodes.validate(geo, f'rule {rule_num} ')
                         )
+
+                        # have we ever seen a broader version of the geo we're
+                        # currently looking at, e.g. geo=NA-US and there was a
+                        # previous rule with NA
+                        for seen, where in geos_seen.items():
+                            if geo.startswith(seen):
+                                reasons.append(
+                                    f'rule {rule_num} targets geo {geo} which is more specific than the previously seen {seen} in rule {where}'
+                                )
+
+                        geos_seen[geo] = rule_num
 
         return reasons, pools_seen
 
