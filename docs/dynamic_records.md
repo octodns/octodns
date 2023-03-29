@@ -39,15 +39,23 @@ test:
     rules:
     - geos:
       # Geos used in matching queries
+      - AF-ZA
       - AS
       - OC
       # The pool to service the query from
       pool: apac
     - geos:
+      # AF-ZA was sent to apac above and the rest of AF else goes to eu here,
+      # sub-locations (e.g. AF-ZA) should come before their parents (AF.) If a
+      # more specific geo occured after a general one requests in that
+      # location would have already matched the previous rule. For the same
+      # reasons locations may not be repeated in multiple rules.
       - AF
       - EU
       pool: eu
-    # No geos means match all queries
+    # No geos means match all queries, the final rule should generally be a
+    # "catch-all", served to any requests that didn't match the preceeding
+    # rules. The catch-all is the only case where a pool may be re-used.
     - pool: na
   ttl: 60
   type: A
@@ -57,6 +65,8 @@ test:
   - 6.6.6.6
   - 7.7.7.7
 ```
+
+If you encounter validation errors in dynamic records suggesting best practices that you have specific reasons for not following see [docs/records.md#Lenience](/docs/records.md#Lenience) for how to turn the errors into warnings. Doing so is taking on the burden of thoroughly testing and verifying that what you're doing behaves the way you expect. You may well encounter situations where the octoDNS providers and/or the underlying DNS services do not behave as desired.
 
 #### Geo Codes
 

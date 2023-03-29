@@ -16,6 +16,11 @@
   longer as they were considered private/protected.
 * Beta support for auto-arpa has been added, See the
   [auto-arpa documentation](/docs/auto_arpa.md) for more information.
+* Enhanced validations on dynamic rules to encourage best practices
+   * The last rule should be a catch-all w/o any targeted geos
+   * Geos should not be repeated in multiple rules
+   * Geos in rules subsequent rules should be ordered most to least specific,
+     e.g. NA-US-TN must come before NA-US, which must occur before NA
 
 #### Stuff
 
