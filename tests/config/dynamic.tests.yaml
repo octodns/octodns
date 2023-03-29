@@ -129,6 +129,7 @@ pool-only-in-fallback:
       - geos:
         - AS-SG
         pool: three
+      - pool: one
   ttl: 300
   type: A
   values: [4.4.4.4]

@@ -946,6 +946,7 @@ class TestRecordDynamic(TestCase):
                     {'geos': ['EU'], 'pool': 'two'},
                     {'geos': ['AF'], 'pool': 'one'},
                     {'geos': ['OC'], 'pool': 'one'},
+                    {'pool': 'one'},
                 ],
             },
             'ttl': 60,
@@ -1294,6 +1295,7 @@ class TestRecordDynamic(TestCase):
         rules = [
             {'geos': ('AS', 'NA-CA', 'NA-US-OR'), 'pool': 'sfo'},
             {'geos': ('EU', 'NA'), 'pool': 'iad'},
+            {'pool': 'iad'},
         ]
         reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
         self.assertFalse(reasons)
@@ -1304,6 +1306,7 @@ class TestRecordDynamic(TestCase):
         rules = [
             {'geos': ('AS', 'NA'), 'pool': 'sfo'},
             {'geos': ('EU', 'NA-CA'), 'pool': 'iad'},
+            {'pool': 'iad'},
         ]
         reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
         self.assertEqual(
@@ -1314,8 +1317,11 @@ class TestRecordDynamic(TestCase):
         )
 
         # this one targets NA and NA-US in rule 0
-        pools = {'sfo'}
-        rules = [{'geos': ('AS', 'NA-US', 'NA'), 'pool': 'sfo'}]
+        pools = {'iad', 'sfo'}
+        rules = [
+            {'geos': ('AS', 'NA-US', 'NA'), 'pool': 'sfo'},
+            {'pool': 'iad'},
+        ]
         reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
         self.assertEqual(
             [
@@ -1329,9 +1335,19 @@ class TestRecordDynamic(TestCase):
         rules = [
             {'geos': ('AS', 'NA'), 'pool': 'sfo'},
             {'geos': ('EU', 'NA'), 'pool': 'iad'},
+            {'pool': 'iad'},
         ]
         reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
         self.assertEqual(
             ['rule 2 targets geo NA which has previously been seen in rule 1'],
             reasons,
         )
+
+        # this one doesn't have a catch-all rule at the end
+        pools = {'iad', 'sfo'}
+        rules = [
+            {'geos': ('AS', 'NA-CA', 'NA-US-OR'), 'pool': 'sfo'},
+            {'geos': ('EU', 'NA'), 'pool': 'iad'},
+        ]
+        reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
+        self.assertEqual(['final rule has "geos" and is not catchall'], reasons)

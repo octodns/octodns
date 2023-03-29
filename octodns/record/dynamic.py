@@ -282,6 +282,9 @@ class _DynamicMixin(object):
 
                         geos_seen[geo] = rule_num
 
+            if 'geos' in rules[-1]:
+                reasons.append('final rule has "geos" and is not catchall')
+
         return reasons, pools_seen
 
     @classmethod
