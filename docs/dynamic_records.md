@@ -59,8 +59,14 @@ test:
     - pool: na
   ttl: 60
   type: A
-  # These values become a non-healthchecked default pool
+  # These values become a non-healthchecked default pool, generally it should be
+  # a superset of the catch-all pool and include enough capacity to try and
+  # serve all global requests (with degraded performance.) The main case they
+  # will come into play is if all dynamic healthchecks are failing, either on
+  # the service side or if the providers systems are expeiencing problems.
   values:
+  - 3.3.3.3
+  - 4.4.4.4
   - 5.5.5.5
   - 6.6.6.6
   - 7.7.7.7
