@@ -74,6 +74,10 @@ test:
 
 If you encounter validation errors in dynamic records suggesting best practices that you have specific reasons for not following see [docs/records.md#Lenience](/docs/records.md#Lenience) for how to turn the errors into warnings. Doing so is taking on the burden of thoroughly testing and verifying that what you're doing behaves the way you expect. You may well encounter situations where the octoDNS providers and/or the underlying DNS services do not behave as desired.
 
+#### Visual Representation of the Rules and Pools
+
+![Diagram of the example records rules and pools](assets/dynamic-rules-and-pools.jpg)
+
 #### Geo Codes
 
 Geo codes consist of one to three parts depending on the scope of the area being targeted. Examples of these look like:
