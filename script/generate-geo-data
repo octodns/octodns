@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
 from collections import defaultdict
-from pprint import pformat
+
 from pycountry import countries, subdivisions
 from pycountry_convert import country_alpha2_to_continent_code
-
 
 subs = defaultdict(dict)
 for subdivision in subdivisions:
@@ -15,7 +14,6 @@ for subdivision in subdivisions:
         'name': subdivision.name
     }
 subs = dict(subs)
-#pprint(subs)
 
 # These are best guesses at things pycountry_convert doesn't map
 continent_backups = {
@@ -38,21 +36,27 @@ for country in countries:
             continent_code = continent_backups[country.alpha_2]
         except KeyError:
             raise
-            print('{} {} {}'.format(country.alpha_2, country.name, getattr(country, 'official_name', '')))
+            print(
+                '{} {} {}'.format(
+                    country.alpha_2,
+                    country.name,
+                    getattr(country, 'official_name', ''),
+                )
+            )
 
-    geos[continent_code][country.alpha_2] = {
-        'name': country.name
-    }
+    geos[continent_code][country.alpha_2] = {'name': country.name}
 
     try:
-        geos[continent_code][country.alpha_2]['provinces'] = subs[country.alpha_2]
+        geos[continent_code][country.alpha_2]['provinces'] = subs[
+            country.alpha_2
+        ]
     except KeyError:
         pass
 
 geos = dict(geos)
-data = pformat(geos).replace('\n', '\n    ')
 
-print('''#
+print(
+    '''#
 # -*- coding: utf-8 -*-
 #
 # This file is generated using
@@ -60,5 +64,25 @@ print('''#
 # do not modify it directly
 #
 
-geo_data = \\
-    {}'''.format(data))
+geo_data = {'''
+)
+
+for continent, details in sorted(geos.items()):
+    print(f"    '{continent}': {{")
+    for country, info in sorted(details.items()):
+        name = info['name']
+        quoted_name = f'"{name}"' if "'" in name else f"'{name}'"
+        if 'provinces' in info:
+            print(f"        '{country}': {{")
+            print(f"            'name': {quoted_name},")
+            print("            'provinces': {")
+            for prov, info in sorted(info['provinces'].items()):
+                name = info['name']
+                quoted_name = f'"{name}"' if "'" in name else f"'{name}'"
+                print(f"                '{prov}': {{'name': {quoted_name}}},")
+            print('            },')
+            print('        },')
+        else:
+            print(f"        '{country}': {{'name': {quoted_name}}},")
+    print('    },')
+print('}')
