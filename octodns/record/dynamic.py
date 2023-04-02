@@ -7,6 +7,7 @@ from logging import getLogger
 
 from .change import Update
 from .geo import GeoCodes
+from .subnet import Subnets
 
 
 class _DynamicPool(object):
@@ -68,6 +69,10 @@ class _DynamicRule(object):
             pass
         try:
             self.data['geos'] = sorted(data['geos'])
+        except KeyError:
+            pass
+        try:
+            self.data['subnets'] = sorted(data['subnets'])
         except KeyError:
             pass
 
@@ -240,10 +245,8 @@ class _DynamicMixin(object):
                     reasons.append(f'rule {rule_num} missing pool')
                     continue
 
-                try:
-                    geos = rule['geos']
-                except KeyError:
-                    geos = []
+                geos = rule.get('geos', [])
+                subnets = rule.get('subnets', [])
 
                 if not isinstance(pool, str):
                     reasons.append(f'rule {rule_num} invalid pool "{pool}"')
@@ -259,7 +262,7 @@ class _DynamicMixin(object):
                         )
                     pools_seen.add(pool)
 
-                if not geos:
+                if not geos and not subnets:
                     if seen_default:
                         reasons.append(f'rule {rule_num} duplicate default')
                     seen_default = True
@@ -270,6 +273,14 @@ class _DynamicMixin(object):
                     for geo in geos:
                         reasons.extend(
                             GeoCodes.validate(geo, f'rule {rule_num} ')
+                        )
+
+                if not isinstance(subnets, (list, tuple)):
+                    reasons.append(f'rule {rule_num} subnets must be a list')
+                else:
+                    for subnet in subnets:
+                        reasons.extend(
+                            Subnets.validate(subnet, f'rule {rule_num} ')
                         )
 
         unused = pools_exist - pools_seen - pools_seen_as_fallback
