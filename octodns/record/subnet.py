@@ -3,12 +3,9 @@
 #
 
 import ipaddress
-from logging import getLogger
 
 
 class Subnets(object):
-    log = getLogger('Subnets')
-
     @classmethod
     def validate(cls, subnet, prefix):
         '''
