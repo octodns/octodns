@@ -78,6 +78,23 @@ The first portion is the continent:
 
 The second is the two-letter ISO Country Code https://en.wikipedia.org/wiki/ISO_3166-2 and the third is the ISO Country Code Subdivision as per https://en.wikipedia.org/wiki/ISO_3166-2:US. Change the code at the end for the country you are subdividing. Note that these may not always be supported depending on the providers in use.
 
+#### Subnets
+
+Dynamic record rules also support subnet targeting in some providers:
+
+```
+...
+    rules:
+    - geos:
+      - AS
+      - OC
+      subnets:
+      # Subnets used in matching queries
+      - 5.149.176.0/24
+      pool: apac
+...
+```
+
 ### Health Checks
 
 octoDNS will automatically configure the provider to monitor each IP and check for a 200 response for **https://<ip_address>/_dns**.
