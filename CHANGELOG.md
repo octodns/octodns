@@ -16,6 +16,7 @@
   longer as they were considered private/protected.
 * Beta support for auto-arpa has been added, See the
   [auto-arpa documentation](/docs/auto_arpa.md) for more information.
+* Support for subnet targeting in dynamic records added.
 
 #### Stuff
 
