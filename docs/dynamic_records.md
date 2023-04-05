@@ -95,6 +95,19 @@ Dynamic record rules also support subnet targeting in some providers:
 ...
 ```
 
+### Rule ordering
+
+Provider implementations should consider subnet matching more specific than geolocation matching. This means that if there is a subnet rule match as well as a geo rule match, subnet match should take precedence; and implementations should ensure this behavior.
+
+While octoDNS itself doesn't assert for any particular ordering of the rules, it is a strongly recommended best practice to have them ordered such that matching happens from the most specific to the least. Specifically, this means the rules should be in the following order of categories:
+
+1. Subnet-only rules
+2. Subnet+Geo rules
+3. Geo-only rules
+4. Catch-all rule (with no subnet or geo matching)
+
+The first 3 categories are optional, while the last one should be mandatory as a best practice, even though not currently enforced by octoDNS.
+
 ### Health Checks
 
 octoDNS will automatically configure the provider to monitor each IP and check for a 200 response for **https://<ip_address>/_dns**.
