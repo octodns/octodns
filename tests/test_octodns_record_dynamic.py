@@ -11,7 +11,12 @@ from octodns.record import Record
 from octodns.record.a import ARecord, Ipv4Value
 from octodns.record.aaaa import AaaaRecord
 from octodns.record.cname import CnameRecord
-from octodns.record.dynamic import _Dynamic, _DynamicPool, _DynamicRule
+from octodns.record.dynamic import (
+    _Dynamic,
+    _DynamicMixin,
+    _DynamicPool,
+    _DynamicRule,
+)
 from octodns.record.exception import ValidationError
 from octodns.zone import Zone
 
@@ -941,6 +946,7 @@ class TestRecordDynamic(TestCase):
                     {'geos': ['EU'], 'pool': 'two'},
                     {'geos': ['AF'], 'pool': 'one'},
                     {'geos': ['OC'], 'pool': 'one'},
+                    {'pool': 'one'},
                 ],
             },
             'ttl': 60,
@@ -1282,3 +1288,66 @@ class TestRecordDynamic(TestCase):
             },
             cname.dynamic.pools['two'].data,
         )
+
+    def test_dynamic_mixin_validate_rules(self):
+        # this one is fine we get more generic with subsequent rules
+        pools = {'iad', 'sfo'}
+        rules = [
+            {'geos': ('AS', 'NA-CA', 'NA-US-OR'), 'pool': 'sfo'},
+            {'geos': ('EU', 'NA'), 'pool': 'iad'},
+            {'pool': 'iad'},
+        ]
+        reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
+        self.assertFalse(reasons)
+        self.assertEqual({'sfo', 'iad'}, pools_seen)
+
+        # this one targets NA in rule 0 and then NA-Ca in rule 1
+        pools = {'iad', 'sfo'}
+        rules = [
+            {'geos': ('AS', 'NA'), 'pool': 'sfo'},
+            {'geos': ('EU', 'NA-CA'), 'pool': 'iad'},
+            {'pool': 'iad'},
+        ]
+        reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
+        self.assertEqual(
+            [
+                'rule 2 targets geo NA-CA which is more specific than the previously seen NA in rule 1'
+            ],
+            reasons,
+        )
+
+        # this one targets NA and NA-US in rule 0
+        pools = {'iad', 'sfo'}
+        rules = [
+            {'geos': ('AS', 'NA-US', 'NA'), 'pool': 'sfo'},
+            {'pool': 'iad'},
+        ]
+        reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
+        self.assertEqual(
+            [
+                'rule 1 targets geo NA-US which is more specific than the previously seen NA in rule 1'
+            ],
+            reasons,
+        )
+
+        # this one targets the same geo in multiple rules
+        pools = {'iad', 'sfo'}
+        rules = [
+            {'geos': ('AS', 'NA'), 'pool': 'sfo'},
+            {'geos': ('EU', 'NA'), 'pool': 'iad'},
+            {'pool': 'iad'},
+        ]
+        reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
+        self.assertEqual(
+            ['rule 2 targets geo NA which has previously been seen in rule 1'],
+            reasons,
+        )
+
+        # this one doesn't have a catch-all rule at the end
+        pools = {'iad', 'sfo'}
+        rules = [
+            {'geos': ('AS', 'NA-CA', 'NA-US-OR'), 'pool': 'sfo'},
+            {'geos': ('EU', 'NA'), 'pool': 'iad'},
+        ]
+        reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
+        self.assertEqual(['final rule has "geos" and is not catchall'], reasons)
