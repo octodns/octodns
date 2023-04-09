@@ -59,28 +59,67 @@ class BaseProvider(BaseSource):
                 desired.remove_record(record)
             elif getattr(record, 'dynamic', False):
                 if self.SUPPORTS_DYNAMIC:
-                    if self.SUPPORTS_POOL_VALUE_STATUS:
-                        continue
-                    # drop unsupported up flag
-                    unsupported_pools = []
-                    for _id, pool in record.dynamic.pools.items():
-                        for value in pool.data['values']:
-                            if value['status'] != 'obey':
-                                unsupported_pools.append(_id)
-                    if not unsupported_pools:
-                        continue
-                    unsupported_pools = ','.join(unsupported_pools)
-                    msg = (
-                        f'"status" flag used in pools {unsupported_pools}'
-                        f' in {record.fqdn} is not supported'
-                    )
-                    fallback = 'will ignore it and respect the healthcheck'
-                    self.supports_warn_or_except(msg, fallback)
-                    record = record.copy()
-                    for pool in record.dynamic.pools.values():
-                        for value in pool.data['values']:
-                            value['status'] = 'obey'
-                    desired.add_record(record, replace=True)
+                    if not self.SUPPORTS_POOL_VALUE_STATUS:
+                        # drop unsupported status flag
+                        unsupported_pools = []
+                        for _id, pool in record.dynamic.pools.items():
+                            for value in pool.data['values']:
+                                if value['status'] != 'obey':
+                                    unsupported_pools.append(_id)
+                        if not unsupported_pools:
+                            continue
+                        unsupported_pools = ','.join(unsupported_pools)
+                        msg = (
+                            f'"status" flag used in pools {unsupported_pools}'
+                            f' in {record.fqdn} is not supported'
+                        )
+                        fallback = 'will ignore it and respect the healthcheck'
+                        self.supports_warn_or_except(msg, fallback)
+                        record = record.copy()
+                        for pool in record.dynamic.pools.values():
+                            for value in pool.data['values']:
+                                value['status'] = 'obey'
+                        desired.add_record(record, replace=True)
+
+                    if not self.SUPPORTS_DYNAMIC_SUBNETS:
+                        subnet_rules = []
+                        for i, rule in enumerate(record.dynamic.rules):
+                            if 'subnets' not in rule.data:
+                                continue
+
+                            msg = f'rule {i + 1} contains unsupported subnet matching in {record.fqdn}'
+                            if 'geos' in rule.data:
+                                fallback = 'using geos only'
+                                self.supports_warn_or_except(msg, fallback)
+                            else:
+                                fallback = 'skipping the rule'
+                                self.supports_warn_or_except(msg, fallback)
+
+                            subnet_rules.append(i)
+
+                        record = record.copy()
+
+                        # drop subnet rules in reverse order so indices don't shift during rule deletion
+                        for i in subnet_rules[::-1]:
+                            rule = record.dynamic.rules[i]
+                            if 'geo' in rule:
+                                del rule['subnets']
+                            else:
+                                del record.dynamic.rules[i]
+
+                        # drop any pools rendered unused
+                        pools = record.dynamic.pools
+                        pools_seen = set()
+                        for rule in record.dynamic.rules:
+                            pool = rule.data['pool']
+                            while pool:
+                                pools_seen.add(pool)
+                                pool = pools[pool].data.get('fallback')
+                        pools_unseen = set(pools.keys()) - pools_seen
+                        for pool in pools_unseen:
+                            del pools[pool]
+
+                        desired.add_record(record, replace=True)
                 else:
                     msg = f'dynamic records not supported for {record.fqdn}'
                     fallback = 'falling back to simple record'
