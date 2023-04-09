@@ -248,7 +248,7 @@ class _DynamicMixin(object):
                         reasons.append(
                             f'rule {rule_num} undefined pool ' f'"{pool}"'
                         )
-                    elif pool in pools_seen and geos:
+                    elif pool in pools_seen and (subnets or geos):
                         reasons.append(
                             f'rule {rule_num} invalid, target '
                             f'pool "{pool}" reused'
