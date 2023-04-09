@@ -221,6 +221,7 @@ class _DynamicMixin(object):
         pools_seen = set()
 
         geos_seen = {}
+        subnets_seen = {}
 
         if not isinstance(rules, (list, tuple)):
             reasons.append('rules must be a list')
@@ -259,6 +260,30 @@ class _DynamicMixin(object):
                         reasons.append(f'rule {rule_num} duplicate default')
                     seen_default = True
 
+                if not isinstance(subnets, (list, tuple)):
+                    reasons.append(f'rule {rule_num} subnets must be a list')
+                else:
+                    for subnet in subnets:
+                        reasons.extend(
+                            Subnets.validate(subnet, f'rule {rule_num} ')
+                        )
+                    networks = [Subnets.parse(s) for s in subnets]
+                    # sort subnets from largest to smallest so that we can
+                    # detect rule that have needlessly targeted a more specific
+                    # subnet along with a larger subnet that already contains it
+                    for subnet in sorted(networks):
+                        for seen, where in subnets_seen.items():
+                            if subnet == seen:
+                                reasons.append(
+                                    f'rule {rule_num} targets subnet {subnet} which has previously been seen in rule {where}'
+                                )
+                            elif subnet.subnet_of(seen):
+                                reasons.append(
+                                    f'rule {rule_num} targets subnet {subnet} which is more specific than the previously seen {seen} in rule {where}'
+                                )
+
+                        subnets_seen[subnet] = rule_num
+
                 if not isinstance(geos, (list, tuple)):
                     reasons.append(f'rule {rule_num} geos must be a list')
                 else:
@@ -285,16 +310,10 @@ class _DynamicMixin(object):
 
                         geos_seen[geo] = rule_num
 
-                if not isinstance(subnets, (list, tuple)):
-                    reasons.append(f'rule {rule_num} subnets must be a list')
-                else:
-                    for subnet in subnets:
-                        reasons.extend(
-                            Subnets.validate(subnet, f'rule {rule_num} ')
-                        )
-
-            if 'geos' in rules[-1]:
-                reasons.append('final rule has "geos" and is not catchall')
+            if 'subnets' in rules[-1] or 'geos' in rules[-1]:
+                reasons.append(
+                    'final rule has "subnets" and/or "geos" and is not catchall'
+                )
 
         return reasons, pools_seen
 

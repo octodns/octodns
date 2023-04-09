@@ -14,7 +14,7 @@ class Subnets(object):
         reasons = []
 
         try:
-            ipaddress.ip_network(subnet)
+            cls.parse(subnet)
         except ValueError:
             reasons.append(f'{prefix}invalid subnet "{subnet}"')
 

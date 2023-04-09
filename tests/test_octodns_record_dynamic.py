@@ -1350,4 +1350,7 @@ class TestRecordDynamic(TestCase):
             {'geos': ('EU', 'NA'), 'pool': 'iad'},
         ]
         reasons, pools_seen = _DynamicMixin._validate_rules(pools, rules)
-        self.assertEqual(['final rule has "geos" and is not catchall'], reasons)
+        self.assertEqual(
+            ['final rule has "subnets" and/or "geos" and is not catchall'],
+            reasons,
+        )
