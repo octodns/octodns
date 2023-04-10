@@ -255,6 +255,22 @@ class _DynamicMixin(object):
                         )
                     pools_seen.add(pool)
 
+                if i > 0:
+                    # validate that rules are ordered as:
+                    # subnets-only > subnets + geos > geos-only
+                    previous_subnets = rules[i - 1].get('subnets', [])
+                    previous_geos = rules[i - 1].get('geos', [])
+                    if subnets and geos:
+                        if not previous_subnets and previous_geos:
+                            reasons.append(
+                                f'rule {rule_num} with subnet(s) and geo(s) should appear before all geo-only rules'
+                            )
+                    elif subnets:
+                        if previous_geos:
+                            reasons.append(
+                                f'rule {rule_num} with only subnet targeting should appear before all geo targeting rules'
+                            )
+
                 if not (subnets or geos):
                     if seen_default:
                         reasons.append(f'rule {rule_num} duplicate default')
