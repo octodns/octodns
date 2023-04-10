@@ -84,11 +84,12 @@ class BaseProvider(BaseSource):
                     if not self.SUPPORTS_DYNAMIC_SUBNETS:
                         subnet_rules = []
                         for i, rule in enumerate(record.dynamic.rules):
-                            if 'subnets' not in rule.data:
+                            rule = rule.data
+                            if not rule.get('subnets'):
                                 continue
 
                             msg = f'rule {i + 1} contains unsupported subnet matching in {record.fqdn}'
-                            if 'geos' in rule.data:
+                            if rule.get('geos'):
                                 fallback = 'using geos only'
                                 self.supports_warn_or_except(msg, fallback)
                             else:
@@ -100,12 +101,13 @@ class BaseProvider(BaseSource):
                         record = record.copy()
 
                         # drop subnet rules in reverse order so indices don't shift during rule deletion
+                        rules = record.dynamic.rules
                         for i in subnet_rules[::-1]:
-                            rule = record.dynamic.rules[i]
-                            if 'geo' in rule:
+                            rule = rules[i].data
+                            if rule.get('geos'):
                                 del rule['subnets']
                             else:
-                                del record.dynamic.rules[i]
+                                del rules[i]
 
                         # drop any pools rendered unused
                         pools = record.dynamic.pools
