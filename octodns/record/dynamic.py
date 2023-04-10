@@ -220,8 +220,8 @@ class _DynamicMixin(object):
         reasons = []
         pools_seen = set()
 
-        geos_seen = {}
         subnets_seen = {}
+        geos_seen = {}
 
         if not isinstance(rules, (list, tuple)):
             reasons.append('rules must be a list')
@@ -238,8 +238,8 @@ class _DynamicMixin(object):
                     reasons.append(f'rule {rule_num} missing pool')
                     continue
 
-                geos = rule.get('geos', [])
                 subnets = rule.get('subnets', [])
+                geos = rule.get('geos', [])
 
                 if not isinstance(pool, str):
                     reasons.append(f'rule {rule_num} invalid pool "{pool}"')
@@ -255,7 +255,7 @@ class _DynamicMixin(object):
                         )
                     pools_seen.add(pool)
 
-                if not geos and not subnets:
+                if not (subnets or geos):
                     if seen_default:
                         reasons.append(f'rule {rule_num} duplicate default')
                     seen_default = True
@@ -310,7 +310,7 @@ class _DynamicMixin(object):
 
                         geos_seen[geo] = rule_num
 
-            if 'subnets' in rules[-1] or 'geos' in rules[-1]:
+            if rules[-1].get('subnets') or rules[-1].get('geos'):
                 reasons.append(
                     'final rule has "subnets" and/or "geos" and is not catchall'
                 )
