@@ -121,6 +121,11 @@ class BaseProvider(BaseSource):
                                     pool = pools[pool].data.get('fallback')
                             pools_unseen = set(pools.keys()) - pools_seen
                             for pool in pools_unseen:
+                                self.log.warning(
+                                    '%s: skipping pool %s which is rendered unused due to lack of support for subnet targeting',
+                                    record.fqdn,
+                                    pool,
+                                )
                                 del pools[pool]
 
                             desired.add_record(record, replace=True)
