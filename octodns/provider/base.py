@@ -66,20 +66,21 @@ class BaseProvider(BaseSource):
                             for value in pool.data['values']:
                                 if value['status'] != 'obey':
                                     unsupported_pools.append(_id)
-                        if not unsupported_pools:
-                            continue
-                        unsupported_pools = ','.join(unsupported_pools)
-                        msg = (
-                            f'"status" flag used in pools {unsupported_pools}'
-                            f' in {record.fqdn} is not supported'
-                        )
-                        fallback = 'will ignore it and respect the healthcheck'
-                        self.supports_warn_or_except(msg, fallback)
-                        record = record.copy()
-                        for pool in record.dynamic.pools.values():
-                            for value in pool.data['values']:
-                                value['status'] = 'obey'
-                        desired.add_record(record, replace=True)
+                        if unsupported_pools:
+                            unsupported_pools = ','.join(unsupported_pools)
+                            msg = (
+                                f'"status" flag used in pools {unsupported_pools}'
+                                f' in {record.fqdn} is not supported'
+                            )
+                            fallback = (
+                                'will ignore it and respect the healthcheck'
+                            )
+                            self.supports_warn_or_except(msg, fallback)
+                            record = record.copy()
+                            for pool in record.dynamic.pools.values():
+                                for value in pool.data['values']:
+                                    value['status'] = 'obey'
+                            desired.add_record(record, replace=True)
 
                     if not self.SUPPORTS_DYNAMIC_SUBNETS:
                         subnet_rules = []
