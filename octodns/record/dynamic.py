@@ -283,7 +283,14 @@ class _DynamicMixin(object):
                         reasons.extend(
                             Subnets.validate(subnet, f'rule {rule_num} ')
                         )
-                    networks = [Subnets.parse(s) for s in subnets]
+                    networks = []
+                    for subnet in subnets:
+                        try:
+                            networks.append(Subnets.parse(subnet))
+                        except:
+                            # previous loop will log any invalid subnets, here we
+                            # process only valid ones and skip invalid ones
+                            pass
                     # sort subnets from largest to smallest so that we can
                     # detect rule that have needlessly targeted a more specific
                     # subnet along with a larger subnet that already contains it
