@@ -99,30 +99,31 @@ class BaseProvider(BaseSource):
 
                             subnet_rules.append(i)
 
-                        record = record.copy()
+                        if subnet_rules:
+                            record = record.copy()
+                            rules = record.dynamic.rules
 
-                        # drop subnet rules in reverse order so indices don't shift during rule deletion
-                        rules = record.dynamic.rules
-                        for i in subnet_rules[::-1]:
-                            rule = rules[i].data
-                            if rule.get('geos'):
-                                del rule['subnets']
-                            else:
-                                del rules[i]
+                            # drop subnet rules in reverse order so indices don't shift during rule deletion
+                            for i in sorted(subnet_rules, reverse=True):
+                                rule = rules[i].data
+                                if rule.get('geos'):
+                                    del rule['subnets']
+                                else:
+                                    del rules[i]
 
-                        # drop any pools rendered unused
-                        pools = record.dynamic.pools
-                        pools_seen = set()
-                        for rule in record.dynamic.rules:
-                            pool = rule.data['pool']
-                            while pool:
-                                pools_seen.add(pool)
-                                pool = pools[pool].data.get('fallback')
-                        pools_unseen = set(pools.keys()) - pools_seen
-                        for pool in pools_unseen:
-                            del pools[pool]
+                            # drop any pools rendered unused
+                            pools = record.dynamic.pools
+                            pools_seen = set()
+                            for rule in record.dynamic.rules:
+                                pool = rule.data['pool']
+                                while pool:
+                                    pools_seen.add(pool)
+                                    pool = pools[pool].data.get('fallback')
+                            pools_unseen = set(pools.keys()) - pools_seen
+                            for pool in pools_unseen:
+                                del pools[pool]
 
-                        desired.add_record(record, replace=True)
+                            desired.add_record(record, replace=True)
                 else:
                     msg = f'dynamic records not supported for {record.fqdn}'
                     fallback = 'falling back to simple record'
