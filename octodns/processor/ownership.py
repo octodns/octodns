@@ -90,7 +90,9 @@ class OwnershipProcessor(BaseProcessor):
             # change is we should do
             filtered_changes.append(change)
 
-        if plan.changes != filtered_changes:
+        if not filtered_changes:
+            return None
+        elif plan.changes != filtered_changes:
             return Plan(
                 plan.existing,
                 plan.desired,

@@ -28,6 +28,7 @@
 * Added simple IgnoreRootNsFilter
 * Minor refactor on YamlProvider to add get_filenames making it a bit easier to
   create specialized providers inheriting from it
+* Fixed bug in OwnershipProcessor when all changes were removed from plans
 
 ## v0.9.21 - 2022-10-16 - Last of the oughts
 
