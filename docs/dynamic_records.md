@@ -76,7 +76,33 @@ If you encounter validation errors in dynamic records suggesting best practices 
 
 #### Visual Representation of the Rules and Pools
 
-![Diagram of the example records rules and pools](assets/dynamic-rules-and-pools.jpg)
+```mermaid
+---
+title: Visual Representation of the Rules and Pools
+---
+flowchart LR
+	query((Query)) --goelocate--> rule_0[Rule 0<br>AF-ZA<br>AS<br>OC]
+	query --geolocate--> rule_1[Rule 1<br>AF<br>EU]
+	query --geolocate--> rule_2["Rule 2<br>(catch all)"]
+	rule_0 --to pool--> pool_apac[Pool apac<br>1.1.1.1<br>2.2.2.2]
+	pool_apac --fallback--> pool_na
+	rule_1 --to pool--> pool_eu["Pool eu<br>3.3.3.3 (2/5)<br>4.4.4.4 (3/5)"]
+	pool_eu --fallback--> pool_na
+	rule_2 --to pool---> pool_na[Pool na<br>5.5.5.5<br>6.6.6.6<br>7.7.7.7]
+	pool_na --fallback--> values[values<br>3.3.3.3<br>4.4.4.4<br>5.5.5.5<br>6.6.6.6<br>7.7.7.7]
+
+	classDef queryColor fill:#3B67A8,color:#ffffff
+	classDef ruleColor fill:#D8F57A,color:#000000
+	classDef poolColor fill:#F57261,color:#000000
+	classDef valueColor fill:#498FF5,color:#000000
+
+	class query queryColor
+	class rule_0,rule_1,rule_2 ruleColor
+	class pool_apac,pool_eu,pool_na poolColor
+	class values valueColor
+```
+
+
 
 #### Geo Codes
 
