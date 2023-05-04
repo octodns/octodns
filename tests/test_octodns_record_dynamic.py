@@ -871,6 +871,54 @@ class TestRecordDynamic(TestCase):
             ctx.exception.reasons,
         )
 
+        # rule with invalid subnets
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {'values': [{'value': '3.3.3.3'}]},
+                    'two': {
+                        'values': [{'value': '4.4.4.4'}, {'value': '5.5.5.5'}]
+                    },
+                },
+                'rules': [
+                    {'subnets': '10.1.0.0/16', 'pool': 'two'},
+                    {'pool': 'one'},
+                ],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': ['1.1.1.1', '2.2.2.2'],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEqual(
+            ['rule 1 subnets must be a list'], ctx.exception.reasons
+        )
+
+        # rule with invalid subnet
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {'values': [{'value': '3.3.3.3'}]},
+                    'two': {
+                        'values': [{'value': '4.4.4.4'}, {'value': '5.5.5.5'}]
+                    },
+                },
+                'rules': [
+                    {'subnets': ['invalid'], 'pool': 'two'},
+                    {'pool': 'one'},
+                ],
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': ['1.1.1.1', '2.2.2.2'],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(self.zone, 'bad', a_data)
+        self.assertEqual(
+            ['rule 1 invalid subnet "invalid"'], ctx.exception.reasons
+        )
+
         # rule with invalid geos
         a_data = {
             'dynamic': {
@@ -1353,4 +1401,163 @@ class TestRecordDynamic(TestCase):
         self.assertEqual(
             ['final rule has "subnets" and/or "geos" and is not catchall'],
             reasons,
+        )
+
+    def test_dynamic_subnet_rule_ordering(self):
+        # boiler plate
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {'values': [{'value': '3.3.3.3'}]},
+                    'two': {
+                        'values': [{'value': '4.4.4.4'}, {'value': '5.5.5.5'}]
+                    },
+                    'three': {'values': [{'value': '2.2.2.2'}]},
+                }
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': ['1.1.1.1', '2.2.2.2'],
+        }
+        dynamic = a_data['dynamic']
+
+        def validate_rules(rules):
+            dynamic['rules'] = rules
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(self.zone, 'bad', a_data)
+            return ctx.exception.reasons
+
+        # valid subnet-only → subnet+geo
+        dynamic['rules'] = [
+            {'subnets': ['10.1.0.0/16'], 'pool': 'one'},
+            {'subnets': ['11.1.0.0/16'], 'geos': ['NA'], 'pool': 'two'},
+            {'pool': 'three'},
+        ]
+        record = Record.new(self.zone, 'good', a_data)
+        self.assertEqual(
+            '10.1.0.0/16', record.dynamic.rules[0].data['subnets'][0]
+        )
+
+        # geo-only → subnet-only
+        self.assertEqual(
+            [
+                'rule 2 with only subnet targeting should appear before all geo targeting rules'
+            ],
+            validate_rules(
+                [
+                    {'geos': ['NA'], 'pool': 'two'},
+                    {'subnets': ['10.1.0.0/16'], 'pool': 'one'},
+                    {'pool': 'three'},
+                ]
+            ),
+        )
+
+        # geo-only → subnet+geo
+        self.assertEqual(
+            [
+                'rule 2 with subnet(s) and geo(s) should appear before all geo-only rules'
+            ],
+            validate_rules(
+                [
+                    {'geos': ['NA'], 'pool': 'two'},
+                    {'subnets': ['10.1.0.0/16'], 'geos': ['AS'], 'pool': 'one'},
+                    {'pool': 'three'},
+                ]
+            ),
+        )
+
+        # subnet+geo → subnet-only
+        self.assertEqual(
+            [
+                'rule 2 with only subnet targeting should appear before all geo targeting rules'
+            ],
+            validate_rules(
+                [
+                    {'subnets': ['11.1.0.0/16'], 'geos': ['NA'], 'pool': 'two'},
+                    {'subnets': ['10.1.0.0/16'], 'pool': 'one'},
+                    {'pool': 'three'},
+                ]
+            ),
+        )
+
+        # geo-only → subnet+geo → subnet-only
+        self.assertEqual(
+            [
+                'rule 2 with subnet(s) and geo(s) should appear before all geo-only rules',
+                'rule 3 with only subnet targeting should appear before all geo targeting rules',
+            ],
+            validate_rules(
+                [
+                    {'geos': ['NA'], 'pool': 'two'},
+                    {'subnets': ['10.1.0.0/16'], 'geos': ['AS'], 'pool': 'one'},
+                    {'subnets': ['11.1.0.0/16'], 'pool': 'three'},
+                    {'pool': 'one'},
+                ]
+            ),
+        )
+
+    def test_dynanic_subnet_ordering(self):
+        # boiler plate
+        a_data = {
+            'dynamic': {
+                'pools': {
+                    'one': {'values': [{'value': '3.3.3.3'}]},
+                    'two': {
+                        'values': [{'value': '4.4.4.4'}, {'value': '5.5.5.5'}]
+                    },
+                    'three': {'values': [{'value': '2.2.2.2'}]},
+                }
+            },
+            'ttl': 60,
+            'type': 'A',
+            'values': ['1.1.1.1', '2.2.2.2'],
+        }
+        dynamic = a_data['dynamic']
+
+        def validate_rules(rules):
+            dynamic['rules'] = rules
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(self.zone, 'bad', a_data)
+            return ctx.exception.reasons
+
+        # duplicate subnet
+        self.assertEqual(
+            [
+                'rule 2 targets subnet 10.1.0.0/16 which has previously been seen in rule 1'
+            ],
+            validate_rules(
+                [
+                    {'subnets': ['10.1.0.0/16'], 'pool': 'two'},
+                    {'subnets': ['10.1.0.0/16'], 'pool': 'one'},
+                    {'pool': 'three'},
+                ]
+            ),
+        )
+
+        # more specific subnet than previous
+        self.assertEqual(
+            [
+                'rule 2 targets subnet 10.1.1.0/24 which is more specific than the previously seen 10.1.0.0/16 in rule 1'
+            ],
+            validate_rules(
+                [
+                    {'subnets': ['10.1.0.0/16'], 'pool': 'two'},
+                    {'subnets': ['10.1.1.0/24'], 'pool': 'one'},
+                    {'pool': 'three'},
+                ]
+            ),
+        )
+
+        # sub-subnet in the same rule
+        self.assertEqual(
+            [
+                'rule 1 targets subnet 10.1.1.0/24 which is more specific than the previously seen 10.1.0.0/16 in rule 1'
+            ],
+            validate_rules(
+                [
+                    {'subnets': ['10.1.0.0/16', '10.1.1.0/24'], 'pool': 'two'},
+                    {'subnets': ['11.1.0.0/16'], 'pool': 'one'},
+                    {'pool': 'three'},
+                ]
+            ),
         )
