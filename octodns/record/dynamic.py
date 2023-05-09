@@ -7,6 +7,7 @@ from logging import getLogger
 
 from .change import Update
 from .geo import GeoCodes
+from .subnet import Subnets
 
 
 class _DynamicPool(object):
@@ -68,6 +69,10 @@ class _DynamicRule(object):
             pass
         try:
             self.data['geos'] = sorted(data['geos'])
+        except KeyError:
+            pass
+        try:
+            self.data['subnets'] = sorted(data['subnets'])
         except KeyError:
             pass
 
@@ -215,6 +220,7 @@ class _DynamicMixin(object):
         reasons = []
         pools_seen = set()
 
+        subnets_seen = {}
         geos_seen = {}
 
         if not isinstance(rules, (list, tuple)):
@@ -232,10 +238,8 @@ class _DynamicMixin(object):
                     reasons.append(f'rule {rule_num} missing pool')
                     continue
 
-                try:
-                    geos = rule['geos']
-                except KeyError:
-                    geos = []
+                subnets = rule.get('subnets', [])
+                geos = rule.get('geos', [])
 
                 if not isinstance(pool, str):
                     reasons.append(f'rule {rule_num} invalid pool "{pool}"')
@@ -244,17 +248,64 @@ class _DynamicMixin(object):
                         reasons.append(
                             f'rule {rule_num} undefined pool ' f'"{pool}"'
                         )
-                    elif pool in pools_seen and geos:
+                    elif pool in pools_seen and (subnets or geos):
                         reasons.append(
                             f'rule {rule_num} invalid, target '
                             f'pool "{pool}" reused'
                         )
                     pools_seen.add(pool)
 
-                if not geos:
+                if i > 0:
+                    # validate that rules are ordered as:
+                    # subnets-only > subnets + geos > geos-only
+                    previous_subnets = rules[i - 1].get('subnets', [])
+                    previous_geos = rules[i - 1].get('geos', [])
+                    if subnets and geos:
+                        if not previous_subnets and previous_geos:
+                            reasons.append(
+                                f'rule {rule_num} with subnet(s) and geo(s) should appear before all geo-only rules'
+                            )
+                    elif subnets:
+                        if previous_geos:
+                            reasons.append(
+                                f'rule {rule_num} with only subnet targeting should appear before all geo targeting rules'
+                            )
+
+                if not (subnets or geos):
                     if seen_default:
                         reasons.append(f'rule {rule_num} duplicate default')
                     seen_default = True
+
+                if not isinstance(subnets, (list, tuple)):
+                    reasons.append(f'rule {rule_num} subnets must be a list')
+                else:
+                    for subnet in subnets:
+                        reasons.extend(
+                            Subnets.validate(subnet, f'rule {rule_num} ')
+                        )
+                    networks = []
+                    for subnet in subnets:
+                        try:
+                            networks.append(Subnets.parse(subnet))
+                        except:
+                            # previous loop will log any invalid subnets, here we
+                            # process only valid ones and skip invalid ones
+                            pass
+                    # sort subnets from largest to smallest so that we can
+                    # detect rule that have needlessly targeted a more specific
+                    # subnet along with a larger subnet that already contains it
+                    for subnet in sorted(networks):
+                        for seen, where in subnets_seen.items():
+                            if subnet == seen:
+                                reasons.append(
+                                    f'rule {rule_num} targets subnet {subnet} which has previously been seen in rule {where}'
+                                )
+                            elif subnet.subnet_of(seen):
+                                reasons.append(
+                                    f'rule {rule_num} targets subnet {subnet} which is more specific than the previously seen {seen} in rule {where}'
+                                )
+
+                        subnets_seen[subnet] = rule_num
 
                 if not isinstance(geos, (list, tuple)):
                     reasons.append(f'rule {rule_num} geos must be a list')
@@ -282,8 +333,10 @@ class _DynamicMixin(object):
 
                         geos_seen[geo] = rule_num
 
-            if 'geos' in rules[-1]:
-                reasons.append('final rule has "geos" and is not catchall')
+            if rules[-1].get('subnets') or rules[-1].get('geos'):
+                reasons.append(
+                    'final rule has "subnets" and/or "geos" and is not catchall'
+                )
 
         return reasons, pools_seen
 

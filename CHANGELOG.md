@@ -21,6 +21,7 @@
    * Geos should not be repeated in multiple rules
    * Geos in rules subsequent rules should be ordered most to least specific,
      e.g. NA-US-TN must come before NA-US, which must occur before NA
+* Support for subnet targeting in dynamic records added.
 
 #### Stuff
 

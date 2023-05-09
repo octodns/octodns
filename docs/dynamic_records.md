@@ -125,6 +125,36 @@ The first portion is the continent:
 
 The second is the two-letter ISO Country Code https://en.wikipedia.org/wiki/ISO_3166-2 and the third is the ISO Country Code Subdivision as per https://en.wikipedia.org/wiki/ISO_3166-2:US. Change the code at the end for the country you are subdividing. Note that these may not always be supported depending on the providers in use.
 
+#### Subnets
+
+Dynamic record rules also support subnet targeting in some providers:
+
+```
+...
+    rules:
+    - geos:
+      - AS
+      - OC
+      subnets:
+      # Subnets used in matching queries
+      - 5.149.176.0/24
+      pool: apac
+...
+```
+
+### Rule ordering
+
+octoDNS has validations in place to ensure that sources have the rules ordered from the most specific match to the least specific match per the following categories:
+
+1. Subnet-only rules
+2. Subnet+Geo rules
+3. Geo-only rules
+4. Catch-all rule (with no subnet or geo matching)
+
+The first 3 categories are optional, while the last one is mandatory.
+
+Subnet targeting is considered more specific than geo targeting. This means that if there is a subnet rule match as well as a geo rule match, subnet match must take precedence. Provider implementations must ensure this behavior of targeting precedence.
+
 ### Health Checks
 
 octoDNS will automatically configure the provider to monitor each IP and check for a 200 response for **https://<ip_address>/_dns**.

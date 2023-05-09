@@ -394,6 +394,47 @@ class TestBaseProvider(TestCase):
             record2.dynamic.pools['one'].data['values'][0]['status'], 'obey'
         )
 
+        # SUPPORTS_DYNAMIC_SUBNETS
+        provider.SUPPORTS_POOL_VALUE_STATUS = False
+        zone1 = Zone('unit.tests.', [])
+        record1 = Record.new(
+            zone1,
+            'a',
+            {
+                'dynamic': {
+                    'pools': {
+                        'one': {'values': [{'value': '1.1.1.1'}]},
+                        'two': {'values': [{'value': '2.2.2.2'}]},
+                        'three': {'values': [{'value': '3.3.3.3'}]},
+                    },
+                    'rules': [
+                        {'subnets': ['10.1.0.0/16'], 'pool': 'two'},
+                        {
+                            'subnets': ['11.1.0.0/16'],
+                            'geos': ['NA'],
+                            'pool': 'three',
+                        },
+                        {'pool': 'one'},
+                    ],
+                },
+                'type': 'A',
+                'ttl': 3600,
+                'values': ['2.2.2.2'],
+            },
+        )
+        zone1.add_record(record1)
+
+        zone2 = provider._process_desired_zone(zone1.copy())
+        record2 = list(zone2.records)[0]
+        dynamic = record2.dynamic
+        # subnet-only rule is dropped
+        self.assertNotEqual('two', dynamic.rules[0].data['pool'])
+        self.assertEqual(2, len(dynamic.rules))
+        # subnets are dropped from subnet+geo rule
+        self.assertFalse('subnets' in dynamic.rules[0].data)
+        # unused pool is dropped
+        self.assertFalse('two' in record2.dynamic.pools)
+
         # SUPPORTS_ROOT_NS
         provider.SUPPORTS_ROOT_NS = False
         zone1 = Zone('unit.tests.', [])
