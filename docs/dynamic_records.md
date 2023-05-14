@@ -76,7 +76,34 @@ If you encounter validation errors in dynamic records suggesting best practices 
 
 #### Visual Representation of the Rules and Pools
 
-![Diagram of the example records rules and pools](assets/dynamic-rules-and-pools.jpg)
+```mermaid
+---
+title: Visual Representation of the Rules and Pools
+---
+flowchart LR
+  	query((Query)) --> rule_0[Rule 0<br>AF-ZA<br>AS<br>OC]
+	rule_0 --no match--> rule_1[Rule 1<br>AF<br>EU]
+	rule_1 --no match--> rule_2["Rule 2<br>(catch all)"]
+
+	rule_0 --match--> pool_apac[Pool apac<br>1.1.1.1<br>2.2.2.2]
+	pool_apac --fallback--> pool_na
+	rule_1 --match--> pool_eu["Pool eu<br>3.3.3.3 (2/5)<br>4.4.4.4 (3/5)"]
+	pool_eu --fallback--> pool_na
+	rule_2 --> pool_na[Pool na<br>5.5.5.5<br>6.6.6.6<br>7.7.7.7]
+	pool_na --fallback--> values[values<br>3.3.3.3<br>4.4.4.4<br>5.5.5.5<br>6.6.6.6<br>7.7.7.7]
+
+	classDef queryColor fill:#3B67A8,color:#ffffff
+	classDef ruleColor fill:#D8F57A,color:#000000
+	classDef poolColor fill:#F57261,color:#000000
+	classDef valueColor fill:#498FF5,color:#000000
+
+	class query queryColor
+	class rule_0,rule_1,rule_2 ruleColor
+	class pool_apac,pool_eu,pool_na poolColor
+	class values valueColor
+```
+
+
 
 #### Geo Codes
 
@@ -97,6 +124,36 @@ The first portion is the continent:
 * 'SA': 12,  # Continental South America
 
 The second is the two-letter ISO Country Code https://en.wikipedia.org/wiki/ISO_3166-2 and the third is the ISO Country Code Subdivision as per https://en.wikipedia.org/wiki/ISO_3166-2:US. Change the code at the end for the country you are subdividing. Note that these may not always be supported depending on the providers in use.
+
+#### Subnets
+
+Dynamic record rules also support subnet targeting in some providers:
+
+```
+...
+    rules:
+    - geos:
+      - AS
+      - OC
+      subnets:
+      # Subnets used in matching queries
+      - 5.149.176.0/24
+      pool: apac
+...
+```
+
+### Rule ordering
+
+octoDNS has validations in place to ensure that sources have the rules ordered from the most specific match to the least specific match per the following categories:
+
+1. Subnet-only rules
+2. Subnet+Geo rules
+3. Geo-only rules
+4. Catch-all rule (with no subnet or geo matching)
+
+The first 3 categories are optional, while the last one is mandatory.
+
+Subnet targeting is considered more specific than geo targeting. This means that if there is a subnet rule match as well as a geo rule match, subnet match must take precedence. Provider implementations must ensure this behavior of targeting precedence.
 
 ### Health Checks
 
