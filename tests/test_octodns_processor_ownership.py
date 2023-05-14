@@ -7,6 +7,7 @@ from unittest import TestCase
 from helpers import PlannableProvider
 
 from octodns.processor.ownership import OwnershipProcessor
+from octodns.provider.plan import Plan
 from octodns.record import Delete, Record
 from octodns.zone import Zone
 
@@ -119,3 +120,23 @@ class TestOwnershipProcessor(TestCase):
         self.assertTrue(got)
         self.assertEqual(plan, got)
         self.assertEqual(len(plan.changes), len(got.changes))
+
+    def test_remove_last_change(self):
+        ownership = OwnershipProcessor('ownership')
+
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '4.4.4.4'}
+        )
+
+        existing = Zone('unit.tests.', [])
+        existing.add_record(record)
+        desired = Zone('unit.tests.', [])
+
+        change = Delete(record)
+
+        plan = Plan(
+            existing=existing, desired=desired, changes=[change], exists=True
+        )
+        self.assertEqual(1, len(plan.changes))
+        plan = ownership.process_plan(plan)
+        self.assertFalse(plan)
