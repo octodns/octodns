@@ -20,9 +20,9 @@
   [this section](/docs/dynamic_records.md#subnets) of dynamic records
   documentation for more information.
 * Enhanced validations on dynamic rules to encourage best practices
-   * The last rule should be a catch-all w/o any targeted geos or subnets
+   * The last rule must be a catch-all w/o any targeted geos or subnets
    * Geos must not be repeated in multiple rules
-   * Geos in rules subsequent rules should be ordered most to least specific,
+   * Geos in rules and subsequent rules must be ordered most to least specific,
      e.g. NA-US-TN must come before NA-US, which must occur before NA
    * Similarly, subnets must not be repeated in multiple rules, and various
      subnet rules must be ordered such that most specific subnets appear before
