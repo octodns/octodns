@@ -1,4 +1,4 @@
-## v1.0.0.rc0 - 2022-05-19 - First of the ones
+## v1.0.0.rc0 - 2023-05-19 - First of the ones
 
 #### Noteworthy changes
 
