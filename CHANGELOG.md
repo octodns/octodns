@@ -27,8 +27,9 @@
    * Similarly, subnets must not be repeated in multiple rules, and various
      subnet rules must be ordered such that most specific subnets appear before
      less specific ones; e.g. 10.1.1.0/24 must appear before 10.1.0.0/16.
-   * Subnet-only rules must appear before any subnet+geo rules, followed by
-     geo-only rules (and catch-all w/o any geos/subnets in the end)
+   * Subnet targeting is considered to be more specific than geo targeting, so
+     subnet-only rules must appear before any subnet+geo rules, followed by
+     geo-only rules (and catch-all rule w/o any geos/subnets in the end)
 
 #### Stuff
 
