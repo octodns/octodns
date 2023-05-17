@@ -1,4 +1,4 @@
-## v1.0.0.rc0 - 2022-??-?? - First of the ones
+## v1.0.0.rc0 - 2023-05-16 - First of the ones
 
 #### Noteworthy changes
 
@@ -16,12 +16,20 @@
   longer as they were considered private/protected.
 * Beta support for auto-arpa has been added, See the
   [auto-arpa documentation](/docs/auto_arpa.md) for more information.
+* Support for subnet targeting in dynamic records, see
+  [this section](/docs/dynamic_records.md#subnets) of dynamic records
+  documentation for more information.
 * Enhanced validations on dynamic rules to encourage best practices
-   * The last rule should be a catch-all w/o any targeted geos
-   * Geos should not be repeated in multiple rules
-   * Geos in rules subsequent rules should be ordered most to least specific,
+   * The last rule must be a catch-all w/o any targeted geos or subnets
+   * Geos must not be repeated in multiple rules
+   * Geos in rules and subsequent rules must be ordered most to least specific,
      e.g. NA-US-TN must come before NA-US, which must occur before NA
-* Support for subnet targeting in dynamic records added.
+   * Similarly, subnets must not be repeated in multiple rules, and various
+     subnet rules must be ordered such that most specific subnets appear before
+     less specific ones; e.g. 10.1.1.0/24 must appear before 10.1.0.0/16.
+   * Subnet targeting is considered to be more specific than geo targeting, so
+     subnet-only rules must appear before any subnet+geo rules, followed by
+     geo-only rules (and catch-all rule w/o any geos/subnets in the end)
 
 #### Stuff
 
