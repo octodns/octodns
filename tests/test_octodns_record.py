@@ -398,6 +398,28 @@ class TestRecordValidation(TestCase):
     zone = Zone('unit.tests.', [])
 
     def test_base(self):
+        # no spaces
+        for name in (
+            ' ',
+            ' leading',
+            'trailing ',
+            'in the middle',
+            '\t',
+            '\tleading',
+            'trailing\t',
+            'in\tthe\tmiddle',
+        ):
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    self.zone,
+                    name,
+                    {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'},
+                )
+            reason = ctx.exception.reasons[0]
+            self.assertEqual(
+                'invalid record, whitespace is not allowed', reason
+            )
+
         # name = '@'
         with self.assertRaises(ValidationError) as ctx:
             name = '@'

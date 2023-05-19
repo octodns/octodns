@@ -1,3 +1,7 @@
+## v1.0.0.rc2 - 2023-??-?? -
+
+* Record and Zone validation now ensures there's no whitespace in names
+
 ## v1.0.0.rc0 - 2023-05-16 - First of the ones
 
 #### Noteworthy changes
