@@ -41,6 +41,10 @@ class Record(EqualityTupleMixin):
             # convert the error into a reason
             reasons.append(str(e))
             name = str(name)
+
+        if ' ' in name or '\t' in name:
+            reasons.append('invalid record, whitespace is not allowed')
+
         fqdn = f'{name}.{zone.name}' if name else zone.name
         try:
             _type = data['type']
