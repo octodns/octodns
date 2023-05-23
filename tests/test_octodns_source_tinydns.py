@@ -150,7 +150,6 @@ class TestTinyDnsFileSource(TestCase):
         self.assertEqual([], changes)
 
     def test_populate_in_addr_arpa(self):
-
         got = Zone('3.2.10.in-addr.arpa.', [])
         self.source.populate(got)
 

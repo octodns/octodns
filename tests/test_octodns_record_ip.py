@@ -10,7 +10,6 @@ from octodns.zone import Zone
 
 class TestRecordIp(TestCase):
     def test_ipv4_value_rdata_text(self):
-
         # anything goes, we're a noop
         for s in (
             None,

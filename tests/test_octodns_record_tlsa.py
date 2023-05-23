@@ -118,7 +118,6 @@ class TestRecordTlsa(TestCase):
         a.__repr__()
 
     def test_tsla_value_rdata_text(self):
-
         # empty string won't parse
         with self.assertRaises(RrParseError):
             TlsaValue.parse_rdata_text('')

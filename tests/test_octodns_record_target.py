@@ -11,7 +11,6 @@ from octodns.zone import Zone
 
 class TestRecordTarget(TestCase):
     def test_target_rdata_text(self):
-
         # anything goes, we're a noop
         for s in (
             None,

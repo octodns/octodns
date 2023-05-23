@@ -192,7 +192,6 @@ class TestZone(TestCase):
         self.assertTrue('whitespace not allowed' in str(ctx.exception))
 
     def test_sub_zones(self):
-
         # NS for exactly the sub is allowed
         zone = Zone('unit.tests.', set(['sub', 'barred']))
         record = Record.new(

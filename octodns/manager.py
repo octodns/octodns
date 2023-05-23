@@ -475,7 +475,6 @@ class Manager(object):
         force=False,
         plan_output_fh=stdout,
     ):
-
         self.log.info(
             'sync: eligible_zones=%s, eligible_targets=%s, dry_run=%s, '
             'force=%s, plan_output_fh=%s',
