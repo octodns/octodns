@@ -85,7 +85,6 @@ class TestRecordSshfp(TestCase):
         a.__repr__()
 
     def test_sshfp_value_rdata_text(self):
-
         # empty string won't parse
         with self.assertRaises(RrParseError):
             SshfpValue.parse_rdata_text('')

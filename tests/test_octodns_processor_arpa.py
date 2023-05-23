@@ -11,7 +11,6 @@ from octodns.zone import Zone
 
 class TestAutoArpa(TestCase):
     def test_empty_zone(self):
-
         # empty zone no records
         zone = Zone('unit.tests.', [])
         aa = AutoArpa('auto-arpa')

@@ -68,7 +68,6 @@ class TestRecordMx(TestCase):
         a.__repr__()
 
     def test_mx_value_rdata_text(self):
-
         # empty string won't parse
         with self.assertRaises(RrParseError):
             MxValue.parse_rdata_text('')

@@ -81,7 +81,6 @@ class TestRecordSrv(TestCase):
         a.__repr__()
 
     def test_srv_value_rdata_text(self):
-
         # empty string won't parse
         with self.assertRaises(RrParseError):
             SrvValue.parse_rdata_text('')
