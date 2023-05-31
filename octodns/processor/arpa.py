@@ -61,8 +61,13 @@ class AutoArpa(BaseProcessor):
                     zone,
                     name,
                     {'ttl': self.ttl, 'type': 'PTR', 'values': fqdns},
+                    lenient=lenient,
                 )
-                zone.add_record(record, replace=self.populate_should_replace)
+                zone.add_record(
+                    record,
+                    replace=self.populate_should_replace,
+                    lenient=lenient,
+                )
 
         self.log.info(
             'populate:   found %s records', len(zone.records) - before
