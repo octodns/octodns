@@ -32,7 +32,9 @@ class OwnershipProcessor(BaseProcessor):
                 name,
                 {'type': 'TXT', 'ttl': 60, 'value': self.txt_value},
             )
-            desired.add_record(txt)
+            # add these w/lenient to cover the case when the ownership record
+            # for a NS delegation record should technically live in the subzone
+            desired.add_record(txt, lenient=True)
 
         return desired
 
