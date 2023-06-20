@@ -78,7 +78,6 @@ class Plan(object):
             self.existing
             and len(self.existing.records) >= self.MIN_EXISTING_RECORDS
         ):
-
             existing_record_count = len(self.existing.records)
             if existing_record_count > 0:
                 update_pcent = (

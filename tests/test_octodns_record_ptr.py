@@ -63,7 +63,6 @@ class TestRecordPtr(TestCase):
         )
 
     def test_ptr_rdata_text(self):
-
         # anything goes, we're a noop
         for s in (
             None,

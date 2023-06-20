@@ -186,8 +186,12 @@ class TestZone(TestCase):
             Zone('not.allowed', [])
         self.assertTrue('missing ending dot' in str(ctx.exception))
 
-    def test_sub_zones(self):
+    def test_whitespace(self):
+        with self.assertRaises(Exception) as ctx:
+            Zone('space not allowed.', [])
+        self.assertTrue('whitespace not allowed' in str(ctx.exception))
 
+    def test_sub_zones(self):
         # NS for exactly the sub is allowed
         zone = Zone('unit.tests.', set(['sub', 'barred']))
         record = Record.new(

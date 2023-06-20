@@ -6,12 +6,12 @@ from unittest import TestCase
 
 from octodns.processor.arpa import AutoArpa
 from octodns.record import Record
+from octodns.record.exception import ValidationError
 from octodns.zone import Zone
 
 
 class TestAutoArpa(TestCase):
     def test_empty_zone(self):
-
         # empty zone no records
         zone = Zone('unit.tests.', [])
         aa = AutoArpa('auto-arpa')
@@ -227,3 +227,39 @@ class TestAutoArpa(TestCase):
         arpa = Zone('0.10.in-addr.arpa.', [])
         aa.populate(arpa)
         self.assertEqual(0, len(arpa.records))
+
+    def test_single_value_A_with_space(self):
+        zone = Zone('unit.tests.', [])
+
+        # invalid record without lenient
+        with self.assertRaises(ValidationError):
+            Record.new(
+                zone,
+                'a with spaces',
+                {'ttl': 32, 'type': 'A', 'value': '1.2.3.4'},
+            )
+
+        # invalid record with lenient
+        lenient = True
+        record = Record.new(
+            zone,
+            'a with spaces',
+            {'ttl': 32, 'type': 'A', 'value': '1.2.3.4'},
+            lenient=lenient,
+        )
+        zone.add_record(record)
+        aa = AutoArpa('auto-arpa')
+        aa.process_source_zone(zone, [])
+        self.assertEqual(
+            {'4.3.2.1.in-addr.arpa.': {'a with spaces.unit.tests.'}},
+            aa._records,
+        )
+
+        # matching zone
+        arpa = Zone('3.2.1.in-addr.arpa.', [])
+        aa.populate(arpa, lenient=lenient)
+        self.assertEqual(1, len(arpa.records))
+        (ptr,) = arpa.records
+        self.assertEqual('4.3.2.1.in-addr.arpa.', ptr.fqdn)
+        self.assertEqual(record.fqdn, ptr.value)
+        self.assertEqual(3600, ptr.ttl)
