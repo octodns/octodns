@@ -18,10 +18,16 @@ class RootNsChange(UnsafePlan):
 
 class TooMuchChange(UnsafePlan):
     def __init__(
-        self, why, update_pcent, update_threshold, change_count, existing_count
+        self,
+        why,
+        update_pcent,
+        update_threshold,
+        change_count,
+        existing_count,
+        name,
     ):
         msg = (
-            f'{why}, {update_pcent:.2f}% is over {update_threshold:.2f}% '
+            f'[{name}] {why}, {update_pcent:.2f}% is over {update_threshold:.2f}% '
             f'({change_count}/{existing_count}), force required'
         )
         super().__init__(msg)
@@ -97,6 +103,7 @@ class Plan(object):
                     self.update_pcent_threshold * 100,
                     self.change_counts['Update'],
                     existing_record_count,
+                    self.existing.decoded_name,
                 )
             if delete_pcent > self.delete_pcent_threshold:
                 raise TooMuchChange(
@@ -105,6 +112,7 @@ class Plan(object):
                     self.delete_pcent_threshold * 100,
                     self.change_counts['Delete'],
                     existing_record_count,
+                    self.existing.decoded_name,
                 )
 
         # If we have any changes of the root NS record for the zone it's a huge
