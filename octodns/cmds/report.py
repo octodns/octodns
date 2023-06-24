@@ -46,6 +46,12 @@ def main():
     parser.add_argument(
         '--timeout', default=1, help='Number seconds to wait for an answer'
     )
+    parser.add_argument(
+        '--lenient',
+        action='store_true',
+        default=False,
+        help='Ignore record validations and do a best effort dump',
+    )
     parser.add_argument('server', nargs='+', help='Servers to query')
 
     args = parser.parse_args()
@@ -61,7 +67,7 @@ def main():
 
     zone = manager.get_zone(args.zone)
     for source in sources:
-        source.populate(zone)
+        source.populate(zone, lenient=args.lenient)
 
     servers = ','.join(args.server)
     print(f'name,type,ttl,{servers},consistent')

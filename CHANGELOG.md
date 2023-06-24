@@ -1,6 +1,10 @@
 ## v1.0.0.rc2 - 2023-??-?? -
 
 * Record and Zone validation now ensures there's no whitespace in names
+* OwnershipProcessor managed records always add w/lenient=True, this allows
+  ownership to be marked in the same zone for delegation NS records.
+* octodns-report access --lenient flag to allow running reports with records
+  sourced from providers with non-compliant record data.
 
 ## v1.0.0.rc0 - 2023-05-16 - First of the ones
 
