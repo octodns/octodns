@@ -203,8 +203,7 @@ test:
 ```
 
 Support matrix:
-* NS1 supports all 3 flag values
-* Azure DNS supports only `obey` and `down`
+* NS1 and Azure DNS support all 3 flag values
 * All other dynamic-capable providers only support the default `obey`
 
 See "Health Check Options" in individual provider documentation for customization support.
