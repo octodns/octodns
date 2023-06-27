@@ -9,6 +9,19 @@ if [ -z "$VENV_NAME" ]; then
     VENV_NAME="env"
 fi
 
+PYPYRC="$HOME/.pypirc"
+if [ ! -e "$PYPYRC" ]; then
+    cat << EndOfMessage >&2
+$PYPYRC does not exist, please create it with the following contents
+
+[pypi]
+  username = __token__
+  password = [secret-token-goes-here]
+
+EndOfMessage
+    exit 1
+fi
+
 ACTIVATE="$VENV_NAME/bin/activate"
 if [ ! -f "$ACTIVATE" ]; then
     echo "$ACTIVATE does not exist, run ./script/bootstrap" >&2
