@@ -7,12 +7,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Tested versions based on dates in https://devguide.python.org/devcycle/#end-of-life-branches, 
-        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
+        # Tested versions based on dates in https://devguide.python.org/versions/#versions
+        python-version: ['3.8', '3.9', '3.10', '3.11']
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: Setup python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
@@ -31,7 +31,7 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.10'
+          python-version: '3.11'
           architecture: x64
       - name: CI setup.py
         run: |
