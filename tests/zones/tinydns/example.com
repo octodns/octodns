@@ -27,20 +27,26 @@ Ccname.other.foo:www.other.foo
 # MX
 @example.com::smtp-1-host.example.com:10
 @example.com.::smtp-2-host.example.com:20
-# MX with ttl
-@smtp.example.com::smtp-1-host.example.com:30:1800
-@smtp.example.com.::smtp-2-host.example.com:40:1800
+# MX with ttl and ip
+@smtp.example.com:21.22.23.24:smtp-1-host:30:1800
+@smtp.example.com.:22.23.24.25:smtp-2-host:40:1800
 
-# NS
+# NS for sub
 .sub.example.com::ns3.ns.com:30
 .sub.example.com.::ns4.ns.com:30
+# NS with ip
+.other.example.com:14.15.16.17:ns5:30
+.other.example.com.:15.16.17.18:ns6:30
 
 # A, under sub
-+www.sub.example.com::1.2.3.4
++www.sub.example.com:1.2.3.4
 
 # Top-level NS
 .example.com::ns1.ns.com
 .example.com.::ns2.ns.com
+# Top-level NS with automatic A
+&example.com:42.43.44.45:a
+&example.com.:43.44.45.46:b:31
 
 # sub special cases
 +a1.blah-asdf.subtest.com:10.2.3.5
