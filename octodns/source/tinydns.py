@@ -133,7 +133,7 @@ class TinyDnsBaseSource(BaseSource):
             '3': 'AAAA',
             '6': 'AAAA',
         }
-        name_re = re.compile(fr'((?P<name>.+)\.)?{zone.name[:-1]}$')
+        name_re = re.compile(fr'((?P<name>.+)\.)?{zone.name[:-1]}\.?$')
 
         data = defaultdict(lambda: defaultdict(list))
         for line in self._lines():
@@ -172,7 +172,7 @@ class TinyDnsBaseSource(BaseSource):
                         )
 
     def _populate_in_addr_arpa(self, zone, lenient):
-        name_re = re.compile(fr'(?P<name>.+)\.{zone.name[:-1]}$')
+        name_re = re.compile(fr'(?P<name>.+)\.{zone.name[:-1]}\.?$')
 
         for line in self._lines():
             _type = line[0]
@@ -188,17 +188,20 @@ class TinyDnsBaseSource(BaseSource):
             if line[0].endswith('in-addr.arpa'):
                 # since it's already in in-addr.arpa format
                 match = name_re.match(line[0])
-                value = f'{line[1]}.'
+                value = line[1]
             else:
                 addr = ip_address(line[1])
                 match = name_re.match(addr.reverse_pointer)
-                value = f'{line[0]}.'
+                value = line[0]
 
             if match:
                 try:
                     ttl = line[2]
                 except IndexError:
                     ttl = self.default_ttl
+
+                if value[-1] != '.':
+                    value = f'{value}.'
 
                 name = match.group('name')
                 record = Record.new(

@@ -4,12 +4,12 @@
 
 # Multi-value A
 +example.com:10.2.3.4:30
-+example.com:10.2.3.5:30
++example.com.:10.2.3.5:30
 
 Ccname.other.foo:www.other.foo
 
 # A+PTR
-=some-host-abc123.example.com:10.2.3.7:1800
+=some-host-abc123.example.com.:10.2.3.7:1800
 # A+PTR with duplicate address, fine for A's, but warning on PTRs
 =has-dup-def123.example.com:10.2.3.8
 =has-dup-def456.example.com:10.2.3.8
@@ -26,21 +26,21 @@ Ccname.other.foo:www.other.foo
 
 # MX
 @example.com::smtp-1-host.example.com:10
-@example.com::smtp-2-host.example.com:20
+@example.com.::smtp-2-host.example.com:20
 # MX with ttl
 @smtp.example.com::smtp-1-host.example.com:30:1800
-@smtp.example.com::smtp-2-host.example.com:40:1800
+@smtp.example.com.::smtp-2-host.example.com:40:1800
 
 # NS
 .sub.example.com::ns3.ns.com:30
-.sub.example.com::ns4.ns.com:30
+.sub.example.com.::ns4.ns.com:30
 
 # A, under sub
 +www.sub.example.com::1.2.3.4
 
 # Top-level NS
 .example.com::ns1.ns.com
-.example.com::ns2.ns.com
+.example.com.::ns2.ns.com
 
 # sub special cases
 +a1.blah-asdf.subtest.com:10.2.3.5
