@@ -26,14 +26,14 @@ Ccname.other.foo:www.other.foo
 
 # MX
 @example.com::smtp-1-host.example.com:10
-@example.com.::smtp-2-host.example.com:20
+@example.com.::smtp-2-host.example.com.
 # MX with ttl and ip
 @smtp.example.com:21.22.23.24:smtp-3-host:30:1800
 @smtp.example.com.:22.23.24.25:smtp-4-host:40:1800
 
 # NS for sub
 .sub.example.com::ns3.ns.com:30
-.sub.example.com.::ns4.ns.com:30
+.sub.example.com.::ns4.ns.com.:30
 # NS with ip
 .other.example.com:14.15.16.17:ns5:30
 .other.example.com.:15.16.17.18:ns6:30

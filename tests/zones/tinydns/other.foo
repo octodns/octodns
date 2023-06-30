@@ -3,5 +3,6 @@
 
 # CNAME with trailing comment
 Ccname.example.com:www.example.com # this is a comment
+Ccname2.example.com:www2.example.com.:48
 
 +www.other.foo:14.2.3.6

@@ -17,7 +17,7 @@ class TestTinyDnsFileSource(TestCase):
     def test_populate_normal(self):
         got = Zone('example.com.', [])
         self.source.populate(got)
-        self.assertEqual(24, len(got.records))
+        self.assertEqual(25, len(got.records))
 
         expected = Zone('example.com.', [])
         for name, data in (
@@ -49,6 +49,10 @@ class TestTinyDnsFileSource(TestCase):
                 {'type': 'CNAME', 'ttl': 3600, 'value': 'www.example.com.'},
             ),
             (
+                'cname2',
+                {'type': 'CNAME', 'ttl': 48, 'value': 'www2.example.com.'},
+            ),
+            (
                 'some-host-abc123',
                 {'type': 'A', 'ttl': 1800, 'value': '10.2.3.7'},
             ),
@@ -66,7 +70,7 @@ class TestTinyDnsFileSource(TestCase):
                             'exchange': 'smtp-1-host.example.com.',
                         },
                         {
-                            'preference': 20,
+                            'preference': 0,
                             'exchange': 'smtp-2-host.example.com.',
                         },
                     ],
@@ -212,4 +216,4 @@ class TestTinyDnsFileSource(TestCase):
         got = Zone('example.com.', ['sub'])
         self.source.populate(got)
         # we don't see one www.sub.example.com. record b/c it's in a sub
-        self.assertEqual(23, len(got.records))
+        self.assertEqual(24, len(got.records))
