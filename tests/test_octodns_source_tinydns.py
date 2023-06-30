@@ -17,7 +17,7 @@ class TestTinyDnsFileSource(TestCase):
     def test_populate_normal(self):
         got = Zone('example.com.', [])
         self.source.populate(got)
-        self.assertEqual(17, len(got.records))
+        self.assertEqual(24, len(got.records))
 
         expected = Zone('example.com.', [])
         for name, data in (
@@ -26,8 +26,13 @@ class TestTinyDnsFileSource(TestCase):
                 '',
                 {
                     'type': 'NS',
-                    'ttl': 3600,
-                    'values': ['ns1.ns.com.', 'ns2.ns.com.'],
+                    'ttl': 31,
+                    'values': [
+                        'a.ns.example.com.',
+                        'b.ns.example.com.',
+                        'ns1.ns.com.',
+                        'ns2.ns.com.',
+                    ],
                 },
             ),
             (
@@ -75,11 +80,11 @@ class TestTinyDnsFileSource(TestCase):
                     'values': [
                         {
                             'preference': 30,
-                            'exchange': 'smtp-1-host.example.com.',
+                            'exchange': 'smtp-3-host.mx.example.com.',
                         },
                         {
                             'preference': 40,
-                            'exchange': 'smtp-2-host.example.com.',
+                            'exchange': 'smtp-4-host.mx.example.com.',
                         },
                     ],
                 },
@@ -109,6 +114,26 @@ class TestTinyDnsFileSource(TestCase):
                     'type': 'TXT',
                     'ttl': 300,
                     'value': 'v=DKIM1\\; k=rsa\\; p=blah',
+                },
+            ),
+            ('b.ns', {'type': 'A', 'ttl': 31, 'value': '43.44.45.46'}),
+            ('a.ns', {'type': 'A', 'ttl': 3600, 'value': '42.43.44.45'}),
+            (
+                'smtp-3-host.mx',
+                {'type': 'A', 'ttl': 1800, 'value': '21.22.23.24'},
+            ),
+            (
+                'smtp-4-host.mx',
+                {'type': 'A', 'ttl': 1800, 'value': '22.23.24.25'},
+            ),
+            ('ns5.ns', {'type': 'A', 'ttl': 30, 'value': '14.15.16.17'}),
+            ('ns6.ns', {'type': 'A', 'ttl': 30, 'value': '15.16.17.18'}),
+            (
+                'other',
+                {
+                    'type': 'NS',
+                    'ttl': 30,
+                    'values': ['ns5.ns.example.com.', 'ns6.ns.example.com.'],
                 },
             ),
         ):
@@ -162,7 +187,10 @@ class TestTinyDnsFileSource(TestCase):
                 {
                     'type': 'PTR',
                     'ttl': 3600,
-                    'value': 'has-dup-def123.example.com.',
+                    'values': [
+                        'has-dup-def123.example.com.',
+                        'has-dup-def456.example.com.',
+                    ],
                 },
             ),
             (
@@ -178,18 +206,10 @@ class TestTinyDnsFileSource(TestCase):
             expected.add_record(record)
 
         changes = expected.changes(got, SimpleProvider())
-        from pprint import pprint
-
-        pprint(
-            {
-                'changes': changes,
-                'expected': expected.records,
-                'got': got.records,
-            }
-        )
         self.assertEqual([], changes)
 
     def test_ignores_subs(self):
         got = Zone('example.com.', ['sub'])
         self.source.populate(got)
+        # we don't see one www.sub.example.com. record b/c it's in a sub
         self.assertEqual(23, len(got.records))
