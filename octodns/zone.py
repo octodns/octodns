@@ -75,6 +75,28 @@ class Zone(object):
             # it has utf8 chars
             return self._utf8_name_re.sub('', fqdn)
 
+    def owns(self, _type, fqdn):
+        if fqdn[-1] != '.':
+            fqdn = f'{fqdn}.'
+
+        # if we don't end with the zone's name we aren't owned by it
+        if not fqdn.endswith(self.name):
+            return False
+
+        hostname = self.hostname_from_fqdn(fqdn)
+        if hostname in self.sub_zones:
+            # if our hostname matches a sub-zone exactly we have to be a NS
+            # record
+            return _type == 'NS'
+
+        for sub_zone in self.sub_zones:
+            if hostname.endswith(f'.{sub_zone}'):
+                # this belongs under a sub-zone
+                return False
+
+        # otherwise we own it
+        return True
+
     def add_record(self, record, replace=False, lenient=False):
         if self._origin:
             self.hydrate()
