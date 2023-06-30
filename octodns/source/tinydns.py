@@ -16,12 +16,6 @@ from ..zone import DuplicateRecordException, SubzoneRecordException
 from .base import BaseSource
 
 
-def _decode_octal(s):
-    return re.sub(r'\\(\d\d\d)', lambda m: chr(int(m.group(1), 8)), s).replace(
-        ';', '\\;'
-    )
-
-
 class TinyDnsBaseSource(BaseSource):
     # spec https://cr.yp.to/djbdns/tinydns-data.html
     # ipv6 addon spec https://docs.bytemark.co.uk/article/tinydns-format/
@@ -128,7 +122,7 @@ class TinyDnsBaseSource(BaseSource):
             'populate:   found %s records', len(zone.records) - before
         )
 
-    def _records_for_at(self, zone, name, lines, in_addr=False, lenient=False):
+    def _records_for_at(self, zone, name, lines, in_addr=False):
         # @fqdn:ip:x:dist:ttl:timestamp:lo
         # MX (and optional A)
         if in_addr:
@@ -163,17 +157,13 @@ class TinyDnsBaseSource(BaseSource):
             ip = line[1]
             if ip:
                 mx_name = zone.hostname_from_fqdn(mx)
-                yield Record.new(
-                    zone, mx_name, {'type': 'A', 'ttl': ttl, 'value': ip}
-                )
+                yield 'A', mx_name, [ip]
 
             values.append({'preference': dist, 'exchange': mx})
 
-        yield Record.new(
-            zone, name, {'ttl': ttl, 'type': 'MX', 'values': values}
-        )
+        yield 'MX', name, values
 
-    def _records_for_C(self, zone, name, lines, in_addr=False, lenient=False):
+    def _records_for_C(self, zone, name, lines, in_addr=False):
         # Cfqdn:p:ttl:timestamp:lo
         # CNAME
         if in_addr:
@@ -192,15 +182,9 @@ class TinyDnsBaseSource(BaseSource):
             except IndexError:
                 pass
 
-        return [
-            Record.new(
-                zone, name, {'ttl': ttl, 'type': 'CNAME', 'value': value}
-            )
-        ]
+        yield 'CNAME', name, [value]
 
-    def _records_for_caret(
-        self, zone, name, lines, in_addr=False, lenient=False
-    ):
+    def _records_for_caret(self, zone, name, lines, in_addr=False):
         # .fqdn:ip:x:ttl:timestamp:lo
         # NS (and optional A)
         if not in_addr:
@@ -208,19 +192,16 @@ class TinyDnsBaseSource(BaseSource):
 
         raise NotImplementedError()
 
-    def _records_for_equal(
-        self, zone, name, lines, in_addr=False, lenient=False
-    ):
+    def _records_for_equal(self, zone, name, lines, in_addr=False):
         # =fqdn:ip:ttl:timestamp:lo
         # A (in_addr False) & PTR (in_addr True)
-        return self._records_for_plus(
-            zone, name, lines, in_addr, lenient
-        ) + self._records_for_caret(zone, name, lines, in_addr, lenient)
+        yield from self._records_for_plus(zone, name, lines, in_addr)
+        yield from self._records_for_caret(zone, name, lines, in_addr)
 
-    def _records_for_dot(self, zone, name, lines, in_addr=False, lenient=False):
+    def _records_for_dot(self, zone, name, lines, in_addr=False):
         # .fqdn:ip:x:ttl:timestamp:lo
         # NS (and optional A)
-        if not in_addr:
+        if in_addr:
             return []
 
         # see if we can find a ttl on any of the lines, first one wins
@@ -246,21 +227,15 @@ class TinyDnsBaseSource(BaseSource):
             ip = line[1]
             if ip:
                 ns_name = zone.hostname_from_fqdn(ns)
-                yield Record.new(
-                    zone, ns_name, {'type': 'A', 'ttl': ttl, 'value': ip}
-                )
+                yield 'A', ns_name, [ip]
 
             values.append(ns)
 
-        yield Record.new(
-            zone, name, {'ttl': ttl, 'type': 'NS', 'values': values}
-        )
+        yield 'NS', name, values
 
     _records_for_amp = _records_for_dot
 
-    def _records_for_plus(
-        self, zone, name, lines, in_addr=False, lenient=False
-    ):
+    def _records_for_plus(self, zone, name, lines, in_addr=False):
         # +fqdn:ip:ttl:timestamp:lo
         # A
         if in_addr:
@@ -282,20 +257,19 @@ class TinyDnsBaseSource(BaseSource):
             except IndexError:
                 pass
 
-        return [
-            Record.new(zone, name, {'ttl': ttl, 'type': 'A', 'values': ips})
-        ]
+        yield 'A', name, ips
 
-    def _records_for_quote(
-        self, zone, name, lines, in_addr=False, lenient=False
-    ):
+    def _records_for_quote(self, zone, name, lines, in_addr=False):
         # 'fqdn:s:ttl:timestamp:lo
         # TXT
         if in_addr:
             return []
 
         # collect our ip(s)
-        values = [_decode_octal(l[1]) for l in lines]
+        values = [
+            l[1].encode('latin1').decode('unicode-escape').replace(";", "\\;")
+            for l in lines
+        ]
 
         # see if we can find a ttl on any of the lines, first one wins
         ttl = self.default_ttl
@@ -306,15 +280,9 @@ class TinyDnsBaseSource(BaseSource):
             except IndexError:
                 pass
 
-        return [
-            Record.new(
-                zone, name, {'ttl': ttl, 'type': 'TXT', 'values': values}
-            )
-        ]
+        yield 'TXT', name, values
 
-    def _records_for_three(
-        self, zone, name, lines, in_addr=False, lenient=False
-    ):
+    def _records_for_three(self, zone, name, lines, in_addr=False):
         # 3fqdn:ip:ttl:timestamp:lo
         # AAAA
         if in_addr:
@@ -337,18 +305,15 @@ class TinyDnsBaseSource(BaseSource):
             except IndexError:
                 pass
 
-        return [
-            Record.new(zone, name, {'ttl': ttl, 'type': 'AAAA', 'values': ips})
-        ]
+        yield 'AAAA', name, ips
 
-    def _records_for_six(self, zone, name, lines, in_addr=False, lenient=False):
+    def _records_for_six(self, zone, name, lines, in_addr=False):
         # 6fqdn:ip:ttl:timestamp:lo
         # AAAA (in_addr False) & PTR (in_addr True)
-        return self._records_for_three(
-            zone, name, lines, in_addr, lenient
-        ) + self._records_for_caret(zone, name, lines, in_addr, lenient)
+        yield from self._records_for_three(zone, name, lines, in_addr)
+        yield from self._records_for_caret(zone, name, lines, in_addr)
 
-    TYPE_MAP = {
+    SYMBOL_MAP = {
         '=': _records_for_equal,  # A
         '^': _records_for_caret,  # PTR
         '.': _records_for_dot,  # NS
@@ -366,12 +331,12 @@ class TinyDnsBaseSource(BaseSource):
         # :fqdn:n:rdata:ttl:timestamp:lo
     }
 
-    def _populate_normal(self, zone, lenient):
+    def _process_lines(self, zone, lines):
         name_re = re.compile(fr'((?P<name>.+)\.)?{zone.name[:-1]}\.?$')
 
         data = defaultdict(lambda: defaultdict(list))
-        for line in self._lines():
-            _type = line[0]
+        for line in lines:
+            symbol = line[0]
 
             # Skip type, remove trailing comments, and omit newline
             line = line[1:].split('#', 1)[0]
@@ -385,32 +350,61 @@ class TinyDnsBaseSource(BaseSource):
                 continue
             # remove the zone name
             name = zone.hostname_from_fqdn(name)
-            data[_type][name].append(line)
+            data[symbol][name].append(line)
 
-        pprint(data)
+        return data
 
-        for _type, names in data.items():
-            records_for = self.TYPE_MAP.get(_type, None)
-            if _type not in self.TYPE_MAP:
+    def _process_symbols(self, zone, symbols):
+        types = defaultdict(lambda: defaultdict(list))
+        ttls = defaultdict(lambda: defaultdict(lambda: self.default_ttl))
+        for symbol, names in symbols.items():
+            records_for = self.SYMBOL_MAP.get(symbol, None)
+            if not records_for:
                 # Something we don't care about
                 self.log.info(
-                    'skipping type %s, not supported/interested', _type
+                    'skipping type %s, not supported/interested', symbol
                 )
                 continue
 
-            print(_type)
             for name, lines in names.items():
-                for record in records_for(
-                    self, zone, name, lines, lenient=lenient
-                ):
-                    pprint({'record': record})
-                    try:
-                        zone.add_record(record, lenient=lenient)
-                    except SubzoneRecordException:
-                        self.log.debug(
-                            '_populate_normal: skipping subzone record=%s',
-                            record,
-                        )
+                for _type, name, values in records_for(self, zone, name, lines):
+                    types[_type][name].extend(values)
+
+        return types, ttls
+
+    def _populate_normal(self, zone, lenient):
+        # This is complicate b/c the mapping between tinydns line types (called
+        # symbols here) is not one to one with (octoDNS) records. Some lines
+        # create multiple types of records and multiple lines are often combined
+        # to make a single record (with multiple values.) Sometimes both happen.
+        # To deal with this we'll do things in 3 stages:
+
+        # first group lines by their symbol and name
+        symbols = self._process_lines(zone, self._lines())
+        pprint({'symbols': symbols})
+
+        # then work through those to group values by their _type and name
+        types, ttls = self._process_symbols(zone, symbols)
+        pprint({'types': types, 'ttls': ttls})
+
+        # now we finally have all the values for each (soon to be) record
+        # collected together, turn them into their coresponding record and add
+        # it to the zone
+        for _type, names in types.items():
+            for name, values in names.items():
+                data = {'ttl': ttls[_type][name], 'type': _type}
+                if len(values) > 1:
+                    data['values'] = values
+                else:
+                    data['value'] = values[0]
+                pprint({'name': name, 'data': data})
+                record = Record.new(zone, name, data, lenient=lenient)
+                try:
+                    zone.add_record(record, lenient=lenient)
+                except SubzoneRecordException:
+                    self.log.debug(
+                        '_populate_normal: skipping subzone record=%s', record
+                    )
 
     def _populate_in_addr_arpa(self, zone, lenient):
         name_re = re.compile(fr'(?P<name>.+)\.{zone.name[:-1]}\.?$')
