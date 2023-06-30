@@ -79,8 +79,12 @@ class Zone(object):
         if fqdn[-1] != '.':
             fqdn = f'{fqdn}.'
 
-        # if we don't end with the zone's name we aren't owned by it
-        if not fqdn.endswith(self.name):
+        # if we exactly match the zone name we own it
+        if fqdn == self.name:
+            return True
+
+        # if we don't end with the zone's name on a boundary we aren't owned
+        if not fqdn.endswith(f'.{self.name}'):
             return False
 
         hostname = self.hostname_from_fqdn(fqdn)

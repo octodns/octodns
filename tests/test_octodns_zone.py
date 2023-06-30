@@ -210,6 +210,12 @@ class TestZone(TestCase):
         # including subsequent delegatoin NS records
         self.assertFalse(zone.owns('NS', 'below.sub.unit.tests.'))
 
+        # edge cases
+        # we don't own something that ends with our name, but isn't a boundary
+        self.assertFalse(zone.owns('A', 'foo-unit.tests.'))
+        # we do something that ends with the sub-zone, but isn't at a boundary
+        self.assertTrue(zone.owns('A', 'foo-sub.unit.tests.'))
+
     def test_sub_zones(self):
         # NS for exactly the sub is allowed
         zone = Zone('unit.tests.', set(['sub', 'barred']))
