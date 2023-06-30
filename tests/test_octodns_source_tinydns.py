@@ -178,9 +178,18 @@ class TestTinyDnsFileSource(TestCase):
             expected.add_record(record)
 
         changes = expected.changes(got, SimpleProvider())
+        from pprint import pprint
+
+        pprint(
+            {
+                'changes': changes,
+                'expected': expected.records,
+                'got': got.records,
+            }
+        )
         self.assertEqual([], changes)
 
     def test_ignores_subs(self):
         got = Zone('example.com.', ['sub'])
         self.source.populate(got)
-        self.assertEqual(16, len(got.records))
+        self.assertEqual(23, len(got.records))
