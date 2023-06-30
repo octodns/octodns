@@ -10,7 +10,6 @@ from os import listdir
 from os.path import join
 
 from ..record import Record
-from ..zone import SubzoneRecordException
 from .base import BaseSource
 
 
@@ -380,12 +379,7 @@ class TinyDnsBaseSource(BaseSource):
                 else:
                     data['value'] = values[0]
                 record = Record.new(zone, name, data, lenient=lenient)
-                try:
-                    zone.add_record(record, lenient=lenient)
-                except SubzoneRecordException:
-                    self.log.error(
-                        'populate: skipping subzone record=%s', record
-                    )
+                zone.add_record(record, lenient=lenient)
 
         self.log.info(
             'populate:   found %s records', len(zone.records) - before
