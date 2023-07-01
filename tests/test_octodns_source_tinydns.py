@@ -17,7 +17,7 @@ class TestTinyDnsFileSource(TestCase):
     def test_populate_normal(self):
         got = Zone('example.com.', [])
         self.source.populate(got)
-        self.assertEqual(25, len(got.records))
+        self.assertEqual(28, len(got.records))
 
         expected = Zone('example.com.', [])
         for name, data in (
@@ -140,6 +140,43 @@ class TestTinyDnsFileSource(TestCase):
                     'values': ['ns5.ns.example.com.', 'ns6.ns.example.com.'],
                 },
             ),
+            (
+                '_a._tcp',
+                {
+                    'type': 'SRV',
+                    'ttl': 43,
+                    'values': [
+                        {
+                            'priority': 0,
+                            'weight': 0,
+                            'port': 8888,
+                            'target': 'target.srv.example.com.',
+                        },
+                        {
+                            'priority': 10,
+                            'weight': 50,
+                            'port': 8080,
+                            'target': 'target.somewhere.else.',
+                        },
+                    ],
+                },
+            ),
+            ('target.srv', {'type': 'A', 'ttl': 43, 'value': '56.57.58.59'}),
+            (
+                '_b._tcp',
+                {
+                    'type': 'SRV',
+                    'ttl': 3600,
+                    'values': [
+                        {
+                            'priority': 0,
+                            'weight': 0,
+                            'port': 9999,
+                            'target': 'target.srv.example.com.',
+                        }
+                    ],
+                },
+            ),
         ):
             record = Record.new(expected, name, data)
             expected.add_record(record)
@@ -216,4 +253,4 @@ class TestTinyDnsFileSource(TestCase):
         got = Zone('example.com.', ['sub'])
         self.source.populate(got)
         # we don't see one www.sub.example.com. record b/c it's in a sub
-        self.assertEqual(24, len(got.records))
+        self.assertEqual(27, len(got.records))

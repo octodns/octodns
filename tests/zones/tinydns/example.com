@@ -61,3 +61,9 @@ Ccname.other.foo:www.other.foo
 6ipv6-6.example.com:2a021348017cd5d0002419fffef35743
 
 'semicolon.example.com:v=DKIM1; k=rsa; p=blah:300
+
+# SRV
+S_a._tcp.example.com:56.57.58.59:target:8888
+S_a._tcp.example.com::target.somewhere.else:8080:10:50:43
+# TODO: add an IP so it tries to create a record that already exists
+S_b._tcp.example.com::target.srv.example.com.:9999

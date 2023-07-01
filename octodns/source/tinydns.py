@@ -16,11 +16,15 @@ from .base import BaseSource
 class TinyDnsBaseSource(BaseSource):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(('A', 'CNAME', 'MX', 'NS', 'TXT', 'AAAA'))
 
     def __init__(self, id, default_ttl=3600):
         super().__init__(id)
         self.default_ttl = default_ttl
+
+    @property
+    def SUPPORTS(self):
+        # All record types, including those registered by 3rd party modules
+        return set(Record.registered_types().keys())
 
     def _records_for_at(self, zone, name, lines, arpa=False):
         # @fqdn:ip:x:dist:ttl:timestamp:lo
@@ -38,7 +42,7 @@ class TinyDnsBaseSource(BaseSource):
         ttl = self.default_ttl
         for line in lines:
             try:
-                ttl = int(lines[0][4])
+                ttl = int(line[4])
                 break
             except IndexError:
                 pass
@@ -61,7 +65,7 @@ class TinyDnsBaseSource(BaseSource):
 
             # if we have an IP then we need to create an A for the MX
             ip = line[1]
-            if ip:
+            if ip and zone.owns('A', mx):
                 yield 'A', mx, ttl, [ip]
 
             values.append({'preference': dist, 'exchange': mx})
@@ -88,7 +92,7 @@ class TinyDnsBaseSource(BaseSource):
         ttl = self.default_ttl
         for line in lines:
             try:
-                ttl = int(lines[0][2])
+                ttl = int(line[2])
                 break
             except IndexError:
                 pass
@@ -163,7 +167,7 @@ class TinyDnsBaseSource(BaseSource):
         ttl = self.default_ttl
         for line in lines:
             try:
-                ttl = int(lines[0][3])
+                ttl = int(line[3])
                 break
             except IndexError:
                 pass
@@ -180,7 +184,7 @@ class TinyDnsBaseSource(BaseSource):
 
             # if we have an IP then we need to create an A for the MX
             ip = line[1]
-            if ip:
+            if ip and zone.owns('A', ns):
                 yield 'A', ns, ttl, [ip]
 
             values.append(ns)
@@ -212,7 +216,7 @@ class TinyDnsBaseSource(BaseSource):
         ttl = self.default_ttl
         for line in lines:
             try:
-                ttl = int(lines[0][2])
+                ttl = int(line[2])
                 break
             except IndexError:
                 pass
@@ -241,7 +245,7 @@ class TinyDnsBaseSource(BaseSource):
         ttl = self.default_ttl
         for line in lines:
             try:
-                ttl = int(lines[0][2])
+                ttl = int(line[2])
                 break
             except IndexError:
                 pass
@@ -272,12 +276,75 @@ class TinyDnsBaseSource(BaseSource):
         ttl = self.default_ttl
         for line in lines:
             try:
-                ttl = int(lines[0][2])
+                ttl = int(line[2])
                 break
             except IndexError:
                 pass
 
         yield 'AAAA', name, ttl, ips
+
+    def _records_for_S(self, zone, name, lines, arpa=False):
+        # Sfqdn:ip:x:port:priority:weight:ttl:timestamp:lo
+        # SRV
+
+        if arpa:
+            # no arpa
+            return []
+
+        if not zone.owns('SRV', name):
+            # if name doesn't live under our zone there's nothing for us to do
+            return
+
+        # see if we can find a ttl on any of the lines, first one wins
+        ttl = self.default_ttl
+        for line in lines:
+            try:
+                ttl = int(line[6])
+                break
+            except IndexError:
+                pass
+
+        values = []
+        for line in lines:
+            target = line[2]
+            # if there's a . in the mx we hit a special case and use it as-is
+            if '.' not in target:
+                # otherwise we treat it as the MX hostnam and construct the rest
+                target = f'{target}.srv.{zone.name}'
+            elif target[-1] != '.':
+                target = f'{target}.'
+
+            # if we have an IP then we need to create an A for the SRV
+            # has to be present, but can be empty
+            ip = line[1]
+            if ip and zone.owns('A', target):
+                yield 'A', target, ttl, [ip]
+
+            # required
+            port = int(line[3])
+
+            # optional, default 0
+            try:
+                priority = int(line[4] or 0)
+            except IndexError:
+                priority = 0
+
+            # optional, default 0
+            try:
+                weight = int(line[5] or 0)
+            except IndexError:
+                weight = 0
+
+            values.append(
+                {
+                    'priority': priority,
+                    'weight': weight,
+                    'port': port,
+                    'target': target,
+                }
+            )
+
+        yield 'SRV', name, ttl, values
 
     def _records_for_six(self, zone, name, lines, arpa=False):
         # 6fqdn:ip:ttl:timestamp:lo
@@ -297,9 +364,9 @@ class TinyDnsBaseSource(BaseSource):
         '&': _records_for_amp,  # NS
         '\'': _records_for_quote,  # TXT
         '3': _records_for_three,  # AAAA
+        'S': _records_for_S,  # SRV
         '6': _records_for_six,  # AAAA
         # TODO:
-        #'S': _records_for_S, # SRV
         # Sfqdn:ip:x:port:priority:weight:ttl:timestamp:lo
         #':': _record_for_semicolon # arbitrary
         # :fqdn:n:rdata:ttl:timestamp:lo
