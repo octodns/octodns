@@ -17,7 +17,7 @@ class TestTinyDnsFileSource(TestCase):
     def test_populate_normal(self):
         got = Zone('example.com.', [])
         self.source.populate(got)
-        self.assertEqual(28, len(got.records))
+        self.assertEqual(30, len(got.records))
 
         expected = Zone('example.com.', [])
         for name, data in (
@@ -177,6 +177,26 @@ class TestTinyDnsFileSource(TestCase):
                     ],
                 },
             ),
+            (
+                'arbitrary-sshfp',
+                {
+                    'type': 'SSHFP',
+                    'ttl': 45,
+                    'values': [
+                        {
+                            'algorithm': 1,
+                            'fingerprint_type': 2,
+                            'fingerprint': '00479b27',
+                        },
+                        {
+                            'algorithm': 2,
+                            'fingerprint_type': 2,
+                            'fingerprint': '00479a28',
+                        },
+                    ],
+                },
+            ),
+            ('arbitrary-a', {'type': 'A', 'ttl': 3600, 'value': '80.81.82.83'}),
         ):
             record = Record.new(expected, name, data)
             expected.add_record(record)
@@ -253,4 +273,4 @@ class TestTinyDnsFileSource(TestCase):
         got = Zone('example.com.', ['sub'])
         self.source.populate(got)
         # we don't see one www.sub.example.com. record b/c it's in a sub
-        self.assertEqual(27, len(got.records))
+        self.assertEqual(29, len(got.records))

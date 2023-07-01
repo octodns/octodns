@@ -357,6 +357,44 @@ class TinyDnsBaseSource(BaseSource):
 
         yield 'SRV', name, ttl, values
 
+    def _records_for_colon(self, zone, name, lines, arpa=False):
+        # :fqdn:n:rdata:ttl:timestamp:lo
+        # ANY
+
+        if arpa:
+            # no arpa
+            return []
+
+        if not zone.owns('SRV', name):
+            # if name doesn't live under our zone there's nothing for us to do
+            return
+
+        # group by lines by the record type
+        types = defaultdict(list)
+        for line in lines:
+            types[line[1].upper()].append(line)
+
+        classes = Record.registered_types()
+        for _type, lines in types.items():
+            _class = classes.get(_type, None)
+            if not _class:
+                self.log.info(
+                    '_records_for_colon: unrecognized type %s, %s', _type, line
+                )
+                continue
+
+            # see if we can find a ttl on any of the lines, first one wins
+            ttl = self.default_ttl
+            for line in lines:
+                try:
+                    ttl = int(line[3])
+                    break
+                except IndexError:
+                    pass
+
+            rdatas = [l[2] for l in lines]
+            yield _type, name, ttl, _class.parse_rdata_texts(rdatas)
+
     def _records_for_six(self, zone, name, lines, arpa=False):
         # 6fqdn:ip:ttl:timestamp:lo
         # AAAA (arpa False) & PTR (arpa True)
@@ -376,11 +414,8 @@ class TinyDnsBaseSource(BaseSource):
         '\'': _records_for_quote,  # TXT
         '3': _records_for_three,  # AAAA
         'S': _records_for_S,  # SRV
+        ':': _records_for_colon,  # arbitrary
         '6': _records_for_six,  # AAAA
-        # TODO:
-        # Sfqdn:ip:x:port:priority:weight:ttl:timestamp:lo
-        #':': _record_for_semicolon # arbitrary
-        # :fqdn:n:rdata:ttl:timestamp:lo
     }
 
     def _process_lines(self, zone, lines):

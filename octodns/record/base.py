@@ -123,6 +123,10 @@ class Record(EqualityTupleMixin):
 
         return records
 
+    @classmethod
+    def parse_rdata_texts(cls, rdatas):
+        return [cls._value_type.parse_rdata_text(r) for r in rdatas]
+
     def __init__(self, zone, name, data, source=None):
         self.zone = zone
         if name:

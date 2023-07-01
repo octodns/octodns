@@ -72,3 +72,11 @@ S_a._tcp.example.com::target.somewhere.else:8080:10:50:43
 S_b._tcp.example.com:56.57.58.59:target.srv.example.com.:9999
 # complete duplicate should be ignored
 S_b._tcp.example.com:56.57.58.59:target.srv.example.com.:9999
+
+# arbitrary multi-value non-spec record
+:arbitrary-sshfp.example.com:SSHFP:2 2 00479a28
+:arbitrary-sshfp.example.com:SSHFP:1 2 00479b27:45
+# does not make sense to do an A this way, but it'll work
+:arbitrary-a.example.com:a:80.81.82.83
+# this should just be inored b/c the type is unknown
+:arbitrary-invalid.example.com:invalid:does not matter:99
