@@ -13,6 +13,17 @@ from ..record import Record
 from .base import BaseSource
 
 
+def _unique(values):
+    try:
+        # this will work if they're simple strings
+        return list(set(values))
+    except TypeError:
+        pass
+    # if they're dictionaries it's a bit more involved since dict's aren't
+    # hashable, based on https://stackoverflow.com/a/38521207
+    return [dict(s) for s in set(frozenset(v.items()) for v in values)]
+
+
 class TinyDnsBaseSource(BaseSource):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
@@ -387,7 +398,7 @@ class TinyDnsBaseSource(BaseSource):
 
     def _process_symbols(self, zone, symbols, arpa):
         types = defaultdict(lambda: defaultdict(list))
-        ttls = defaultdict(lambda: defaultdict(lambda: self.default_ttl))
+        ttls = defaultdict(dict)
         for symbol, names in symbols.items():
             records_for = self.SYMBOL_MAP.get(symbol, None)
             if not records_for:
@@ -404,8 +415,10 @@ class TinyDnsBaseSource(BaseSource):
                     # remove the zone name
                     name = zone.hostname_from_fqdn(name)
                     types[_type][name].extend(values)
-                    # last one wins
-                    ttls[_type][name] = ttl
+                    # first non-default wins, if we never see anything we'll
+                    # just use the default below
+                    if ttl != self.default_ttl:
+                        ttls[_type][name] = ttl
 
         return types, ttls
 
@@ -440,9 +453,12 @@ class TinyDnsBaseSource(BaseSource):
         # it to the zone
         for _type, names in types.items():
             for name, values in names.items():
-                data = {'ttl': ttls[_type][name], 'type': _type}
+                data = {
+                    'ttl': ttls[_type].get(name, self.default_ttl),
+                    'type': _type,
+                }
                 if len(values) > 1:
-                    data['values'] = values
+                    data['values'] = _unique(values)
                 else:
                     data['value'] = values[0]
                 record = Record.new(zone, name, data, lenient=lenient)
