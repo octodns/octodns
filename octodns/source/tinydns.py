@@ -37,6 +37,16 @@ class TinyDnsBaseSource(BaseSource):
         # All record types, including those registered by 3rd party modules
         return set(Record.registered_types().keys())
 
+    def _ttl_for(self, lines, index):
+        # see if we can find a ttl on any of the lines, first one wins
+        for line in lines:
+            try:
+                return int(line[index])
+            except IndexError:
+                pass
+        # and if we don't use the default
+        return self.default_ttl
+
     def _records_for_at(self, zone, name, lines, arpa=False):
         # @fqdn:ip:x:dist:ttl:timestamp:lo
         # MX (and optional A)
@@ -49,14 +59,7 @@ class TinyDnsBaseSource(BaseSource):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
-        # see if we can find a ttl on any of the lines, first one wins
-        ttl = self.default_ttl
-        for line in lines:
-            try:
-                ttl = int(line[4])
-                break
-            except IndexError:
-                pass
+        ttl = self._ttl_for(lines, 4)
 
         values = []
         for line in lines:
@@ -99,14 +102,7 @@ class TinyDnsBaseSource(BaseSource):
         if value[-1] != '.':
             value = f'{value}.'
 
-        # see if we can find a ttl on any of the lines, first one wins
-        ttl = self.default_ttl
-        for line in lines:
-            try:
-                ttl = int(line[2])
-                break
-            except IndexError:
-                pass
+        ttl = self._ttl_for(lines, 2)
 
         yield 'CNAME', name, ttl, [value]
 
@@ -141,14 +137,7 @@ class TinyDnsBaseSource(BaseSource):
                 value = f'{value}.'
             names[name].append(value)
 
-        # see if we can find a ttl on any of the lines, first one wins
-        ttl = self.default_ttl
-        for line in lines:
-            try:
-                ttl = int(line[2])
-                break
-            except IndexError:
-                pass
+        ttl = self._ttl_for(lines, 2)
 
         for name, values in names.items():
             if zone.owns('PTR', name):
@@ -174,14 +163,7 @@ class TinyDnsBaseSource(BaseSource):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
-        # see if we can find a ttl on any of the lines, first one wins
-        ttl = self.default_ttl
-        for line in lines:
-            try:
-                ttl = int(line[3])
-                break
-            except IndexError:
-                pass
+        ttl = self._ttl_for(lines, 3)
 
         values = []
         for line in lines:
@@ -223,14 +205,7 @@ class TinyDnsBaseSource(BaseSource):
             # we didn't find any value ips so nothing to do
             return []
 
-        # see if we can find a ttl on any of the lines, first one wins
-        ttl = self.default_ttl
-        for line in lines:
-            try:
-                ttl = int(line[2])
-                break
-            except IndexError:
-                pass
+        ttl = self._ttl_for(lines, 2)
 
         yield 'A', name, ttl, ips
 
@@ -252,14 +227,7 @@ class TinyDnsBaseSource(BaseSource):
             for l in lines
         ]
 
-        # see if we can find a ttl on any of the lines, first one wins
-        ttl = self.default_ttl
-        for line in lines:
-            try:
-                ttl = int(line[2])
-                break
-            except IndexError:
-                pass
+        ttl = self._ttl_for(lines, 2)
 
         yield 'TXT', name, ttl, values
 
@@ -283,14 +251,7 @@ class TinyDnsBaseSource(BaseSource):
             # the address correct.
             ips.append(u':'.join(textwrap.wrap(line[1], 4)))
 
-        # see if we can find a ttl on any of the lines, first one wins
-        ttl = self.default_ttl
-        for line in lines:
-            try:
-                ttl = int(line[2])
-                break
-            except IndexError:
-                pass
+        ttl = self._ttl_for(lines, 2)
 
         yield 'AAAA', name, ttl, ips
 
@@ -306,14 +267,7 @@ class TinyDnsBaseSource(BaseSource):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
-        # see if we can find a ttl on any of the lines, first one wins
-        ttl = self.default_ttl
-        for line in lines:
-            try:
-                ttl = int(line[6])
-                break
-            except IndexError:
-                pass
+        ttl = self._ttl_for(lines, 6)
 
         values = []
         for line in lines:
@@ -383,14 +337,7 @@ class TinyDnsBaseSource(BaseSource):
                 )
                 continue
 
-            # see if we can find a ttl on any of the lines, first one wins
-            ttl = self.default_ttl
-            for line in lines:
-                try:
-                    ttl = int(line[3])
-                    break
-                except IndexError:
-                    pass
+            ttl = self._ttl_for(lines, 3)
 
             rdatas = [l[2] for l in lines]
             yield _type, name, ttl, _class.parse_rdata_texts(rdatas)
