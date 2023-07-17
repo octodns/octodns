@@ -45,16 +45,21 @@ class MxValue(EqualityTupleMixin, dict):
                     reasons.append('missing exchange')
                     continue
                 exchange = idna_encode(exchange)
-                if (
-                    exchange != '.'
-                    and not FQDN(exchange, allow_underscores=True).is_valid
-                ):
-                    reasons.append(
-                        f'Invalid MX exchange "{exchange}" is not '
-                        'a valid FQDN.'
-                    )
-                elif not exchange.endswith('.'):
-                    reasons.append(f'MX value "{exchange}" missing trailing .')
+                if '.' not in exchange:
+                    reasons.append(f'MX exchange "{exchange}" is relative')
+                else:
+                    if (
+                        exchange != '.'
+                        and not FQDN(exchange, allow_underscores=True).is_valid
+                    ):
+                        reasons.append(
+                            f'Invalid MX exchange "{exchange}" is not '
+                            'a valid FQDN.'
+                        )
+                    elif not exchange.endswith('.'):
+                        reasons.append(
+                            f'MX value "{exchange}" missing trailing .'
+                        )
             except KeyError:
                 reasons.append('missing exchange')
         return reasons

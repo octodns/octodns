@@ -8,6 +8,7 @@
 * Correctly handle FQDNs in TinyDNS config files that end with trailing .'s
 * Complete rewrite of TinyDnsBaseSource to fully implement the spec and the ipv6
   extensions
+* Allow relative target, nameserver, or exchange values
 
 ## v1.0.0.rc0 - 2023-05-16 - First of the ones
 

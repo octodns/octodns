@@ -429,3 +429,23 @@ class TestRecordSrv(TestCase):
             ['Invalid SRV target "100 foo.bar.com." is not a valid FQDN.'],
             ctx.exception.reasons,
         )
+
+        # relative target
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                '_srv._tcp',
+                {
+                    'type': 'SRV',
+                    'ttl': 600,
+                    'value': {
+                        'priority': 1,
+                        'weight': 2,
+                        'port': 3,
+                        'target': 'isrelative',
+                    },
+                },
+            )
+        self.assertEqual(
+            ['SRV value "isrelative" is relative'], ctx.exception.reasons
+        )

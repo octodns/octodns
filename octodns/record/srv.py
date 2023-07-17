@@ -69,15 +69,20 @@ class SrvValue(EqualityTupleMixin, dict):
                     reasons.append('missing target')
                     continue
                 target = idna_encode(target)
-                if not target.endswith('.'):
-                    reasons.append(f'SRV value "{target}" missing trailing .')
-                if (
-                    target != '.'
-                    and not FQDN(target, allow_underscores=True).is_valid
-                ):
-                    reasons.append(
-                        f'Invalid SRV target "{target}" is not a valid FQDN.'
-                    )
+                if '.' not in target:
+                    reasons.append(f'SRV value "{target}" is relative')
+                else:
+                    if not target.endswith('.'):
+                        reasons.append(
+                            f'SRV value "{target}" missing trailing .'
+                        )
+                    if (
+                        target != '.'
+                        and not FQDN(target, allow_underscores=True).is_valid
+                    ):
+                        reasons.append(
+                            f'Invalid SRV target "{target}" is not a valid FQDN.'
+                        )
             except KeyError:
                 reasons.append('missing target')
         return reasons

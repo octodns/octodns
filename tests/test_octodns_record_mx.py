@@ -262,3 +262,18 @@ class TestRecordMx(TestCase):
             },
         )
         self.assertEqual('.', record.values[0].exchange)
+
+        # relative exchange
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                '',
+                {
+                    'type': 'MX',
+                    'ttl': 600,
+                    'value': {'preference': 10, 'value': 'isrelative'},
+                },
+            )
+        self.assertEqual(
+            ['MX exchange "isrelative" is relative'], ctx.exception.reasons
+        )

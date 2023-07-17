@@ -19,6 +19,8 @@ class _TargetValue(str):
             reasons.append('empty value')
         elif not data:
             reasons.append('missing value')
+        elif '.' not in data:
+            reasons.append(f'{_type} value "{data}" is relative')
         else:
             data = idna_encode(data)
             if not FQDN(str(data), allow_underscores=True).is_valid:
@@ -58,7 +60,9 @@ class _TargetsValue(str):
         reasons = []
         for value in data:
             value = idna_encode(value)
-            if not FQDN(value, allow_underscores=True).is_valid:
+            if '.' not in value:
+                reasons.append(f'{_type} value "{value}" is relative')
+            elif not FQDN(value, allow_underscores=True).is_valid:
                 reasons.append(
                     f'Invalid {_type} value "{value}" is not a valid FQDN.'
                 )
