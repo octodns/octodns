@@ -191,6 +191,31 @@ class TestZone(TestCase):
             Zone('space not allowed.', [])
         self.assertTrue('whitespace not allowed' in str(ctx.exception))
 
+    def test_owns(self):
+        zone = Zone('unit.tests.', set(['sub']))
+
+        self.assertTrue(zone.owns('A', 'unit.tests'))
+        self.assertTrue(zone.owns('A', 'unit.tests.'))
+        self.assertTrue(zone.owns('A', 'www.unit.tests.'))
+        self.assertTrue(zone.owns('A', 'www.unit.tests.'))
+        # we do own our direct sub's delegation NS records
+        self.assertTrue(zone.owns('NS', 'sub.unit.tests.'))
+
+        # we don't own the root of our sub
+        self.assertFalse(zone.owns('A', 'sub.unit.tests.'))
+
+        # of anything under it
+        self.assertFalse(zone.owns('A', 'www.sub.unit.tests.'))
+
+        # including subsequent delegatoin NS records
+        self.assertFalse(zone.owns('NS', 'below.sub.unit.tests.'))
+
+        # edge cases
+        # we don't own something that ends with our name, but isn't a boundary
+        self.assertFalse(zone.owns('A', 'foo-unit.tests.'))
+        # we do something that ends with the sub-zone, but isn't at a boundary
+        self.assertTrue(zone.owns('A', 'foo-sub.unit.tests.'))
+
     def test_sub_zones(self):
         # NS for exactly the sub is allowed
         zone = Zone('unit.tests.', set(['sub', 'barred']))

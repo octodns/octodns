@@ -8,6 +8,7 @@ from octodns.idna import idna_encode
 from octodns.record import (
     AliasRecord,
     ARecord,
+    CnameRecord,
     Create,
     Delete,
     MxValue,
@@ -175,6 +176,20 @@ class TestRecord(TestCase):
         self.assertEqual('target.unit.tests.', record.value)
         # make sure there's nothing extra
         self.assertEqual(5, len(records))
+
+    def test_parse_rdata_texts(self):
+        self.assertEqual(['2.3.4.5'], ARecord.parse_rdata_texts(['2.3.4.5']))
+        self.assertEqual(
+            ['2.3.4.6', '3.4.5.7'],
+            ARecord.parse_rdata_texts(['2.3.4.6', '3.4.5.7']),
+        )
+        self.assertEqual(
+            ['some.target.'], CnameRecord.parse_rdata_texts(['some.target.'])
+        )
+        self.assertEqual(
+            ['some.target.', 'other.target.'],
+            CnameRecord.parse_rdata_texts(['some.target.', 'other.target.']),
+        )
 
     def test_values_mixin_data(self):
         # no values, no value or values in data

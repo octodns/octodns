@@ -6,6 +6,8 @@
 * octodns-report access --lenient flag to allow running reports with records
   sourced from providers with non-compliant record data.
 * Correctly handle FQDNs in TinyDNS config files that end with trailing .'s
+* Complete rewrite of TinyDnsBaseSource to fully implement the spec and the ipv6
+  extensions
 
 ## v1.0.0.rc0 - 2023-05-16 - First of the ones
 
