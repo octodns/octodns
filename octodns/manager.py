@@ -466,6 +466,36 @@ class Manager(object):
         # Return the zone as it's the desired state
         return plans, zone
 
+    def _get_sources(self, decoded_zone_name, config, eligible_sources):
+        try:
+            sources = config['sources']
+        except KeyError:
+            raise ManagerException(
+                f'Zone {decoded_zone_name} is missing sources'
+            )
+
+        if eligible_sources and not [
+            s for s in sources if s in eligible_sources
+        ]:
+            return None
+
+        self.log.info('sync:   sources=%s', sources)
+
+        try:
+            # rather than using a list comprehension, we break this loop
+            # out so that the `except` block below can reference the
+            # `source`
+            collected = []
+            for source in sources:
+                collected.append(self.providers[source])
+            sources = collected
+        except KeyError:
+            raise ManagerException(
+                f'Zone {decoded_zone_name}, unknown ' f'source: {source}'
+            )
+
+        return sources
+
     def sync(
         self,
         eligible_zones=[],
@@ -486,6 +516,31 @@ class Manager(object):
         )
 
         zones = self.config['zones']
+
+        for name, config in list(zones.items()):
+            if not name.startswith('*'):
+                continue
+            # we've found a dynamic config element
+
+            # find its sources
+            sources = self._get_sources(name, config, eligible_sources)
+            self.log.info('sync:   dynamic zone=%s, sources=%s', name, sources)
+            for source in sources:
+                for zone_name in source.list_zones():
+                    if zone_name in zones:
+                        self.log.info(
+                            'sync:      zone=%s already in config, ignoring',
+                            zone_name,
+                        )
+                        continue
+                    self.log.info(
+                        'sync:      adding dynamic zone=%s', zone_name
+                    )
+                    zones[zone_name] = config
+
+            # remove the dynamic config element so we don't try and populate it
+            del zones[name]
+
         if eligible_zones:
             zones = IdnaDict({n: zones.get(n) for n in eligible_zones})
 
@@ -532,12 +587,10 @@ class Manager(object):
                 continue
 
             lenient = config.get('lenient', False)
-            try:
-                sources = config['sources']
-            except KeyError:
-                raise ManagerException(
-                    f'Zone {decoded_zone_name} is missing sources'
-                )
+
+            sources = self._get_sources(
+                decoded_zone_name, config, eligible_sources
+            )
 
             try:
                 targets = config['targets']
@@ -548,9 +601,7 @@ class Manager(object):
 
             processors = config.get('processors', [])
 
-            if eligible_sources and not [
-                s for s in sources if s in eligible_sources
-            ]:
+            if not sources:
                 self.log.info('sync:   no eligible sources, skipping')
                 continue
 
@@ -564,7 +615,7 @@ class Manager(object):
                 self.log.info('sync:   no eligible targets, skipping')
                 continue
 
-            self.log.info('sync:   sources=%s -> targets=%s', sources, targets)
+            self.log.info('sync:   targets=%s', targets)
 
             try:
                 collected = []
@@ -575,19 +626,6 @@ class Manager(object):
                 raise ManagerException(
                     f'Zone {decoded_zone_name}, unknown '
                     f'processor: {processor}'
-                )
-
-            try:
-                # rather than using a list comprehension, we break this loop
-                # out so that the `except` block below can reference the
-                # `source`
-                collected = []
-                for source in sources:
-                    collected.append(self.providers[source])
-                sources = collected
-            except KeyError:
-                raise ManagerException(
-                    f'Zone {decoded_zone_name}, unknown ' f'source: {source}'
                 )
 
             try:

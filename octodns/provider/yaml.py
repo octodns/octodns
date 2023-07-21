@@ -190,6 +190,12 @@ class YamlProvider(BaseProvider):
             join(self.directory, f'{zone.name}yaml'),
         )
 
+    def list_zones(self):
+        for filename in listdir(self.directory):
+            if not filename.endswith('.yaml'):
+                continue
+            yield filename[:-4]
+
     def populate(self, zone, target=False, lenient=False):
         self.log.debug(
             'populate: name=%s, target=%s, lenient=%s',

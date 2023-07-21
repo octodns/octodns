@@ -41,6 +41,6 @@ zones:
     processors:
     - doesnt-exist
     sources:
-    - in
+    - config
     targets:
     - dump
