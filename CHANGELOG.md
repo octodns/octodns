@@ -1,4 +1,4 @@
-## v1.0.0.rc2 - 2023-??-?? -
+## v1.0.0.rc1 - 2023-07-20 - The last one before the 1s
 
 * Record and Zone validation now ensures there's no whitespace in names
 * OwnershipProcessor managed records always add w/lenient=True, this allows
