@@ -526,6 +526,11 @@ class Manager(object):
             sources = self._get_sources(name, config, eligible_sources)
             self.log.info('sync:   dynamic zone=%s, sources=%s', name, sources)
             for source in sources:
+                if not hasattr(source, 'list_zones'):
+                    raise ManagerException(
+                        f'dynamic zone=%s includes a source that does not support `list_zones`',
+                        name,
+                    )
                 for zone_name in source.list_zones():
                     if zone_name in zones:
                         self.log.info(
