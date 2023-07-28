@@ -961,6 +961,38 @@ class TestManager(TestCase):
             tc = manager.sync(dry_run=False)
             self.assertEqual(26, tc)
 
+    def test_dynamic_config(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+
+            manager = Manager(get_config_filename('dynamic-config.yaml'))
+
+            # just unit.tests. which should have been dynamically configured via
+            # list_zones
+            self.assertEqual(
+                23, manager.sync(eligible_zones=['unit.tests.'], dry_run=False)
+            )
+
+            # just subzone.unit.tests. which was explicitly configured
+            self.assertEqual(
+                3,
+                manager.sync(
+                    eligible_zones=['subzone.unit.tests.'], dry_run=False
+                ),
+            )
+
+            # should sync everything across all zones, total of 32 records
+            self.assertEqual(32, manager.sync(dry_run=False))
+
+    def test_dynamic_config_unsupported_zone(self):
+        manager = Manager(
+            get_config_filename('dynamic-config-no-list-zones.yaml')
+        )
+
+        with self.assertRaises(ManagerException) as ctx:
+            manager.sync()
+        self.assertTrue('does not support `list_zones`' in str(ctx.exception))
+
 
 class TestMainThreadExecutor(TestCase):
     def test_success(self):
