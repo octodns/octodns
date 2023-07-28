@@ -528,8 +528,7 @@ class Manager(object):
             for source in sources:
                 if not hasattr(source, 'list_zones'):
                     raise ManagerException(
-                        f'dynamic zone=%s includes a source that does not support `list_zones`',
-                        name,
+                        f'dynamic zone={name} includes a source that does not support `list_zones`',
                     )
                 for zone_name in source.list_zones():
                     if zone_name in zones:
