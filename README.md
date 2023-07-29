@@ -64,7 +64,45 @@ $ pip install -e git+https://git@github.com/octodns/octodns.git@<SHA>#egg=octodn
 
 ### Config
 
-We start by creating a config file to tell OctoDNS about our providers and the zone(s) we want it to manage. Below we're setting up a `YamlProvider` to source records from our config files and both a `Route53Provider` and `DynProvider` to serve as the targets for those records. You can have any number of zones set up and any number of sources of data and targets for records for each. You can also have multiple config files, that make use of separate accounts and each manage a distinct set of zones. A good example of this this might be `./config/staging.yaml` & `./config/production.yaml`. We'll focus on a `config/production.yaml`.
+We start by creating a config file to tell octoDNS about our providers and the zone(s) we want it to manage. Below we're setting up a `YamlProvider` to source records from our config files and both a `Route53Provider` and `DynProvider` to serve as the targets for those records. You can have any number of zones set up and any number of sources of data and targets for records for each. You can also have multiple config files, that make use of separate accounts and each manage a distinct set of zones. A good example of this this might be `./config/staging.yaml` & `./config/production.yaml`. We'll focus on a `config/production.yaml`.
+
+#### Dynamic Zone Config
+
+octoDNS supports dynamically building the list of zones it will work with when source providers support it. The most common use of this would be with `YamlProvider` and a single dynamic entry to in effect use the files that exist in the provider's directory as the source of truth. Other providers may support the `list_zones` method and be available to populate zones dynamically as well. This can be especially useful when using `octodns-dump` to create an initial setup from an existing provider.
+
+An example config would look something like:
+
+```yaml
+---
+providers:
+  config:
+    class: octodns.provider.yaml.YamlProvider
+    directory: ./config
+    default_ttl: 3600
+    enforce_order: True
+  ns:
+    class: octodns_ns1.Ns1Provider
+    api_key: env/NS1_API_KEY
+  route53:
+    class: octodns_route53.Route53Provider
+    access_key_id: env/AWS_ACCESS_KEY_ID
+    secret_access_key: env/AWS_SECRET_ACCESS_KEY
+
+zones:
+  # This is a dynamic zone config. The source(s), here `config`, will be
+  # queried for a list of zone names and each will dynamically be set up to
+  # match the dynamic entry.
+  '*':
+    sources:
+      - config
+    targets:
+      - ns1
+      - route53
+```
+
+#### Static Zone Config
+
+In cases where finer grained control is desired and the configuration of individual zones varies `zones` can be an explicit list with each configured zone listed along with it's specific setup. As exemplified below `alias` zones can be useful when two zones are exact copies of each other, with the same configuration and records. YAML anchors are also helpful to avoid duplication where zones share config, but not records.
 
 ```yaml
 ---
@@ -78,39 +116,55 @@ providers:
     directory: ./config
     default_ttl: 3600
     enforce_order: True
-  dyn:
-    class: octodns.provider.dyn.DynProvider
-    customer: 1234
-    username: 'username'
-    password: env/DYN_PASSWORD
+  ns:
+    class: octodns_ns1.Ns1Provider
+    api_key: env/NS1_API_KEY
   route53:
     class: octodns_route53.Route53Provider
     access_key_id: env/AWS_ACCESS_KEY_ID
     secret_access_key: env/AWS_SECRET_ACCESS_KEY
 
 zones:
-  example.com.:
+  example.com.: &dual_target
     sources:
       - config
     targets:
-      - dyn
+      - ns1
       - route53
 
+  # these have the same setup as example.com., but will have their own files
+  # in the configuration directory for records.
+  third.tv.: *dual_target
+  fourth.tv.: *dual_target
+
   example.net.:
+    # example.net. is an exact copy of example.com., there will not be an
+    # example.net.yaml file in the config directory as `alias` includes
+    # duplicating the records of the aliased zone along with its config.
     alias: example.com.
+
+  other.com.:
+    lenient: True
+    sources:
+      - config
+    targets:
+      - ns1
+
 ```
 
-`class` is a special key that tells OctoDNS what python class should be loaded. Any other keys will be passed as configuration values to that provider. In general any sensitive or frequently rotated values should come from environmental variables. When OctoDNS sees a value that starts with `env/` it will look for that value in the process's environment and pass the result along.
+#### General Configuration Concepts
+
+`class` is a special key that tells octoDNS what python class should be loaded. Any other keys will be passed as configuration values to that provider. In general any sensitive or frequently rotated values should come from environmental variables. When octoDNS sees a value that starts with `env/` it will look for that value in the process's environment and pass the result along.
 
 Further information can be found in the `docstring` of each source and provider class.
 
-The `include_meta` key in the `manager` section of the config controls the creation of a TXT record at the root of a zone that is managed by OctoDNS. If set to `True`, OctoDNS will create a TXT record for the root of the zone with the value `provider=<target-provider>`. If not specified, the default value for `include_meta` is `False`.
+The `include_meta` key in the `manager` section of the config controls the creation of a TXT record at the root of a zone that is managed by octoDNS. If set to `True`, octoDNS will create a TXT record for the root of the zone with the value `provider=<target-provider>`. If not specified, the default value for `include_meta` is `False`.
 
 The `max_workers` key in the `manager` section of the config enables threading to parallelize the planning portion of the sync.
 
-In this example, `example.net` is an alias of zone `example.com`, which means they share the same sources and targets. They will therefore have identical records.
+#### Quick Example Record
 
-Now that we have something to tell OctoDNS about our providers & zones we need to tell it about our records. We'll keep it simple for now and just create a single `A` record at the top-level of the domain.
+Now that we have something to tell octoDNS about our providers & zones we need to tell it about our records. We'll keep it simple for now and just create a single `A` record at the top-level of the domain.
 
 `config/example.com.yaml`
 
@@ -196,6 +250,15 @@ $ octodns-dump --config-file=config/production.yaml --output-dir=tmp/ example.co
 ```
 
 The above command pulled the existing data out of Route53 and placed the results into `tmp/example.com.yaml`. That file can be inspected and moved into `config/` to become the new source. If things are working as designed a subsequent noop sync should show zero changes.
+
+Note that a [Dynamic Zone Config](#dynamic-zone-config) and be really powerful in combination with `octodns-dump` allowing you to quickly create a set of octoDNS zone files for all the zones configured in your sources.
+
+```console
+$ octodns-dump --config-file=config/production.yaml --output-dir=tmp/ '*' route53
+...
+```
+
+It is important to review any `WARNING` log lines printed out during an `octodns-dump` invocation as it will give you information about records that aren't supported fully or at all by octoDNS and thus won't be exact matches or included in the dumps. Generally records that cannot be converted are either of a type that octoDNS does not support or those that include "dynamic" functionality that doesn't match octoDNS's behaviors.
 
 ## Providers
 
