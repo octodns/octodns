@@ -496,7 +496,7 @@ class Manager(object):
 
         return sources
 
-    def _preprocess_zones(self, zones, eligible_sources=None):
+    def _preprocess_zones(self, zones, eligible_sources=None, sources=None):
         '''
         This may modify the passed in zone object, it should be ignored after
         the call and the zones returned from this function should be used
@@ -508,7 +508,7 @@ class Manager(object):
             # we've found a dynamic config element
 
             # find its sources
-            sources = self._get_sources(name, config, eligible_sources)
+            sources = sources or self._get_sources(name, config, eligible_sources)
             self.log.info('sync:   dynamic zone=%s, sources=%s', name, sources)
             for source in sources:
                 if not hasattr(source, 'list_zones'):
@@ -852,7 +852,7 @@ class Manager(object):
             target = clz('dump', output_dir)
 
         zones = self.config['zones']
-        zones = self._preprocess_zones(zones, [s.id for s in sources])
+        zones = self._preprocess_zones(zones, sources=sources)
 
         if '*' in zone:
             # we want to do everything, just need the names though
