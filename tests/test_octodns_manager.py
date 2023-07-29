@@ -2,7 +2,7 @@
 #
 #
 
-from os import environ
+from os import environ, listdir
 from os.path import dirname, isfile, join
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
@@ -371,11 +371,27 @@ class TestManager(TestCase):
                 )
             self.assertEqual('Unknown source: nope', str(ctx.exception))
 
+            # specific zone
             manager.dump(
                 zone='unit.tests.',
                 output_dir=tmpdir.dirname,
                 split=True,
                 sources=['in'],
+            )
+            self.assertEqual(['unit.tests.'], listdir(tmpdir.dirname))
+
+            # all configured zones
+            manager.dump(
+                zone='*', output_dir=tmpdir.dirname, split=True, sources=['in']
+            )
+            self.assertEqual(
+                [
+                    'empty.',
+                    'sub.txt.unit.tests.',
+                    'subzone.unit.tests.',
+                    'unit.tests.',
+                ],
+                sorted(listdir(tmpdir.dirname)),
             )
 
             # make sure this fails with an ManagerException and not a KeyError

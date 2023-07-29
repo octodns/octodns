@@ -851,14 +851,25 @@ class Manager(object):
                 clz = SplitYamlProvider
             target = clz('dump', output_dir)
 
-        zone = self.get_zone(zone)
-        for source in sources:
-            source.populate(zone, lenient=lenient)
+        zones = self.config['zones']
+        zones = self._preprocess_zones(zones, [s.id for s in sources])
 
-        plan = target.plan(zone)
-        if plan is None:
-            plan = Plan(zone, zone, [], False)
-        target.apply(plan)
+        if '*' in zone:
+            # we want to do everything, just need the names though
+            zones = zones.keys()
+        else:
+            # we want to do a specific zone
+            zones = [zone]
+
+        for zone in zones:
+            zone = self.get_zone(zone)
+            for source in sources:
+                source.populate(zone, lenient=lenient)
+
+            plan = target.plan(zone)
+            if plan is None:
+                plan = Plan(zone, zone, [], False)
+            target.apply(plan)
 
     def validate_configs(self):
         # TODO: this code can probably be shared with stuff in sync
