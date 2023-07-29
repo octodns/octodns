@@ -496,27 +496,12 @@ class Manager(object):
 
         return sources
 
-    def sync(
-        self,
-        eligible_zones=[],
-        eligible_sources=[],
-        eligible_targets=[],
-        dry_run=True,
-        force=False,
-        plan_output_fh=stdout,
-    ):
-        self.log.info(
-            'sync: eligible_zones=%s, eligible_targets=%s, dry_run=%s, '
-            'force=%s, plan_output_fh=%s',
-            eligible_zones,
-            eligible_targets,
-            dry_run,
-            force,
-            getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__),
-        )
-
-        zones = self.config['zones']
-
+    def _preprocess_zones(self, zones, eligible_sources):
+        '''
+        This may modify the passed in zone object, it should be ignored after
+        the call and the zones returned from this function should be used
+        instead.
+        '''
         for name, config in list(zones.items()):
             if not name.startswith('*'):
                 continue
@@ -544,6 +529,31 @@ class Manager(object):
 
             # remove the dynamic config element so we don't try and populate it
             del zones[name]
+
+        return zones
+
+    def sync(
+        self,
+        eligible_zones=[],
+        eligible_sources=[],
+        eligible_targets=[],
+        dry_run=True,
+        force=False,
+        plan_output_fh=stdout,
+    ):
+        self.log.info(
+            'sync: eligible_zones=%s, eligible_targets=%s, dry_run=%s, '
+            'force=%s, plan_output_fh=%s',
+            eligible_zones,
+            eligible_targets,
+            dry_run,
+            force,
+            getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__),
+        )
+
+        zones = self.config['zones']
+
+        zones = self._preprocess_zones(zones, eligible_sources)
 
         if eligible_zones:
             zones = IdnaDict({n: zones.get(n) for n in eligible_zones})
