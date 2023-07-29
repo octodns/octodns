@@ -10,12 +10,43 @@ from yaml.representer import SafeRepresenter
 _natsort_key = natsort_keygen()
 
 
-# Found http://stackoverflow.com/a/21912744 which guided me on how to hook in
-# here
-class SortEnforcingLoader(SafeLoader):
+# TODO: where should this live
+class ContextDict(dict):
+    # can't assign attributes to plain dict objects and it breaks lots of stuff
+    # if we put the context into the dict data itself
+
+    def __init__(self, *args, context=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.context = context
+
+
+class ContextLoader(SafeLoader):
     def _construct(self, node):
         self.flatten_mapping(node)
         ret = self.construct_pairs(node)
+
+        start_mark = node.start_mark
+        context = f'{start_mark.name}, line {start_mark.line+1}, column {start_mark.column+1}'
+        return ContextDict(ret, context=context)
+
+
+ContextLoader.add_constructor(
+    ContextLoader.DEFAULT_MAPPING_TAG, ContextLoader._construct
+)
+
+
+# Found http://stackoverflow.com/a/21912744 which guided me on how to hook in
+# here
+class SortEnforcingLoader(SafeLoader):
+    # TODO: inheritance
+
+    def _construct(self, node):
+        self.flatten_mapping(node)
+        ret = self.construct_pairs(node)
+
+        start_mark = node.start_mark
+        context = f'{start_mark.name}, line {start_mark.line+1}, column {start_mark.column+1}'
+
         keys = [d[0] for d in ret]
         keys_sorted = sorted(keys, key=_natsort_key)
         for key in keys:
@@ -25,9 +56,10 @@ class SortEnforcingLoader(SafeLoader):
                     None,
                     None,
                     'keys out of order: '
-                    f'expected {expected} got {key} at ' + str(node.start_mark),
+                    f'expected {expected} got {key} at {context}',
                 )
-        return dict(ret)
+
+        return ContextDict(ret, context=context)
 
 
 SortEnforcingLoader.add_constructor(
@@ -36,7 +68,7 @@ SortEnforcingLoader.add_constructor(
 
 
 def safe_load(stream, enforce_order=True):
-    return load(stream, SortEnforcingLoader if enforce_order else SafeLoader)
+    return load(stream, SortEnforcingLoader if enforce_order else ContextLoader)
 
 
 class SortingDumper(SafeDumper):
