@@ -104,7 +104,9 @@ class TestManager(TestCase):
         with self.assertRaises(ManagerException) as ctx:
             name = 'bad-plan-output-missing-class.yaml'
             Manager(get_config_filename(name)).sync()
-        self.assertTrue('plan_output bad is missing class' in str(ctx.exception))
+        self.assertTrue(
+            'plan_output bad is missing class' in str(ctx.exception)
+        )
 
     def test_bad_plan_output_config(self):
         with self.assertRaises(ManagerException) as ctx:

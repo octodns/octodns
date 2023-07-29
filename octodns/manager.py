@@ -254,15 +254,14 @@ class Manager(object):
     def _config_plan_outputs(self, plan_outputs_config):
         plan_outputs = {}
         for plan_output_name, plan_output_config in plan_outputs_config.items():
-            context = getattr(plan_output_config, 'context', None)
+            context = getattr(plan_output_config, 'context', '')
             try:
                 _class = plan_output_config.pop('class')
             except KeyError:
                 self.log.exception('Invalid plan_output class')
-                msg = f'plan_output {plan_output_name} is missing class'
-                if context:
-                    msg += f', {context}'
-                raise ManagerException(msg)
+                raise ManagerException(
+                    f'plan_output {plan_output_name} is missing class, {context}'
+                )
             _class, module, version = self._get_named_class(
                 'plan_output', _class, context
             )
@@ -281,10 +280,9 @@ class Manager(object):
                     )
             except TypeError:
                 self.log.exception('Invalid plan_output config')
-                msg = f'Incorrect plan_output config for {plan_output_name}'
-                if context:
-                    msg += f', {plan_output_config.context}'
-                raise ManagerException(msg)
+                raise ManagerException(
+                    f'Incorrect plan_output config for {plan_output_name}, {context}'
+                )
 
         return plan_outputs
 
@@ -324,10 +322,9 @@ class Manager(object):
             self.log.exception(
                 '_get_{}_class: Unable to import module %s', _class
             )
-            msg = f'Unknown {_type} class: {_class}'
-            if context:
-                msg += f', {context}'
-            raise ManagerException(msg)
+            raise ManagerException(
+                f'Unknown {_type} class: {_class}, {context}'
+            )
 
         try:
             return getattr(module, class_name), module_name, version
@@ -344,7 +341,6 @@ class Manager(object):
     def _build_kwargs(self, source):
         # Build up the arguments we need to pass to the provider
         kwargs = {}
-        context = getattr(source, 'context', None)
         for k, v in source.items():
             try:
                 if v.startswith('env/'):
@@ -353,10 +349,9 @@ class Manager(object):
                         v = environ[env_var]
                     except KeyError:
                         self.log.exception('Invalid provider config')
-                        msg = f'Incorrect provider config, missing env var {env_var}'
-                        if context:
-                            msg += f', {context}'
-                        raise ManagerException(msg)
+                        raise ManagerException(
+                            f'Incorrect provider config, missing env var {env_var}, {source.context}'
+                        )
             except AttributeError:
                 pass
             kwargs[k] = v
