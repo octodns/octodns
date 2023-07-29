@@ -21,13 +21,15 @@ class ContextDict(dict):
 
 
 class ContextLoader(SafeLoader):
-    def _construct(self, node):
+    def _pairs(self, node):
         self.flatten_mapping(node)
-        ret = self.construct_pairs(node)
-
+        pairs = self.construct_pairs(node)
         start_mark = node.start_mark
         context = f'{start_mark.name}, line {start_mark.line+1}, column {start_mark.column+1}'
-        return ContextDict(ret, context=context)
+        return ContextDict(pairs, context=context), pairs, context
+
+    def _construct(self, node):
+        return self._pairs(node)[0]
 
 
 ContextLoader.add_constructor(
@@ -37,17 +39,11 @@ ContextLoader.add_constructor(
 
 # Found http://stackoverflow.com/a/21912744 which guided me on how to hook in
 # here
-class SortEnforcingLoader(SafeLoader):
-    # TODO: inheritance
-
+class SortEnforcingLoader(ContextLoader):
     def _construct(self, node):
-        self.flatten_mapping(node)
-        ret = self.construct_pairs(node)
+        ret, pairs, context = self._pairs(node)
 
-        start_mark = node.start_mark
-        context = f'{start_mark.name}, line {start_mark.line+1}, column {start_mark.column+1}'
-
-        keys = [d[0] for d in ret]
+        keys = [d[0] for d in pairs]
         keys_sorted = sorted(keys, key=_natsort_key)
         for key in keys:
             expected = keys_sorted.pop(0)
@@ -59,7 +55,7 @@ class SortEnforcingLoader(SafeLoader):
                     f'expected {expected} got {key} at {context}',
                 )
 
-        return ContextDict(ret, context=context)
+        return ret
 
 
 SortEnforcingLoader.add_constructor(
