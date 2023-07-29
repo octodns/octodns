@@ -1,11 +1,11 @@
-<img src="https://raw.githubusercontent.com/octodns/octodns/main/docs/logos/octodns-logo.png?" alt="OctoDNS Logo" height=251 width=404>
+<img src="https://raw.githubusercontent.com/octodns/octodns/main/docs/logos/octodns-logo.png?" alt="octoDNS Logo" height=251 width=404>
 
 ## DNS as code - Tools for managing DNS across multiple providers
 
 In the vein of [infrastructure as
-code](https://en.wikipedia.org/wiki/Infrastructure_as_Code) OctoDNS provides a set of tools & patterns that make it easy to manage your DNS records across multiple providers. The resulting config can live in a repository and be [deployed](https://github.com/blog/1241-deploying-at-github) just like the rest of your code, maintaining a clear history and using your existing review & workflow.
+code](https://en.wikipedia.org/wiki/Infrastructure_as_Code) octoDNS provides a set of tools & patterns that make it easy to manage your DNS records across multiple providers. The resulting config can live in a repository and be [deployed](https://github.com/blog/1241-deploying-at-github) just like the rest of your code, maintaining a clear history and using your existing review & workflow.
 
-The architecture is pluggable and the tooling is flexible to make it applicable to a wide variety of use-cases. Effort has been made to make adding new providers as easy as possible. In the simple case that involves writing of a single `class` and a couple hundred lines of code, most of which is translating between the provider's schema and OctoDNS's. More on some of the ways we use it and how to go about extending it below and in the [/docs directory](/docs).
+The architecture is pluggable and the tooling is flexible to make it applicable to a wide variety of use-cases. Effort has been made to make adding new providers as easy as possible. In the simple case that involves writing of a single `class` and a couple hundred lines of code, most of which is translating between the provider's schema and octoDNS's. More on some of the ways we use it and how to go about extending it below and in the [/docs directory](/docs).
 
 ## Table of Contents
 
@@ -41,9 +41,9 @@ The architecture is pluggable and the tooling is flexible to make it applicable 
 
 ### Workspace
 
-Running through the following commands will install the latest release of OctoDNS and set up a place for your config files to live. To determine if provider specific requirements are necessary see the [providers table](#providers) below.
+Running through the following commands will install the latest release of octoDNS and set up a place for your config files to live. To determine if provider specific requirements are necessary see the [providers table](#providers) below.
 
-```shell
+```console
 $ mkdir dns
 $ cd dns
 $ python -m venv env
@@ -58,7 +58,7 @@ $ mkdir config
 
 If you'd like to install a version that has not yet been released in a repetable/safe manner you can do the following. In general octoDNS is fairly stable in between releases thanks to the plan and apply process, but care should be taken regardless.
 
-```shell
+```console
 $ pip install -e git+https://git@github.com/octodns/octodns.git@<SHA>#egg=octodns
 ```
 
@@ -69,7 +69,7 @@ We start by creating a config file to tell OctoDNS about our providers and the z
 ```yaml
 ---
 manager:
-  include_meta: False
+  include_meta: True
   max_workers: 2
 
 providers:
@@ -130,7 +130,7 @@ Further information can be found in [Records Documentation](/docs/records.md).
 
 We're ready to do a dry-run with our new setup to see what changes it would make. Since we're pretending here we'll act like there are no existing records for `example.com.` in our accounts on either provider.
 
-```shell
+```console
 $ octodns-sync --config-file=./config/production.yaml
 ...
 ********************************************************************************
@@ -146,15 +146,15 @@ $ octodns-sync --config-file=./config/production.yaml
 ...
 ```
 
-There will be other logging information presented on the screen, but successful runs of sync will always end with a summary like the above for any providers & zones with changes. If there are no changes a message saying so will be printed instead. Above we're creating a new zone in both providers so they show the same change, but that doesn't always have to be the case. If to start one of them had a different state you would see the changes OctoDNS intends to make to sync them up.
+There will be other logging information presented on the screen, but successful runs of sync will always end with a summary like the above for any providers & zones with changes. If there are no changes a message saying so will be printed instead. Above we're creating a new zone in both providers so they show the same change, but that doesn't always have to be the case. If to start one of them had a different state you would see the changes octoDNS intends to make to sync them up.
 
 ### Making changes
 
-**WARNING**: OctoDNS assumes ownership of any domain you point it to. When you tell it to act it will do whatever is necessary to try and match up states including deleting any unexpected records. Be careful when playing around with OctoDNS. It's best to experiment with a fake zone or one without any data that matters until you're comfortable with the system.
+**WARNING**: octoDNS assumes ownership of any domain you point it to. When you tell it to act it will do whatever is necessary to try and match up states including deleting any unexpected records. Be careful when playing around with octoDNS. It's best to experiment with a fake zone or one without any data that matters until you're comfortable with the system.
 
-Now it's time to tell OctoDNS to make things happen. We'll invoke it again with the same options and add a `--doit` on the end to tell it this time we actually want it to try and make the specified changes.
+Now it's time to tell octoDNS to make things happen. We'll invoke it again with the same options and add a `--doit` on the end to tell it this time we actually want it to try and make the specified changes.
 
-```shell
+```console
 $ octodns-sync --config-file=./config/production.yaml --doit
 ...
 ```
@@ -163,13 +163,13 @@ The output here would be the same as before with a few more log lines at the end
 
 ### Workflow
 
-In the above case we manually ran OctoDNS from the command line. That works and it's better than heading into the provider GUIs and making changes by clicking around, but OctoDNS is designed to be run as part of a deploy process. The implementation details are well beyond the scope of this README, but here is an example of the workflow we use at GitHub. It follows the way [GitHub itself is branch deployed](https://githubengineering.com/deploying-branches-to-github-com/).
+In the above case we manually ran octoDNS from the command line. That works and it's better than heading into the provider GUIs and making changes by clicking around, but octoDNS is designed to be run as part of a deploy process. The implementation details are well beyond the scope of this README, but here is an example of the workflow we use at GitHub. It follows the way [GitHub itself is branch deployed](https://githubengineering.com/deploying-branches-to-github-com/).
 
 The first step is to create a PR with your changes.
 
 ![GitHub user interface of a pull request](/docs/assets/pr.png)
 
-Assuming the code tests and config validation statuses are green the next step is to do a noop deploy and verify that the changes OctoDNS plans to make are the ones you expect.
+Assuming the code tests and config validation statuses are green the next step is to do a noop deploy and verify that the changes octoDNS plans to make are the ones you expect.
 
 ![Output of a noop deployment command](/docs/assets/noop.png)
 
@@ -185,7 +185,7 @@ If that goes smoothly, you again see the expected changes, and verify them with 
 
 Very few situations will involve starting with a blank slate which is why there's tooling built in to pull existing data out of providers into a matching config file.
 
-```shell
+```console
 $ octodns-dump --config-file=config/production.yaml --output-dir=tmp/ example.com. route53
 2017-03-15T13:33:34  INFO  Manager __init__: config_file=tmp/production.yaml
 2017-03-15T13:33:34  INFO  Manager dump: zone=example.com., sources=('route53',)
@@ -290,9 +290,9 @@ providers:
 
 You can check out the [source](/octodns/source/) and [provider](/octodns/provider/) directory to see what's currently supported. Sources act as a source of record information. AxfrSource and TinyDnsFileSource are currently the only OSS sources, though we have several others internally that are specific to our environment. These include something to pull host data from  [gPanel](https://githubengineering.com/githubs-metal-cloud/) and a similar provider that sources information about our network gear to create both `A` & `PTR` records for their interfaces. Things that might make good OSS sources might include an `ElbSource` that pulls information about [AWS Elastic Load Balancers](https://aws.amazon.com/elasticloadbalancing/) and dynamically creates `CNAME`s for them, or `Ec2Source` that pulls instance information so that records can be created for hosts similar to how our `GPanelProvider` works.
 
-Most of the things included in OctoDNS are providers, the obvious difference being that they can serve as both sources and targets of data. We'd really like to see this list grow over time so if you use an unsupported provider then PRs are welcome. The existing providers should serve as reasonable examples. Those that have no GeoDNS support are relatively straightforward. Unfortunately most of the APIs involved to do GeoDNS style traffic management are complex and somewhat inconsistent so adding support for that function would be nice, but is optional and best done in a separate pass.
+Most of the things included in octoDNS are providers, the obvious difference being that they can serve as both sources and targets of data. We'd really like to see this list grow over time so if you use an unsupported provider then PRs are welcome. The existing providers should serve as reasonable examples. Those that have no GeoDNS support are relatively straightforward. Unfortunately most of the APIs involved to do GeoDNS style traffic management are complex and somewhat inconsistent so adding support for that function would be nice, but is optional and best done in a separate pass.
 
-The `class` key in the providers config section can be used to point to arbitrary classes in the python path so internal or 3rd party providers can easily be included with no coordination beyond getting them into PYTHONPATH, most likely installed into the virtualenv with OctoDNS.
+The `class` key in the providers config section can be used to point to arbitrary classes in the python path so internal or 3rd party providers can easily be included with no coordination beyond getting them into PYTHONPATH, most likely installed into the virtualenv with octoDNS.
 
 For examples of building third-party sources and providers, see [Related Projects & Resources](#related-projects-and-resources).
 
@@ -300,7 +300,7 @@ For examples of building third-party sources and providers, see [Related Project
 
 ### Syncing between providers
 
-While the primary use-case is to sync a set of yaml config files up to one or more DNS providers, OctoDNS has been built in such a way that you can easily source and target things arbitrarily. As a quick example the config below would sync `githubtest.net.` from Route53 to Dyn.
+While the primary use-case is to sync a set of yaml config files up to one or more DNS providers, octoDNS has been built in such a way that you can easily source and target things arbitrarily. As a quick example the config below would sync `githubtest.net.` from Route53 to Dyn.
 
 ```yaml
 ---
@@ -359,7 +359,7 @@ If you have a problem or suggestion, please [open an issue](https://github.com/o
 
 ## Related Projects and Resources
 
-- **GitHub Action:** [OctoDNS-Sync](https://github.com/marketplace/actions/octodns-sync)
+- **GitHub Action:** [octoDNS-Sync](https://github.com/marketplace/actions/octodns-sync)
 - **Sample Implementations.** See how others are using it
   - [`hackclub/dns`](https://github.com/hackclub/dns)
   - [`kubernetes/k8s.io:/dns`](https://github.com/kubernetes/k8s.io/tree/main/dns)
@@ -372,19 +372,19 @@ If you have a problem or suggestion, please [open an issue](https://github.com/o
   - [`sukiyaki/octodns-netbox`](https://github.com/sukiyaki/octodns-netbox): [NetBox](https://github.com/netbox-community/netbox) source.
   - [`jcollie/octodns-netbox-dns`](https://github.com/jcollie/octodns-netbox-dns): [NetBox-DNS Plugin](https://github.com/auroraresearchlab/netbox-dns) provider.
   - [`kompetenzbolzen/octodns-custom-provider`](https://github.com/kompetenzbolzen/octodns-custom-provider): zonefile provider & phpIPAM source.
-  - [`Financial-Times/octodns-fastly`](https://github.com/Financial-Times/octodns-fastly): An OctoDNS source for Fastly.
+  - [`Financial-Times/octodns-fastly`](https://github.com/Financial-Times/octodns-fastly): An octoDNS source for Fastly.
 - **Resources.**
   - Article: [Visualising DNS records with Neo4j](https://medium.com/@costask/querying-and-visualising-octodns-records-with-neo4j-f4f72ab2d474) + code
   - Video: [FOSDEM 2019 - DNS as code with octodns](https://archive.fosdem.org/2019/schedule/event/dns_octodns/)
-  - GitHub Blog: [Enabling DNS split authority with OctoDNS](https://github.blog/2017-04-27-enabling-split-authority-dns-with-octodns/)
-  - Tutorial: [How To Deploy and Manage Your DNS using OctoDNS on Ubuntu 18.04](https://www.digitalocean.com/community/tutorials/how-to-deploy-and-manage-your-dns-using-octodns-on-ubuntu-18-04)
+  - GitHub Blog: [Enabling DNS split authority with octoDNS](https://github.blog/2017-04-27-enabling-split-authority-dns-with-octodns/)
+  - Tutorial: [How To Deploy and Manage Your DNS using octoDNS on Ubuntu 18.04](https://www.digitalocean.com/community/tutorials/how-to-deploy-and-manage-your-dns-using-octodns-on-ubuntu-18-04)
   - Cloudflare Blog: [Improving the Resiliency of Our Infrastructure DNS Zone](https://blog.cloudflare.com/improving-the-resiliency-of-our-infrastructure-dns-zone/)
 
 If you know of any other resources, please do let us know!
 
 ## License
 
-OctoDNS is licensed under the [MIT license](LICENSE).
+octoDNS is licensed under the [MIT license](LICENSE).
 
 The MIT license grant is not for GitHub's trademarks, which include the logo designs. GitHub reserves all trademark and copyright rights in and to all GitHub trademarks. GitHub's logos include, for instance, the stylized designs that include "logo" in the file title in the following folder: https://github.com/octodns/octodns/tree/main/docs/logos/
 
@@ -392,4 +392,4 @@ GitHub® and its stylized versions and the Invertocat mark are GitHub's Trademar
 
 ## Authors
 
-OctoDNS was designed and authored by [Ross McFarland](https://github.com/ross) and [Joe Williams](https://github.com/joewilliams). See https://github.com/octodns/octodns/graphs/contributors for a complete list of people who've contributed.
+octoDNS was designed and authored by [Ross McFarland](https://github.com/ross) and [Joe Williams](https://github.com/joewilliams). See https://github.com/octodns/octodns/graphs/contributors for a complete list of people who've contributed.

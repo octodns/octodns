@@ -1,8 +1,8 @@
-# OctoDNS records
+# octoDNS records
 
 ## Record types
 
-OctoDNS supports the following record types:
+octoDNS supports the following record types:
 
 * `A`
 * `AAAA`
@@ -22,9 +22,9 @@ OctoDNS supports the following record types:
 * `TXT`
 * `URLFWD`
 
-Underlying provider support for each of these varies and some providers have extra requirements or limitations. In cases where a record type is not supported by a provider OctoDNS will ignore it there and continue to manage the record elsewhere. For example `SSHFP` is supported by Dyn, but not Route53. If your source data includes an SSHFP record OctoDNS will keep it in sync on Dyn, but not consider it when evaluating the state of Route53. The best way to find out what types are supported by a provider is to look for its `supports` method. If that method exists the logic will drive which records are supported and which are ignored. If the provider does not implement the method it will fall back to `BaseProvider.supports` which indicates full support.
+Underlying provider support for each of these varies and some providers have extra requirements or limitations. In cases where a record type is not supported by a provider octoDNS will ignore it there and continue to manage the record elsewhere. For example `SSHFP` is supported by Dyn, but not Route53. If your source data includes an SSHFP record octoDNS will keep it in sync on Dyn, but not consider it when evaluating the state of Route53. The best way to find out what types are supported by a provider is to look for its `supports` method. If that method exists the logic will drive which records are supported and which are ignored. If the provider does not implement the method it will fall back to `BaseProvider.supports` which indicates full support.
 
-Adding new record types to OctoDNS is relatively straightforward, but will require careful evaluation of each provider to determine whether or not it will be supported and the addition of code in each to handle and test the new type.
+Adding new record types to octoDNS is relatively straightforward, but will require careful evaluation of each provider to determine whether or not it will be supported and the addition of code in each to handle and test the new type.
 
 ## Advanced Record Support (GeoDNS, Weighting)
 
@@ -33,7 +33,7 @@ Adding new record types to OctoDNS is relatively straightforward, but will requi
 
 ## Config (`YamlProvider`)
 
-OctoDNS records and `YamlProvider`'s schema is essentially a 1:1 match. Properties on the objects will match keys in the config.
+octoDNS records and `YamlProvider`'s schema is essentially a 1:1 match. Properties on the objects will match keys in the config.
 
 ### Names
 
@@ -125,7 +125,7 @@ If you'd like to enable lenience for a whole zone you can do so with the followi
 
 #### Restrict Record manipulations
 
-OctoDNS currently provides the ability to limit the number of updates/deletes on
+octoDNS currently provides the ability to limit the number of updates/deletes on
 DNS records by configuring a percentage of allowed operations as a threshold.
 If left unconfigured, suitable defaults take over instead. In the below example,
 the Dyn provider is configured with limits of 40% on both update and

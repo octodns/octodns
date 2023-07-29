@@ -1,6 +1,6 @@
 # Contributing
 
-Hi there! We're thrilled that you'd like to contribute to OctoDNS. Your help is essential for keeping it great.
+Hi there! We're thrilled that you'd like to contribute to octoDNS. Your help is essential for keeping it great.
 
 Please note that this project adheres to the [Contributor Covenant Code of Conduct](/CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
 
