@@ -496,7 +496,7 @@ class Manager(object):
 
         return sources
 
-    def _preprocess_zones(self, zones, eligible_sources):
+    def _preprocess_zones(self, zones, eligible_sources=None):
         '''
         This may modify the passed in zone object, it should be ignored after
         the call and the zones returned from this function should be used
@@ -873,7 +873,11 @@ class Manager(object):
 
     def validate_configs(self):
         # TODO: this code can probably be shared with stuff in sync
-        for zone_name, config in self.config['zones'].items():
+
+        zones = self.config['zones']
+        zones = self._preprocess_zones(zones)
+
+        for zone_name, config in zones.items():
             decoded_zone_name = idna_decode(zone_name)
             zone = self.get_zone(zone_name)
 
