@@ -7,17 +7,9 @@ from yaml import SafeDumper, SafeLoader, dump, load
 from yaml.constructor import ConstructorError
 from yaml.representer import SafeRepresenter
 
+from .context import ContextDict
+
 _natsort_key = natsort_keygen()
-
-
-# TODO: where should this live
-class ContextDict(dict):
-    # can't assign attributes to plain dict objects and it breaks lots of stuff
-    # if we put the context into the dict data itself
-
-    def __init__(self, *args, context=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.context = context
 
 
 class ContextLoader(SafeLoader):
