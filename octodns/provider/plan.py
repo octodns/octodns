@@ -79,7 +79,6 @@ class Plan(object):
         )
 
     def raise_if_unsafe(self):
-        # TODO: what is safe really?
         if (
             self.existing
             and len(self.existing.records) >= self.MIN_EXISTING_RECORDS
