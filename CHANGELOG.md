@@ -1,5 +1,9 @@
 ## v1.0.0 - 2023-??-?? - The One
 
+#### Noteworthy changes
+
+* `geo` records are deprecated.
+
 #### Stuff
 
 * Removal of a Python 3.7 specific import work-around now that it's no longer an
