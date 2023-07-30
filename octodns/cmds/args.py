@@ -101,7 +101,3 @@ class ArgumentParser(_Base):
             # we still want plans to come out during quite so set the plan
             # logger output to info in case the PlanLogger is being used
             getLogger('Plan').setLevel(INFO)
-
-        # TODO: these should move out of octoDNS core...
-        # boto is noisy, set it to warn
-        getLogger('botocore').level = WARNING
