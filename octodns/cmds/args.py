@@ -105,5 +105,3 @@ class ArgumentParser(_Base):
         # TODO: these should move out of octoDNS core...
         # boto is noisy, set it to warn
         getLogger('botocore').level = WARNING
-        # DynectSession is noisy too
-        getLogger('DynectSession').level = WARNING
