@@ -125,7 +125,7 @@ class TestZone(TestCase):
         # add a record, delete a record -> [Delete, Create]
         c = ARecord(before, 'c', {'ttl': 42, 'value': '1.1.1.1'})
         after.add_record(c)
-        after._remove_record(b)
+        after.remove_record(b)
         self.assertEqual(after.records, set([a, c]))
         changes = before.changes(after, target)
         self.assertEqual(2, len(changes))
@@ -153,6 +153,14 @@ class TestZone(TestCase):
         self.assertFalse(a.changes(update.existing, target))
         self.assertFalse(changed.changes(update.new, target))
         update.__repr__()
+
+    def test_deprecated__remove_record(self):
+        zone = Zone('unit.tests.', [])
+        a = ARecord(zone, 'a', {'ttl': 42, 'value': '1.1.1.1'})
+        zone.add_record(a)
+        self.assertEqual({a}, zone.records)
+        zone._remove_record(a)
+        self.assertEqual(set(), zone.records)
 
     def test_unsupporting(self):
         class NoAaaaProvider(object):
