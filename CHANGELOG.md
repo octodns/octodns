@@ -1,3 +1,19 @@
+## v1.0.0 - 2023-07-30 - The One
+
+1.0 marks a point at which we can formally deprecate things that will be
+going away with 2.0 more than specific functionality that has been added or
+having reached a notable level of stability (beyond what is normal.) It is also
+long (years) overdue.
+
+#### Noteworthy changes
+
+* `geo` records are deprecated.
+
+#### Stuff
+
+* Removal of a Python 3.7 specific import work-around now that it's no longer an
+  active/supported version. Also bumps required minimum version of Python 3.8
+
 ## v1.0.0.rc1 - 2023-07-20 - The last one before the 1s
 
 * Record and Zone validation now ensures there's no whitespace in names

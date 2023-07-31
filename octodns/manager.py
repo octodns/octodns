@@ -5,6 +5,8 @@
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as module_version
 from logging import getLogger
 from os import environ
 from sys import stdout
@@ -18,18 +20,6 @@ from .provider.yaml import SplitYamlProvider, YamlProvider
 from .record import Record
 from .yaml import safe_load
 from .zone import Zone
-
-# TODO: this can go away once we no longer support python 3.7
-try:  # pragma: no cover
-    from importlib.metadata import PackageNotFoundError
-    from importlib.metadata import version as module_version
-except ModuleNotFoundError:  # pragma: no cover
-
-    class PackageNotFoundError(Exception):
-        pass
-
-    def module_version(*args, **kargs):
-        raise PackageNotFoundError('placeholder')
 
 
 class _AggregateTarget(object):
