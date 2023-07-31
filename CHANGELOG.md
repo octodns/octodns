@@ -1,4 +1,9 @@
-## v1.0.0 - 2023-??-?? - The One
+## v1.0.0 - 2023-07-30 - The One
+
+1.0 marks a point at which we can formally deprecate things that will be
+going away with 2.0 more than specific functionality that has been added or
+having reached a notable level of stability (beyond what is normal.) It is also
+long (years) overdue.
 
 #### Noteworthy changes
 
