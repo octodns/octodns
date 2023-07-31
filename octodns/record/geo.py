@@ -141,6 +141,9 @@ class _GeoMixin(ValuesMixin):
         reasons = super().validate(name, fqdn, data)
         try:
             geo = dict(data['geo'])
+            cls.log.warning(
+                'NOTICE: `geo` record support is deprecated and should be migrated to `dynamic` records'
+            )
             for code, values in geo.items():
                 reasons.extend(GeoValue._validate_geo(code))
                 reasons.extend(cls._value_type.validate(values, cls._type))

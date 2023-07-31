@@ -139,32 +139,31 @@ class TestYamlProvider(TestCase):
             with open(dynamic_yaml_file) as fh:
                 data = safe_load(fh.read())
 
-                # make sure new dynamic records made the trip
+                # make sure dynamic records made the trip
                 dyna = data.pop('a')
                 self.assertTrue('values' in dyna)
-                # self.assertTrue('dynamic' in dyna)
-                # TODO:
+                self.assertTrue('dynamic' in dyna)
 
-                # make sure new dynamic records made the trip
+                # make sure dynamic records made the trip
                 dyna = data.pop('aaaa')
                 self.assertTrue('values' in dyna)
-                # self.assertTrue('dynamic' in dyna)
+                self.assertTrue('dynamic' in dyna)
 
                 dyna = data.pop('cname')
                 self.assertTrue('value' in dyna)
-                # self.assertTrue('dynamic' in dyna)
+                self.assertTrue('dynamic' in dyna)
 
                 dyna = data.pop('real-ish-a')
                 self.assertTrue('values' in dyna)
-                # self.assertTrue('dynamic' in dyna)
+                self.assertTrue('dynamic' in dyna)
 
                 dyna = data.pop('simple-weighted')
                 self.assertTrue('value' in dyna)
-                # self.assertTrue('dynamic' in dyna)
+                self.assertTrue('dynamic' in dyna)
 
                 dyna = data.pop('pool-only-in-fallback')
                 self.assertTrue('value' in dyna)
-                # self.assertTrue('dynamic' in dyna)
+                self.assertTrue('dynamic' in dyna)
 
                 # make sure nothing is left
                 self.assertEqual([], list(data.keys()))

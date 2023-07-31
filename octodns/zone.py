@@ -161,8 +161,12 @@ class Zone(object):
 
         self._records[record.name].discard(record)
 
-    # TODO: delete this
-    _remove_record = remove_record
+    # TODO: delete this at v2.0.0rc0
+    def _remove_record(self, record):
+        self.log.warning(
+            '_remove_record: method has been deprecated, used remove_record instead'
+        )
+        return self.remove_record(record)
 
     def changes(self, desired, target):
         self.log.debug('changes: zone=%s, target=%s', self, target)
