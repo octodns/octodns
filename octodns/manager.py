@@ -807,7 +807,7 @@ class Manager(object):
             plan = Plan(zone, zone, [], False)
         target.apply(plan)
 
-    def validate_configs(self):
+    def validate_configs(self, lenient=False):
         # TODO: this code can probably be shared with stuff in sync
         for zone_name, config in self.config['zones'].items():
             decoded_zone_name = idna_decode(zone_name)
@@ -836,7 +836,6 @@ class Manager(object):
                 source_zone = source_zone
                 continue
 
-            lenient = config.get('lenient', False)
             try:
                 sources = config['sources']
             except KeyError:
@@ -857,6 +856,7 @@ class Manager(object):
                     f'Zone {decoded_zone_name}, unknown source: ' + source
                 )
 
+            lenient = lenient or config.get('lenient', False)
             for source in sources:
                 if isinstance(source, YamlProvider):
                     source.populate(zone, lenient=lenient)
