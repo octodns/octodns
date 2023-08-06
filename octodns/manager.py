@@ -190,9 +190,11 @@ class Manager(object):
             except KeyError:
                 self.log.exception('Invalid provider class')
                 raise ManagerException(
-                    f'Provider {provider_name} is missing class'
+                    f'Provider {provider_name} is missing class, {provider_config.context}'
                 )
-            _class, module, version = self._get_named_class('provider', _class)
+            _class, module, version = self._get_named_class(
+                'provider', _class, provider_config.context
+            )
             kwargs = self._build_kwargs(provider_config)
             try:
                 providers[provider_name] = _class(provider_name, **kwargs)
@@ -205,7 +207,7 @@ class Manager(object):
             except TypeError:
                 self.log.exception('Invalid provider config')
                 raise ManagerException(
-                    'Incorrect provider config for ' + provider_name
+                    f'Incorrect provider config for {provider_name}, {provider_config.context}'
                 )
 
         return providers
@@ -218,9 +220,11 @@ class Manager(object):
             except KeyError:
                 self.log.exception('Invalid processor class')
                 raise ManagerException(
-                    f'Processor {processor_name} is missing class'
+                    f'Processor {processor_name} is missing class, {processor_config.context}'
                 )
-            _class, module, version = self._get_named_class('processor', _class)
+            _class, module, version = self._get_named_class(
+                'processor', _class, processor_config.context
+            )
             kwargs = self._build_kwargs(processor_config)
             try:
                 processors[processor_name] = _class(processor_name, **kwargs)
@@ -233,22 +237,23 @@ class Manager(object):
             except TypeError:
                 self.log.exception('Invalid processor config')
                 raise ManagerException(
-                    'Incorrect processor config for ' + processor_name
+                    f'Incorrect processor config for {processor_name}, {processor_config.context}'
                 )
         return processors
 
     def _config_plan_outputs(self, plan_outputs_config):
         plan_outputs = {}
         for plan_output_name, plan_output_config in plan_outputs_config.items():
+            context = getattr(plan_output_config, 'context', '')
             try:
                 _class = plan_output_config.pop('class')
             except KeyError:
                 self.log.exception('Invalid plan_output class')
                 raise ManagerException(
-                    f'plan_output {plan_output_name} is missing class'
+                    f'plan_output {plan_output_name} is missing class, {context}'
                 )
             _class, module, version = self._get_named_class(
-                'plan_output', _class
+                'plan_output', _class, context
             )
             kwargs = self._build_kwargs(plan_output_config)
             try:
@@ -266,8 +271,9 @@ class Manager(object):
             except TypeError:
                 self.log.exception('Invalid plan_output config')
                 raise ManagerException(
-                    'Incorrect plan_output config for ' + plan_output_name
+                    f'Incorrect plan_output config for {plan_output_name}, {context}'
                 )
+
         return plan_outputs
 
     def _try_version(self, module_name, module=None, version=None):
@@ -298,7 +304,7 @@ class Manager(object):
             version = self._try_version(current)
         return module, version or 'n/a'
 
-    def _get_named_class(self, _type, _class):
+    def _get_named_class(self, _type, _class, context):
         try:
             module_name, class_name = _class.rsplit('.', 1)
             module, version = self._import_module(module_name)
@@ -306,7 +312,9 @@ class Manager(object):
             self.log.exception(
                 '_get_{}_class: Unable to import module %s', _class
             )
-            raise ManagerException(f'Unknown {_type} class: {_class}')
+            raise ManagerException(
+                f'Unknown {_type} class: {_class}, {context}'
+            )
 
         try:
             return getattr(module, class_name), module_name, version
@@ -316,7 +324,9 @@ class Manager(object):
                 class_name,
                 module,
             )
-            raise ManagerException(f'Unknown {_type} class: {_class}')
+            raise ManagerException(
+                f'Unknown {_type} class: {_class}, {context}'
+            )
 
     def _build_kwargs(self, source):
         # Build up the arguments we need to pass to the provider
@@ -330,8 +340,7 @@ class Manager(object):
                     except KeyError:
                         self.log.exception('Invalid provider config')
                         raise ManagerException(
-                            'Incorrect provider config, '
-                            'missing env var ' + env_var
+                            f'Incorrect provider config, missing env var {env_var}, {source.context}'
                         )
             except AttributeError:
                 pass

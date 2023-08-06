@@ -22,6 +22,7 @@ from octodns.record import (
     ValidationError,
     ValuesMixin,
 )
+from octodns.yaml import ContextDict
 from octodns.zone import Zone
 
 
@@ -572,3 +573,58 @@ class TestRecordValidation(TestCase):
             },
             lenient=True,
         )
+
+    def test_validation_context(self):
+        # fails validation, no context
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone, 'www', {'type': 'A', 'ttl': -1, 'value': '1.2.3.4'}
+            )
+        self.assertFalse(', line' in str(ctx.exception))
+
+        # fails validation, with context
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                'www',
+                ContextDict(
+                    {'type': 'A', 'ttl': -1, 'value': '1.2.3.4'},
+                    context='needle',
+                ),
+            )
+        self.assertTrue('needle' in str(ctx.exception))
+
+    def test_invalid_type_context(self):
+        # fails validation, no context
+        with self.assertRaises(Exception) as ctx:
+            Record.new(
+                self.zone, 'www', {'type': 'X', 'ttl': 42, 'value': '1.2.3.4'}
+            )
+        self.assertFalse(', line' in str(ctx.exception))
+
+        # fails validation, with context
+        with self.assertRaises(Exception) as ctx:
+            Record.new(
+                self.zone,
+                'www',
+                ContextDict(
+                    {'type': 'X', 'ttl': 42, 'value': '1.2.3.4'},
+                    context='needle',
+                ),
+            )
+        self.assertTrue('needle' in str(ctx.exception))
+
+    def test_missing_type_context(self):
+        # fails validation, no context
+        with self.assertRaises(Exception) as ctx:
+            Record.new(self.zone, 'www', {'ttl': 42, 'value': '1.2.3.4'})
+        self.assertFalse(', line' in str(ctx.exception))
+
+        # fails validation, with context
+        with self.assertRaises(Exception) as ctx:
+            Record.new(
+                self.zone,
+                'www',
+                ContextDict({'ttl': 42, 'value': '1.2.3.4'}, context='needle'),
+            )
+        self.assertTrue('needle' in str(ctx.exception))
