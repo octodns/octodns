@@ -46,14 +46,21 @@ class Record(EqualityTupleMixin):
             reasons.append('invalid record, whitespace is not allowed')
 
         fqdn = f'{name}.{zone.name}' if name else zone.name
+        context = getattr(data, 'context', None)
         try:
             _type = data['type']
         except KeyError:
-            raise Exception(f'Invalid record {idna_decode(fqdn)}, missing type')
+            msg = f'Invalid record {idna_decode(fqdn)}, missing type'
+            if context:
+                msg += f', {context}'
+            raise Exception(msg)
         try:
             _class = cls._CLASSES[_type]
         except KeyError:
-            raise Exception(f'Unknown record type: "{_type}"')
+            msg = f'Unknown record type: "{_type}"'
+            if context:
+                msg += f', {context}'
+            raise Exception(msg)
         reasons.extend(_class.validate(name, fqdn, data))
         try:
             lenient |= data['octodns']['lenient']
@@ -61,9 +68,11 @@ class Record(EqualityTupleMixin):
             pass
         if reasons:
             if lenient:
-                cls.log.warning(ValidationError.build_message(fqdn, reasons))
+                cls.log.warning(
+                    ValidationError.build_message(fqdn, reasons, context)
+                )
             else:
-                raise ValidationError(fqdn, reasons)
+                raise ValidationError(fqdn, reasons, context)
         return _class(zone, name, data, source=source)
 
     @classmethod

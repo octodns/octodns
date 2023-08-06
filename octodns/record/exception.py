@@ -11,11 +11,16 @@ class RecordException(Exception):
 
 class ValidationError(RecordException):
     @classmethod
-    def build_message(cls, fqdn, reasons):
+    def build_message(cls, fqdn, reasons, context=None):
         reasons = '\n  - '.join(reasons)
-        return f'Invalid record "{idna_decode(fqdn)}"\n  - {reasons}'
+        msg = f'Invalid record "{idna_decode(fqdn)}"'
+        if context:
+            msg += f', {context}'
+        msg += f'\n  - {reasons}'
+        return msg
 
-    def __init__(self, fqdn, reasons):
-        super().__init__(self.build_message(fqdn, reasons))
+    def __init__(self, fqdn, reasons, context=None):
+        super().__init__(self.build_message(fqdn, reasons, context))
         self.fqdn = fqdn
         self.reasons = reasons
+        self.context = context

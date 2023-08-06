@@ -25,7 +25,7 @@ The architecture is pluggable and the tooling is flexible to make it applicable 
     + [Notes](#notes)
 - [Compatibility and Compliance](#compatibilty-and-compliance)
   * [`lenient`](#-lenient-)
-  * [`strict_supports` (Work In Progress)](#-strict-supports---work-in-progress-)
+  * [`strict_supports`](#-strict-supports-)
   * [Configuring `strict_supports`](#configuring--strict-supports-)
 - [Custom Sources and Providers](#custom-sources-and-providers)
 - [Other Uses](#other-uses)
@@ -329,7 +329,7 @@ octoDNS supports automatically generating PTR records from the `A`/`AAAA` record
 
 `lenient` mostly focuses on the details of `Record`s and standards compliance. When set to `true` octoDNS will allow allow non-compliant configurations & values where possible. For example CNAME values that don't end with a `.`, label length restrictions, and invalid geo codes on `dynamic` records. When in lenient mode octoDNS will log validation problems at `WARNING` and try and continue with the configuration or source data as it exists. See [Lenience](/docs/records.md#lenience) for more information on the concept and how it can be configured.
 
-### `strict_supports` (Work In Progress)
+### `strict_supports`
 
 `strict_supports` is a `Provider` level parameter that comes into play when a provider has been asked to create a record that it is unable to support. The simplest case of this would be record type, e.g. `SSHFP` not being supported by `AzureProvider`. If such a record is passed to an `AzureProvider` as a target the provider will take action based on the `strict_supports`. When `true` it will throw an exception saying that it's unable to create the record, when set to `false` it will log at `WARNING` with information about what it's unable to do and how it is attempting to working around it. Other examples of things that cannot be supported would be `dynamic` records on a provider that only supports simple or the lack of support for specific geos in a provider, e.g. Route53Provider does not support `NA-CA-*`.
 

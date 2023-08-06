@@ -1,3 +1,13 @@
+## v1.1.0 - 2023-??-?? - ???
+
+* Add context to general configuration and Record validation, e.g.
+  Some problem at filename.yaml, line 42, column 14. Our custom Yaml Loaders
+  attach this context information, arbitrary string. Other providers may do so
+  by creating ContextDict to pass as `data` into Record.new.
+* Add --all option to octodns-validate to enable showing all record validation
+  errors (as warnings) rather than exiting on the first. Exit code is non-zero
+  when there are any validation errors.
+
 ## v1.0.0 - 2023-07-30 - The One
 
 1.0 marks a point at which we can formally deprecate things that will be
