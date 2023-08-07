@@ -20,7 +20,7 @@ The architecture is pluggable and the tooling is flexible to make it applicable 
 * [Providers](#providers)
    * [Updating to use extracted providers](#updating-to-use-extracted-providers)
 * [Sources](#sources)
-      * [Notes](#notes)
+   * [Notes](#notes)
 * [Automatic PTR generation](#automatic-ptr-generation)
 * [Compatibility and Compliance](#compatibility-and-compliance)
    * [`lenient`](#lenient)
@@ -248,7 +248,7 @@ Similar to providers, but can only serve to populate records into a zone, cannot
 | [ZoneFileSource](/octodns/source/axfr.py) | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [TinyDnsFileSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |
 
-#### Notes
+### Notes
 
 * ALIAS support varies a lot from provider to provider care should be taken to verify that your needs are met in detail.
    * Dyn's UI doesn't allow editing or view of TTL, but the API accepts and stores the value provided, this value does not appear to be used when served
