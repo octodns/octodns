@@ -9,33 +9,32 @@ The architecture is pluggable and the tooling is flexible to make it applicable 
 
 ## Table of Contents
 
-- [DNS as code - Tools for managing DNS across multiple providers](#dns-as-code---tools-for-managing-dns-across-multiple-providers)
-- [Table of Contents](#table-of-contents)
-- [Getting started](#getting-started)
-  * [Workspace](#workspace)
-    + [Installing a specific commit SHA](#installing-a-specific-commit-sha)
-  * [Config](#config)
-  * [Noop](#noop)
-  * [Making changes](#making-changes)
-  * [Workflow](#workflow)
-  * [Bootstrapping config files](#bootstrapping-config-files)
-- [Providers](#providers)
-  * [Updating to use extracted providers](#updating-to-use-extracted-providers)
-- [Sources](#sources)
-    + [Notes](#notes)
-- [Compatibility and Compliance](#compatibilty-and-compliance)
-  * [`lenient`](#-lenient-)
-  * [`strict_supports`](#-strict-supports-)
-  * [Configuring `strict_supports`](#configuring--strict-supports-)
-- [Custom Sources and Providers](#custom-sources-and-providers)
-- [Other Uses](#other-uses)
-  * [Syncing between providers](#syncing-between-providers)
-  * [Dynamic sources](#dynamic-sources)
-- [Contributing](#contributing)
-- [Getting help](#getting-help)
-- [Related Projects and Resources](#related-projects-and-resources)
-- [License](#license)
-- [Authors](#authors)
+* [Getting started](#getting-started)
+   * [Workspace](#workspace)
+      * [Installing a specific commit SHA](#installing-a-specific-commit-sha)
+   * [Config](#config)
+   * [Noop](#noop)
+   * [Making changes](#making-changes)
+   * [Workflow](#workflow)
+   * [Bootstrapping config files](#bootstrapping-config-files)
+* [Providers](#providers)
+   * [Updating to use extracted providers](#updating-to-use-extracted-providers)
+* [Sources](#sources)
+   * [Notes](#notes)
+* [Automatic PTR generation](#automatic-ptr-generation)
+* [Compatibility and Compliance](#compatibility-and-compliance)
+   * [`lenient`](#lenient)
+   * [`strict_supports`](#strict_supports)
+   * [Configuring `strict_supports`](#configuring-strict_supports)
+* [Custom Sources and Providers](#custom-sources-and-providers)
+* [Other Uses](#other-uses)
+   * [Syncing between providers](#syncing-between-providers)
+   * [Dynamic sources](#dynamic-sources)
+* [Contributing](#contributing)
+* [Getting help](#getting-help)
+* [Related Projects and Resources](#related-projects-and-resources)
+* [License](#license)
+* [Authors](#authors)
 
 ## Getting started
 
@@ -249,7 +248,7 @@ Similar to providers, but can only serve to populate records into a zone, cannot
 | [ZoneFileSource](/octodns/source/axfr.py) | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [TinyDnsFileSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |
 
-#### Notes
+### Notes
 
 * ALIAS support varies a lot from provider to provider care should be taken to verify that your needs are met in detail.
    * Dyn's UI doesn't allow editing or view of TTL, but the API accepts and stores the value provided, this value does not appear to be used when served
