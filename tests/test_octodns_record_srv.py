@@ -141,6 +141,19 @@ class TestRecordSrv(TestCase):
         self.assertEqual(2, a.values[0].weight)
         self.assertEqual(3, a.values[0].port)
         self.assertEqual('srv.unit.tests.', a.values[0].target)
+        self.assertEqual('1 2 3 srv.unit.tests.', a.values[0].rdata_text)
+
+        # both directions should match
+        rdata = '1 2 3 srv.unit.tests.'
+        record = SrvRecord(
+            zone,
+            '_srv._tcp',
+            {
+                'ttl': 32,
+                'value': SrvValue.parse_rdata_text(rdata),
+            },
+        )
+        self.assertEqual(rdata, record.values[0].rdata_text)
 
     def test_srv_value(self):
         a = SrvValue({'priority': 0, 'weight': 0, 'port': 0, 'target': 'foo.'})
