@@ -148,10 +148,7 @@ class TestRecordSrv(TestCase):
         record = SrvRecord(
             zone,
             '_srv._tcp',
-            {
-                'ttl': 32,
-                'value': SrvValue.parse_rdata_text(rdata),
-            },
+            {'ttl': 32, 'value': SrvValue.parse_rdata_text(rdata)},
         )
         self.assertEqual(rdata, record.values[0].rdata_text)
 
