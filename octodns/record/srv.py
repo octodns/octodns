@@ -132,6 +132,10 @@ class SrvValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    @property
+    def rdata_text(self):
+        return f"{self.priority} {self.weight} {self.port} {self.target}"
+
     def __hash__(self):
         return hash(self.__repr__())
 
