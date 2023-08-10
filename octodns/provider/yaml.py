@@ -190,6 +190,12 @@ class YamlProvider(BaseProvider):
             join(self.directory, f'{zone.name}yaml'),
         )
 
+    def list_zones(self):
+        for filename in listdir(self.directory):
+            if not filename.endswith('.yaml') or filename.count('.') < 2:
+                continue
+            yield filename[:-4]
+
     def populate(self, zone, target=False, lenient=False):
         self.log.debug(
             'populate: name=%s, target=%s, lenient=%s',
@@ -323,6 +329,13 @@ class SplitYamlProvider(YamlProvider):
     def _zone_directory(self, zone):
         filename = f'{zone.name[:-1]}{self.extension}'
         return join(self.directory, filename)
+
+    def list_zones(self):
+        n = len(self.extension) - 1
+        for filename in listdir(self.directory):
+            if not filename.endswith(self.extension):
+                continue
+            yield filename[:-n]
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug(

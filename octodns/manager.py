@@ -465,6 +465,74 @@ class Manager(object):
         # Return the zone as it's the desired state
         return plans, zone
 
+    def _get_sources(self, decoded_zone_name, config, eligible_sources):
+        try:
+            sources = config['sources']
+        except KeyError:
+            raise ManagerException(
+                f'Zone {decoded_zone_name} is missing sources'
+            )
+
+        if eligible_sources and not [
+            s for s in sources if s in eligible_sources
+        ]:
+            return None
+
+        self.log.info('sync:   sources=%s', sources)
+
+        try:
+            # rather than using a list comprehension, we break this loop
+            # out so that the `except` block below can reference the
+            # `source`
+            collected = []
+            for source in sources:
+                collected.append(self.providers[source])
+            sources = collected
+        except KeyError:
+            raise ManagerException(
+                f'Zone {decoded_zone_name}, unknown ' f'source: {source}'
+            )
+
+        return sources
+
+    def _preprocess_zones(self, zones, eligible_sources=None, sources=None):
+        '''
+        This may modify the passed in zone object, it should be ignored after
+        the call and the zones returned from this function should be used
+        instead.
+        '''
+        for name, config in list(zones.items()):
+            if not name.startswith('*'):
+                continue
+            # we've found a dynamic config element
+
+            # find its sources
+            sources = sources or self._get_sources(
+                name, config, eligible_sources
+            )
+            self.log.info('sync:   dynamic zone=%s, sources=%s', name, sources)
+            for source in sources:
+                if not hasattr(source, 'list_zones'):
+                    raise ManagerException(
+                        f'dynamic zone={name} includes a source, {source.id}, that does not support `list_zones`'
+                    )
+                for zone_name in source.list_zones():
+                    if zone_name in zones:
+                        self.log.info(
+                            'sync:      zone=%s already in config, ignoring',
+                            zone_name,
+                        )
+                        continue
+                    self.log.info(
+                        'sync:      adding dynamic zone=%s', zone_name
+                    )
+                    zones[zone_name] = config
+
+            # remove the dynamic config element so we don't try and populate it
+            del zones[name]
+
+        return zones
+
     def sync(
         self,
         eligible_zones=[],
@@ -485,6 +553,9 @@ class Manager(object):
         )
 
         zones = self.config['zones']
+
+        zones = self._preprocess_zones(zones, eligible_sources)
+
         if eligible_zones:
             zones = IdnaDict({n: zones.get(n) for n in eligible_zones})
 
@@ -531,12 +602,10 @@ class Manager(object):
                 continue
 
             lenient = config.get('lenient', False)
-            try:
-                sources = config['sources']
-            except KeyError:
-                raise ManagerException(
-                    f'Zone {decoded_zone_name} is missing sources'
-                )
+
+            sources = self._get_sources(
+                decoded_zone_name, config, eligible_sources
+            )
 
             try:
                 targets = config['targets']
@@ -547,9 +616,7 @@ class Manager(object):
 
             processors = config.get('processors', [])
 
-            if eligible_sources and not [
-                s for s in sources if s in eligible_sources
-            ]:
+            if not sources:
                 self.log.info('sync:   no eligible sources, skipping')
                 continue
 
@@ -563,7 +630,7 @@ class Manager(object):
                 self.log.info('sync:   no eligible targets, skipping')
                 continue
 
-            self.log.info('sync:   sources=%s -> targets=%s', sources, targets)
+            self.log.info('sync:   targets=%s', targets)
 
             try:
                 collected = []
@@ -574,19 +641,6 @@ class Manager(object):
                 raise ManagerException(
                     f'Zone {decoded_zone_name}, unknown '
                     f'processor: {processor}'
-                )
-
-            try:
-                # rather than using a list comprehension, we break this loop
-                # out so that the `except` block below can reference the
-                # `source`
-                collected = []
-                for source in sources:
-                    collected.append(self.providers[source])
-                sources = collected
-            except KeyError:
-                raise ManagerException(
-                    f'Zone {decoded_zone_name}, unknown ' f'source: {source}'
                 )
 
             try:
@@ -798,18 +852,33 @@ class Manager(object):
                 clz = SplitYamlProvider
             target = clz('dump', output_dir)
 
-        zone = self.get_zone(zone)
-        for source in sources:
-            source.populate(zone, lenient=lenient)
+        zones = self.config['zones']
+        zones = self._preprocess_zones(zones, sources=sources)
 
-        plan = target.plan(zone)
-        if plan is None:
-            plan = Plan(zone, zone, [], False)
-        target.apply(plan)
+        if '*' in zone:
+            # we want to do everything, just need the names though
+            zones = zones.keys()
+        else:
+            # we want to do a specific zone
+            zones = [zone]
+
+        for zone in zones:
+            zone = self.get_zone(zone)
+            for source in sources:
+                source.populate(zone, lenient=lenient)
+
+            plan = target.plan(zone)
+            if plan is None:
+                plan = Plan(zone, zone, [], False)
+            target.apply(plan)
 
     def validate_configs(self, lenient=False):
         # TODO: this code can probably be shared with stuff in sync
-        for zone_name, config in self.config['zones'].items():
+
+        zones = self.config['zones']
+        zones = self._preprocess_zones(zones)
+
+        for zone_name, config in zones.items():
             decoded_zone_name = idna_decode(zone_name)
             zone = self.get_zone(zone_name)
 

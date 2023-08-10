@@ -295,6 +295,18 @@ xn--dj-kia8a:
         self.assertTrue(source.supports(DummyType(source)))
         self.assertTrue(source.supports(DummyType(self)))
 
+    def test_list_zones(self):
+        provider = YamlProvider('test', 'tests/config')
+        self.assertEqual(
+            [
+                'dynamic.tests.',
+                'sub.txt.unit.tests.',
+                'subzone.unit.tests.',
+                'unit.tests.',
+            ],
+            sorted(provider.list_zones()),
+        )
+
 
 class TestSplitYamlProvider(TestCase):
     def test_list_all_yaml_files(self):
@@ -568,6 +580,21 @@ class TestSplitYamlProvider(TestCase):
             source.populate_should_replace, copy.populate_should_replace
         )
         self.assertEqual(source.supports_root_ns, copy.supports_root_ns)
+
+    def test_list_zones(self):
+        provider = SplitYamlProvider(
+            'test', 'tests/config/split', extension='.tst'
+        )
+        self.assertEqual(
+            [
+                'dynamic.tests.',
+                'empty.',
+                'subzone.unit.tests.',
+                'unit.tests.',
+                'unordered.',
+            ],
+            sorted(provider.list_zones()),
+        )
 
 
 class TestOverridingYamlProvider(TestCase):

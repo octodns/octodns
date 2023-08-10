@@ -1,0 +1,21 @@
+providers:
+  in:
+    # does not support list_zones
+    class: helpers.SimpleProvider
+
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+
+zones:
+  '*':
+    sources:
+    - in
+    targets:
+    - dump
+
+  subzone.unit.tests.:
+    sources:
+    - in
+    targets:
+    - dump

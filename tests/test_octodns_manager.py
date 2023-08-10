@@ -2,7 +2,7 @@
 #
 #
 
-from os import environ
+from os import environ, listdir
 from os.path import dirname, isfile, join
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
@@ -373,11 +373,27 @@ class TestManager(TestCase):
                 )
             self.assertEqual('Unknown source: nope', str(ctx.exception))
 
+            # specific zone
             manager.dump(
                 zone='unit.tests.',
                 output_dir=tmpdir.dirname,
                 split=True,
                 sources=['in'],
+            )
+            self.assertEqual(['unit.tests.'], listdir(tmpdir.dirname))
+
+            # all configured zones
+            manager.dump(
+                zone='*', output_dir=tmpdir.dirname, split=True, sources=['in']
+            )
+            self.assertEqual(
+                [
+                    'empty.',
+                    'sub.txt.unit.tests.',
+                    'subzone.unit.tests.',
+                    'unit.tests.',
+                ],
+                sorted(listdir(tmpdir.dirname)),
             )
 
             # make sure this fails with an ManagerException and not a KeyError
@@ -962,6 +978,38 @@ class TestManager(TestCase):
             # full sync with arpa is fine, 2 extra records from it
             tc = manager.sync(dry_run=False)
             self.assertEqual(26, tc)
+
+    def test_dynamic_config(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+
+            manager = Manager(get_config_filename('dynamic-config.yaml'))
+
+            # just unit.tests. which should have been dynamically configured via
+            # list_zones
+            self.assertEqual(
+                23, manager.sync(eligible_zones=['unit.tests.'], dry_run=False)
+            )
+
+            # just subzone.unit.tests. which was explicitly configured
+            self.assertEqual(
+                3,
+                manager.sync(
+                    eligible_zones=['subzone.unit.tests.'], dry_run=False
+                ),
+            )
+
+            # should sync everything across all zones, total of 32 records
+            self.assertEqual(32, manager.sync(dry_run=False))
+
+    def test_dynamic_config_unsupported_zone(self):
+        manager = Manager(
+            get_config_filename('dynamic-config-no-list-zones.yaml')
+        )
+
+        with self.assertRaises(ManagerException) as ctx:
+            manager.sync()
+        self.assertTrue('does not support `list_zones`' in str(ctx.exception))
 
 
 class TestMainThreadExecutor(TestCase):

@@ -4,9 +4,9 @@ Note: Geo DNS records are still supported for the time being, but it is still st
 
 GeoDNS is currently supported for `A` and `AAAA` records on the Dyn (via Traffic Directors) and Route53 providers. Records with geo information pushed to providers without support for them will be managed as non-geo records using the base values.
 
-Configuring GeoDNS is complex and the details of the functionality vary widely from provider to provider. OctoDNS has an opinionated view of how GeoDNS should be set up and does its best to map that to each provider's offering in a way that will result in similar behavior. It may not fit your needs or use cases, in which case please open an issue for discussion. We expect this functionality to grow and evolve over time as it's more widely used.
+Configuring GeoDNS is complex and the details of the functionality vary widely from provider to provider. octoDNS has an opinionated view of how GeoDNS should be set up and does its best to map that to each provider's offering in a way that will result in similar behavior. It may not fit your needs or use cases, in which case please open an issue for discussion. We expect this functionality to grow and evolve over time as it's more widely used.
 
-The following is an example of GeoDNS with three entries NA-US-CA, NA-US-NY, OC-AU. Octodns creates another one labeled 'default' with the details for the actual A record, This default record is the failover record if the monitoring check fails.
+The following is an example of GeoDNS with three entries NA-US-CA, NA-US-NY, OC-AU. octoDNS creates another one labeled 'default' with the details for the actual A record, This default record is the failover record if the monitoring check fails.
 
 ```yaml
 ---
@@ -54,7 +54,7 @@ So the example is saying:
 
 ### Health Checks
 
-Octodns will automatically set up monitors check for a 200 response for **https://<ip_address>/_dns**.
+octoDNS will automatically set up monitors check for a 200 response for **https://<ip_address>/_dns**.
 
 These checks can be configured by adding a `healthcheck` configuration to the record:
 

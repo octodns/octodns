@@ -39,7 +39,10 @@ def main():
         default=False,
         help='Split the dumped zone into a YAML file per record',
     )
-    parser.add_argument('zone', help='Zone to dump')
+    parser.add_argument(
+        'zone',
+        help="Zone to dump, '*' (single quoted to avoid expansion) for all configured zones",
+    )
     parser.add_argument('source', nargs='+', help='Source(s) to pull data from')
 
     args = parser.parse_args()
