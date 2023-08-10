@@ -1,5 +1,13 @@
 ## v1.1.0 - 2023-??-?? - ???
 
+#### Noteworthy changes
+
+* New dynamic zone config support that allows wildcard entries in the octoDNS
+  config to be expanded by the source provider(s). See
+  [Dynamic Zone Config](/README.md#dynamic-zone-config) for more information.
+
+#### Stuff
+
 * Add context to general configuration and Record validation, e.g.
   Some problem at filename.yaml, line 42, column 14. Our custom Yaml Loaders
   attach this context information, arbitrary string. Other providers may do so
