@@ -3,7 +3,7 @@
 #
 
 from os import makedirs
-from os.path import basename, dirname, isdir, isfile, join
+from os.path import dirname, isdir, isfile, join
 from unittest import TestCase
 
 from helpers import TemporaryDirectory
@@ -13,11 +13,7 @@ from yaml.constructor import ConstructorError
 from octodns.idna import idna_encode
 from octodns.provider import ProviderException
 from octodns.provider.base import Plan
-from octodns.provider.yaml import (
-    SplitYamlProvider,
-    YamlProvider,
-    _list_all_yaml_files,
-)
+from octodns.provider.yaml import SplitYamlProvider, YamlProvider
 from octodns.record import Create, NsValue, Record, ValuesMixin
 from octodns.zone import SubzoneRecordException, Zone
 
@@ -327,7 +323,7 @@ class TestSplitYamlProvider(TestCase):
 
             # This isn't great, but given the variable nature of the temp dir
             # names, it's necessary.
-            d = list(basename(f) for f in _list_all_yaml_files(directory))
+            d = [join(directory, f) for f in yaml_files]
             self.assertEqual(len(yaml_files), len(d))
 
     def test_zone_directory(self):
@@ -573,7 +569,7 @@ class TestSplitYamlProvider(TestCase):
         )
         copy = source.copy()
         self.assertEqual(source.directory, copy.directory)
-        self.assertEqual(source.extension, copy.extension)
+        self.assertEqual(source.split_extension, copy.split_extension)
         self.assertEqual(source.default_ttl, copy.default_ttl)
         self.assertEqual(source.enforce_order, copy.enforce_order)
         self.assertEqual(
