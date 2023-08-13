@@ -2,8 +2,9 @@
 #
 #
 
-from os import makedirs
+from os import makedirs, remove
 from os.path import dirname, isdir, isfile, join
+from shutil import rmtree
 from unittest import TestCase
 
 from helpers import TemporaryDirectory
@@ -12,10 +13,14 @@ from yaml.constructor import ConstructorError
 
 from octodns.idna import idna_encode
 from octodns.provider import ProviderException
-from octodns.provider.base import Plan
 from octodns.provider.yaml import SplitYamlProvider, YamlProvider
 from octodns.record import Create, NsValue, Record, ValuesMixin
 from octodns.zone import SubzoneRecordException, Zone
+
+
+def touch(filename):
+    with open(filename, 'w'):
+        pass
 
 
 class TestYamlProvider(TestCase):
@@ -326,29 +331,74 @@ class TestSplitYamlProvider(TestCase):
             d = [join(directory, f) for f in yaml_files]
             self.assertEqual(len(yaml_files), len(d))
 
-    def test_zone_directory(self):
-        source = SplitYamlProvider(
-            'test', join(dirname(__file__), 'config/split'), extension='.tst'
-        )
-
-        zone = Zone('unit.tests.', [])
-
-        self.assertEqual(
-            join(dirname(__file__), 'config/split', 'unit.tests.tst'),
-            source._zone_directory(zone),
-        )
-
-    def test_apply_handles_existing_zone_directory(self):
+    def test_split_sources(self):
         with TemporaryDirectory() as td:
-            provider = SplitYamlProvider(
-                'test', join(td.dirname, 'config'), extension='.tst'
-            )
-            makedirs(join(td.dirname, 'config', 'does.exist.tst'))
+            directory = join(td.dirname)
 
-            zone = Zone('does.exist.', [])
-            self.assertTrue(isdir(provider._zone_directory(zone)))
-            provider.apply(Plan(None, zone, [], True))
-            self.assertTrue(isdir(provider._zone_directory(zone)))
+            provider = YamlProvider('test', directory, split_extension='.')
+
+            zone = Zone('déjà.vu.', [])
+            zone_utf8 = join(directory, f'{zone.decoded_name}')
+            zone_idna = join(directory, f'{zone.name}')
+
+            filenames = (
+                '*.yaml',
+                '.yaml',
+                'www.yaml',
+                f'${zone.decoded_name}yaml',
+            )
+
+            # create the utf8 zone dir
+            makedirs(zone_utf8)
+            # nothing in it so we should get nothing back
+            self.assertEqual([], list(provider._split_sources(zone)))
+            # create some record files
+            for filename in filenames:
+                touch(join(zone_utf8, filename))
+            # make sure we see them
+            expected = [join(zone_utf8, f) for f in sorted(filenames)]
+            self.assertEqual(expected, sorted(provider._split_sources(zone)))
+
+            # add a idna zone directory
+            makedirs(zone_idna)
+            for filename in filenames:
+                touch(join(zone_idna, filename))
+            with self.assertRaises(ProviderException) as ctx:
+                list(provider._split_sources(zone))
+            msg = str(ctx.exception)
+            self.assertTrue('Both UTF-8' in msg)
+
+            # delete the utf8 version
+            rmtree(zone_utf8)
+            expected = [join(zone_idna, f) for f in sorted(filenames)]
+            self.assertEqual(expected, sorted(provider._split_sources(zone)))
+
+    def test_zone_sources(self):
+        with TemporaryDirectory() as td:
+            directory = join(td.dirname)
+
+            provider = YamlProvider('test', directory)
+
+            zone = Zone('déjà.vu.', [])
+            utf8 = join(directory, f'{zone.decoded_name}yaml')
+            idna = join(directory, f'{zone.name}yaml')
+
+            # create the utf8 version
+            touch(utf8)
+            # make sure that's what we get back
+            self.assertEqual(utf8, provider._zone_sources(zone))
+
+            # create idna version, both exists
+            touch(idna)
+            with self.assertRaises(ProviderException) as ctx:
+                provider._zone_sources(zone)
+            msg = str(ctx.exception)
+            self.assertTrue('Both UTF-8' in msg)
+
+            # delete the utf8 version
+            remove(utf8)
+            # make sure that we get the idna one back
+            self.assertEqual(idna, provider._zone_sources(zone))
 
     def test_provider(self):
         source = SplitYamlProvider(

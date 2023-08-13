@@ -205,11 +205,9 @@ class YamlProvider(BaseProvider):
         self.log.debug('list_zones:')
         zones = set()
 
-        # TODO: don't allow both utf8 and idna versions of the same zone
         extension = self.split_extension
         if extension:
             self.log.debug('list_zones:   looking for split zones')
-            # look for split
             # we want to leave the .
             trim = len(extension) - 1
             for dirname in listdir(self.directory):
@@ -228,9 +226,40 @@ class YamlProvider(BaseProvider):
                     or not isfile(join(self.directory, filename))
                 ):
                     continue
+                # trim off the yaml, leave the .
                 zones.add(filename[:-4])
 
         return sorted(zones)
+
+    def _split_sources(self, zone):
+        ext = self.split_extension
+        utf8 = join(self.directory, f'{zone.decoded_name[:-1]}{ext}')
+        idna = join(self.directory, f'{zone.name[:-1]}{ext}')
+        directory = None
+        if isdir(utf8):
+            if utf8 != idna and isdir(idna):
+                raise ProviderException(
+                    f'Both UTF-8 "{utf8}" and IDNA "{idna}" exist for {zone.decoded_name}'
+                )
+            directory = utf8
+        else:
+            directory = idna
+
+        for filename in listdir(directory):
+            if filename.endswith('.yaml'):
+                yield join(directory, filename)
+
+    def _zone_sources(self, zone):
+        utf8 = join(self.directory, f'{zone.decoded_name}yaml')
+        idna = join(self.directory, f'{zone.name}yaml')
+        if isfile(utf8):
+            if utf8 != idna and isfile(idna):
+                raise ProviderException(
+                    f'Both UTF-8 "{utf8}" and IDNA "{idna}" exist for {zone.decoded_name}'
+                )
+            return utf8
+
+        return idna
 
     def _populate_from_file(self, filename, zone, lenient):
         with open(filename, 'r') as fh:
@@ -271,43 +300,12 @@ class YamlProvider(BaseProvider):
 
         sources = []
 
-        zone_name_utf8 = zone.name[:-1]
-        zone_name_idna = zone.decoded_name[:-1]
-
-        directory = None
         split_extension = self.split_extension
         if split_extension:
-            utf8 = join(self.directory, f'{zone_name_utf8}{split_extension}')
-            idna = join(self.directory, f'{zone_name_idna}{split_extension}')
-            directory = None
-            if isdir(utf8):
-                if utf8 != idna and isdir(idna):
-                    raise ProviderException(
-                        f'Both UTF-8 "{utf8}" and IDNA "{idna}" exist for {zone.decoded_name}'
-                    )
-                directory = utf8
-            else:
-                directory = idna
-
-            for filename in listdir(directory):
-                if filename.endswith('.yaml'):
-                    sources.append(join(directory, filename))
+            sources.extend(self._split_sources(zone))
 
         if not self.split_only:
-            utf8 = join(self.directory, f'{zone_name_utf8}.yaml')
-            idna = join(self.directory, f'{zone_name_idna}.yaml')
-            if isfile(utf8):
-                if utf8 != idna and isfile(idna):
-                    raise ProviderException(
-                        f'Both UTF-8 "{utf8}" and IDNA "{idna}" exist for {zone.decoded_name}'
-                    )
-                sources.append(utf8)
-            else:
-                sources.append(idna)
-
-        if len(sources) == 0:
-            # TODO: what if we don't have any files
-            pass
+            sources.append(self._zone_sources(zone))
 
         # determinstically order our sources
         sources.sort()
