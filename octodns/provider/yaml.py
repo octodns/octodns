@@ -232,7 +232,7 @@ class YamlProvider(BaseProvider):
             for dirname in listdir(self.directory):
                 not_ends_with = not dirname.endswith(extension)
                 not_dir = not isdir(join(self.directory, dirname))
-                if not_ends_with or not_dir:
+                if not_dir or not_ends_with:
                     continue
                 if trim:
                     dirname = dirname[:-trim]
@@ -244,7 +244,7 @@ class YamlProvider(BaseProvider):
                 not_ends_with = not filename.endswith('.yaml')
                 too_few_dots = filename.count('.') < 2
                 not_file = not isfile(join(self.directory, filename))
-                if not_ends_with or too_few_dots or not_file:
+                if not_file or not_ends_with or too_few_dots:
                     continue
                 # trim off the yaml, leave the .
                 zones.add(filename[:-4])
