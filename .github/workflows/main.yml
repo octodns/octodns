@@ -29,8 +29,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: code-coverage
-          path: .coverage
+          name: code-coverage-${{ matrix.python-version }}
+          path: |
+            .coverage
+            coverage.xml
+            htmlcov
   setup-py:
     runs-on: ubuntu-latest
     steps:
