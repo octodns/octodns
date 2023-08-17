@@ -19,8 +19,7 @@ from octodns.zone import SubzoneRecordException, Zone
 
 
 def touch(filename):
-    with open(filename, 'w'):
-        pass
+    open(filename, 'w').close()
 
 
 class TestYamlProvider(TestCase):
@@ -297,6 +296,7 @@ xn--dj-kia8a:
         self.assertTrue(source.supports(DummyType(self)))
 
     def test_list_zones(self):
+        # test of pre-existing config that lives on disk
         provider = YamlProvider('test', 'tests/config')
         self.assertEqual(
             [
@@ -305,8 +305,71 @@ xn--dj-kia8a:
                 'subzone.unit.tests.',
                 'unit.tests.',
             ],
-            sorted(provider.list_zones()),
+            list(provider.list_zones()),
         )
+
+        # some synthetic tests to explicitly exercise the full functionality
+        with TemporaryDirectory() as td:
+            directory = join(td.dirname)
+
+            # noise
+            touch(join(directory, 'README.txt'))
+            # not a zone.name.yaml
+            touch(join(directory, 'production.yaml'))
+
+            # basic yaml zone files
+            touch(join(directory, 'unit.test.yaml'))
+            touch(join(directory, 'sub.unit.test.yaml'))
+            touch(join(directory, 'other.tld.yaml'))
+            touch(join(directory, 'both.tld.yaml'))
+
+            # split zones with .
+            makedirs(join(directory, 'split.test.'))
+            makedirs(join(directory, 'sub.split.test.'))
+            makedirs(join(directory, 'other.split.'))
+            makedirs(join(directory, 'both.tld.'))
+
+            # split zones with .tst
+            makedirs(join(directory, 'split-ext.test.tst'))
+            makedirs(join(directory, 'sub.split-ext.test.tst'))
+            makedirs(join(directory, 'other-ext.split.tst'))
+
+            provider = YamlProvider('test', directory)
+
+            # basic, should only find zone files
+            self.assertEqual(
+                ['both.tld.', 'other.tld.', 'sub.unit.test.', 'unit.test.'],
+                list(provider.list_zones()),
+            )
+
+            # include stuff with . AND basic
+            provider.split_extension = '.'
+            self.assertEqual(
+                [
+                    'both.tld.',
+                    'other.split.',
+                    'other.tld.',
+                    'split.test.',
+                    'sub.split.test.',
+                    'sub.unit.test.',
+                    'unit.test.',
+                ],
+                list(provider.list_zones()),
+            )
+
+            provider.split_extension = '.tst'
+            self.assertEqual(
+                [
+                    'both.tld.',
+                    'other-ext.split.',
+                    'other.tld.',
+                    'split-ext.test.',
+                    'sub.split-ext.test.',
+                    'sub.unit.test.',
+                    'unit.test.',
+                ],
+                list(provider.list_zones()),
+            )
 
 
 class TestSplitYamlProvider(TestCase):
@@ -321,7 +384,7 @@ class TestSplitYamlProvider(TestCase):
             # Create some files, some of them with a .yaml extension, all of
             # them empty.
             for emptyfile in all_files:
-                open(join(directory, emptyfile), 'w').close()
+                touch(join(directory, emptyfile))
             # Do the same for some fake directories
             for emptydir in all_dirs:
                 makedirs(join(directory, emptydir))

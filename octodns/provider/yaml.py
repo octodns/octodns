@@ -224,15 +224,19 @@ class YamlProvider(BaseProvider):
 
         extension = self.split_extension
         if extension:
-            self.log.debug('list_zones:   looking for split zones')
             # we want to leave the .
             trim = len(extension) - 1
+            self.log.debug(
+                'list_zones:   looking for split zones, trim=%d', trim
+            )
             for dirname in listdir(self.directory):
                 if not dirname.endswith(extension) or not isdir(
                     join(self.directory, dirname)
                 ):
                     continue
-                zones.add(dirname[:-trim])
+                if trim:
+                    dirname = dirname[:-trim]
+                zones.add(dirname)
 
         if not self.split_only:
             self.log.debug('list_zones:   looking for zone files')
