@@ -16,7 +16,8 @@ fi
 echo "## environment & versions ######################################################"
 python --version
 pip --version
-
+echo "## modules: "
+pip freeze
 echo "## clean up ####################################################################"
 find octodns tests -name "*.pyc" -exec rm {} \;
 rm -f *.pyc
