@@ -230,9 +230,9 @@ class YamlProvider(BaseProvider):
                 'list_zones:   looking for split zones, trim=%d', trim
             )
             for dirname in listdir(self.directory):
-                if not dirname.endswith(extension) or not isdir(
-                    join(self.directory, dirname)
-                ):
+                not_ends_with = not dirname.endswith(extension)
+                not_dir = not isdir(join(self.directory, dirname))
+                if not_ends_with or not_dir:
                     continue
                 if trim:
                     dirname = dirname[:-trim]
@@ -241,11 +241,10 @@ class YamlProvider(BaseProvider):
         if not self.split_only:
             self.log.debug('list_zones:   looking for zone files')
             for filename in listdir(self.directory):
-                if (
-                    not filename.endswith('.yaml')
-                    or filename.count('.') < 2
-                    or not isfile(join(self.directory, filename))
-                ):
+                not_ends_with = not filename.endswith('.yaml')
+                too_few_dots = filename.count('.') < 2
+                not_file = not isfile(join(self.directory, filename))
+                if not_ends_with or too_few_dots or not_file:
                     continue
                 # trim off the yaml, leave the .
                 zones.add(filename[:-4])
