@@ -32,11 +32,27 @@ class YamlProvider(BaseProvider):
         populate_should_replace: false
         # The filename used to load split style zones, False means disabled.
         # When enabled the provider will search for zone records split across
-        # multiple YAML files in a directory with the zone name.
+        # multiple YAML files in the directory with split_extension appended to
+        # the zone name. split_extension should include the `.`
         # See "Split Details" below for more information
         # (optional, default False, . is the recommended best practice when
         # enabling)
         split_extension: false
+        # Disable loading of the primary zone .yaml file. If split_extension
+        # is defined both split files and the primary zone .yaml will be loaded
+        # by default. Setting this to true will disable that and rely soley on
+        # split files.
+        # (optional, default False)
+        split_only: false
+        # When writing YAML records out to disk with split_extension enabled
+        # each record is written out into its own file with .yaml appended to
+        # the name of the record. This would result in files like `.yaml` for
+        # the apex and `*.yaml` for a wildcard. If your OS doesn't allow such
+        # filenames or you would prefer to avoid them you can enable
+        # split_catchall to instead write those records into a file named
+        # `$[zone.name].yaml`
+        # (optional, default False)
+        split_catchall: false
 
     Split Details
     -------------
@@ -44,10 +60,11 @@ class YamlProvider(BaseProvider):
     All files are stored in a subdirectory matching the name of the zone
     (including the trailing .) of the directory config. It is a recommended
     best practice that the files be named RECORD.yaml, but all files are
-    sourced and processed as if they were a single large file.
+    sourced and processed ignoring the filenames so it is up to you how to
+    organize them.
 
-    A full directory structure for the zone github.com. managed under directory
-    "zones/" would be:
+    With `split_extension: .` the directory structure for the zone github.com.
+    managed under directory "zones/" would look like:
 
     zones/
       github.com./
@@ -395,6 +412,16 @@ class YamlProvider(BaseProvider):
 class SplitYamlProvider(YamlProvider):
     '''
     DEPRECATED: Use YamlProvider with the split_extension parameter instead.
+
+    When migrating the following configuration options would result in the same
+    behavior as SplitYamlProvider
+
+       config:
+         class: octodns.provider.yaml.YamlProvider
+         # extension is configured as split_extension
+         split_extension: .
+         split_only: true
+         split_catchall: true
 
     TO BE REMOVED: 2.0
     '''
