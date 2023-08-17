@@ -24,7 +24,9 @@ jobs:
       - name: CI Build
         run: |
           ./script/cibuild
-      - name: Storage Code Coverage Data
+      - name: Store Code Coverage Data
+        # if the previous step(s) failed try anyways
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: code-coverage
