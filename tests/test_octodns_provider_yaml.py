@@ -316,6 +316,9 @@ xn--dj-kia8a:
             touch(join(directory, 'README.txt'))
             # not a zone.name.yaml
             touch(join(directory, 'production.yaml'))
+            # non-zone directories
+            makedirs(join(directory, 'directory'))
+            makedirs(join(directory, 'never.matches'))
 
             # basic yaml zone files
             touch(join(directory, 'unit.test.yaml'))
