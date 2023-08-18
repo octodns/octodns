@@ -376,7 +376,7 @@ xn--dj-kia8a:
             )
 
             # only .tst
-            provider.split_only = True
+            provider.disable_zonefile = True
             self.assertEqual(
                 ['other-ext.split.', 'split-ext.test.', 'sub.split-ext.test.'],
                 list(provider.list_zones()),
@@ -503,13 +503,13 @@ class TestSplitYamlProvider(TestCase):
 
         # temporarily enable zone file processing too, we should see one extra
         # record that came from unit.tests.
-        source.split_only = False
+        source.disable_zonefile = False
         zone_both = Zone('unit.tests.', [])
         source.populate(zone_both)
         self.assertEqual(21, len(zone_both.records))
         n = len([r for r in zone_both.records if r.name == 'only-zone-file'])
         self.assertEqual(1, n)
-        source.split_only = True
+        source.disable_zonefile = True
 
         source.populate(dynamic_zone)
         self.assertEqual(5, len(dynamic_zone.records))

@@ -19,31 +19,34 @@ class YamlProvider(BaseProvider):
 
     config:
         class: octodns.provider.yaml.YamlProvider
-        # The location of yaml config files (required)
+
+        # The location of yaml config files. By default records are defined in a
+        # file named for the zone in this directory, the zone file, e.g.
+        # something.com.yaml.
+        # (required)
         directory: ./config
+
         # The ttl to use for records when not specified in the data
         # (optional, default 3600)
         default_ttl: 3600
-        # Whether or not to enforce sorting order on the yaml config
+
+        # Whether or not to enforce sorting order when loading yaml
         # (optional, default True)
         enforce_order: true
+
         # Whether duplicate records should replace rather than error
         # (optional, default False)
         populate_should_replace: false
-        # The filename used to load split style zones, False means disabled.
-        # When enabled the provider will search for zone records split across
-        # multiple YAML files in the directory with split_extension appended to
-        # the zone name. split_extension should include the `.`
-        # See "Split Details" below for more information
-        # (optional, default False, . is the recommended best practice when
+
+        # The file extension used when loading split style zones, Null means
+        # disabled. When enabled the provider will search for zone records split
+        # across multiple YAML files in the directory with split_extension
+        # appended to the zone name, See "Split Details" below.
+        # split_extension should include the "."
+        # (optional, default null, "." is the recommended best practice when
         # enabling)
-        split_extension: false
-        # Disable loading of the primary zone .yaml file. If split_extension
-        # is defined both split files and the primary zone .yaml will be loaded
-        # by default. Setting this to true will disable that and rely soley on
-        # split files.
-        # (optional, default False)
-        split_only: false
+        split_extension: null
+
         # When writing YAML records out to disk with split_extension enabled
         # each record is written out into its own file with .yaml appended to
         # the name of the record. This would result in files like `.yaml` for
@@ -53,6 +56,10 @@ class YamlProvider(BaseProvider):
         # `$[zone.name].yaml`
         # (optional, default False)
         split_catchall: false
+
+        # Disable loading of the zone .yaml files.
+        # (optional, default False)
+        disable_zonefile: false
 
     Split Details
     -------------
@@ -163,15 +170,15 @@ class YamlProvider(BaseProvider):
         populate_should_replace=False,
         supports_root_ns=True,
         split_extension=False,
-        split_only=False,
         split_catchall=False,
+        disable_zonefile=False,
         *args,
         **kwargs,
     ):
         klass = self.__class__.__name__
         self.log = logging.getLogger(f'{klass}[{id}]')
         self.log.debug(
-            '__init__: id=%s, directory=%s, default_ttl=%d, enforce_order=%d, populate_should_replace=%s, supports_root_ns=%s, split_extension=%s, split_only=%s, split_catchall=%s',
+            '__init__: id=%s, directory=%s, default_ttl=%d, enforce_order=%d, populate_should_replace=%s, supports_root_ns=%s, split_extension=%s, split_catchall=%s, disable_zonefile=%s',
             id,
             directory,
             default_ttl,
@@ -179,8 +186,8 @@ class YamlProvider(BaseProvider):
             populate_should_replace,
             supports_root_ns,
             split_extension,
-            split_only,
             split_catchall,
+            disable_zonefile,
         )
         super().__init__(id, *args, **kwargs)
         self.directory = directory
@@ -189,8 +196,8 @@ class YamlProvider(BaseProvider):
         self.populate_should_replace = populate_should_replace
         self.supports_root_ns = supports_root_ns
         self.split_extension = split_extension
-        self.split_only = split_only
         self.split_catchall = split_catchall
+        self.disable_zonefile = disable_zonefile
 
     def copy(self):
         kwargs = dict(self.__dict__)
@@ -238,7 +245,7 @@ class YamlProvider(BaseProvider):
                     dirname = dirname[:-trim]
                 zones.add(dirname)
 
-        if not self.split_only:
+        if not self.disable_zonefile:
             self.log.debug('list_zones:   looking for zone files')
             for filename in listdir(self.directory):
                 not_ends_with = not filename.endswith('.yaml')
@@ -324,7 +331,7 @@ class YamlProvider(BaseProvider):
         if split_extension:
             sources.extend(self._split_sources(zone))
 
-        if not self.split_only:
+        if not self.disable_zonefile:
             sources.append(self._zone_sources(zone))
 
         # determinstically order our sources
@@ -423,8 +430,8 @@ class SplitYamlProvider(YamlProvider):
          class: octodns.provider.yaml.YamlProvider
          # extension is configured as split_extension
          split_extension: .
-         split_only: true
          split_catchall: true
+         disable_zonefile: true
 
     TO BE REMOVED: 2.0
     '''
@@ -433,11 +440,11 @@ class SplitYamlProvider(YamlProvider):
         kwargs.update(
             {
                 'split_extension': extension,
-                'split_only': True,
                 'split_catchall': True,
+                'disable_zonefile': True,
             }
         )
         super().__init__(id, directory, *args, **kwargs)
         self.log.warning(
-            '__init__: DEPRECATED use YamlProvider with split_extension and optionally split_only instead, will go away in v2.0'
+            '__init__: DEPRECATED use YamlProvider with split_extension, split_catchall, and disable_zonefile instead, will go away in v2.0'
         )
