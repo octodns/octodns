@@ -499,6 +499,7 @@ class TestSplitYamlProvider(TestCase):
         # without it we see everything
         source.populate(zone)
         self.assertEqual(20, len(zone.records))
+        self.assertFalse([r for r in zone.records if r.name.startswith('only')])
 
         # temporarily enable zone file processing too, we should see one extra
         # record that came from unit.tests.
@@ -506,10 +507,15 @@ class TestSplitYamlProvider(TestCase):
         zone_both = Zone('unit.tests.', [])
         source.populate(zone_both)
         self.assertEqual(21, len(zone_both.records))
+        n = len([r for r in zone_both.records if r.name == 'only-zone-file'])
+        self.assertEqual(1, n)
         source.split_only = True
 
         source.populate(dynamic_zone)
         self.assertEqual(5, len(dynamic_zone.records))
+        self.assertFalse(
+            [r for r in dynamic_zone.records if r.name.startswith('only')]
+        )
 
         with TemporaryDirectory() as td:
             # Add some subdirs to make sure that it can create them
