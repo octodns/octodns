@@ -360,6 +360,7 @@ xn--dj-kia8a:
                 list(provider.list_zones()),
             )
 
+            # include stuff with .tst AND basic
             provider.split_extension = '.tst'
             self.assertEqual(
                 [
@@ -371,6 +372,20 @@ xn--dj-kia8a:
                     'sub.unit.test.',
                     'unit.test.',
                 ],
+                list(provider.list_zones()),
+            )
+
+            # only .tst
+            provider.split_only = True
+            self.assertEqual(
+                ['other-ext.split.', 'split-ext.test.', 'sub.split-ext.test.'],
+                list(provider.list_zones()),
+            )
+
+            # only . (and both zone)
+            provider.split_extension = '.'
+            self.assertEqual(
+                ['both.tld.', 'other.split.', 'split.test.', 'sub.split.test.'],
                 list(provider.list_zones()),
             )
 
@@ -484,6 +499,14 @@ class TestSplitYamlProvider(TestCase):
         # without it we see everything
         source.populate(zone)
         self.assertEqual(20, len(zone.records))
+
+        # temporarily enable zone file processing too, we should see one extra
+        # record that came from unit.tests.
+        source.split_only = False
+        zone_both = Zone('unit.tests.', [])
+        source.populate(zone_both)
+        self.assertEqual(21, len(zone_both.records))
+        source.split_only = True
 
         source.populate(dynamic_zone)
         self.assertEqual(5, len(dynamic_zone.records))
