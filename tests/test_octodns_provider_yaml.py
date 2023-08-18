@@ -389,29 +389,6 @@ xn--dj-kia8a:
                 list(provider.list_zones()),
             )
 
-
-class TestSplitYamlProvider(TestCase):
-    def test_list_all_yaml_files(self):
-        yaml_files = ('foo.yaml', '1.yaml', '$unit.tests.yaml')
-        all_files = ('something', 'else', '1', '$$', '-f') + yaml_files
-        all_dirs = ('dir1', 'dir2/sub', 'tricky.yaml')
-
-        with TemporaryDirectory() as td:
-            directory = join(td.dirname)
-
-            # Create some files, some of them with a .yaml extension, all of
-            # them empty.
-            for emptyfile in all_files:
-                touch(join(directory, emptyfile))
-            # Do the same for some fake directories
-            for emptydir in all_dirs:
-                makedirs(join(directory, emptydir))
-
-            # This isn't great, but given the variable nature of the temp dir
-            # names, it's necessary.
-            d = [join(directory, f) for f in yaml_files]
-            self.assertEqual(len(yaml_files), len(d))
-
     def test_split_sources(self):
         with TemporaryDirectory() as td:
             directory = join(td.dirname)
@@ -480,6 +457,29 @@ class TestSplitYamlProvider(TestCase):
             remove(utf8)
             # make sure that we get the idna one back
             self.assertEqual(idna, provider._zone_sources(zone))
+
+
+class TestSplitYamlProvider(TestCase):
+    def test_list_all_yaml_files(self):
+        yaml_files = ('foo.yaml', '1.yaml', '$unit.tests.yaml')
+        all_files = ('something', 'else', '1', '$$', '-f') + yaml_files
+        all_dirs = ('dir1', 'dir2/sub', 'tricky.yaml')
+
+        with TemporaryDirectory() as td:
+            directory = join(td.dirname)
+
+            # Create some files, some of them with a .yaml extension, all of
+            # them empty.
+            for emptyfile in all_files:
+                touch(join(directory, emptyfile))
+            # Do the same for some fake directories
+            for emptydir in all_dirs:
+                makedirs(join(directory, emptydir))
+
+            # This isn't great, but given the variable nature of the temp dir
+            # names, it's necessary.
+            d = [join(directory, f) for f in yaml_files]
+            self.assertEqual(len(yaml_files), len(d))
 
     def test_provider(self):
         source = SplitYamlProvider(
