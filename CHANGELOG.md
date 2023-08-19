@@ -11,6 +11,10 @@
   possible. This includes the ability to split some zones and not others and
   even to have partially split zones with some records in the primary zone YAML
   and others in a split directory. See YamlProvider documentation for more info.
+* YamlProvider now supports a `shared_filename` that can be used to add a set of
+  common records across all zones using the provider. It can be used stand-alone
+  or in combination with zone files and/or split configs to aid in DRYing up DNS
+  configs.
 
 #### Stuff
 
