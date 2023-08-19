@@ -628,3 +628,13 @@ class TestRecordValidation(TestCase):
                 ContextDict({'ttl': 42, 'value': '1.2.3.4'}, context='needle'),
             )
         self.assertTrue('needle' in str(ctx.exception))
+
+    def test_context_copied_to_record(self):
+        record = Record.new(
+            self.zone,
+            'www',
+            ContextDict(
+                {'ttl': 42, 'type': 'A', 'value': '1.2.3.4'}, context='needle'
+            ),
+        )
+        self.assertEqual('needle', record.context)
