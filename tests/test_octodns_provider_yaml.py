@@ -260,10 +260,13 @@ xn--dj-kia8a:
         zone = Zone('unit.tests.', ['sub'])
         with self.assertRaises(SubzoneRecordException) as ctx:
             source.populate(zone)
-        self.assertEqual(
-            'Record www.sub.unit.tests. is under a managed subzone',
-            str(ctx.exception),
+        msg = str(ctx.exception)
+        self.assertTrue(
+            msg.startswith(
+                'Record www.sub.unit.tests. is under a managed subzone'
+            )
         )
+        self.assertTrue(msg.endswith('unit.tests.yaml, line 201, column 3'))
 
     def test_SUPPORTS(self):
         source = YamlProvider('test', join(dirname(__file__), 'config'))
@@ -536,10 +539,13 @@ class TestSplitYamlProvider(TestCase):
         zone = Zone('unit.tests.', ['sub'])
         with self.assertRaises(SubzoneRecordException) as ctx:
             source.populate(zone)
-        self.assertEqual(
-            'Record www.sub.unit.tests. is under a managed subzone',
-            str(ctx.exception),
+        msg = str(ctx.exception)
+        self.assertTrue(
+            msg.startswith(
+                'Record www.sub.unit.tests. is under a managed subzone'
+            )
         )
+        self.assertTrue(msg.endswith('www.sub.yaml, line 3, column 3'))
 
     def test_copy(self):
         # going to put some sentinal values in here to ensure, these aren't
