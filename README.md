@@ -293,6 +293,7 @@ The table below lists the providers octoDNS supports. They are maintained in the
 | [Rackspace](https://www.rackspace.com/library/what-is-dns) | [octodns_rackspace](https://github.com/octodns/octodns-rackspace/) | |
 | [Scaleway](https://www.scaleway.com/en/dns/) | [octodns_scaleway](https://github.com/scaleway/octodns-scaleway) | |
 | [Selectel](https://selectel.ru/en/services/additional/dns/) | [octodns_selectel](https://github.com/octodns/octodns-selectel/) | |
+| [SPF Value Management](https://github.com/octodns/octodns-spf) | [octodns_spf](https://github.com/octodns/octodns-spf/) | |
 | [TransIP](https://www.transip.eu/knowledgebase/entry/155-dns-and-nameservers/) | [octodns_transip](https://github.com/octodns/octodns-transip/) | |
 | [UltraDNS](https://vercara.com/authoritative-dns) | [octodns_ultra](https://github.com/octodns/octodns-ultra/) | |
 | [YamlProvider](/octodns/provider/yaml.py) | built-in | Supports all record types and core functionality |
