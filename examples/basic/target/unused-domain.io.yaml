@@ -1,0 +1,4 @@
+---
+? ''
+: type: TXT
+  value: v=spf1 -all

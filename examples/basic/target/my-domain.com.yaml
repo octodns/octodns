@@ -1,0 +1,31 @@
+---
+? ''
+: - type: A
+    values:
+    - 203.0.113.42
+    - 203.0.113.43
+  - type: AAAA
+    value: 2001:db8::44
+  - type: TXT
+    values:
+    - some-verification=3becb991-932f-4433-a280-9df6f39b6194
+    - v=spf1 -all
+    - z-other-thing=this proves i have control over this domain
+'*':
+- type: A
+  value: 203.0.113.45
+- type: AAAA
+  value: 2001:db8::46
+nadcbiqkbgq._companyname:
+  type: TXT
+  value: a-different-proof-of-ownership
+pointer:
+  type: CNAME
+  value: look.over-here.net.
+www:
+- type: A
+  values:
+  - 203.0.113.42
+  - 203.0.113.43
+- type: AAAA
+  value: 2001:db8::44
