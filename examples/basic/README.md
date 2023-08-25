@@ -7,7 +7,7 @@ Most of the actual documentation for this example is in comments in the YAML con
 
 * [config/octodns.yaml](config/octodns.yaml)
 * [config/my-domain.com.yaml](config/my-domain.com.yaml)
-* [config/unused.io.yaml](config/unused.io.yaml)
+* [config/unused-domain.io.yaml](config/unused-domain.io.yaml)
 
 From here on this README focuses on the general process of running octoDNS.
 
@@ -107,7 +107,7 @@ servers.
 
 ### The plan output
 
-```
+```console
 ********************************************************************************
 * unused-domain.io.
 ********************************************************************************
@@ -167,8 +167,8 @@ servers.
 2023-08-23T15:17:00  [4671815168] INFO  Manager sync:   10 total changes
 ```
 
-```
-(env) coho:basic ross$ PYTHONPATH=/Users/ross/octodns/octodns octodns-sync --config-file=config/octodns.yaml
+```console
+(env) coho:basic ross$ octodns-sync --config-file=config/octodns.yaml
 ********************************************************************************
 No changes were planned
 ********************************************************************************
@@ -188,8 +188,8 @@ the zone's YAML file and modify the YAML, removing 203.0.113.42 and adding
 Just like during the first run section above we'll first run octoDNS to see what changes it would make.
 We'd skim the log lines again looking for unexpected WARNINGS and then take a look at the changes.
 
-```
-(env) coho:basic ross$ PYTHONPATH=/Users/ross/octodns/octodns octodns-sync --config-file=config/octodns.yaml
+```console
+(env) coho:basic ross$ octodns-sync --config-file=config/octodns.yaml
 ...
 ********************************************************************************
 * my-domain.com.
@@ -216,8 +216,8 @@ someone modified the records through another means.
 Here we only see the expected changes so we're good to move forward with
 applying them.
 
-```
-(env) coho:basic ross$ PYTHONPATH=/Users/ross/octodns/octodns octodns-sync --config-file=config/octodns.yaml --doit
+```console
+(env) coho:basic ross$ octodns-sync --config-file=config/octodns.yaml --doit
 ...
 ********************************************************************************
 * my-domain.com.
@@ -236,8 +236,8 @@ applying them.
 
 If we want we can run another plan to make sure there are no further pending changes.
 
-```
-(env) coho:basic ross$ PYTHONPATH=/Users/ross/octodns/octodns octodns-sync --config-file=config/octodns.yaml
+```console
+(env) coho:basic ross$ octodns-sync --config-file=config/octodns.yaml
 ********************************************************************************
 No changes were planned
 ********************************************************************************
