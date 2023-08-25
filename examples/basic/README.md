@@ -14,7 +14,7 @@ From here on this README focuses on the general process of running octoDNS.
 ## Checking out the code and setting up the environment
 
 You would not normally need to check out octoDNS itself, you instead would have
-a git repo with only your configuration files. Here we're cloing the repo only
+a git repo with only your configuration files. Here we're cloning the repo only
 to get a copy of the example files.
 
 ```console

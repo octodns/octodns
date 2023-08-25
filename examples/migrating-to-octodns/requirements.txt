@@ -1,0 +1,2 @@
+octodns>=1.0.1
+octodns_spf>=0.0.2

@@ -1,0 +1,64 @@
+---
+# These are root/APEX records, things that live at the top-level of the zone.
+# There are multiple records so there's a YAML list, each element in that list
+# defines its own record.
+'':
+  # We first have an A record, mapping A my-domain.com to two IPv4 addresses, we
+  # also use a YAML anchor to effectively store the values for later use.
+  - type: A
+    values: &WEB_A_VALUES
+      - 203.0.113.42
+      - 203.0.113.43
+  # Similar to the A above, this is a AAAA for my-domain.com with a single IPv6
+  # addresse.
+  - type: AAAA
+    values: &WEB_AAAA_VALUES
+      - 2001:DB8::44
+  - type: NS
+    values:
+      - ns1.some-provider.com
+      - ns2.some-provider.com
+      - ns3.some-provider.com
+      - ns4.some-provider.com
+  # Finally it's common to have to prove ownership of a domain with a TXT value
+  # in an APEX record. The following are a couple made up examples of how that
+  # would be done. As you'll see when you plan things The SpfSource will merge
+  # its SPF value in with the values defined here
+  - type: TXT
+    values:
+      - some-verification=3becb991-932f-4433-a280-9df6f39b6194
+      - z-other-thing=this proves i have control over this domain
+# This is a wildcard record, any A or AAAA query not matching a more specific
+# answer defined in this file will match this name and receive the associated
+# value in response.
+'*':
+  - type: A
+    # Note here we have a single value rather than values and use `value`.
+    value: 203.0.113.45
+  - type: AAAA
+    value: 2001:DB8::46
+# Note that the records in this zone are sorted, by default YamlProvider
+# enforces alphabetical sorting of records and even the keys within record
+# data. This is an organizational best practice, but can be disabled with the
+# enforce_order parameter to YamlProvider
+NADCBiQKBgQ._companyname:
+  type: TXT
+  value: a-different-proof-of-ownership
+# We want www and the APEX to return the same values for A/AAAA queries. We
+# stored the values earlier in YAML anchors so we can use them now on.
+# This is a CNAME record
+pointer:
+  type: CNAME
+  # CNAMEs can only have a single value so they require `value` to be used. As a
+  # best practice the target name must end with a `.` If you have a specific
+  # case where you need to omit the `.`, or other enforced best practices, see
+  # the lenience example for more information.
+  value: look.over-here.net.
+# This is an example of a record with a `.` in it's name, it would result for a
+# TXT query of NADCBiQKBgQ._companyname.my-domain.com. This specific example is
+# another commonly required proof of overship record.
+www:
+  - type: A
+    values: *WEB_A_VALUES
+  - type: AAAA
+    values: *WEB_AAAA_VALUES
