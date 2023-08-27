@@ -54,12 +54,8 @@ class YamlProvider(BaseProvider):
         # filenames or you would prefer to avoid them you can enable
         # split_catchall to instead write those records into a file named
         # `$[zone.name].yaml`
-        # (optional, default False)
-        split_catchall: false
-
-        # Disable loading of the zone .yaml files.
-        # (optional, default False)
-        disable_zonefile: false
+        # (optional, default True)
+        split_catchall: true
 
     Split Details
     -------------
@@ -170,15 +166,14 @@ class YamlProvider(BaseProvider):
         populate_should_replace=False,
         supports_root_ns=True,
         split_extension=False,
-        split_catchall=False,
-        disable_zonefile=False,
+        split_catchall=True,
         *args,
         **kwargs,
     ):
         klass = self.__class__.__name__
         self.log = logging.getLogger(f'{klass}[{id}]')
         self.log.debug(
-            '__init__: id=%s, directory=%s, default_ttl=%d, enforce_order=%d, populate_should_replace=%s, supports_root_ns=%s, split_extension=%s, split_catchall=%s, disable_zonefile=%s',
+            '__init__: id=%s, directory=%s, default_ttl=%d, enforce_order=%d, populate_should_replace=%s, supports_root_ns=%s, split_extension=%s, split_catchall=%s',
             id,
             directory,
             default_ttl,
@@ -187,7 +182,6 @@ class YamlProvider(BaseProvider):
             supports_root_ns,
             split_extension,
             split_catchall,
-            disable_zonefile,
         )
         super().__init__(id, *args, **kwargs)
         self.directory = directory
@@ -197,7 +191,6 @@ class YamlProvider(BaseProvider):
         self.supports_root_ns = supports_root_ns
         self.split_extension = split_extension
         self.split_catchall = split_catchall
-        self.disable_zonefile = disable_zonefile
 
     def copy(self):
         kwargs = dict(self.__dict__)
@@ -245,7 +238,7 @@ class YamlProvider(BaseProvider):
                     dirname = dirname[:-trim]
                 zones.add(dirname)
 
-        if not self.disable_zonefile:
+        if not self.split_extension:
             self.log.debug('list_zones:   looking for zone files')
             for filename in listdir(self.directory):
                 not_ends_with = not filename.endswith('.yaml')
@@ -331,7 +324,7 @@ class YamlProvider(BaseProvider):
         if split_extension:
             sources.extend(self._split_sources(zone))
 
-        if not self.disable_zonefile:
+        if not self.split_extension:
             sources.append(self._zone_sources(zone))
 
         # determinstically order our sources
@@ -431,20 +424,13 @@ class SplitYamlProvider(YamlProvider):
          # extension is configured as split_extension
          split_extension: .
          split_catchall: true
-         disable_zonefile: true
 
     TO BE REMOVED: 2.0
     '''
 
     def __init__(self, id, directory, *args, extension='.', **kwargs):
-        kwargs.update(
-            {
-                'split_extension': extension,
-                'split_catchall': True,
-                'disable_zonefile': True,
-            }
-        )
+        kwargs.update({'split_extension': extension, 'split_catchall': True})
         super().__init__(id, directory, *args, **kwargs)
         self.log.warning(
-            '__init__: DEPRECATED use YamlProvider with split_extension, split_catchall, and disable_zonefile instead, will go away in v2.0'
+            '__init__: DEPRECATED use YamlProvider with split_extension and split_catchall instead, will go away in v2.0'
         )
