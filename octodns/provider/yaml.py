@@ -49,11 +49,12 @@ class YamlProvider(BaseProvider):
 
         # When writing YAML records out to disk with split_extension enabled
         # each record is written out into its own file with .yaml appended to
-        # the name of the record. This would result in files like `.yaml` for
-        # the apex and `*.yaml` for a wildcard. If your OS doesn't allow such
-        # filenames or you would prefer to avoid them you can enable
-        # split_catchall to instead write those records into a file named
-        # `$[zone.name].yaml`
+        # the name of the record. The two exceptions are for the root and
+        # wildcard nodes. These records are written into a file named
+        # `$[zone.name].yaml`. If you would prefer this catchall file not be
+        # used `split_catchall` can be set to False to instead write those
+        # records out to `.yaml` and `*.yaml` respectively. Note that some
+        # operating systems may not allow files with those names.
         # (optional, default True)
         split_catchall: true
 
