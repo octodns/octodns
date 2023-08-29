@@ -348,17 +348,47 @@ xn--dj-kia8a:
                 list(provider.list_zones()),
             )
 
-            # split only .
+            # include stuff with . AND basic
             provider.split_extension = '.'
             self.assertEqual(
-                ['both.tld.', 'other.split.', 'split.test.', 'sub.split.test.'],
+                [
+                    'both.tld.',
+                    'other.split.',
+                    'other.tld.',
+                    'split.test.',
+                    'sub.split.test.',
+                    'sub.unit.test.',
+                    'unit.test.',
+                ],
+                list(provider.list_zones()),
+            )
+
+            # include stuff with .tst AND basic
+            provider.split_extension = '.tst'
+            self.assertEqual(
+                [
+                    'both.tld.',
+                    'other-ext.split.',
+                    'other.tld.',
+                    'split-ext.test.',
+                    'sub.split-ext.test.',
+                    'sub.unit.test.',
+                    'unit.test.',
+                ],
                 list(provider.list_zones()),
             )
 
             # only .tst
-            provider.split_extension = '.tst'
+            provider.disable_zonefile = True
             self.assertEqual(
                 ['other-ext.split.', 'split-ext.test.', 'sub.split-ext.test.'],
+                list(provider.list_zones()),
+            )
+
+            # only . (and both zone)
+            provider.split_extension = '.'
+            self.assertEqual(
+                ['both.tld.', 'other.split.', 'split.test.', 'sub.split.test.'],
                 list(provider.list_zones()),
             )
 
@@ -473,6 +503,16 @@ class TestSplitYamlProvider(TestCase):
         source.populate(zone)
         self.assertEqual(20, len(zone.records))
         self.assertFalse([r for r in zone.records if r.name.startswith('only')])
+
+        # temporarily enable zone file processing too, we should see one extra
+        # record that came from unit.tests.
+        source.disable_zonefile = False
+        zone_both = Zone('unit.tests.', [])
+        source.populate(zone_both)
+        self.assertEqual(21, len(zone_both.records))
+        n = len([r for r in zone_both.records if r.name == 'only-zone-file'])
+        self.assertEqual(1, n)
+        source.disable_zonefile = True
 
         source.populate(dynamic_zone)
         self.assertEqual(5, len(dynamic_zone.records))
