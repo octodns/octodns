@@ -11,15 +11,45 @@ from .record import Create, Delete
 
 
 class SubzoneRecordException(Exception):
-    pass
+    def __init__(self, msg, record):
+        self.record = record
+
+        if record.context:
+            msg += f', {record.context}'
+
+        super().__init__(msg)
 
 
 class DuplicateRecordException(Exception):
-    pass
+    def __init__(self, msg, existing, new):
+        self.existing = existing
+        self.new = new
+
+        if existing.context:
+            if new.context:
+                # both have context
+                msg += f'\n  existing: {existing.context}\n  new:      {new.context}'
+            else:
+                # only existing has context
+                msg += (
+                    f'\n  existing: {existing.context}\n  new:      [UNKNOWN]'
+                )
+        elif new.context:
+            # only new has context
+            msg += f'\n  existing: [UNKNOWN]\n  new:      {new.context}'
+        # else no one has context
+
+        super().__init__(msg)
 
 
 class InvalidNodeException(Exception):
-    pass
+    def __init__(self, msg, record):
+        self.record = record
+
+        if record.context:
+            msg += f', {record.context}'
+
+        super().__init__(msg)
 
 
 class Zone(object):
@@ -113,7 +143,8 @@ class Zone(object):
                 if not record._type == 'NS':
                     # and not a NS record, this should be in the sub
                     raise SubzoneRecordException(
-                        f'Record {record.fqdn} is a managed sub-zone and not of type NS'
+                        f'Record {record.fqdn} is a managed sub-zone and not of type NS',
+                        record,
                     )
             else:
                 # It's not an exact match so there has to be a `.` before the
@@ -122,7 +153,8 @@ class Zone(object):
                     if name.endswith(f'.{sub_zone}'):
                         # this should be in a sub
                         raise SubzoneRecordException(
-                            f'Record {record.fqdn} is under a managed subzone'
+                            f'Record {record.fqdn} is under a managed subzone',
+                            record,
                         )
 
         if replace:
@@ -132,8 +164,11 @@ class Zone(object):
         node = self._records[name]
         if record in node:
             # We already have a record at this node of this type
+            existing = [c for c in node if c == record][0]
             raise DuplicateRecordException(
-                f'Duplicate record {record.fqdn}, ' f'type {record._type}'
+                f'Duplicate record {record.fqdn}, type {record._type}',
+                existing,
+                record,
             )
         elif not lenient and (
             (record._type == 'CNAME' and len(node) > 0)
@@ -142,9 +177,8 @@ class Zone(object):
             # We're adding a CNAME to existing records or adding to an existing
             # CNAME
             raise InvalidNodeException(
-                'Invalid state, CNAME at '
-                f'{record.fqdn} cannot coexist with '
-                'other records'
+                f'Invalid state, CNAME at {record.fqdn} cannot coexist with other records',
+                record,
             )
 
         if record._type == 'NS' and record.name == '':

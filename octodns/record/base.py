@@ -5,6 +5,7 @@
 from collections import defaultdict
 from logging import getLogger
 
+from ..context import ContextDict
 from ..equality import EqualityTupleMixin
 from ..idna import IdnaError, idna_decode, idna_encode
 from .change import Update
@@ -73,7 +74,7 @@ class Record(EqualityTupleMixin):
                 )
             else:
                 raise ValidationError(fqdn, reasons, context)
-        return _class(zone, name, data, source=source)
+        return _class(zone, name, data, source=source, context=context)
 
     @classmethod
     def validate(cls, name, fqdn, data):
@@ -136,7 +137,7 @@ class Record(EqualityTupleMixin):
     def parse_rdata_texts(cls, rdatas):
         return [cls._value_type.parse_rdata_text(r) for r in rdatas]
 
-    def __init__(self, zone, name, data, source=None):
+    def __init__(self, zone, name, data, source=None, context=None):
         self.zone = zone
         if name:
             # internally everything is idna
@@ -152,11 +153,14 @@ class Record(EqualityTupleMixin):
             self.decoded_name,
         )
         self.source = source
+        self.context = context
         self.ttl = int(data['ttl'])
 
         self._octodns = data.get('octodns', {})
 
     def _data(self):
+        if self.context:
+            return ContextDict({'ttl': self.ttl}, context=self.context)
         return {'ttl': self.ttl}
 
     @property
@@ -225,6 +229,7 @@ class Record(EqualityTupleMixin):
             return Update(self, other)
 
     def copy(self, zone=None):
+        # data, via _data(), will preserve context
         data = self.data
         data['type'] = self._type
         data['octodns'] = self._octodns
@@ -271,8 +276,8 @@ class ValuesMixin(object):
         values = [cls._value_type.parse_rdata_text(rr.rdata) for rr in rrs]
         return {'ttl': rr.ttl, 'type': rr._type, 'values': values}
 
-    def __init__(self, zone, name, data, source=None):
-        super().__init__(zone, name, data, source=source)
+    def __init__(self, zone, name, data, source=None, context=None):
+        super().__init__(zone, name, data, source=source, context=context)
         try:
             values = data['values']
         except KeyError:
@@ -333,8 +338,8 @@ class ValueMixin(object):
             'value': cls._value_type.parse_rdata_text(rr.rdata),
         }
 
-    def __init__(self, zone, name, data, source=None):
-        super().__init__(zone, name, data, source=source)
+    def __init__(self, zone, name, data, source=None, context=None):
+        super().__init__(zone, name, data, source=source, context=context)
         self.value = self._value_type.process(data['value'])
 
     def changes(self, other, target):
