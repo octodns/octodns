@@ -76,7 +76,7 @@ class YamlProvider(BaseProvider):
 
     zones/
       github.com./
-        .yaml
+        $github.com.yaml
         www.yaml
         ...
 
