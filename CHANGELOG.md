@@ -5,6 +5,12 @@
 * New dynamic zone config support that allows wildcard entries in the octoDNS
   config to be expanded by the source provider(s). See
   [Dynamic Zone Config](/README.md#dynamic-zone-config) for more information.
+* SplitYamlProvider has been deprecated and will be removed in 2.0. YamlProvider
+  now includes the ability to process split zones when configured to do so and
+  allows for more flexibility in how things are laid out than was previously
+  possible. This includes the ability to split some zones and not others and
+  even to have partially split zones with some records in the primary zone YAML
+  and others in a split directory. See YamlProvider documentation for more info.
 
 #### Stuff
 
