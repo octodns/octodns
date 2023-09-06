@@ -6,6 +6,7 @@ from unittest import TestCase
 
 from helpers import SimpleProvider
 
+from octodns.context import ContextDict
 from octodns.idna import idna_encode
 from octodns.record import (
     AaaaRecord,
@@ -105,6 +106,62 @@ class TestZone(TestCase):
         # Can add dup name, with different type
         zone.add_record(b)
         self.assertEqual(zone.records, set([a, b]))
+
+    def test_duplicate_context_handling(self):
+        zone = Zone('unit.tests.', [])
+
+        # these will be ==, but one has context and the other doesn't
+        no_context = ARecord(zone, 'a', {'ttl': 42, 'value': '1.1.1.1'})
+        has_context = ARecord(
+            zone, 'a', {'ttl': 42, 'value': '1.1.1.1'}, context='hello world'
+        )
+
+        # both have context
+        zone.add_record(has_context)
+        with self.assertRaises(DuplicateRecordException) as ctx:
+            zone.add_record(has_context)
+        self.assertEqual(has_context, ctx.exception.existing)
+        self.assertEqual(has_context, ctx.exception.new)
+        zone.remove_record(has_context)
+        self.assertEqual(
+            [
+                'Duplicate record a.unit.tests., type A',
+                '  existing: hello world',
+                '  new:      hello world',
+            ],
+            str(ctx.exception).split('\n'),
+        )
+
+        # new has context
+        zone.add_record(no_context)
+        with self.assertRaises(DuplicateRecordException) as ctx:
+            zone.add_record(has_context)
+        self.assertEqual(no_context, ctx.exception.existing)
+        self.assertEqual(has_context, ctx.exception.new)
+        zone.remove_record(no_context)
+        self.assertEqual(
+            [
+                'Duplicate record a.unit.tests., type A',
+                '  existing: [UNKNOWN]',
+                '  new:      hello world',
+            ],
+            str(ctx.exception).split('\n'),
+        )
+
+        # existing has context
+        zone.add_record(has_context)
+        with self.assertRaises(DuplicateRecordException) as ctx:
+            zone.add_record(no_context)
+        self.assertEqual(has_context, ctx.exception.existing)
+        self.assertEqual(no_context, ctx.exception.new)
+        self.assertEqual(
+            [
+                'Duplicate record a.unit.tests., type A',
+                '  existing: hello world',
+                '  new:      [UNKNOWN]',
+            ],
+            str(ctx.exception).split('\n'),
+        )
 
     def test_changes(self):
         before = Zone('unit.tests.', [])
@@ -242,9 +299,11 @@ class TestZone(TestCase):
             'sub',
             {'ttl': 3600, 'type': 'A', 'values': ['1.2.3.4', '2.3.4.5']},
         )
+        record.context = 'added context'
         with self.assertRaises(SubzoneRecordException) as ctx:
             zone.add_record(record)
         self.assertTrue('not of type NS', str(ctx.exception))
+        self.assertTrue(', added context' in str(ctx.exception))
         # Can add it w/lenient
         zone.add_record(record, lenient=True)
         self.assertEqual(set([record]), zone.records)
@@ -328,11 +387,13 @@ class TestZone(TestCase):
         cname = Record.new(
             zone, 'www', {'ttl': 60, 'type': 'CNAME', 'value': 'foo.bar.com.'}
         )
+        cname.context = 'has some context'
 
         # add cname to a
         zone.add_record(a)
-        with self.assertRaises(InvalidNodeException):
+        with self.assertRaises(InvalidNodeException) as ctx:
             zone.add_record(cname)
+        self.assertTrue(', has some context' in str(ctx.exception))
         self.assertEqual(set([a]), zone.records)
         zone.add_record(cname, lenient=True)
         self.assertEqual(set([a, cname]), zone.records)
@@ -500,6 +561,22 @@ class TestZone(TestCase):
         self.assertTrue(copy.hydrate())
         # Doesn't the second
         self.assertFalse(copy.hydrate())
+
+    def test_copy_context(self):
+        zone = Zone('unit.tests.', [])
+
+        no_context = Record.new(
+            zone, 'a', {'ttl': 42, 'type': 'A', 'value': '1.1.1.1'}
+        )
+        self.assertFalse(no_context.context)
+        self.assertFalse(no_context.copy().context)
+
+        data = ContextDict(
+            {'ttl': 42, 'type': 'A', 'value': '1.1.1.1'}, context='hello world'
+        )
+        has_context = Record.new(zone, 'a', data)
+        self.assertTrue(has_context.context)
+        self.assertTrue(has_context.copy().context)
 
     def test_root_ns(self):
         zone = Zone('unit.tests.', [])
