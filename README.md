@@ -25,6 +25,7 @@ The architecture is pluggable and the tooling is flexible to make it applicable 
    * [Updating to use extracted providers](#updating-to-use-extracted-providers)
 * [Sources](#sources)
    * [Notes](#notes)
+* [Processors](#processors)
 * [Automatic PTR generation](#automatic-ptr-generation)
 * [Compatibility and Compliance](#compatibility-and-compliance)
    * [`lenient`](#lenient)
@@ -322,6 +323,22 @@ Similar to providers, but can only serve to populate records into a zone, cannot
    * Dyn's UI doesn't allow editing or view of TTL, but the API accepts and stores the value provided, this value does not appear to be used when served
    * Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
 * octoDNS itself supports non-ASCII character sets, but in testing Cloudflare is the only provider where that is currently functional end-to-end. Others have failures either in the client libraries or API calls
+
+## Processors
+
+| Processor | Description |
+|--|--|
+| [AcmeMangingProcessor](/octodns/processor/acme.py) | Useful when processes external to octoDNS are managing acme challenge DNS records, e.g. LetsEncrypt |
+| [AutoArpa](/octodns/processor/arpa.py) | See [Automatic PTR generation](#automatic-ptr-generation) below |
+| [IgnoreRootNsFilter](/octodns/processor/filter.py) | Filter that INGORES root/APEX NS records and prevents octoDNS from trying to manage them (where supported.) |
+| [NameAllowlistFilter](/octodns/processor/filter.py) | Filter that ONLY manages records that match specified naming patterns, all others will be ignored |
+| [NameRejectlistFilter](/octodns/processor/filter.py) | Filter that INGORES records that match specified naming patterns, all others will be managed |
+| [OwnershipProcessor](/octodns/processor/ownership.py) | Processor that implements ownership in octoDNS so that it can manage only the records in a zone in sources and will ignore all others. |
+| [SpfDnsLookupProcessor](/octodns/processor/spf.py) | Processor that checks SPF values for violations of DNS query limits |
+| [TtlRestrictionFilter](/octodns/processor/restrict.py) | Processor that restricts the allow TTL values to a specified range or list of specific values |
+| [TypeAllowlistFilter](/octodns/processor/filter.py) | Filter that ONLY manages records of specified types, all others will be ignored |
+| [TypeRejectlistFilter](/octodns/processor/filter.py) | Filter that INGORES records of specified types, all others will be managed |
+| [octodns-spf](https://github.com/octodns/octodns-spf) | SPF Value Management for octoDNS |
 
 ## Automatic PTR generation
 
