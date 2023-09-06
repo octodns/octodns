@@ -1,0 +1,4 @@
+---
+only-shared:
+  type: TXT
+  value: Only included when shared file processing is enabled

@@ -58,6 +58,11 @@ class YamlProvider(BaseProvider):
         # (optional, default True)
         split_catchall: true
 
+        # Optional filename with record data to be included in all zones
+        # populated by this provider. Has no effect when used as a target.
+        # (optional, default null)
+        shared_filename: null
+
         # Disable loading of the zone .yaml files.
         # (optional, default False)
         disable_zonefile: false
@@ -172,6 +177,7 @@ class YamlProvider(BaseProvider):
         supports_root_ns=True,
         split_extension=False,
         split_catchall=True,
+        shared_filename=False,
         disable_zonefile=False,
         *args,
         **kwargs,
@@ -179,7 +185,7 @@ class YamlProvider(BaseProvider):
         klass = self.__class__.__name__
         self.log = logging.getLogger(f'{klass}[{id}]')
         self.log.debug(
-            '__init__: id=%s, directory=%s, default_ttl=%d, enforce_order=%d, populate_should_replace=%s, supports_root_ns=%s, split_extension=%s, split_catchall=%s, disable_zonefile=%s',
+            '__init__: id=%s, directory=%s, default_ttl=%d, enforce_order=%d, populate_should_replace=%s, supports_root_ns=%s, split_extension=%s, split_catchall=%s, shared_filename=%s, disable_zonefile=%s',
             id,
             directory,
             default_ttl,
@@ -188,6 +194,7 @@ class YamlProvider(BaseProvider):
             supports_root_ns,
             split_extension,
             split_catchall,
+            shared_filename,
             disable_zonefile,
         )
         super().__init__(id, *args, **kwargs)
@@ -198,6 +205,7 @@ class YamlProvider(BaseProvider):
         self.supports_root_ns = supports_root_ns
         self.split_extension = split_extension
         self.split_catchall = split_catchall
+        self.shared_filename = shared_filename
         self.disable_zonefile = disable_zonefile
 
     def copy(self):
@@ -334,6 +342,9 @@ class YamlProvider(BaseProvider):
 
         if not self.disable_zonefile:
             sources.append(self._zone_sources(zone))
+
+        if self.shared_filename:
+            sources.append(join(self.directory, self.shared_filename))
 
         # determinstically order our sources
         sources.sort()

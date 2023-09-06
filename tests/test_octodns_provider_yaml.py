@@ -514,6 +514,23 @@ class TestSplitYamlProvider(TestCase):
         self.assertEqual(1, n)
         source.disable_zonefile = True
 
+        # temporarily enable shared file processing, we should see one extra
+        # record in the zone
+        source.shared_filename = 'shared.yaml'
+        zone_shared = Zone('unit.tests.', [])
+        source.populate(zone_shared)
+        self.assertEqual(21, len(zone_shared.records))
+        n = len([r for r in zone_shared.records if r.name == 'only-shared'])
+        self.assertEqual(1, n)
+        dynamic_zone_shared = Zone('dynamic.tests.', [])
+        source.populate(dynamic_zone_shared)
+        self.assertEqual(6, len(dynamic_zone_shared.records))
+        n = len(
+            [r for r in dynamic_zone_shared.records if r.name == 'only-shared']
+        )
+        self.assertEqual(1, n)
+        source.shared_filename = None
+
         source.populate(dynamic_zone)
         self.assertEqual(5, len(dynamic_zone.records))
         self.assertFalse(
