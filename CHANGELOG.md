@@ -15,6 +15,8 @@
   common records across all zones using the provider. It can be used stand-alone
   or in combination with zone files and/or split configs to aid in DRYing up DNS
   configs.
+* SpfRecord is formally deprecated with an warning and will become a
+  ValidationError in 2.x
 
 #### Stuff
 
