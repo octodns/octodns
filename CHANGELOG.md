@@ -17,6 +17,8 @@
   configs.
 * SpfRecord is formally deprecated with an warning and will become a
   ValidationError in 2.x
+* SpfDnsLookupProcessor is formally deprcated in favor of the version relocated
+  into https://github.com/octodns/octodns-spf and will be removed in 2.x
 
 #### Stuff
 
