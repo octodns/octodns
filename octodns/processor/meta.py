@@ -65,6 +65,9 @@ class MetaProcessor(BaseProcessor):
             desired,
             self.record_name,
             {'ttl': self.ttl, 'type': 'TXT', 'values': self.values},
+            # we may be passing in empty values here to be filled out later in
+            # process_target_zone
+            lenient=True,
         )
         desired.add_record(meta)
         return desired
