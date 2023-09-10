@@ -2,6 +2,8 @@
 #
 #
 
+from os.path import dirname, join
+
 from natsort import natsort_keygen
 from yaml import SafeDumper, SafeLoader, dump, load
 from yaml.constructor import ConstructorError
@@ -23,7 +25,17 @@ class ContextLoader(SafeLoader):
     def _construct(self, node):
         return self._pairs(node)[0]
 
+    def include(self, node):
+        mark = self.get_mark()
+        directory = dirname(mark.name)
 
+        filename = join(directory, self.construct_scalar(node))
+
+        with open(filename, 'r') as fh:
+            return safe_load(fh, self.__class__)
+
+
+ContextLoader.add_constructor('!include', ContextLoader.include)
 ContextLoader.add_constructor(
     ContextLoader.DEFAULT_MAPPING_TAG, ContextLoader._construct
 )
