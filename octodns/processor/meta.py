@@ -16,6 +16,43 @@ def _keys(values):
 
 
 class MetaProcessor(BaseProcessor):
+    '''
+    Add a special metadata record with timestamps, UUIDs, versions, and/or
+    provider name. Will only be updated when there are other changes being made.
+    A useful tool to aid in debugging and monitoring of DNS infrastructure.
+
+    Timestamps or UUIDs can be useful in checking whether changes are
+    propagating, either from a provider's backend to their servers or via AXFRs.
+
+    Provider can be utilized to determine which DNS system responded to a query
+    when things are operating in dual authority or split horizon setups.
+
+    Creates a TXT record with the name configured with values based on processor
+    settings. Values are in the form `key=<value>`, e.g.
+    `time=2023-09-10T05:49:04.246953`
+
+    processors:
+      meta:
+        class: octodns.processor.meta.MetaProcessor
+        # The name to use for the meta record.
+        # (default: meta)
+        record_name: meta
+        # Include a timestamp with a UTC value indicating the timeframe when the
+        # last change was made.
+        # (default: true)
+        include_time: true
+        # Include a UUID that can be utilized to uniquely identify the run
+        # pushing data
+        # (default: false)
+        include_uuid: false
+        # Include the provider id for the target where data is being pushed
+        # (default: false)
+        include_provider: false
+        # Include the octoDNS version being used
+        # (default: false)
+        include_version: false
+    '''
+
     @classmethod
     def now(cls):
         return datetime.utcnow().isoformat()
