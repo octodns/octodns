@@ -19,6 +19,10 @@
   snippets of config to be reused across many records, e.g. common dynamic rules
   across a set of services with service-specific pool values or a unified SFP
   value included in TXT records at the root of all zones.
+* SpfRecord is formally deprecated with an warning and will become a
+  ValidationError in 2.x
+* SpfDnsLookupProcessor is formally deprcated in favor of the version relocated
+  into https://github.com/octodns/octodns-spf and will be removed in 2.x
 
 #### Stuff
 
