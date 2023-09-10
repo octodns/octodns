@@ -25,6 +25,9 @@
 * Add --all option to octodns-validate to enable showing all record validation
   errors (as warnings) rather than exiting on the first. Exit code is non-zero
   when there are any validation errors.
+* New `post_processors` manager configuration parameter to add global processors
+  that run AFTER zone-specific processors. This should allow more complete
+  control over when processors are run.
 
 ## v1.0.0 - 2023-07-30 - The One
 
