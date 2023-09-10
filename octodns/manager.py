@@ -14,10 +14,10 @@ from sys import stdout
 from . import __VERSION__
 from .idna import IdnaDict, idna_decode, idna_encode
 from .processor.arpa import AutoArpa
+from .processor.meta import MetaProcessor
 from .provider.base import BaseProvider
 from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
-from .record import Record
 from .yaml import safe_load
 from .zone import Zone
 
@@ -136,6 +136,19 @@ class Manager(object):
             self.global_post_processors = [
                 auto_arpa.name
             ] + self.global_post_processors
+
+        if self.include_meta:
+            self.log.info(
+                '__init__: adding meta to processors and providers, appending it to global_post_processors list'
+            )
+            meta = MetaProcessor(
+                'meta',
+                record_name='octodns-meta',
+                include_time=False,
+                include_provider=True,
+            )
+            self.processors[meta.id] = meta
+            self.global_post_processors.append(meta.id)
 
         plan_outputs_config = manager_config.get(
             'plan_outputs',
@@ -440,17 +453,6 @@ class Manager(object):
         plans = []
 
         for target in targets:
-            if self.include_meta:
-                meta = Record.new(
-                    zone,
-                    'octodns-meta',
-                    {
-                        'type': 'TXT',
-                        'ttl': 60,
-                        'value': f'provider={target.id}',
-                    },
-                )
-                zone.add_record(meta, replace=True)
             try:
                 plan = target.plan(zone, processors=processors)
             except TypeError as e:
