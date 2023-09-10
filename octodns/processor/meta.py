@@ -1,0 +1,105 @@
+#
+#
+#
+
+from datetime import datetime
+from logging import getLogger
+from uuid import uuid4
+
+from .. import __VERSION__
+from ..record import Record
+from .base import BaseProcessor
+
+
+def _keys(values):
+    return set(v.split('=', 1)[0] for v in values)
+
+
+class MetaProcessor(BaseProcessor):
+    @classmethod
+    def now(cls):
+        return datetime.utcnow().isoformat()
+
+    @classmethod
+    def uuid(cls):
+        return str(uuid4())
+
+    def __init__(
+        self,
+        id,
+        record_name='meta',
+        include_time=True,
+        include_uuid=False,
+        include_version=False,
+        include_provider=False,
+        ttl=60,
+    ):
+        self.log = getLogger(f'MetaSource[{id}]')
+        super().__init__(id)
+        self.log.info(
+            '__init__: record_name=%s, include_time=%s, include_uuid=%s, include_version=%s, include_provider=%s, ttl=%d',
+            record_name,
+            include_time,
+            include_uuid,
+            include_version,
+            include_provider,
+            ttl,
+        )
+        self.record_name = record_name
+        values = []
+        if include_time:
+            time = self.now()
+            values.append(f'time={time}')
+        if include_uuid:
+            uuid = self.uuid() if include_uuid else None
+            values.append(f'uuid={uuid}')
+        if include_version:
+            values.append(f'octodns-version={__VERSION__}')
+        self.include_provider = include_provider
+        values.sort()
+        self.values = values
+        self.ttl = ttl
+
+    def process_source_zone(self, desired, sources):
+        meta = Record.new(
+            desired,
+            self.record_name,
+            {'ttl': self.ttl, 'type': 'TXT', 'values': self.values},
+        )
+        desired.add_record(meta)
+        return desired
+
+    def process_target_zone(self, existing, target):
+        if self.include_provider:
+            # look for the meta record
+            for record in sorted(existing.records):
+                if record.name == self.record_name and record._type == 'TXT':
+                    # we've found it, make a copy we can modify
+                    record = record.copy()
+                    record.values = record.values + [f'provider={target.id}']
+                    record.values.sort()
+                    existing.add_record(record, replace=True)
+                    break
+
+        return existing
+
+    def _up_to_date(self, change):
+        # existing state, if there is one
+        existing = getattr(change, 'existing', None)
+        return existing is not None and _keys(existing.values) == _keys(
+            self.values
+        )
+
+    def process_plan(self, plan, sources, target):
+        if (
+            plan
+            and len(plan.changes) == 1
+            and self._up_to_date(plan.changes[0])
+        ):
+            # the only change is the meta record, and it's not meaningfully
+            # changing so we don't actually want to make the change
+            return None
+
+        # There's more than one thing changing so meta should update and/or meta
+        # is meaningfully changing or being created...
+        return plan

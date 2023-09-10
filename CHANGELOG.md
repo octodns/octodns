@@ -15,6 +15,9 @@
   common records across all zones using the provider. It can be used stand-alone
   or in combination with zone files and/or split configs to aid in DRYing up DNS
   configs.
+* MetaProcessor added to enable some useful/cool options for debugging/tracking
+  DNS changes. Specifically timestamps/uuid so you can track whether changes
+  that have been pushed to providers have propogated/transferred correctly.
 
 #### Stuff
 
