@@ -7,11 +7,12 @@ Some relevant documentation for this example is in comments in the YAML
 configuration files.
 
 * [config/octodns.yaml](config/octodns.yaml)
-* [config/my-domain.com.yaml](config/my-domain.com.yaml)
-* [config/unused-domain.io.yaml](config/unused-domain.io.yaml)
+* [populate/octodns.yaml](populate/octodns.yaml)
+* [populate/my-dumpable.com.yaml](populate/my-dumpable.com.yaml)
+* [populate/unused-dumpable.io.yaml](populate/unused-dumpable.io.yaml)
 
-From here on this README focuses on the general process of running octoDNS to
-create your initial config.
+From here on this README focuses on the process of using `octodns-dump` to
+import your existing DNS data into octoDNS.
 
 ## Checking out the code and setting up the environment
 

@@ -12,7 +12,7 @@ ideas for other subjects to cover.
   with octoDNS including the process of planning and applying changes.
 * [Migrating to octoDNS](migrating-to-octodns/) - have an existing DNS setup
   you'd like to bring into octoDNS check this example out right after
-  [basic](/basic). It'll walk you through the steps of using `octodns-dump` to
+  [basic](basic/). It'll walk you through the steps of using `octodns-dump` to
   pull the existing data out of your provider into matching YAML config files on
   disk.
 
