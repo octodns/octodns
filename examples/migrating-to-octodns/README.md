@@ -9,7 +9,7 @@ configuration files.
 * [config/octodns.yaml](config/octodns.yaml)
 * [populate/octodns.yaml](populate/octodns.yaml)
 * [populate/my-dumpable.com.yaml](populate/my-dumpable.com.yaml)
-* [populate/unused-dumpable.io.yaml](populate/unused-dumpable.io.yaml)
+* [populate/unused-dumpable.com.yaml](populate/unused-dumpable.com.yaml)
 
 From here on this README focuses on the process of using `octodns-dump` to
 import your existing DNS data into octoDNS.
