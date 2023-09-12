@@ -3,7 +3,8 @@
 This is the starting point octoDNS config, it's pretty similar to what you
 might see for managing a set of personal domains or a small business.
 
-Most of the actual documentation for this example is in comments in the YAML configuration files.
+Most of the actual documentation for this example is found in the comments in
+the YAML configuration files.
 
 * [config/octodns.yaml](config/octodns.yaml)
 * [config/my-domain.com.yaml](config/my-domain.com.yaml)
@@ -21,9 +22,13 @@ to get a copy of the example files.
 $ git clone https://github.com/octodns/octodns.git
 $ cd octodns/examples/basic/
 $ python3 -mvenv env
+$ source ../env.sh
 $ source env/bin/activate
 (env) $ pip install -r requirements.txt
 ```
+
+Finally check out [Running PowerDNS](../README.md#running-powerdns) to get a local
+instance of PowerDNS up and going before continuing.
 
 ## Running octoDNS the first time
 
@@ -54,26 +59,26 @@ run the sync command to get it to plan an initial set of changes.
 2023-08-23T15:09:51  [4577488384] INFO  Manager sync:   targets=['yaml']
 2023-08-23T15:09:51  [4577488384] INFO  YamlProvider[config] populate:   found 9 records, exists=False
 2023-08-23T15:09:51  [4577488384] INFO  SpfSource[no-mail] populate:   found 0 records, exists=False
-2023-08-23T15:09:51  [4577488384] INFO  YamlProvider[yaml] plan: desired=my-domain.com.
-2023-08-23T15:09:51  [4577488384] WARNING YamlProvider[yaml] root NS record supported, but no record is configured for my-domain.com.
-2023-08-23T15:09:51  [4577488384] INFO  YamlProvider[yaml] plan:   Creates=9, Updates=0, Deletes=0, Existing Records=0
+2023-08-23T15:09:51  [4577488384] INFO  PowerDnsProvider[powerdns] plan: desired=my-domain.com.
+2023-08-23T15:09:51  [4577488384] WARNING PowerDnsProvider[powerdns] root NS record supported, but no record is configured for my-domain.com.
+2023-08-23T15:09:51  [4577488384] INFO  PowerDnsProvider[powerdns] plan:   Creates=9, Updates=0, Deletes=0, Existing Records=0
 2023-08-23T15:09:51  [4577488384] INFO  YamlProvider[config] populate:   found 0 records, exists=False
 2023-08-23T15:09:51  [4577488384] INFO  SpfSource[no-mail] populate:   found 1 records, exists=False
-2023-08-23T15:09:51  [4577488384] INFO  YamlProvider[yaml] plan: desired=unused-domain.io.
-2023-08-23T15:09:51  [4577488384] WARNING YamlProvider[yaml] root NS record supported, but no record is configured for unused-domain.io.
-2023-08-23T15:09:51  [4577488384] INFO  YamlProvider[yaml] plan:   Creates=1, Updates=0, Deletes=0, Existing Records=0
+2023-08-23T15:09:51  [4577488384] INFO  PowerDnsProvider[powerdns] plan: desired=unused-domain.io.
+2023-08-23T15:09:51  [4577488384] WARNING PowerDnsProvider[powerdns] root NS record supported, but no record is configured for unused-domain.io.
+2023-08-23T15:09:51  [4577488384] INFO  PowerDnsProvider[powerdns] plan:   Creates=1, Updates=0, Deletes=0, Existing Records=0
 2023-08-23T15:09:51  [4577488384] INFO  Plan
 ********************************************************************************
 * unused-domain.io.
 ********************************************************************************
-* yaml (YamlProvider)
+* powerdns (PowerDnsProvider)
 *   Create Zone<unused-domain.io.>
 *   Create <TxtRecord TXT 3600, unused-domain.io., ['v=spf1 -all']> ()
 *   Summary: Creates=1, Updates=0, Deletes=0, Existing Records=0
 ********************************************************************************
 * my-domain.com.
 ********************************************************************************
-* yaml (YamlProvider)
+* powerdns (PowerDnsProvider)
 *   Create Zone<my-domain.com.>
 *   Create <ARecord A 3600, my-domain.com., ['203.0.113.42', '203.0.113.43']> (config)
 *   Create <AaaaRecord AAAA 3600, my-domain.com., ['2001:db8::44']> (config)
@@ -102,7 +107,7 @@ support managing the root NS records, some just hard code their own name
 servers.
 
 ```console
-2023-08-23T15:09:51  [4577488384] WARNING YamlProvider[yaml] root NS record supported, but no record is configured for my-domain.com.
+2023-08-23T15:09:51  [4577488384] WARNING PowerDnsProvider[powerdns] root NS record supported, but no record is configured for my-domain.com.
 ```
 
 ### The plan output
@@ -111,14 +116,14 @@ servers.
 ********************************************************************************
 * unused-domain.io.
 ********************************************************************************
-* yaml (YamlProvider)
+* powerdns (PowerDnsProvider)
 *   Create Zone<unused-domain.io.>
 *   Create <TxtRecord TXT 3600, unused-domain.io., ['v=spf1 -all']> ()
 *   Summary: Creates=1, Updates=0, Deletes=0, Existing Records=0
 ********************************************************************************
 * my-domain.com.
 ********************************************************************************
-* yaml (YamlProvider)
+* powerdns (PowerDnsProvider)
 *   Create Zone<my-domain.com.>
 *   Create <ARecord A 3600, my-domain.com., ['203.0.113.42', '203.0.113.43']> (config)
 *   Create <AaaaRecord AAAA 3600, my-domain.com., ['2001:db8::44']> (config)
@@ -141,14 +146,14 @@ servers.
 ********************************************************************************
 * unused-domain.io.
 ********************************************************************************
-* yaml (YamlProvider)
+* powerdns (PowerDnsProvider)
 *   Create Zone<unused-domain.io.>
 *   Create <TxtRecord TXT 3600, unused-domain.io., ['v=spf1 -all']> ()
 *   Summary: Creates=1, Updates=0, Deletes=0, Existing Records=0
 ********************************************************************************
 * my-domain.com.
 ********************************************************************************
-* yaml (YamlProvider)
+* powerdns (PowerDnsProvider)
 *   Create Zone<my-domain.com.>
 *   Create <ARecord A 3600, my-domain.com., ['203.0.113.42', '203.0.113.43']> (config)
 *   Create <AaaaRecord AAAA 3600, my-domain.com., ['2001:db8::44']> (config)
@@ -162,13 +167,13 @@ servers.
 *   Summary: Creates=9, Updates=0, Deletes=0, Existing Records=0
 ********************************************************************************
 
-2023-08-23T15:17:00  [4671815168] INFO  YamlProvider[yaml] apply: making 1 changes to unused-domain.io.
-2023-08-23T15:17:00  [4671815168] INFO  YamlProvider[yaml] apply: making 9 changes to my-domain.com.
+2023-08-23T15:17:00  [4671815168] INFO  PowerDnsProvider[powerdns] apply: making 1 changes to unused-domain.io.
+2023-08-23T15:17:00  [4671815168] INFO  PowerDnsProvider[powerdns] apply: making 9 changes to my-domain.com.
 2023-08-23T15:17:00  [4671815168] INFO  Manager sync:   10 total changes
 ```
 
 ```console
-(env) coho:basic ross$ octodns-sync --config-file=config/octodns.yaml
+(env) $ octodns-sync --config-file=config/octodns.yaml
 ********************************************************************************
 No changes were planned
 ********************************************************************************
@@ -189,12 +194,12 @@ Just like during the first run section above we'll first run octoDNS to see what
 We'd skim the log lines again looking for unexpected WARNINGS and then take a look at the changes.
 
 ```console
-(env) coho:basic ross$ octodns-sync --config-file=config/octodns.yaml
+(env) $ octodns-sync --config-file=config/octodns.yaml
 ...
 ********************************************************************************
 * my-domain.com.
 ********************************************************************************
-* yaml (YamlProvider)
+* powerdns (PowerDnsProvider)
 *   Create Zone<my-domain.com.>
 *   Update
 *     <ARecord A 3600, my-domain.com., ['203.0.113.42', '203.0.113.43']> ->
@@ -217,12 +222,12 @@ Here we only see the expected changes so we're good to move forward with
 applying them.
 
 ```console
-(env) coho:basic ross$ octodns-sync --config-file=config/octodns.yaml --doit
+(env) $ octodns-sync --config-file=config/octodns.yaml --doit
 ...
 ********************************************************************************
 * my-domain.com.
 ********************************************************************************
-* yaml (YamlProvider)
+* powerdns (PowerDnsProvider)
 *   Create Zone<my-domain.com.>
 *   Update
 *     <ARecord A 3600, my-domain.com., ['203.0.113.42', '203.0.113.43']> ->
@@ -237,7 +242,7 @@ applying them.
 If we want we can run another plan to make sure there are no further pending changes.
 
 ```console
-(env) coho:basic ross$ octodns-sync --config-file=config/octodns.yaml
+(env) $ octodns-sync --config-file=config/octodns.yaml
 ********************************************************************************
 No changes were planned
 ********************************************************************************

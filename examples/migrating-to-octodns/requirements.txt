@@ -1,2 +1,3 @@
 octodns>=1.0.1
+octodns_powerdns>=0.0.5
 octodns_spf>=0.0.2

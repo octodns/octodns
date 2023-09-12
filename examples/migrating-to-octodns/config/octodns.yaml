@@ -1,31 +1,31 @@
 ---
 providers:
-  # See the basic example for descriptions of the bulk of this config file, here
-  # we'll focus on things related to octodns-dump
+  # See the basic example for descriptions of the basics of this config file,
+  # here we'll focus on things related to octodns-dump.
+  
+  # This is our config provider, it sources YAML from disk, but to start we
+  # don't have any files in the ./config directory. We need to dump what's in
+  # our provider, in this case a local PowerDNS setup, into this config
+  # directory as a starting point.
   config:
     class: octodns.provider.yaml.YamlProvider
     directory: ./config
 
-  # In a real setup this would be your existing DNS provider where all of your
-  # zones are configured. E.g. Route53, Azure, Cloudflare, NS1, ... Here it's
-  # using a second YamlProvider so that the example can be self contained and
-  # will work for anyone. For information on how to configure your provider see
-  # its README.md
-  some-provider:
-    class: octodns.provider.yaml.YamlProvider
-    directory: ./target
-    # This is a rarely used option that tells the YamlProvider that it should
-    # load existing records from disk rather than assume nothing exists
-    # created every a plan is made.
-    # TODO:
-    #populate_existing: true
+  # This is our existing provider, the one we want to bring under octoDNS
+  # management. This example will walk through dumping the existing data in
+  # this provider into the config provider's directory above. At that point we
+  # should be ready to start managing things with octoDNS going forward.
+  powerdns: 
+    class: octodns_powerdns.PowerDnsProvider
+    host: 127.0.0.1
+    port: 8081
+    api_key: env/POWERDNS_API_KEY
+    timeout: 10
 
 zones:
 
-  # We're using dynamic zone config to dynamically build the list of configured
-  # zones using the sources & targets below for each.
   '*':
     sources:
       - config
     targets:
-      - some-provider
+      - powerdns

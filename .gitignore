@@ -10,6 +10,7 @@
 coverage.xml
 dist/
 env/
+examples/migrating-to-octodns/config/
 htmlcov/
 nosetests.xml
 octodns.egg-info/

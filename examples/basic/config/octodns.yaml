@@ -18,22 +18,16 @@ providers:
   no-mail:
     class: octodns_spf.SpfSource
 
-  # This is just a placeholder for the purposes of this example, in your
-  # configuration you would replace it with configuration for the DNS
-  # provider(s) you wish to use, e.g. Route53, NS1, Azure DNS, ... See
-  # https://github.com/octodns/octodns#providers for a list of supported
-  # providers and have a look in each provider's repo for details on installing
-  # and configuring the provider. Convention is to name the provider with the
-  # unique portion of the provider class/company name in all lowercase, here
-  # YamlProvider -> yaml. Route53 would be route53, NS1 -> ns1, etc.
-  yaml:
-    class: octodns.provider.yaml.YamlProvider
-    directory: ./target
-    # This is a rarely used option that tells the YamlProvider that it should
-    # load existing records from disk rather than assume nothing exists
-    # created every a plan is made.
-    # TODO:
-    #populate_existing: true
+  # PowerDNS serves as a good option for a locally runnable standalone provider
+  # to use in our examples. See the top-level example README for information on
+  # how to run it and the documentation for octodns-powerdns for documentation
+  # about the details of the config below.
+  powerdns:
+    class: octodns_powerdns.PowerDnsProvider
+    host: 127.0.0.1
+    port: 8081
+    api_key: env/POWERDNS_API_KEY
+    timeout: 10
 
   # If you wish to push your record data to multiple providers you'd define the
   # other here and include them in the targets list down below. See the
@@ -60,5 +54,5 @@ zones:
       - no-mail
     # This is the place(s) we push the record data to when applying changes
     targets:
-      # Here we're pushing things to our example provider.
-      - yaml
+      # Here we're pushing things to our local PowerDNS instance
+      - powerdns

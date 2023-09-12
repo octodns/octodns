@@ -1,0 +1,5 @@
+---
+'':
+  type: TXT
+  values:
+    - v=spf1 -all
