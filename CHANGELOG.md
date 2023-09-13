@@ -1,4 +1,4 @@
-## v1.1.0 - 2023-??-?? - ???
+## v1.1.0 - 2023-09-13 - More than enough for a minor release
 
 #### Noteworthy changes
 
