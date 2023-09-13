@@ -10,7 +10,7 @@ from .base import BaseProcessor
 class AcmeMangingProcessor(BaseProcessor):
     log = getLogger('AcmeMangingProcessor')
 
-    def __init__(self, name):
+    def __init__(self, id):
         '''
         processors:
           acme:
@@ -25,7 +25,7 @@ class AcmeMangingProcessor(BaseProcessor):
             - acme
           ...
         '''
-        super().__init__(name)
+        super().__init__(id)
 
         self._owned = set()
 

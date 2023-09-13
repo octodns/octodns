@@ -29,8 +29,8 @@ class TypeAllowlistFilter(BaseProcessor):
           - ns1
     '''
 
-    def __init__(self, name, allowlist):
-        super().__init__(name)
+    def __init__(self, id, allowlist):
+        super().__init__(id)
         self.allowlist = set(allowlist)
 
     def _process(self, zone, *args, **kwargs):
@@ -65,8 +65,8 @@ class TypeRejectlistFilter(BaseProcessor):
           - route53
     '''
 
-    def __init__(self, name, rejectlist):
-        super().__init__(name)
+    def __init__(self, id, rejectlist):
+        super().__init__(id)
         self.rejectlist = set(rejectlist)
 
     def _process(self, zone, *args, **kwargs):
@@ -81,8 +81,8 @@ class TypeRejectlistFilter(BaseProcessor):
 
 
 class _NameBaseFilter(BaseProcessor):
-    def __init__(self, name, _list):
-        super().__init__(name)
+    def __init__(self, id, _list):
+        super().__init__(id)
         exact = set()
         regex = []
         for pattern in _list:
@@ -122,8 +122,8 @@ class NameAllowlistFilter(_NameBaseFilter):
           - route53
     '''
 
-    def __init__(self, name, allowlist):
-        super().__init__(name, allowlist)
+    def __init__(self, id, allowlist):
+        super().__init__(id, allowlist)
 
     def _process(self, zone, *args, **kwargs):
         for record in zone.records:
@@ -169,8 +169,8 @@ class NameRejectlistFilter(_NameBaseFilter):
           - route53
     '''
 
-    def __init__(self, name, rejectlist):
-        super().__init__(name, rejectlist)
+    def __init__(self, id, rejectlist):
+        super().__init__(id, rejectlist)
 
     def _process(self, zone, *args, **kwargs):
         for record in zone.records:

@@ -11,9 +11,9 @@ from .base import BaseProcessor
 
 
 class AutoArpa(BaseProcessor):
-    def __init__(self, name, ttl=3600, populate_should_replace=False):
-        super().__init__(name)
-        self.log = getLogger(f'AutoArpa[{name}]')
+    def __init__(self, id, ttl=3600, populate_should_replace=False):
+        super().__init__(id)
+        self.log = getLogger(f'AutoArpa[{id}]')
         self.log.info(
             '__init__: ttl=%d, populate_should_replace=%s',
             ttl,

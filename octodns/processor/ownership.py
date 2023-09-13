@@ -13,8 +13,8 @@ from .base import BaseProcessor
 # delete. We'll take ownership of existing records that we're told to manage
 # and thus "own" them going forward.
 class OwnershipProcessor(BaseProcessor):
-    def __init__(self, name, txt_name='_owner', txt_value='*octodns*'):
-        super().__init__(name)
+    def __init__(self, id, txt_name='_owner', txt_value='*octodns*'):
+        super().__init__(id)
         self.txt_name = txt_name
         self.txt_value = txt_value
         self._txt_values = [txt_value]

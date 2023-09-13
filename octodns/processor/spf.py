@@ -53,12 +53,12 @@ class SpfDnsLookupProcessor(BaseProcessor):
 
     log = getLogger('SpfDnsLookupProcessor')
 
-    def __init__(self, name):
-        self.log.debug(f"SpfDnsLookupProcessor: {name}")
+    def __init__(self, id):
+        self.log.debug('__init__:')
         self.log.warning(
             'SpfDnsLookupProcessor is DEPRECATED in favor of the version relocated into octodns-spf and will be removed in 2.0'
         )
-        super().__init__(name)
+        super().__init__(id)
 
     def _get_spf_from_txt_values(
         self, record: Record, values: List[str]

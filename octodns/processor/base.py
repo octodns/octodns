@@ -8,8 +8,9 @@ class ProcessorException(Exception):
 
 
 class BaseProcessor(object):
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, id):
+        # TODO: name is DEPRECATED and will be removed with 2.0
+        self.id = self.name = id
 
     def process_source_zone(self, desired, sources):
         '''
