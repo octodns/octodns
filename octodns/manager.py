@@ -14,10 +14,10 @@ from sys import stdout
 from . import __VERSION__
 from .idna import IdnaDict, idna_decode, idna_encode
 from .processor.arpa import AutoArpa
+from .processor.meta import MetaProcessor
 from .provider.base import BaseProvider
 from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
-from .record import Record
 from .yaml import safe_load
 from .zone import Zone
 
@@ -114,6 +114,11 @@ class Manager(object):
         self.global_processors = manager_config.get('processors', [])
         self.log.info('__init__: global_processors=%s', self.global_processors)
 
+        self.global_post_processors = manager_config.get('post_processors', [])
+        self.log.info(
+            '__init__: global_post_processors=%s', self.global_post_processors
+        )
+
         providers_config = self.config['providers']
         self.providers = self._config_providers(providers_config)
 
@@ -122,13 +127,28 @@ class Manager(object):
 
         if self.auto_arpa:
             self.log.info(
-                '__init__: adding auto-arpa to processors and providers, appending it to global_processors list'
+                '__init__: adding auto-arpa to processors and providers, prepending it to global_post_processors list'
             )
             kwargs = self.auto_arpa if isinstance(auto_arpa, dict) else {}
             auto_arpa = AutoArpa('auto-arpa', **kwargs)
             self.providers[auto_arpa.name] = auto_arpa
             self.processors[auto_arpa.name] = auto_arpa
-            self.global_processors.append(auto_arpa.name)
+            self.global_post_processors = [
+                auto_arpa.name
+            ] + self.global_post_processors
+
+        if self.include_meta:
+            self.log.info(
+                '__init__: adding meta to processors and providers, appending it to global_post_processors list'
+            )
+            meta = MetaProcessor(
+                'meta',
+                record_name='octodns-meta',
+                include_time=False,
+                include_provider=True,
+            )
+            self.processors[meta.id] = meta
+            self.global_post_processors.append(meta.id)
 
         plan_outputs_config = manager_config.get(
             'plan_outputs',
@@ -433,17 +453,6 @@ class Manager(object):
         plans = []
 
         for target in targets:
-            if self.include_meta:
-                meta = Record.new(
-                    zone,
-                    'octodns-meta',
-                    {
-                        'type': 'TXT',
-                        'ttl': 60,
-                        'value': f'provider={target.id}',
-                    },
-                )
-                zone.add_record(meta, replace=True)
             try:
                 plan = target.plan(zone, processors=processors)
             except TypeError as e:
@@ -634,7 +643,11 @@ class Manager(object):
 
             try:
                 collected = []
-                for processor in self.global_processors + processors:
+                for processor in (
+                    self.global_processors
+                    + processors
+                    + self.global_post_processors
+                ):
                     collected.append(self.processors[processor])
                 processors = collected
             except KeyError:

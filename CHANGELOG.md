@@ -14,7 +14,6 @@
 * YamlProvider now supports a `shared_filename` that can be used to add a set of
   common records across all zones using the provider. It can be used stand-alone
   or in combination with zone files and/or split configs to aid in DRYing up DNS
-  configs.
 * YamlProvider now supports an `!include` directive which enables shared
   snippets of config to be reused across many records, e.g. common dynamic rules
   across a set of services with service-specific pool values or a unified SFP
@@ -23,6 +22,9 @@
   ValidationError in 2.x
 * SpfDnsLookupProcessor is formally deprcated in favor of the version relocated
   into https://github.com/octodns/octodns-spf and will be removed in 2.x
+* MetaProcessor added to enable some useful/cool options for debugging/tracking
+  DNS changes. Specifically timestamps/uuid so you can track whether changes
+  that have been pushed to providers have propogated/transferred correctly.
 
 #### Stuff
 
@@ -33,6 +35,9 @@
 * Add --all option to octodns-validate to enable showing all record validation
   errors (as warnings) rather than exiting on the first. Exit code is non-zero
   when there are any validation errors.
+* New `post_processors` manager configuration parameter to add global processors
+  that run AFTER zone-specific processors. This should allow more complete
+  control over when processors are run.
 
 ## v1.0.0 - 2023-07-30 - The One
 
