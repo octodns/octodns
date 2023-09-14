@@ -129,7 +129,7 @@ class Manager(object):
             self.log.info(
                 '__init__: adding auto-arpa to processors and providers, prepending it to global_post_processors list'
             )
-            kwargs = self.auto_arpa if isinstance(auto_arpa, dict) else {}
+            kwargs = self.auto_arpa if isinstance(self.auto_arpa, dict) else {}
             auto_arpa = AutoArpa('auto-arpa', **kwargs)
             self.providers[auto_arpa.name] = auto_arpa
             self.processors[auto_arpa.name] = auto_arpa
