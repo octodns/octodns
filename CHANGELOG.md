@@ -1,4 +1,4 @@
-## v1.1.0 - 2023-09-16 - Doh! Fix that one little thing
+## v1.1.1 - 2023-09-16 - Doh! Fix that one little thing
 
 * Address a bug in the handling of loading auto-arpa manager configuration.
 
