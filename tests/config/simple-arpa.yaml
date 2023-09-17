@@ -1,6 +1,7 @@
 manager:
   max_workers: 2
   auto_arpa:
+    populate_should_replace: True
     ttl: 1800
 
 providers:

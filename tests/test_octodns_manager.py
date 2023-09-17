@@ -928,6 +928,18 @@ class TestManager(TestCase):
     def test_auto_arpa(self):
         manager = Manager(get_config_filename('simple-arpa.yaml'))
 
+        # provider config
+        self.assertEqual(
+            True, manager.providers.get("auto-arpa").populate_should_replace
+        )
+        self.assertEqual(1800, manager.providers.get("auto-arpa").ttl)
+
+        # processor config
+        self.assertEqual(
+            True, manager.processors.get("auto-arpa").populate_should_replace
+        )
+        self.assertEqual(1800, manager.processors.get("auto-arpa").ttl)
+
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
 
