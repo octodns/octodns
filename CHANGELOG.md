@@ -1,3 +1,7 @@
+## v1.1.0 - 2023-09-16 - Doh! Fix that one little thing
+
+* Address a bug in the handling of loading auto-arpa manager configuration.
+
 ## v1.1.0 - 2023-09-13 - More than enough for a minor release
 
 #### Noteworthy changes
