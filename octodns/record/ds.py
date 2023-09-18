@@ -8,31 +8,31 @@ from .rr import RrParseError
 
 
 class DsValue(EqualityTupleMixin, dict):
-    # https://www.rfc-editor.org/rfc/rfc4034.html#section-2.1
+    # https://www.rfc-editor.org/rfc/rfc4034.html#section-5.1
 
     @classmethod
     def parse_rdata_text(cls, value):
         try:
-            flags, protocol, algorithm, public_key = value.split(' ')
+            key_tag, algorithm, digest_type, digest = value.split(' ')
         except ValueError:
             raise RrParseError()
         try:
-            flags = int(flags)
-        except ValueError:
-            pass
-        try:
-            protocol = int(protocol)
+            key_tag = int(key_tag)
         except ValueError:
             pass
         try:
             algorithm = int(algorithm)
         except ValueError:
             pass
+        try:
+            digest_type = int(digest_type)
+        except ValueError:
+            pass
         return {
-            'flags': flags,
-            'protocol': protocol,
+            'key_tag': key_tag,
             'algorithm': algorithm,
-            'public_key': public_key,
+            'digest_type': digest_type,
+            'digest': digest,
         }
 
     @classmethod
@@ -42,25 +42,25 @@ class DsValue(EqualityTupleMixin, dict):
         reasons = []
         for value in data:
             try:
-                int(value['flags'])
+                int(value['key_tag'])
             except KeyError:
-                reasons.append('missing flags')
+                reasons.append('missing key_tag')
             except ValueError:
-                reasons.append(f'invalid flags "{value["flags"]}"')
-            try:
-                int(value['protocol'])
-            except KeyError:
-                reasons.append('missing protocol')
-            except ValueError:
-                reasons.append(f'invalid protocol "{value["protocol"]}"')
+                reasons.append(f'invalid key_tag "{value["key_tag"]}"')
             try:
                 int(value['algorithm'])
             except KeyError:
                 reasons.append('missing algorithm')
             except ValueError:
                 reasons.append(f'invalid algorithm "{value["algorithm"]}"')
-            if 'public_key' not in value:
-                reasons.append('missing public_key')
+            try:
+                int(value['digest_type'])
+            except KeyError:
+                reasons.append('missing digest_type')
+            except ValueError:
+                reasons.append(f'invalid digest_type "{value["digest_type"]}"')
+            if 'digest' not in value:
+                reasons.append('missing digest')
         return reasons
 
     @classmethod
@@ -70,28 +70,20 @@ class DsValue(EqualityTupleMixin, dict):
     def __init__(self, value):
         super().__init__(
             {
-                'flags': int(value['flags']),
-                'protocol': int(value['protocol']),
+                'key_tag': int(value['key_tag']),
                 'algorithm': int(value['algorithm']),
-                'public_key': value['public_key'],
+                'digest_type': int(value['digest_type']),
+                'digest': value['digest'],
             }
         )
 
     @property
-    def flags(self):
-        return self['flags']
+    def key_tag(self):
+        return self['key_tag']
 
-    @flags.setter
-    def flags(self, value):
-        self['flags'] = value
-
-    @property
-    def protocol(self):
-        return self['protocol']
-
-    @protocol.setter
-    def protocol(self, value):
-        self['protocol'] = value
+    @key_tag.setter
+    def key_tag(self, value):
+        self['key_tag'] = value
 
     @property
     def algorithm(self):
@@ -102,12 +94,20 @@ class DsValue(EqualityTupleMixin, dict):
         self['algorithm'] = value
 
     @property
-    def public_key(self):
-        return self['public_key']
+    def digest_type(self):
+        return self['digest_type']
 
-    @public_key.setter
-    def public_key(self, value):
-        self['public_key'] = value
+    @digest_type.setter
+    def digest_type(self, value):
+        self['digest_type'] = value
+
+    @property
+    def digest(self):
+        return self['digest']
+
+    @digest.setter
+    def digest(self, value):
+        self['digest'] = value
 
     @property
     def data(self):
@@ -116,15 +116,15 @@ class DsValue(EqualityTupleMixin, dict):
     @property
     def rdata_text(self):
         return (
-            f'{self.flags} {self.protocol} {self.algorithm} {self.public_key}'
+            f'{self.key_tag} {self.algorithm} {self.digest_type} {self.digest}'
         )
 
     def _equality_tuple(self):
-        return (self.flags, self.protocol, self.algorithm, self.public_key)
+        return (self.key_tag, self.algorithm, self.digest_type, self.digest)
 
     def __repr__(self):
         return (
-            f'{self.flags} {self.protocol} {self.algorithm} {self.public_key}'
+            f'{self.key_tag} {self.algorithm} {self.digest_type} {self.digest}'
         )
 
 
