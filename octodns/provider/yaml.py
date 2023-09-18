@@ -278,8 +278,10 @@ class YamlProvider(BaseProvider):
                     f'Both UTF-8 "{utf8}" and IDNA "{idna}" exist for {zone.decoded_name}'
                 )
             directory = utf8
-        else:
+        elif isdir(idna):
             directory = idna
+        else:
+            return []
 
         for filename in listdir(directory):
             if filename.endswith('.yaml'):
@@ -294,8 +296,10 @@ class YamlProvider(BaseProvider):
                     f'Both UTF-8 "{utf8}" and IDNA "{idna}" exist for {zone.decoded_name}'
                 )
             return utf8
+        elif isfile(idna):
+            return idna
 
-        return idna
+        return None
 
     def _populate_from_file(self, filename, zone, lenient):
         with open(filename, 'r') as fh:
@@ -341,10 +345,17 @@ class YamlProvider(BaseProvider):
             sources.extend(self._split_sources(zone))
 
         if not self.disable_zonefile:
-            sources.append(self._zone_sources(zone))
+            source = self._zone_sources(zone)
+            if source:
+                sources.append(self._zone_sources(zone))
 
         if self.shared_filename:
             sources.append(join(self.directory, self.shared_filename))
+
+        if not sources:
+            self.log.info(
+                'populate:   no YAMLs found for %s', zone.decoded_name
+            )
 
         # determinstically order our sources
         sources.sort()

@@ -1,0 +1,4 @@
+---
+split-zone-file:
+  type: TXT
+  value: split zone file
