@@ -1,3 +1,8 @@
+## v1.1.2 - 2023-09-20 - Bunch more bug fixes
+
+* Fix crash bug when using the YamlProvider with a directory that contains a
+  mix of split and non-split zone yamls. See https://github.com/octodns/octodns/issues/1066
+
 ## v1.1.1 - 2023-09-16 - Doh! Fix that one little thing
 
 * Address a bug in the handling of loading auto-arpa manager configuration.
