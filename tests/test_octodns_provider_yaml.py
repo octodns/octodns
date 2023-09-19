@@ -663,8 +663,8 @@ class TestSplitYamlProvider(TestCase):
         zone = Zone('empty.', [])
 
         # without it we see everything
-        source.populate(zone)
-        self.assertEqual(0, len(zone.records))
+        with self.assertRaises(ProviderException):
+            source.populate(zone)
 
     def test_unsorted(self):
         source = SplitYamlProvider(
@@ -759,6 +759,24 @@ class TestSplitYamlProvider(TestCase):
             ],
             sorted(provider.list_zones()),
         )
+
+    def test_hybrid_directory(self):
+        source = YamlProvider(
+            'test',
+            join(dirname(__file__), 'config/hybrid'),
+            split_extension='.',
+            strict_supports=False,
+        )
+
+        # flat zone file only
+        zone = Zone('one.test.', [])
+        source.populate(zone)
+        self.assertEqual(1, len(zone.records))
+
+        # split zone only
+        zone = Zone('two.test.', [])
+        source.populate(zone)
+        self.assertEqual(2, len(zone.records))
 
 
 class TestOverridingYamlProvider(TestCase):
