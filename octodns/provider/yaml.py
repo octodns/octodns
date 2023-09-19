@@ -353,9 +353,7 @@ class YamlProvider(BaseProvider):
             sources.append(join(self.directory, self.shared_filename))
 
         if not sources:
-            self.log.info(
-                'populate:   no YAMLs found for %s', zone.decoded_name
-            )
+            raise ProviderException(f'no YAMLs found for {zone.decoded_name}')
 
         # determinstically order our sources
         sources.sort()

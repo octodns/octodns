@@ -663,8 +663,8 @@ class TestSplitYamlProvider(TestCase):
         zone = Zone('empty.', [])
 
         # without it we see everything
-        source.populate(zone)
-        self.assertEqual(0, len(zone.records))
+        with self.assertRaises(ProviderException):
+            source.populate(zone)
 
     def test_unsorted(self):
         source = SplitYamlProvider(
