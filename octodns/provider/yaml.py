@@ -347,7 +347,7 @@ class YamlProvider(BaseProvider):
         if not self.disable_zonefile:
             source = self._zone_sources(zone)
             if source:
-                sources.append(self._zone_sources(zone))
+                sources.append(source)
 
         if self.shared_filename:
             sources.append(join(self.directory, self.shared_filename))
