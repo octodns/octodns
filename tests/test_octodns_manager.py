@@ -997,10 +997,14 @@ class TestManager(TestCase):
 
             manager = Manager(get_config_filename('dynamic-config.yaml'))
 
-            # just unit.tests. which should have been dynamically configured via
+            # two zones which should have been dynamically configured via
             # list_zones
             self.assertEqual(
-                23, manager.sync(eligible_zones=['unit.tests.'], dry_run=False)
+                29,
+                manager.sync(
+                    eligible_zones=['unit.tests.', 'dynamic.tests.'],
+                    dry_run=False,
+                ),
             )
 
             # just subzone.unit.tests. which was explicitly configured
