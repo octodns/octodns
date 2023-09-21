@@ -72,6 +72,21 @@ class TestRecordDs(TestCase):
                     'digest': 'bcdef0123456a',
                 },
             ),
+            # diff digest with previously used key names
+            (
+                {
+                    'flags': 0,
+                    'protocol': 1,
+                    'algorithm': 2,
+                    'public_key': 'abcdef0123456',
+                },
+                {
+                    'key_tag': 0,
+                    'algorithm': 1,
+                    'digest_type': 2,
+                    'digest': 'bcdef0123456a',
+                },
+            ),
         ):
             a = DsValue(a)
             self.assertEqual(a, a)
@@ -162,9 +177,47 @@ class TestRecordDs(TestCase):
             ['invalid digest_type "a"'], DsValue.validate(data, 'DS')
         )
 
-        # missing digest_type (list)
+        # missing public_key (list)
         data = {'key_tag': 1, 'algorithm': 2, 'digest_type': 3}
         self.assertEqual(['missing digest'], DsValue.validate([data], 'DS'))
+
+        # do validations again with old field style
+
+        # missing flags (list)
+        data = {'protocol': 2, 'algorithm': 3, 'public_key': '99148c81'}
+        self.assertEqual(['missing flags'], DsValue.validate([data], 'DS'))
+
+        # missing protocol (list)
+        data = {'flags': 1, 'algorithm': 3, 'public_key': '99148c81'}
+        self.assertEqual(['missing protocol'], DsValue.validate([data], 'DS'))
+
+        # missing algorithm (list)
+        data = {'flags': 1, 'protocol': 2, 'public_key': '99148c81'}
+        self.assertEqual(['missing algorithm'], DsValue.validate([data], 'DS'))
+
+        # missing public_key (list)
+        data = {'flags': 1, 'algorithm': 3, 'protocol': 2}
+        self.assertEqual(['missing public_key'], DsValue.validate([data], 'DS'))
+
+        # missing public_key (list)
+        data = {'flags': 1, 'algorithm': 3, 'protocol': 2, 'digest': '99148c81'}
+        self.assertEqual(['missing public_key'], DsValue.validate([data], 'DS'))
+
+        # invalid flags, protocol and algorithm
+        data = {
+            'flags': 'a',
+            'protocol': 'a',
+            'algorithm': 'a',
+            'public_key': '99148c81',
+        }
+        self.assertEqual(
+            [
+                'invalid flags "a"',
+                'invalid protocol "a"',
+                'invalid algorithm "a"',
+            ],
+            DsValue.validate(data, 'DS'),
+        )
 
         zone = Zone('unit.tests.', [])
         values = [
@@ -175,10 +228,10 @@ class TestRecordDs(TestCase):
                 'digest': '99148c81',
             },
             {
-                'key_tag': 1,
-                'algorithm': 2,
-                'digest_type': 3,
-                'digest': '99148c44',
+                'flags': 1,
+                'protocol': 2,
+                'algorithm': 3,
+                'public_key': '99148c44',
             },
         ]
         a = DsRecord(zone, 'ds', {'ttl': 32, 'values': values})

@@ -41,26 +41,54 @@ class DsValue(EqualityTupleMixin, dict):
             data = (data,)
         reasons = []
         for value in data:
-            try:
-                int(value['key_tag'])
-            except KeyError:
-                reasons.append('missing key_tag')
-            except ValueError:
-                reasons.append(f'invalid key_tag "{value["key_tag"]}"')
-            try:
-                int(value['algorithm'])
-            except KeyError:
-                reasons.append('missing algorithm')
-            except ValueError:
-                reasons.append(f'invalid algorithm "{value["algorithm"]}"')
-            try:
-                int(value['digest_type'])
-            except KeyError:
-                reasons.append('missing digest_type')
-            except ValueError:
-                reasons.append(f'invalid digest_type "{value["digest_type"]}"')
-            if 'digest' not in value:
-                reasons.append('missing digest')
+            # we need to validate both "old" style field names and new
+            # it is safe to assume if public_key or flags are defined then it is "old" style
+            # A DS record without public_key doesn't make any sense and shouldn't have validated previously
+            if "public_key" in value or "flags" in value:
+                try:
+                    int(value['flags'])
+                except KeyError:
+                    reasons.append('missing flags')
+                except ValueError:
+                    reasons.append(f'invalid flags "{value["flags"]}"')
+                try:
+                    int(value['protocol'])
+                except KeyError:
+                    reasons.append('missing protocol')
+                except ValueError:
+                    reasons.append(f'invalid protocol "{value["protocol"]}"')
+                try:
+                    int(value['algorithm'])
+                except KeyError:
+                    reasons.append('missing algorithm')
+                except ValueError:
+                    reasons.append(f'invalid algorithm "{value["algorithm"]}"')
+                if 'public_key' not in value:
+                    reasons.append('missing public_key')
+
+            else:
+                try:
+                    int(value['key_tag'])
+                except KeyError:
+                    reasons.append('missing key_tag')
+                except ValueError:
+                    reasons.append(f'invalid key_tag "{value["key_tag"]}"')
+                try:
+                    int(value['algorithm'])
+                except KeyError:
+                    reasons.append('missing algorithm')
+                except ValueError:
+                    reasons.append(f'invalid algorithm "{value["algorithm"]}"')
+                try:
+                    int(value['digest_type'])
+                except KeyError:
+                    reasons.append('missing digest_type')
+                except ValueError:
+                    reasons.append(
+                        f'invalid digest_type "{value["digest_type"]}"'
+                    )
+                if 'digest' not in value:
+                    reasons.append('missing digest')
         return reasons
 
     @classmethod
@@ -68,14 +96,23 @@ class DsValue(EqualityTupleMixin, dict):
         return [cls(v) for v in values]
 
     def __init__(self, value):
-        super().__init__(
-            {
+        # we need to instantiate both based on "old" style field names and new
+        # it is safe to assume if public_key or flags are defined then it is "old" style
+        if "public_key" in value or "flags" in value:
+            init = {
+                'key_tag': int(value['flags']),
+                'algorithm': int(value['protocol']),
+                'digest_type': int(value['algorithm']),
+                'digest': value['public_key'],
+            }
+        else:
+            init = {
                 'key_tag': int(value['key_tag']),
                 'algorithm': int(value['algorithm']),
                 'digest_type': int(value['digest_type']),
                 'digest': value['digest'],
             }
-        )
+        super().__init__(init)
 
     @property
     def key_tag(self):
