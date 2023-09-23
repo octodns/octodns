@@ -516,11 +516,11 @@ class Manager(object):
             # we've found a dynamic config element
 
             # find its sources
-            sources = sources or self._get_sources(
+            found_sources = sources or self._get_sources(
                 name, config, eligible_sources
             )
             self.log.info('sync:   dynamic zone=%s, sources=%s', name, sources)
-            for source in sources:
+            for source in found_sources:
                 if not hasattr(source, 'list_zones'):
                     raise ManagerException(
                         f'dynamic zone={name} includes a source, {source.id}, that does not support `list_zones`'

@@ -2,6 +2,8 @@
 
 * Fix crash bug when using the YamlProvider with a directory that contains a
   mix of split and non-split zone yamls. See https://github.com/octodns/octodns/issues/1066
+* Fix discovery of zones from different sources when there are multiple dynamic
+  zones. See https://github.com/octodns/octodns/issues/1068
 
 ## v1.1.1 - 2023-09-16 - Doh! Fix that one little thing
 
