@@ -2,6 +2,8 @@
 #
 #
 
+from logging import getLogger
+
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin
 from .rr import RrParseError
@@ -9,6 +11,7 @@ from .rr import RrParseError
 
 class DsValue(EqualityTupleMixin, dict):
     # https://www.rfc-editor.org/rfc/rfc4034.html#section-5.1
+    log = getLogger('DsValue')
 
     @classmethod
     def parse_rdata_text(cls, value):
@@ -45,6 +48,9 @@ class DsValue(EqualityTupleMixin, dict):
             # it is safe to assume if public_key or flags are defined then it is "old" style
             # A DS record without public_key doesn't make any sense and shouldn't have validated previously
             if "public_key" in value or "flags" in value:
+                self.log.warning(
+                    '"algorithm", "flags", "public_key", and "protocol" support is DEPRECATED and will be removed in 2.0'
+                )
                 try:
                     int(value['flags'])
                 except KeyError:
