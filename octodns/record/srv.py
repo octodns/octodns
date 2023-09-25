@@ -8,7 +8,7 @@ from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import Record, ValuesMixin
+from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 
 
@@ -31,6 +31,7 @@ class SrvValue(EqualityTupleMixin, dict):
             port = int(port)
         except ValueError:
             pass
+        target = unquote(target)
         return {
             'priority': priority,
             'weight': weight,

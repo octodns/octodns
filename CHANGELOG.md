@@ -1,3 +1,8 @@
+## v1.?.? - 2023-??-?? - ???
+
+* Record.from_rrs supports `source` parameter
+* *Record.parse_rdata_text unquotes any quoted (string) values
+
 ## v1.1.2 - 2023-09-20 - Bunch more bug fixes
 
 * Fix crash bug when using the YamlProvider with a directory that contains a

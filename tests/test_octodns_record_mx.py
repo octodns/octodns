@@ -92,6 +92,12 @@ class TestRecordMx(TestCase):
             MxValue.parse_rdata_text('10 mx.unit.tests.'),
         )
 
+        # quoted
+        self.assertEqual(
+            {'preference': 10, 'exchange': 'mx.unit.tests.'},
+            MxValue.parse_rdata_text('10 "mx.unit.tests."'),
+        )
+
         zone = Zone('unit.tests.', [])
         a = MxRecord(
             zone,
