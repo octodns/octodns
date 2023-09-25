@@ -293,20 +293,15 @@ class _DynamicMixin(object):
                             # process only valid ones and skip invalid ones
                             pass
 
-                    # subnets of type IPv4 and IPv6 can't be sorted together
-                    # separately sort them and then combine them
-                    networks_by_type = defaultdict(list)
-                    for network in networks:
-                        networks_by_type[network.__class__].append(network)
-                    sorted_networks = []
-                    for _, networks_of_type in networks_by_type.items():
-                        sorted_networks.extend(sorted(networks_of_type))
-
+                    # sort subnets from largest to smallest so that we can
                     # detect rule that have needlessly targeted a more specific
                     # subnet along with a larger subnet that already contains it
+                    sorted_networks = sorted(
+                        networks, key=lambda n: (n.version, n)
+                    )
                     for subnet in sorted_networks:
-                        subnets_seen_of_type = subnets_seen[subnet.__class__]
-                        for seen, where in subnets_seen_of_type.items():
+                        subnets_seen_version = subnets_seen[subnet.version]
+                        for seen, where in subnets_seen_version.items():
                             if subnet == seen:
                                 reasons.append(
                                     f'rule {rule_num} targets subnet {subnet} which has previously been seen in rule {where}'
@@ -316,7 +311,7 @@ class _DynamicMixin(object):
                                     f'rule {rule_num} targets subnet {subnet} which is more specific than the previously seen {seen} in rule {where}'
                                 )
 
-                        subnets_seen_of_type[subnet] = rule_num
+                        subnets_seen_version[subnet] = rule_num
 
                 if not isinstance(geos, (list, tuple)):
                     reasons.append(f'rule {rule_num} geos must be a list')
