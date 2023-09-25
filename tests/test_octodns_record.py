@@ -159,10 +159,13 @@ class TestRecord(TestCase):
         )
 
         zone = Zone('unit.tests.', [])
-        records = {(r._type, r.name): r for r in Record.from_rrs(zone, rrs)}
+        records = {
+            (r._type, r.name): r for r in Record.from_rrs(zone, rrs, source=99)
+        }
         record = records[('A', '')]
         self.assertEqual(42, record.ttl)
         self.assertEqual(['1.2.3.4', '2.3.4.5'], record.values)
+        self.assertEqual(99, record.source)
         record = records[('AAAA', '')]
         self.assertEqual(43, record.ttl)
         self.assertEqual(['fc00::1', 'fc00::2'], record.values)

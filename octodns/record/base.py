@@ -113,7 +113,7 @@ class Record(EqualityTupleMixin):
         return reasons
 
     @classmethod
-    def from_rrs(cls, zone, rrs, lenient=False):
+    def from_rrs(cls, zone, rrs, lenient=False, source=None):
         # group records by name & type so that multiple rdatas can be combined
         # into a single record when needed
         grouped = defaultdict(list)
@@ -128,7 +128,9 @@ class Record(EqualityTupleMixin):
             name = zone.hostname_from_fqdn(rr.name)
             _class = cls._CLASSES[rr._type]
             data = _class.data_from_rrs(rrs)
-            record = Record.new(zone, name, data, lenient=lenient)
+            record = Record.new(
+                zone, name, data, lenient=lenient, source=source
+            )
             records.append(record)
 
         return records
