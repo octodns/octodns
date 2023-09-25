@@ -346,6 +346,19 @@ class TestRecordNaptr(TestCase):
             NaptrValue.parse_rdata_text('1 2 three four five six'),
         )
 
+        # string fields are unquoted if needed
+        self.assertEqual(
+            {
+                'order': 1,
+                'preference': 2,
+                'flags': 'three',
+                'service': 'four',
+                'regexp': 'five',
+                'replacement': 'six',
+            },
+            NaptrValue.parse_rdata_text('1 2 "three" "four" "five" "six"'),
+        )
+
         # make sure that the cstor is using parse_rdata_text
         zone = Zone('unit.tests.', [])
         a = NaptrRecord(

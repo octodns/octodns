@@ -3,7 +3,7 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin
+from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 
 
@@ -28,6 +28,10 @@ class NaptrValue(EqualityTupleMixin, dict):
             preference = int(preference)
         except ValueError:
             pass
+        flags = unquote(flags)
+        service = unquote(service)
+        regexp = unquote(regexp)
+        replacement = unquote(replacement)
         return {
             'order': order,
             'preference': preference,

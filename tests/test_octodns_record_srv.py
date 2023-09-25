@@ -123,6 +123,17 @@ class TestRecordSrv(TestCase):
             SrvValue.parse_rdata_text('1 2 3 srv.unit.tests.'),
         )
 
+        # quoted
+        self.assertEqual(
+            {
+                'priority': 1,
+                'weight': 2,
+                'port': 3,
+                'target': 'srv.unit.tests.',
+            },
+            SrvValue.parse_rdata_text('1 2 3 "srv.unit.tests."'),
+        )
+
         zone = Zone('unit.tests.', [])
         a = SrvRecord(
             zone,
