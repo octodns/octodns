@@ -3,7 +3,7 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin
+from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 
 
@@ -25,6 +25,7 @@ class SshfpValue(EqualityTupleMixin, dict):
             fingerprint_type = int(fingerprint_type)
         except ValueError:
             pass
+        fingerprint = unquote(fingerprint)
         return {
             'algorithm': algorithm,
             'fingerprint_type': fingerprint_type,

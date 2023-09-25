@@ -21,6 +21,8 @@ class TestRecordChunked(TestCase):
             'some.words.that.here',
             '1.2.word.4',
             '1.2.3.4',
+            # quotes are not removed
+            '"Hello World!"',
         ):
             self.assertEqual(s, _ChunkedValue.parse_rdata_text(s))
 

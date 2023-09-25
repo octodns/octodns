@@ -12,6 +12,12 @@ from .change import Update
 from .exception import RecordException, ValidationError
 
 
+def unquote(s):
+    if s and s[0] in ('"', "'"):
+        return s[1:-1]
+    return s
+
+
 class Record(EqualityTupleMixin):
     log = getLogger('Record')
 

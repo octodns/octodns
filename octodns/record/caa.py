@@ -3,7 +3,7 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin
+from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 
 
@@ -20,6 +20,8 @@ class CaaValue(EqualityTupleMixin, dict):
             flags = int(flags)
         except ValueError:
             pass
+        tag = unquote(tag)
+        value = unquote(value)
         return {'flags': flags, 'tag': tag, 'value': value}
 
     @classmethod

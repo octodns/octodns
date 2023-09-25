@@ -6,7 +6,7 @@ from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import Record, ValuesMixin
+from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 
 
@@ -21,6 +21,7 @@ class MxValue(EqualityTupleMixin, dict):
             preference = int(preference)
         except ValueError:
             pass
+        exchange = unquote(exchange)
         return {'preference': preference, 'exchange': exchange}
 
     @classmethod

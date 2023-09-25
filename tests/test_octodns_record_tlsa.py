@@ -160,6 +160,17 @@ class TestRecordTlsa(TestCase):
             TlsaValue.parse_rdata_text('1 2 3 abcd'),
         )
 
+        # valid
+        self.assertEqual(
+            {
+                'certificate_usage': 1,
+                'selector': 2,
+                'matching_type': 3,
+                'certificate_association_data': 'abcd',
+            },
+            TlsaValue.parse_rdata_text('1 2 3 "abcd"'),
+        )
+
         zone = Zone('unit.tests.', [])
         a = TlsaRecord(
             zone,

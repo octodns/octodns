@@ -22,6 +22,7 @@ from octodns.record import (
     ValidationError,
     ValuesMixin,
 )
+from octodns.record.base import unquote
 from octodns.yaml import ContextDict
 from octodns.zone import Zone
 
@@ -411,6 +412,18 @@ class TestRecord(TestCase):
             ('cname.unit.tests.', 43, 'CNAME', ['target.unit.tests.']),
             record.rrs,
         )
+
+    def test_unquote(self):
+        s = 'Hello "\'"World!'
+        single = f"'{s}'"
+        double = f'"{s}"'
+        self.assertEqual(s, unquote(s))
+        self.assertEqual(s, unquote(single))
+        self.assertEqual(s, unquote(double))
+
+        # edge cases
+        self.assertEqual(None, unquote(None))
+        self.assertEqual('', unquote(''))
 
 
 class TestRecordValidation(TestCase):
