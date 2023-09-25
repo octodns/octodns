@@ -1561,3 +1561,46 @@ class TestRecordDynamic(TestCase):
                 ]
             ),
         )
+
+    def test_dynamic_subnet_mixed_versions(self):
+        # mixed IPv4 and IPv6 subnets should not raise a validation error
+        Record.new(
+            self.zone,
+            'good',
+            {
+                'dynamic': {
+                    'pools': {
+                        'one': {'values': [{'value': '1.1.1.1'}]},
+                        'two': {'values': [{'value': '2.2.2.2'}]},
+                    },
+                    'rules': [
+                        {'subnets': ['10.1.0.0/16', '1::/66'], 'pool': 'one'},
+                        {'pool': 'two'},
+                    ],
+                },
+                'ttl': 60,
+                'type': 'A',
+                'values': ['2.2.2.2'],
+            },
+        )
+
+        Record.new(
+            self.zone,
+            'good',
+            {
+                'dynamic': {
+                    'pools': {
+                        'one': {'values': [{'value': '1.1.1.1'}]},
+                        'two': {'values': [{'value': '2.2.2.2'}]},
+                    },
+                    'rules': [
+                        {'subnets': ['10.1.0.0/16'], 'pool': 'one'},
+                        {'subnets': ['1::/66'], 'pool': 'two'},
+                        {'pool': 'two'},
+                    ],
+                },
+                'ttl': 60,
+                'type': 'A',
+                'values': ['2.2.2.2'],
+            },
+        )

@@ -3,6 +3,7 @@
 #
 
 import re
+from collections import defaultdict
 from logging import getLogger
 
 from .change import Update
@@ -220,7 +221,7 @@ class _DynamicMixin(object):
         reasons = []
         pools_seen = set()
 
-        subnets_seen = {}
+        subnets_seen = defaultdict(dict)
         geos_seen = {}
 
         if not isinstance(rules, (list, tuple)):
@@ -291,11 +292,16 @@ class _DynamicMixin(object):
                             # previous loop will log any invalid subnets, here we
                             # process only valid ones and skip invalid ones
                             pass
+
                     # sort subnets from largest to smallest so that we can
                     # detect rule that have needlessly targeted a more specific
                     # subnet along with a larger subnet that already contains it
-                    for subnet in sorted(networks):
-                        for seen, where in subnets_seen.items():
+                    sorted_networks = sorted(
+                        networks, key=lambda n: (n.version, n)
+                    )
+                    for subnet in sorted_networks:
+                        subnets_seen_version = subnets_seen[subnet.version]
+                        for seen, where in subnets_seen_version.items():
                             if subnet == seen:
                                 reasons.append(
                                     f'rule {rule_num} targets subnet {subnet} which has previously been seen in rule {where}'
@@ -305,7 +311,7 @@ class _DynamicMixin(object):
                                     f'rule {rule_num} targets subnet {subnet} which is more specific than the previously seen {seen} in rule {where}'
                                 )
 
-                        subnets_seen[subnet] = rule_num
+                        subnets_seen_version[subnet] = rule_num
 
                 if not isinstance(geos, (list, tuple)):
                     reasons.append(f'rule {rule_num} geos must be a list')
