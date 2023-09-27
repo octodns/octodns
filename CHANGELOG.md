@@ -1,10 +1,7 @@
-## v1.?.? - 2023-??-?? - ???
+## v1.2.0 - 2023-09-28 - Bunch more bug fixes
 
 * Record.from_rrs supports `source` parameter
-* *Record.parse_rdata_text unquotes any quoted (string) values
-
-## v1.1.2 - 2023-09-20 - Bunch more bug fixes
-
+* Record.parse_rdata_text unquotes any quoted (string) values
 * Fix crash bug when using the YamlProvider with a directory that contains a
   mix of split and non-split zone yamls. See https://github.com/octodns/octodns/issues/1066
 * Fix discovery of zones from different sources when there are multiple dynamic
