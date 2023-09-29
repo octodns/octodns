@@ -1,3 +1,7 @@
+## v1.2.1 - 2023-09-29 - Now with fewer stale files
+
+* Update script/release to do clean room dist builds
+
 ## v1.2.0 - 2023-09-28 - Bunch more bug fixes
 
 * Record.from_rrs supports `source` parameter
