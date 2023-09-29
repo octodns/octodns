@@ -39,7 +39,7 @@ git push origin "v$VERSION"
 echo "Tagged and pushed v$VERSION"
 
 TMP_DIR=$(mktemp -d -t ci-XXXXXXXXXX)
-git archive --format tar v1.2.0 | tar xv -C $TMP_DIR
+git archive --format tar "v$VERSION" | tar xv -C $TMP_DIR
 echo "Created clean room $TMP_DIR and archived $VERSION into it"
 
 (cd "$TMP_DIR" && python -m build --sdist --wheel)
