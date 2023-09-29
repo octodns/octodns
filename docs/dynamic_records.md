@@ -30,7 +30,8 @@ test:
         - value: 4.4.4.4
           weight: 3
       na:
-        # Implicit fallback to the default pool (below)
+        # Implicitly goes to the backup pool (below) if all values are failing
+        # health checks
         values:
         - value: 5.5.5.5
         - value: 6.6.6.6
@@ -59,11 +60,13 @@ test:
     - pool: na
   ttl: 60
   type: A
-  # These values become a non-healthchecked default pool, generally it should be
-  # a superset of the catch-all pool and include enough capacity to try and
-  # serve all global requests (with degraded performance.) The main case they
-  # will come into play is if all dynamic healthchecks are failing, either on
-  # the service side or if the providers systems are expeiencing problems.
+  # These values become a non-healthchecked backup/default pool, generally it
+  # should be a superset of the catch-all pool and include enough capacity to
+  # try and serve all global requests (with degraded performance.) The main
+  # case they will come into play is if all dynamic healthchecks are failing,
+  # either on the service side or if the providers systems are expeiencing
+  # problems. They will also be used for when the record is pushed to a
+  # provider that doesn't support dynamic records.
   values:
   - 3.3.3.3
   - 4.4.4.4
@@ -81,26 +84,26 @@ If you encounter validation errors in dynamic records suggesting best practices 
 title: Visual Representation of the Rules and Pools
 ---
 flowchart LR
-  	query((Query)) --> rule_0[Rule 0<br>AF-ZA<br>AS<br>OC]
-	rule_0 --no match--> rule_1[Rule 1<br>AF<br>EU]
-	rule_1 --no match--> rule_2["Rule 2<br>(catch all)"]
+    query((Query)) --> rule_0[Rule 0<br>AF-ZA<br>AS<br>OC]
+    rule_0 --no match--> rule_1[Rule 1<br>AF<br>EU]
+    rule_1 --no match--> rule_2["Rule 2<br>(catch all)"]
 
-	rule_0 --match--> pool_apac[Pool apac<br>1.1.1.1<br>2.2.2.2]
-	pool_apac --fallback--> pool_na
-	rule_1 --match--> pool_eu["Pool eu<br>3.3.3.3 (2/5)<br>4.4.4.4 (3/5)"]
-	pool_eu --fallback--> pool_na
-	rule_2 --> pool_na[Pool na<br>5.5.5.5<br>6.6.6.6<br>7.7.7.7]
-	pool_na --fallback--> values[values<br>3.3.3.3<br>4.4.4.4<br>5.5.5.5<br>6.6.6.6<br>7.7.7.7]
+    rule_0 --match--> pool_apac[Pool apac<br>1.1.1.1<br>2.2.2.2]
+    pool_apac --fallback--> pool_na
+    rule_1 --match--> pool_eu["Pool eu<br>3.3.3.3 (2/5)<br>4.4.4.4 (3/5)"]
+    pool_eu --fallback--> pool_na
+    rule_2 --> pool_na[Pool na<br>5.5.5.5<br>6.6.6.6<br>7.7.7.7]
+    pool_na --backup--> values[values<br>3.3.3.3<br>4.4.4.4<br>5.5.5.5<br>6.6.6.6<br>7.7.7.7]
 
-	classDef queryColor fill:#3B67A8,color:#ffffff
-	classDef ruleColor fill:#D8F57A,color:#000000
-	classDef poolColor fill:#F57261,color:#000000
-	classDef valueColor fill:#498FF5,color:#000000
+    classDef queryColor fill:#3B67A8,color:#ffffff
+    classDef ruleColor fill:#D8F57A,color:#000000
+    classDef poolColor fill:#F57261,color:#000000
+    classDef valueColor fill:#498FF5,color:#000000
 
-	class query queryColor
-	class rule_0,rule_1,rule_2 ruleColor
-	class pool_apac,pool_eu,pool_na poolColor
-	class values valueColor
+    class query queryColor
+    class rule_0,rule_1,rule_2 ruleColor
+    class pool_apac,pool_eu,pool_na poolColor
+    class values valueColor
 ```
 
 
