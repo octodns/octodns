@@ -11,9 +11,9 @@ jobs:
         # https://devguide.python.org/versions/#versions
         python-version: ${{fromJson(vars.PYTHON_VERSIONS_ACTIVE)}}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
