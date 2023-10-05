@@ -7,6 +7,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Defined in an org level variable, based on dates in
+        # https://devguide.python.org/versions/#versions
         python-version: ${{fromJson(vars.PYTHON_VERSIONS_ACTIVE)}}
     steps:
       - uses: actions/checkout@v2
