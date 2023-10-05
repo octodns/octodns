@@ -42,7 +42,7 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.11'
+          python-version: ${{ vars.PYTHON_VERSION_CURRENT }}
           architecture: x64
       - name: CI setup.py
         run: |
