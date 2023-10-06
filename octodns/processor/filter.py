@@ -228,7 +228,7 @@ class ZoneNameFilter(BaseProcessor):
         class: octodns.processor.filter.ZoneNameFilter
         # If true a ValidationError will be throw when such records are
         # encouterd, if false the records will just be ignored/omitted.
-        # (default: false)
+        # (default: true)
 
     zones:
       exxampled.com.:
@@ -240,7 +240,7 @@ class ZoneNameFilter(BaseProcessor):
           - azure
     '''
 
-    def __init__(self, name, error=False):
+    def __init__(self, name, error=True):
         super().__init__(name)
         self.error = error
 

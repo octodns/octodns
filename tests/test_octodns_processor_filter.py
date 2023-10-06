@@ -186,7 +186,7 @@ class TestIgnoreRootNsFilter(TestCase):
 
 class TestZoneNameFilter(TestCase):
     def test_ends_with_zone(self):
-        zone_name_filter = ZoneNameFilter('zone-name')
+        zone_name_filter = ZoneNameFilter('zone-name', error=False)
 
         zone = Zone('unit.tests.', [])
 
