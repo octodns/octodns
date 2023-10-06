@@ -1,3 +1,8 @@
+## v1.3.0 - 2023-??-?? - ???
+
+* Added ZoneNameFilter processor to enable ignoring/alerting on type-os like
+  octodns.com.octodns.com
+
 ## v1.2.1 - 2023-09-29 - Now with fewer stale files
 
 * Update script/release to do clean room dist builds

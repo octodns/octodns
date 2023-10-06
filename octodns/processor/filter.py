@@ -4,6 +4,7 @@
 
 from re import compile as re_compile
 
+from ..record.exception import ValidationError
 from .base import BaseProcessor
 
 
@@ -210,6 +211,56 @@ class IgnoreRootNsFilter(BaseProcessor):
         for record in zone.records:
             if record._type == 'NS' and not record.name:
                 zone.remove_record(record)
+
+        return zone
+
+    process_source_zone = _process
+    process_target_zone = _process
+
+
+class ZoneNameFilter(BaseProcessor):
+    '''Filter or error on record names that contain the zone name
+
+    Example usage:
+
+    processors:
+      zone-name:
+        class: octodns.processor.filter.ZoneNameFilter
+        # If true a ValidationError will be throw when such records are
+        # encouterd, if false the records will just be ignored/omitted.
+        # (default: false)
+
+    zones:
+      exxampled.com.:
+        sources:
+          - config
+        processors:
+          - zone-name
+        targets:
+          - azure
+    '''
+
+    def __init__(self, name, error=False):
+        super().__init__(name)
+        self.error = error
+
+    def _process(self, zone, *args, **kwargs):
+        zone_name_with_dot = zone.name
+        zone_name_without_dot = zone_name_with_dot[:-1]
+        for record in zone.records:
+            name = record.name
+            if name.endswith(zone_name_with_dot) or name.endswith(
+                zone_name_without_dot
+            ):
+                if self.error:
+                    raise ValidationError(
+                        record.fqdn,
+                        ['record name ends with zone name'],
+                        record.context,
+                    )
+                else:
+                    # just remove it
+                    zone.remove_record(record)
 
         return zone
 

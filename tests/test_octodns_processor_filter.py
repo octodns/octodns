@@ -10,8 +10,10 @@ from octodns.processor.filter import (
     NameRejectlistFilter,
     TypeAllowlistFilter,
     TypeRejectlistFilter,
+    ZoneNameFilter,
 )
 from octodns.record import Record
+from octodns.record.exception import ValidationError
 from octodns.zone import Zone
 
 zone = Zone('unit.tests.', [])
@@ -179,4 +181,71 @@ class TestIgnoreRootNsFilter(TestCase):
         self.assertEqual(
             [('A', ''), ('NS', 'sub')],
             sorted([(r._type, r.name) for r in filtered.records]),
+        )
+
+
+class TestZoneNameFilter(TestCase):
+    def test_ends_with_zone(self):
+        zone_name_filter = ZoneNameFilter('zone-name')
+
+        zone = Zone('unit.tests.', [])
+
+        # something that doesn't come into play
+        zone.add_record(
+            Record.new(
+                zone, 'www', {'type': 'A', 'ttl': 43, 'value': '1.2.3.4'}
+            )
+        )
+
+        # something that has the zone name, but doesn't end with it
+        zone.add_record(
+            Record.new(
+                zone,
+                f'{zone.name}more',
+                {'type': 'A', 'ttl': 43, 'value': '1.2.3.4'},
+            )
+        )
+
+        self.assertEqual(2, len(zone.records))
+        filtered = zone_name_filter.process_source_zone(zone.copy())
+        # get everything back
+        self.assertEqual(2, len(filtered.records))
+
+        with_dot = zone.copy()
+        with_dot.add_record(
+            Record.new(
+                zone, zone.name, {'type': 'A', 'ttl': 43, 'value': '1.2.3.4'}
+            )
+        )
+        self.assertEqual(3, len(with_dot.records))
+        filtered = zone_name_filter.process_source_zone(with_dot.copy())
+        # don't get the one that ends with the zone name
+        self.assertEqual(2, len(filtered.records))
+
+        without_dot = zone.copy()
+        without_dot.add_record(
+            Record.new(
+                zone,
+                zone.name[:-1],
+                {'type': 'A', 'ttl': 43, 'value': '1.2.3.4'},
+            )
+        )
+        self.assertEqual(3, len(without_dot.records))
+        filtered = zone_name_filter.process_source_zone(without_dot.copy())
+        # don't get the one that ends with the zone name
+        self.assertEqual(2, len(filtered.records))
+
+    def test_error(self):
+        errors = ZoneNameFilter('zone-name', error=True)
+
+        zone = Zone('unit.tests.', [])
+        zone.add_record(
+            Record.new(
+                zone, zone.name, {'type': 'A', 'ttl': 43, 'value': '1.2.3.4'}
+            )
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            errors.process_source_zone(zone)
+        self.assertEqual(
+            ['record name ends with zone name'], ctx.exception.reasons
         )
