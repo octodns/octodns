@@ -42,15 +42,11 @@ jobs:
           # some point in the future and either re-enable or delete it.
           #- sukiyaki/octodns-netbox
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
       - name: Setup python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
-          # This should generally be the latest stable release of python, but
-          # dyn and ovh don't currently support changes made in 3.10 so we'll
-          # leave it 3.9 for now. Once 3.11 lands though we'll bump to it and
-          # if they haven't updated they'll be removed from the matrix
-          python-version: '3.9'
+          python-version: ${{ vars.PYTHON_VERSION_CURRENT }}
           architecture: x64
       - name: Test Module
         run: |
