@@ -11,7 +11,7 @@ jobs:
     - id: load
       run: |
         JSON=$(cat ./.python-versions.json)
-        echo "::set-output name=json::${JSON}"
+        echo "::set-output name=json::${JSON//'%'/'%25'}"
   ci:
     needs: config
     runs-on: ubuntu-latest
