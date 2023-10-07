@@ -9,9 +9,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - id: load
+      # based on https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings
       run: |
-        JSON=$(cat ./.python-versions.json)
-        echo "::set-output name=json::${JSON//'%'/'%25'}"
+        {
+          echo 'json<<EOF'
+          cat ./.python-versions.json
+          echo EOF
+        } >> $GITHUB_OUTPUT
   ci:
     needs: config
     runs-on: ubuntu-latest
