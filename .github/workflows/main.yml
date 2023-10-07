@@ -2,14 +2,24 @@ name: OctoDNS
 on: [pull_request]
 
 jobs:
+  config:
+    runs-on: ubuntu-latest
+    outputs:
+      json: ${{ steps.load.outputs.json }}
+    steps:
+    - id: load
+      run: |
+        JSON=$(cat ./.python-versions.json)
+        echo "::set-output name=json::${JSON}"
   ci:
+    needs: config
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # Defined in an org level variable, based on dates in
-        # https://devguide.python.org/versions/#versions
-        python-version: ${{fromJson(vars.PYTHON_VERSIONS_ACTIVE)}}
+        # Defined in a file that resides in the top level of octodns/octodns,
+        # based on dates in https://devguide.python.org/versions/#versions
+        python-version: ${{ fromJson(needs.config.outputs.json).python_versions_active }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup python
@@ -42,7 +52,8 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ vars.PYTHON_VERSION_CURRENT }}
+          # Most recent release from https://devguide.python.org/versions/#versions
+          python-version: ${{ fromJson(needs.config.outputs.json).python_version_current }}
           architecture: x64
       - name: CI setup.py
         run: |
