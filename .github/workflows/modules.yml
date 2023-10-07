@@ -16,7 +16,7 @@ jobs:
       run: |
         {
           echo 'json<<EOF'
-          cat ./.python-versions.json
+          cat ./.ci-config.json
           echo EOF
         } >> $GITHUB_OUTPUT
   ci:
