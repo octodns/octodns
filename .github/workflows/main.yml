@@ -8,6 +8,7 @@ jobs:
       json: ${{ steps.load.outputs.json }}
     steps:
     - id: load
+      uses: actions/checkout@v4
       run: |
         JSON=$(cat ./.python-versions.json)
         echo "::set-output name=json::${JSON}"
