@@ -47,6 +47,7 @@ jobs:
             coverage.xml
             htmlcov
   setup-py:
+    needs: config
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
