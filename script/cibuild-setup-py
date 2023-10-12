@@ -7,6 +7,7 @@ echo "## create test venv ######################################################
 TMP_DIR=$(mktemp -d -t ci-XXXXXXXXXX)
 python3 -m venv $TMP_DIR
 . "$TMP_DIR/bin/activate"
+pip install setuptools
 echo "## environment & versions ######################################################"
 python --version
 pip --version

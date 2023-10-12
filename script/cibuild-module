@@ -15,6 +15,7 @@ VENV_PYTHON=$(command -v python3)
 VENV_NAME="${TMP_DIR}/env"
 "$VENV_PYTHON" -m venv "$VENV_NAME"
 . "${VENV_NAME}/bin/activate"
+pip install setuptools
 echo "## environment & versions ######################################################"
 python --version
 pip --version
