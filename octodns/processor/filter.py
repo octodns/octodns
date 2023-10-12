@@ -4,10 +4,45 @@
 
 from re import compile as re_compile
 
+from ..record.exception import ValidationError
 from .base import BaseProcessor
 
 
-class TypeAllowlistFilter(BaseProcessor):
+class AllowsMixin:
+    def matches(self, zone, record):
+        pass
+
+    def doesnt_match(self, zone, record):
+        zone.remove_record(record)
+
+
+class RejectsMixin:
+    def matches(self, zone, record):
+        zone.remove_record(record)
+
+    def doesnt_match(self, zone, record):
+        pass
+
+
+class _TypeBaseFilter(BaseProcessor):
+    def __init__(self, name, _list):
+        super().__init__(name)
+        self._list = set(_list)
+
+    def _process(self, zone, *args, **kwargs):
+        for record in zone.records:
+            if record._type in self._list:
+                self.matches(zone, record)
+            else:
+                self.doesnt_match(zone, record)
+
+        return zone
+
+    process_source_zone = _process
+    process_target_zone = _process
+
+
+class TypeAllowlistFilter(_TypeBaseFilter, AllowsMixin):
     '''Only manage records of the specified type(s).
 
     Example usage:
@@ -30,21 +65,10 @@ class TypeAllowlistFilter(BaseProcessor):
     '''
 
     def __init__(self, name, allowlist):
-        super().__init__(name)
-        self.allowlist = set(allowlist)
-
-    def _process(self, zone, *args, **kwargs):
-        for record in zone.records:
-            if record._type not in self.allowlist:
-                zone.remove_record(record)
-
-        return zone
-
-    process_source_zone = _process
-    process_target_zone = _process
+        super().__init__(name, allowlist)
 
 
-class TypeRejectlistFilter(BaseProcessor):
+class TypeRejectlistFilter(_TypeBaseFilter, RejectsMixin):
     '''Ignore records of the specified type(s).
 
     Example usage:
@@ -66,18 +90,7 @@ class TypeRejectlistFilter(BaseProcessor):
     '''
 
     def __init__(self, name, rejectlist):
-        super().__init__(name)
-        self.rejectlist = set(rejectlist)
-
-    def _process(self, zone, *args, **kwargs):
-        for record in zone.records:
-            if record._type in self.rejectlist:
-                zone.remove_record(record)
-
-        return zone
-
-    process_source_zone = _process
-    process_target_zone = _process
+        super().__init__(name, rejectlist)
 
 
 class _NameBaseFilter(BaseProcessor):
@@ -93,8 +106,25 @@ class _NameBaseFilter(BaseProcessor):
         self.exact = exact
         self.regex = regex
 
+    def _process(self, zone, *args, **kwargs):
+        for record in zone.records:
+            name = record.name
+            if name in self.exact:
+                self.matches(zone, record)
+                continue
+            elif any(r.search(name) for r in self.regex):
+                self.matches(zone, record)
+                continue
 
-class NameAllowlistFilter(_NameBaseFilter):
+            self.doesnt_match(zone, record)
+
+        return zone
+
+    process_source_zone = _process
+    process_target_zone = _process
+
+
+class NameAllowlistFilter(_NameBaseFilter, AllowsMixin):
     '''Only manage records with names that match the provider patterns
 
     Example usage:
@@ -125,23 +155,8 @@ class NameAllowlistFilter(_NameBaseFilter):
     def __init__(self, name, allowlist):
         super().__init__(name, allowlist)
 
-    def _process(self, zone, *args, **kwargs):
-        for record in zone.records:
-            name = record.name
-            if name in self.exact:
-                continue
-            elif any(r.search(name) for r in self.regex):
-                continue
 
-            zone.remove_record(record)
-
-        return zone
-
-    process_source_zone = _process
-    process_target_zone = _process
-
-
-class NameRejectlistFilter(_NameBaseFilter):
+class NameRejectlistFilter(_NameBaseFilter, RejectsMixin):
     '''Reject managing records with names that match the provider patterns
 
     Example usage:
@@ -172,23 +187,6 @@ class NameRejectlistFilter(_NameBaseFilter):
     def __init__(self, name, rejectlist):
         super().__init__(name, rejectlist)
 
-    def _process(self, zone, *args, **kwargs):
-        for record in zone.records:
-            name = record.name
-            if name in self.exact:
-                zone.remove_record(record)
-                continue
-
-            for regex in self.regex:
-                if regex.search(name):
-                    zone.remove_record(record)
-                    break
-
-        return zone
-
-    process_source_zone = _process
-    process_target_zone = _process
-
 
 class IgnoreRootNsFilter(BaseProcessor):
     '''Do not manage Root NS Records.
@@ -213,6 +211,56 @@ class IgnoreRootNsFilter(BaseProcessor):
         for record in zone.records:
             if record._type == 'NS' and not record.name:
                 zone.remove_record(record)
+
+        return zone
+
+    process_source_zone = _process
+    process_target_zone = _process
+
+
+class ZoneNameFilter(BaseProcessor):
+    '''Filter or error on record names that contain the zone name
+
+    Example usage:
+
+    processors:
+      zone-name:
+        class: octodns.processor.filter.ZoneNameFilter
+        # If true a ValidationError will be throw when such records are
+        # encouterd, if false the records will just be ignored/omitted.
+        # (default: true)
+
+    zones:
+      exxampled.com.:
+        sources:
+          - config
+        processors:
+          - zone-name
+        targets:
+          - azure
+    '''
+
+    def __init__(self, name, error=True):
+        super().__init__(name)
+        self.error = error
+
+    def _process(self, zone, *args, **kwargs):
+        zone_name_with_dot = zone.name
+        zone_name_without_dot = zone_name_with_dot[:-1]
+        for record in zone.records:
+            name = record.name
+            if name.endswith(zone_name_with_dot) or name.endswith(
+                zone_name_without_dot
+            ):
+                if self.error:
+                    raise ValidationError(
+                        record.fqdn,
+                        ['record name ends with zone name'],
+                        record.context,
+                    )
+                else:
+                    # just remove it
+                    zone.remove_record(record)
 
         return zone
 
