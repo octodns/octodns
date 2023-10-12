@@ -65,4 +65,4 @@ jobs:
           architecture: x64
       - name: Test Module
         run: |
-          ./script/test-module ${{ matrix.module }}
+          ./script/cibuild-module ${{ matrix.module }}
