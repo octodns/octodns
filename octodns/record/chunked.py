@@ -27,6 +27,9 @@ class _ChunkedValuesMixin(ValuesMixin):
             values.append(self.chunked_value(v))
         return values
 
+    def rr_values(self):
+        return self.chunked_values
+
 
 class _ChunkedValue(str):
     _unescaped_semicolon_re = re.compile(r'\w;')
