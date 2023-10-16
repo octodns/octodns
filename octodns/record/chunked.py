@@ -27,6 +27,7 @@ class _ChunkedValuesMixin(ValuesMixin):
             values.append(self.chunked_value(v))
         return values
 
+    @property
     def rr_values(self):
         return self.chunked_values
 

@@ -312,6 +312,7 @@ class ValuesMixin(object):
 
         return ret
 
+    @property
     def rr_values(self):
         return self.values
 
@@ -321,7 +322,7 @@ class ValuesMixin(object):
             self.fqdn,
             self.ttl,
             self._type,
-            [v.rdata_text for v in self.rr_values()],
+            [v.rdata_text for v in self.rr_values],
         )
 
     def __repr__(self):
