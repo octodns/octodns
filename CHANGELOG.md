@@ -2,6 +2,8 @@
 
 * Added ZoneNameFilter processor to enable ignoring/alerting on type-os like
   octodns.com.octodns.com
+* Fixed issues with handling of chunking large TXT values for providers that use
+  the in-built `rrs` method
 
 ## v1.2.1 - 2023-09-29 - Now with fewer stale files
 

@@ -142,3 +142,39 @@ class TestRecordTxt(TestCase):
         self.assertEqual(single.values, chunked.values)
         # should be chunked values, with quoting
         self.assertEqual(single.chunked_values, chunked.chunked_values)
+
+    def test_rr(self):
+        zone = Zone('unit.tests.', [])
+
+        # simple TXT
+        record = Record.new(
+            zone,
+            'txt',
+            {'ttl': 42, 'type': 'TXT', 'values': ['short 1', 'short 2']},
+        )
+        self.assertEqual(
+            ('txt.unit.tests.', 42, 'TXT', ['"short 1"', '"short 2"']),
+            record.rrs,
+        )
+
+        # long chunked text
+        record = Record.new(
+            zone,
+            'txt',
+            {
+                'ttl': 42,
+                'type': 'TXT',
+                'values': [
+                    'before',
+                    'v=DKIM1\\; h=sha256\\; k=rsa\\; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx78E7PtJvr8vpoNgHdIAe+llFKoy8WuTXDd6Z5mm3D4AUva9MBt5fFetxg/kcRy3KMDnMw6kDybwbpS/oPw1ylk6DL1xit7Cr5xeYYSWKukxXURAlHwT2K72oUsFKRUvN1X9lVysAeo+H8H/22Z9fJ0P30sOuRIRqCaiz+OiUYicxy4xrpfH2s9a+o3yRwX3zhlp8GjRmmmyK5mf7CkQTCfjnKVsYtB7mabXXmClH9tlcymnBMoN9PeXxaS5JRRysVV8RBCC9/wmfp9y//cck8nvE/MavFpSUHvv+TfTTdVKDlsXPjKX8iZQv0nO3xhspgkqFquKjydiR8nf4meHhwIDAQAB',
+                    'z after',
+                ],
+            },
+        )
+        vals = [
+            '"before"',
+            '"v=DKIM1\\; h=sha256\\; k=rsa\\; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx78E7PtJvr8vpoNgHdIAe+llFKoy8WuTXDd6Z5mm3D4AUva9MBt5fFetxg/kcRy3KMDnMw6kDybwbpS/oPw1ylk6DL1xit7Cr5xeYYSWKukxXURAlHwT2K72oUsFKRUvN1X9lVysAeo+H8H/22Z9fJ0P30sOuRIRqCaiz+OiUYicxy4xrpfH" '
+            '"2s9a+o3yRwX3zhlp8GjRmmmyK5mf7CkQTCfjnKVsYtB7mabXXmClH9tlcymnBMoN9PeXxaS5JRRysVV8RBCC9/wmfp9y//cck8nvE/MavFpSUHvv+TfTTdVKDlsXPjKX8iZQv0nO3xhspgkqFquKjydiR8nf4meHhwIDAQAB"',
+            '"z after"',
+        ]
+        self.assertEqual(('txt.unit.tests.', 42, 'TXT', vals), record.rrs)

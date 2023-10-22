@@ -18,7 +18,7 @@ class _ChunkedValuesMixin(ValuesMixin):
             for i in range(0, len(value), self.CHUNK_SIZE)
         ]
         vs = '" "'.join(vs)
-        return f'"{vs}"'
+        return self._value_type(f'"{vs}"')
 
     @property
     def chunked_values(self):
@@ -26,6 +26,10 @@ class _ChunkedValuesMixin(ValuesMixin):
         for v in self.values:
             values.append(self.chunked_value(v))
         return values
+
+    @property
+    def rr_values(self):
+        return self.chunked_values
 
 
 class _ChunkedValue(str):
