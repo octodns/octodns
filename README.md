@@ -330,6 +330,7 @@ Similar to providers, but can only serve to populate records into a zone, cannot
 |--|--|
 | [AcmeMangingProcessor](/octodns/processor/acme.py) | Useful when processes external to octoDNS are managing acme challenge DNS records, e.g. LetsEncrypt |
 | [AutoArpa](/octodns/processor/arpa.py) | See [Automatic PTR generation](#automatic-ptr-generation) below |
+| [ExcludeRootNsChanges](/octodns/processor/filter.py) | Filter that errors or warns on planned root/APEX NS records changes. |
 | [IgnoreRootNsFilter](/octodns/processor/filter.py) | Filter that INGORES root/APEX NS records and prevents octoDNS from trying to manage them (where supported.) |
 | [MetaProcessor](/octodns/processor/meta.py) | Adds a special meta record with timing, UUID, providers, and/or version to aid in debugging and monitoring. |
 | [NameAllowlistFilter](/octodns/processor/filter.py) | Filter that ONLY manages records that match specified naming patterns, all others will be ignored |

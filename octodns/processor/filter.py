@@ -2,6 +2,7 @@
 #
 #
 
+from logging import getLogger
 from re import compile as re_compile
 
 from ..record.exception import ValidationError
@@ -216,6 +217,56 @@ class IgnoreRootNsFilter(BaseProcessor):
 
     process_source_zone = _process
     process_target_zone = _process
+
+
+class ExcludeRootNsChanges(BaseProcessor):
+    '''Do not allow root NS record changes
+
+    Example usage:
+
+    processors:
+      exclude-root-ns-changes:
+        class: octodns.processor.filter.ExcludeRootNsChanges
+        # If true an a change for a root NS is seen an error will be thrown. If
+        # false a warning will be printed and the change will be removed from
+        # the plan.
+        # (default: true)
+        error: true
+
+    zones:
+      exxampled.com.:
+        sources:
+          - config
+        processors:
+          - exclude-root-ns-changes
+        targets:
+          - ns1
+    '''
+
+    def __init__(self, name, error=True):
+        self.log = getLogger(f'ExcludeRootNsChanges[{name}]')
+        super().__init__(name)
+        self.error = error
+
+    def process_plan(self, plan, sources, target):
+        if plan:
+            for change in list(plan.changes):
+                record = change.record
+                if record._type == 'NS' and record.name == '':
+                    self.log.warning(
+                        'root NS changes are disallowed, fqdn=%s', record.fqdn
+                    )
+                    if self.error:
+                        raise ValidationError(
+                            record.fqdn,
+                            ['root NS changes are disallowed'],
+                            record.context,
+                        )
+                    plan.changes.remove(change)
+
+            print(len(plan.changes))
+
+        return plan
 
 
 class ZoneNameFilter(BaseProcessor):

@@ -5,6 +5,7 @@
 from unittest import TestCase
 
 from octodns.processor.filter import (
+    ExcludeRootNsChanges,
     IgnoreRootNsFilter,
     NameAllowlistFilter,
     NameRejectlistFilter,
@@ -12,7 +13,8 @@ from octodns.processor.filter import (
     TypeRejectlistFilter,
     ZoneNameFilter,
 )
-from octodns.record import Record
+from octodns.provider.plan import Plan
+from octodns.record import Record, Update
 from octodns.record.exception import ValidationError
 from octodns.zone import Zone
 
@@ -181,6 +183,57 @@ class TestIgnoreRootNsFilter(TestCase):
         self.assertEqual(
             [('A', ''), ('NS', 'sub')],
             sorted([(r._type, r.name) for r in filtered.records]),
+        )
+
+
+class TestExcludeRootNsChanges(TestCase):
+    zone = Zone('unit.tests.', [])
+    root = Record.new(
+        zone, '', {'type': 'NS', 'ttl': 42, 'value': 'ns1.unit.tests.'}
+    )
+    zone.add_record(root)
+    not_root = Record.new(
+        zone, 'sub', {'type': 'NS', 'ttl': 43, 'value': 'ns2.unit.tests.'}
+    )
+    zone.add_record(not_root)
+    not_ns = Record.new(zone, '', {'type': 'A', 'ttl': 42, 'value': '3.4.5.6'})
+    zone.add_record(not_ns)
+    changes_with_root = [
+        Update(root, root),
+        Update(not_root, not_root),
+        Update(not_ns, not_ns),
+    ]
+    plan_with_root = Plan(zone, zone, changes_with_root, True)
+    changes_without_root = [Update(not_root, not_root), Update(not_ns, not_ns)]
+    plan_without_root = Plan(zone, zone, changes_without_root, True)
+
+    def test_no_plan(self):
+        proc = ExcludeRootNsChanges('exclude-root')
+        self.assertFalse(proc.process_plan(None, None, None))
+
+    def test_error(self):
+        proc = ExcludeRootNsChanges('exclude-root')
+
+        with self.assertRaises(ValidationError) as ctx:
+            proc.process_plan(self.plan_with_root, None, None)
+        self.assertEqual(
+            ['root NS changes are disallowed'], ctx.exception.reasons
+        )
+
+        self.assertEqual(
+            self.plan_without_root,
+            proc.process_plan(self.plan_without_root, None, None),
+        )
+
+    def test_warning(self):
+        proc = ExcludeRootNsChanges('exclude-root', error=False)
+
+        filtered_plan = proc.process_plan(self.plan_with_root, None, None)
+        self.assertEqual(self.plan_without_root.changes, filtered_plan.changes)
+
+        self.assertEqual(
+            self.plan_without_root,
+            proc.process_plan(self.plan_without_root, None, None),
         )
 
 
