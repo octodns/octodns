@@ -165,34 +165,56 @@ class TestNameRejectListFilter(TestCase):
 
 class TestNetworkValueFilter(TestCase):
     zone = Zone('unit.tests.', [])
-    matches = Record.new(
-        zone, 'private-ipv4', {'type': 'A', 'ttl': 42, 'value': '10.42.42.42'}
-    )
-    zone.add_record(matches)
-    doesnt = Record.new(
-        zone, 'public-ipv4', {'type': 'A', 'ttl': 42, 'value': '42.42.42.42'}
-    )
-    zone.add_record(doesnt)
-    matchable1 = Record.new(
-        zone, 'private-ipv6', {'type': 'AAAA', 'ttl': 42, 'value': 'fd12:3456:789a:1::1'}
-    )
-    zone.add_record(matchable1)
-    matchable2 = Record.new(
-        zone, 'public-ipv6', {'type': 'AAAA', 'ttl': 42, 'value': 'dead:beef:cafe::1'}
-    )
-    zone.add_record(matchable2)
+    for record in [
+        Record.new(
+            zone,
+            'private-ipv4',
+            {'type': 'A', 'ttl': 42, 'value': '10.42.42.42'},
+        ),
+        Record.new(
+            zone,
+            'public-ipv4',
+            {'type': 'A', 'ttl': 42, 'value': '42.42.42.42'},
+        ),
+        Record.new(
+            zone,
+            'private-ipv6',
+            {'type': 'AAAA', 'ttl': 42, 'value': 'fd12:3456:789a:1::1'},
+        ),
+        Record.new(
+            zone,
+            'public-ipv6',
+            {'type': 'AAAA', 'ttl': 42, 'value': 'dead:beef:cafe::1'},
+        ),
+        Record.new(
+            zone,
+            'keep-me',
+            {'ttl': 30, 'type': 'TXT', 'value': 'this should always be here'},
+        ),
+    ]:
+        zone.add_record(record)
 
     def test_reject(self):
-        filter_private = NetworkValueRejectlistFilter('rejectlist', set(('10.0.0.0/8', 'fd00::/8')))
+        filter_private = NetworkValueRejectlistFilter(
+            'rejectlist', set(('10.0.0.0/8', 'fd00::/8'))
+        )
 
         got = filter_private.process_source_zone(self.zone.copy())
-        self.assertEqual(['public-ipv4', 'public-ipv6'], sorted([r.name for r in got.records]))
+        self.assertEqual(
+            ['keep-me', 'public-ipv4', 'public-ipv6'],
+            sorted([r.name for r in got.records]),
+        )
 
     def test_allow(self):
-        filter_private = NetworkValueAllowlistFilter('allowlist', set(('10.0.0.0/8', 'fd00::/8')))
+        filter_private = NetworkValueAllowlistFilter(
+            'allowlist', set(('10.0.0.0/8', 'fd00::/8'))
+        )
 
         got = filter_private.process_source_zone(self.zone.copy())
-        self.assertEqual(['private-ipv4', 'private-ipv6'], sorted([r.name for r in got.records]))
+        self.assertEqual(
+            ['keep-me', 'private-ipv4', 'private-ipv6'],
+            sorted([r.name for r in got.records]),
+        )
 
 
 class TestIgnoreRootNsFilter(TestCase):
