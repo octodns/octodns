@@ -222,7 +222,8 @@ class NameRejectlistFilter(_NameBaseFilter, RejectsMixin):
 
 
 class NetworkValueAllowlistFilter(_NetworkValueBaseFilter, AllowsMixin):
-    '''Only manage records with values that match the provider patterns
+    '''Only manage A and AAAA records with values that match the provider patterns
+    All other types will be left as-is.
 
     Example usage:
 
@@ -249,7 +250,8 @@ class NetworkValueAllowlistFilter(_NetworkValueBaseFilter, AllowsMixin):
 
 
 class NetworkValueRejectlistFilter(_NetworkValueBaseFilter, RejectsMixin):
-    '''Reject managing records with value matching a that match the provider patterns
+    '''Reject managing A and AAAA records with value matching a that match the provider patterns
+    All other types will be left as-is.
 
     Example usage:
 
