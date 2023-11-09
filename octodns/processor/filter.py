@@ -142,9 +142,10 @@ class _NetworkValueBaseFilter(BaseProcessor):
             if record._type not in ['A', 'AAAA']:
                 continue
 
+            ips = [ip_address(value) for value in record.values]
             if any(
-                ip_address(value) in network
-                for value, network in product(record.values, self.networks)
+                ip in network
+                for ip, network in product(ips, self.networks)
             ):
                 self.matches(zone, record)
             else:
