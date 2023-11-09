@@ -144,8 +144,7 @@ class _NetworkValueBaseFilter(BaseProcessor):
 
             ips = [ip_address(value) for value in record.values]
             if any(
-                ip in network
-                for ip, network in product(ips, self.networks)
+                ip in network for ip, network in product(ips, self.networks)
             ):
                 self.matches(zone, record)
             else:
