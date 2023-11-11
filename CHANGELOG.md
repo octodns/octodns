@@ -1,9 +1,18 @@
 ## v1.3.0 - 2023-??-?? - ???
 
-* Added ZoneNameFilter processor to enable ignoring/alerting on type-os like
-  octodns.com.octodns.com
+#### Noteworthy changes
+
+* Added octodns.__version__ to replace octodns.__VERSION__ as the former is more
+  of a standard, per pep-8. __VERSION__ is deprecated and will go away in 2.x
 * Fixed issues with handling of chunking large TXT values for providers that use
   the in-built `rrs` method
+* Removed code that included sha in module version number when installing from
+  repo as it caused problems with non-binary installs.
+
+#### Stuff
+
+* Added ZoneNameFilter processor to enable ignoring/alerting on type-os like
+  octodns.com.octodns.com
 * ExcludeRootNsChanges processor that will error (or warn) if plan includes a
   change to root NS records
 * Include the octodns special section info in Record __repr__, makes it easier
