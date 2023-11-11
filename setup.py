@@ -47,10 +47,6 @@ def long_description():
     return buf.getvalue()
 
 
-def version():
-    return octodns.__VERSION__
-
-
 tests_require = ('pytest>=6.2.5', 'pytest-cov>=3.0.0', 'pytest-network>=0.0.1')
 
 setup(
