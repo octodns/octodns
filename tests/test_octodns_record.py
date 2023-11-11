@@ -654,3 +654,51 @@ class TestRecordValidation(TestCase):
             ),
         )
         self.assertEqual('needle', record.context)
+
+    def test_values_mixin_repr(self):
+        # ValuesMixin
+        record = Record.new(
+            self.zone,
+            'www',
+            {
+                'ttl': 42,
+                'type': 'A',
+                'values': ['1.2.3.4', '2.3.4.5'],
+                'octodns': {'key': 'value'},
+            },
+        )
+        # has the octodns special section
+        self.assertEqual(
+            "<ARecord A 42, www.unit.tests., ['1.2.3.4', '2.3.4.5'], {'key': 'value'}>",
+            record.__repr__(),
+        )
+        # no special section
+        record._octodns = {}
+        self.assertEqual(
+            "<ARecord A 42, www.unit.tests., ['1.2.3.4', '2.3.4.5']>",
+            record.__repr__(),
+        )
+
+    def test_value_mixin_repr(self):
+        # ValueMixin
+        record = Record.new(
+            self.zone,
+            'pointer',
+            {
+                'ttl': 43,
+                'type': 'CNAME',
+                'value': 'unit.tests.',
+                'octodns': {'key': 42},
+            },
+        )
+        # has the octodns special section
+        self.assertEqual(
+            "<CnameRecord CNAME 43, pointer.unit.tests., unit.tests., {'key': 42}>",
+            record.__repr__(),
+        )
+        # no special section
+        record._octodns = {}
+        self.assertEqual(
+            '<CnameRecord CNAME 43, pointer.unit.tests., unit.tests.>',
+            record.__repr__(),
+        )
