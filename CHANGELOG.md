@@ -6,6 +6,9 @@
   the in-built `rrs` method
 * ExcludeRootNsChanges processor that will error (or warn) if plan includes a
   change to root NS records
+* Include the octodns special section info in Record __repr__, makes it easier
+  to debug things with providers that have special functionality configured
+  there.
 
 ## v1.2.1 - 2023-09-29 - Now with fewer stale files
 
