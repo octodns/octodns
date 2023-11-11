@@ -7,7 +7,7 @@
 * Fixed issues with handling of chunking large TXT values for providers that use
   the in-built `rrs` method
 * Removed code that included sha in module version number when installing from
-  repo a it caused problems with non-binary installs.
+  repo as it caused problems with non-binary installs.
 
 #### Stuff
 
