@@ -65,6 +65,10 @@ class TypeAllowlistFilter(_TypeBaseFilter, AllowsMixin):
         allowlist:
           - A
           - AAAA
+        # Optional param that can be set to False to leave the target zone
+        # alone, thus allowing deletion of existing records
+        # (default: true)
+        # include_target: True
 
     zones:
       exxampled.com.:
@@ -90,6 +94,10 @@ class TypeRejectlistFilter(_TypeBaseFilter, RejectsMixin):
         class: octodns.processor.filter.TypeRejectlistFilter
         rejectlist:
           - CNAME
+        # Optional param that can be set to False to leave the target zone
+        # alone, thus allowing deletion of existing records
+        # (default: true)
+        # include_target: True
 
     zones:
       exxampled.com.:
@@ -150,6 +158,10 @@ class NameAllowlistFilter(_NameBaseFilter, AllowsMixin):
           - /some-pattern-\\d\\+/
           # regex - anchored so has to match start to end
           - /^start-.+-end$/
+        # Optional param that can be set to False to leave the target zone
+        # alone, thus allowing deletion of existing records
+        # (default: true)
+        # include_target: True
 
     zones:
       exxampled.com.:
@@ -182,6 +194,10 @@ class NameRejectlistFilter(_NameBaseFilter, RejectsMixin):
           - /some-pattern-\\d\\+/
           # regex - anchored so has to match start to end
           - /^start-.+-end$/
+        # Optional param that can be set to False to leave the target zone
+        # alone, thus allowing deletion of existing records
+        # (default: true)
+        # include_target: True
 
     zones:
       exxampled.com.:
@@ -288,6 +304,10 @@ class ZoneNameFilter(_FilterProcessor):
         # If true a ValidationError will be throw when such records are
         # encouterd, if false the records will just be ignored/omitted.
         # (default: true)
+        # Optional param that can be set to False to leave the target zone
+        # alone, thus allowing deletion of existing records
+        # (default: true)
+        # include_target: True
 
     zones:
       exxampled.com.:
