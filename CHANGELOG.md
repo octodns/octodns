@@ -9,6 +9,10 @@
 * Include the octodns special section info in Record __repr__, makes it easier
   to debug things with providers that have special functionality configured
   there.
+* Most processor.filter processors now support an include_target flag that can
+  be set to False to leave the target zone data untouched, thus remove any
+  existing filtered records. Default behavior is unchanged and filtered records
+  will be completely invisible to octoDNS
 
 ## v1.2.1 - 2023-09-29 - Now with fewer stale files
 

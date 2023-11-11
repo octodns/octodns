@@ -9,6 +9,20 @@ from ..record.exception import ValidationError
 from .base import BaseProcessor
 
 
+class _FilterProcessor(BaseProcessor):
+    def __init__(self, name, include_target=True, **kwargs):
+        super().__init__(name, **kwargs)
+        self.include_target = include_target
+
+    def process_source_zone(self, *args, **kwargs):
+        return self._process(*args, **kwargs)
+
+    def process_target_zone(self, existing, *args, **kwargs):
+        if self.include_target:
+            return self._process(existing, *args, **kwargs)
+        return existing
+
+
 class AllowsMixin:
     def matches(self, zone, record):
         pass
@@ -25,9 +39,9 @@ class RejectsMixin:
         pass
 
 
-class _TypeBaseFilter(BaseProcessor):
-    def __init__(self, name, _list):
-        super().__init__(name)
+class _TypeBaseFilter(_FilterProcessor):
+    def __init__(self, name, _list, **kwargs):
+        super().__init__(name, **kwargs)
         self._list = set(_list)
 
     def _process(self, zone, *args, **kwargs):
@@ -38,9 +52,6 @@ class _TypeBaseFilter(BaseProcessor):
                 self.doesnt_match(zone, record)
 
         return zone
-
-    process_source_zone = _process
-    process_target_zone = _process
 
 
 class TypeAllowlistFilter(_TypeBaseFilter, AllowsMixin):
@@ -65,8 +76,8 @@ class TypeAllowlistFilter(_TypeBaseFilter, AllowsMixin):
           - ns1
     '''
 
-    def __init__(self, name, allowlist):
-        super().__init__(name, allowlist)
+    def __init__(self, name, allowlist, **kwargs):
+        super().__init__(name, allowlist, **kwargs)
 
 
 class TypeRejectlistFilter(_TypeBaseFilter, RejectsMixin):
@@ -90,13 +101,13 @@ class TypeRejectlistFilter(_TypeBaseFilter, RejectsMixin):
           - route53
     '''
 
-    def __init__(self, name, rejectlist):
-        super().__init__(name, rejectlist)
+    def __init__(self, name, rejectlist, **kwargs):
+        super().__init__(name, rejectlist, **kwargs)
 
 
-class _NameBaseFilter(BaseProcessor):
-    def __init__(self, name, _list):
-        super().__init__(name)
+class _NameBaseFilter(_FilterProcessor):
+    def __init__(self, name, _list, **kwargs):
+        super().__init__(name, **kwargs)
         exact = set()
         regex = []
         for pattern in _list:
@@ -120,9 +131,6 @@ class _NameBaseFilter(BaseProcessor):
             self.doesnt_match(zone, record)
 
         return zone
-
-    process_source_zone = _process
-    process_target_zone = _process
 
 
 class NameAllowlistFilter(_NameBaseFilter, AllowsMixin):
@@ -269,7 +277,7 @@ class ExcludeRootNsChanges(BaseProcessor):
         return plan
 
 
-class ZoneNameFilter(BaseProcessor):
+class ZoneNameFilter(_FilterProcessor):
     '''Filter or error on record names that contain the zone name
 
     Example usage:
@@ -291,8 +299,8 @@ class ZoneNameFilter(BaseProcessor):
           - azure
     '''
 
-    def __init__(self, name, error=True):
-        super().__init__(name)
+    def __init__(self, name, error=True, **kwargs):
+        super().__init__(name, **kwargs)
         self.error = error
 
     def _process(self, zone, *args, **kwargs):
@@ -314,6 +322,3 @@ class ZoneNameFilter(BaseProcessor):
                     zone.remove_record(record)
 
         return zone
-
-    process_source_zone = _process
-    process_target_zone = _process

@@ -54,6 +54,22 @@ class TestTypeAllowListFilter(TestCase):
             ['a', 'a2', 'aaaa'], sorted([r.name for r in got.records])
         )
 
+    def test_include_target(self):
+        filter_txt = TypeAllowlistFilter(
+            'only-txt', ['TXT'], include_target=False
+        )
+
+        # as a source we don't see them
+        got = filter_txt.process_source_zone(zone.copy())
+        self.assertEqual(['txt', 'txt2'], sorted([r.name for r in got.records]))
+
+        # but as a target we do b/c it's not included
+        got = filter_txt.process_target_zone(zone.copy())
+        self.assertEqual(
+            ['a', 'a2', 'aaaa', 'txt', 'txt2'],
+            sorted([r.name for r in got.records]),
+        )
+
 
 class TestTypeRejectListFilter(TestCase):
     def test_basics(self):
