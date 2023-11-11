@@ -127,35 +127,6 @@ class _NameBaseFilter(BaseProcessor):
     process_target_zone = _process
 
 
-class _NetworkValueBaseFilter(BaseProcessor):
-    def __init__(self, name, _list):
-        super().__init__(name)
-        self.networks = []
-        for value in _list:
-            try:
-                self.networks.append(ip_network(value))
-            except ValueError:
-                raise ValueError(f'{value} is not a valid CIDR to use')
-
-    def _process(self, zone, *args, **kwargs):
-        for record in zone.records:
-            if record._type not in ['A', 'AAAA']:
-                continue
-
-            ips = [ip_address(value) for value in record.values]
-            if any(
-                ip in network for ip, network in product(ips, self.networks)
-            ):
-                self.matches(zone, record)
-            else:
-                self.doesnt_match(zone, record)
-
-        return zone
-
-    process_source_zone = _process
-    process_target_zone = _process
-
-
 class NameAllowlistFilter(_NameBaseFilter, AllowsMixin):
     '''Only manage records with names that match the provider patterns
 
@@ -218,6 +189,35 @@ class NameRejectlistFilter(_NameBaseFilter, RejectsMixin):
 
     def __init__(self, name, rejectlist):
         super().__init__(name, rejectlist)
+
+
+class _NetworkValueBaseFilter(BaseProcessor):
+    def __init__(self, name, _list):
+        super().__init__(name)
+        self.networks = []
+        for value in _list:
+            try:
+                self.networks.append(ip_network(value))
+            except ValueError:
+                raise ValueError(f'{value} is not a valid CIDR to use')
+
+    def _process(self, zone, *args, **kwargs):
+        for record in zone.records:
+            if record._type not in ['A', 'AAAA']:
+                continue
+
+            ips = [ip_address(value) for value in record.values]
+            if any(
+                ip in network for ip, network in product(ips, self.networks)
+            ):
+                self.matches(zone, record)
+            else:
+                self.doesnt_match(zone, record)
+
+        return zone
+
+    process_source_zone = _process
+    process_target_zone = _process
 
 
 class NetworkValueAllowlistFilter(_NetworkValueBaseFilter, AllowsMixin):
