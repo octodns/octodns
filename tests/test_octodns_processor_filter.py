@@ -9,6 +9,8 @@ from octodns.processor.filter import (
     IgnoreRootNsFilter,
     NameAllowlistFilter,
     NameRejectlistFilter,
+    NetworkValueAllowlistFilter,
+    NetworkValueRejectlistFilter,
     TypeAllowlistFilter,
     TypeRejectlistFilter,
     ZoneNameFilter,
@@ -174,6 +176,66 @@ class TestNameRejectListFilter(TestCase):
         self.assertEqual(2, len(filtered.records))
         self.assertEqual(
             ['doesnt', 'matches'], sorted([r.name for r in filtered.records])
+        )
+
+
+class TestNetworkValueFilter(TestCase):
+    zone = Zone('unit.tests.', [])
+    for record in [
+        Record.new(
+            zone,
+            'private-ipv4',
+            {'type': 'A', 'ttl': 42, 'value': '10.42.42.42'},
+        ),
+        Record.new(
+            zone,
+            'public-ipv4',
+            {'type': 'A', 'ttl': 42, 'value': '42.42.42.42'},
+        ),
+        Record.new(
+            zone,
+            'private-ipv6',
+            {'type': 'AAAA', 'ttl': 42, 'value': 'fd12:3456:789a:1::1'},
+        ),
+        Record.new(
+            zone,
+            'public-ipv6',
+            {'type': 'AAAA', 'ttl': 42, 'value': 'dead:beef:cafe::1'},
+        ),
+        Record.new(
+            zone,
+            'keep-me',
+            {'ttl': 30, 'type': 'TXT', 'value': 'this should always be here'},
+        ),
+    ]:
+        zone.add_record(record)
+
+    def test_bad_config(self):
+        with self.assertRaises(ValueError):
+            NetworkValueRejectlistFilter(
+                'rejectlist', set(('string', '42.42.42.42/43'))
+            )
+
+    def test_reject(self):
+        filter_private = NetworkValueRejectlistFilter(
+            'rejectlist', set(('10.0.0.0/8', 'fd00::/8'))
+        )
+
+        got = filter_private.process_source_zone(self.zone.copy())
+        self.assertEqual(
+            ['keep-me', 'public-ipv4', 'public-ipv6'],
+            sorted([r.name for r in got.records]),
+        )
+
+    def test_allow(self):
+        filter_private = NetworkValueAllowlistFilter(
+            'allowlist', set(('10.0.0.0/8', 'fd00::/8'))
+        )
+
+        got = filter_private.process_source_zone(self.zone.copy())
+        self.assertEqual(
+            ['keep-me', 'private-ipv4', 'private-ipv6'],
+            sorted([r.name for r in got.records]),
         )
 
 
