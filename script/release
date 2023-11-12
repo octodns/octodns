@@ -32,7 +32,7 @@ fi
 # Set so that setup.py will create a public release style version number
 export OCTODNS_RELEASE=1
 
-VERSION="$(grep "^__VERSION__" "$ROOT/octodns/__init__.py" | sed -e "s/.* = '//" -e "s/'$//")"
+VERSION="$(grep "^__version__" "$ROOT/octodns/__init__.py" | sed -e "s/.* = '//" -e "s/'$//")"
 
 git tag -s "v$VERSION" -m "Release $VERSION"
 git push origin "v$VERSION"
