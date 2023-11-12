@@ -11,7 +11,7 @@ from logging import getLogger
 from os import environ
 from sys import stdout
 
-from . import __VERSION__
+from . import __version__
 from .idna import IdnaDict, idna_decode, idna_encode
 from .processor.arpa import AutoArpa
 from .processor.meta import MetaProcessor
@@ -89,7 +89,7 @@ class Manager(object):
     def __init__(
         self, config_file, max_workers=None, include_meta=False, auto_arpa=False
     ):
-        version = self._try_version('octodns', version=__VERSION__)
+        version = self._try_version('octodns', version=__version__)
         self.log.info(
             '__init__: config_file=%s, (octoDNS %s)', config_file, version
         )
@@ -308,7 +308,10 @@ class Manager(object):
         # finally try and import the module and see if it has a __VERSION__
         if module is None:
             module = import_module(module_name)
-        return getattr(module, '__VERSION__', None)
+        # TODO: remove the __VERSION__ fallback eventually?
+        return getattr(
+            module, '__version__', getattr(module, '__VERSION__', None)
+        )
 
     def _import_module(self, module_name):
         current = module_name

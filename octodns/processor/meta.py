@@ -6,7 +6,7 @@ from datetime import datetime
 from logging import getLogger
 from uuid import uuid4
 
-from .. import __VERSION__
+from .. import __version__
 from ..record import Record
 from .base import BaseProcessor
 
@@ -91,7 +91,7 @@ class MetaProcessor(BaseProcessor):
             uuid = self.uuid() if include_uuid else None
             values.append(f'uuid={uuid}')
         if include_version:
-            values.append(f'octodns-version={__VERSION__}')
+            values.append(f'octodns-version={__version__}')
         self.include_provider = include_provider
         values.sort()
         self.values = values
