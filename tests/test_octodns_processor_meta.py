@@ -5,7 +5,7 @@
 from unittest import TestCase
 from unittest.mock import patch
 
-from octodns import __VERSION__
+from octodns import __version__
 from octodns.processor.meta import MetaProcessor
 from octodns.provider.plan import Plan
 from octodns.record import Create, Record, Update
@@ -67,7 +67,7 @@ class TestMetaProcessor(TestCase):
         uuid_mock.side_effect = [Exception('not used')]
         now_mock.side_effect = [Exception('not used')]
         proc = MetaProcessor('test', include_time=False, include_version=True)
-        self.assertEqual([f'octodns-version={__VERSION__}'], proc.values)
+        self.assertEqual([f'octodns-version={__version__}'], proc.values)
 
         # just provider
         proc = MetaProcessor('test', include_time=False, include_provider=True)
@@ -86,7 +86,7 @@ class TestMetaProcessor(TestCase):
         )
         self.assertEqual(
             [
-                f'octodns-version={__VERSION__}',
+                f'octodns-version={__version__}',
                 'time=the-time',
                 'uuid=abcdef-1234567890',
             ],
