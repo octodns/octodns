@@ -2,6 +2,8 @@
 #
 #
 
+from ipaddress import ip_address, ip_network
+from itertools import product
 from logging import getLogger
 from re import compile as re_compile
 
@@ -174,6 +176,91 @@ class NameRejectlistFilter(_NameBaseFilter, RejectsMixin):
           - /some-pattern-\\d\\+/
           # regex - anchored so has to match start to end
           - /^start-.+-end$/
+
+    zones:
+      exxampled.com.:
+        sources:
+          - config
+        processors:
+          - not-these
+        targets:
+          - route53
+    '''
+
+    def __init__(self, name, rejectlist):
+        super().__init__(name, rejectlist)
+
+
+class _NetworkValueBaseFilter(BaseProcessor):
+    def __init__(self, name, _list):
+        super().__init__(name)
+        self.networks = []
+        for value in _list:
+            try:
+                self.networks.append(ip_network(value))
+            except ValueError:
+                raise ValueError(f'{value} is not a valid CIDR to use')
+
+    def _process(self, zone, *args, **kwargs):
+        for record in zone.records:
+            if record._type not in ['A', 'AAAA']:
+                continue
+
+            ips = [ip_address(value) for value in record.values]
+            if any(
+                ip in network for ip, network in product(ips, self.networks)
+            ):
+                self.matches(zone, record)
+            else:
+                self.doesnt_match(zone, record)
+
+        return zone
+
+    process_source_zone = _process
+    process_target_zone = _process
+
+
+class NetworkValueAllowlistFilter(_NetworkValueBaseFilter, AllowsMixin):
+    '''Only manage A and AAAA records with values that match the provider patterns
+    All other types will be left as-is.
+
+    Example usage:
+
+    processors:
+      only-these:
+        class: octodns.processor.filter.NetworkValueAllowlistFilter
+        allowlist:
+          - 127.0.0.1/32
+          - 192.168.0.0/16
+          - fd00::/8
+
+    zones:
+      exxampled.com.:
+        sources:
+          - config
+        processors:
+          - only-these
+        targets:
+          - route53
+    '''
+
+    def __init__(self, name, allowlist):
+        super().__init__(name, allowlist)
+
+
+class NetworkValueRejectlistFilter(_NetworkValueBaseFilter, RejectsMixin):
+    '''Reject managing A and AAAA records with value matching a that match the provider patterns
+    All other types will be left as-is.
+
+    Example usage:
+
+    processors:
+      not-these:
+        class: octodns.processor.filter.NetworkValueRejectlistFilter
+        rejectlist:
+          - 127.0.0.1/32
+          - 192.168.0.0/16
+          - fd00::/8
 
     zones:
       exxampled.com.:
