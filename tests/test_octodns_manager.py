@@ -16,7 +16,7 @@ from helpers import (
     TemporaryDirectory,
 )
 
-from octodns import __VERSION__
+from octodns import __version__
 from octodns.idna import IdnaDict, idna_encode
 from octodns.manager import (
     MainThreadExecutor,
@@ -746,13 +746,13 @@ class TestManager(TestCase):
         manager = Manager(get_config_filename('simple.yaml'))
 
         class DummyModule(object):
-            __VERSION__ = '2.3.4'
+            __version__ = '2.3.4'
 
         dummy_module = DummyModule()
 
         # use importlib.metadata.version
         self.assertTrue(
-            __VERSION__,
+            __version__,
             manager._try_version(
                 'octodns', module=dummy_module, version='1.2.3'
             ),
