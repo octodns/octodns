@@ -3,6 +3,7 @@
 #
 
 from collections import defaultdict
+from copy import deepcopy
 from logging import getLogger
 
 from ..context import ContextDict
@@ -167,9 +168,12 @@ class Record(EqualityTupleMixin):
         self._octodns = data.get('octodns', {})
 
     def _data(self):
+        ret = {'ttl': self.ttl}
+        if self._octodns:
+            ret['octodns'] = deepcopy(self._octodns)
         if self.context:
-            return ContextDict({'ttl': self.ttl}, context=self.context)
-        return {'ttl': self.ttl}
+            return ContextDict(ret, context=self.context)
+        return ret
 
     @property
     def data(self):
@@ -240,7 +244,6 @@ class Record(EqualityTupleMixin):
         # data, via _data(), will preserve context
         data = self.data
         data['type'] = self._type
-        data['octodns'] = self._octodns
 
         return Record.new(
             zone if zone else self.zone,
