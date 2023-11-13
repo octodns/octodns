@@ -54,7 +54,6 @@ jobs:
           - octodns/octodns-spf
           - octodns/octodns-transip
           - octodns/octodns-ultra
-          - sukiyaki/octodns-netbox
     steps:
       - uses: actions/checkout@v4
       - name: Setup python
