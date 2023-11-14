@@ -59,7 +59,7 @@ class TtlRestrictionFilter(BaseProcessor):
 
     def process_source_zone(self, zone, *args, **kwargs):
         for record in zone.records:
-            if record._octodns.get('lenient'):
+            if record.lenient:
                 continue
             if self.allowed_ttls and record.ttl not in self.allowed_ttls:
                 raise RestrictionException(
