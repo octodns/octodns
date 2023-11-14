@@ -1,9 +1,10 @@
-## v1.3.0 - 2023-??-?? - ???
+## v1.3.0 - 2023-11-14 - New and improved processors
 
 #### Noteworthy changes
 
-* Added octodns.__version__ to replace octodns.__VERSION__ as the former is more
-  of a standard, per pep-8. __VERSION__ is deprecated and will go away in 2.x
+* Added `octodns.__version__` to replace `octodns.__VERSION__` as the former is
+  more of a standard, per pep-8. `__VERSION__` is deprecated and will go away
+  in 2.x
 * Fixed issues with handling of chunking large TXT values for providers that use
   the in-built `rrs` method
 * Removed code that included sha in module version number when installing from
@@ -20,7 +21,7 @@
   horizon)
 * ExcludeRootNsChanges processor that will error (or warn) if plan includes a
   change to root NS records
-* Include the octodns special section info in Record __repr__, makes it easier
+* Include the octodns special section info in `Record.__repr__`, makes it easier
   to debug things with providers that have special functionality configured
   there.
 * Most processor.filter processors now support an include_target flag that can
