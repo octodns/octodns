@@ -268,5 +268,4 @@ So now you can commit your config and start managing you DNS with octoDNS rather
 than clicking buttons in UIs or using whatever you previous had used.
 
 * Check out [octoDNS basic example](../basic) for an example of how to create zone configuration YAML files from your existing provider's configuration
-* Have a look at [managing SPF values](../managing-spf) for details on the best practices for configuring email related DNS records with octoDNS
 * For a complete list check out the [Examples Directory](../)

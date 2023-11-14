@@ -251,5 +251,4 @@ No changes were planned
 ## What's Next
 
 * Check out [migrating to octoDNS](../migrating-to-octodns) for an example of how to create zone configuration YAML files from your existing provider's configuration
-* Have a look at [managing SPF values](../managing-spf) for details on the best practices for configuring email related DNS records with octoDNS
 * For a complete list check out the [Examples Directory](../)
