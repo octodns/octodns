@@ -1,0 +1,58 @@
+---
+providers:
+  # The primary source of record data in most setup is YAML files on disk. By
+  # convention it's named config.
+  config:
+    class: octodns.provider.yaml.YamlProvider
+    # There are a number of configuration options available to customize the
+    # behavior of the provider, but the defaults are generally suitable and the
+    # only required value is the name of the directory where the files can be
+    # found. Convention is the same config directory in which this file lives.
+    directory: ./config
+
+  # Having a no mail SPF record is considered best practice for any domains
+  # that you do not plan to use for email. The octodns-spf module provides
+  # SpfSource which by default adds the SPF value `v=spf1 -all` to accomplish
+  # this. If you have one or more domains that involve mail check out the email
+  # example after you're done here.
+  no-mail:
+    class: octodns_spf.SpfSource
+
+  # PowerDNS serves as a good option for a locally runnable standalone provider
+  # to use in our examples. See the top-level example README for information on
+  # how to run it and the documentation for octodns-powerdns for documentation
+  # about the details of the config below.
+  powerdns:
+    class: octodns_powerdns.PowerDnsProvider
+    host: 127.0.0.1
+    port: 8081
+    api_key: env/POWERDNS_API_KEY
+    timeout: 10
+
+  # If you wish to push your record data to multiple providers you'd define the
+  # other here and include them in the targets list down below. See the
+  # multiple-provider example for more details.
+
+zones:
+
+  # This configuration is using dynamic zone config. Rather than having to
+  # explicitly list out all of the zones here with their coresponding
+  # configuration there's a single wildcard entry. Here the `config` source
+  # will look for zone files defined in its configured directory, the files
+  # alongside this one. For more details see the dynamic-zone-config example.
+
+  '*':
+    # This is the place(s) we look for the records in each zone
+    sources:
+      # The conig provider will be firs in line to provide records for the
+      # zones, and since we're using dynamic zone config it will also be
+      # responsible for defining what zones exist.
+      - config
+      # After config has added its records the we'll add an no email SPF value.
+      # It'll create the APEX TXT record if necessary. Again see the email
+      # example for more details.
+      - no-mail
+    # This is the place(s) we push the record data to when applying changes
+    targets:
+      # Here we're pushing things to our local PowerDNS instance
+      - powerdns

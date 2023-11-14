@@ -1,0 +1,41 @@
+---
+# Just some records so we'll have something to dump, see the basic example for
+# documentation/descriptions of what's in here.
+'':
+  - type: A
+    values:
+      - 203.0.113.42
+      - 203.0.113.43
+  - type: AAAA
+    values: &WEB_AAAA_VALUES
+      - 2001:DB8::44
+  - type: NS
+    values:
+      - ns1.some-provider.com.
+      - ns2.some-provider.com.
+      - ns3.some-provider.com.
+      - ns4.some-provider.com.
+  - type: TXT
+    values:
+      - some-verification=3becb991-932f-4433-a280-9df6f39b6194
+      - z-other-thing=this proves i have control over this domain
+'*':
+  - type: A
+    value: 203.0.113.45
+  - type: AAAA
+    value: 2001:DB8::46
+sshfp:
+  type: SSHFP
+  values:
+    # These values won't pass validation. They'll be used to walk through the
+    # process of safely bringing an existing config up to octoDNS's
+    # recommended best practices.
+    - algorithm: 42
+      fingerprint: abcdef1234567890
+      fingerprint_type: 1
+    - algorithm: 43
+      fingerprint: abcdef1234567890
+      fingerprint_type: 1
+www:
+  - type: CNAME
+    value: my-dumpable.com.

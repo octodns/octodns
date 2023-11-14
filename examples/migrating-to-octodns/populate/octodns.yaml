@@ -1,0 +1,26 @@
+---
+providers:
+  # This is just a quick and easy way to load some data into PowerDNS that we
+  # can dump while working through the example. See the basic example for
+  # documentation of what's in here
+  config:
+    class: octodns.provider.yaml.YamlProvider
+    directory: ./populate
+
+  powerdns: 
+    class: octodns_powerdns.PowerDnsProvider
+    host: 127.0.0.1
+    port: 8081
+    api_key: env/POWERDNS_API_KEY
+    timeout: 10
+
+zones:
+
+  '*':
+    # we're disabling strict validation here so we can load up data that won't
+    # meet octoDNS's best practices so that we can show
+    lenient: true
+    sources:
+      - config
+    targets:
+      - powerdns

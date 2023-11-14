@@ -1,0 +1,29 @@
+version: "3.9"  # optional since v1.27.0
+
+volumes:
+  powerdns-db-data:
+    name: powerdns-db-data
+
+services:
+  db:
+    image: mariadb:10.1
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: l3tmein
+    volumes:
+      - powerdns-db-data:/var/lib/mysql
+  powerdns:
+    image: psitrax/powerdns
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "8081:8081"
+    environment:
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASS: l3tmein
+    depends_on:
+      - db
+    command: --api=yes --api-key=its@secret --loglevel=99 --webserver=yes --webserver-address=0.0.0.0 --webserver-allow-from=0.0.0.0/0 --webserver-password=its@secret --webserver-port=8081 --enable-lua-records=shared --edns-subnet-processing=yes
