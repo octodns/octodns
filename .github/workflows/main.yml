@@ -2,17 +2,33 @@ name: OctoDNS
 on: [pull_request]
 
 jobs:
+  config:
+    runs-on: ubuntu-latest
+    outputs:
+      json: ${{ steps.load.outputs.json }}
+    steps:
+    - uses: actions/checkout@v4
+    - id: load
+      # based on https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings
+      run: |
+        {
+          echo 'json<<EOF'
+          cat ./.ci-config.json
+          echo EOF
+        } >> $GITHUB_OUTPUT
   ci:
+    needs: config
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # Tested versions based on dates in https://devguide.python.org/versions/#versions
-        python-version: ['3.8', '3.9', '3.10', '3.11']
+        # Defined in a file that resides in the top level of octodns/octodns,
+        # based on dates in https://devguide.python.org/versions/#versions
+        python-version: ${{ fromJson(needs.config.outputs.json).python_versions_active }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
@@ -35,13 +51,15 @@ jobs:
             coverage.xml
             htmlcov
   setup-py:
+    needs: config
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          # Most recent release from https://devguide.python.org/versions/#versions
+          python-version: ${{ fromJson(needs.config.outputs.json).python_version_current }}
           architecture: x64
       - name: CI setup.py
         run: |

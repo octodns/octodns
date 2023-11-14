@@ -55,6 +55,9 @@ class SpfDnsLookupProcessor(BaseProcessor):
 
     def __init__(self, name):
         self.log.debug(f"SpfDnsLookupProcessor: {name}")
+        self.log.warning(
+            'SpfDnsLookupProcessor is DEPRECATED in favor of the version relocated into octodns-spf and will be removed in 2.0'
+        )
         super().__init__(name)
 
     def _get_spf_from_txt_values(
@@ -134,7 +137,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
             if record._type != 'TXT':
                 continue
 
-            if record._octodns.get('lenient'):
+            if record.lenient:
                 continue
 
             self._check_dns_lookups(record, record.values, 0)

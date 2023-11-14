@@ -62,3 +62,27 @@ class TestYaml(TestCase):
         buf = StringIO()
         safe_dump({'45a03129': 42, '45a0392a': 43}, buf)
         self.assertEqual("---\n45a0392a: 43\n45a03129: 42\n", buf.getvalue())
+
+    def test_include(self):
+        with open('tests/config/include/main.yaml') as fh:
+            data = safe_load(fh)
+        self.assertEqual(
+            {
+                'included-array': [14, 15, 16, 72],
+                'included-dict': {'k': 'v', 'z': 42},
+                'included-empty': None,
+                'included-nested': 'Hello World!',
+                'included-subdir': 'Hello World!',
+                'key': 'value',
+                'name': 'main',
+            },
+            data,
+        )
+
+        with open('tests/config/include/include-doesnt-exist.yaml') as fh:
+            with self.assertRaises(FileNotFoundError) as ctx:
+                data = safe_load(fh)
+            self.assertEqual(
+                "[Errno 2] No such file or directory: 'tests/config/include/does-not-exist.yaml'",
+                str(ctx.exception),
+            )

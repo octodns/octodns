@@ -1,0 +1,4 @@
+---
+flat-zone-file:
+  type: TXT
+  value: non-split flat zone file

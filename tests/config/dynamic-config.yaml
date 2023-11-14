@@ -3,14 +3,24 @@ providers:
     class: octodns.provider.yaml.YamlProvider
     directory: tests/config
 
+  in2:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config/split
+
   dump:
     class: octodns.provider.yaml.YamlProvider
     directory: env/YAML_TMP_DIR
 
 zones:
-  '*':
+  '*.one':
     sources:
     - in
+    targets:
+    - dump
+
+  '*.two':
+    sources:
+    - in2
     targets:
     - dump
 

@@ -1,10 +1,82 @@
-## v1.1.0 - 2023-??-?? - ???
+## v1.?.0 - 2023-??-?? -
+
+* Record.lenient property added similar to other common/standard _octodns data
+
+## v1.3.0 - 2023-11-14 - New and improved processors
+
+#### Noteworthy changes
+
+* Added `octodns.__version__` to replace `octodns.__VERSION__` as the former is
+  more of a standard, per pep-8. `__VERSION__` is deprecated and will go away
+  in 2.x
+* Fixed issues with handling of chunking large TXT values for providers that use
+  the in-built `rrs` method
+* Removed code that included sha in module version number when installing from
+  repo as it caused problems with non-binary installs.
+
+#### Stuff
+
+* Added ZoneNameFilter processor to enable ignoring/alerting on type-os like
+  octodns.com.octodns.com
+* NetworkValueAllowlistFilter/NetworkValueRejectlistFilter added to
+  processors.filter to enable filtering A/AAAA records based on value. Can be
+  useful if you have records with non-routable values in an internal copy of a
+  zone, but want to exclude them when pushing the same zone publically (split
+  horizon)
+* ExcludeRootNsChanges processor that will error (or warn) if plan includes a
+  change to root NS records
+* Include the octodns special section info in `Record.__repr__`, makes it easier
+  to debug things with providers that have special functionality configured
+  there.
+* Most processor.filter processors now support an include_target flag that can
+  be set to False to leave the target zone data untouched, thus remove any
+  existing filtered records. Default behavior is unchanged and filtered records
+  will be completely invisible to octoDNS
+
+## v1.2.1 - 2023-09-29 - Now with fewer stale files
+
+* Update script/release to do clean room dist builds
+
+## v1.2.0 - 2023-09-28 - Bunch more bug fixes
+
+* Record.from_rrs supports `source` parameter
+* Record.parse_rdata_text unquotes any quoted (string) values
+* Fix crash bug when using the YamlProvider with a directory that contains a
+  mix of split and non-split zone yamls. See https://github.com/octodns/octodns/issues/1066
+* Fix discovery of zones from different sources when there are multiple dynamic
+  zones. See https://github.com/octodns/octodns/issues/1068
+
+## v1.1.1 - 2023-09-16 - Doh! Fix that one little thing
+
+* Address a bug in the handling of loading auto-arpa manager configuration.
+
+## v1.1.0 - 2023-09-13 - More than enough for a minor release
 
 #### Noteworthy changes
 
 * New dynamic zone config support that allows wildcard entries in the octoDNS
   config to be expanded by the source provider(s). See
   [Dynamic Zone Config](/README.md#dynamic-zone-config) for more information.
+* SplitYamlProvider has been deprecated and will be removed in 2.0. YamlProvider
+  now includes the ability to process split zones when configured to do so and
+  allows for more flexibility in how things are laid out than was previously
+  possible. This includes the ability to split some zones and not others and
+  even to have partially split zones with some records in the primary zone YAML
+  and others in a split directory. See YamlProvider documentation for more info.
+* YamlProvider now supports a `shared_filename` that can be used to add a set of
+  common records across all zones using the provider. It can be used stand-alone
+  or in combination with zone files and/or split configs to aid in DRYing up DNS
+* YamlProvider now supports an `!include` directive which enables shared
+  snippets of config to be reused across many records, e.g. common dynamic rules
+  across a set of services with service-specific pool values or a unified SFP
+  value included in TXT records at the root of all zones.
+* SpfRecord is formally deprecated with an warning and will become a
+  ValidationError in 2.x
+* SpfDnsLookupProcessor is formally deprcated in favor of the version relocated
+  into https://github.com/octodns/octodns-spf and will be removed in 2.x
+* MetaProcessor added to enable some useful/cool options for debugging/tracking
+  DNS changes. Specifically timestamps/uuid so you can track whether changes
+  that have been pushed to providers have propogated/transferred correctly.
 
 #### Stuff
 
@@ -15,6 +87,9 @@
 * Add --all option to octodns-validate to enable showing all record validation
   errors (as warnings) rather than exiting on the first. Exit code is non-zero
   when there are any validation errors.
+* New `post_processors` manager configuration parameter to add global processors
+  that run AFTER zone-specific processors. This should allow more complete
+  control over when processors are run.
 
 ## v1.0.0 - 2023-07-30 - The One
 

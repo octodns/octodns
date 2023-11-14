@@ -10,7 +10,7 @@ from sys import stderr, stdout
 
 from yaml import safe_load
 
-from octodns import __VERSION__
+from octodns import __version__
 
 
 class ArgumentParser(_Base):
@@ -24,7 +24,7 @@ class ArgumentParser(_Base):
         super().__init__(*args, **kwargs)
 
     def parse_args(self, default_log_level=INFO):
-        version = f'octoDNS {__VERSION__}'
+        version = f'octoDNS {__version__}'
         self.add_argument(
             '--version',
             action='version',

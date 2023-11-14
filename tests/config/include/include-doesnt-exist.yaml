@@ -1,0 +1,2 @@
+---
+key: !include does-not-exist.yaml

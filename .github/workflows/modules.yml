@@ -5,7 +5,22 @@ on:
     types: [submitted]
 
 jobs:
+  config:
+    runs-on: ubuntu-latest
+    outputs:
+      json: ${{ steps.load.outputs.json }}
+    steps:
+    - uses: actions/checkout@v4
+    - id: load
+      # based on https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings
+      run: |
+        {
+          echo 'json<<EOF'
+          cat ./.ci-config.json
+          echo EOF
+        } >> $GITHUB_OUTPUT
   ci:
+    needs: config
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -20,10 +35,11 @@ jobs:
           - octodns/octodns-digitalocean
           - octodns/octodns-dnsimple
           - octodns/octodns-dnsmadeeasy
-          - octodns/octodns-dyn
           - octodns/octodns-easydns
+          - octodns/octodns-edgecenter
           - octodns/octodns-edgedns
           - octodns/octodns-etchosts
+          - octodns/octodns-fastly
           - octodns/octodns-gandi
           - octodns/octodns-gcore
           - octodns/octodns-googlecloud
@@ -35,23 +51,16 @@ jobs:
           - octodns/octodns-rackspace
           - octodns/octodns-route53
           - octodns/octodns-selectel
+          - octodns/octodns-spf
           - octodns/octodns-transip
           - octodns/octodns-ultra
-          # has been failing for a while now and afaict not related to octoDNS
-          # changes commenting out on 2023-07-30, will check on it again in at
-          # some point in the future and either re-enable or delete it.
-          #- sukiyaki/octodns-netbox
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
       - name: Setup python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
-          # This should generally be the latest stable release of python, but
-          # dyn and ovh don't currently support changes made in 3.10 so we'll
-          # leave it 3.9 for now. Once 3.11 lands though we'll bump to it and
-          # if they haven't updated they'll be removed from the matrix
-          python-version: '3.9'
+          python-version: ${{ fromJson(needs.config.outputs.json).python_version_current }}
           architecture: x64
       - name: Test Module
         run: |
-          ./script/test-module ${{ matrix.module }}
+          ./script/cibuild-module ${{ matrix.module }}

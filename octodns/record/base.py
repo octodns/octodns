@@ -12,6 +12,12 @@ from .change import Update
 from .exception import RecordException, ValidationError
 
 
+def unquote(s):
+    if s and s[0] in ('"', "'"):
+        return s[1:-1]
+    return s
+
+
 class Record(EqualityTupleMixin):
     log = getLogger('Record')
 
@@ -113,7 +119,7 @@ class Record(EqualityTupleMixin):
         return reasons
 
     @classmethod
-    def from_rrs(cls, zone, rrs, lenient=False):
+    def from_rrs(cls, zone, rrs, lenient=False, source=None):
         # group records by name & type so that multiple rdatas can be combined
         # into a single record when needed
         grouped = defaultdict(list)
@@ -128,7 +134,9 @@ class Record(EqualityTupleMixin):
             name = zone.hostname_from_fqdn(rr.name)
             _class = cls._CLASSES[rr._type]
             data = _class.data_from_rrs(rrs)
-            record = Record.new(zone, name, data, lenient=lenient)
+            record = Record.new(
+                zone, name, data, lenient=lenient, source=source
+            )
             records.append(record)
 
         return records
@@ -223,6 +231,10 @@ class Record(EqualityTupleMixin):
         except KeyError:
             return 443
 
+    @property
+    def lenient(self):
+        return self._octodns.get('lenient', False)
+
     def changes(self, other, target):
         # We're assuming we have the same name and type if we're being compared
         if self.ttl != other.ttl:
@@ -305,18 +317,25 @@ class ValuesMixin(object):
         return ret
 
     @property
+    def rr_values(self):
+        return self.values
+
+    @property
     def rrs(self):
         return (
             self.fqdn,
             self.ttl,
             self._type,
-            [v.rdata_text for v in self.values],
+            [v.rdata_text for v in self.rr_values],
         )
 
     def __repr__(self):
         values = "', '".join([str(v) for v in self.values])
         klass = self.__class__.__name__
-        return f"<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, ['{values}']>"
+        octodns = ''
+        if self._octodns:
+            octodns = f', {self._octodns}'
+        return f"<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, ['{values}']{octodns}>"
 
 
 class ValueMixin(object):
@@ -359,4 +378,7 @@ class ValueMixin(object):
 
     def __repr__(self):
         klass = self.__class__.__name__
-        return f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, {self.value}>'
+        octodns = ''
+        if self._octodns:
+            octodns = f', {self._octodns}'
+        return f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, {self.value}{octodns}>'

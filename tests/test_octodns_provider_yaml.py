@@ -2,8 +2,9 @@
 #
 #
 
-from os import makedirs
-from os.path import basename, dirname, isdir, isfile, join
+from os import makedirs, remove
+from os.path import dirname, isdir, isfile, join
+from shutil import rmtree
 from unittest import TestCase
 
 from helpers import TemporaryDirectory
@@ -12,14 +13,13 @@ from yaml.constructor import ConstructorError
 
 from octodns.idna import idna_encode
 from octodns.provider import ProviderException
-from octodns.provider.base import Plan
-from octodns.provider.yaml import (
-    SplitYamlProvider,
-    YamlProvider,
-    _list_all_yaml_files,
-)
+from octodns.provider.yaml import SplitYamlProvider, YamlProvider
 from octodns.record import Create, NsValue, Record, ValuesMixin
 from octodns.zone import SubzoneRecordException, Zone
+
+
+def touch(filename):
+    open(filename, 'w').close()
 
 
 class TestYamlProvider(TestCase):
@@ -299,6 +299,7 @@ xn--dj-kia8a:
         self.assertTrue(source.supports(DummyType(self)))
 
     def test_list_zones(self):
+        # test of pre-existing config that lives on disk
         provider = YamlProvider('test', 'tests/config')
         self.assertEqual(
             [
@@ -307,8 +308,158 @@ xn--dj-kia8a:
                 'subzone.unit.tests.',
                 'unit.tests.',
             ],
-            sorted(provider.list_zones()),
+            list(provider.list_zones()),
         )
+
+        # some synthetic tests to explicitly exercise the full functionality
+        with TemporaryDirectory() as td:
+            directory = join(td.dirname)
+
+            # noise
+            touch(join(directory, 'README.txt'))
+            # not a zone.name.yaml
+            touch(join(directory, 'production.yaml'))
+            # non-zone directories
+            makedirs(join(directory, 'directory'))
+            makedirs(join(directory, 'never.matches'))
+
+            # basic yaml zone files
+            touch(join(directory, 'unit.test.yaml'))
+            touch(join(directory, 'sub.unit.test.yaml'))
+            touch(join(directory, 'other.tld.yaml'))
+            touch(join(directory, 'both.tld.yaml'))
+
+            # split zones with .
+            makedirs(join(directory, 'split.test.'))
+            makedirs(join(directory, 'sub.split.test.'))
+            makedirs(join(directory, 'other.split.'))
+            makedirs(join(directory, 'both.tld.'))
+
+            # split zones with .tst
+            makedirs(join(directory, 'split-ext.test.tst'))
+            makedirs(join(directory, 'sub.split-ext.test.tst'))
+            makedirs(join(directory, 'other-ext.split.tst'))
+
+            provider = YamlProvider('test', directory)
+
+            # basic, should only find zone files
+            self.assertEqual(
+                ['both.tld.', 'other.tld.', 'sub.unit.test.', 'unit.test.'],
+                list(provider.list_zones()),
+            )
+
+            # include stuff with . AND basic
+            provider.split_extension = '.'
+            self.assertEqual(
+                [
+                    'both.tld.',
+                    'other.split.',
+                    'other.tld.',
+                    'split.test.',
+                    'sub.split.test.',
+                    'sub.unit.test.',
+                    'unit.test.',
+                ],
+                list(provider.list_zones()),
+            )
+
+            # include stuff with .tst AND basic
+            provider.split_extension = '.tst'
+            self.assertEqual(
+                [
+                    'both.tld.',
+                    'other-ext.split.',
+                    'other.tld.',
+                    'split-ext.test.',
+                    'sub.split-ext.test.',
+                    'sub.unit.test.',
+                    'unit.test.',
+                ],
+                list(provider.list_zones()),
+            )
+
+            # only .tst
+            provider.disable_zonefile = True
+            self.assertEqual(
+                ['other-ext.split.', 'split-ext.test.', 'sub.split-ext.test.'],
+                list(provider.list_zones()),
+            )
+
+            # only . (and both zone)
+            provider.split_extension = '.'
+            self.assertEqual(
+                ['both.tld.', 'other.split.', 'split.test.', 'sub.split.test.'],
+                list(provider.list_zones()),
+            )
+
+    def test_split_sources(self):
+        with TemporaryDirectory() as td:
+            directory = join(td.dirname)
+
+            provider = YamlProvider('test', directory, split_extension='.')
+
+            zone = Zone('déjà.vu.', [])
+            zone_utf8 = join(directory, f'{zone.decoded_name}')
+            zone_idna = join(directory, f'{zone.name}')
+
+            filenames = (
+                '*.yaml',
+                '.yaml',
+                'www.yaml',
+                f'${zone.decoded_name}yaml',
+            )
+
+            # create the utf8 zone dir
+            makedirs(zone_utf8)
+            # nothing in it so we should get nothing back
+            self.assertEqual([], list(provider._split_sources(zone)))
+            # create some record files
+            for filename in filenames:
+                touch(join(zone_utf8, filename))
+            # make sure we see them
+            expected = [join(zone_utf8, f) for f in sorted(filenames)]
+            self.assertEqual(expected, sorted(provider._split_sources(zone)))
+
+            # add a idna zone directory
+            makedirs(zone_idna)
+            for filename in filenames:
+                touch(join(zone_idna, filename))
+            with self.assertRaises(ProviderException) as ctx:
+                list(provider._split_sources(zone))
+            msg = str(ctx.exception)
+            self.assertTrue('Both UTF-8' in msg)
+
+            # delete the utf8 version
+            rmtree(zone_utf8)
+            expected = [join(zone_idna, f) for f in sorted(filenames)]
+            self.assertEqual(expected, sorted(provider._split_sources(zone)))
+
+    def test_zone_sources(self):
+        with TemporaryDirectory() as td:
+            directory = join(td.dirname)
+
+            provider = YamlProvider('test', directory)
+
+            zone = Zone('déjà.vu.', [])
+            utf8 = join(directory, f'{zone.decoded_name}yaml')
+            idna = join(directory, f'{zone.name}yaml')
+
+            # create the utf8 version
+            touch(utf8)
+            # make sure that's what we get back
+            self.assertEqual(utf8, provider._zone_sources(zone))
+
+            # create idna version, both exists
+            touch(idna)
+            with self.assertRaises(ProviderException) as ctx:
+                provider._zone_sources(zone)
+            msg = str(ctx.exception)
+            self.assertTrue('Both UTF-8' in msg)
+
+            # delete the utf8 version
+            remove(utf8)
+            # make sure that we get the idna one back
+            self.assertEqual(idna, provider._zone_sources(zone))
 
 
 class TestSplitYamlProvider(TestCase):
@@ -323,39 +474,15 @@ class TestSplitYamlProvider(TestCase):
             # Create some files, some of them with a .yaml extension, all of
             # them empty.
             for emptyfile in all_files:
-                open(join(directory, emptyfile), 'w').close()
+                touch(join(directory, emptyfile))
             # Do the same for some fake directories
             for emptydir in all_dirs:
                 makedirs(join(directory, emptydir))
 
             # This isn't great, but given the variable nature of the temp dir
             # names, it's necessary.
-            d = list(basename(f) for f in _list_all_yaml_files(directory))
+            d = [join(directory, f) for f in yaml_files]
             self.assertEqual(len(yaml_files), len(d))
-
-    def test_zone_directory(self):
-        source = SplitYamlProvider(
-            'test', join(dirname(__file__), 'config/split'), extension='.tst'
-        )
-
-        zone = Zone('unit.tests.', [])
-
-        self.assertEqual(
-            join(dirname(__file__), 'config/split', 'unit.tests.tst'),
-            source._zone_directory(zone),
-        )
-
-    def test_apply_handles_existing_zone_directory(self):
-        with TemporaryDirectory() as td:
-            provider = SplitYamlProvider(
-                'test', join(td.dirname, 'config'), extension='.tst'
-            )
-            makedirs(join(td.dirname, 'config', 'does.exist.tst'))
-
-            zone = Zone('does.exist.', [])
-            self.assertTrue(isdir(provider._zone_directory(zone)))
-            provider.apply(Plan(None, zone, [], True))
-            self.assertTrue(isdir(provider._zone_directory(zone)))
 
     def test_provider(self):
         source = SplitYamlProvider(
@@ -375,9 +502,40 @@ class TestSplitYamlProvider(TestCase):
         # without it we see everything
         source.populate(zone)
         self.assertEqual(20, len(zone.records))
+        self.assertFalse([r for r in zone.records if r.name.startswith('only')])
+
+        # temporarily enable zone file processing too, we should see one extra
+        # record that came from unit.tests.
+        source.disable_zonefile = False
+        zone_both = Zone('unit.tests.', [])
+        source.populate(zone_both)
+        self.assertEqual(21, len(zone_both.records))
+        n = len([r for r in zone_both.records if r.name == 'only-zone-file'])
+        self.assertEqual(1, n)
+        source.disable_zonefile = True
+
+        # temporarily enable shared file processing, we should see one extra
+        # record in the zone
+        source.shared_filename = 'shared.yaml'
+        zone_shared = Zone('unit.tests.', [])
+        source.populate(zone_shared)
+        self.assertEqual(21, len(zone_shared.records))
+        n = len([r for r in zone_shared.records if r.name == 'only-shared'])
+        self.assertEqual(1, n)
+        dynamic_zone_shared = Zone('dynamic.tests.', [])
+        source.populate(dynamic_zone_shared)
+        self.assertEqual(6, len(dynamic_zone_shared.records))
+        n = len(
+            [r for r in dynamic_zone_shared.records if r.name == 'only-shared']
+        )
+        self.assertEqual(1, n)
+        source.shared_filename = None
 
         source.populate(dynamic_zone)
         self.assertEqual(5, len(dynamic_zone.records))
+        self.assertFalse(
+            [r for r in dynamic_zone.records if r.name.startswith('only')]
+        )
 
         with TemporaryDirectory() as td:
             # Add some subdirs to make sure that it can create them
@@ -505,8 +663,8 @@ class TestSplitYamlProvider(TestCase):
         zone = Zone('empty.', [])
 
         # without it we see everything
-        source.populate(zone)
-        self.assertEqual(0, len(zone.records))
+        with self.assertRaises(ProviderException):
+            source.populate(zone)
 
     def test_unsorted(self):
         source = SplitYamlProvider(
@@ -579,7 +737,7 @@ class TestSplitYamlProvider(TestCase):
         )
         copy = source.copy()
         self.assertEqual(source.directory, copy.directory)
-        self.assertEqual(source.extension, copy.extension)
+        self.assertEqual(source.split_extension, copy.split_extension)
         self.assertEqual(source.default_ttl, copy.default_ttl)
         self.assertEqual(source.enforce_order, copy.enforce_order)
         self.assertEqual(
@@ -601,6 +759,24 @@ class TestSplitYamlProvider(TestCase):
             ],
             sorted(provider.list_zones()),
         )
+
+    def test_hybrid_directory(self):
+        source = YamlProvider(
+            'test',
+            join(dirname(__file__), 'config/hybrid'),
+            split_extension='.',
+            strict_supports=False,
+        )
+
+        # flat zone file only
+        zone = Zone('one.test.', [])
+        source.populate(zone)
+        self.assertEqual(1, len(zone.records))
+
+        # split zone only
+        zone = Zone('two.test.', [])
+        source.populate(zone)
+        self.assertEqual(2, len(zone.records))
 
 
 class TestOverridingYamlProvider(TestCase):

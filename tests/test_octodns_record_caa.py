@@ -105,6 +105,12 @@ class TestRecordCaa(TestCase):
             CaaValue.parse_rdata_text('0 tag 99148c81'),
         )
 
+        # quoted
+        self.assertEqual(
+            {'flags': 0, 'tag': 'tag', 'value': '99148c81'},
+            CaaValue.parse_rdata_text('0 "tag" "99148c81"'),
+        )
+
         zone = Zone('unit.tests.', [])
         a = CaaRecord(
             zone,

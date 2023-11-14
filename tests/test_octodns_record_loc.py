@@ -160,6 +160,26 @@ class TestRecordLoc(TestCase):
             LocValue.parse_rdata_text(s),
         )
 
+        # quoted
+        s = '0 1 2.2 "N" 3 4 5.5 "E" "6.6m" "7.7m" "8.8m" "9.9m"'
+        self.assertEqual(
+            {
+                'altitude': 6.6,
+                'lat_degrees': 0,
+                'lat_direction': 'N',
+                'lat_minutes': 1,
+                'lat_seconds': 2.2,
+                'long_degrees': 3,
+                'long_direction': 'E',
+                'long_minutes': 4,
+                'long_seconds': 5.5,
+                'precision_horz': 8.8,
+                'precision_vert': 9.9,
+                'size': 7.7,
+            },
+            LocValue.parse_rdata_text(s),
+        )
+
         # make sure that the cstor is using parse_rdata_text
         zone = Zone('unit.tests.', [])
         a = LocRecord(
@@ -196,7 +216,7 @@ class TestRecordLoc(TestCase):
         self.assertEqual(7.7, a.values[0].size)
         self.assertEqual(8.8, a.values[0].precision_horz)
         self.assertEqual(9.9, a.values[0].precision_vert)
-        self.assertEqual(s, a.values[0].rdata_text)
+        self.assertEqual(s.replace('"', ''), a.values[0].rdata_text)
 
     def test_loc_value(self):
         a = LocValue(

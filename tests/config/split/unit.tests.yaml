@@ -1,0 +1,4 @@
+---
+only-zone-file:
+  type: TXT
+  value: Only included when zone file processing is enabled

@@ -16,7 +16,7 @@ from helpers import (
     TemporaryDirectory,
 )
 
-from octodns import __VERSION__
+from octodns import __version__
 from octodns.idna import IdnaDict, idna_encode
 from octodns.manager import (
     MainThreadExecutor,
@@ -746,13 +746,13 @@ class TestManager(TestCase):
         manager = Manager(get_config_filename('simple.yaml'))
 
         class DummyModule(object):
-            __VERSION__ = '2.3.4'
+            __version__ = '2.3.4'
 
         dummy_module = DummyModule()
 
         # use importlib.metadata.version
         self.assertTrue(
-            __VERSION__,
+            __version__,
             manager._try_version(
                 'octodns', module=dummy_module, version='1.2.3'
             ),
@@ -928,6 +928,18 @@ class TestManager(TestCase):
     def test_auto_arpa(self):
         manager = Manager(get_config_filename('simple-arpa.yaml'))
 
+        # provider config
+        self.assertEqual(
+            True, manager.providers.get("auto-arpa").populate_should_replace
+        )
+        self.assertEqual(1800, manager.providers.get("auto-arpa").ttl)
+
+        # processor config
+        self.assertEqual(
+            True, manager.processors.get("auto-arpa").populate_should_replace
+        )
+        self.assertEqual(1800, manager.processors.get("auto-arpa").ttl)
+
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
 
@@ -985,10 +997,14 @@ class TestManager(TestCase):
 
             manager = Manager(get_config_filename('dynamic-config.yaml'))
 
-            # just unit.tests. which should have been dynamically configured via
+            # two zones which should have been dynamically configured via
             # list_zones
             self.assertEqual(
-                23, manager.sync(eligible_zones=['unit.tests.'], dry_run=False)
+                29,
+                manager.sync(
+                    eligible_zones=['unit.tests.', 'dynamic.tests.'],
+                    dry_run=False,
+                ),
             )
 
             # just subzone.unit.tests. which was explicitly configured

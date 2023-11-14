@@ -1,0 +1,8 @@
+---
+included-array: !include array.yaml
+included-dict: !include dict.yaml
+included-empty: !include empty.yaml
+included-nested: !include nested.yaml
+included-subdir: !include subdir/value.yaml
+key: value
+name: main

@@ -1,3 +1,4 @@
 'OctoDNS: DNS as code - Tools for managing DNS across multiple providers'
 
-__VERSION__ = '1.0.0'
+# TODO: remove __VERSION__ w/2.x
+__version__ = __VERSION__ = '1.3.0'

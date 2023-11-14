@@ -113,6 +113,12 @@ class TestRecordSshfp(TestCase):
             SshfpValue.parse_rdata_text('1 2 00479b27'),
         )
 
+        # valid
+        self.assertEqual(
+            {'algorithm': 1, 'fingerprint_type': 2, 'fingerprint': '00479b27'},
+            SshfpValue.parse_rdata_text('1 2 "00479b27"'),
+        )
+
         zone = Zone('unit.tests.', [])
         a = SshfpRecord(
             zone,

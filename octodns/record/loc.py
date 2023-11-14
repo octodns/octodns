@@ -3,7 +3,7 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin
+from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 
 
@@ -58,21 +58,23 @@ class LocValue(EqualityTupleMixin, dict):
         except ValueError:
             pass
         try:
-            altitude = float(altitude)
+            altitude = float(unquote(altitude))
         except ValueError:
             pass
         try:
-            size = float(size)
+            size = float(unquote(size))
         except ValueError:
             pass
         try:
-            precision_horz = float(precision_horz)
+            precision_horz = float(unquote(precision_horz))
         except ValueError:
             pass
         try:
-            precision_vert = float(precision_vert)
+            precision_vert = float(unquote(precision_vert))
         except ValueError:
             pass
+        lat_direction = unquote(lat_direction)
+        long_direction = unquote(long_direction)
         return {
             'lat_degrees': lat_degrees,
             'lat_minutes': lat_minutes,

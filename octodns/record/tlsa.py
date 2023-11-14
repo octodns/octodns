@@ -3,7 +3,7 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin
+from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 
 
@@ -31,6 +31,7 @@ class TlsaValue(EqualityTupleMixin, dict):
             matching_type = int(matching_type)
         except ValueError:
             pass
+        certificate_association_data = unquote(certificate_association_data)
         return {
             'certificate_usage': certificate_usage,
             'selector': selector,

@@ -22,6 +22,7 @@ from octodns.record import (
     ValidationError,
     ValuesMixin,
 )
+from octodns.record.base import unquote
 from octodns.yaml import ContextDict
 from octodns.zone import Zone
 
@@ -159,10 +160,13 @@ class TestRecord(TestCase):
         )
 
         zone = Zone('unit.tests.', [])
-        records = {(r._type, r.name): r for r in Record.from_rrs(zone, rrs)}
+        records = {
+            (r._type, r.name): r for r in Record.from_rrs(zone, rrs, source=99)
+        }
         record = records[('A', '')]
         self.assertEqual(42, record.ttl)
         self.assertEqual(['1.2.3.4', '2.3.4.5'], record.values)
+        self.assertEqual(99, record.source)
         record = records[('AAAA', '')]
         self.assertEqual(43, record.ttl)
         self.assertEqual(['fc00::1', 'fc00::2'], record.values)
@@ -409,6 +413,18 @@ class TestRecord(TestCase):
             record.rrs,
         )
 
+    def test_unquote(self):
+        s = 'Hello "\'"World!'
+        single = f"'{s}'"
+        double = f'"{s}"'
+        self.assertEqual(s, unquote(s))
+        self.assertEqual(s, unquote(single))
+        self.assertEqual(s, unquote(double))
+
+        # edge cases
+        self.assertEqual(None, unquote(None))
+        self.assertEqual('', unquote(''))
+
 
 class TestRecordValidation(TestCase):
     zone = Zone('unit.tests.', [])
@@ -638,3 +654,51 @@ class TestRecordValidation(TestCase):
             ),
         )
         self.assertEqual('needle', record.context)
+
+    def test_values_mixin_repr(self):
+        # ValuesMixin
+        record = Record.new(
+            self.zone,
+            'www',
+            {
+                'ttl': 42,
+                'type': 'A',
+                'values': ['1.2.3.4', '2.3.4.5'],
+                'octodns': {'key': 'value'},
+            },
+        )
+        # has the octodns special section
+        self.assertEqual(
+            "<ARecord A 42, www.unit.tests., ['1.2.3.4', '2.3.4.5'], {'key': 'value'}>",
+            record.__repr__(),
+        )
+        # no special section
+        record._octodns = {}
+        self.assertEqual(
+            "<ARecord A 42, www.unit.tests., ['1.2.3.4', '2.3.4.5']>",
+            record.__repr__(),
+        )
+
+    def test_value_mixin_repr(self):
+        # ValueMixin
+        record = Record.new(
+            self.zone,
+            'pointer',
+            {
+                'ttl': 43,
+                'type': 'CNAME',
+                'value': 'unit.tests.',
+                'octodns': {'key': 42},
+            },
+        )
+        # has the octodns special section
+        self.assertEqual(
+            "<CnameRecord CNAME 43, pointer.unit.tests., unit.tests., {'key': 42}>",
+            record.__repr__(),
+        )
+        # no special section
+        record._octodns = {}
+        self.assertEqual(
+            '<CnameRecord CNAME 43, pointer.unit.tests., unit.tests.>',
+            record.__repr__(),
+        )
