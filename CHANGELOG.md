@@ -1,3 +1,7 @@
+## v1.?.0 - 2023-??-?? -
+
+* Record.lenient property added similar to other common/standard _octodns data
+
 ## v1.3.0 - 2023-11-14 - New and improved processors
 
 #### Noteworthy changes
