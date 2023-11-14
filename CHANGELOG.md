@@ -1,4 +1,4 @@
-## v1.3.0 - 2023-??-?? - ???
+## v1.3.0 - 2023-11-14 - New and improved processors
 
 #### Noteworthy changes
 
