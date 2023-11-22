@@ -1,0 +1,31 @@
+---
+providers:
+  # See the basic example for descriptions of the basics of this config file,
+  # here we'll focus on things related to octodns-dump.
+  
+  # This is our config provider, it sources YAML from disk, but to start we
+  # don't have any files in the ./config directory. We need to dump what's in
+  # our provider, in this case a local PowerDNS setup, into this config
+  # directory as a starting point.
+  config:
+    class: octodns.provider.yaml.YamlProvider
+    directory: ./config
+
+  # This is our existing provider, the one we want to bring under octoDNS
+  # management. This example will walk through dumping the existing data in
+  # this provider into the config provider's directory above. At that point we
+  # should be ready to start managing things with octoDNS going forward.
+  powerdns: 
+    class: octodns_powerdns.PowerDnsProvider
+    host: 127.0.0.1
+    port: 8081
+    api_key: env/POWERDNS_API_KEY
+    timeout: 10
+
+zones:
+
+  '*':
+    sources:
+      - config
+    targets:
+      - powerdns

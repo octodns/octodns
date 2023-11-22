@@ -235,6 +235,10 @@ class Record(EqualityTupleMixin):
         except KeyError:
             return 443
 
+    @property
+    def lenient(self):
+        return self._octodns.get('lenient', False)
+
     def changes(self, other, target):
         # We're assuming we have the same name and type if we're being compared
         if self.ttl != other.ttl:
