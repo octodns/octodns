@@ -5,6 +5,7 @@
 import re
 from logging import getLogger
 
+from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from .base import ValuesMixin
 from .change import Update
@@ -141,8 +142,8 @@ class _GeoMixin(ValuesMixin):
         reasons = super().validate(name, fqdn, data)
         try:
             geo = dict(data['geo'])
-            cls.log.warning(
-                'NOTICE: `geo` record support is deprecated and should be migrated to `dynamic` records'
+            deprecated(
+                '`geo` records are DEPRECATED. `dynamic` records should be used instead. Will be removed in 2.0'
             )
             for code, values in geo.items():
                 reasons.extend(GeoValue._validate_geo(code))

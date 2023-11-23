@@ -213,24 +213,6 @@ class TestRecordGeoCodes(TestCase):
         self.assertTrue(c >= b)
 
     def test_validation(self):
-        with self.assertLogs('Record', level='WARNING') as cm:
-            Record.new(
-                self.zone,
-                '',
-                {
-                    'geo': {'NA': ['1.2.3.5'], 'NA-US': ['1.2.3.5', '1.2.3.6']},
-                    'type': 'A',
-                    'ttl': 600,
-                    'value': '1.2.3.4',
-                },
-            )
-        self.assertEqual(
-            [
-                'WARNING:Record:NOTICE: `geo` record support is deprecated and should be migrated to `dynamic` records'
-            ],
-            cm.output,
-        )
-
         # invalid ip address
         with self.assertRaises(ValidationError) as ctx:
             Record.new(

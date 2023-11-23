@@ -4,6 +4,7 @@
 
 from logging import getLogger
 
+from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin
 from .rr import RrParseError
@@ -48,8 +49,8 @@ class DsValue(EqualityTupleMixin, dict):
             # it is safe to assume if public_key or flags are defined then it is "old" style
             # A DS record without public_key doesn't make any sense and shouldn't have validated previously
             if "public_key" in value or "flags" in value:
-                cls.log.warning(
-                    '"algorithm", "flags", "public_key", and "protocol" support is DEPRECATED and will be removed in 2.0'
+                deprecated(
+                    'DS properties "algorithm", "flags", "public_key", and "protocol" support is DEPRECATED and will be removed in 2.0'
                 )
                 try:
                     int(value['flags'])
