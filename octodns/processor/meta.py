@@ -10,6 +10,14 @@ from .. import __version__
 from ..record import Record
 from .base import BaseProcessor
 
+# TODO: remove once we require python >= 3.11
+try:  # pragma: no cover
+    from datetime import UTC
+except ImportError:  # pragma: no cover
+    from datetime import timedelta, timezone
+
+    UTC = timezone(timedelta())
+
 
 def _keys(values):
     return set(v.split('=', 1)[0] for v in values)
@@ -55,7 +63,7 @@ class MetaProcessor(BaseProcessor):
 
     @classmethod
     def now(cls):
-        return datetime.utcnow().isoformat()
+        return datetime.now(UTC).isoformat()
 
     @classmethod
     def uuid(cls):

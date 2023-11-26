@@ -9,4 +9,7 @@ known_first_party="octodns"
 line_length=80
 
 [tool.pytest.ini_options]
+filterwarnings = [
+    'error',
+]
 pythonpath = "."
