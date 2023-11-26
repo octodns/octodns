@@ -143,7 +143,8 @@ class _GeoMixin(ValuesMixin):
         try:
             geo = dict(data['geo'])
             deprecated(
-                '`geo` records are DEPRECATED. `dynamic` records should be used instead. Will be removed in 2.0'
+                '`geo` records are DEPRECATED. `dynamic` records should be used instead. Will be removed in 2.0',
+                stacklevel=99,
             )
             for code, values in geo.items():
                 reasons.extend(GeoValue._validate_geo(code))

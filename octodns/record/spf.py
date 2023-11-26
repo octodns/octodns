@@ -14,7 +14,8 @@ class SpfRecord(_ChunkedValuesMixin, Record):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         deprecated(
-            'The SPF record type is DEPRECATED in favor of TXT values and will become an ValidationError in 2.0'
+            'The SPF record type is DEPRECATED in favor of TXT values and will become an ValidationError in 2.0',
+            stacklevel=99,
         )
 
 

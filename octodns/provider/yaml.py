@@ -468,5 +468,6 @@ class SplitYamlProvider(YamlProvider):
         )
         super().__init__(id, directory, *args, **kwargs)
         deprecated(
-            'SplitYamlProvider is DEPRECATED, use YamlProvider with split_extension, split_catchall, and disable_zonefile instead, will go away in v2.0'
+            'SplitYamlProvider is DEPRECATED, use YamlProvider with split_extension, split_catchall, and disable_zonefile instead, will go away in v2.0',
+            stacklevel=99,
         )

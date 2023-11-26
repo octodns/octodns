@@ -50,7 +50,8 @@ class DsValue(EqualityTupleMixin, dict):
             # A DS record without public_key doesn't make any sense and shouldn't have validated previously
             if "public_key" in value or "flags" in value:
                 deprecated(
-                    'DS properties "algorithm", "flags", "public_key", and "protocol" support is DEPRECATED and will be removed in 2.0'
+                    'DS properties "algorithm", "flags", "public_key", and "protocol" support is DEPRECATED and will be removed in 2.0',
+                    stacklevel=99,
                 )
                 try:
                     int(value['flags'])
