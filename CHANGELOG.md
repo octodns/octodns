@@ -13,6 +13,11 @@
   the in-built `rrs` method
 * Removed code that included sha in module version number when installing from
   repo as it caused problems with non-binary installs.
+* Fixed a bug/shortcoming in Record.data where it didn't include the `octodns`
+  portion of the record's data. Record.copy also omitted it since it relies on
+  .data for the heavy lifting. There are no known actual problems due to this
+  bug, but it's possible (non-public) third party providers are susceptible. The
+  most likely place to hit issues in is tests where data and/or copy are abused.
 
 #### Stuff
 

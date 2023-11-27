@@ -279,6 +279,65 @@ class TestRecord(TestCase):
         d.copy()
         self.assertEqual('TXT', d._type)
 
+    def test_record_octodns_with_data_and_copy(self):
+        a = Record.new(
+            self.zone,
+            'a',
+            {
+                'ttl': 44,
+                'type': 'A',
+                'value': '1.2.3.4',
+                'octodns': {'first': 'level', 'key': {'second': 'level'}},
+            },
+        )
+
+        # make a copy
+        b = a.copy()
+        # ensure they're ==
+        self.assertEqual(a.data, b.data)
+
+        # modifying b.data's result doesn't change b's actual data
+        b_data = b.data
+        b_data['added'] = 'thing'
+        # dict is a deep copy
+        b_data['octodns']['added'] = 'thing'
+        b_data['octodns']['key']['added'] = 'thing'
+        self.assertEqual(a.data, b.data)
+
+        # rest of these will use copy, which relies on data for most of the
+        # heavy lifting
+
+        # hand add something at the first level of the copy
+        b = a.copy()
+        b._octodns['added'] = 'thing'
+        b_data = b.data
+        self.assertNotEqual(a.data, b_data)
+
+        # hand modify something at the first level of the copy
+        b = a.copy()
+        b._octodns['first'] = 'unlevel'
+        self.assertNotEqual(a.data, b.data)
+
+        # delete something at the first level of the copy
+        b = a.copy()
+        del b._octodns['first']
+        self.assertNotEqual(a.data, b.data)
+
+        # hand add something deeper in the copy
+        b = a.copy()
+        b._octodns['key']['added'] = 'thing'
+        self.assertNotEqual(a.data, b.data)
+
+        # hand modify something deeper in the copy
+        b = a.copy()
+        b._octodns['key']['second'] = 'unlevel'
+        self.assertNotEqual(a.data, b.data)
+
+        # hand delete something deeper in the copy
+        b = a.copy()
+        del b._octodns['key']['second']
+        self.assertNotEqual(a.data, b.data)
+
     def test_change(self):
         existing = Record.new(
             self.zone, 'txt', {'ttl': 44, 'type': 'TXT', 'value': 'some text'}

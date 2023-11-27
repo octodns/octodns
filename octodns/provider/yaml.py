@@ -387,8 +387,6 @@ class YamlProvider(BaseProvider):
             if record.ttl == self.default_ttl:
                 # ttl is the default, we don't need to store it
                 del d['ttl']
-            if record._octodns:
-                d['octodns'] = record._octodns
             # we want to output the utf-8 version of the name
             data[record.decoded_name].append(d)
 
