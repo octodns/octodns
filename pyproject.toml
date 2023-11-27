@@ -11,5 +11,6 @@ line_length=80
 [tool.pytest.ini_options]
 filterwarnings = [
     'error',
+    'ignore:.*DEPRECATED.*2.0',
 ]
 pythonpath = "."

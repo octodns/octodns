@@ -6,6 +6,7 @@ import re
 from collections import defaultdict
 from logging import getLogger
 
+from .deprecation import deprecated
 from .idna import idna_decode, idna_encode
 from .record import Create, Delete
 
@@ -197,8 +198,9 @@ class Zone(object):
 
     # TODO: delete this at v2.0.0rc0
     def _remove_record(self, record):
-        self.log.warning(
-            '_remove_record: method has been deprecated, used remove_record instead'
+        deprecated(
+            '_remove_record has been deprecated, used remove_record instead.  Will be removed in 2.0',
+            stacklevel=3,
         )
         return self.remove_record(record)
 
