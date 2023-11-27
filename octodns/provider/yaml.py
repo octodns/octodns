@@ -7,6 +7,7 @@ from collections import defaultdict
 from os import listdir, makedirs
 from os.path import isdir, isfile, join
 
+from ..deprecation import deprecated
 from ..record import Record
 from ..yaml import safe_dump, safe_load
 from . import ProviderException
@@ -464,6 +465,7 @@ class SplitYamlProvider(YamlProvider):
             }
         )
         super().__init__(id, directory, *args, **kwargs)
-        self.log.warning(
-            '__init__: DEPRECATED use YamlProvider with split_extension, split_catchall, and disable_zonefile instead, will go away in v2.0'
+        deprecated(
+            'SplitYamlProvider is DEPRECATED, use YamlProvider with split_extension, split_catchall, and disable_zonefile instead, will go away in v2.0',
+            stacklevel=99,
         )
