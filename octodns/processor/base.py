@@ -37,7 +37,7 @@ class BaseProcessor(object):
         computed between `existing` and `desired`. This provides an opportunity
         to modify the `existing` `Zone`.
 
-        - Will see `existing` after any modifrications done by processors
+        - Will see `existing` after any modifications done by processors
           configured to run before this one.
         - May modify `existing` directly.
         - Must return `existing` which will normally be the `existing` param.
@@ -47,6 +47,33 @@ class BaseProcessor(object):
         - May call `Zone.remove_record` to remove records from `existing`.
         '''
         return existing
+
+    def process_source_and_target_zones(self, desired, existing, target):
+        '''
+        Called just prior to computing changes for `target` between `desired`
+        and `existing`. Provides an opportunity for the processor to modify
+        either the desired or existing `Zone`s that will be used to compute the
+        changes and create the initial plan.
+
+        - Will see `desired` after any modifications done by
+          `Provider._process_desired_zone` and all processors via
+          `Processor.process_source_zone`
+        - Will see `existing` after any modifications done by all processors
+          via `Processor.process_target_zone`
+        - Will see both `desired` and `existing` after any modifications done by
+          any processors configured to run before this one via
+          `Processor.process_source_and_target_zones`.
+        - May modify `desired` directly.
+        - Must return `desired` which will normally be the `desired` param.
+        - May modify `existing` directly.
+        - Must return `existing` which will normally be the `existing` param.
+        - Must not modify records directly, `record.copy` should be called,
+          the results of which can be modified, and then `Zone.add_record` may
+          be used with `replace=True`.
+        - May call `Zone.remove_record` to remove records from `desired`.
+        - May call `Zone.remove_record` to remove records from `existing`.
+        '''
+        return desired, existing
 
     def process_plan(self, plan, sources, target):
         '''

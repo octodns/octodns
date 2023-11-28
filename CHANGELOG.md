@@ -1,6 +1,8 @@
 ## v1.?.0 - 2023-??-?? -
 
 * Record.lenient property added similar to other common/standard _octodns data
+* Processor.process_source_and_target_zones added to support modifying both the
+  desired and/or existing zones just prior to computing changes.
 
 ## v1.3.0 - 2023-11-14 - New and improved processors
 
