@@ -309,16 +309,16 @@ class ValuesMixin(object):
 
     def _data(self):
         ret = super()._data()
-        if len(self.values) > 1:
-            values = [getattr(v, 'data', v) for v in self.values if v]
-            if len(values) > 1:
-                ret['values'] = values
-            elif len(values) == 1:
-                ret['value'] = values[0]
-        elif len(self.values) == 1:
+        if len(self.values) == 1:
             v = self.values[0]
             if v:
                 ret['value'] = getattr(v, 'data', v)
+        else:
+            values = [getattr(v, 'data', v) for v in self.values if v]
+            if len(values) == 1:
+                ret['value'] = values[0]
+            else:
+                ret['values'] = values
 
         return ret
 

@@ -197,19 +197,19 @@ class TestRecord(TestCase):
         )
 
     def test_values_mixin_data(self):
-        # no values, no value or values in data
+        # empty values -> empty values in data
         a = ARecord(self.zone, '', {'type': 'A', 'ttl': 600, 'values': []})
-        self.assertNotIn('values', a.data)
+        self.assertEqual([], a.data['values'])
 
         # empty value, no value or values in data
         b = ARecord(self.zone, '', {'type': 'A', 'ttl': 600, 'values': ['']})
         self.assertNotIn('value', b.data)
 
-        # empty/None values, no value or values in data
+        # empty/None values -> empty values in data
         c = ARecord(
             self.zone, '', {'type': 'A', 'ttl': 600, 'values': ['', None]}
         )
-        self.assertNotIn('values', c.data)
+        self.assertEqual([], a.data['values'])
 
         # empty/None values and valid, value in data
         c = ARecord(
