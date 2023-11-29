@@ -338,6 +338,17 @@ class TestRecord(TestCase):
         del b._octodns['key']['second']
         self.assertNotEqual(a.data, b.data)
 
+    def test_record_copy_with_no_values(self):
+        txt = Record.new(
+            self.zone,
+            'txt',
+            {'ttl': 45, 'type': 'TXT', 'values': []},
+            lenient=True,
+        )
+
+        dup = txt.copy()
+        self.assertEqual(txt.values, dup.values)
+
     def test_change(self):
         existing = Record.new(
             self.zone, 'txt', {'ttl': 44, 'type': 'TXT', 'value': 'some text'}
@@ -631,10 +642,9 @@ class TestRecordValidation(TestCase):
             lenient=True,
         )
 
-        # __init__ may still blow up, even if validation is lenient
-        with self.assertRaises(KeyError) as ctx:
-            Record.new(self.zone, 'www', {'type': 'A', 'ttl': -1}, lenient=True)
-        self.assertEqual(('value',), ctx.exception.args)
+        # empty values is allowed with lenient
+        r = Record.new(self.zone, 'www', {'type': 'A', 'ttl': -1}, lenient=True)
+        self.assertEqual([], r.values)
 
         # no exception if we're in lenient mode from config
         Record.new(

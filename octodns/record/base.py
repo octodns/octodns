@@ -296,7 +296,10 @@ class ValuesMixin(object):
         try:
             values = data['values']
         except KeyError:
-            values = [data['value']]
+            try:
+                values = [data['value']]
+            except KeyError:
+                values = []
         self.values = sorted(self._value_type.process(values))
 
     def changes(self, other, target):
