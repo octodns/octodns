@@ -124,12 +124,12 @@ class TestMetaProcessor(TestCase):
         self.assertEqual(self.meta_up_to_date, record)
         self.assertEqual(['time=the-time'], record.values)
 
-    def test_process_target_zone(self):
+    def test_process_source_and_target_zones(self):
         proc = MetaProcessor('test')
 
         # with defaults, not enabled
         zone = self.zone.copy()
-        processed = proc.process_target_zone(zone, None)
+        processed, _ = proc.process_source_and_target_zones(zone, zone, None)
         self.assertFalse(processed.records)
 
         # enable provider
@@ -140,7 +140,9 @@ class TestMetaProcessor(TestCase):
 
         # enabled provider, no meta record, shouldn't happen, but also shouldn't
         # blow up
-        processed = proc.process_target_zone(zone, DummyTarget())
+        processed, _ = proc.process_source_and_target_zones(
+            zone, zone, DummyTarget()
+        )
         self.assertFalse(processed.records)
 
         # enabled provider, should now look for and update the provider value,
@@ -150,7 +152,9 @@ class TestMetaProcessor(TestCase):
         zone = self.zone.copy()
         meta = self.meta_up_to_date.copy()
         zone.add_record(meta)
-        processed = proc.process_target_zone(zone, DummyTarget())
+        processed, _ = proc.process_source_and_target_zones(
+            zone, zone, DummyTarget()
+        )
         record = next(iter(processed.records))
         self.assertEqual(['provider=dummy', 'time=xxx'], record.values)
 
@@ -160,7 +164,9 @@ class TestMetaProcessor(TestCase):
         meta = self.meta_up_to_date.copy()
         zone.add_record(meta)
         zone.add_record(self.not_meta)
-        processed = proc.process_target_zone(zone, DummyTarget())
+        processed, _ = proc.process_source_and_target_zones(
+            zone, zone, DummyTarget()
+        )
         self.assertEqual(2, len(processed.records))
         record = [r for r in processed.records if r.name == proc.record_name][0]
         self.assertEqual(['provider=dummy', 'time=xxx'], record.values)
