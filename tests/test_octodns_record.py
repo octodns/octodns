@@ -225,13 +225,13 @@ class TestRecord(TestCase):
         a = AliasRecord(
             self.zone, '', {'type': 'ALIAS', 'ttl': 600, 'value': None}
         )
-        self.assertNotIn('value', a.data)
+        self.assertIsNone(a.data['value'])
 
         # unspecified value, no value in data
         a = AliasRecord(
             self.zone, '', {'type': 'ALIAS', 'ttl': 600, 'value': ''}
         )
-        self.assertNotIn('value', a.data)
+        self.assertIsNone(a.data['value'])
 
     def test_record_new(self):
         txt = Record.new(
@@ -348,6 +348,16 @@ class TestRecord(TestCase):
 
         dup = txt.copy()
         self.assertEqual(txt.values, dup.values)
+
+        cname = Record.new(
+            self.zone,
+            'cname',
+            {'ttl': 45, 'type': 'CNAME', 'value': ''},
+            lenient=True,
+        )
+
+        dup = cname.copy()
+        self.assertEqual(cname.value, dup.value)
 
     def test_change(self):
         existing = Record.new(

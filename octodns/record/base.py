@@ -374,8 +374,7 @@ class ValueMixin(object):
 
     def _data(self):
         ret = super()._data()
-        if self.value:
-            ret['value'] = getattr(self.value, 'data', self.value)
+        ret['value'] = getattr(self.value, 'data', self.value)
         return ret
 
     @property
