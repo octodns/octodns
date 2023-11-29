@@ -120,13 +120,13 @@ class MetaProcessor(BaseProcessor):
     def process_source_and_target_zones(self, desired, existing, target):
         if self.include_provider:
             # look for the meta record
-            for record in sorted(existing.records):
+            for record in sorted(desired.records):
                 if record.name == self.record_name and record._type == 'TXT':
                     # we've found it, make a copy we can modify
                     record = record.copy()
                     record.values = record.values + [f'provider={target.id}']
                     record.values.sort()
-                    existing.add_record(record, replace=True)
+                    desired.add_record(record, replace=True)
                     break
 
         return desired, existing

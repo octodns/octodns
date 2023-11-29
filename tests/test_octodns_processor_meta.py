@@ -128,8 +128,11 @@ class TestMetaProcessor(TestCase):
         proc = MetaProcessor('test')
 
         # with defaults, not enabled
-        zone = self.zone.copy()
-        processed, _ = proc.process_source_and_target_zones(zone, zone, None)
+        existing = self.zone.copy()
+        desired = self.zone.copy()
+        processed, _ = proc.process_source_and_target_zones(
+            existing, desired, None
+        )
         self.assertFalse(processed.records)
 
         # enable provider
@@ -141,7 +144,7 @@ class TestMetaProcessor(TestCase):
         # enabled provider, no meta record, shouldn't happen, but also shouldn't
         # blow up
         processed, _ = proc.process_source_and_target_zones(
-            zone, zone, DummyTarget()
+            existing, desired, DummyTarget()
         )
         self.assertFalse(processed.records)
 
@@ -149,23 +152,25 @@ class TestMetaProcessor(TestCase):
         # - only record so nothing to skip over
         # - time value in there to be skipped over
         proc = MetaProcessor('test', include_provider=True)
-        zone = self.zone.copy()
+        existing = self.zone.copy()
+        desired = self.zone.copy()
         meta = self.meta_up_to_date.copy()
-        zone.add_record(meta)
+        existing.add_record(meta)
         processed, _ = proc.process_source_and_target_zones(
-            zone, zone, DummyTarget()
+            existing, desired, DummyTarget()
         )
         record = next(iter(processed.records))
         self.assertEqual(['provider=dummy', 'time=xxx'], record.values)
 
         # add another unrelated record that needs to be skipped
         proc = MetaProcessor('test', include_provider=True)
-        zone = self.zone.copy()
+        existing = self.zone.copy()
+        desired = self.zone.copy()
         meta = self.meta_up_to_date.copy()
-        zone.add_record(meta)
-        zone.add_record(self.not_meta)
+        existing.add_record(meta)
+        existing.add_record(self.not_meta)
         processed, _ = proc.process_source_and_target_zones(
-            zone, zone, DummyTarget()
+            existing, desired, DummyTarget()
         )
         self.assertEqual(2, len(processed.records))
         record = [r for r in processed.records if r.name == proc.record_name][0]
