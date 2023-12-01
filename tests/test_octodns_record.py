@@ -251,6 +251,20 @@ class TestRecord(TestCase):
             Record.new(self.zone, 'unknown', {'type': 'XXX'})
         self.assertTrue('Unknown record type' in str(ctx.exception))
 
+    def test_record_new_with_values_and_value(self):
+        a = Record.new(
+            self.zone,
+            'a',
+            {
+                'ttl': 44,
+                'type': 'A',
+                'value': '1.2.3.4',
+                'values': ['2.3.4.5', '3.4.5.6'],
+            },
+        )
+        # values is preferred over value when both exist
+        self.assertEqual(['2.3.4.5', '3.4.5.6'], a.values)
+
     def test_record_copy(self):
         a = Record.new(
             self.zone, 'a', {'ttl': 44, 'type': 'A', 'value': '1.2.3.4'}
