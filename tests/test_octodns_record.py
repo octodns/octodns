@@ -197,19 +197,19 @@ class TestRecord(TestCase):
         )
 
     def test_values_mixin_data(self):
-        # no values, no value or values in data
+        # empty values -> empty values in data
         a = ARecord(self.zone, '', {'type': 'A', 'ttl': 600, 'values': []})
-        self.assertNotIn('values', a.data)
+        self.assertEqual([], a.data['values'])
 
         # empty value, no value or values in data
         b = ARecord(self.zone, '', {'type': 'A', 'ttl': 600, 'values': ['']})
         self.assertNotIn('value', b.data)
 
-        # empty/None values, no value or values in data
+        # empty/None values -> empty values in data
         c = ARecord(
             self.zone, '', {'type': 'A', 'ttl': 600, 'values': ['', None]}
         )
-        self.assertNotIn('values', c.data)
+        self.assertEqual([], a.data['values'])
 
         # empty/None values and valid, value in data
         c = ARecord(
@@ -225,13 +225,13 @@ class TestRecord(TestCase):
         a = AliasRecord(
             self.zone, '', {'type': 'ALIAS', 'ttl': 600, 'value': None}
         )
-        self.assertNotIn('value', a.data)
+        self.assertIsNone(a.data['value'])
 
         # unspecified value, no value in data
         a = AliasRecord(
             self.zone, '', {'type': 'ALIAS', 'ttl': 600, 'value': ''}
         )
-        self.assertNotIn('value', a.data)
+        self.assertIsNone(a.data['value'])
 
     def test_record_new(self):
         txt = Record.new(
@@ -250,6 +250,20 @@ class TestRecord(TestCase):
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {'type': 'XXX'})
         self.assertTrue('Unknown record type' in str(ctx.exception))
+
+    def test_record_new_with_values_and_value(self):
+        a = Record.new(
+            self.zone,
+            'a',
+            {
+                'ttl': 44,
+                'type': 'A',
+                'value': '1.2.3.4',
+                'values': ['2.3.4.5', '3.4.5.6'],
+            },
+        )
+        # values is preferred over value when both exist
+        self.assertEqual(['2.3.4.5', '3.4.5.6'], a.values)
 
     def test_record_copy(self):
         a = Record.new(
@@ -348,6 +362,16 @@ class TestRecord(TestCase):
 
         dup = txt.copy()
         self.assertEqual(txt.values, dup.values)
+
+        cname = Record.new(
+            self.zone,
+            'cname',
+            {'ttl': 45, 'type': 'CNAME', 'value': ''},
+            lenient=True,
+        )
+
+        dup = cname.copy()
+        self.assertEqual(cname.value, dup.value)
 
     def test_change(self):
         existing = Record.new(

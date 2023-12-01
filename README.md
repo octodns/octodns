@@ -313,8 +313,8 @@ Similar to providers, but can only serve to populate records into a zone, cannot
 | Source | Record Support | Dynamic | Notes |
 |--|--|--|--|
 | [EnvVarSource](/octodns/source/envvar.py) | TXT | No | read-only environment variable injection |
-| [AxfrSource](/octodns/source/axfr.py) | A, AAAA, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
-| [ZoneFileSource](/octodns/source/axfr.py) | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
+| [AxfrSource](https://github.com/octodns/octodns-bind/) | A, AAAA, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
+| [ZoneFileSource](https://github.com/octodns/octodns-bind/) | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 | [TinyDnsFileSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |
 
 ### Notes

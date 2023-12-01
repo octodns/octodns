@@ -3,9 +3,9 @@
 * Record.lenient property added similar to other common/standard _octodns data
 * Processor.process_source_and_target_zones added to support modifying both the
   desired and/or existing zones just prior to computing changes.
+* Fix bug with Record.copy when values is an empty list []
 * Fix an issue in MetaProcessor/Manager.include_meta where include_provider
   wasn't correctly taking effect
-* Fix bug with Record.copy when values is an empty list []
 
 ## v1.3.0 - 2023-11-14 - New and improved processors
 
