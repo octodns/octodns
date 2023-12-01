@@ -1,6 +1,7 @@
 ## v1.?.0 - 2023-??-?? -
 
 * Record.lenient property added similar to other common/standard _octodns data
+* Fix bug with Record.copy when values is an empty list []
 * Processor.process_source_and_target_zones added to support modifying both the
   desired and/or existing zones just prior to computing changes.
 
