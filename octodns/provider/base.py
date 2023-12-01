@@ -243,6 +243,11 @@ class BaseProvider(BaseSource):
         for processor in processors:
             existing = processor.process_target_zone(existing, target=self)
 
+        for processor in processors:
+            desired, existing = processor.process_source_and_target_zones(
+                desired, existing, self
+            )
+
         # compute the changes at the zone/record level
         changes = existing.changes(desired, self)
 

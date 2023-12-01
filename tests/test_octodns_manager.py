@@ -25,7 +25,7 @@ from octodns.manager import (
     _AggregateTarget,
 )
 from octodns.processor.base import BaseProcessor
-from octodns.record import Create, Delete, Record
+from octodns.record import Create, Delete, Record, Update
 from octodns.yaml import safe_load
 from octodns.zone import Zone
 
@@ -722,6 +722,50 @@ class TestManager(TestCase):
         self.assertFalse(zone.records)
         # We got a delete for the thing added to the existing state (target)
         self.assertIsInstance(plans[0][1].changes[0], Delete)
+
+        # source & target
+        record2 = Record.new(
+            zone, 'a2', {'ttl': 31, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        record3 = Record.new(
+            zone, 'a3', {'ttl': 32, 'type': 'A', 'value': '1.2.3.4'}
+        )
+
+        class MockProcessor(BaseProcessor):
+            def process_source_and_target_zones(
+                self, desired, existing, target
+            ):
+                # add something to desired
+                desired.add_record(record2)
+                # add something to existing
+                existing.add_record(record3)
+                # add something to both, but with a modification
+                desired.add_record(record)
+                mod = record.copy()
+                mod.ttl += 1
+                existing.add_record(mod)
+                return desired, existing
+
+        mock = MockProcessor('mock')
+        plans, zone = manager._populate_and_plan(
+            'unit.tests.', [mock], [], targets
+        )
+        # we should see a plan
+        self.assertTrue(plans)
+        plan = plans[0][1]
+        # it shoudl have a create, an update, and a delete
+        self.assertEqual(
+            'a',
+            next(c.record.name for c in plan.changes if isinstance(c, Update)),
+        )
+        self.assertEqual(
+            'a2',
+            next(c.record.name for c in plan.changes if isinstance(c, Create)),
+        )
+        self.assertEqual(
+            'a3',
+            next(c.record.name for c in plan.changes if isinstance(c, Delete)),
+        )
 
         # muck with plans
         class MockProcessor(BaseProcessor):
