@@ -111,25 +111,25 @@ class MetaProcessor(BaseProcessor):
             self.record_name,
             {'ttl': self.ttl, 'type': 'TXT', 'values': self.values},
             # we may be passing in empty values here to be filled out later in
-            # process_target_zone
+            # process_source_and_target_zones
             lenient=True,
         )
         desired.add_record(meta)
         return desired
 
-    def process_target_zone(self, existing, target):
+    def process_source_and_target_zones(self, desired, existing, target):
         if self.include_provider:
             # look for the meta record
-            for record in sorted(existing.records):
+            for record in sorted(desired.records):
                 if record.name == self.record_name and record._type == 'TXT':
                     # we've found it, make a copy we can modify
                     record = record.copy()
                     record.values = record.values + [f'provider={target.id}']
                     record.values.sort()
-                    existing.add_record(record, replace=True)
+                    desired.add_record(record, replace=True)
                     break
 
-        return existing
+        return desired, existing
 
     def _up_to_date(self, change):
         # existing state, if there is one
