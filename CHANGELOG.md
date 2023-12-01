@@ -1,6 +1,7 @@
 ## v1.?.0 - 2023-??-?? -
 
 * Record.lenient property added similar to other common/standard _octodns data
+* Fix bug with Record.copy when values is an empty list []
 
 ## v1.3.0 - 2023-11-14 - New and improved processors
 
