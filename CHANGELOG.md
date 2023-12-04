@@ -1,4 +1,4 @@
-## v1.?.0 - 2023-??-?? -
+## v1.4.0 - 2023-12-04 - Minor Meta
 
 * Record.lenient property added similar to other common/standard _octodns data
 * Processor.process_source_and_target_zones added to support modifying both the
