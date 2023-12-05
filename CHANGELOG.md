@@ -1,3 +1,8 @@
+## v1.?.0 - 2023-??-?? -
+
+* Support added for config env variable expansion on nested levels, not just
+  top-level provider/processor keys
+
 ## v1.4.0 - 2023-12-04 - Minor Meta
 
 * Record.lenient property added similar to other common/standard _octodns data

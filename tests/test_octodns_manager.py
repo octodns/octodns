@@ -1071,6 +1071,80 @@ class TestManager(TestCase):
             manager.sync()
         self.assertTrue('does not support `list_zones`' in str(ctx.exception))
 
+    def test_build_kwargs(self):
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        environ['OCTODNS_TEST_1'] = '42'
+        environ['OCTODNS_TEST_2'] = 'string'
+
+        # empty
+        self.assertEqual({}, manager._build_kwargs({}))
+
+        # simple, no expansion
+        self.assertEqual(
+            {'key': 'val', 'a': 42, 'x': None},
+            manager._build_kwargs({'key': 'val', 'a': 42, 'x': None}),
+        )
+
+        # top-level expansion
+        self.assertEqual(
+            {'secret': 42, 'another': 'string'},
+            manager._build_kwargs(
+                {
+                    'secret': 'env/OCTODNS_TEST_1',
+                    'another': 'env/OCTODNS_TEST_2',
+                }
+            ),
+        )
+
+        # 2nd-level expansion
+        self.assertEqual(
+            {
+                'parent': {
+                    'secret': 42,
+                    'another': 'string',
+                    'key': 'value',
+                    'f': 43,
+                }
+            },
+            manager._build_kwargs(
+                {
+                    'parent': {
+                        'secret': 'env/OCTODNS_TEST_1',
+                        'another': 'env/OCTODNS_TEST_2',
+                        'key': 'value',
+                        'f': 43,
+                    }
+                }
+            ),
+        )
+
+        # 3rd-level expansion
+        self.assertEqual(
+            {
+                'parent': {
+                    'child': {
+                        'secret': 42,
+                        'another': 'string',
+                        'key': 'value',
+                        'f': 43,
+                    }
+                }
+            },
+            manager._build_kwargs(
+                {
+                    'parent': {
+                        'child': {
+                            'secret': 'env/OCTODNS_TEST_1',
+                            'another': 'env/OCTODNS_TEST_2',
+                            'key': 'value',
+                            'f': 43,
+                        }
+                    }
+                }
+            ),
+        )
+
 
 class TestMainThreadExecutor(TestCase):
     def test_success(self):
