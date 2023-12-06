@@ -2,6 +2,12 @@
 
 * Support added for config env variable expansion on nested levels, not just
   top-level provider/processor keys
+* `Processors.process_zone_config` method added to allow processors that work
+  with the zone config data. Configured with `manager.zone-processors: []`,
+  default is ['dynamic-zone-config']
+* Converted dynamic zone config to be a processors ^, if zone-processors are
+  explicitely configured and dynamic zone config is desired
+  `dyanmic-zone-config` must be included in the list as the desired position
 
 ## v1.4.0 - 2023-12-04 - Minor Meta
 

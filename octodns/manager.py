@@ -15,6 +15,7 @@ from . import __version__
 from .idna import IdnaDict, idna_decode, idna_encode
 from .processor.arpa import AutoArpa
 from .processor.meta import MetaProcessor
+from .processor.zone import DynamicZoneConfigProcessor
 from .provider.base import BaseProvider
 from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
@@ -110,6 +111,11 @@ class Manager(object):
         )
 
         self.auto_arpa = self._config_auto_arpa(manager_config, auto_arpa)
+
+        self.zone_processors = manager_config.get(
+            'zone-processors', ['dynamic-zone-config']
+        )
+        self.log.info('__init__: zone_processors=%s', self.zone_processors)
 
         self.global_processors = manager_config.get('processors', [])
         self.log.info('__init__: global_processors=%s', self.global_processors)
@@ -259,6 +265,11 @@ class Manager(object):
                 raise ManagerException(
                     f'Incorrect processor config for {processor_name}, {processor_config.context}'
                 )
+
+        name = 'dynamic-zone-config'
+        if name not in processors:
+            processors[name] = DynamicZoneConfigProcessor(name)
+
         return processors
 
     def _config_plan_outputs(self, plan_outputs_config):
@@ -521,35 +532,19 @@ class Manager(object):
         the call and the zones returned from this function should be used
         instead.
         '''
-        for name, config in list(zones.items()):
-            if not name.startswith('*'):
-                continue
-            # we've found a dynamic config element
 
-            # find its sources
-            found_sources = sources or self._get_sources(
-                name, config, eligible_sources
-            )
-            self.log.info('sync:   dynamic zone=%s, sources=%s', name, sources)
-            for source in found_sources:
-                if not hasattr(source, 'list_zones'):
-                    raise ManagerException(
-                        f'dynamic zone={name} includes a source, {source.id}, that does not support `list_zones`'
-                    )
-                for zone_name in source.list_zones():
-                    if zone_name in zones:
-                        self.log.info(
-                            'sync:      zone=%s already in config, ignoring',
-                            zone_name,
-                        )
-                        continue
-                    self.log.info(
-                        'sync:      adding dynamic zone=%s', zone_name
-                    )
-                    zones[zone_name] = config
+        zone_processors = []
+        try:
+            for processor in self.zone_processors:
+                zone_processors.append(self.processors[processor])
+        except KeyError:
+            raise ManagerException(f'unknown zone processor: {processor}')
 
-            # remove the dynamic config element so we don't try and populate it
-            del zones[name]
+        def get_sources(name, config):
+            return sources or self._get_sources(name, config, eligible_sources)
+
+        for zone_processor in zone_processors:
+            zones = zone_processor.process_zone_config(zones, get_sources)
 
         return zones
 

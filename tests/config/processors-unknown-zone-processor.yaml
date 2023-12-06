@@ -1,0 +1,31 @@
+
+manager:
+  zone-processors:
+    - dynamic-zone-config
+    - this-does-not-exist
+
+providers:
+  config:
+    # This helps us get coverage when printing out provider versions
+    class: helpers.TestYamlProvider
+    directory: tests/config
+    strict_supports: False
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+    supports_root_ns: False
+    strict_supports: False
+
+processors:
+  # manually define the dynamic zone config, just to do it
+  dynamic-zone-config:
+    class: octodns.processor.zone.DynamicZoneConfigProcessor
+
+zones:
+  unit.tests.:
+    processors:
+    - noop
+    sources:
+    - config
+    targets:
+    - dump

@@ -12,6 +12,22 @@ class BaseProcessor(object):
         # TODO: name is DEPRECATED, remove in 2.0
         self.id = self.name = name
 
+    def process_zone_config(self, zones, get_sources):
+        '''
+        Called by the Manager after loading the zone config data. Provides an
+        opportunity for the processor to modify the `Zone` configs and thus what
+        zones octoDNS will manage and the settings used for them.
+
+        - Will see `zones` after any modifications done by
+          `Processors.process_zone_config` configured to run before this one
+        - May modify `zones` directly.
+        - Will receive a callable `get_sources` that can be called as
+          `get_sources(zone_name, zone_config)` to get a list of
+          sources/providers that will be used to populate the zone.
+        - Must return `zones` which will normally be the `zones` param.
+        '''
+        return zones
+
     def process_source_zone(self, desired, sources):
         '''
         Called after all sources have completed populate. Provides an

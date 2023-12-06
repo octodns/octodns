@@ -24,7 +24,7 @@ from octodns.manager import (
     ManagerException,
     _AggregateTarget,
 )
-from octodns.processor.base import BaseProcessor
+from octodns.processor.base import BaseProcessor, ProcessorException
 from octodns.record import Create, Delete, Record, Update
 from octodns.yaml import safe_load
 from octodns.zone import Zone
@@ -651,7 +651,8 @@ class TestManager(TestCase):
         # Smoke test loading a valid config
         manager = Manager(get_config_filename('processors.yaml'))
         self.assertEqual(
-            ['noop', 'test', 'global-counter'], list(manager.processors.keys())
+            ['dynamic-zone-config', 'global-counter', 'noop', 'test'],
+            sorted(manager.processors.keys()),
         )
         # make sure we got the global processor and that it's count is 0 now
         self.assertEqual(['global-counter'], manager.global_processors)
@@ -785,6 +786,22 @@ class TestManager(TestCase):
         # We planned a delete again, but this time removed it from the plan, so
         # no plans
         self.assertFalse(plans)
+
+    def test_zone_processor(self):
+        # Smoke test loading a valid config
+        manager = Manager(
+            get_config_filename('processors-unknown-zone-processor.yaml')
+        )
+        self.assertEqual(
+            ['dynamic-zone-config', 'this-does-not-exist'],
+            manager.zone_processors,
+        )
+
+        with self.assertRaises(ManagerException) as ctx:
+            manager.sync(['unit.tests.'])
+        self.assertEqual(
+            'unknown zone processor: this-does-not-exist', str(ctx.exception)
+        )
 
     def test_try_version(self):
         manager = Manager(get_config_filename('simple.yaml'))
@@ -1067,7 +1084,7 @@ class TestManager(TestCase):
             get_config_filename('dynamic-config-no-list-zones.yaml')
         )
 
-        with self.assertRaises(ManagerException) as ctx:
+        with self.assertRaises(ProcessorException) as ctx:
             manager.sync()
         self.assertTrue('does not support `list_zones`' in str(ctx.exception))
 
