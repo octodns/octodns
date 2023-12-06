@@ -355,8 +355,11 @@ class Manager(object):
         # Build up the arguments we need to pass to the provider
         kwargs = {}
         for k, v in source.items():
-            try:
+            if isinstance(v, dict):
+                v = self._build_kwargs(v)
+            elif isinstance(v, str):
                 if v.startswith('env/'):
+                    # expand env variables
                     try:
                         env_var = v[4:]
                         v = environ[env_var]
@@ -365,8 +368,13 @@ class Manager(object):
                         raise ManagerException(
                             f'Incorrect provider config, missing env var {env_var}, {source.context}'
                         )
-            except AttributeError:
-                pass
+                    try:
+                        # try converting the value to a number to see if it
+                        # converts
+                        v = float(v)
+                    except ValueError:
+                        pass
+
             kwargs[k] = v
 
         return kwargs
