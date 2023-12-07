@@ -62,11 +62,11 @@ class MetaProcessor(BaseProcessor):
     '''
 
     @classmethod
-    def now(cls):
+    def get_time(cls):
         return datetime.now(UTC).isoformat()
 
     @classmethod
-    def uuid(cls):
+    def get_uuid(cls):
         return str(uuid4())
 
     def __init__(
@@ -91,47 +91,37 @@ class MetaProcessor(BaseProcessor):
             ttl,
         )
         self.record_name = record_name
-        values = []
-        if include_time:
-            time = self.now()
-            values.append(f'time={time}')
-        if include_uuid:
-            uuid = self.uuid() if include_uuid else None
-            values.append(f'uuid={uuid}')
-        if include_version:
-            values.append(f'octodns-version={__version__}')
+        self.time = self.get_time() if include_time else None
+        self.uuid = self.get_uuid() if include_uuid else None
+        self.include_version = include_version
         self.include_provider = include_provider
-        values.sort()
-        self.values = values
         self.ttl = ttl
 
-    def process_source_zone(self, desired, sources):
+    def values(self, target_id):
+        ret = []
+        if self.include_version:
+            ret.append(f'octodns-version={__version__}')
+        if self.include_provider:
+            ret.append(f'provider={target_id}')
+        if self.time:
+            ret.append(f'time={self.time}')
+        if self.uuid:
+            ret.append(f'uuid={self.uuid}')
+        return ret
+
+    def process_source_and_target_zones(self, desired, existing, target):
         meta = Record.new(
             desired,
             self.record_name,
-            {'ttl': self.ttl, 'type': 'TXT', 'values': self.values},
+            {'ttl': self.ttl, 'type': 'TXT', 'values': self.values(target.id)},
             # we may be passing in empty values here to be filled out later in
             # process_source_and_target_zones
             lenient=True,
         )
         desired.add_record(meta)
-        return desired
-
-    def process_source_and_target_zones(self, desired, existing, target):
-        if self.include_provider:
-            # look for the meta record
-            for record in sorted(desired.records):
-                if record.name == self.record_name and record._type == 'TXT':
-                    # we've found it, make a copy we can modify
-                    record = record.copy()
-                    record.values = record.values + [f'provider={target.id}']
-                    record.values.sort()
-                    desired.add_record(record, replace=True)
-                    break
-
         return desired, existing
 
-    def _is_up_to_date_meta(self, change):
+    def _is_up_to_date_meta(self, change, target_id):
         # always something so we can see if its type and name
         record = change.record
         # existing state, if there is one
@@ -140,17 +130,19 @@ class MetaProcessor(BaseProcessor):
             record._type == 'TXT'
             and record.name == self.record_name
             and existing is not None
-            and _keys(existing.values) == _keys(self.values)
+            # don't care about the values here, just the fields/keys
+            and _keys(self.values(target_id)) == _keys(existing.values)
         )
 
     def process_plan(self, plan, sources, target):
         if (
             plan
             and len(plan.changes) == 1
-            and self._is_up_to_date_meta(plan.changes[0])
+            and self._is_up_to_date_meta(plan.changes[0], target.id)
         ):
             # the only change is the meta record, and it's not meaningfully
-            # changing so we don't actually want to make the change
+            # changing so we don't actually want to make the update, meta should
+            # only be enough to cause a plan on its own if the fields changed
             return None
 
         # There's more than one thing changing so meta should update and/or meta
