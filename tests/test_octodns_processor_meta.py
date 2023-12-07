@@ -48,6 +48,12 @@ class TestMetaProcessor(TestCase):
         },
     )
 
+    not_txt = Record.new(
+        zone,
+        'cname',
+        {'type': 'CNAME', 'ttl': 61, 'value': 'points.to.something.'},
+    )
+
     @patch('octodns.processor.meta.MetaProcessor.now')
     @patch('octodns.processor.meta.MetaProcessor.uuid')
     def test_args_and_values(self, uuid_mock, now_mock):
@@ -101,16 +107,28 @@ class TestMetaProcessor(TestCase):
         # uuid's have 4 -
         self.assertEqual(4, proc.values[0].count('-'))
 
-    def test_up_to_date(self):
+    def test_is_up_to_date_meta(self):
         proc = MetaProcessor('test')
 
         # Creates always need to happen
-        self.assertFalse(proc._up_to_date(Create(self.meta_needs_update)))
-        self.assertFalse(proc._up_to_date(Create(self.meta_up_to_date)))
+        self.assertFalse(
+            proc._is_up_to_date_meta(Create(self.meta_needs_update))
+        )
+        self.assertFalse(proc._is_up_to_date_meta(Create(self.meta_up_to_date)))
 
         # Updates depend on the contents
-        self.assertFalse(proc._up_to_date(Update(self.meta_needs_update, None)))
-        self.assertTrue(proc._up_to_date(Update(self.meta_up_to_date, None)))
+        self.assertFalse(
+            proc._is_up_to_date_meta(Update(self.meta_needs_update, None))
+        )
+        self.assertTrue(
+            proc._is_up_to_date_meta(Update(self.meta_up_to_date, None))
+        )
+
+        # not a meta txt
+        self.assertFalse(proc._is_up_to_date_meta(Update(self.not_meta, None)))
+
+        # not even a txt record
+        self.assertFalse(proc._is_up_to_date_meta(Update(self.not_txt, None)))
 
     @patch('octodns.processor.meta.MetaProcessor.now')
     def test_process_source_zone(self, now_mock):

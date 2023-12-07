@@ -131,18 +131,23 @@ class MetaProcessor(BaseProcessor):
 
         return desired, existing
 
-    def _up_to_date(self, change):
+    def _is_up_to_date_meta(self, change):
+        # always something so we can see if its type and name
+        record = change.record
         # existing state, if there is one
         existing = getattr(change, 'existing', None)
-        return existing is not None and _keys(existing.values) == _keys(
-            self.values
+        return (
+            record._type == 'TXT'
+            and record.name == self.record_name
+            and existing is not None
+            and _keys(existing.values) == _keys(self.values)
         )
 
     def process_plan(self, plan, sources, target):
         if (
             plan
             and len(plan.changes) == 1
-            and self._up_to_date(plan.changes[0])
+            and self._is_up_to_date_meta(plan.changes[0])
         ):
             # the only change is the meta record, and it's not meaningfully
             # changing so we don't actually want to make the change
