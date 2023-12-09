@@ -1,5 +1,7 @@
 ## v1.?.0 - 2023-??-?? -
 
+* Fix for bug in MetaProcessor _up_to_date check that was failing when there was
+  a plan with a single change type with a single value, e.g. CNAME.
 * Support added for config env variable expansion on nested levels, not just
   top-level provider/processor keys
 
