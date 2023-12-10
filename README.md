@@ -446,6 +446,7 @@ If you have a problem or suggestion, please [open an issue](https://github.com/o
 ## Related Projects and Resources
 
 - **GitHub Action:** [octoDNS-Sync](https://github.com/marketplace/actions/octodns-sync)
+- **NixOS Integration:** [NixOS-DNS](https://github.com/Janik-Haag/nixos-dns/)
 - **Sample Implementations.** See how others are using it
   - [`hackclub/dns`](https://github.com/hackclub/dns)
   - [`kubernetes/k8s.io:/dns`](https://github.com/kubernetes/k8s.io/tree/main/dns)
