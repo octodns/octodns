@@ -79,6 +79,11 @@ class TestManager(TestCase):
             )
         self.assertTrue('missing sources' in str(ctx.exception))
 
+    def test_missing_zone(self):
+        with self.assertRaises(ManagerException) as ctx:
+            Manager(get_config_filename('missing-zone-config.yaml')).sync()
+        self.assertTrue('Passed zone:' in str(ctx.exception))
+
     def test_missing_targets(self):
         with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('provider-problems.yaml')).sync(
