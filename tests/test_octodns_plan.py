@@ -295,3 +295,32 @@ class TestPlanSafety(TestCase):
         with self.assertRaises(RootNsChange) as ctx:
             plan.raise_if_unsafe()
         self.assertTrue('Root Ns record change', str(ctx.exception))
+
+    def test_data(self):
+        data = plans[0][1].data
+        # plans should have a single key, changes
+        self.assertEqual(('changes',), tuple(data.keys()))
+        # it should be a list
+        self.assertIsInstance(data['changes'], list)
+        # w/4 elements
+        self.assertEqual(4, len(data['changes']))
+
+        # we'll test the change .data's here while we're at it since they don't
+        # have a dedicated test (file)
+        delete_data = data['changes'][0]  # delete
+        self.assertEqual(['existing', 'type'], sorted(delete_data.keys()))
+        self.assertEqual('delete', delete_data['type'])
+        self.assertEqual(delete.existing.data, delete_data['existing'])
+
+        create_data = data['changes'][1]  # create
+        self.assertEqual(['new', 'type'], sorted(create_data.keys()))
+        self.assertEqual('create', create_data['type'])
+        self.assertEqual(create.new.data, create_data['new'])
+
+        update_data = data['changes'][3]  # update
+        self.assertEqual(
+            ['existing', 'new', 'type'], sorted(update_data.keys())
+        )
+        self.assertEqual('update', update_data['type'])
+        self.assertEqual(update.existing.data, update_data['existing'])
+        self.assertEqual(update.new.data, update_data['new'])

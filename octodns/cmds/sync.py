@@ -19,7 +19,7 @@ def main():
         '--doit',
         action='store_true',
         default=False,
-        help='Whether to take action or just show what would change',
+        help='Whether to take action or just show what would change, ignored when Manager.enable_checksum is used',
     )
     parser.add_argument(
         '--force',
@@ -27,6 +27,11 @@ def main():
         default=False,
         help='Acknowledge that significant changes are being '
         'made and do them',
+    )
+    parser.add_argument(
+        '--checksum',
+        default=None,
+        help="Provide the expected checksum, apply will only continue if it matches the plan's computed checksum",
     )
 
     parser.add_argument(
@@ -60,6 +65,7 @@ def main():
         eligible_targets=args.target,
         dry_run=not args.doit,
         force=args.force,
+        checksum=args.checksum,
     )
 
 

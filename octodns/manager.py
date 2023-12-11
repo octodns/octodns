@@ -4,9 +4,11 @@
 
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+from hashlib import sha256
 from importlib import import_module
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as module_version
+from json import dumps
 from logging import getLogger
 from os import environ
 from sys import stdout
@@ -87,7 +89,12 @@ class Manager(object):
         return len(plan.changes[0].record.zone.name) if plan.changes else 0
 
     def __init__(
-        self, config_file, max_workers=None, include_meta=False, auto_arpa=False
+        self,
+        config_file,
+        max_workers=None,
+        include_meta=False,
+        auto_arpa=False,
+        enable_checksum=False,
     ):
         version = self._try_version('octodns', version=__version__)
         self.log.info(
@@ -107,6 +114,9 @@ class Manager(object):
         self._executor = self._config_executor(manager_config, max_workers)
         self.include_meta = self._config_include_meta(
             manager_config, include_meta
+        )
+        self.enable_checksum = self._config_enable_checksum(
+            manager_config, enable_checksum
         )
 
         self.auto_arpa = self._config_auto_arpa(manager_config, auto_arpa)
@@ -194,6 +204,15 @@ class Manager(object):
         include_meta = include_meta or manager_config.get('include_meta', False)
         self.log.info('_config_include_meta: include_meta=%s', include_meta)
         return include_meta
+
+    def _config_enable_checksum(self, manager_config, enable_checksum=False):
+        enable_checksum = enable_checksum or manager_config.get(
+            'enable_checksum', False
+        )
+        self.log.info(
+            '_config_enable_checksum: enable_checksum=%s', enable_checksum
+        )
+        return enable_checksum
 
     def _config_auto_arpa(self, manager_config, auto_arpa=False):
         auto_arpa = auto_arpa or manager_config.get('auto_arpa', False)
@@ -561,15 +580,16 @@ class Manager(object):
         dry_run=True,
         force=False,
         plan_output_fh=stdout,
+        checksum=None,
     ):
         self.log.info(
-            'sync: eligible_zones=%s, eligible_targets=%s, dry_run=%s, '
-            'force=%s, plan_output_fh=%s',
+            'sync: eligible_zones=%s, eligible_targets=%s, dry_run=%s, force=%s, plan_output_fh=%s, checksum=%s',
             eligible_zones,
             eligible_targets,
             dry_run,
             force,
             getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__),
+            checksum,
         )
 
         zones = self.config['zones']
@@ -759,13 +779,26 @@ class Manager(object):
         for output in self.plan_outputs.values():
             output.run(plans=plans, log=self.plan_log, fh=plan_output_fh)
 
+        computed_checksum = None
+        if plans and self.enable_checksum:
+            data = [p[1].data for p in plans]
+            data = dumps(data)
+            csum = sha256()
+            csum.update(data.encode('utf-8'))
+            computed_checksum = csum.hexdigest()
+            self.log.info('sync: checksum=%s', computed_checksum)
+
         if not force:
             self.log.debug('sync:   checking safety')
             for target, plan in plans:
                 plan.raise_if_unsafe()
 
-        if dry_run:
+        if dry_run and not checksum:
             return 0
+        elif computed_checksum and computed_checksum != checksum:
+            raise ManagerException(
+                f'checksum={checksum} does not match computed={computed_checksum}'
+            )
 
         total_changes = 0
         self.log.debug('sync:   applying')
