@@ -7,4 +7,9 @@ providers:
   dump:
     class: octodns.provider.yaml.YamlProvider
     directory: env/YAML_TMP_DIR
-zones: {}
+zones:
+  unit.tests.:
+    sources:
+      - in
+    targets:
+      - dump
