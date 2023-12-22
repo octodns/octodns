@@ -620,7 +620,12 @@ class Manager(object):
         aliased_zones = {}
         delayed_arpa = []
         futures = []
+
         for zone_name, config in zones.items():
+            if config is None:
+                raise ManagerException(
+                    f'Requested zone "{zone_name}" not found in config'
+                )
             decoded_zone_name = idna_decode(zone_name)
             self.log.info('sync:   zone=%s', decoded_zone_name)
             if 'alias' in config:
