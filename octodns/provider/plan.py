@@ -78,6 +78,10 @@ class Plan(object):
             existing_n,
         )
 
+    @property
+    def data(self):
+        return {'changes': [c.data for c in self.changes]}
+
     def raise_if_unsafe(self):
         if (
             self.existing

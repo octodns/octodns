@@ -1,5 +1,8 @@
 ## v1.?.0 - 2023-??-?? -
 
+* Beta support for Manager.enable_checksum and octodns-sync --checksum Allows a
+  safer plan & apply workflow where the apply only moves forward if the apply
+  phase plan exactly matches the previous round's planning.
 * Fix for bug in MetaProcessor _up_to_date check that was failing when there was
   a plan with a single change type with a single value, e.g. CNAME.
 * Support added for config env variable expansion on nested levels, not just

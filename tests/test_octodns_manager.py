@@ -184,6 +184,36 @@ class TestManager(TestCase):
             ).sync(dry_run=False, force=True)
             self.assertEqual(33, tc)
 
+    def test_enable_checksum(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
+            manager = Manager(
+                get_config_filename('simple.yaml'), enable_checksum=True
+            )
+
+            # initial/dry run is fine w/o checksum
+            tc = manager.sync(dry_run=True)
+            self.assertEqual(0, tc)
+
+            # trying to apply it fails w/o required checksum
+            with self.assertRaises(ManagerException) as ctx:
+                manager.sync(dry_run=False)
+            msg, checksum = str(ctx.exception).rsplit('=', 1)
+            self.assertEqual('checksum=None does not match computed', msg)
+            self.assertTrue(checksum)
+
+            # wrong checksum fails
+            with self.assertRaises(ManagerException) as ctx:
+                manager.sync(checksum='xyz')
+            msg, checksum = str(ctx.exception).rsplit('=', 1)
+            self.assertEqual('checksum=xyz does not match computed', msg)
+            self.assertTrue(checksum)
+
+            # correct checksum applies (w/o dry_run=False)
+            tc = manager.sync(checksum=checksum)
+            self.assertEqual(28, tc)
+
     def test_idna_eligible_zones(self):
         # loading w/simple, but we'll be blowing it away and doing some manual
         # stuff

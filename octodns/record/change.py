@@ -25,6 +25,10 @@ class Create(Change):
     def __init__(self, new):
         super().__init__(None, new)
 
+    @property
+    def data(self):
+        return {'type': 'create', 'new': self.new.data}
+
     def __repr__(self, leader=''):
         source = self.new.source.id if self.new.source else ''
         return f'Create {self.new} ({source})'
@@ -32,6 +36,14 @@ class Create(Change):
 
 class Update(Change):
     CLASS_ORDERING = 2
+
+    @property
+    def data(self):
+        return {
+            'type': 'update',
+            'existing': self.existing.data,
+            'new': self.new.data,
+        }
 
     # Leader is just to allow us to work around heven eating leading whitespace
     # in our output. When we call this from the Manager.sync plan summary
@@ -50,6 +62,10 @@ class Delete(Change):
 
     def __init__(self, existing):
         super().__init__(existing, None)
+
+    @property
+    def data(self):
+        return {'type': 'delete', 'existing': self.existing.data}
 
     def __repr__(self, leader=''):
         return f'Delete {self.existing}'
