@@ -52,6 +52,10 @@ class _ChunkedValue(str):
         for value in data:
             if cls._unescaped_semicolon_re.search(value):
                 reasons.append(f'unescaped ; in "{value}"')
+            try:
+                value.encode('ascii')
+            except UnicodeEncodeError:
+                reasons.append(f'non ASCII character in "{value}"')
         return reasons
 
     @classmethod

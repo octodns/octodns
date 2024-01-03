@@ -7,6 +7,7 @@
   a plan with a single change type with a single value, e.g. CNAME.
 * Support added for config env variable expansion on nested levels, not just
   top-level provider/processor keys
+* _ChunkedValue ASCII validation added, SPF & TXT
 
 ## v1.4.0 - 2023-12-04 - Minor Meta
 
