@@ -37,3 +37,33 @@ class TestRecordChunked(TestCase):
         zone = Zone('unit.tests.', [])
         a = SpfRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
         self.assertEqual('some.target.', a.values[0].rdata_text)
+
+
+class TestChunkedValue(TestCase):
+    def test_validate(self):
+        # valid stuff
+        for data in ('a', 'ab', 'abcdefg', 'abc def', 'abc\\; def'):
+            self.assertFalse(_ChunkedValue.validate(data, 'TXT'))
+            self.assertFalse(_ChunkedValue.validate([data], 'TXT'))
+
+        # missing
+        for data in (None, []):
+            self.assertEqual(
+                ['missing value(s)'], _ChunkedValue.validate(data, 'TXT')
+            )
+
+        # unescaped ;
+        self.assertEqual(
+            ['unescaped ; in "hello; world"'],
+            _ChunkedValue.validate('hello; world', 'TXT'),
+        )
+
+        # non-asci
+        self.assertEqual(
+            ['non ASCII character in "v=spf1 –all"'],
+            _ChunkedValue.validate('v=spf1 –all', 'TXT'),
+        )
+        self.assertEqual(
+            ['non ASCII character in "Déjà vu"'],
+            _ChunkedValue.validate('Déjà vu', 'TXT'),
+        )
