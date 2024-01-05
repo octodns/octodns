@@ -1,0 +1,17 @@
+---
+aaaa:
+  ttl: 600
+  type: AAAA
+  value: 2601:644:500:e210:62f8:1dff:feb8:947a
+not-a-zone-file:
+  ttl: 300
+  type: A
+  value: 3.3.3.6
+www:
+  ttl: 300
+  type: A
+  value: 2.2.3.6
+www.sub:
+  ttl: 300
+  type: A
+  value: 2.2.3.7
