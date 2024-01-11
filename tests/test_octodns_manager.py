@@ -1099,6 +1099,26 @@ class TestManager(TestCase):
             # should sync everything across all zones, total of 32 records
             self.assertEqual(32, manager.sync(dry_run=False))
 
+    def test_dynamic_config_with_arpa(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            manager = Manager(get_config_filename('dynamic-arpa.yaml'))
+
+            # should sync everything across all zones, total of 7 records
+            # 4 normal records and 3 arpa records generated
+            self.assertEqual(4 + 3, manager.sync(dry_run=False))
+
+    def test_dynamic_config_with_arpa_no_normal_source(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            manager = Manager(
+                get_config_filename('dynamic-arpa-no-normal-source.yaml')
+            )
+
+            # should sync everything across all zones, total of 4 records
+            # 4 normal records and 0 arpa records generated since no zones to populate was found
+            self.assertEqual(4, manager.sync(dry_run=False))
+
     def test_dynamic_config_unsupported_zone(self):
         manager = Manager(
             get_config_filename('dynamic-config-no-list-zones.yaml')

@@ -1,0 +1,30 @@
+manager:
+  max_workers: 2
+  auto_arpa:
+    populate_should_replace: True
+    ttl: 1800
+
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config/dynamic-arpa
+    supports_root_ns: False
+    strict_supports: False
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+    default_ttl: 999
+    supports_root_ns: False
+    strict_supports: False
+zones:
+  unit.tests.:
+    sources:
+    - in
+    targets:
+    - dump
+  "*.arpa.":
+    sources:
+    - in
+    - auto-arpa
+    targets:
+    - dump

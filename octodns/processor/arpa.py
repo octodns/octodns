@@ -72,3 +72,6 @@ class AutoArpa(BaseProcessor):
         self.log.info(
             'populate:   found %s records', len(zone.records) - before
         )
+
+    def list_zones(self):
+        return set()

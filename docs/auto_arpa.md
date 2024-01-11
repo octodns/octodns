@@ -100,3 +100,22 @@ fileserver:
 ### Notes
 
 Automatic `PTR` generation requires a "complete" picture of records and thus cannot be done during partial syncs. Thus syncing `arpa.` zones will throw an error any time filtering of zones, targets, or sources is being done.
+
+#### AutoArpa and Dynamic Zone Config
+
+The AutoArpa provider works with Dynamic Zone Config, but only in the sense that it doesn't stop it from working. It requires another provider to actually generate the list of zones. It could be the Yaml provider like so:
+
+```yaml
+example.com.:
+  sources:
+    - config
+  targets:
+    - ...
+"*.arpa.":
+  sources:
+    - config
+    - auto-arpa
+  targets:
+    - ...
+```
+That would take all the relevant records from example.com and add them as PTR records for the arpa zones in the same place as the 'config' source specifies.
