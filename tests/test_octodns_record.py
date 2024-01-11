@@ -683,6 +683,43 @@ class TestRecordValidation(TestCase):
             lenient=True,
         )
 
+    def test_values_is_single_value(self):
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                'thing',
+                {'type': 'TXT', 'ttl': 42, 'values': 'just one'},
+            )
+        self.assertEqual(
+            ['single value provided under values key, "just one"'],
+            ctx.exception.reasons,
+        )
+
+        # same thing is fine as `value`
+        txt = Record.new(
+            self.zone, 'thing', {'type': 'TXT', 'ttl': 42, 'value': 'just one'}
+        )
+        self.assertEqual(1, len(txt.values))
+        self.assertEqual('just one', txt.values[0])
+
+        # same thing is fine when a list
+        txt = Record.new(
+            self.zone,
+            'thing',
+            {'type': 'TXT', 'ttl': 42, 'values': ['just one']},
+        )
+        self.assertEqual(1, len(txt.values))
+        self.assertEqual('just one', txt.values[0])
+
+        # or tuple
+        txt = Record.new(
+            self.zone,
+            'thing',
+            {'type': 'TXT', 'ttl': 42, 'values': ('just one',)},
+        )
+        self.assertEqual(1, len(txt.values))
+        self.assertEqual('just one', txt.values[0])
+
     def test_validation_context(self):
         # fails validation, no context
         with self.assertRaises(ValidationError) as ctx:

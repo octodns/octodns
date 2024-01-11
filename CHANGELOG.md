@@ -8,6 +8,9 @@
 * Support added for config env variable expansion on nested levels, not just
   top-level provider/processor keys
 * _ChunkedValue ASCII validation added, SPF & TXT
+* Minor validation improvement to catch cases where Record values is provided a
+  single a-single-value by accident instead of a list, a common type-o that
+  can results in each character being a value in the resulting Record data
 
 ## v1.4.0 - 2023-12-04 - Minor Meta
 
