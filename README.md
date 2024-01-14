@@ -335,6 +335,8 @@ Similar to providers, but can only serve to populate records into a zone, cannot
 | [MetaProcessor](/octodns/processor/meta.py) | Adds a special meta record with timing, UUID, providers, and/or version to aid in debugging and monitoring. |
 | [NameAllowlistFilter](/octodns/processor/filter.py) | Filter that ONLY manages records that match specified naming patterns, all others will be ignored |
 | [NameRejectlistFilter](/octodns/processor/filter.py) | Filter that INGORES records that match specified naming patterns, all others will be managed |
+| [ValueAllowlistFilter](/octodns/processor/filter.py) | Filter that ONLY manages records that match specified value patterns, all others will be ignored |
+| [ValueRejectlistFilter](/octodns/processor/filter.py) | Filter that INGORES records that match specified value patterns, all others will be managed |
 | [OwnershipProcessor](/octodns/processor/ownership.py) | Processor that implements ownership in octoDNS so that it can manage only the records in a zone in sources and will ignore all others. |
 | [SpfDnsLookupProcessor](/octodns/processor/spf.py) | Processor that checks SPF values for violations of DNS query limits |
 | [TtlRestrictionFilter](/octodns/processor/restrict.py) | Processor that restricts the allow TTL values to a specified range or list of specific values |
