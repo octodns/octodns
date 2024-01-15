@@ -232,9 +232,9 @@ class _ValueBaseFilter(_FilterProcessor):
         for record in zone.records:
             values = []
             if hasattr(record, 'values'):
-                values = [str(value) for value in record.values]
+                values = [value.rdata_text for value in record.values]
             else:
-                values = [str(record.value)]
+                values = [record.value.rdata_text]
 
             if any(value in self.exact for value in values):
                 self.matches(zone, record)
@@ -280,9 +280,6 @@ class ValueAllowlistFilter(_ValueBaseFilter, AllowsMixin):
           - route53
     '''
 
-    def __init__(self, name, allowlist):
-        super().__init__(name, allowlist)
-
 
 class ValueRejectlistFilter(_ValueBaseFilter, RejectsMixin):
     '''Reject managing records with names that match the provider patterns
@@ -315,9 +312,6 @@ class ValueRejectlistFilter(_ValueBaseFilter, RejectsMixin):
         targets:
           - route53
     '''
-
-    def __init__(self, name, rejectlist):
-        super().__init__(name, rejectlist)
 
 
 class _NetworkValueBaseFilter(BaseProcessor):
