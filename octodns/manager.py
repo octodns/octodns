@@ -517,7 +517,7 @@ class Manager(object):
         ]:
             return None
 
-        self.log.info('sync:   sources=%s', sources)
+        self.log.info('sync:     sources=%s', sources)
 
         try:
             # rather than using a list comprehension, we break this loop
@@ -562,9 +562,7 @@ class Manager(object):
                             zone_name,
                         )
                         continue
-                    self.log.info(
-                        'sync:      adding dynamic zone=%s', zone_name
-                    )
+                    self.log.info('sync:     adding dynamic zone=%s', zone_name)
                     zones[zone_name] = config
 
             # remove the dynamic config element so we don't try and populate it
@@ -659,7 +657,12 @@ class Manager(object):
                     f'Zone {decoded_zone_name} is missing targets'
                 )
 
-            processors = config.get('processors', [])
+            processors = (
+                self.global_processors
+                + config.get('processors', [])
+                + self.global_post_processors
+            )
+            self.log.info('sync:     processors=%s', processors)
 
             if not sources:
                 self.log.info('sync:   no eligible sources, skipping')
@@ -675,15 +678,11 @@ class Manager(object):
                 self.log.info('sync:   no eligible targets, skipping')
                 continue
 
-            self.log.info('sync:   targets=%s', targets)
+            self.log.info('sync:     targets=%s', targets)
 
             try:
                 collected = []
-                for processor in (
-                    self.global_processors
-                    + processors
-                    + self.global_post_processors
-                ):
+                for processor in processors:
                     collected.append(self.processors[processor])
                 processors = collected
             except KeyError:
