@@ -3,7 +3,7 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin, unquote
+from .base import Record, ValuesMixin, readonly, unquote
 from .rr import RrParseError
 
 
@@ -353,7 +353,7 @@ class LocValue(EqualityTupleMixin, dict):
 
 
 class LocRecord(ValuesMixin, Record):
-    _type = 'LOC'
+    _type = readonly('LOC')
     _value_type = LocValue
 
 

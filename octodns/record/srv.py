@@ -8,7 +8,7 @@ from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import Record, ValuesMixin, unquote
+from .base import Record, ValuesMixin, readonly, unquote
 from .rr import RrParseError
 
 
@@ -148,7 +148,7 @@ class SrvValue(EqualityTupleMixin, dict):
 
 
 class SrvRecord(ValuesMixin, Record):
-    _type = 'SRV'
+    _type = readonly('SRV')
     _value_type = SrvValue
     _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
 

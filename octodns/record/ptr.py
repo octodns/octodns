@@ -2,7 +2,7 @@
 #
 #
 
-from .base import Record, ValuesMixin
+from .base import Record, ValuesMixin, readonly
 from .target import _TargetsValue
 
 
@@ -11,7 +11,7 @@ class PtrValue(_TargetsValue):
 
 
 class PtrRecord(ValuesMixin, Record):
-    _type = 'PTR'
+    _type = readonly('PTR')
     _value_type = PtrValue
 
     # This is for backward compatibility with providers that don't support

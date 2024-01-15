@@ -6,7 +6,7 @@ from fqdn import FQDN
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import Record, ValuesMixin, unquote
+from .base import Record, ValuesMixin, readonly, unquote
 from .rr import RrParseError
 
 
@@ -114,7 +114,7 @@ class MxValue(EqualityTupleMixin, dict):
 
 
 class MxRecord(ValuesMixin, Record):
-    _type = 'MX'
+    _type = readonly('MX')
     _value_type = MxValue
 
 

@@ -3,7 +3,7 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin, unquote
+from .base import Record, ValuesMixin, readonly, unquote
 from .rr import RrParseError
 
 
@@ -154,7 +154,7 @@ class TlsaValue(EqualityTupleMixin, dict):
 
 
 class TlsaRecord(ValuesMixin, Record):
-    _type = 'TLSA'
+    _type = readonly('TLSA')
     _value_type = TlsaValue
 
 

@@ -2,7 +2,7 @@
 #
 #
 
-from .base import Record
+from .base import Record, readonly
 from .chunked import _ChunkedValue, _ChunkedValuesMixin
 
 
@@ -11,7 +11,7 @@ class TxtValue(_ChunkedValue):
 
 
 class TxtRecord(_ChunkedValuesMixin, Record):
-    _type = 'TXT'
+    _type = readonly('TXT')
     _value_type = TxtValue
 
 

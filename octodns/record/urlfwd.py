@@ -3,7 +3,7 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin
+from .base import Record, ValuesMixin, readonly
 
 
 class UrlfwdValue(EqualityTupleMixin, dict):
@@ -114,7 +114,7 @@ class UrlfwdValue(EqualityTupleMixin, dict):
 
 
 class UrlfwdRecord(ValuesMixin, Record):
-    _type = 'URLFWD'
+    _type = readonly('URLFWD')
     _value_type = UrlfwdValue
 
 

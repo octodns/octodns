@@ -3,7 +3,7 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin, unquote
+from .base import Record, ValuesMixin, readonly, unquote
 from .rr import RrParseError
 
 
@@ -169,7 +169,7 @@ class NaptrValue(EqualityTupleMixin, dict):
 
 
 class NaptrRecord(ValuesMixin, Record):
-    _type = 'NAPTR'
+    _type = readonly('NAPTR')
     _value_type = NaptrValue
 
 

@@ -2,7 +2,7 @@
 #
 #
 
-from .base import Record, ValuesMixin
+from .base import Record, ValuesMixin, readonly
 from .target import _TargetsValue
 
 
@@ -11,7 +11,7 @@ class NsValue(_TargetsValue):
 
 
 class NsRecord(ValuesMixin, Record):
-    _type = 'NS'
+    _type = readonly('NS')
     _value_type = NsValue
 
 

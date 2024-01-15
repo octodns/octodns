@@ -2,7 +2,7 @@
 #
 #
 
-from .base import Record, ValueMixin
+from .base import Record, ValueMixin, readonly
 from .target import _TargetValue
 
 
@@ -11,7 +11,7 @@ class AliasValue(_TargetValue):
 
 
 class AliasRecord(ValueMixin, Record):
-    _type = 'ALIAS'
+    _type = readonly('ALIAS')
     _value_type = AliasValue
 
     @classmethod

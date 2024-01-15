@@ -19,6 +19,19 @@ def unquote(s):
     return s
 
 
+class readonly:
+    def __init__(self, value):
+        self.value = value
+
+    def __get__(self, *args, **kwargs):
+        return self.value
+
+    def __set__(self, obj, *args, **kwargs):
+        raise AttributeError(
+            f"property of '{obj.__class__.__name__}' is read-only"
+        )
+
+
 class Record(EqualityTupleMixin):
     log = getLogger('Record')
 

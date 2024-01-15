@@ -3,7 +3,7 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin, unquote
+from .base import Record, ValuesMixin, readonly, unquote
 from .rr import RrParseError
 
 
@@ -118,7 +118,7 @@ class SshfpValue(EqualityTupleMixin, dict):
 
 
 class SshfpRecord(ValuesMixin, Record):
-    _type = 'SSHFP'
+    _type = readonly('SSHFP')
     _value_type = SshfpValue
 
 

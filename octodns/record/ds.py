@@ -6,7 +6,7 @@ from logging import getLogger
 
 from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin
+from .base import Record, ValuesMixin, readonly
 from .rr import RrParseError
 
 
@@ -174,7 +174,7 @@ class DsValue(EqualityTupleMixin, dict):
 
 
 class DsRecord(ValuesMixin, Record):
-    _type = 'DS'
+    _type = readonly('DS')
     _value_type = DsValue
 
 

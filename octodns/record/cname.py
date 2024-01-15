@@ -2,7 +2,7 @@
 #
 #
 
-from .base import Record, ValueMixin
+from .base import Record, ValueMixin, readonly
 from .dynamic import _DynamicMixin
 from .target import _TargetValue
 
@@ -12,7 +12,7 @@ class CnameValue(_TargetValue):
 
 
 class CnameRecord(_DynamicMixin, ValueMixin, Record):
-    _type = 'CNAME'
+    _type = readonly('CNAME')
     _value_type = CnameValue
 
     @classmethod

@@ -3,12 +3,12 @@
 #
 
 from ..deprecation import deprecated
-from .base import Record
+from .base import Record, readonly
 from .chunked import _ChunkedValue, _ChunkedValuesMixin
 
 
 class SpfRecord(_ChunkedValuesMixin, Record):
-    _type = 'SPF'
+    _type = readonly('SPF')
     _value_type = _ChunkedValue
 
     def __init__(self, *args, **kwargs):

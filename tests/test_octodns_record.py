@@ -30,6 +30,21 @@ from octodns.zone import Zone
 class TestRecord(TestCase):
     zone = Zone('unit.tests.', [])
 
+    def test_type_is_readonly(self):
+        record = ARecord(
+            self.zone, 'MiXeDcAsE', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        self.assertEqual('A', record._type)
+
+        with self.assertRaises(AttributeError) as ctx:
+            record._type = 42
+        self.assertEqual(
+            "property of 'ARecord' is read-only", str(ctx.exception)
+        )
+
+        # value didn't change
+        self.assertEqual('A', record._type)
+
     def test_registration(self):
         with self.assertRaises(RecordException) as ctx:
             Record.register_type(None, 'A')

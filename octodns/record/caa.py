@@ -3,7 +3,7 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin, unquote
+from .base import Record, ValuesMixin, readonly, unquote
 from .rr import RrParseError
 
 
@@ -96,7 +96,7 @@ class CaaValue(EqualityTupleMixin, dict):
 
 
 class CaaRecord(ValuesMixin, Record):
-    _type = 'CAA'
+    _type = readonly('CAA')
     _value_type = CaaValue
 
 
