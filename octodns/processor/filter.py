@@ -215,6 +215,105 @@ class NameRejectlistFilter(_NameBaseFilter, RejectsMixin):
         super().__init__(name, rejectlist)
 
 
+class _ValueBaseFilter(_FilterProcessor):
+    def __init__(self, name, _list, **kwargs):
+        super().__init__(name, **kwargs)
+        exact = set()
+        regex = []
+        for pattern in _list:
+            if pattern.startswith('/'):
+                regex.append(re_compile(pattern[1:-1]))
+            else:
+                exact.add(pattern)
+        self.exact = exact
+        self.regex = regex
+
+    def _process(self, zone, *args, **kwargs):
+        for record in zone.records:
+            values = []
+            if hasattr(record, 'values'):
+                values = [value.rdata_text for value in record.values]
+            else:
+                values = [record.value.rdata_text]
+
+            if any(value in self.exact for value in values):
+                self.matches(zone, record)
+                continue
+            elif any(r.search(value) for r in self.regex for value in values):
+                self.matches(zone, record)
+                continue
+
+            self.doesnt_match(zone, record)
+
+        return zone
+
+
+class ValueAllowlistFilter(_ValueBaseFilter, AllowsMixin):
+    '''Only manage records with values that match the provider patterns
+
+    Example usage:
+
+    processors:
+      only-these:
+        class: octodns.processor.filter.ValueAllowlistFilter
+        allowlist:
+          # exact string match
+          - www
+          # contains/substring match
+          - /substring/
+          # regex pattern match
+          - /some-pattern-\\d\\+/
+          # regex - anchored so has to match start to end
+          - /^start-.+-end$/
+        # Optional param that can be set to False to leave the target zone
+        # alone, thus allowing deletion of existing records
+        # (default: true)
+        # include_target: True
+
+    zones:
+      exxampled.com.:
+        sources:
+          - config
+        processors:
+          - only-these
+        targets:
+          - route53
+    '''
+
+
+class ValueRejectlistFilter(_ValueBaseFilter, RejectsMixin):
+    '''Reject managing records with names that match the provider patterns
+
+    Example usage:
+
+    processors:
+      not-these:
+        class: octodns.processor.filter.ValueRejectlistFilter
+        rejectlist:
+          # exact string match
+          - www
+          # contains/substring match
+          - /substring/
+          # regex pattern match
+          - /some-pattern-\\d\\+/
+          # regex - anchored so has to match start to end
+          - /^start-.+-end$/
+        # Optional param that can be set to False to leave the target zone
+        # alone, thus allowing deletion of existing records
+        # (default: true)
+        # include_target: True
+
+    zones:
+      exxampled.com.:
+        sources:
+          - config
+        processors:
+          - not-these
+        targets:
+          - route53
+    '''
+
+
 class _NetworkValueBaseFilter(BaseProcessor):
     def __init__(self, name, _list):
         super().__init__(name)
