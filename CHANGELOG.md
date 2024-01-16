@@ -8,9 +8,12 @@
 * Support added for config env variable expansion on nested levels, not just
   top-level provider/processor keys
 * _ChunkedValue ASCII validation added, SPF & TXT
-* Minor validation improvement to catch cases where Record values is provided a
-  single a-single-value by accident instead of a list, a common type-o that
-  can results in each character being a value in the resulting Record data
+* Re-work value/values handling to always try and do the "right" thing based on
+  the content, so both singular values and lists will be handled identically
+  regardless of whether the key is value or values. This may result in
+  changes/fixes on the first sync after updating IFF you currently have
+  `values: a-single-thing`, which would have previously been pushed up as bunch
+  of single character values.
 
 ## v1.4.0 - 2023-12-04 - Minor Meta
 
