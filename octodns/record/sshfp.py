@@ -34,8 +34,6 @@ class SshfpValue(EqualityTupleMixin, dict):
 
     @classmethod
     def validate(cls, data, _type):
-        if not isinstance(data, (list, tuple)):
-            data = (data,)
         reasons = []
         for value in data:
             try:

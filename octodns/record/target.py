@@ -51,10 +51,8 @@ class _TargetsValue(str):
 
     @classmethod
     def validate(cls, data, _type):
-        if not data:
+        if not data or all(not d for d in data):
             return ['missing value(s)']
-        elif not isinstance(data, (list, tuple)):
-            data = (data,)
         reasons = []
         for value in data:
             value = idna_encode(value)
