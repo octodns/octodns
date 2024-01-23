@@ -278,6 +278,7 @@ class ValuesMixin(object):
         reasons = super().validate(name, fqdn, data)
 
         values = data.get('values', data.get('value', []))
+        values = values if isinstance(values, (list, tuple)) else [values]
 
         reasons.extend(cls._value_type.validate(values, cls._type))
 
@@ -293,13 +294,9 @@ class ValuesMixin(object):
 
     def __init__(self, zone, name, data, source=None, context=None):
         super().__init__(zone, name, data, source=source, context=context)
-        try:
-            values = data['values']
-        except KeyError:
-            try:
-                values = [data['value']]
-            except KeyError:
-                values = []
+
+        values = data.get('values', data.get('value', []))
+        values = values if isinstance(values, (list, tuple)) else [values]
         self.values = sorted(self._value_type.process(values))
 
     def changes(self, other, target):
