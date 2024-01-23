@@ -110,8 +110,6 @@ class LocValue(EqualityTupleMixin, dict):
 
         direction_keys = ['lat_direction', 'long_direction']
 
-        if not isinstance(data, (list, tuple)):
-            data = (data,)
         reasons = []
         for value in data:
             for key in int_keys:

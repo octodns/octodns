@@ -698,42 +698,56 @@ class TestRecordValidation(TestCase):
             lenient=True,
         )
 
-    def test_values_is_single_value(self):
-        with self.assertRaises(ValidationError) as ctx:
-            Record.new(
-                self.zone,
-                'thing',
-                {'type': 'TXT', 'ttl': 42, 'values': 'just one'},
-            )
-        self.assertEqual(
-            ['single value provided under values key, "just one"'],
-            ctx.exception.reasons,
-        )
-
-        # same thing is fine as `value`
-        txt = Record.new(
+    def test_values_and_value(self):
+        # value w/one
+        r = Record.new(
             self.zone, 'thing', {'type': 'TXT', 'ttl': 42, 'value': 'just one'}
         )
-        self.assertEqual(1, len(txt.values))
-        self.assertEqual('just one', txt.values[0])
+        self.assertEqual(['just one'], r.values)
 
-        # same thing is fine when a list
-        txt = Record.new(
+        # value w/multiple
+        r = Record.new(
             self.zone,
             'thing',
-            {'type': 'TXT', 'ttl': 42, 'values': ['just one']},
+            {'type': 'TXT', 'ttl': 42, 'value': ['the first', 'the second']},
         )
-        self.assertEqual(1, len(txt.values))
-        self.assertEqual('just one', txt.values[0])
+        self.assertEqual(['the first', 'the second'], r.values)
 
-        # or tuple
-        txt = Record.new(
+        # values w/one
+        r = Record.new(
+            self.zone, 'thing', {'type': 'TXT', 'ttl': 42, 'values': 'just one'}
+        )
+        self.assertEqual(['just one'], r.values)
+
+        # values w/multiple
+        r = Record.new(
             self.zone,
             'thing',
-            {'type': 'TXT', 'ttl': 42, 'values': ('just one',)},
+            {'type': 'TXT', 'ttl': 42, 'values': ['the first', 'the second']},
         )
-        self.assertEqual(1, len(txt.values))
-        self.assertEqual('just one', txt.values[0])
+        self.assertEqual(['the first', 'the second'], r.values)
+
+        # tuples work too
+        r = Record.new(
+            self.zone,
+            'thing',
+            {'type': 'TXT', 'ttl': 42, 'values': ('the first', 'the second')},
+        )
+        self.assertEqual(['the first', 'the second'], r.values)
+
+        # values is preferred over value
+        # values w/multiple
+        r = Record.new(
+            self.zone,
+            'thing',
+            {
+                'type': 'TXT',
+                'ttl': 42,
+                'values': ['the first', 'the second'],
+                'value': ['not used', 'not used'],
+            },
+        )
+        self.assertEqual(['the first', 'the second'], r.values)
 
     def test_validation_context(self):
         # fails validation, no context

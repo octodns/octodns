@@ -13,6 +13,8 @@ from octodns.processor.filter import (
     NetworkValueRejectlistFilter,
     TypeAllowlistFilter,
     TypeRejectlistFilter,
+    ValueAllowlistFilter,
+    ValueRejectlistFilter,
     ZoneNameFilter,
 )
 from octodns.provider.plan import Plan
@@ -176,6 +178,146 @@ class TestNameRejectListFilter(TestCase):
         self.assertEqual(2, len(filtered.records))
         self.assertEqual(
             ['doesnt', 'matches'], sorted([r.name for r in filtered.records])
+        )
+
+
+class TestValueAllowListFilter(TestCase):
+    zone = Zone('unit.tests.', [])
+    matches = Record.new(
+        zone,
+        'good.exact',
+        {'type': 'CNAME', 'ttl': 42, 'value': 'matches.example.com.'},
+    )
+    zone.add_record(matches)
+    doesnt = Record.new(
+        zone,
+        'bad.exact',
+        {'type': 'CNAME', 'ttl': 42, 'value': 'doesnt.example.com.'},
+    )
+    zone.add_record(doesnt)
+    matches_many = Record.new(
+        zone,
+        'good.values',
+        {
+            'type': 'TXT',
+            'ttl': 42,
+            'values': ['matches.example.com.', 'another'],
+        },
+    )
+    zone.add_record(matches_many)
+    doesnt_many = Record.new(
+        zone,
+        'bad.values',
+        {
+            'type': 'TXT',
+            'ttl': 42,
+            'values': ['doesnt.example.com.', 'another'],
+        },
+    )
+    zone.add_record(doesnt_many)
+    matchable1 = Record.new(
+        zone,
+        'first.regex',
+        {'type': 'CNAME', 'ttl': 42, 'value': 'start.f43ad96.end.'},
+    )
+    zone.add_record(matchable1)
+    matchable2 = Record.new(
+        zone,
+        'second.regex',
+        {'type': 'CNAME', 'ttl': 42, 'value': 'start.a3b444c.end.'},
+    )
+    zone.add_record(matchable2)
+
+    def test_exact(self):
+        allows = ValueAllowlistFilter('exact', ('matches.example.com.',))
+
+        self.assertEqual(6, len(self.zone.records))
+        filtered = allows.process_source_zone(self.zone.copy())
+        self.assertEqual(2, len(filtered.records))
+        self.assertEqual(
+            ['good.exact', 'good.values'],
+            sorted([r.name for r in filtered.records]),
+        )
+
+    def test_regex(self):
+        allows = ValueAllowlistFilter('exact', ('/^start\\..+\\.end\\.$/',))
+
+        self.assertEqual(6, len(self.zone.records))
+        filtered = allows.process_source_zone(self.zone.copy())
+        self.assertEqual(2, len(filtered.records))
+        self.assertEqual(
+            ['first.regex', 'second.regex'],
+            sorted([r.name for r in filtered.records]),
+        )
+
+
+class TestValueRejectListFilter(TestCase):
+    zone = Zone('unit.tests.', [])
+    matches = Record.new(
+        zone,
+        'good.compare',
+        {'type': 'CNAME', 'ttl': 42, 'value': 'matches.example.com.'},
+    )
+    zone.add_record(matches)
+    doesnt = Record.new(
+        zone,
+        'bad.compare',
+        {'type': 'CNAME', 'ttl': 42, 'value': 'doesnt.example.com.'},
+    )
+    zone.add_record(doesnt)
+    matches_many = Record.new(
+        zone,
+        'good.values',
+        {
+            'type': 'TXT',
+            'ttl': 42,
+            'values': ['matches.example.com.', 'another'],
+        },
+    )
+    zone.add_record(matches_many)
+    doesnt_many = Record.new(
+        zone,
+        'bad.values',
+        {
+            'type': 'TXT',
+            'ttl': 42,
+            'values': ['doesnt.example.com.', 'another'],
+        },
+    )
+    zone.add_record(doesnt_many)
+    matchable1 = Record.new(
+        zone,
+        'first.regex',
+        {'type': 'CNAME', 'ttl': 42, 'value': 'start.f43ad96.end.'},
+    )
+    zone.add_record(matchable1)
+    matchable2 = Record.new(
+        zone,
+        'second.regex',
+        {'type': 'CNAME', 'ttl': 42, 'value': 'start.a3b444c.end.'},
+    )
+    zone.add_record(matchable2)
+
+    def test_exact(self):
+        rejects = ValueRejectlistFilter('exact', ('matches.example.com.',))
+
+        self.assertEqual(6, len(self.zone.records))
+        filtered = rejects.process_source_zone(self.zone.copy())
+        self.assertEqual(4, len(filtered.records))
+        self.assertEqual(
+            ['bad.compare', 'bad.values', 'first.regex', 'second.regex'],
+            sorted([r.name for r in filtered.records]),
+        )
+
+    def test_regex(self):
+        rejects = ValueRejectlistFilter('exact', ('/^start\\..+\\.end\\.$/',))
+
+        self.assertEqual(6, len(self.zone.records))
+        filtered = rejects.process_source_zone(self.zone.copy())
+        self.assertEqual(4, len(filtered.records))
+        self.assertEqual(
+            ['bad.compare', 'bad.values', 'good.compare', 'good.values'],
+            sorted([r.name for r in filtered.records]),
         )
 
 
