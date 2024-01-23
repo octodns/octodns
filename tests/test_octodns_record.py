@@ -846,3 +846,30 @@ class TestRecordValidation(TestCase):
             '<CnameRecord CNAME 43, pointer.unit.tests., unit.tests.>',
             record.__repr__(),
         )
+
+    def test_records_have_rdata_methods(self):
+        for _type, cls in Record.registered_types().items():
+            print(f'{_type} {cls}')
+            attr = 'parse_rdata_texts'
+            print(f'  {attr}')
+            method = getattr(cls, attr)
+            self.assertTrue(method, f'{_type}, {cls} has {attr}')
+            self.assertTrue(
+                callable(method), f'{_type}, {cls} {attr} is callable'
+            )
+
+            value_type = getattr(cls, '_value_type')
+            self.assertTrue(value_type, f'{_type}, {cls} has _value_type')
+
+            attr = 'parse_rdata_text'
+            print(f'  {attr}')
+            method = getattr(value_type, attr)
+            self.assertTrue(method, f'{_type}, {cls} has {attr}')
+            self.assertTrue(
+                callable(method), f'{_type}, {cls} {attr} is callable'
+            )
+
+            attr = 'rdata_text'
+            method = getattr(value_type, attr)
+            self.assertTrue(method, f'{_type}, {cls} has {attr}')
+            # this one is a @property so not callable
