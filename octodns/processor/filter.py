@@ -280,6 +280,9 @@ class ValueAllowlistFilter(_ValueBaseFilter, AllowsMixin):
           - route53
     '''
 
+    def __init__(self, name, allowlist):
+        super().__init__(name, allowlist)
+
 
 class ValueRejectlistFilter(_ValueBaseFilter, RejectsMixin):
     '''Reject managing records with names that match the provider patterns
@@ -312,6 +315,9 @@ class ValueRejectlistFilter(_ValueBaseFilter, RejectsMixin):
         targets:
           - route53
     '''
+
+    def __init__(self, name, rejectlist):
+        super().__init__(name, rejectlist)
 
 
 class _NetworkValueBaseFilter(BaseProcessor):
