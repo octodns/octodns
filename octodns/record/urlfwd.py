@@ -3,13 +3,42 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin
+from .base import Record, ValuesMixin, unquote
+from .rr import RrParseError
 
 
 class UrlfwdValue(EqualityTupleMixin, dict):
     VALID_CODES = (301, 302)
     VALID_MASKS = (0, 1, 2)
     VALID_QUERY = (0, 1)
+
+    @classmethod
+    def parse_rdata_text(self, value):
+        try:
+            path, target, code, masking, query = value.split(' ')
+        except ValueError:
+            raise RrParseError()
+        try:
+            code = int(code)
+        except ValueError:
+            pass
+        try:
+            masking = int(masking)
+        except ValueError:
+            pass
+        try:
+            query = int(query)
+        except ValueError:
+            pass
+        path = unquote(path)
+        target = unquote(target)
+        return {
+            'path': path,
+            'target': target,
+            'code': code,
+            'masking': masking,
+            'query': query,
+        }
 
     @classmethod
     def validate(cls, data, _type):
@@ -98,6 +127,10 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     @query.setter
     def query(self, value):
         self['query'] = value
+
+    @property
+    def rdata_text(self):
+        return f'"{self.path}" "{self.target}" {self.code} {self.masking} {self.query}'
 
     def _equality_tuple(self):
         return (self.path, self.target, self.code, self.masking, self.query)

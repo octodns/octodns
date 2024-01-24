@@ -8,6 +8,7 @@ from helpers import SimpleProvider
 
 from octodns.record import Record
 from octodns.record.exception import ValidationError
+from octodns.record.rr import RrParseError
 from octodns.record.urlfwd import UrlfwdRecord, UrlfwdValue
 from octodns.zone import Zone
 
@@ -389,3 +390,96 @@ class TestRecordUrlfwd(TestCase):
         self.assertEqual(
             ['unrecognized query setting "3"'], ctx.exception.reasons
         )
+
+    def test_urlfwd_value_rdata_text(self):
+        # empty string won't parse
+        with self.assertRaises(RrParseError):
+            UrlfwdValue.parse_rdata_text('')
+
+        # single word won't parse
+        with self.assertRaises(RrParseError):
+            UrlfwdValue.parse_rdata_text('nope')
+
+        # 2nd word won't parse
+        with self.assertRaises(RrParseError):
+            UrlfwdValue.parse_rdata_text('1 2')
+
+        # 3rd word won't parse
+        with self.assertRaises(RrParseError):
+            UrlfwdValue.parse_rdata_text('1 2 3')
+
+        # 4th word won't parse
+        with self.assertRaises(RrParseError):
+            UrlfwdValue.parse_rdata_text('1 2 3 4')
+
+        # 6th word won't parse
+        with self.assertRaises(RrParseError):
+            UrlfwdValue.parse_rdata_text('1 2 3 4 5 6')
+
+        # code, masking, and query not ints
+        self.assertEqual(
+            {
+                'path': 'one',
+                'target': 'urlfwd.unit.tests.',
+                'code': 'one',
+                'masking': 'two',
+                'query': 'three',
+            },
+            UrlfwdValue.parse_rdata_text(
+                'one urlfwd.unit.tests. one two three'
+            ),
+        )
+
+        # valid
+        self.assertEqual(
+            {
+                'path': 'one',
+                'target': 'urlfwd.unit.tests.',
+                'code': 1,
+                'masking': 2,
+                'query': 3,
+            },
+            UrlfwdValue.parse_rdata_text('one urlfwd.unit.tests. 1 2 3'),
+        )
+
+        # quoted
+        self.assertEqual(
+            {
+                'path': 'one',
+                'target': 'urlfwd.unit.tests.',
+                'code': 1,
+                'masking': 2,
+                'query': 3,
+            },
+            UrlfwdValue.parse_rdata_text('"one" "urlfwd.unit.tests." 1 2 3'),
+        )
+
+        zone = Zone('unit.tests.', [])
+        a = UrlfwdRecord(
+            zone,
+            'urlfwd',
+            {
+                'ttl': 32,
+                'value': {
+                    'path': 'one',
+                    'target': 'urlfwd.unit.tests.',
+                    'code': 1,
+                    'masking': 2,
+                    'query': 3,
+                },
+            },
+        )
+        self.assertEqual('one', a.values[0].path)
+        self.assertEqual('urlfwd.unit.tests.', a.values[0].target)
+        self.assertEqual(1, a.values[0].code)
+        self.assertEqual(2, a.values[0].masking)
+        self.assertEqual(3, a.values[0].query)
+
+        # both directions should match
+        rdata = '"one" "urlfwd.unit.tests." 1 2 3'
+        record = UrlfwdRecord(
+            zone,
+            'urlfwd',
+            {'ttl': 32, 'value': UrlfwdValue.parse_rdata_text(rdata)},
+        )
+        self.assertEqual(rdata, record.values[0].rdata_text)
