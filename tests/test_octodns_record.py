@@ -323,33 +323,33 @@ class TestRecord(TestCase):
 
         # hand add something at the first level of the copy
         b = a.copy()
-        b._octodns['added'] = 'thing'
+        b.octodns['added'] = 'thing'
         b_data = b.data
         self.assertNotEqual(a.data, b_data)
 
         # hand modify something at the first level of the copy
         b = a.copy()
-        b._octodns['first'] = 'unlevel'
+        b.octodns['first'] = 'unlevel'
         self.assertNotEqual(a.data, b.data)
 
         # delete something at the first level of the copy
         b = a.copy()
-        del b._octodns['first']
+        del b.octodns['first']
         self.assertNotEqual(a.data, b.data)
 
         # hand add something deeper in the copy
         b = a.copy()
-        b._octodns['key']['added'] = 'thing'
+        b.octodns['key']['added'] = 'thing'
         self.assertNotEqual(a.data, b.data)
 
         # hand modify something deeper in the copy
         b = a.copy()
-        b._octodns['key']['second'] = 'unlevel'
+        b.octodns['key']['second'] = 'unlevel'
         self.assertNotEqual(a.data, b.data)
 
         # hand delete something deeper in the copy
         b = a.copy()
-        del b._octodns['key']['second']
+        del b.octodns['key']['second']
         self.assertNotEqual(a.data, b.data)
 
     def test_record_copy_with_no_values(self):
@@ -518,6 +518,26 @@ class TestRecord(TestCase):
         # edge cases
         self.assertEqual(None, unquote(None))
         self.assertEqual('', unquote(''))
+
+    def test_otodns_backcompat(self):
+        octo = {'answer': 42}
+        record = Record.new(
+            self.zone,
+            'www',
+            {'ttl': 42, 'type': 'A', 'value': '1.2.3.4', 'octodns': octo},
+        )
+        self.assertEqual(octo, record.octodns)
+        self.assertEqual(octo, record._octodns)
+
+        octo2 = {'question': 'unknown'}
+        record.octodns = octo2
+        self.assertEqual(octo2, record.octodns)
+        self.assertEqual(octo2, record._octodns)
+
+        octo3 = {'key': 'val'}
+        record._octodns = octo3
+        self.assertEqual(octo3, record.octodns)
+        self.assertEqual(octo3, record._octodns)
 
 
 class TestRecordValidation(TestCase):
@@ -817,7 +837,7 @@ class TestRecordValidation(TestCase):
             record.__repr__(),
         )
         # no special section
-        record._octodns = {}
+        record.octodns = {}
         self.assertEqual(
             "<ARecord A 42, www.unit.tests., ['1.2.3.4', '2.3.4.5']>",
             record.__repr__(),
@@ -841,7 +861,7 @@ class TestRecordValidation(TestCase):
             record.__repr__(),
         )
         # no special section
-        record._octodns = {}
+        record.octodns = {}
         self.assertEqual(
             '<CnameRecord CNAME 43, pointer.unit.tests., unit.tests.>',
             record.__repr__(),

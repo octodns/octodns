@@ -37,7 +37,7 @@ class TestRecordDynamic(TestCase):
         }
         record1 = Record.new(self.zone, 'a', a_data)
         record2 = record1.copy()
-        self.assertEqual(record1._octodns, record2._octodns)
+        self.assertEqual(record1.octodns, record2.octodns)
 
     def test_healthcheck(self):
         new = Record.new(
