@@ -9,6 +9,7 @@ from tempfile import mkdtemp
 from octodns.processor.base import BaseProcessor
 from octodns.provider.base import BaseProvider
 from octodns.provider.yaml import YamlProvider
+from octodns.secret.base import BaseSecrets
 
 
 class SimpleSource(object):
@@ -134,3 +135,12 @@ class CountingProcessor(BaseProcessor):
     def process_source_zone(self, zone, *args, **kwargs):
         self.count += len(zone.records)
         return zone
+
+
+class DummySecrets(BaseSecrets):
+    def __init__(self, name, prefix):
+        super().__init__(name)
+        self.prefix = prefix
+
+    def fetch(self, name, source):
+        return f'{self.prefix}{name}'

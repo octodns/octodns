@@ -119,7 +119,13 @@ class Manager(object):
             manager_config, enable_checksum
         )
 
+        # add our hard-coded environ handler first so that other secret
+        # providers can pull in env variables w/it
         self.secret_handlers = {'env': EnvironSecrets('env')}
+        secret_handlers_config = self.config.get('secret_handlers', {})
+        self.secret_handlers.update(
+            self._config_secret_handlers(secret_handlers_config)
+        )
 
         self.auto_arpa = self._config_auto_arpa(manager_config, auto_arpa)
 
@@ -220,6 +226,38 @@ class Manager(object):
         auto_arpa = auto_arpa or manager_config.get('auto_arpa', False)
         self.log.info('_config_auto_arpa: auto_arpa=%s', auto_arpa)
         return auto_arpa
+
+    def _config_secret_handlers(self, secret_handlers_config):
+        self.log.debug('_config_secret_handlers: configuring secret_handlers')
+        secret_handlers = {}
+        for sh_name, sh_config in secret_handlers_config.items():
+            # Get our class and remove it from the secret handler config
+            try:
+                _class = sh_config.pop('class')
+            except KeyError:
+                self.log.exception('Invalid secret handler class')
+                raise ManagerException(
+                    f'Secret Handler {sh_name} is missing class, {sh_config.context}'
+                )
+            _class, module, version = self._get_named_class(
+                'secret handler', _class, sh_config.context
+            )
+            kwargs = self._build_kwargs(sh_config)
+            try:
+                secret_handlers[sh_name] = _class(sh_name, **kwargs)
+                self.log.info(
+                    '__init__: secret_handler=%s (%s %s)',
+                    sh_name,
+                    module,
+                    version,
+                )
+            except TypeError:
+                self.log.exception('Invalid secret handler config')
+                raise ManagerException(
+                    f'Incorrect secret handler config for {sh_name}, {sh_config.context}'
+                )
+
+        return secret_handlers
 
     def _config_providers(self, providers_config):
         self.log.debug('_config_providers: configuring providers')

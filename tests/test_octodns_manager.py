@@ -17,6 +17,7 @@ from helpers import (
 )
 
 from octodns import __version__
+from octodns.context import ContextDict
 from octodns.idna import IdnaDict, idna_encode
 from octodns.manager import (
     MainThreadExecutor,
@@ -1203,6 +1204,50 @@ class TestManager(TestCase):
                 }
             ),
         )
+
+    def test_config_secret_handlers(self):
+        # config doesn't matter here
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        # no config
+        self.assertEqual({}, manager._config_secret_handlers({}))
+
+        # missing class
+        with self.assertRaises(ManagerException) as ctx:
+            cfg = {'secr3t': ContextDict({}, context='xyz')}
+            manager._config_secret_handlers(cfg)
+        self.assertEqual(
+            'Secret Handler secr3t is missing class, xyz', str(ctx.exception)
+        )
+
+        # bad param
+        with self.assertRaises(ManagerException) as ctx:
+            cfg = {
+                'secr3t': ContextDict(
+                    {
+                        'class': 'octodns.secret.environ.EnvironSecrets',
+                        'bad': 'param',
+                    },
+                    context='xyz',
+                )
+            }
+            manager._config_secret_handlers(cfg)
+        self.assertEqual(
+            'Incorrect secret handler config for secr3t, xyz',
+            str(ctx.exception),
+        )
+
+        # valid with a param that gets used/tested
+        cfg = {
+            'secr3t': ContextDict(
+                {'class': 'helpers.DummySecrets', 'prefix': 'pre-'},
+                context='xyz',
+            )
+        }
+        shs = manager._config_secret_handlers(cfg)
+        sh = shs.get('secr3t')
+        self.assertTrue(sh)
+        self.assertEqual('pre-thing', sh.fetch('thing', None))
 
 
 class TestMainThreadExecutor(TestCase):
