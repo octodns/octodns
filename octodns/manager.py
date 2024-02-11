@@ -10,7 +10,6 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as module_version
 from json import dumps
 from logging import getLogger
-from os import environ
 from sys import stdout
 
 from . import __version__
@@ -20,6 +19,7 @@ from .processor.meta import MetaProcessor
 from .provider.base import BaseProvider
 from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
+from .secret.environ import EnvironSecrets
 from .yaml import safe_load
 from .zone import Zone
 
@@ -118,6 +118,8 @@ class Manager(object):
         self.enable_checksum = self._config_enable_checksum(
             manager_config, enable_checksum
         )
+
+        self.secret_handlers = {'env': EnvironSecrets('env')}
 
         self.auto_arpa = self._config_auto_arpa(manager_config, auto_arpa)
 
@@ -377,22 +379,21 @@ class Manager(object):
             if isinstance(v, dict):
                 v = self._build_kwargs(v)
             elif isinstance(v, str):
-                if v.startswith('env/'):
-                    # expand env variables
+                if '/' in v:
+                    handler, name = v.split('/', 1)
                     try:
-                        env_var = v[4:]
-                        v = environ[env_var]
+                        handler = self.secret_handlers[handler]
                     except KeyError:
-                        self.log.exception('Invalid provider config')
-                        raise ManagerException(
-                            f'Incorrect provider config, missing env var {env_var}, {source.context}'
+                        # we don't have a matching handler, but don't want to
+                        # make that an error b/c config values will often
+                        # contain /. We don't want to print the values in case
+                        # they're sensitive so just provide the key, and even
+                        # that only at debug level.
+                        self.log.debug(
+                            '_build_kwargs: no handler found for the value of {k}'
                         )
-                    try:
-                        # try converting the value to a number to see if it
-                        # converts
-                        v = float(v)
-                    except ValueError:
-                        pass
+                    else:
+                        v = handler.fetch(name, source)
 
             kwargs[k] = v
 

@@ -1,0 +1,7 @@
+#
+#
+#
+
+
+class SecretException(Exception):
+    pass
