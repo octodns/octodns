@@ -86,7 +86,7 @@ class TestYamlProvider(TestCase):
                 {'included': ['test']},
                 [x for x in reloaded.records if x.name == 'included'][
                     0
-                ]._octodns,
+                ].octodns,
             )
 
             # manually copy over the root since it will have been ignored
@@ -577,7 +577,7 @@ class TestSplitYamlProvider(TestCase):
                 {'included': ['test']},
                 [x for x in reloaded.records if x.name == 'included'][
                     0
-                ]._octodns,
+                ].octodns,
             )
 
             # manually copy over the root since it will have been ignored

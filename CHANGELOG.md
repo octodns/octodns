@@ -14,6 +14,9 @@
   changes/fixes on the first sync after updating IFF you currently have
   `values: a-single-thing`, which would have previously been pushed up as bunch
   of single character values.
+* Record.octodns added to formally make that data "API" and Record._octodns is
+  deprecated. The latter has been converted to properties that return the
+  former and emit deprecation warnings.
 
 ## v1.4.0 - 2023-12-04 - Minor Meta
 

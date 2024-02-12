@@ -7,6 +7,7 @@ from copy import deepcopy
 from logging import getLogger
 
 from ..context import ContextDict
+from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from ..idna import IdnaError, idna_decode, idna_encode
 from .change import Update
@@ -165,12 +166,28 @@ class Record(EqualityTupleMixin):
         self.context = context
         self.ttl = int(data['ttl'])
 
-        self._octodns = data.get('octodns', {})
+        self.octodns = data.get('octodns', {})
+
+    @property
+    def _octodns(self):
+        deprecated(
+            '`Record._octodns` is DEPRECATED. Use `Record.octodns` instead. Will be removed in 2.0',
+            stacklevel=1,
+        )
+        return self.octodns
+
+    @_octodns.setter
+    def _octodns(self, val):
+        deprecated(
+            '`Record._octodns` is DEPRECATED. Use `Record.octodns` instead. Will be removed in 2.0',
+            stacklevel=1,
+        )
+        self.octodns = val
 
     def _data(self):
         ret = {'ttl': self.ttl}
-        if self._octodns:
-            ret['octodns'] = deepcopy(self._octodns)
+        if self.octodns:
+            ret['octodns'] = deepcopy(self.octodns)
         if self.context:
             return ContextDict(ret, context=self.context)
         return ret
@@ -195,25 +212,25 @@ class Record(EqualityTupleMixin):
 
     @property
     def ignored(self):
-        return self._octodns.get('ignored', False)
+        return self.octodns.get('ignored', False)
 
     @property
     def excluded(self):
-        return self._octodns.get('excluded', [])
+        return self.octodns.get('excluded', [])
 
     @property
     def included(self):
-        return self._octodns.get('included', [])
+        return self.octodns.get('included', [])
 
     def healthcheck_host(self, value=None):
-        healthcheck = self._octodns.get('healthcheck', {})
+        healthcheck = self.octodns.get('healthcheck', {})
         if healthcheck.get('protocol', None) == 'TCP':
             return None
         return healthcheck.get('host', self.fqdn[:-1]) or value
 
     @property
     def healthcheck_path(self):
-        healthcheck = self._octodns.get('healthcheck', {})
+        healthcheck = self.octodns.get('healthcheck', {})
         if healthcheck.get('protocol', None) == 'TCP':
             return None
         try:
@@ -224,20 +241,20 @@ class Record(EqualityTupleMixin):
     @property
     def healthcheck_protocol(self):
         try:
-            return self._octodns['healthcheck']['protocol']
+            return self.octodns['healthcheck']['protocol']
         except KeyError:
             return 'HTTPS'
 
     @property
     def healthcheck_port(self):
         try:
-            return int(self._octodns['healthcheck']['port'])
+            return int(self.octodns['healthcheck']['port'])
         except KeyError:
             return 443
 
     @property
     def lenient(self):
-        return self._octodns.get('lenient', False)
+        return self.octodns.get('lenient', False)
 
     def changes(self, other, target):
         # We're assuming we have the same name and type if we're being compared
@@ -336,8 +353,8 @@ class ValuesMixin(object):
         values = "', '".join([str(v) for v in self.values])
         klass = self.__class__.__name__
         octodns = ''
-        if self._octodns:
-            octodns = f', {self._octodns}'
+        if self.octodns:
+            octodns = f', {self.octodns}'
         return f"<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, ['{values}']{octodns}>"
 
 
@@ -381,6 +398,6 @@ class ValueMixin(object):
     def __repr__(self):
         klass = self.__class__.__name__
         octodns = ''
-        if self._octodns:
-            octodns = f', {self._octodns}'
+        if self.octodns:
+            octodns = f', {self.octodns}'
         return f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, {self.value}{octodns}>'
