@@ -8,6 +8,7 @@ from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
 from helpers import (
+    DummySecrets,
     DynamicProvider,
     GeoProvider,
     NoSshFpProvider,
@@ -1248,6 +1249,37 @@ class TestManager(TestCase):
         sh = shs.get('secr3t')
         self.assertTrue(sh)
         self.assertEqual('pre-thing', sh.fetch('thing', None))
+
+        # test configuring secret handlers
+        environ['FROM_ENV_WILL_WORK'] = 'fetched_from_env/'
+        manager = Manager(get_config_filename('secrets.yaml'))
+
+        # dummy was configured
+        self.assertTrue('dummy' in manager.secret_handlers)
+        dummy = manager.secret_handlers['dummy']
+        self.assertIsInstance(dummy, DummySecrets)
+        # and has the prefix value explicitly stated in the yaml
+        self.assertEqual('in_config/hello', dummy.fetch('hello', None))
+
+        # requires-env was configured
+        self.assertTrue('requires-env' in manager.secret_handlers)
+        requires_env = manager.secret_handlers['requires-env']
+        self.assertIsInstance(requires_env, DummySecrets)
+        # and successfully pulled a value from env as its prefix
+        self.assertEqual(
+            'fetched_from_env/hello', requires_env.fetch('hello', None)
+        )
+
+        # requires-dummy was created
+        self.assertTrue('requires-dummy' in manager.secret_handlers)
+        requires_dummy = manager.secret_handlers['requires-dummy']
+        self.assertIsInstance(requires_dummy, DummySecrets)
+        # but failed to fetch a secret from dummy so we just get the configured
+        # value as it was in the yaml for prefix
+        self.assertEqual(
+            'dummy/FROM_DUMMY_WONT_WORK:hello',
+            requires_dummy.fetch(':hello', None),
+        )
 
 
 class TestMainThreadExecutor(TestCase):

@@ -140,6 +140,7 @@ class CountingProcessor(BaseProcessor):
 class DummySecrets(BaseSecrets):
     def __init__(self, name, prefix):
         super().__init__(name)
+        self.log.info('__init__: name=%s, prefix=%s', name, prefix)
         self.prefix = prefix
 
     def fetch(self, name, source):

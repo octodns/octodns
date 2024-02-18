@@ -428,7 +428,8 @@ class Manager(object):
                         # they're sensitive so just provide the key, and even
                         # that only at debug level.
                         self.log.debug(
-                            '_build_kwargs: no handler found for the value of {k}'
+                            '_build_kwargs: failed to find handler for key "%sp ',
+                            k,
                         )
                     else:
                         v = handler.fetch(name, source)
