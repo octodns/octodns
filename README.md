@@ -53,14 +53,14 @@ $ cd dns
 $ python -m venv env
 ...
 $ source env/bin/activate
-# provider-specific-requiremnts would be things like: octodns-route53 octodns-azure
+# provider-specific-requirements would be things like: octodns-route53 octodns-azure
 $ pip install octodns <provider-specific-requirements>
 $ mkdir config
 ```
 
 #### Installing a specific commit SHA
 
-If you'd like to install a version that has not yet been released in a repetable/safe manner you can do the following. In general octoDNS is fairly stable in between releases thanks to the plan and apply process, but care should be taken regardless.
+If you'd like to install a version that has not yet been released in a repeatable/safe manner you can do the following. In general octoDNS is fairly stable in between releases thanks to the plan and apply process, but care should be taken regardless.
 
 ```console
 $ pip install -e git+https://git@github.com/octodns/octodns.git@<SHA>#egg=octodns
@@ -106,7 +106,7 @@ zones:
 
 #### Static Zone Config
 
-In cases where finer grained control is desired and the configuration of individual zones varies `zones` can be an explicit list with each configured zone listed along with it's specific setup. As exemplified below `alias` zones can be useful when two zones are exact copies of each other, with the same configuration and records. YAML anchors are also helpful to avoid duplication where zones share config, but not records.
+In cases where finer grained control is desired and the configuration of individual zones varies `zones` can be an explicit list with each configured zone listed along with its specific setup. As exemplified below `alias` zones can be useful when two zones are exact copies of each other, with the same configuration and records. YAML anchors are also helpful to avoid duplication where zones share config, but not records.
 
 ```yaml
 ---
@@ -204,7 +204,7 @@ $ octodns-sync --config-file=./config/production.yaml
 ...
 ```
 
-There will be other logging information presented on the screen, but successful runs of sync will always end with a summary like the above for any providers & zones with changes. If there are no changes a message saying so will be printed instead. Above we're creating a new zone in both providers so they show the same change, but that doesn't always have to be the case. If to start one of them had a different state you would see the changes octoDNS intends to make to sync them up.
+There will be other logging information presented on the screen, but successful runs of sync will always end with a summary like the above for any providers & zones with changes. If there are no changes a message saying so will be printed instead. Above we're creating a new zone in both providers so they show the same change, but that doesn't always have to be the case. If, to start, one of them had a different state, you would see the changes octoDNS intends to make to sync them up.
 
 ### Making changes
 
@@ -231,7 +231,7 @@ Assuming the code tests and config validation statuses are green the next step i
 
 ![Output of a noop deployment command](/docs/assets/noop.png)
 
-After that comes a set of reviews. One from a teammate who should have full context on what you're trying to accomplish and visibility in to the changes you're making to do it. The other is from a member of the team here at GitHub that owns DNS, mostly as a sanity check and to make sure that best practices are being followed. As much of that as possible is baked into `octodns-validate`.
+After that comes a set of reviews. One from a teammate who should have full context on what you're trying to accomplish and visibility into the changes you're making to do it. The other is from a member of the team here at GitHub that owns DNS, mostly as a sanity check and to make sure that best practices are being followed. As much of that as possible is baked into `octodns-validate`.
 
 After the reviews it's time to branch deploy the change.
 
@@ -331,17 +331,17 @@ Similar to providers, but can only serve to populate records into a zone, cannot
 | [AcmeMangingProcessor](/octodns/processor/acme.py) | Useful when processes external to octoDNS are managing acme challenge DNS records, e.g. LetsEncrypt |
 | [AutoArpa](/octodns/processor/arpa.py) | See [Automatic PTR generation](#automatic-ptr-generation) below |
 | [ExcludeRootNsChanges](/octodns/processor/filter.py) | Filter that errors or warns on planned root/APEX NS records changes. |
-| [IgnoreRootNsFilter](/octodns/processor/filter.py) | Filter that INGORES root/APEX NS records and prevents octoDNS from trying to manage them (where supported.) |
+| [IgnoreRootNsFilter](/octodns/processor/filter.py) | Filter that IGNORES root/APEX NS records and prevents octoDNS from trying to manage them (where supported.) |
 | [MetaProcessor](/octodns/processor/meta.py) | Adds a special meta record with timing, UUID, providers, and/or version to aid in debugging and monitoring. |
 | [NameAllowlistFilter](/octodns/processor/filter.py) | Filter that ONLY manages records that match specified naming patterns, all others will be ignored |
-| [NameRejectlistFilter](/octodns/processor/filter.py) | Filter that INGORES records that match specified naming patterns, all others will be managed |
+| [NameRejectlistFilter](/octodns/processor/filter.py) | Filter that IGNORES records that match specified naming patterns, all others will be managed |
 | [ValueAllowlistFilter](/octodns/processor/filter.py) | Filter that ONLY manages records that match specified value patterns based on `rdata_text`, all others will be ignored |
-| [ValueRejectlistFilter](/octodns/processor/filter.py) | Filter that INGORES records that match specified value patterns based on `rdata_text`, all others will be managed |
+| [ValueRejectlistFilter](/octodns/processor/filter.py) | Filter that IGNORES records that match specified value patterns based on `rdata_text`, all others will be managed |
 | [OwnershipProcessor](/octodns/processor/ownership.py) | Processor that implements ownership in octoDNS so that it can manage only the records in a zone in sources and will ignore all others. |
 | [SpfDnsLookupProcessor](/octodns/processor/spf.py) | Processor that checks SPF values for violations of DNS query limits |
 | [TtlRestrictionFilter](/octodns/processor/restrict.py) | Processor that restricts the allow TTL values to a specified range or list of specific values |
 | [TypeAllowlistFilter](/octodns/processor/filter.py) | Filter that ONLY manages records of specified types, all others will be ignored |
-| [TypeRejectlistFilter](/octodns/processor/filter.py) | Filter that INGORES records of specified types, all others will be managed |
+| [TypeRejectlistFilter](/octodns/processor/filter.py) | Filter that IGNORES records of specified types, all others will be managed |
 | [octodns-spf](https://github.com/octodns/octodns-spf) | SPF Value Management for octoDNS |
 
 ## Automatic PTR generation
@@ -352,15 +352,15 @@ octoDNS supports automatically generating PTR records from the `A`/`AAAA` record
 
 ### `lenient`
 
-`lenient` mostly focuses on the details of `Record`s and standards compliance. When set to `true` octoDNS will allow allow non-compliant configurations & values where possible. For example CNAME values that don't end with a `.`, label length restrictions, and invalid geo codes on `dynamic` records. When in lenient mode octoDNS will log validation problems at `WARNING` and try and continue with the configuration or source data as it exists. See [Lenience](/docs/records.md#lenience) for more information on the concept and how it can be configured.
+`lenient` mostly focuses on the details of `Record`s and standards compliance. When set to `true` octoDNS will allow non-compliant configurations & values where possible. For example CNAME values that don't end with a `.`, label length restrictions, and invalid geo codes on `dynamic` records. When in lenient mode octoDNS will log validation problems at `WARNING` and try and continue with the configuration or source data as it exists. See [Lenience](/docs/records.md#lenience) for more information on the concept and how it can be configured.
 
 ### `strict_supports`
 
-`strict_supports` is a `Provider` level parameter that comes into play when a provider has been asked to create a record that it is unable to support. The simplest case of this would be record type, e.g. `SSHFP` not being supported by `AzureProvider`. If such a record is passed to an `AzureProvider` as a target the provider will take action based on the `strict_supports`. When `true` it will throw an exception saying that it's unable to create the record, when set to `false` it will log at `WARNING` with information about what it's unable to do and how it is attempting to working around it. Other examples of things that cannot be supported would be `dynamic` records on a provider that only supports simple or the lack of support for specific geos in a provider, e.g. Route53Provider does not support `NA-CA-*`.
+`strict_supports` is a `Provider` level parameter that comes into play when a provider has been asked to create a record that it is unable to support. The simplest case of this would be record type, e.g. `SSHFP` not being supported by `AzureProvider`. If such a record is passed to an `AzureProvider` as a target the provider will take action based on the `strict_supports`. When `true` it will throw an exception saying that it's unable to create the record, when set to `false` it will log at `WARNING` with information about what it's unable to do and how it is attempting to work around it. Other examples of things that cannot be supported would be `dynamic` records on a provider that only supports simple or the lack of support for specific geos in a provider, e.g. Route53Provider does not support `NA-CA-*`.
 
 It is worth noting that these errors will happen during the plan phase of things so that problems will be visible without having to make changes.
 
-This concept is currently a work in progress and only partially implemented. While work is on-going `strict_supports` will default to `false`. Once the work is considered complete & ready the default will change to `true` as it's a much safer and less surprising default as what you configure is what you'll get unless an error is throw telling you why it cannot be done. You will then have the choice to explicitly request that things continue with work-arounds with `strict_supports` set to `false`. In the meantime it is encouraged that you manually configure the parameter to `true` in your provider configs.
+This concept is currently a work in progress and only partially implemented. While work is on-going `strict_supports` will default to `false`. Once the work is considered complete & ready the default will change to `true` as it's a much safer and less surprising default as what you configure is what you'll get unless an error is thrown telling you why it cannot be done. You will then have the choice to explicitly request that things continue with work-arounds with `strict_supports` set to `false`. In the meantime it is encouraged that you manually configure the parameter to `true` in your provider configs.
 
 ### Configuring `strict_supports`
 

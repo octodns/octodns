@@ -21,7 +21,7 @@ manager:
     ttl: 1800
 ```
 
-Once enabled a singleton `AutoArpa` instance, `auto-arpa`, will be added to the pool of providers and globally configured to run as the very last global processor so that it will see all records as they will be seen by targets. Further all zones ending with `arpa.` will be held back and processed after all other zones have been completed so that all `A` and `AAAA` records will have been seen prior to planning the `arpa.` zones.
+Once enabled, a singleton `AutoArpa` instance, `auto-arpa`, will be added to the pool of providers and globally configured to run as the very last global processor so that it will see all records as they will be seen by targets. Further all zones ending with `arpa.` will be held back and processed after all other zones have been completed so that all `A` and `AAAA` records will have been seen prior to planning the `arpa.` zones.
 
 In order to add `PTR` records for a zone the `auto-arpa` source should be added to the list of sources for the zone.
 
