@@ -90,7 +90,7 @@ Each record type has a corresponding set of required data. The easiest way to de
 
 ### Lenience
 
-octoDNS is fairly strict in terms of standards compliance and is opinionated in terms of best practices. Examples of former include SRV record naming requirements and the latter that ALIAS records are constrained to the root of zones. The strictness and support of providers varies so you may encounter existing records that fail validation when you try to dump them or you may even have use cases for which you need to create or preserve records that don't validate. octoDNS's solution to this is the `lenient` flag.
+octoDNS is fairly strict in terms of standards compliance and is opinionated in terms of best practices. Examples of the former include SRV record naming requirements and the latter that ALIAS records are constrained to the root of zones. The strictness and support of providers varies so you may encounter existing records that fail validation when you try to dump them or you may even have use cases for which you need to create or preserve records that don't validate. octoDNS's solution to this is the `lenient` flag.
 
 It's best to think of the `lenient` flag as "I know what I'm doing and accept any problems I run across." The main reason being is that some providers may allow the non-compliant setup and others may not. The behavior of the non-compliant records may even vary from one provider to another. Caveat emptor.
 
@@ -161,7 +161,7 @@ In general this support is intended for record types that only make sense for a 
 
 ### Naming
 
-By convention the record type should be prefix with the provider class, e.g. `Route53Provider` followed by a `/` and an all-caps record type name `ALIAS`, e.g. `Route53Provider/ALIAS`.
+By convention the record type should be prefixed with the provider class, e.g. `Route53Provider` followed by a `/` and an all-caps record type name `ALIAS`, e.g. `Route53Provider/ALIAS`.
 
 ### YamlProvider support
 
