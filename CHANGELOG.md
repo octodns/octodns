@@ -1,3 +1,7 @@
+## v1.6.x - 2024-??-?? - ???
+
+* Beta support for custom secret providers added to Manager.
+
 ## v1.5.0 - 2024-02-26 - Checksums, nested expansion, & flexable values
 
 * Beta support for Manager.enable_checksum and octodns-sync --checksum Allows a
@@ -17,7 +21,6 @@
 * Record.octodns added to formally make that data "API" and Record._octodns is
   deprecated. The latter has been converted to properties that return the
   former and emit deprecation warnings.
-* Beta support for custom secret providers added to Manager.
 
 ## v1.4.0 - 2023-12-04 - Minor Meta
 
