@@ -1,3 +1,7 @@
+## v1.?.? - 2024-??-?? -
+
+* Add EnsureTrailingDots processor
+
 ## v1.5.0 - 2024-02-26 - Checksums, nested expansion, & flexable values
 
 * Beta support for Manager.enable_checksum and octodns-sync --checksum Allows a
