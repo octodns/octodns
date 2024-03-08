@@ -1,3 +1,9 @@
+## v1.5.1 - 2024-03-08 - env/* type conversion fix
+
+* Improved env variable to parameter type conversion logic, avoid converting
+  all numbers to float which caused some formatting issues in things that
+  weren't being careful enough.
+
 ## v1.5.0 - 2024-02-26 - Checksums, nested expansion, & flexable values
 
 * Beta support for Manager.enable_checksum and octodns-sync --checksum Allows a
