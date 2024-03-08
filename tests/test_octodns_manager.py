@@ -1133,6 +1133,7 @@ class TestManager(TestCase):
 
         environ['OCTODNS_TEST_1'] = '42'
         environ['OCTODNS_TEST_2'] = 'string'
+        environ['OCTODNS_TEST_3'] = '43.44'
 
         # empty
         self.assertEqual({}, manager._build_kwargs({}))
@@ -1198,6 +1199,18 @@ class TestManager(TestCase):
                             'f': 43,
                         }
                     }
+                }
+            ),
+        )
+
+        # types/conversion
+        self.assertEqual(
+            {'int': 42, 'string': 'string', 'float': 43.44},
+            manager._build_kwargs(
+                {
+                    'int': 'env/OCTODNS_TEST_1',
+                    'string': 'env/OCTODNS_TEST_2',
+                    'float': 'env/OCTODNS_TEST_3',
                 }
             ),
         )
