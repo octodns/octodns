@@ -434,6 +434,18 @@ class Manager(object):
                     else:
                         v = handler.fetch(name, source)
 
+                    if isinstance(v, str):
+                        try:
+                            if '.' in v:
+                                # has a dot, try converting it to a float
+                                v = float(v)
+                            else:
+                                # no dot, try converting it to an int
+                                v = int(v)
+                        except ValueError:
+                            # just leave it as a string
+                            pass
+
             kwargs[k] = v
 
         return kwargs
