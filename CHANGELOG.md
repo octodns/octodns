@@ -1,4 +1,4 @@
-## v1.6.x - 2024-??-?? - ???
+## v1.6.0 - 2024-03-11 - It's a secret, if I told you I'd have to kill you
 
 * Add EnsureTrailingDots processor
 * Beta support for custom secret providers added to Manager.
