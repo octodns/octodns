@@ -6,7 +6,7 @@ from os import environ
 from unittest import TestCase
 
 from octodns.context import ContextDict
-from octodns.secret.environ import EnvironSecretException, EnvironSecrets
+from octodns.secret.environ import EnvironSecrets, EnvironSecretsException
 
 
 class TestEnvironSecrets(TestCase):
@@ -23,7 +23,7 @@ class TestEnvironSecrets(TestCase):
         self.assertEqual(42, es.fetch('THIS_IS_AN_INT', source))
         self.assertEqual(43.44, es.fetch('THIS_IS_A_FLOAT', source))
 
-        with self.assertRaises(EnvironSecretException) as ctx:
+        with self.assertRaises(EnvironSecretsException) as ctx:
             es.fetch('DOES_NOT_EXIST', source)
         self.assertEqual(
             'Incorrect provider config, missing env var DOES_NOT_EXIST, xyz',

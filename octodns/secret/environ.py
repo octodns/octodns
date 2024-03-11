@@ -5,10 +5,10 @@
 from os import environ
 
 from .base import BaseSecrets
-from .exception import SecretException
+from .exception import SecretsException
 
 
-class EnvironSecretException(SecretException):
+class EnvironSecretsException(SecretsException):
     pass
 
 
@@ -19,7 +19,7 @@ class EnvironSecrets(BaseSecrets):
             v = environ[name]
         except KeyError:
             self.log.exception('Invalid provider config')
-            raise EnvironSecretException(
+            raise EnvironSecretsException(
                 f'Incorrect provider config, missing env var {name}, {source.context}'
             )
         try:

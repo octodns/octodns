@@ -3,5 +3,5 @@
 #
 
 
-class SecretException(Exception):
+class SecretsException(Exception):
     pass

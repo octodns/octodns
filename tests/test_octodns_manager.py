@@ -28,7 +28,7 @@ from octodns.manager import (
 )
 from octodns.processor.base import BaseProcessor
 from octodns.record import Create, Delete, Record, Update
-from octodns.secret.environ import EnvironSecretException
+from octodns.secret.environ import EnvironSecretsException
 from octodns.yaml import safe_load
 from octodns.zone import Zone
 
@@ -72,7 +72,7 @@ class TestManager(TestCase):
 
     def test_missing_env_config(self):
         # details of the EnvironSecrets will be tested in dedicated tests
-        with self.assertRaises(EnvironSecretException) as ctx:
+        with self.assertRaises(EnvironSecretsException) as ctx:
             Manager(get_config_filename('missing-provider-env.yaml')).sync()
         self.assertTrue('missing env var' in str(ctx.exception))
 
