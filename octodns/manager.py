@@ -402,7 +402,7 @@ class Manager(object):
             return getattr(module, class_name), module_name, version
         except AttributeError:
             self.log.exception(
-                '_get_{}_class: Unable to get class %s from module %s',
+                '_get_named_class: Unable to get class %s from module %s',
                 class_name,
                 module,
             )
