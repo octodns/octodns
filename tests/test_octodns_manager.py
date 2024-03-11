@@ -8,6 +8,7 @@ from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
 from helpers import (
+    DummySecrets,
     DynamicProvider,
     GeoProvider,
     NoSshFpProvider,
@@ -17,6 +18,7 @@ from helpers import (
 )
 
 from octodns import __version__
+from octodns.context import ContextDict
 from octodns.idna import IdnaDict, idna_encode
 from octodns.manager import (
     MainThreadExecutor,
@@ -26,6 +28,7 @@ from octodns.manager import (
 )
 from octodns.processor.base import BaseProcessor
 from octodns.record import Create, Delete, Record, Update
+from octodns.secret.environ import EnvironSecretsException
 from octodns.yaml import safe_load
 from octodns.zone import Zone
 
@@ -68,7 +71,8 @@ class TestManager(TestCase):
         self.assertTrue('provider config' in str(ctx.exception))
 
     def test_missing_env_config(self):
-        with self.assertRaises(ManagerException) as ctx:
+        # details of the EnvironSecrets will be tested in dedicated tests
+        with self.assertRaises(EnvironSecretsException) as ctx:
             Manager(get_config_filename('missing-provider-env.yaml')).sync()
         self.assertTrue('missing env var' in str(ctx.exception))
 
@@ -1213,6 +1217,81 @@ class TestManager(TestCase):
                     'float': 'env/OCTODNS_TEST_3',
                 }
             ),
+        )
+
+    def test_config_secret_handlers(self):
+        # config doesn't matter here
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        # no config
+        self.assertEqual({}, manager._config_secret_handlers({}))
+
+        # missing class
+        with self.assertRaises(ManagerException) as ctx:
+            cfg = {'secr3t': ContextDict({}, context='xyz')}
+            manager._config_secret_handlers(cfg)
+        self.assertEqual(
+            'Secret Handler secr3t is missing class, xyz', str(ctx.exception)
+        )
+
+        # bad param
+        with self.assertRaises(ManagerException) as ctx:
+            cfg = {
+                'secr3t': ContextDict(
+                    {
+                        'class': 'octodns.secret.environ.EnvironSecrets',
+                        'bad': 'param',
+                    },
+                    context='xyz',
+                )
+            }
+            manager._config_secret_handlers(cfg)
+        self.assertEqual(
+            'Incorrect secret handler config for secr3t, xyz',
+            str(ctx.exception),
+        )
+
+        # valid with a param that gets used/tested
+        cfg = {
+            'secr3t': ContextDict(
+                {'class': 'helpers.DummySecrets', 'prefix': 'pre-'},
+                context='xyz',
+            )
+        }
+        shs = manager._config_secret_handlers(cfg)
+        sh = shs.get('secr3t')
+        self.assertTrue(sh)
+        self.assertEqual('pre-thing', sh.fetch('thing', None))
+
+        # test configuring secret handlers
+        environ['FROM_ENV_WILL_WORK'] = 'fetched_from_env/'
+        manager = Manager(get_config_filename('secrets.yaml'))
+
+        # dummy was configured
+        self.assertTrue('dummy' in manager.secret_handlers)
+        dummy = manager.secret_handlers['dummy']
+        self.assertIsInstance(dummy, DummySecrets)
+        # and has the prefix value explicitly stated in the yaml
+        self.assertEqual('in_config/hello', dummy.fetch('hello', None))
+
+        # requires-env was configured
+        self.assertTrue('requires-env' in manager.secret_handlers)
+        requires_env = manager.secret_handlers['requires-env']
+        self.assertIsInstance(requires_env, DummySecrets)
+        # and successfully pulled a value from env as its prefix
+        self.assertEqual(
+            'fetched_from_env/hello', requires_env.fetch('hello', None)
+        )
+
+        # requires-dummy was created
+        self.assertTrue('requires-dummy' in manager.secret_handlers)
+        requires_dummy = manager.secret_handlers['requires-dummy']
+        self.assertIsInstance(requires_dummy, DummySecrets)
+        # but failed to fetch a secret from dummy so we just get the configured
+        # value as it was in the yaml for prefix
+        self.assertEqual(
+            'dummy/FROM_DUMMY_WONT_WORK:hello',
+            requires_dummy.fetch(':hello', None),
         )
 
 

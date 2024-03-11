@@ -10,7 +10,6 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as module_version
 from json import dumps
 from logging import getLogger
-from os import environ
 from sys import stdout
 
 from . import __version__
@@ -20,6 +19,7 @@ from .processor.meta import MetaProcessor
 from .provider.base import BaseProvider
 from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
+from .secret.environ import EnvironSecrets
 from .yaml import safe_load
 from .zone import Zone
 
@@ -117,6 +117,14 @@ class Manager(object):
         )
         self.enable_checksum = self._config_enable_checksum(
             manager_config, enable_checksum
+        )
+
+        # add our hard-coded environ handler first so that other secret
+        # providers can pull in env variables w/it
+        self.secret_handlers = {'env': EnvironSecrets('env')}
+        secret_handlers_config = self.config.get('secret_handlers', {})
+        self.secret_handlers.update(
+            self._config_secret_handlers(secret_handlers_config)
         )
 
         self.auto_arpa = self._config_auto_arpa(manager_config, auto_arpa)
@@ -218,6 +226,38 @@ class Manager(object):
         auto_arpa = auto_arpa or manager_config.get('auto_arpa', False)
         self.log.info('_config_auto_arpa: auto_arpa=%s', auto_arpa)
         return auto_arpa
+
+    def _config_secret_handlers(self, secret_handlers_config):
+        self.log.debug('_config_secret_handlers: configuring secret_handlers')
+        secret_handlers = {}
+        for sh_name, sh_config in secret_handlers_config.items():
+            # Get our class and remove it from the secret handler config
+            try:
+                _class = sh_config.pop('class')
+            except KeyError:
+                self.log.exception('Invalid secret handler class')
+                raise ManagerException(
+                    f'Secret Handler {sh_name} is missing class, {sh_config.context}'
+                )
+            _class, module, version = self._get_named_class(
+                'secret handler', _class, sh_config.context
+            )
+            kwargs = self._build_kwargs(sh_config)
+            try:
+                secret_handlers[sh_name] = _class(sh_name, **kwargs)
+                self.log.info(
+                    '__init__: secret_handler=%s (%s %s)',
+                    sh_name,
+                    module,
+                    version,
+                )
+            except TypeError:
+                self.log.exception('Invalid secret handler config')
+                raise ManagerException(
+                    f'Incorrect secret handler config for {sh_name}, {sh_config.context}'
+                )
+
+        return secret_handlers
 
     def _config_providers(self, providers_config):
         self.log.debug('_config_providers: configuring providers')
@@ -362,7 +402,7 @@ class Manager(object):
             return getattr(module, class_name), module_name, version
         except AttributeError:
             self.log.exception(
-                '_get_{}_class: Unable to get class %s from module %s',
+                '_get_named_class: Unable to get class %s from module %s',
                 class_name,
                 module,
             )
@@ -377,26 +417,34 @@ class Manager(object):
             if isinstance(v, dict):
                 v = self._build_kwargs(v)
             elif isinstance(v, str):
-                if v.startswith('env/'):
-                    # expand env variables
+                if '/' in v:
+                    handler, name = v.split('/', 1)
                     try:
-                        env_var = v[4:]
-                        v = environ[env_var]
+                        handler = self.secret_handlers[handler]
                     except KeyError:
-                        self.log.exception('Invalid provider config')
-                        raise ManagerException(
-                            f'Incorrect provider config, missing env var {env_var}, {source.context}'
+                        # we don't have a matching handler, but don't want to
+                        # make that an error b/c config values will often
+                        # contain /. We don't want to print the values in case
+                        # they're sensitive so just provide the key, and even
+                        # that only at debug level.
+                        self.log.debug(
+                            '_build_kwargs: failed to find handler for key "%sp ',
+                            k,
                         )
-                    try:
-                        if '.' in v:
-                            # has a dot, try converting it to a float
-                            v = float(v)
-                        else:
-                            # no dot, try converting it to an int
-                            v = int(v)
-                    except ValueError:
-                        # just leave it as a string
-                        pass
+                    else:
+                        v = handler.fetch(name, source)
+
+                    if isinstance(v, str):
+                        try:
+                            if '.' in v:
+                                # has a dot, try converting it to a float
+                                v = float(v)
+                            else:
+                                # no dot, try converting it to an int
+                                v = int(v)
+                        except ValueError:
+                            # just leave it as a string
+                            pass
 
             kwargs[k] = v
 
