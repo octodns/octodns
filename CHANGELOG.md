@@ -1,3 +1,7 @@
+## v1.6.x - 2024-??-?? - ???
+
+* Add EnsureTrailingDots processor
+
 ## v1.5.1 - 2024-03-08 - env/* type conversion fix
 
 * Improved env variable to parameter type conversion logic, avoid converting
