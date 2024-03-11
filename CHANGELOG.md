@@ -1,5 +1,6 @@
 ## v1.6.x - 2024-??-?? - ???
 
+* Add EnsureTrailingDots processor
 * Beta support for custom secret providers added to Manager.
 
 ## v1.5.1 - 2024-03-08 - env/* type conversion fix
