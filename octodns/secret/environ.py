@@ -22,11 +22,16 @@ class EnvironSecrets(BaseSecrets):
             raise EnvironSecretsException(
                 f'Incorrect provider config, missing env var {name}, {source.context}'
             )
+
         try:
-            # try converting the value to a number to see if it
-            # converts
-            v = float(v)
+            if '.' in v:
+                # has a dot, try converting it to a float
+                v = float(v)
+            else:
+                # no dot, try converting it to an int
+                v = int(v)
         except ValueError:
+            # just leave it as a string
             pass
 
         return v

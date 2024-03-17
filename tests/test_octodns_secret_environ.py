@@ -19,9 +19,17 @@ class TestEnvironSecrets(TestCase):
         es = EnvironSecrets('env')
 
         source = ContextDict({}, context='xyz')
-        self.assertEqual('and has a val', es.fetch('THIS_EXISTS', source))
-        self.assertEqual(42, es.fetch('THIS_IS_AN_INT', source))
-        self.assertEqual(43.44, es.fetch('THIS_IS_A_FLOAT', source))
+        v = es.fetch('THIS_EXISTS', source)
+        self.assertEqual('and has a val', v)
+        self.assertIsInstance(v, str)
+
+        v = es.fetch('THIS_IS_AN_INT', source)
+        self.assertEqual(42, v)
+        self.assertIsInstance(v, int)
+
+        v = es.fetch('THIS_IS_A_FLOAT', source)
+        self.assertEqual(43.44, v)
+        self.assertIsInstance(v, float)
 
         with self.assertRaises(EnvironSecretsException) as ctx:
             es.fetch('DOES_NOT_EXIST', source)
