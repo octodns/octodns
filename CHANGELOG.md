@@ -1,3 +1,8 @@
+## v1.6.1 - 2024-03-17 - Didn't we do this already
+
+* Fix env var type handling that was previously fixed in 1.5.1 and then
+  regressed in 1.6.0.
+
 ## v1.6.0 - 2024-03-11 - It's a secret, if I told you I'd have to kill you
 
 * Add EnsureTrailingDots processor
