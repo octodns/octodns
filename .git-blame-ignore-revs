@@ -4,3 +4,5 @@ e116d26eeca0891c31b689e43db5bb60b62f73f6
 fa4225b625654c51c7b0be6efcfd6a1109768a72
 # Commit that added in isort formatting support
 6be0a8133a4fd9e12e6ac3affbdd69555b6c2503
+# black 24.x
+f936d0fa1fee67bc6048ee80c0dad5c52c031ffd
