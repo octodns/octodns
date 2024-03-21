@@ -3,6 +3,9 @@ line-length=80
 skip-string-normalization=true
 skip-magic-trailing-comma=true
 
+[tool.coverage.run]
+omit=["octodns/cmds/*"]
+
 [tool.isort]
 profile = "black"
 known_first_party="octodns"
