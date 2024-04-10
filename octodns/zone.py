@@ -56,7 +56,13 @@ class InvalidNodeException(Exception):
 class Zone(object):
     log = getLogger('Zone')
 
-    def __init__(self, name, sub_zones):
+    def __init__(
+        self,
+        name,
+        sub_zones,
+        update_pcent_threshold=None,
+        delete_pcent_threshold=None,
+    ):
         if not name[-1] == '.':
             raise Exception(f'Invalid zone name {name}, missing ending dot')
         elif ' ' in name or '\t' in name:
@@ -77,6 +83,9 @@ class Zone(object):
         # optional trailing . b/c some sources don't have it on their fqdn
         self._utf8_name_re = re.compile(fr'\.?{idna_decode(name)}?$')
         self._idna_name_re = re.compile(fr'\.?{self.name}?$')
+
+        self.update_pcent_threshold = update_pcent_threshold
+        self.delete_pcent_threshold = delete_pcent_threshold
 
         # Copy-on-write semantics support, when `not None` this property will
         # point to a location with records for this `Zone`. Once `hydrated`
@@ -352,7 +361,12 @@ class Zone(object):
         copying the records when required. The actual record copy will not be
         "deep" meaning that records should not be modified directly.
         '''
-        copy = Zone(self.name, self.sub_zones)
+        copy = Zone(
+            self.name,
+            self.sub_zones,
+            self.update_pcent_threshold,
+            self.delete_pcent_threshold,
+        )
         copy._origin = self
         return copy
 

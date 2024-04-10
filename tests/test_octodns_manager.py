@@ -1294,6 +1294,23 @@ class TestManager(TestCase):
             requires_dummy.fetch(':hello', None),
         )
 
+    def test_zone_threshold(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+
+            manager = Manager(get_config_filename('zone-threshold.yaml'))
+
+            zone = manager.get_zone('unit.tests.')
+
+            self.assertEqual(0.2, zone.update_pcent_threshold)
+            self.assertEqual(0.1, zone.delete_pcent_threshold)
+
+            # subzone has different threshold
+            subzone = manager.get_zone('subzone.unit.tests.')
+
+            self.assertEqual(0.02, subzone.update_pcent_threshold)
+            self.assertEqual(0.01, subzone.delete_pcent_threshold)
+
 
 class TestMainThreadExecutor(TestCase):
     def test_success(self):

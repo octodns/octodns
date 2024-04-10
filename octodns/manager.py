@@ -1052,6 +1052,13 @@ class Manager(object):
         zone = self.config['zones'].get(zone_name)
         if zone is not None:
             sub_zones = self.configured_sub_zones(zone_name)
-            return Zone(idna_encode(zone_name), sub_zones)
+            update_pcent_threshold = zone.get("update_pcent_threshold", None)
+            delete_pcent_threshold = zone.get("delete_pcent_threshold", None)
+            return Zone(
+                idna_encode(zone_name),
+                sub_zones,
+                update_pcent_threshold,
+                delete_pcent_threshold,
+            )
 
         raise ManagerException(f'Unknown zone name {idna_decode(zone_name)}')
