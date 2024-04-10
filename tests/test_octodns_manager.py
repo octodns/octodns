@@ -1311,6 +1311,12 @@ class TestManager(TestCase):
             self.assertEqual(0.02, subzone.update_pcent_threshold)
             self.assertEqual(0.01, subzone.delete_pcent_threshold)
 
+            # test default of None to ensure Provider precedence
+            zone_with_defaults = manager.get_zone('defaultthresholds.tests.')
+
+            self.assertIsNone(zone_with_defaults.update_pcent_threshold)
+            self.assertIsNone(zone_with_defaults.delete_pcent_threshold)
+
 
 class TestMainThreadExecutor(TestCase):
     def test_success(self):

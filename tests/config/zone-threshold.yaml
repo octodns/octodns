@@ -26,3 +26,9 @@ zones:
     - in
     targets:
     - dump
+
+  defaultthresholds.tests.:
+    sources:
+    - in
+    targets:
+    - dump
