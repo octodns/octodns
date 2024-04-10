@@ -1,3 +1,9 @@
+## v1.?.? - 2024-??-?? - ????
+
+* Support for specifying per-zone change thresholds, to allow for zones
+  where lots of changes are expected frequently to live along side zones
+  where little or no churn is expected.
+
 ## v1.6.1 - 2024-03-17 - Didn't we do this already
 
 * Fix env var type handling that was previously fixed in 1.5.1 and then

@@ -1,0 +1,34 @@
+manager:
+  max_workers: 2
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+    strict_supports: False
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+    supports_root_ns: False
+    strict_supports: False
+zones:
+  unit.tests.:
+    update_pcent_threshold: 0.2
+    delete_pcent_threshold: 0.1
+    sources:
+      - in
+    targets:
+      - dump
+
+  subzone.unit.tests.:
+    update_pcent_threshold: 0.02
+    delete_pcent_threshold: 0.01
+    sources:
+    - in
+    targets:
+    - dump
+
+  defaultthresholds.tests.:
+    sources:
+    - in
+    targets:
+    - dump

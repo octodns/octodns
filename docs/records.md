@@ -126,7 +126,7 @@ If you'd like to enable lenience for a whole zone you can do so with the followi
 #### Restrict Record manipulations
 
 octoDNS currently provides the ability to limit the number of updates/deletes on
-DNS records by configuring a percentage of allowed operations as a threshold.
+DNS records by configuring a percentage of allowed operations as a provider threshold.
 If left unconfigured, suitable defaults take over instead. In the below example,
 the Dyn provider is configured with limits of 40% on both update and
 delete operations over all the records present.
@@ -137,6 +137,17 @@ dyn:
     update_pcent_threshold: 0.4
     delete_pcent_threshold: 0.4
 ````
+
+Additionally, thresholds can be configured at the zone level. Zone thresholds
+take precedence over any provider default or explicit configuration. Zone
+thresholds do not have a default.
+
+```yaml
+zones:
+  example.com.:
+    update_pcent_threshold: 0.2
+    delete_pcent_threshold: 0.1
+```
 
 ## Provider specific record types
 

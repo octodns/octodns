@@ -57,9 +57,16 @@ class Plan(object):
         # them and/or is as safe as possible.
         self.changes = sorted(changes)
         self.exists = exists
-        self.update_pcent_threshold = update_pcent_threshold
-        self.delete_pcent_threshold = delete_pcent_threshold
 
+        # Zone thresholds take precedence over provider
+        if existing and existing.update_pcent_threshold is not None:
+            self.update_pcent_threshold = existing.update_pcent_threshold
+        else:
+            self.update_pcent_threshold = update_pcent_threshold
+        if existing and existing.delete_pcent_threshold is not None:
+            self.delete_pcent_threshold = existing.delete_pcent_threshold
+        else:
+            self.delete_pcent_threshold = delete_pcent_threshold
         change_counts = {'Create': 0, 'Delete': 0, 'Update': 0}
         for change in changes:
             change_counts[change.__class__.__name__] += 1

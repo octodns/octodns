@@ -165,8 +165,27 @@ class TestPlanSafety(TestCase):
     record_4 = Record.new(
         existing, '4', data={'type': 'A', 'ttl': 42, 'value': '1.2.3.4'}
     )
+    record_5 = Record.new(
+        existing, '5', data={'type': 'A', 'ttl': 42, 'value': '1.2.3.4'}
+    )
+    record_6 = Record.new(
+        existing, '6', data={'type': 'A', 'ttl': 42, 'value': '1.2.3.4'}
+    )
+    record_7 = Record.new(
+        existing, '7', data={'type': 'A', 'ttl': 42, 'value': '1.2.3.4'}
+    )
+    record_8 = Record.new(
+        existing, '8', data={'type': 'A', 'ttl': 42, 'value': '1.2.3.4'}
+    )
 
-    def test_too_many_updates(self):
+    # manager loads the zone's config, so existing also holds providers & other config
+    update_threshold = 0.2
+    delete_threshold = 0.1
+    existing_with_thresholds = Zone(
+        'cautious.tests.', [], update_threshold, delete_threshold
+    )
+
+    def test_too_many_provider_updates(self):
         existing = self.existing.copy()
         changes = []
 
@@ -206,7 +225,46 @@ class TestPlanSafety(TestCase):
         plan = HelperPlan(existing, None, changes, True, min_existing=10)
         plan.raise_if_unsafe()
 
-    def test_too_many_deletes(self):
+    def test_too_many_zone_updates(self):
+        existing = self.existing_with_thresholds.copy()
+        changes = []
+
+        # No records, no changes, we're good
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        # Setup quite a few records, so that
+        # zone can be more cautious than provider's default
+        existing.add_record(self.record_1)
+        existing.add_record(self.record_2)
+        existing.add_record(self.record_3)
+        existing.add_record(self.record_4)
+        existing.add_record(self.record_5)
+        existing.add_record(self.record_6)
+        existing.add_record(self.record_7)
+        existing.add_record(self.record_8)
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        # One update is ok: 12.5% < 20%
+        changes.append(Update(self.record_1, self.record_1))
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        # Still ok, zone takes precedence
+        plan = HelperPlan(
+            existing, None, changes, True, update_pcent_threshold=0
+        )
+        plan.raise_if_unsafe()
+
+        # Two exceeds threshold, 25% > 20%
+        changes.append(Update(self.record_2, self.record_2))
+        plan = HelperPlan(existing, None, changes, True)
+        with self.assertRaises(TooMuchChange) as ctx:
+            plan.raise_if_unsafe()
+        self.assertTrue('Too many updates', str(ctx.exception))
+
+    def test_too_many_provider_deletes(self):
         existing = self.existing.copy()
         changes = []
 
@@ -245,6 +303,34 @@ class TestPlanSafety(TestCase):
         # If we require more records before applying we're still OK though
         plan = HelperPlan(existing, None, changes, True, min_existing=10)
         plan.raise_if_unsafe()
+
+    def test_too_many_zone_deletes(self):
+        existing = self.existing_with_thresholds.copy()
+        changes = []
+
+        # No records, no changes, we're good
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        # Setup quite a few records, so that
+        # zone can be more cautious than provider's default
+        existing.add_record(self.record_1)
+        existing.add_record(self.record_2)
+        existing.add_record(self.record_3)
+        existing.add_record(self.record_4)
+        existing.add_record(self.record_5)
+        existing.add_record(self.record_6)
+        existing.add_record(self.record_7)
+        existing.add_record(self.record_8)
+        plan = HelperPlan(existing, None, changes, True)
+        plan.raise_if_unsafe()
+
+        # One delete exceeds Zone threshold
+        changes.append(Delete(self.record_1))
+        plan = HelperPlan(existing, None, changes, True)
+        with self.assertRaises(TooMuchChange) as ctx:
+            plan.raise_if_unsafe()
+        self.assertTrue('Too many deletes', str(ctx.exception))
 
     def test_root_ns_change(self):
         existing = self.existing.copy()
