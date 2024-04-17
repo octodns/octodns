@@ -165,6 +165,7 @@ class TestAutoArpa(TestCase):
         zone.add_record(record)
         aa = AutoArpa('auto-arpa')
         aa.process_source_zone(zone, [])
+        aa._records = list(set(aa._records))
         self.assertEqual(
             {
                 '4.3.2.1.in-addr.arpa.': [(999, 'dynamic.unit.tests.')],

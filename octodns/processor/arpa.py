@@ -41,8 +41,6 @@ class AutoArpa(BaseProcessor):
                     ptr = ip_address(ip).reverse_pointer
                     auto_arpa_priority = record.octodns.get('auto_arpa_priority', 999)
                     self._records[f'{ptr}.'].append((auto_arpa_priority, record.fqdn))
-                    unique_list = list(set(self._records[f'{ptr}.']))
-                    self._records[f'{ptr}.'] = unique_list
 
         return desired
 
@@ -61,6 +59,7 @@ class AutoArpa(BaseProcessor):
         for arpa, fqdns in self._records.items():
             if arpa.endswith(f'.{zone_name}'):
                 name = arpa[:-n]
+                fqdns = list(set(fqdns))
                 fqdns = sorted(fqdns)
                 fqdns = [d[1] for d in fqdns]
                 fqdns = fqdns[:self.max_auto_arpa]
