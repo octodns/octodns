@@ -94,6 +94,17 @@ octoDNS is fairly strict in terms of standards compliance and is opinionated in 
 
 It's best to think of the `lenient` flag as "I know what I'm doing and accept any problems I run across." The main reason being is that some providers may allow the non-compliant setup and others may not. The behavior of the non-compliant records may even vary from one provider to another. Caveat emptor.
 
+#### Record priority for AutoArpa
+When multiple A or AAAA records point to the same IP, it is possible to set an optional priority on each record. The records with the lowest priority will have the highest preference when being processed by AutoArpa. The AutoArpa provider will create PTR records in order of preference, up to a set limit defined by the `max_auto_arpa` option in the provider configuration.
+
+```yaml
+test:
+- type: A
+  value: 1.2.3.4
+  octodns:
+    auto_arpa_priority: 1
+```
+
 #### octodns-dump
 
 If you're trying to import a zone into octoDNS config file using `octodns-dump` which fails due to validation errors you can supply the `--lenient` argument to tell octoDNS that you acknowledge that things aren't lining up with its expectations, but you'd like it to go ahead anyway. This will do its best to populate the zone and dump the results out into an octoDNS zone file and include the non-compliant bits. If you go to use that config file octoDNS will again complain about the validation problems. You can correct them in cases where that makes sense, but if you need to preserve the non-compliant records read on for options.

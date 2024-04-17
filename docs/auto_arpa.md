@@ -19,6 +19,8 @@ manager:
     populate_should_replace: false
     # Explicitly set the TTL of auto-created records, default is 3600s, 1hr
     ttl: 1800
+    # Set how many PTR records will be created for the same IP, default: 999
+    max_auto_arpa: 1
 ```
 
 Once enabled, a singleton `AutoArpa` instance, `auto-arpa`, will be added to the pool of providers and globally configured to run as the very last global processor so that it will see all records as they will be seen by targets. Further all zones ending with `arpa.` will be held back and processed after all other zones have been completed so that all `A` and `AAAA` records will have been seen prior to planning the `arpa.` zones.

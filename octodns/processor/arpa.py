@@ -11,17 +11,19 @@ from .base import BaseProcessor
 
 
 class AutoArpa(BaseProcessor):
-    def __init__(self, name, ttl=3600, populate_should_replace=False):
+    def __init__(self, name, ttl=3600, populate_should_replace=False, max_auto_arpa=999):
         super().__init__(name)
         self.log = getLogger(f'AutoArpa[{name}]')
         self.log.info(
-            '__init__: ttl=%d, populate_should_replace=%s',
+            '__init__: ttl=%d, populate_should_replace=%s, max_auto_arpa=%d',
             ttl,
             populate_should_replace,
+            max_auto_arpa
         )
         self.ttl = ttl
         self.populate_should_replace = populate_should_replace
-        self._records = defaultdict(set)
+        self.max_auto_arpa = max_auto_arpa
+        self._records = defaultdict(list)
 
     def process_source_zone(self, desired, sources):
         for record in desired.records:
@@ -37,7 +39,10 @@ class AutoArpa(BaseProcessor):
 
                 for ip in ips:
                     ptr = ip_address(ip).reverse_pointer
-                    self._records[f'{ptr}.'].add(record.fqdn)
+                    auto_arpa_priority = record.octodns.get('auto_arpa_priority', 999)
+                    self._records[f'{ptr}.'].append((auto_arpa_priority, record.fqdn))
+                    unique_list = list(set(self._records[f'{ptr}.']))
+                    self._records[f'{ptr}.'] = unique_list
 
         return desired
 
@@ -57,6 +62,9 @@ class AutoArpa(BaseProcessor):
             if arpa.endswith(f'.{zone_name}'):
                 name = arpa[:-n]
                 fqdns = sorted(fqdns)
+                fqdns = [d[1] for d in fqdns]
+                fqdns = fqdns[:self.max_auto_arpa]
+
                 record = Record.new(
                     zone,
                     name,
