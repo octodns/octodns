@@ -51,8 +51,8 @@ class AutoArpa(BaseProcessor):
         return desired
 
     def _order_and_unique_fqdns(self, fqdns, max_auto_arpa):
-        fqdns = sorted(fqdns)
         seen = set()
+        # order the fqdns making a copy so we can reset the list below
         ordered = sorted(fqdns)
         fqdns = []
         for _, fqdn in ordered:

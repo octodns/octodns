@@ -281,6 +281,23 @@ class TestAutoArpa(TestCase):
             aa._order_and_unique_fqdns(duplicate_values, max_auto_arpa=999),
         )
 
+        duplicate_values = [
+            (50, 'd.unit.tests.'),
+            (999, 'dup.unit.tests.'),
+            (3, 'a.unit.tests.'),
+            (1, 'dup.unit.tests.'),
+            (2, 'c.unit.tests.'),
+        ]
+        self.assertEqual(
+            [
+                'dup.unit.tests.',
+                'c.unit.tests.',
+                'a.unit.tests.',
+                'd.unit.tests.',
+            ],
+            aa._order_and_unique_fqdns(duplicate_values, max_auto_arpa=999),
+        )
+
         duplicate_values_2 = [(999, 'a.unit.tests.'), (999, 'a.unit.tests.')]
         self.assertEqual(
             ['a.unit.tests.'],
