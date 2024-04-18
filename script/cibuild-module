@@ -15,12 +15,14 @@ VENV_PYTHON=$(command -v python3)
 VENV_NAME="${TMP_DIR}/env"
 "$VENV_PYTHON" -m venv "$VENV_NAME"
 . "${VENV_NAME}/bin/activate"
-pip install setuptools
+pip install build setuptools
 echo "## environment & versions ######################################################"
 python --version
 pip --version
 echo "## install octodns from pwd ####################################################"
-python setup.py install
+VERSION="$(grep "^__version__" "./octodns/__init__.py" | sed -e "s/.* = '//" -e "s/'$//")"
+python -m build --sdist --wheel
+pip install dist/*$VERSION*.whl
 echo "## checkout provider module ####################################################"
 cd $TMP_DIR
 git clone "https://github.com/${module}.git"
