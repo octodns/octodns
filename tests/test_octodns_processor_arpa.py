@@ -27,7 +27,7 @@ class TestAutoArpa(TestCase):
         aa = AutoArpa('auto-arpa')
         aa.process_source_zone(zone, [])
         self.assertEqual(
-            {'4.3.2.1.in-addr.arpa.': {'a.unit.tests.'}}, aa._records
+            {'4.3.2.1.in-addr.arpa.': [(999, 'a.unit.tests.')]}, aa._records
         )
 
         # matching zone
@@ -56,8 +56,8 @@ class TestAutoArpa(TestCase):
         aa.process_source_zone(zone, [])
         self.assertEqual(
             {
-                '4.3.2.1.in-addr.arpa.': {'a.unit.tests.'},
-                '5.3.2.1.in-addr.arpa.': {'a.unit.tests.'},
+                '4.3.2.1.in-addr.arpa.': [(999, 'a.unit.tests.')],
+                '5.3.2.1.in-addr.arpa.': [(999, 'a.unit.tests.')],
             },
             aa._records,
         )
@@ -81,7 +81,7 @@ class TestAutoArpa(TestCase):
         aa = AutoArpa('auto-arpa')
         aa.process_source_zone(zone, [])
         ip6_arpa = '2.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.c.0.0.0.f.f.0.0.ip6.arpa.'
-        self.assertEqual({ip6_arpa: {'aaaa.unit.tests.'}}, aa._records)
+        self.assertEqual({ip6_arpa: [(999, 'aaaa.unit.tests.')]}, aa._records)
 
         # matching zone
         arpa = Zone('c.0.0.0.f.f.0.0.ip6.arpa.', [])
@@ -117,13 +117,13 @@ class TestAutoArpa(TestCase):
         aa.process_source_zone(zone, [])
         self.assertEqual(
             {
-                '1.1.1.1.in-addr.arpa.': {'geo.unit.tests.'},
-                '2.2.2.2.in-addr.arpa.': {'geo.unit.tests.'},
-                '3.3.3.3.in-addr.arpa.': {'geo.unit.tests.'},
-                '4.4.4.4.in-addr.arpa.': {'geo.unit.tests.'},
-                '5.5.5.5.in-addr.arpa.': {'geo.unit.tests.'},
-                '4.3.2.1.in-addr.arpa.': {'geo.unit.tests.'},
-                '5.3.2.1.in-addr.arpa.': {'geo.unit.tests.'},
+                '4.3.2.1.in-addr.arpa.': [(999, 'geo.unit.tests.')],
+                '5.3.2.1.in-addr.arpa.': [(999, 'geo.unit.tests.')],
+                '1.1.1.1.in-addr.arpa.': [(999, 'geo.unit.tests.')],
+                '2.2.2.2.in-addr.arpa.': [(999, 'geo.unit.tests.')],
+                '3.3.3.3.in-addr.arpa.': [(999, 'geo.unit.tests.')],
+                '4.4.4.4.in-addr.arpa.': [(999, 'geo.unit.tests.')],
+                '5.5.5.5.in-addr.arpa.': [(999, 'geo.unit.tests.')],
             },
             aa._records,
         )
@@ -165,16 +165,18 @@ class TestAutoArpa(TestCase):
         zone.add_record(record)
         aa = AutoArpa('auto-arpa')
         aa.process_source_zone(zone, [])
-        self.assertEqual(
-            {
-                '3.3.3.3.in-addr.arpa.': {'dynamic.unit.tests.'},
-                '4.4.4.4.in-addr.arpa.': {'dynamic.unit.tests.'},
-                '5.5.5.5.in-addr.arpa.': {'dynamic.unit.tests.'},
-                '4.3.2.1.in-addr.arpa.': {'dynamic.unit.tests.'},
-                '5.3.2.1.in-addr.arpa.': {'dynamic.unit.tests.'},
-            },
-            aa._records,
-        )
+        zones = [
+            '4.3.2.1.in-addr.arpa.',
+            '5.3.2.1.in-addr.arpa.',
+            '3.3.3.3.in-addr.arpa.',
+            '4.4.4.4.in-addr.arpa.',
+            '5.5.5.5.in-addr.arpa.',
+        ]
+        for zone in zones:
+            unique_values = aa._order_and_unique_fqdns(
+                aa._records[f'{zone}'], 999
+            )
+            self.assertEqual([('dynamic.unit.tests.')], unique_values)
 
     def test_multiple_names(self):
         zone = Zone('unit.tests.', [])
@@ -188,9 +190,15 @@ class TestAutoArpa(TestCase):
         zone.add_record(record2)
         aa = AutoArpa('auto-arpa')
         aa.process_source_zone(zone, [])
+        sorted_records = sorted(aa._records['4.3.2.1.in-addr.arpa.'])
         self.assertEqual(
-            {'4.3.2.1.in-addr.arpa.': {'a1.unit.tests.', 'a2.unit.tests.'}},
-            aa._records,
+            {
+                '4.3.2.1.in-addr.arpa.': [
+                    (999, 'a1.unit.tests.'),
+                    (999, 'a2.unit.tests.'),
+                ]
+            },
+            {'4.3.2.1.in-addr.arpa.': sorted_records},
         )
 
         # matching zone
@@ -211,7 +219,7 @@ class TestAutoArpa(TestCase):
         aa = AutoArpa('auto-arpa')
         aa.process_source_zone(zone, [])
         self.assertEqual(
-            {'4.3.20.10.in-addr.arpa.': {'a.unit.tests.'}}, aa._records
+            {'4.3.20.10.in-addr.arpa.': [(999, 'a.unit.tests.')]}, aa._records
         )
 
         # matching zone
@@ -251,7 +259,7 @@ class TestAutoArpa(TestCase):
         aa = AutoArpa('auto-arpa')
         aa.process_source_zone(zone, [])
         self.assertEqual(
-            {'4.3.2.1.in-addr.arpa.': {'a with spaces.unit.tests.'}},
+            {'4.3.2.1.in-addr.arpa.': [(999, 'a with spaces.unit.tests.')]},
             aa._records,
         )
 
@@ -263,3 +271,47 @@ class TestAutoArpa(TestCase):
         self.assertEqual('4.3.2.1.in-addr.arpa.', ptr.fqdn)
         self.assertEqual(record.fqdn, ptr.value)
         self.assertEqual(3600, ptr.ttl)
+
+    def test_arpa_priority(self):
+        aa = AutoArpa('auto-arpa')
+
+        duplicate_values = [(999, 'a.unit.tests.'), (1, 'a.unit.tests.')]
+        self.assertEqual(
+            ['a.unit.tests.'],
+            aa._order_and_unique_fqdns(duplicate_values, max_auto_arpa=999),
+        )
+
+        duplicate_values = [
+            (50, 'd.unit.tests.'),
+            (999, 'dup.unit.tests.'),
+            (3, 'a.unit.tests.'),
+            (1, 'dup.unit.tests.'),
+            (2, 'c.unit.tests.'),
+        ]
+        self.assertEqual(
+            [
+                'dup.unit.tests.',
+                'c.unit.tests.',
+                'a.unit.tests.',
+                'd.unit.tests.',
+            ],
+            aa._order_and_unique_fqdns(duplicate_values, max_auto_arpa=999),
+        )
+
+        duplicate_values_2 = [(999, 'a.unit.tests.'), (999, 'a.unit.tests.')]
+        self.assertEqual(
+            ['a.unit.tests.'],
+            aa._order_and_unique_fqdns(duplicate_values_2, max_auto_arpa=999),
+        )
+
+        ordered_values = [(999, 'a.unit.tests.'), (1, 'b.unit.tests.')]
+        self.assertEqual(
+            ['b.unit.tests.', 'a.unit.tests.'],
+            aa._order_and_unique_fqdns(ordered_values, max_auto_arpa=999),
+        )
+
+        max_one_value = [(999, 'a.unit.tests.'), (1, 'b.unit.tests.')]
+        self.assertEqual(
+            ['b.unit.tests.'],
+            aa._order_and_unique_fqdns(max_one_value, max_auto_arpa=1),
+        )

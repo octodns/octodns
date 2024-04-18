@@ -3,6 +3,7 @@
 * Support for specifying per-zone change thresholds, to allow for zones
   where lots of changes are expected frequently to live along side zones
   where little or no churn is expected.
+* AutoArpa gained support for prioritizing values
 
 ## v1.6.1 - 2024-03-17 - Didn't we do this already
 
