@@ -44,6 +44,20 @@ class AutoArpa(BaseProcessor):
 
         return desired
 
+    def _order_and_unique_fqdns(self, fqdns, max_auto_arpa):
+        fqdns = sorted(fqdns)
+        seen = set()
+        ordered = sorted(fqdns)
+        fqdns = []
+        for _, fqdn in ordered:
+            if fqdn in seen:
+                continue
+            fqdns.append(fqdn)
+            seen.add(fqdn)
+            if len(seen) >= max_auto_arpa:
+                break
+        return fqdns
+
     def populate(self, zone, target=False, lenient=False):
         self.log.debug(
             'populate: name=%s, target=%s, lenient=%s',
@@ -59,11 +73,8 @@ class AutoArpa(BaseProcessor):
         for arpa, fqdns in self._records.items():
             if arpa.endswith(f'.{zone_name}'):
                 name = arpa[:-n]
-                fqdns = list(set(fqdns))
-                fqdns = sorted(fqdns)
-                fqdns = [d[1] for d in fqdns]
-                fqdns = fqdns[:self.max_auto_arpa]
-
+                # Note: this takes a list of (priority, fqdn) tuples and returns the ordered and uniqified list of fqdns.
+                fqdns = self._order_and_unique_fqdns(fqdns, self.max_auto_arpa)
                 record = Record.new(
                     zone,
                     name,
