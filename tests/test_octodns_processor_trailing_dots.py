@@ -10,6 +10,11 @@ from octodns.processor.trailing_dots import (
     _no_trailing_dot,
 )
 from octodns.record import Record
+from octodns.record.alias import AliasValue
+from octodns.record.cname import CnameValue
+from octodns.record.dname import DnameValue
+from octodns.record.ns import NsValue
+from octodns.record.ptr import PtrValue
 from octodns.zone import Zone
 
 
@@ -37,22 +42,61 @@ class EnsureTrailingDotsTest(TestCase):
         zone.add_record(missing)
 
         got = etd.process_source_zone(zone, None)
+
         self.assertEqual('absolute.target.', _find(got, 'has').value)
         self.assertEqual('relative.target.', _find(got, 'missing').value)
+        # ensure types were preserved
+        self.assertIsInstance(_find(got, 'has').value, CnameValue)
+        self.assertIsInstance(_find(got, 'missing').value, CnameValue)
 
-        # HACK: this should never be done to records outside of specific testing
-        # situations like this
-        has._type = 'ALIAS'
-        missing._type = 'ALIAS'
+    def test_alias(self):
+        etd = EnsureTrailingDots('test')
+
+        zone = Zone('unit.tests.', [])
+        has = Record.new(
+            zone,
+            'has',
+            {'type': 'ALIAS', 'ttl': 42, 'value': 'absolute.target.'},
+            lenient=True,
+        )
+        zone.add_record(has)
+        missing = Record.new(
+            zone,
+            'missing',
+            {'type': 'ALIAS', 'ttl': 42, 'value': 'relative.target'},
+            lenient=True,
+        )
+        zone.add_record(missing)
+
         got = etd.process_source_zone(zone, None)
         self.assertEqual('absolute.target.', _find(got, 'has').value)
         self.assertEqual('relative.target.', _find(got, 'missing').value)
+        self.assertIsInstance(_find(got, 'has').value, AliasValue)
+        self.assertIsInstance(_find(got, 'missing').value, AliasValue)
 
-        has._type = 'DNAME'
-        missing._type = 'DNAME'
+    def test_dname(self):
+        etd = EnsureTrailingDots('test')
+
+        zone = Zone('unit.tests.', [])
+        has = Record.new(
+            zone,
+            'has',
+            {'type': 'DNAME', 'ttl': 42, 'value': 'absolute.target.'},
+        )
+        zone.add_record(has)
+        missing = Record.new(
+            zone,
+            'missing',
+            {'type': 'DNAME', 'ttl': 42, 'value': 'relative.target'},
+            lenient=True,
+        )
+        zone.add_record(missing)
+
         got = etd.process_source_zone(zone, None)
         self.assertEqual('absolute.target.', _find(got, 'has').value)
         self.assertEqual('relative.target.', _find(got, 'missing').value)
+        self.assertIsInstance(_find(got, 'has').value, DnameValue)
+        self.assertIsInstance(_find(got, 'missing').value, DnameValue)
 
     def test_mx(self):
         etd = EnsureTrailingDots('test')
@@ -114,13 +158,48 @@ class EnsureTrailingDotsTest(TestCase):
         got = etd.process_source_zone(zone, None)
         got = next(iter(got.records))
         self.assertEqual(['absolute.target.', 'relative.target.'], got.values)
+        self.assertIsInstance(got.values[0], NsValue)
+        self.assertIsInstance(got.values[1], NsValue)
 
-        # HACK: this should never be done to records outside of specific testing
-        # situations like this
-        record._type = 'PTR'
+        # again, but this time nothing to fix so that we fully use up the
+        # generator
+        zone = Zone('unit.tests.', [])
+        record = Record.new(
+            zone,
+            'record',
+            {
+                'type': 'NS',
+                'ttl': 42,
+                'values': ['absolute.target.', 'another.target.'],
+            },
+        )
+        zone.add_record(record)
+
+        got = etd.process_source_zone(zone, None)
+        got = next(iter(got.records))
+        self.assertEqual(['absolute.target.', 'another.target.'], got.values)
+
+    def test_ptr(self):
+        etd = EnsureTrailingDots('test')
+
+        zone = Zone('unit.tests.', [])
+        record = Record.new(
+            zone,
+            'record',
+            {
+                'type': 'PTR',
+                'ttl': 42,
+                'values': ['absolute.target.', 'relative.target'],
+            },
+            lenient=True,
+        )
+        zone.add_record(record)
+
         got = etd.process_source_zone(zone, None)
         got = next(iter(got.records))
         self.assertEqual(['absolute.target.', 'relative.target.'], got.values)
+        self.assertIsInstance(got.values[0], PtrValue)
+        self.assertIsInstance(got.values[1], PtrValue)
 
     def test_srv(self):
         etd = EnsureTrailingDots('test')
