@@ -12,7 +12,12 @@ from .base import BaseProcessor
 
 class AutoArpa(BaseProcessor):
     def __init__(
-        self, name, ttl=3600, populate_should_replace=False, max_auto_arpa=999, inherit_ttl=False
+        self,
+        name,
+        ttl=3600,
+        populate_should_replace=False,
+        max_auto_arpa=999,
+        inherit_ttl=False,
     ):
         super().__init__(name)
         self.log = getLogger(f'AutoArpa[{name}]')
@@ -61,10 +66,10 @@ class AutoArpa(BaseProcessor):
         # order the fqdns making a copy so we can reset the list below
         ordered = sorted(fqdns)
         fqdns = []
-        for _, _, fqdn in ordered:
+        for _, record_ttl, fqdn in ordered:
             if fqdn in seen:
                 continue
-            fqdns.append(fqdn)
+            fqdns.append((record_ttl, fqdn))
             seen.add(fqdn)
             if len(seen) >= max_auto_arpa:
                 break
@@ -85,13 +90,16 @@ class AutoArpa(BaseProcessor):
         for arpa, fqdns in self._records.items():
             if arpa.endswith(f'.{zone_name}'):
                 name = arpa[:-n]
-                _, record_ttl, _ = fqdns[0]
-                # Note: this takes a list of (priority, fqdn) tuples and returns the ordered and uniqified list of fqdns.
+                # Note: this takes a list of (priority, ttl, fqdn) tuples and returns the ordered and uniqified list of fqdns.
                 fqdns = self._order_and_unique_fqdns(fqdns, self.max_auto_arpa)
                 record = Record.new(
                     zone,
                     name,
-                    {'ttl': record_ttl, 'type': 'PTR', 'values': fqdns},
+                    {
+                        'ttl': fqdns[0][0],
+                        'type': 'PTR',
+                        'values': [fqdn[1] for fqdn in fqdns],
+                    },
                     lenient=lenient,
                 )
                 zone.add_record(
@@ -99,7 +107,6 @@ class AutoArpa(BaseProcessor):
                     replace=self.populate_should_replace,
                     lenient=lenient,
                 )
-
         self.log.info(
             'populate:   found %s records', len(zone.records) - before
         )
