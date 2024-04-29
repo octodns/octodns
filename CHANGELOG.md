@@ -4,6 +4,8 @@
   where lots of changes are expected frequently to live along side zones
   where little or no churn is expected.
 * AutoArpa gained support for prioritizing values
+* Fix for EnsureTrailingDots reverting value types back to strings which then
+  failed when rr methods were used on them (e.g. w/octodns-bind)
 
 ## v1.6.1 - 2024-03-17 - Didn't we do this already
 
