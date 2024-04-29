@@ -1,4 +1,4 @@
-## v1.?.? - 2024-??-?? - ????
+## v1.7.0 - 2024-04-29 - All the knobs and dials
 
 * Support for specifying per-zone change thresholds, to allow for zones
   where lots of changes are expected frequently to live along side zones
