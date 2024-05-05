@@ -13,7 +13,8 @@ class CaaValue(EqualityTupleMixin, dict):
     @classmethod
     def parse_rdata_text(cls, value):
         try:
-            flags, tag, value = value.split(' ')
+            # value may contain whitepsace
+            flags, tag, value = value.split(' ', 2)
         except ValueError:
             raise RrParseError()
         try:
