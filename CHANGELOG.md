@@ -1,3 +1,7 @@
+## v1.?.? - 2024-??-?? - ???
+
+* Fix CAA rdata parsing to allow values with tags
+
 ## v1.7.0 - 2024-04-29 - All the knobs and dials
 
 * Support for specifying per-zone change thresholds, to allow for zones

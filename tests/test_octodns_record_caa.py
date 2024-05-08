@@ -41,7 +41,7 @@ class TestRecordCaa(TestCase):
         self.assertEqual(a_data, a.data)
 
         b_value = CaaValue(
-            {'tag': 'iodef', 'value': 'http://iodef.example.com/'}
+            {'tag': 'iodef', 'value': 'http://iodef.example.com/; key=value'}
         )
         b_data = {'ttl': 30, 'value': b_value}
         b = CaaRecord(self.zone, 'b', b_data)
@@ -89,10 +89,6 @@ class TestRecordCaa(TestCase):
         with self.assertRaises(RrParseError):
             CaaValue.parse_rdata_text('0 tag')
 
-        # 4th word won't parse
-        with self.assertRaises(RrParseError):
-            CaaValue.parse_rdata_text('1 tag value another')
-
         # flags not an int, will parse
         self.assertEqual(
             {'flags': 'one', 'tag': 'tag', 'value': 'value'},
@@ -105,10 +101,22 @@ class TestRecordCaa(TestCase):
             CaaValue.parse_rdata_text('0 tag 99148c81'),
         )
 
+        # 4th word will parse, and be part of the value
+        self.assertEqual(
+            {'flags': 1, 'tag': 'tag', 'value': 'value another'},
+            CaaValue.parse_rdata_text('1 tag value another'),
+        )
+
         # quoted
         self.assertEqual(
             {'flags': 0, 'tag': 'tag', 'value': '99148c81'},
             CaaValue.parse_rdata_text('0 "tag" "99148c81"'),
+        )
+
+        # quoted w/4th word
+        self.assertEqual(
+            {'flags': 0, 'tag': 'tag', 'value': '99148c81 key=val'},
+            CaaValue.parse_rdata_text('0 "tag" "99148c81 key=val"'),
         )
 
         zone = Zone('unit.tests.', [])
