@@ -34,6 +34,7 @@ class _ChunkedValuesMixin(ValuesMixin):
 
 class _ChunkedValue(str):
     _unescaped_semicolon_re = re.compile(r'\w;')
+    _chunk_sep_re = re.compile(r'"\s+"')
 
     @classmethod
     def parse_rdata_text(cls, value):
@@ -62,9 +63,11 @@ class _ChunkedValue(str):
     def process(cls, values):
         ret = []
         for v in values:
+            # remove leading/trailing whitespace
+            v = v.strip()
             if v and v[0] == '"':
                 v = v[1:-1]
-            ret.append(cls(v.replace('" "', '')))
+            ret.append(cls(cls._chunk_sep_re.sub('', v)))
         return ret
 
     @property
