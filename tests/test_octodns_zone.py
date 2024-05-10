@@ -346,6 +346,91 @@ class TestZone(TestCase):
         zone.add_record(record)
         self.assertEqual(1, len(zone.records))
 
+        # DS record for exactly the sub is allowed
+        zone = Zone('unit.tests.', set(['sub', 'barred']))
+        record = Record.new(
+            zone,
+            'sub',
+            {
+                'ttl': 3600,
+                'type': 'DS',
+                'values': [
+                    {
+                        'key_tag': 60485,
+                        'algorithm': 5,
+                        'digest_type': 1,
+                        'digest': '2BB183AF5F22588179A53B0A 98631FAD1A292118',
+                    },
+                    {
+                        'key_tag': 60485,
+                        'algorithm': 5,
+                        'digest_type': 1,
+                        'digest': '2BB183AF5F22588179A53B0A 98631FAD1A292119',
+                    },
+                ],
+            },
+        )
+        zone.add_record(record)
+        self.assertEqual(set([record]), zone.records)
+
+        # DS record for something below the sub is rejected
+        zone = Zone('unit.tests.', set(['sub', 'barred']))
+        record = Record.new(
+            zone,
+            'foo.bar.sub',
+            {
+                'ttl': 3600,
+                'type': 'DS',
+                'values': [
+                    {
+                        'key_tag': 60485,
+                        'algorithm': 5,
+                        'digest_type': 1,
+                        'digest': '2BB183AF5F22588179A53B0A 98631FAD1A292118',
+                    },
+                    {
+                        'key_tag': 60485,
+                        'algorithm': 5,
+                        'digest_type': 1,
+                        'digest': '2BB183AF5F22588179A53B0A 98631FAD1A292119',
+                    },
+                ],
+            },
+        )
+        with self.assertRaises(SubzoneRecordException) as ctx:
+            zone.add_record(record)
+        self.assertTrue('under a managed sub-zone', str(ctx.exception))
+        # Can add it w/lenient
+        zone.add_record(record, lenient=True)
+        self.assertEqual(set([record]), zone.records)
+
+        # DS record that happens to end with a string that matches a sub (no .) is OK
+        zone = Zone('unit.tests.', set(['sub', 'barred']))
+        record = Record.new(
+            zone,
+            'foo.bar_sub',
+            {
+                'ttl': 3600,
+                'type': 'DS',
+                'values': [
+                    {
+                        'key_tag': 60485,
+                        'algorithm': 5,
+                        'digest_type': 1,
+                        'digest': '2BB183AF5F22588179A53B0A 98631FAD1A292118',
+                    },
+                    {
+                        'key_tag': 60485,
+                        'algorithm': 5,
+                        'digest_type': 1,
+                        'digest': '2BB183AF5F22588179A53B0A 98631FAD1A292119',
+                    },
+                ],
+            },
+        )
+        zone.add_record(record)
+        self.assertEqual(1, len(zone.records))
+
     def test_ignored_records(self):
         zone_normal = Zone('unit.tests.', [])
         zone_ignored = Zone('unit.tests.', [])

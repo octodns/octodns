@@ -10,6 +10,7 @@ octoDNS supports the following record types:
 * `CAA`
 * `CNAME`
 * `DNAME`
+* `DS`
 * `LOC`
 * `MX`
 * `NAPTR`
