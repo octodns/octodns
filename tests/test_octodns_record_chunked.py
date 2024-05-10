@@ -4,7 +4,8 @@
 
 from unittest import TestCase
 
-from octodns.record.chunked import _ChunkedValue
+from octodns.record.chunked import _ChunkedValue, _parse
+from octodns.record.rr import RrParseError
 from octodns.record.spf import SpfRecord
 from octodns.zone import Zone
 
@@ -21,15 +22,39 @@ class TestRecordChunked(TestCase):
             'some.words.that.here',
             '1.2.word.4',
             '1.2.3.4',
-            # quotes are not removed
-            '"Hello World!"',
         ):
             self.assertEqual(s, _ChunkedValue.parse_rdata_text(s))
 
+        # quotes are removed
+        s = '"Hello World!"'
+        self.assertEqual(s.replace('"', ''), _ChunkedValue.parse_rdata_text(s))
+
         # semi-colons are escaped
         self.assertEqual(
-            'Hello\\; World!', _ChunkedValue.parse_rdata_text('Hello; World!')
+            'Hello\\; World!', _ChunkedValue.parse_rdata_text('"Hello; World!"')
         )
+
+        # unquoted whitespace seperated pieces are concatenated
+        self.assertEqual(
+            'thisrunstogether',
+            _ChunkedValue.parse_rdata_text('this runs\ttogether'),
+        )
+
+        # mix of quoted and unquoted
+        self.assertEqual(
+            'This is quoted andthisisnot, this is back to being quoted',
+            _ChunkedValue.parse_rdata_text(
+                '"This is quoted " and this is not ", this is back to being quoted"'
+            ),
+        )
+
+        for s in (
+            '"no closing quote',
+            '"no closing quote ',
+            '"no closing \\" quote',
+        ):
+            with self.assertRaises(RrParseError):
+                _ChunkedValue.parse_rdata_text(s)
 
         # since we're always a string validate and __init__ don't
         # parse_rdata_text
@@ -68,6 +93,81 @@ class TestChunkedValue(TestCase):
             _ChunkedValue.validate('Déjà vu', 'TXT'),
         )
 
+    def test_quoted(self):
+        # test escaped double quotes
+        for value, expected in (
+            (
+                '"This is a quoted string with escaped \\"quotes\\""',
+                'This is a quoted string with escaped "quotes"',
+            ),
+        ):
+            chunked = _ChunkedValue.process([value])
+            self.assertEqual(1, len(chunked))
+            chunked = chunked[0]
+            self.assertEqual(expected, chunked)
+
+        # all whitespace
+        chunked = _ChunkedValue.process(['"  \t\t"'])
+        self.assertEqual(1, len(chunked))
+        self.assertEqual('  \t\t', chunked[0])
+
+        # TODO: missing closing quote
+        value = '"This is quoted, but has no end'
+        chunked = _ChunkedValue.process([value])
+        self.assertEqual(1, len(chunked))
+        self.assertEqual(value[1:], chunked[0])
+
+        # TODO: missing opening quote
+
+    def test_unquoted(self):
+        for value in (
+            'This is not quoted',
+            ' This has leading space',
+            '  This has leading spaces',
+            '\tThis has a leading tab',
+            '\t\tThis has leading tabs',
+            ' \tThis has leading tabs',
+            'This has trailing space ',
+            'This has trailing spaces  ',
+            'This has a trailing tab\t',
+            'This has trailing tabs\t\t',
+            ' \tThis has leading tabs\t ',
+            ' This has leading and trailing space ',
+            '  This has leading and trailing space  ',
+            '\tThis has a leading and trailing tab\t',
+            '\t\tThis has leading and trailing tabs\t\t',
+            'This has a quote " in the middle',
+        ):
+            chunked = _ChunkedValue.process([value])
+            self.assertEqual(1, len(chunked))
+            self.assertEqual(value.strip(), chunked[0])
+
+        # all whitespace
+        chunked = _ChunkedValue.process(['   '])
+        self.assertEqual(1, len(chunked))
+        self.assertEqual('', chunked[0])
+
+    def test_spec_unquoted(self):
+        for value in (
+            'This is not quoted',
+            ' This has leading space',
+            '  This has leading spaces',
+            '\tThis has a leading tab',
+            '\t\tThis has leading tabs',
+            ' \tThis has leading tabs',
+            'This has trailing space ',
+            'This has trailing spaces  ',
+            'This has a trailing tab\t',
+            'This has trailing tabs\t\t',
+            ' \tThis has leading tabs\t ',
+            ' This has leading and trailing space ',
+            '  This has leading and trailing space  ',
+            '\tThis has a leading and trailing tab\t',
+            '\t\tThis has leading and trailing tabs\t\t',
+        ):
+            parsed = list(_parse(value, spec_unquoted=True))
+            self.assertEqual(value.strip().split(), parsed)
+
     def test_large_values(self):
         # There is additional testing in TXT
 
@@ -100,7 +200,7 @@ class TestChunkedValue(TestCase):
         )
         self.assertEqual(dechunked_value, chunked)
 
-        # already dechunked, noop
+        # non-quoted is a no-op
         chunked = _ChunkedValue.process([dechunked_value])[0]
         self.assertEqual(dechunked_value, chunked)
 
@@ -153,7 +253,7 @@ class TestChunkedValue(TestCase):
         # ~real world test case
         values = [
             'before',
-            ' "v=DKIM1\\; h=sha256\\; k=rsa\\; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx78E7PtJvr8vpoNgHdIAe+llFKoy8WuTXDd6Z5mm3D4AUva9MBt5fFetxg/kcRy3KMDnMw6kDybwbpS/oPw1ylk6DL1xit7Cr5xeYYSWKukxXURAlHwT2K72oUsFKRUvN1X9lVysAeo+H8H/22Z9fJ0P30sOuRIRqCaiz+OiUYicxy4x"   "rpfH2s9a+o3yRwX3zhlp8GjRmmmyK5mf7CkQTCfjnKVsYtB7mabXXmClH9tlcymnBMoN9PeXxaS5JRRysVV8RBCC9/wmfp9y//cck8nvE/MavFpSUHvv+TfTTdVKDlsXPjKX8iZQv0nO3xhspgkqFquKjydiR8nf4meHhwIDAQAB"  ',
+            '"v=DKIM1\\; h=sha256\\; k=rsa\\; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx78E7PtJvr8vpoNgHdIAe+llFKoy8WuTXDd6Z5mm3D4AUva9MBt5fFetxg/kcRy3KMDnMw6kDybwbpS/oPw1ylk6DL1xit7Cr5xeYYSWKukxXURAlHwT2K72oUsFKRUvN1X9lVysAeo+H8H/22Z9fJ0P30sOuRIRqCaiz+OiUYicxy4x"   "rpfH2s9a+o3yRwX3zhlp8GjRmmmyK5mf7CkQTCfjnKVsYtB7mabXXmClH9tlcymnBMoN9PeXxaS5JRRysVV8RBCC9/wmfp9y//cck8nvE/MavFpSUHvv+TfTTdVKDlsXPjKX8iZQv0nO3xhspgkqFquKjydiR8nf4meHhwIDAQAB"',
             'z after',
         ]
         chunked = _ChunkedValue.process(values)
