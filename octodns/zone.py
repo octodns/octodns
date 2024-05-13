@@ -150,10 +150,10 @@ class Zone(object):
         if not lenient:
             if name in self.sub_zones:
                 # It's an exact match for a sub-zone
-                if not record._type == 'NS':
-                    # and not a NS record, this should be in the sub
+                if not (record._type == 'NS' or record._type == 'DS'):
+                    # and not a NS or DS record, this should be in the sub
                     raise SubzoneRecordException(
-                        f'Record {record.fqdn} is a managed sub-zone and not of type NS',
+                        f'Record {record.fqdn} is a managed sub-zone and not of type NS or DS',
                         record,
                     )
             else:
