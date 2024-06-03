@@ -37,14 +37,14 @@ class TestRecordSvcb(TestCase):
                 {
                     'svcpriority': 1,
                     'targetname': 'foo.example.com.',
-                    'svcparams': 'port=8002',
+                    'svcparams': {'port': 8002},
                 }
             ),
             SvcbValue(
                 {
                     'svcpriority': 2,
                     'targetname': 'foo.example.net.',
-                    'svcparams': 'port=8080',
+                    'svcparams': {'port': 8080},
                 }
             ),
         ]
@@ -86,13 +86,13 @@ class TestRecordSvcb(TestCase):
         self.assertEqual(change.new, other)
         # Diff in target causes change
         other.values[0].svcpriority = b.values[0].svcpriority
-        other.values[0].targetname = 'blabla.example.com'
+        other.values[0].targetname = 'blabla.example.com.'
         change = b.changes(other, target)
         self.assertEqual(change.existing, b)
         self.assertEqual(change.new, other)
         # Diff in params causes change
         other.values[0].targetname = b.values[0].targetname
-        other.values[0].svcparams = 'port=8888'
+        other.values[0].svcparams = {'port': '8888'}
         change = b.changes(other, target)
         self.assertEqual(change.existing, b)
         self.assertEqual(change.new, other)
@@ -110,12 +110,16 @@ class TestRecordSvcb(TestCase):
         with self.assertRaises(RrParseError):
             SvcbValue.parse_rdata_text('nope')
 
+        # Double keys are not allowed
+        with self.assertRaises(RrParseError):
+            SvcbValue.parse_rdata_text('1 foo.example.com port=8080 port=8084')
+
         # priority not int
         self.assertEqual(
             {
                 'svcpriority': 'one',
                 'targetname': 'foo.example.com',
-                'svcparams': list(),
+                'svcparams': dict(),
             },
             SvcbValue.parse_rdata_text('one foo.example.com'),
         )
@@ -125,9 +129,11 @@ class TestRecordSvcb(TestCase):
             {
                 'svcpriority': 1,
                 'targetname': 'svcb.unit.tests.',
-                'svcparams': ['port=8080'],
+                'svcparams': {'port': '8080', 'no-default-alpn': None},
             },
-            SvcbValue.parse_rdata_text('1 svcb.unit.tests. port=8080'),
+            SvcbValue.parse_rdata_text(
+                '1 svcb.unit.tests. port=8080 no-default-alpn'
+            ),
         )
 
         # quoted target
@@ -135,7 +141,7 @@ class TestRecordSvcb(TestCase):
             {
                 'svcpriority': 1,
                 'targetname': 'svcb.unit.tests.',
-                'svcparams': list(),
+                'svcparams': dict(),
             },
             SvcbValue.parse_rdata_text('1 "svcb.unit.tests."'),
         )
@@ -149,16 +155,16 @@ class TestRecordSvcb(TestCase):
                 'value': {
                     'svcpriority': 1,
                     'targetname': 'svcb.unit.tests.',
-                    'svcparams': ['port=8080'],
+                    'svcparams': {'port': '8080'},
                 },
             },
         )
         self.assertEqual(1, a.values[0].svcpriority)
         self.assertEqual('svcb.unit.tests.', a.values[0].targetname)
-        self.assertEqual(['port=8080'], a.values[0].svcparams)
+        self.assertEqual({'port': '8080'}, a.values[0].svcparams)
 
         # both directions should match
-        rdata = '1 svcb.unit.tests. port=8080'
+        rdata = '1 svcb.unit.tests. port=8080 no-default-alpn'
         record = SvcbRecord(
             zone, 'svc', {'ttl': 32, 'value': SvcbValue.parse_rdata_text(rdata)}
         )
@@ -173,26 +179,30 @@ class TestRecordSvcb(TestCase):
 
     def test_svcb_value(self):
         a = SvcbValue(
-            {'svcpriority': 0, 'targetname': 'foo.', 'svcparams': list()}
+            {'svcpriority': 0, 'targetname': 'foo.', 'svcparams': dict()}
         )
         b = SvcbValue(
-            {'svcpriority': 1, 'targetname': 'foo.', 'svcparams': list()}
+            {'svcpriority': 1, 'targetname': 'foo.', 'svcparams': dict()}
         )
         c = SvcbValue(
-            {'svcpriority': 0, 'targetname': 'foo.', 'svcparams': ['port=8080']}
+            {
+                'svcpriority': 0,
+                'targetname': 'foo.',
+                'svcparams': {'port': 8080, 'no-default-alpn': None},
+            }
         )
         d = SvcbValue(
             {
                 'svcpriority': 0,
                 'targetname': 'foo.',
-                'svcparams': ['alpn=h2,h3', 'port=8080'],
+                'svcparams': {'alpn': 'h2,h3', 'port': 8080},
             }
         )
         e = SvcbValue(
             {
                 'svcpriority': 0,
                 'targetname': 'mmm.',
-                'svcparams': ['ipv4hint=192.0.2.1'],
+                'svcparams': {'ipv4hint': '192.0.2.1'},
             }
         )
 
@@ -402,7 +412,7 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 0,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': ['port=8000'],
+                        'svcparams': {'port': '8000'},
                     },
                 },
             )
@@ -421,7 +431,7 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 1,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': ['blablabla=222'],
+                        'svcparams': {'blablabla': '222'},
                     },
                 },
             )
@@ -438,7 +448,7 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 1,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': ['port=100000'],
+                        'svcparams': {'port': 100000},
                     },
                 },
             )
@@ -457,7 +467,7 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 1,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': ['port=foo'],
+                        'svcparams': {'port': 'foo'},
                     },
                 },
             )
@@ -473,7 +483,7 @@ class TestRecordSvcb(TestCase):
                 'value': {
                     'svcpriority': 1,
                     'targetname': 'foo.bar.com.',
-                    'svcparams': ['no-default-alpn'],
+                    'svcparams': {'no-default-alpn': None},
                 },
             },
         )
@@ -489,7 +499,7 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 1,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': ['no-default-alpn=foobar'],
+                        'svcparams': {'no-default-alpn': 'foobar'},
                     },
                 },
             )
@@ -509,7 +519,7 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 1,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': ['alpn=h2,😅'],
+                        'svcparams': {'alpn': 'h2,😅'},
                     },
                 },
             )
@@ -526,7 +536,7 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 1,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': ['ipv4hint=192.0.2.0,500.500.30.30'],
+                        'svcparams': {'ipv4hint': '192.0.2.0,500.500.30.30'},
                     },
                 },
             )
@@ -546,7 +556,7 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 1,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': ['ipv6hint=2001:db8:43::1,notanip'],
+                        'svcparams': {'ipv6hint': '2001:db8:43::1,notanip'},
                     },
                 },
             )
@@ -566,7 +576,7 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 1,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': ['mandatory=ipv4hint,unknown,key4444'],
+                        'svcparams': {'mandatory': 'ipv4hint,unknown,key4444'},
                     },
                 },
             )
@@ -586,7 +596,7 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 1,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': ['ech=dG90YWxseUZha2VFQ0hPcHRpb24'],
+                        'svcparams': {'ech': ' dG90YWxseUZha2VFQ0hPcHRpb24'},
                     },
                 },
             )
@@ -605,11 +615,11 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 1,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': [
-                            'key100000=foo',
-                            'key3333=bar',
-                            'keyXXX=foo',
-                        ],
+                        'svcparams': {
+                            'key100000': 'foo',
+                            'key3333': 'bar',
+                            'keyXXX': 'foo',
+                        },
                     },
                 },
             )

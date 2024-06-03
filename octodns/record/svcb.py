@@ -118,10 +118,19 @@ class SvcbValue(EqualityTupleMixin, dict):
         except ValueError:
             pass
         targetname = unquote(targetname)
+        params = dict()
+        for svcparam in svcparams:
+            paramkey, *paramvalue = svcparam.split('=')
+            if paramkey in params.keys():
+                raise RrParseError(f'{paramkey} is specified twice')
+            if len(paramvalue) != 0:
+                params[paramkey] = paramvalue[0]
+                continue
+            params[paramkey] = None
         return {
             'svcpriority': svcpriority,
             'targetname': targetname,
-            'svcparams': svcparams,
+            'svcparams': params,
         }
 
     @classmethod
@@ -154,31 +163,30 @@ class SvcbValue(EqualityTupleMixin, dict):
                     )
 
             if 'svcparams' in value:
-                svcparams = value.get('svcparams', list())
+                svcparams = value.get('svcparams', dict())
                 if svcpriority == 0 and len(svcparams) != 0:
                     reasons.append('svcparams set on AliasMode SVCB record')
-                for param in svcparams:
+                for svcparamkey, svcparamvalue in svcparams.items():
                     # XXX: Should we test for keys existing when set in 'mandatory'?
-                    paramkey, *paramvalue = param.split('=')
-                    if paramkey.startswith('key'):
-                        reasons += validate_svckey_number(paramkey)
+                    if svcparamkey.startswith('key'):
+                        reasons += validate_svckey_number(svcparamkey)
                         continue
                     if (
-                        paramkey not in SUPPORTED_PARAMS.keys()
-                        and not paramkey.startswith('key')
+                        svcparamkey not in SUPPORTED_PARAMS.keys()
+                        and not svcparamkey.startswith('key')
                     ):
-                        reasons.append(f'Unknown SvcParam {paramkey}')
+                        reasons.append(f'Unknown SvcParam {svcparamkey}')
                         continue
-                    if SUPPORTED_PARAMS[paramkey].get('has_arg', True):
-                        reasons += SUPPORTED_PARAMS[paramkey]['validate'](
-                            paramvalue[0]
+                    if SUPPORTED_PARAMS[svcparamkey].get('has_arg', True):
+                        reasons += SUPPORTED_PARAMS[svcparamkey]['validate'](
+                            svcparamvalue
                         )
                     if (
-                        not SUPPORTED_PARAMS[paramkey].get('has_arg', True)
-                        and len(paramvalue) != 0
+                        not SUPPORTED_PARAMS[svcparamkey].get('has_arg', True)
+                        and svcparamvalue is not None
                     ):
                         reasons.append(
-                            f'SvcParam {paramkey} has value when it should not'
+                            f'SvcParam {svcparamkey} has value when it should not'
                         )
 
         return reasons
@@ -192,7 +200,7 @@ class SvcbValue(EqualityTupleMixin, dict):
             {
                 'svcpriority': int(value['svcpriority']),
                 'targetname': idna_encode(value['targetname']),
-                'svcparams': value.get('svcparams', list()),
+                'svcparams': value.get('svcparams', dict()),
             }
         )
 
@@ -223,15 +231,23 @@ class SvcbValue(EqualityTupleMixin, dict):
     @property
     def rdata_text(self):
         params = ''
-        if len(self.svcparams) != 0:
-            params = f' {" ".join(self.svcparams)}'
+        for svcparamkey, svcparamvalue in self.svcparams.items():
+            params += f' {svcparamkey}'
+            if svcparamvalue is not None:
+                params += f'={svcparamvalue}'
         return f'{self.svcpriority} {self.targetname}{params}'
 
     def __hash__(self):
         return hash(self.__repr__())
 
     def _equality_tuple(self):
-        return (self.svcpriority, self.targetname, self.svcparams)
+        params = set()
+        for svcparamkey, svcparamvalue in self.svcparams.items():
+            if svcparamvalue is not None:
+                params.add(f'{svcparamkey}={svcparamvalue}')
+            else:
+                params.add(f'{svcparamkey}')
+        return (self.svcpriority, self.targetname, params)
 
     def __repr__(self):
         return f"'{self.rdata_text}'"
