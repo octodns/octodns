@@ -92,6 +92,7 @@ def validate_svckey_number(paramkey):
     return []
 
 
+# cc https://datatracker.ietf.org/doc/html/rfc9460#keys
 SUPPORTED_PARAMS = {
     'no-default-alpn': {'has_arg': False},
     'alpn': {'validate': validate_svcparam_alpn},
@@ -108,53 +109,55 @@ class SvcbValue(EqualityTupleMixin, dict):
     @classmethod
     def parse_rdata_text(cls, value):
         try:
-            # XXX: these are called SvcPriority, TargetName, and SvcParams in RFC 9460 section 2.
-            #       Should we mirror these names, or are priority, target and params good enough?
             # XXX: Should we split params into the specific ParamKeys and ParamValues?
-            (priority, target, *params) = value.split(' ')
+            (svcpriority, targetname, *svcparams) = value.split(' ')
         except ValueError:
             raise RrParseError()
         try:
-            priority = int(priority)
+            svcpriority = int(svcpriority)
         except ValueError:
             pass
-        target = unquote(target)
-        return {'priority': priority, 'target': target, 'params': params}
+        targetname = unquote(targetname)
+        return {
+            'svcpriority': svcpriority,
+            'targetname': targetname,
+            'svcparams': svcparams,
+        }
 
     @classmethod
     def validate(cls, data, _):
         reasons = []
         for value in data:
-            priority = -1
-            if 'priority' not in value:
-                reasons.append('missing priority')
+            svcpriority = -1
+            if 'svcpriority' not in value:
+                reasons.append('missing svcpriority')
             else:
                 try:
-                    priority = int(value.get('priority', 0))
-                    if priority < 0 or priority > 65535:
-                        reasons.append(f'invalid priority ' f'"{priority}"')
+                    svcpriority = int(value.get('svcpriority', 0))
+                    if svcpriority < 0 or svcpriority > 65535:
+                        reasons.append(f'invalid priority ' f'"{svcpriority}"')
                 except ValueError:
-                    reasons.append(
-                        f'invalid priority ' f'"{value["priority"]}"'
-                    )
+                    reasons.append(f'invalid priority "{value["svcpriority"]}"')
 
-            if 'target' not in value or value['target'] == '':
-                reasons.append('missing target')
+            if 'targetname' not in value or value['targetname'] == '':
+                reasons.append('missing targetname')
             else:
-                target = str(value.get('target', ''))
-                target = idna_encode(target)
-                if not target.endswith('.'):
-                    reasons.append(f'SVCB value "{target}" missing trailing .')
-                if target != '.' and not FQDN(target).is_valid:
+                targetname = str(value.get('targetname', ''))
+                targetname = idna_encode(targetname)
+                if not targetname.endswith('.'):
                     reasons.append(
-                        f'Invalid SVCB target "{target}" is not a valid FQDN.'
+                        f'SVCB value "{targetname}" missing trailing .'
+                    )
+                if targetname != '.' and not FQDN(targetname).is_valid:
+                    reasons.append(
+                        f'Invalid SVCB target "{targetname}" is not a valid FQDN.'
                     )
 
-            if 'params' in value:
-                params = value.get('params', list())
-                if priority == 0 and len(params) != 0:
-                    reasons.append('params set on AliasMode SVCB record')
-                for param in params:
+            if 'svcparams' in value:
+                svcparams = value.get('svcparams', list())
+                if svcpriority == 0 and len(svcparams) != 0:
+                    reasons.append('svcparams set on AliasMode SVCB record')
+                for param in svcparams:
                     # XXX: Should we test for keys existing when set in 'mandatory'?
                     paramkey, *paramvalue = param.split('=')
                     if paramkey.startswith('key'):
@@ -187,54 +190,51 @@ class SvcbValue(EqualityTupleMixin, dict):
     def __init__(self, value):
         super().__init__(
             {
-                'priority': int(value['priority']),
-                'target': idna_encode(value['target']),
-                'params': value.get('params', list()),
+                'svcpriority': int(value['svcpriority']),
+                'targetname': idna_encode(value['targetname']),
+                'svcparams': value.get('svcparams', list()),
             }
         )
 
     @property
-    def priority(self):
-        return self['priority']
+    def svcpriority(self):
+        return self['svcpriority']
 
-    @priority.setter
-    def priority(self, value):
-        self['priority'] = value
-
-    @property
-    def target(self):
-        return self['target']
-
-    @target.setter
-    def target(self, value):
-        self['target'] = value
+    @svcpriority.setter
+    def svcpriority(self, value):
+        self['svcpriority'] = value
 
     @property
-    def params(self):
-        return self['params']
+    def targetname(self):
+        return self['targetname']
 
-    @params.setter
-    def params(self, value):
-        self['params'] = value
+    @targetname.setter
+    def targetname(self, value):
+        self['targetname'] = value
+
+    @property
+    def svcparams(self):
+        return self['svcparams']
+
+    @svcparams.setter
+    def svcparams(self, value):
+        self['svcparams'] = value
 
     @property
     def rdata_text(self):
         params = ''
-        if len(self.params) != 0:
-            params = f' {" ".join(self.params)}'
-        return f'{self.priority} {self.target}{params}'
+        if len(self.svcparams) != 0:
+            params = f' {" ".join(self.svcparams)}'
+        return f'{self.svcpriority} {self.targetname}{params}'
 
     def __hash__(self):
         return hash(self.__repr__())
 
     def _equality_tuple(self):
-        return (self.priority, self.target, self.params)
+        return (self.svcpriority, self.targetname, self.svcparams)
 
     def __repr__(self):
-        params = ''
-        if len(self.params) != 0:
-            params = f' {" ".join(self.params)}'
-        return f"'{self.priority} {self.target}{params}'"
+        return f"'{self.rdata_text}'"
 
 
 class SvcbRecord(ValuesMixin, Record):

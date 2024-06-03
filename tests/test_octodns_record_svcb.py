@@ -18,31 +18,33 @@ class TestRecordSvcb(TestCase):
 
     def test_svcb(self):
         aliasmode_value = SvcbValue(
-            {'priority': 0, 'target': 'foo.example.com.'}
+            {'svcpriority': 0, 'targetname': 'foo.example.com.'}
         )
         aliasmode_data = {'ttl': 300, 'value': aliasmode_value}
         a = SvcbRecord(self.zone, 'alias', aliasmode_data)
         self.assertEqual('alias', a.name)
         self.assertEqual('alias.unit.tests.', a.fqdn)
         self.assertEqual(300, a.ttl)
-        self.assertEqual(aliasmode_value['priority'], a.values[0].priority)
-        self.assertEqual(aliasmode_value['target'], a.values[0].target)
-        self.assertEqual(aliasmode_value['params'], a.values[0].params)
+        self.assertEqual(
+            aliasmode_value['svcpriority'], a.values[0].svcpriority
+        )
+        self.assertEqual(aliasmode_value['targetname'], a.values[0].targetname)
+        self.assertEqual(aliasmode_value['svcparams'], a.values[0].svcparams)
         self.assertEqual(aliasmode_data, a.data)
 
         servicemode_values = [
             SvcbValue(
                 {
-                    'priority': 1,
-                    'target': 'foo.example.com.',
-                    'params': 'port=8002',
+                    'svcpriority': 1,
+                    'targetname': 'foo.example.com.',
+                    'svcparams': 'port=8002',
                 }
             ),
             SvcbValue(
                 {
-                    'priority': 2,
-                    'target': 'foo.example.net.',
-                    'params': 'port=8080',
+                    'svcpriority': 2,
+                    'targetname': 'foo.example.net.',
+                    'svcparams': 'port=8080',
                 }
             ),
         ]
@@ -52,15 +54,23 @@ class TestRecordSvcb(TestCase):
         self.assertEqual('service.unit.tests.', b.fqdn)
         self.assertEqual(300, b.ttl)
         self.assertEqual(
-            servicemode_values[0]['priority'], b.values[0].priority
+            servicemode_values[0]['svcpriority'], b.values[0].svcpriority
         )
-        self.assertEqual(servicemode_values[0]['target'], b.values[0].target)
-        self.assertEqual(servicemode_values[0]['params'], b.values[0].params)
         self.assertEqual(
-            servicemode_values[1]['priority'], b.values[1].priority
+            servicemode_values[0]['targetname'], b.values[0].targetname
         )
-        self.assertEqual(servicemode_values[1]['target'], b.values[1].target)
-        self.assertEqual(servicemode_values[1]['params'], b.values[1].params)
+        self.assertEqual(
+            servicemode_values[0]['svcparams'], b.values[0].svcparams
+        )
+        self.assertEqual(
+            servicemode_values[1]['svcpriority'], b.values[1].svcpriority
+        )
+        self.assertEqual(
+            servicemode_values[1]['targetname'], b.values[1].targetname
+        )
+        self.assertEqual(
+            servicemode_values[1]['svcparams'], b.values[1].svcparams
+        )
         self.assertEqual(servicemode_data, b.data)
 
         target = SimpleProvider()
@@ -70,19 +80,19 @@ class TestRecordSvcb(TestCase):
         other = SvcbRecord(
             self.zone, 'service2', {'ttl': 30, 'values': servicemode_values}
         )
-        other.values[0].priority = 22
+        other.values[0].svcpriority = 22
         change = b.changes(other, target)
         self.assertEqual(change.existing, b)
         self.assertEqual(change.new, other)
         # Diff in target causes change
-        other.values[0].priority = b.values[0].priority
-        other.values[0].target = 'blabla.example.com'
+        other.values[0].svcpriority = b.values[0].svcpriority
+        other.values[0].targetname = 'blabla.example.com'
         change = b.changes(other, target)
         self.assertEqual(change.existing, b)
         self.assertEqual(change.new, other)
         # Diff in params causes change
-        other.values[0].target = b.values[0].target
-        other.values[0].params = 'port=8888'
+        other.values[0].targetname = b.values[0].targetname
+        other.values[0].svcparams = 'port=8888'
         change = b.changes(other, target)
         self.assertEqual(change.existing, b)
         self.assertEqual(change.new, other)
@@ -102,23 +112,31 @@ class TestRecordSvcb(TestCase):
 
         # priority not int
         self.assertEqual(
-            {'priority': 'one', 'target': 'foo.example.com', 'params': list()},
+            {
+                'svcpriority': 'one',
+                'targetname': 'foo.example.com',
+                'svcparams': list(),
+            },
             SvcbValue.parse_rdata_text('one foo.example.com'),
         )
 
         # valid with params
         self.assertEqual(
             {
-                'priority': 1,
-                'target': 'svcb.unit.tests.',
-                'params': ['port=8080'],
+                'svcpriority': 1,
+                'targetname': 'svcb.unit.tests.',
+                'svcparams': ['port=8080'],
             },
             SvcbValue.parse_rdata_text('1 svcb.unit.tests. port=8080'),
         )
 
         # quoted target
         self.assertEqual(
-            {'priority': 1, 'target': 'svcb.unit.tests.', 'params': list()},
+            {
+                'svcpriority': 1,
+                'targetname': 'svcb.unit.tests.',
+                'svcparams': list(),
+            },
             SvcbValue.parse_rdata_text('1 "svcb.unit.tests."'),
         )
 
@@ -129,15 +147,15 @@ class TestRecordSvcb(TestCase):
             {
                 'ttl': 32,
                 'value': {
-                    'priority': 1,
-                    'target': 'svcb.unit.tests.',
-                    'params': ['port=8080'],
+                    'svcpriority': 1,
+                    'targetname': 'svcb.unit.tests.',
+                    'svcparams': ['port=8080'],
                 },
             },
         )
-        self.assertEqual(1, a.values[0].priority)
-        self.assertEqual('svcb.unit.tests.', a.values[0].target)
-        self.assertEqual(['port=8080'], a.values[0].params)
+        self.assertEqual(1, a.values[0].svcpriority)
+        self.assertEqual('svcb.unit.tests.', a.values[0].targetname)
+        self.assertEqual(['port=8080'], a.values[0].svcparams)
 
         # both directions should match
         rdata = '1 svcb.unit.tests. port=8080'
@@ -154,20 +172,28 @@ class TestRecordSvcb(TestCase):
         self.assertEqual(rdata, record.values[0].rdata_text)
 
     def test_svcb_value(self):
-        a = SvcbValue({'priority': 0, 'target': 'foo.', 'params': list()})
-        b = SvcbValue({'priority': 1, 'target': 'foo.', 'params': list()})
+        a = SvcbValue(
+            {'svcpriority': 0, 'targetname': 'foo.', 'svcparams': list()}
+        )
+        b = SvcbValue(
+            {'svcpriority': 1, 'targetname': 'foo.', 'svcparams': list()}
+        )
         c = SvcbValue(
-            {'priority': 0, 'target': 'foo.', 'params': ['port=8080']}
+            {'svcpriority': 0, 'targetname': 'foo.', 'svcparams': ['port=8080']}
         )
         d = SvcbValue(
             {
-                'priority': 0,
-                'target': 'foo.',
-                'params': ['alpn=h2,h3', 'port=8080'],
+                'svcpriority': 0,
+                'targetname': 'foo.',
+                'svcparams': ['alpn=h2,h3', 'port=8080'],
             }
         )
         e = SvcbValue(
-            {'priority': 0, 'target': 'mmm.', 'params': ['ipv4hint=192.0.2.1']}
+            {
+                'svcpriority': 0,
+                'targetname': 'mmm.',
+                'svcparams': ['ipv4hint=192.0.2.1'],
+            }
         )
 
         self.assertEqual(a, a)
@@ -237,7 +263,7 @@ class TestRecordSvcb(TestCase):
             {
                 'type': 'SVCB',
                 'ttl': 600,
-                'value': {'priority': 1, 'target': 'foo.bar.baz.'},
+                'value': {'svcpriority': 1, 'targetname': 'foo.bar.baz.'},
             },
         )
 
@@ -248,7 +274,7 @@ class TestRecordSvcb(TestCase):
             {
                 'type': 'SVCB',
                 'ttl': 600,
-                'value': {'priority': 1, 'target': 'foo.bar.baz.'},
+                'value': {'svcpriority': 1, 'targetname': 'foo.bar.baz.'},
             },
         )
 
@@ -260,10 +286,10 @@ class TestRecordSvcb(TestCase):
                 {
                     'type': 'SVCB',
                     'ttl': 600,
-                    'value': {'target': 'foo.bar.baz.'},
+                    'value': {'targetname': 'foo.bar.baz.'},
                 },
             )
-        self.assertEqual(['missing priority'], ctx.exception.reasons)
+        self.assertEqual(['missing svcpriority'], ctx.exception.reasons)
 
         # invalid priority
         with self.assertRaises(ValidationError) as ctx:
@@ -273,7 +299,10 @@ class TestRecordSvcb(TestCase):
                 {
                     'type': 'SVCB',
                     'ttl': 600,
-                    'value': {'priority': 'foo', 'target': 'foo.bar.baz.'},
+                    'value': {
+                        'svcpriority': 'foo',
+                        'targetname': 'foo.bar.baz.',
+                    },
                 },
             )
         self.assertEqual(['invalid priority "foo"'], ctx.exception.reasons)
@@ -286,7 +315,10 @@ class TestRecordSvcb(TestCase):
                 {
                     'type': 'SVCB',
                     'ttl': 600,
-                    'value': {'priority': 100000, 'target': 'foo.bar.baz.'},
+                    'value': {
+                        'svcpriority': 100000,
+                        'targetname': 'foo.bar.baz.',
+                    },
                 },
             )
         self.assertEqual(['invalid priority "100000"'], ctx.exception.reasons)
@@ -296,9 +328,9 @@ class TestRecordSvcb(TestCase):
             Record.new(
                 self.zone,
                 'foo',
-                {'type': 'SVCB', 'ttl': 600, 'value': {'priority': 1}},
+                {'type': 'SVCB', 'ttl': 600, 'value': {'svcpriority': 1}},
             )
-        self.assertEqual(['missing target'], ctx.exception.reasons)
+        self.assertEqual(['missing targetname'], ctx.exception.reasons)
 
         # invalid target
         with self.assertRaises(ValidationError) as ctx:
@@ -308,7 +340,7 @@ class TestRecordSvcb(TestCase):
                 {
                     'type': 'SVCB',
                     'ttl': 600,
-                    'value': {'priority': 1, 'target': 'foo.bar.baz'},
+                    'value': {'svcpriority': 1, 'targetname': 'foo.bar.baz'},
                 },
             )
         self.assertEqual(
@@ -324,10 +356,10 @@ class TestRecordSvcb(TestCase):
                 {
                     'type': 'SVCB',
                     'ttl': 600,
-                    'value': {'priority': 1, 'target': ''},
+                    'value': {'svcpriority': 1, 'targetname': ''},
                 },
             )
-        self.assertEqual(['missing target'], ctx.exception.reasons)
+        self.assertEqual(['missing targetname'], ctx.exception.reasons)
 
         # target must be a valid FQDN
         with self.assertRaises(ValidationError) as ctx:
@@ -337,7 +369,10 @@ class TestRecordSvcb(TestCase):
                 {
                     'type': 'SVCB',
                     'ttl': 600,
-                    'value': {'priority': 1, 'target': 'bla foo.bar.com.'},
+                    'value': {
+                        'svcpriority': 1,
+                        'targetname': 'bla foo.bar.com.',
+                    },
                 },
             )
         self.assertEqual(
@@ -352,7 +387,7 @@ class TestRecordSvcb(TestCase):
             {
                 'type': 'SVCB',
                 'ttl': 600,
-                'value': {'priority': 1, 'target': '.'},
+                'value': {'svcpriority': 1, 'targetname': '.'},
             },
         )
 
@@ -365,14 +400,14 @@ class TestRecordSvcb(TestCase):
                     'type': 'SVCB',
                     'ttl': 600,
                     'value': {
-                        'priority': 0,
-                        'target': 'foo.bar.com.',
-                        'params': ['port=8000'],
+                        'svcpriority': 0,
+                        'targetname': 'foo.bar.com.',
+                        'svcparams': ['port=8000'],
                     },
                 },
             )
         self.assertEqual(
-            ['params set on AliasMode SVCB record'], ctx.exception.reasons
+            ['svcparams set on AliasMode SVCB record'], ctx.exception.reasons
         )
 
         # Unknown param
@@ -384,9 +419,9 @@ class TestRecordSvcb(TestCase):
                     'type': 'SVCB',
                     'ttl': 600,
                     'value': {
-                        'priority': 1,
-                        'target': 'foo.bar.com.',
-                        'params': ['blablabla=222'],
+                        'svcpriority': 1,
+                        'targetname': 'foo.bar.com.',
+                        'svcparams': ['blablabla=222'],
                     },
                 },
             )
@@ -401,9 +436,9 @@ class TestRecordSvcb(TestCase):
                     'type': 'SVCB',
                     'ttl': 600,
                     'value': {
-                        'priority': 1,
-                        'target': 'foo.bar.com.',
-                        'params': ['port=100000'],
+                        'svcpriority': 1,
+                        'targetname': 'foo.bar.com.',
+                        'svcparams': ['port=100000'],
                     },
                 },
             )
@@ -420,9 +455,9 @@ class TestRecordSvcb(TestCase):
                     'type': 'SVCB',
                     'ttl': 600,
                     'value': {
-                        'priority': 1,
-                        'target': 'foo.bar.com.',
-                        'params': ['port=foo'],
+                        'svcpriority': 1,
+                        'targetname': 'foo.bar.com.',
+                        'svcparams': ['port=foo'],
                     },
                 },
             )
@@ -436,9 +471,9 @@ class TestRecordSvcb(TestCase):
                 'type': 'SVCB',
                 'ttl': 600,
                 'value': {
-                    'priority': 1,
-                    'target': 'foo.bar.com.',
-                    'params': ['no-default-alpn'],
+                    'svcpriority': 1,
+                    'targetname': 'foo.bar.com.',
+                    'svcparams': ['no-default-alpn'],
                 },
             },
         )
@@ -452,9 +487,9 @@ class TestRecordSvcb(TestCase):
                     'type': 'SVCB',
                     'ttl': 600,
                     'value': {
-                        'priority': 1,
-                        'target': 'foo.bar.com.',
-                        'params': ['no-default-alpn=foobar'],
+                        'svcpriority': 1,
+                        'targetname': 'foo.bar.com.',
+                        'svcparams': ['no-default-alpn=foobar'],
                     },
                 },
             )
@@ -472,9 +507,9 @@ class TestRecordSvcb(TestCase):
                     'type': 'SVCB',
                     'ttl': 600,
                     'value': {
-                        'priority': 1,
-                        'target': 'foo.bar.com.',
-                        'params': ['alpn=h2,😅'],
+                        'svcpriority': 1,
+                        'targetname': 'foo.bar.com.',
+                        'svcparams': ['alpn=h2,😅'],
                     },
                 },
             )
@@ -489,9 +524,9 @@ class TestRecordSvcb(TestCase):
                     'type': 'SVCB',
                     'ttl': 600,
                     'value': {
-                        'priority': 1,
-                        'target': 'foo.bar.com.',
-                        'params': ['ipv4hint=192.0.2.0,500.500.30.30'],
+                        'svcpriority': 1,
+                        'targetname': 'foo.bar.com.',
+                        'svcparams': ['ipv4hint=192.0.2.0,500.500.30.30'],
                     },
                 },
             )
@@ -509,9 +544,9 @@ class TestRecordSvcb(TestCase):
                     'type': 'SVCB',
                     'ttl': 600,
                     'value': {
-                        'priority': 1,
-                        'target': 'foo.bar.com.',
-                        'params': ['ipv6hint=2001:db8:43::1,notanip'],
+                        'svcpriority': 1,
+                        'targetname': 'foo.bar.com.',
+                        'svcparams': ['ipv6hint=2001:db8:43::1,notanip'],
                     },
                 },
             )
@@ -529,9 +564,9 @@ class TestRecordSvcb(TestCase):
                     'type': 'SVCB',
                     'ttl': 600,
                     'value': {
-                        'priority': 1,
-                        'target': 'foo.bar.com.',
-                        'params': ['mandatory=ipv4hint,unknown,key4444'],
+                        'svcpriority': 1,
+                        'targetname': 'foo.bar.com.',
+                        'svcparams': ['mandatory=ipv4hint,unknown,key4444'],
                     },
                 },
             )
@@ -549,9 +584,9 @@ class TestRecordSvcb(TestCase):
                     'type': 'SVCB',
                     'ttl': 600,
                     'value': {
-                        'priority': 1,
-                        'target': 'foo.bar.com.',
-                        'params': ['ech=dG90YWxseUZha2VFQ0hPcHRpb24'],
+                        'svcpriority': 1,
+                        'targetname': 'foo.bar.com.',
+                        'svcparams': ['ech=dG90YWxseUZha2VFQ0hPcHRpb24'],
                     },
                 },
             )
@@ -568,9 +603,9 @@ class TestRecordSvcb(TestCase):
                     'type': 'SVCB',
                     'ttl': 600,
                     'value': {
-                        'priority': 1,
-                        'target': 'foo.bar.com.',
-                        'params': [
+                        'svcpriority': 1,
+                        'targetname': 'foo.bar.com.',
+                        'svcparams': [
                             'key100000=foo',
                             'key3333=bar',
                             'keyXXX=foo',
