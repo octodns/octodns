@@ -111,13 +111,16 @@ class TestChunkedValue(TestCase):
         self.assertEqual(1, len(chunked))
         self.assertEqual('  \t\t', chunked[0])
 
-        # TODO: missing closing quote
+        # missing closing quote
         value = '"This is quoted, but has no end'
         chunked = _ChunkedValue.process([value])
         self.assertEqual(1, len(chunked))
         self.assertEqual(value[1:], chunked[0])
 
-        # TODO: missing opening quote
+        value = 'This is not quoted, but has end quote"'
+        chunked = _ChunkedValue.process([value])
+        self.assertEqual(1, len(chunked))
+        self.assertEqual(value, chunked[0])
 
     def test_unquoted(self):
         for value in (
