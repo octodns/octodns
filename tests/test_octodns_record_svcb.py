@@ -164,7 +164,7 @@ class TestRecordSvcb(TestCase):
         self.assertEqual({'port': '8080'}, a.values[0].svcparams)
 
         # both directions should match
-        rdata = '1 svcb.unit.tests. port=8080 no-default-alpn'
+        rdata = '1 svcb.unit.tests. port=8080 no-default-alpn ipv4hint=192.0.2.2,192.0.2.53'
         record = SvcbRecord(
             zone, 'svc', {'ttl': 32, 'value': SvcbValue.parse_rdata_text(rdata)}
         )
@@ -195,14 +195,14 @@ class TestRecordSvcb(TestCase):
             {
                 'svcpriority': 0,
                 'targetname': 'foo.',
-                'svcparams': {'alpn': 'h2,h3', 'port': 8080},
+                'svcparams': {'alpn': ['h2', 'h3'], 'port': 8080},
             }
         )
         e = SvcbValue(
             {
                 'svcpriority': 0,
                 'targetname': 'mmm.',
-                'svcparams': {'ipv4hint': '192.0.2.1'},
+                'svcparams': {'ipv4hint': ['192.0.2.1']},
             }
         )
 
@@ -519,11 +519,41 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 1,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': {'alpn': 'h2,😅'},
+                        'svcparams': {'alpn': ['h2', '😅']},
                     },
                 },
             )
         self.assertEqual(['non ASCII character in "😅"'], ctx.exception.reasons)
+
+        # svcbvaluelist that is not a list
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                'foo',
+                {
+                    'type': 'SVCB',
+                    'ttl': 600,
+                    'value': {
+                        'svcpriority': 1,
+                        'targetname': 'foo.bar.com.',
+                        'svcparams': {
+                            'ipv4hint': '192.0.2.1,192.0.2.2',
+                            'ipv6hint': '2001:db8::1',
+                            'mandatory': 'ipv6hint',
+                            'alpn': 'h2,h3',
+                        },
+                    },
+                },
+            )
+        self.assertEqual(
+            [
+                'ipv4hint is not a list',
+                'ipv6hint is not a list',
+                'mandatory is not a list',
+                'alpn is not a list',
+            ],
+            ctx.exception.reasons,
+        )
 
         # ipv4hint
         with self.assertRaises(ValidationError) as ctx:
@@ -536,12 +566,14 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 1,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': {'ipv4hint': '192.0.2.0,500.500.30.30'},
+                        'svcparams': {
+                            'ipv4hint': ['192.0.2.0', '500.500.30.30']
+                        },
                     },
                 },
             )
         self.assertEqual(
-            ['ip4hint "500.500.30.30" is not a valid IPv4 address'],
+            ['ipv4hint "500.500.30.30" is not a valid IPv4 address'],
             ctx.exception.reasons,
         )
 
@@ -556,12 +588,14 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 1,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': {'ipv6hint': '2001:db8:43::1,notanip'},
+                        'svcparams': {
+                            'ipv6hint': ['2001:db8:43::1', 'notanip']
+                        },
                     },
                 },
             )
         self.assertEqual(
-            ['ip6hint "notanip" is not a valid IPv6 address'],
+            ['ipv6hint "notanip" is not a valid IPv6 address'],
             ctx.exception.reasons,
         )
 
@@ -576,7 +610,9 @@ class TestRecordSvcb(TestCase):
                     'value': {
                         'svcpriority': 1,
                         'targetname': 'foo.bar.com.',
-                        'svcparams': {'mandatory': 'ipv4hint,unknown,key4444'},
+                        'svcparams': {
+                            'mandatory': ['ipv4hint', 'unknown', 'key4444']
+                        },
                     },
                 },
             )
