@@ -234,6 +234,7 @@ class PlanJson(_PlanOutput):
             data[target.id][plan.desired.name] = plan.data
 
         fh.write(dumps(data, indent=self.indent, sort_keys=self.sort_keys))
+        fh.write('\n')
 
 
 class PlanMarkdown(_PlanOutput):
