@@ -1,5 +1,6 @@
 ## v1.?.? - 2024-??-?? - ???
 
+* Allow DS records to be specified for managed sub-zones, same as NS
 * Fix CAA rdata parsing to allow values with tags
 * Improve TXT (and SPF) record handling of unexpected whitespace
   before/after/in-between quotes.
