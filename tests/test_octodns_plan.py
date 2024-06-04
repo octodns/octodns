@@ -3,6 +3,7 @@
 #
 
 from io import StringIO
+from json import loads
 from logging import getLogger
 from unittest import TestCase
 
@@ -11,6 +12,7 @@ from helpers import SimpleProvider
 from octodns.provider.plan import (
     Plan,
     PlanHtml,
+    PlanJson,
     PlanLogger,
     PlanMarkdown,
     RootNsChange,
@@ -124,6 +126,17 @@ class TestPlanHtml(TestCase):
             '    <td colspan=6>Summary: Creates=2, Updates=1, '
             'Deletes=1, Existing Records=0</td>' in out
         )
+
+
+class TestPlanJson(TestCase):
+    def test_basics(self):
+        out = StringIO()
+        PlanJson('json').run(plans, fh=out)
+        data = loads(out.getvalue())
+        for key in ('test', 'unit.tests.', 'changes'):
+            self.assertTrue(key in data)
+            data = data[key]
+        self.assertEqual(4, len(data))
 
 
 class TestPlanMarkdown(TestCase):
