@@ -27,7 +27,11 @@ class Create(Change):
 
     @property
     def data(self):
-        return {'type': 'create', 'new': self.new.data}
+        return {
+            'type': 'create',
+            'new': self.new.data,
+            'record_type': self.new._type,
+        }
 
     def __repr__(self, leader=''):
         source = self.new.source.id if self.new.source else ''
@@ -43,6 +47,7 @@ class Update(Change):
             'type': 'update',
             'existing': self.existing.data,
             'new': self.new.data,
+            'record_type': self.new._type,
         }
 
     # Leader is just to allow us to work around heven eating leading whitespace
@@ -65,7 +70,11 @@ class Delete(Change):
 
     @property
     def data(self):
-        return {'type': 'delete', 'existing': self.existing.data}
+        return {
+            'type': 'delete',
+            'existing': self.existing.data,
+            'record_type': self.existing._type,
+        }
 
     def __repr__(self, leader=''):
         return f'Delete {self.existing}'
