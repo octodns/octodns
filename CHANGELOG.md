@@ -2,6 +2,8 @@
 
 * Allow DS records to be specified for managed sub-zones, same as NS
 * Fix CAA rdata parsing to allow values with tags
+* Include `record_type` in Change data
+* Add PlanJson plan_output support
 
 ## v1.7.0 - 2024-04-29 - All the knobs and dials
 
