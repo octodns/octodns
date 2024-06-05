@@ -164,7 +164,7 @@ class TestRecordSvcb(TestCase):
         self.assertEqual({'port': '8080'}, a.values[0].svcparams)
 
         # both directions should match
-        rdata = '1 svcb.unit.tests. port=8080 no-default-alpn ipv4hint=192.0.2.2,192.0.2.53'
+        rdata = '1 svcb.unit.tests. no-default-alpn port=8080 ipv4hint=192.0.2.2,192.0.2.53 key3333=foobar'
         record = SvcbRecord(
             zone, 'svc', {'ttl': 32, 'value': SvcbValue.parse_rdata_text(rdata)}
         )

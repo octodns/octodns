@@ -105,27 +105,37 @@ def parse_rdata_text_svcparamvalue_list(svcparamvalue):
     return svcparamvalue.split(',')
 
 
+def svcparamkeysort(svcparamkey):
+    if svcparamkey.startswith('key'):
+        return int(svcparamkey[3:])
+    return SUPPORTED_PARAMS[svcparamkey]['key_num']
+
+
 # cc https://datatracker.ietf.org/doc/html/rfc9460#keys
 SUPPORTED_PARAMS = {
-    'no-default-alpn': {'has_arg': False},
+    'no-default-alpn': {'key_num': 2, 'has_arg': False},
     'alpn': {
+        'key_num': 1,
         'validate': validate_svcparam_alpn,
         'parse_rdata_text': parse_rdata_text_svcparamvalue_list,
     },
-    'port': {'validate': validate_svcparam_port},
+    'port': {'key_num': 3, 'validate': validate_svcparam_port},
     'ipv4hint': {
+        'key_num': 4,
         'validate': validate_svcparam_ipv4hint,
         'parse_rdata_text': parse_rdata_text_svcparamvalue_list,
     },
     'ipv6hint': {
+        'key_num': 6,
         'validate': validate_svcparam_ipv6hint,
         'parse_rdata_text': parse_rdata_text_svcparamvalue_list,
     },
     'mandatory': {
+        'key_num': 0,
         'validate': validate_svcparam_mandatory,
         'parse_rdata_text': parse_rdata_text_svcparamvalue_list,
     },
-    'ech': {'validate': validate_svcparam_ech},
+    'ech': {'key_num': 5, 'validate': validate_svcparam_ech},
 }
 
 
@@ -264,9 +274,10 @@ class SvcbValue(EqualityTupleMixin, dict):
     @property
     def rdata_text(self):
         params = ''
-        # XXX: sort params by key number
-        for svcparamkey, svcparamvalue in self.svcparams.items():
+        sorted_svcparamkeys = sorted(self.svcparams, key=svcparamkeysort)
+        for svcparamkey in sorted_svcparamkeys:
             params += f' {svcparamkey}'
+            svcparamvalue = self.svcparams.get(svcparamkey, None)
             if svcparamvalue is not None:
                 if isinstance(svcparamvalue, list):
                     params += f'={",".join(svcparamvalue)}'
