@@ -164,8 +164,8 @@ class SvcbValue(EqualityTupleMixin, dict):
                 )
                 if parse_rdata_text is not None:
                     params[paramkey] = parse_rdata_text(paramvalue[0])
-                continue
-            params[paramkey] = None
+            else:
+                params[paramkey] = None
         return {
             'svcpriority': svcpriority,
             'targetname': targetname,
