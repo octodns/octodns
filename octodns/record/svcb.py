@@ -159,15 +159,11 @@ class SvcbValue(EqualityTupleMixin, dict):
                 raise RrParseError(f'{paramkey} is specified twice')
             if len(paramvalue) != 0:
                 params[paramkey] = paramvalue[0]
-                if (
-                    SUPPORTED_PARAMS.get(paramkey, {}).get(
-                        'parse_rdata_text', None
-                    )
-                    is not None
-                ):
-                    params[paramkey] = SUPPORTED_PARAMS[paramkey][
-                        'parse_rdata_text'
-                    ](paramvalue[0])
+                parse_rdata_text = SUPPORTED_PARAMS.get(paramkey, {}).get(
+                    'parse_rdata_text', None
+                )
+                if parse_rdata_text is not None:
+                    params[paramkey] = parse_rdata_text(paramvalue[0])
                 continue
             params[paramkey] = None
         return {
