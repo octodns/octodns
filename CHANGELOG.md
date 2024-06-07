@@ -1,5 +1,6 @@
 ## v1.?.? - 2024-??-?? - ???
 
+* Add support for SVCB and HTTPS records
 * Allow DS records to be specified for managed sub-zones, same as NS
 * Fix CAA rdata parsing to allow values with tags
 
