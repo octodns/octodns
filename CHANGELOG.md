@@ -2,13 +2,13 @@
 
 * Improved handling of present, but empty/None config file values.
 * Add PlanJson plan_output support
-
+* Include `record_type` in Change data
+ 
 ## v1.8.0 - 2024-06-10 - Set the records straight
 
 * Add support for SVCB and HTTPS records
 * Allow DS records to be specified for managed sub-zones, same as NS
 * Fix CAA rdata parsing to allow values with tags
-* Include `record_type` in Change data
 
 ## v1.7.0 - 2024-04-29 - All the knobs and dials
 
