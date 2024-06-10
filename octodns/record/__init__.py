@@ -14,6 +14,7 @@ from .dname import DnameRecord, DnameValue
 from .ds import DsRecord, DsValue
 from .exception import RecordException, ValidationError
 from .geo import GeoCodes, GeoValue
+from .https import HttpsRecord, HttpsValue
 from .loc import LocRecord, LocValue
 from .mx import MxRecord, MxValue
 from .naptr import NaptrRecord, NaptrValue
@@ -23,6 +24,7 @@ from .rr import Rr, RrParseError
 from .spf import SpfRecord
 from .srv import SrvRecord, SrvValue
 from .sshfp import SshfpRecord, SshfpValue
+from .svcb import SvcbRecord, SvcbValue
 from .tlsa import TlsaRecord, TlsaValue
 from .txt import TxtRecord, TxtValue
 from .urlfwd import UrlfwdRecord, UrlfwdValue
@@ -45,6 +47,8 @@ DsRecord
 DsValue
 GeoCodes
 GeoValue
+HttpsRecord
+HttpsValue
 Ipv4Address
 Ipv4Value
 Ipv6Address
@@ -68,6 +72,8 @@ SrvRecord
 SrvValue
 SshfpRecord
 SshfpValue
+SvcbRecord
+SvcbValue
 TlsaRecord
 TlsaValue
 TxtRecord

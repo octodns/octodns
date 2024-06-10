@@ -1,3 +1,11 @@
+# Test whether <xyz>=None blows up
+manager:
+secret_handlers:
+processors:
+post_processors:
+plan_outputs:
+
+
 providers:
   in:
     class: octodns.provider.yaml.YamlProvider
@@ -15,6 +23,8 @@ zones:
   '*.one':
     sources:
     - in
+    # does None value blow up
+    processors:
     targets:
     - dump
 
