@@ -110,7 +110,7 @@ class Manager(object):
         zones = self.config['zones']
         self.config['zones'] = self._config_zones(zones)
 
-        manager_config = self.config.get('manager', {})
+        manager_config = self.config.get('manager') or {}
         self._executor = self._config_executor(manager_config, max_workers)
         self.include_meta = self._config_include_meta(
             manager_config, include_meta
@@ -122,17 +122,19 @@ class Manager(object):
         # add our hard-coded environ handler first so that other secret
         # providers can pull in env variables w/it
         self.secret_handlers = {'env': EnvironSecrets('env')}
-        secret_handlers_config = self.config.get('secret_handlers', {})
+        secret_handlers_config = self.config.get('secret_handlers') or {}
         self.secret_handlers.update(
             self._config_secret_handlers(secret_handlers_config)
         )
 
         self.auto_arpa = self._config_auto_arpa(manager_config, auto_arpa)
 
-        self.global_processors = manager_config.get('processors', [])
+        self.global_processors = manager_config.get('processors') or []
         self.log.info('__init__: global_processors=%s', self.global_processors)
 
-        self.global_post_processors = manager_config.get('post_processors', [])
+        self.global_post_processors = (
+            manager_config.get('post_processors') or []
+        )
         self.log.info(
             '__init__: global_post_processors=%s', self.global_post_processors
         )
@@ -140,7 +142,7 @@ class Manager(object):
         providers_config = self.config['providers']
         self.providers = self._config_providers(providers_config)
 
-        processors_config = self.config.get('processors', {})
+        processors_config = self.config.get('processors') or {}
         self.processors = self._config_processors(processors_config)
 
         if self.auto_arpa:
@@ -168,15 +170,12 @@ class Manager(object):
             self.processors[meta.id] = meta
             self.global_post_processors.append(meta.id)
 
-        plan_outputs_config = manager_config.get(
-            'plan_outputs',
-            {
-                '_logger': {
-                    'class': 'octodns.provider.plan.PlanLogger',
-                    'level': 'info',
-                }
-            },
-        )
+        plan_outputs_config = manager_config.get('plan_outputs') or {
+            '_logger': {
+                'class': 'octodns.provider.plan.PlanLogger',
+                'level': 'info',
+            }
+        }
         self.plan_outputs = self._config_plan_outputs(plan_outputs_config)
 
     def _config_zones(self, zones):
@@ -199,7 +198,7 @@ class Manager(object):
 
     def _config_executor(self, manager_config, max_workers=None):
         max_workers = (
-            manager_config.get('max_workers', 1)
+            manager_config.get('max_workers') or 1
             if max_workers is None
             else max_workers
         )
@@ -546,7 +545,7 @@ class Manager(object):
 
     def _get_sources(self, decoded_zone_name, config, eligible_sources):
         try:
-            sources = config['sources']
+            sources = config['sources'] or []
         except KeyError:
             raise ManagerException(
                 f'Zone {decoded_zone_name} is missing sources'
@@ -691,7 +690,7 @@ class Manager(object):
             )
 
             try:
-                targets = config['targets']
+                targets = config['targets'] or []
             except KeyError:
                 raise ManagerException(
                     f'Zone {decoded_zone_name} is missing targets'
@@ -699,7 +698,7 @@ class Manager(object):
 
             processors = (
                 self.global_processors
-                + config.get('processors', [])
+                + (config.get('processors') or [])
                 + self.global_post_processors
             )
             self.log.info('sync:     processors=%s', processors)
@@ -1032,7 +1031,7 @@ class Manager(object):
                     source.populate(zone, lenient=lenient)
 
             # check that processors are in order if any are specified
-            processors = config.get('processors', [])
+            processors = config.get('processors') or []
             try:
                 # same as above, but for processors this time
                 for processor in processors:
