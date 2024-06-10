@@ -1,5 +1,6 @@
-## v1.?.? - 2024-??-?? - ???
+## v1.8.0 - 2024-06-10 - Set the records straight
 
+* Add support for SVCB and HTTPS records
 * Allow DS records to be specified for managed sub-zones, same as NS
 * Fix CAA rdata parsing to allow values with tags
 * Include `record_type` in Change data

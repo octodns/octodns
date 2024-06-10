@@ -55,3 +55,14 @@ aaaa        600   IN  AAAA  2601:644:500:e210:62f8:1dff:feb8:947a
 ; CNAME Records
 cname       300   IN  CNAME   unit.tests.
 included    300   IN  CNAME   unit.tests.
+
+; SVCB and HTTPS records
+svcb-alias 300 IN SVCB 0 alias-target.unit.test.
+
+svcb-service 300 IN SVCB 1 . ipv4hint=192.0.2.4 port=9000
+svcb-service 300 IN SVCB 2 svcb-target.unit.test. port=9001
+
+https-alias 300 IN HTTPS 0 alias-target.unit.test.
+
+https-service 300 IN HTTPS 1 . ipv4hint=192.0.2.4 port=9000
+https-service 300 IN HTTPS 2 svcb-target.unit.test. port=9001
