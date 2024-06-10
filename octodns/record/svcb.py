@@ -1,5 +1,5 @@
 #
-# This file describes the SVCB and HTTPS records as defined in RFC 9460
+# This file describes the SVCB records as defined in RFC 9460
 # It also supports the 'ech' SvcParam as defined in draft-ietf-tls-svcb-ech-02
 #
 
@@ -305,10 +305,4 @@ class SvcbRecord(ValuesMixin, Record):
     _value_type = SvcbValue
 
 
-class HttpsRecord(ValuesMixin, Record):
-    _type = 'HTTPS'
-    _value_type = SvcbValue
-
-
 Record.register_type(SvcbRecord)
-Record.register_type(HttpsRecord)
