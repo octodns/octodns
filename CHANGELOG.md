@@ -1,7 +1,9 @@
 ## v1.?.? - 2024-??-?? - ???
 
 * Improved handling of present, but empty/None config file values.
-
+* Add PlanJson plan_output support
+* Include `record_type` in Change data
+ 
 ## v1.8.0 - 2024-06-10 - Set the records straight
 
 * Add support for SVCB and HTTPS records

@@ -2,7 +2,9 @@
 #
 #
 
+from collections import defaultdict
 from io import StringIO
+from json import dumps
 from logging import DEBUG, ERROR, INFO, WARN, getLogger
 from sys import stdout
 
@@ -218,6 +220,21 @@ def _value_stringifier(record, sep):
         vs = ', '.join([str(v) for v in gv.values])
         values.append(f'{code}: {vs}')
     return sep.join(values)
+
+
+class PlanJson(_PlanOutput):
+    def __init__(self, name, indent=None, sort_keys=True):
+        super().__init__(name)
+        self.indent = indent
+        self.sort_keys = sort_keys
+
+    def run(self, plans, fh=stdout, *args, **kwargs):
+        data = defaultdict(dict)
+        for target, plan in plans:
+            data[target.id][plan.desired.name] = plan.data
+
+        fh.write(dumps(data, indent=self.indent, sort_keys=self.sort_keys))
+        fh.write('\n')
 
 
 class PlanMarkdown(_PlanOutput):
