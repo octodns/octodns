@@ -1,5 +1,6 @@
 ## v1.?.? - 2024-??-?? - ???
 
+* Improved handling of present, but empty/None config file values.
 * Add PlanJson plan_output support
 
 ## v1.8.0 - 2024-06-10 - Set the records straight
