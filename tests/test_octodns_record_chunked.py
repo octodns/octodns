@@ -61,7 +61,7 @@ class TestRecordChunked(TestCase):
 
         zone = Zone('unit.tests.', [])
         a = SpfRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
-        self.assertEqual('some.target.', a.values[0].rdata_text)
+        self.assertEqual('"some.target."', a.values[0].rdata_text)
 
 
 class TestChunkedValue(TestCase):
@@ -266,3 +266,54 @@ class TestChunkedValue(TestCase):
             'z after',
         ]
         self.assertEqual(expected, chunked)
+
+    def test_rdata_text(self):
+        value = _ChunkedValue('hello world')
+        self.assertEqual('"hello world"', value.rdata_text)
+
+        value = _ChunkedValue('hello " world')
+        self.assertEqual('"hello \\" world"', value.rdata_text)
+
+        # 254 chars
+        val = 'x' * 254
+        value = _ChunkedValue(val)
+        self.assertEqual(f'"{val}"', value.rdata_text)
+
+        # 255 chars
+        val = 'x' * 255
+        value = _ChunkedValue(val)
+        self.assertEqual(f'"{val}"', value.rdata_text)
+
+        # 256 chars, single split
+        val = 'x' * 256
+        value = _ChunkedValue(val)
+        got = value.rdata_text
+        expected = '"' + ('x' * 255) + '"'
+        self.assertEqual(expected, got[:257])
+        self.assertEqual(' "x"', got[257:])
+
+        val = (
+            'Lorem ipsum dolor sit amet, consectetur '
+            'adipiscing elit, sed do eiusmod tempor incididunt ut '
+            'labore et dolore magna aliqua. Ut enim ad minim veniam, '
+            'quis nostrud exercitation ullamco laboris nisi ut aliquip '
+            'ex ea commodo consequat. Duis aute irure dolor in '
+            'reprehenderit in voluptate velit esse cillum dolore eu '
+            'fugiat nulla pariatur. Excepteur sint occaecat cupidatat '
+            'non proident, sunt in culpa qui officia deserunt mollit '
+            'anim id est laborum.'
+        )
+        value = _ChunkedValue(val)
+        expected = (
+            '"Lorem ipsum dolor sit amet, consectetur '
+            'adipiscing elit, sed do eiusmod tempor incididunt ut '
+            'labore et dolore magna aliqua. Ut enim ad minim veniam, '
+            'quis nostrud exercitation ullamco laboris nisi ut aliquip '
+            'ex ea commodo consequat. Duis aute irure dolor i" "n '
+            'reprehenderit in voluptate velit esse cillum dolore eu '
+            'fugiat nulla pariatur. Excepteur sint occaecat cupidatat '
+            'non proident, sunt in culpa qui officia deserunt mollit '
+            'anim id est laborum."'
+        )
+        got = value.rdata_text
+        self.assertEqual(expected, got)

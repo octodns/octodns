@@ -13,25 +13,16 @@ class _ChunkedValuesMixin(ValuesMixin):
     CHUNK_SIZE = 255
     _unescaped_semicolon_re = re.compile(r'\w;')
 
-    def chunked_value(self, value):
-        value = value.replace('"', '\\"')
-        vs = [
-            value[i : i + self.CHUNK_SIZE]
-            for i in range(0, len(value), self.CHUNK_SIZE)
-        ]
-        vs = '" "'.join(vs)
-        return self._value_type(f'"{vs}"')
-
     @property
     def chunked_values(self):
         values = []
         for v in self.values:
-            values.append(self.chunked_value(v))
+            values.append(v.rdata_text)
         return values
 
     @property
     def rr_values(self):
-        return self.chunked_values
+        return self.values
 
 
 def _parse(s, spec_unquoted=False, strict=False):
@@ -133,4 +124,11 @@ class _ChunkedValue(str):
 
     @property
     def rdata_text(self):
-        return self
+        # TODO: this needs to split & quote
+        val = self.replace('"', '\\"')
+        chunks = []
+        while val:
+            chunks.append(val[0 : _ChunkedValuesMixin.CHUNK_SIZE])
+            val = val[_ChunkedValuesMixin.CHUNK_SIZE :]
+        chunks = '" "'.join(chunks)
+        return f'"{chunks}"'
