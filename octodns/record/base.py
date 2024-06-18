@@ -113,7 +113,9 @@ class Record(EqualityTupleMixin):
             if data['octodns']['healthcheck']['protocol'] not in (
                 'HTTP',
                 'HTTPS',
+                'ICMP',
                 'TCP',
+                'UDP',
             ):
                 reasons.append('invalid healthcheck protocol')
         except KeyError:
@@ -224,14 +226,16 @@ class Record(EqualityTupleMixin):
 
     def healthcheck_host(self, value=None):
         healthcheck = self.octodns.get('healthcheck', {})
-        if healthcheck.get('protocol', None) == 'TCP':
+        protocol = self.healthcheck_protocol
+        if protocol not in ('HTTP', 'HTTPS'):
             return None
         return healthcheck.get('host', self.fqdn[:-1]) or value
 
     @property
     def healthcheck_path(self):
         healthcheck = self.octodns.get('healthcheck', {})
-        if healthcheck.get('protocol', None) == 'TCP':
+        protocol = self.healthcheck_protocol
+        if protocol not in ('HTTP', 'HTTPS'):
             return None
         try:
             return healthcheck['path']
@@ -247,6 +251,8 @@ class Record(EqualityTupleMixin):
 
     @property
     def healthcheck_port(self):
+        if self.healthcheck_protocol == 'ICMP':
+            return None
         try:
             return int(self.octodns['healthcheck']['port'])
         except KeyError:

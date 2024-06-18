@@ -82,6 +82,7 @@ class TestRecordDynamic(TestCase):
         )
         self.assertEqual('1.2.3.4', new.healthcheck_host(value="1.2.3.4"))
 
+        # defaults
         new = Record.new(
             self.zone, 'a', {'ttl': 44, 'type': 'A', 'value': '1.2.3.4'}
         )
@@ -89,6 +90,44 @@ class TestRecordDynamic(TestCase):
         self.assertEqual('a.unit.tests', new.healthcheck_host())
         self.assertEqual('HTTPS', new.healthcheck_protocol)
         self.assertEqual(443, new.healthcheck_port)
+
+    def test_healthcheck_icmp(self):
+        new = Record.new(
+            self.zone,
+            'a',
+            {
+                'ttl': 44,
+                'type': 'A',
+                'value': '1.2.3.4',
+                'octodns': {
+                    'healthcheck': {
+                        'path': '/ignored',
+                        'host': 'completely.ignored',
+                        'protocol': 'ICMP',
+                        'port': -99,
+                    }
+                },
+            },
+        )
+        self.assertIsNone(new.healthcheck_path)
+        self.assertIsNone(new.healthcheck_host())
+        self.assertEqual('ICMP', new.healthcheck_protocol)
+        self.assertIsNone(new.healthcheck_port)
+
+        new = Record.new(
+            self.zone,
+            'a',
+            {
+                'ttl': 44,
+                'type': 'A',
+                'value': '1.2.3.4',
+                'octodns': {'healthcheck': {'protocol': 'ICMP'}},
+            },
+        )
+        self.assertIsNone(new.healthcheck_path)
+        self.assertIsNone(new.healthcheck_host())
+        self.assertEqual('ICMP', new.healthcheck_protocol)
+        self.assertIsNone(new.healthcheck_port)
 
     def test_healthcheck_tcp(self):
         new = Record.new(
@@ -126,6 +165,44 @@ class TestRecordDynamic(TestCase):
         self.assertIsNone(new.healthcheck_path)
         self.assertIsNone(new.healthcheck_host())
         self.assertEqual('TCP', new.healthcheck_protocol)
+        self.assertEqual(443, new.healthcheck_port)
+
+    def test_healthcheck_udp(self):
+        new = Record.new(
+            self.zone,
+            'a',
+            {
+                'ttl': 44,
+                'type': 'A',
+                'value': '1.2.3.4',
+                'octodns': {
+                    'healthcheck': {
+                        'path': '/ignored',
+                        'host': 'completely.ignored',
+                        'protocol': 'UDP',
+                        'port': 8081,
+                    }
+                },
+            },
+        )
+        self.assertIsNone(new.healthcheck_path)
+        self.assertIsNone(new.healthcheck_host())
+        self.assertEqual('UDP', new.healthcheck_protocol)
+        self.assertEqual(8081, new.healthcheck_port)
+
+        new = Record.new(
+            self.zone,
+            'a',
+            {
+                'ttl': 44,
+                'type': 'A',
+                'value': '1.2.3.4',
+                'octodns': {'healthcheck': {'protocol': 'UDP'}},
+            },
+        )
+        self.assertIsNone(new.healthcheck_path)
+        self.assertIsNone(new.healthcheck_host())
+        self.assertEqual('UDP', new.healthcheck_protocol)
         self.assertEqual(443, new.healthcheck_port)
 
     def test_simple_a_weighted(self):
