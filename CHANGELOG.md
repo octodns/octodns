@@ -1,4 +1,4 @@
-## v1.?.? - 2024-??-?? - ???
+## v1.9.0 - 2024-06-20 - Grab bag
 
 * ICMP & UDP healthcheck protocol support added
 * Improved handling of present, but empty/None config file values.
