@@ -480,8 +480,6 @@ class ExcludeRootNsChanges(BaseProcessor):
                         )
                     plan.changes.remove(change)
 
-            print(len(plan.changes))
-
         return plan
 
 
