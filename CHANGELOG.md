@@ -1,5 +1,6 @@
 ## v1.?.? - 2024-??-?? - ???
 
+* ICMP & UDP healthcheck protocol support added
 * Improved handling of present, but empty/None config file values.
 * Add PlanJson plan_output support
 * Include `record_type` in Change data
