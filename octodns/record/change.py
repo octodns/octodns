@@ -29,6 +29,7 @@ class Create(Change):
     def data(self):
         return {
             'type': 'create',
+            'name': self.new.name,
             'new': self.new.data,
             'record_type': self.new._type,
         }
@@ -46,6 +47,7 @@ class Update(Change):
         return {
             'type': 'update',
             'existing': self.existing.data,
+            'name': self.new.name,
             'new': self.new.data,
             'record_type': self.new._type,
         }
@@ -73,6 +75,7 @@ class Delete(Change):
         return {
             'type': 'delete',
             'existing': self.existing.data,
+            'name': self.existing.name,
             'record_type': self.existing._type,
         }
 

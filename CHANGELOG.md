@@ -1,3 +1,7 @@
+## v1.9.? - 2024-??-?? - ???
+
+* Add `name` to Change.data, and thus PlanJson output
+
 ## v1.9.0 - 2024-06-20 - Grab bag
 
 * ICMP & UDP healthcheck protocol support added
