@@ -408,7 +408,8 @@ class TestPlanSafety(TestCase):
         # have a dedicated test (file)
         delete_data = data['changes'][0]  # delete
         self.assertEqual(
-            ['existing', 'record_type', 'type'], sorted(delete_data.keys())
+            ['existing', 'name', 'record_type', 'type'],
+            sorted(delete_data.keys()),
         )
         self.assertEqual('delete', delete_data['type'])
         self.assertEqual('A', delete_data['record_type'])
@@ -416,7 +417,7 @@ class TestPlanSafety(TestCase):
 
         create_data = data['changes'][1]  # create
         self.assertEqual(
-            ['new', 'record_type', 'type'], sorted(create_data.keys())
+            ['name', 'new', 'record_type', 'type'], sorted(create_data.keys())
         )
         self.assertEqual('create', create_data['type'])
         self.assertEqual('CNAME', create_data['record_type'])
@@ -424,7 +425,7 @@ class TestPlanSafety(TestCase):
 
         update_data = data['changes'][3]  # update
         self.assertEqual(
-            ['existing', 'new', 'record_type', 'type'],
+            ['existing', 'name', 'new', 'record_type', 'type'],
             sorted(update_data.keys()),
         )
         self.assertEqual('update', update_data['type'])
