@@ -14,6 +14,8 @@
 * Add support for SVCB and HTTPS records
 * Allow DS records to be specified for managed sub-zones, same as NS
 * Fix CAA rdata parsing to allow values with tags
+* Improve TXT (and SPF) record handling of unexpected whitespace
+  before/after/in-between quotes.
 
 ## v1.7.0 - 2024-04-29 - All the knobs and dials
 
