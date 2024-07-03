@@ -62,9 +62,8 @@ class MetaProcessor(BaseProcessor):
         # Extra values to set on the records
         # (default: None)
         #include_extra:
-        #  - key=val
-        #  - foo=bar
-        #  - arbitrary string
+        #  key: val
+        #  foo: env/BAR
     '''
 
     @classmethod
@@ -103,7 +102,11 @@ class MetaProcessor(BaseProcessor):
         self.uuid = self.get_uuid() if include_uuid else None
         self.include_version = include_version
         self.include_provider = include_provider
-        self.include_extra = include_extra
+        self.include_extra = (
+            [f'{key}={val}' for key, val in include_extra.items()]
+            if include_extra is not None
+            else []
+        )
         self.ttl = ttl
 
     def values(self, target_id):
@@ -116,8 +119,8 @@ class MetaProcessor(BaseProcessor):
             ret.append(f'time={self.time}')
         if self.uuid:
             ret.append(f'uuid={self.uuid}')
-        if self.include_extra is not None:
-            ret.extend(self.include_extra)
+        # these were previously converted into key=value or will otherwise be []
+        ret.extend(self.include_extra)
         return ret
 
     def process_source_and_target_zones(self, desired, existing, target):

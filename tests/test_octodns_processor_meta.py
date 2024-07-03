@@ -116,7 +116,7 @@ class TestMetaProcessor(TestCase):
         self.assertFalse(proc.time)
         self.assertFalse(proc.include_provider)
         self.assertFalse(proc.include_version)
-        self.assertIsNone(proc.include_extra)
+        self.assertEqual([], proc.include_extra)
 
         values = list(proc.values('dummy'))
         self.assertEqual(1, len(values))
@@ -124,17 +124,24 @@ class TestMetaProcessor(TestCase):
         self.assertEqual(f'uuid={proc.uuid}', value)
 
     def test_extra(self):
-        extra = ['one', 'two=three', 'four', 'five six']
+        extra = {'key': 'value', 'foo': 'bar', 'baz': 42}
+        expected = ['key=value', 'foo=bar', 'baz=42']
         proc = MetaProcessor('test', include_time=False, include_extra=extra)
-        self.assertEqual(extra, proc.include_extra)
+        self.assertEqual(expected, proc.include_extra)
         self.assertFalse(proc.include_provider)
         self.assertFalse(proc.include_version)
         self.assertFalse(proc.time)
         self.assertFalse(proc.uuid)
 
         values = list(proc.values('dummy'))
-        self.assertEqual(4, len(values))
-        self.assertEqual(extra, values)
+        self.assertEqual(3, len(values))
+        self.assertEqual(expected, values)
+
+        # other param values
+        proc = MetaProcessor('test', include_time=False, include_extra=None)
+        self.assertEqual([], proc.include_extra)
+        proc = MetaProcessor('test', include_time=False, include_extra={})
+        self.assertEqual([], proc.include_extra)
 
     def test_is_up_to_date_meta(self):
         proc = MetaProcessor('test')
