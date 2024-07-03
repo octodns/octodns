@@ -59,6 +59,12 @@ class MetaProcessor(BaseProcessor):
         # Include the octoDNS version being used
         # (default: false)
         include_version: false
+        # Extra values to set on the records
+        # (default: None)
+        #include_extra:
+        #  - key=val
+        #  - foo=bar
+        #  - arbitrary string
     '''
 
     @classmethod
@@ -77,17 +83,19 @@ class MetaProcessor(BaseProcessor):
         include_uuid=False,
         include_version=False,
         include_provider=False,
+        include_extra=None,
         ttl=60,
     ):
         self.log = getLogger(f'MetaSource[{id}]')
         super().__init__(id)
         self.log.info(
-            '__init__: record_name=%s, include_time=%s, include_uuid=%s, include_version=%s, include_provider=%s, ttl=%d',
+            '__init__: record_name=%s, include_time=%s, include_uuid=%s, include_version=%s, include_provider=%s, include_extra=%s, ttl=%d',
             record_name,
             include_time,
             include_uuid,
             include_version,
             include_provider,
+            include_extra,
             ttl,
         )
         self.record_name = record_name
@@ -95,6 +103,7 @@ class MetaProcessor(BaseProcessor):
         self.uuid = self.get_uuid() if include_uuid else None
         self.include_version = include_version
         self.include_provider = include_provider
+        self.include_extra = include_extra
         self.ttl = ttl
 
     def values(self, target_id):
@@ -107,6 +116,8 @@ class MetaProcessor(BaseProcessor):
             ret.append(f'time={self.time}')
         if self.uuid:
             ret.append(f'uuid={self.uuid}')
+        if self.include_extra is not None:
+            ret.extend(self.include_extra)
         return ret
 
     def process_source_and_target_zones(self, desired, existing, target):

@@ -1,3 +1,8 @@
+## v1.?.? - 2024-??-?? - ???
+
+* MetaProcessor.include_extra to add support for arbitrary extra values to be
+  set on the meta record.
+
 ## v1.9.1 - 2024-06-21 - What's in a name
 
 * Add `name` to Change.data, and thus PlanJson output
