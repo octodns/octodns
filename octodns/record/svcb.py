@@ -102,6 +102,8 @@ def validate_svckey_number(paramkey):
 
 
 def parse_rdata_text_svcparamvalue_list(svcparamvalue):
+    if svcparamvalue.startswith('"'):
+        svcparamvalue = svcparamvalue[1:-1]
     return svcparamvalue.split(',')
 
 
@@ -158,11 +160,15 @@ class SvcbValue(EqualityTupleMixin, dict):
             if paramkey in params.keys():
                 raise RrParseError(f'{paramkey} is specified twice')
             if len(paramvalue) != 0:
-                params[paramkey] = paramvalue[0]
                 parse_rdata_text = SUPPORTED_PARAMS.get(paramkey, {}).get(
                     'parse_rdata_text', None
                 )
-                if parse_rdata_text is not None:
+                if parse_rdata_text is None:
+                    v = paramvalue[0]
+                    if v.startswith('"'):
+                        v = v[1:-1]
+                    params[paramkey] = v
+                else:
                     params[paramkey] = parse_rdata_text(paramvalue[0])
             else:
                 params[paramkey] = None
