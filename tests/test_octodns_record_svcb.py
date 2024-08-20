@@ -177,6 +177,13 @@ class TestRecordSvcb(TestCase):
         )
         self.assertEqual(rdata, record.values[0].rdata_text)
 
+        # quoted params need to be correctly handled
+        rdata = '1 svcb.unit.tests. no-default-alpn port=8080 ipv4hint="192.0.2.2,192.0.2.53" key3333="foobar"'
+        record = SvcbRecord(
+            zone, 'svc', {'ttl': 32, 'value': SvcbValue.parse_rdata_text(rdata)}
+        )
+        self.assertEqual(rdata.replace('"', ''), record.values[0].rdata_text)
+
     def test_svcb_value(self):
         a = SvcbValue(
             {'svcpriority': 0, 'targetname': 'foo.', 'svcparams': dict()}
