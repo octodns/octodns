@@ -3,6 +3,8 @@
 * MetaProcessor.include_extra to add support for arbitrary extra values to be
   set on the meta record.
 * Correctly handled quoted svcparams when parsing SVCB/HTTPS rdata text
+* Fix handling of chunked values (TXT, SPF) when escaped characters land at the
+  split boundaries, don't split escapes from their following chars
 
 ## v1.9.1 - 2024-06-21 - What's in a name
 
