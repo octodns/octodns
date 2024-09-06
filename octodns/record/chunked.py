@@ -13,10 +13,20 @@ class _ChunkedValuesMixin(ValuesMixin):
 
     def chunked_value(self, value):
         value = value.replace('"', '\\"')
-        vs = [
-            value[i : i + self.CHUNK_SIZE]
-            for i in range(0, len(value), self.CHUNK_SIZE)
-        ]
+        vs = []
+        i = 0
+        n = len(value)
+        # until we've processed the whole string
+        while i < n:
+            # start with a full chunk size
+            c = min(self.CHUNK_SIZE, n - i)
+            # make sure that we don't break on escape chars
+            while value[i + c - 1] == '\\':
+                c -= 1
+            # we have our chunk now
+            vs.append(value[i : i + c])
+            # and can step over if
+            i += c
         vs = '" "'.join(vs)
         return self._value_type(f'"{vs}"')
 
