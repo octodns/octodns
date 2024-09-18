@@ -361,7 +361,7 @@ octoDNS supports automatically generating PTR records from the `A`/`AAAA` record
 
 It is worth noting that these errors will happen during the plan phase of things so that problems will be visible without having to make changes.
 
-This concept is currently a work in progress and only partially implemented. While work is on-going `strict_supports` will default to `false`. Once the work is considered complete & ready the default will change to `true` as it's a much safer and less surprising default as what you configure is what you'll get unless an error is thrown telling you why it cannot be done. You will then have the choice to explicitly request that things continue with work-arounds with `strict_supports` set to `false`. In the meantime it is encouraged that you manually configure the parameter to `true` in your provider configs.
+As of octoDNS 1.x `strict_supports` is on by default. You have the choice to set `strict_supports=false` on a per provider basis to request that things warn and continue in a best-effort fashion.
 
 ### Configuring `strict_supports`
 
