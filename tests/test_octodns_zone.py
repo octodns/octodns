@@ -19,6 +19,7 @@ from octodns.record import (
 )
 from octodns.zone import (
     DuplicateRecordException,
+    InvalidNameError,
     InvalidNodeException,
     SubzoneRecordException,
     Zone,
@@ -247,12 +248,21 @@ class TestZone(TestCase):
         self.assertIsInstance(changes[0], Delete)
 
     def test_missing_dot(self):
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(InvalidNameError) as ctx:
             Zone('not.allowed', [])
         self.assertTrue('missing ending dot' in str(ctx.exception))
 
+    def test_double_dot(self):
+        with self.assertRaises(InvalidNameError) as ctx:
+            Zone('ending.double.dot..', [])
+        self.assertTrue('double dot not allowed' in str(ctx.exception))
+
+        with self.assertRaises(InvalidNameError) as ctx:
+            Zone('mid.double..dot.', [])
+        self.assertTrue('double dot not allowed' in str(ctx.exception))
+
     def test_whitespace(self):
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(InvalidNameError) as ctx:
             Zone('space not allowed.', [])
         self.assertTrue('whitespace not allowed' in str(ctx.exception))
 

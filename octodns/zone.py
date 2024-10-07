@@ -53,6 +53,10 @@ class InvalidNodeException(Exception):
         super().__init__(msg)
 
 
+class InvalidNameError(Exception):
+    pass
+
+
 class Zone(object):
     log = getLogger('Zone')
 
@@ -64,9 +68,17 @@ class Zone(object):
         delete_pcent_threshold=None,
     ):
         if not name[-1] == '.':
-            raise Exception(f'Invalid zone name {name}, missing ending dot')
+            raise InvalidNameError(
+                f'Invalid zone name {name}, missing ending dot'
+            )
+        elif '..' in name:
+            raise InvalidNameError(
+                f'Invalid zone name {name}, double dot not allowed'
+            )
         elif ' ' in name or '\t' in name:
-            raise Exception(f'Invalid zone name {name}, whitespace not allowed')
+            raise InvalidNameError(
+                f'Invalid zone name {name}, whitespace not allowed'
+            )
 
         # internally everything is idna
         self.name = idna_encode(str(name)) if name else name
