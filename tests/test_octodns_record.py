@@ -692,6 +692,18 @@ class TestRecordValidation(TestCase):
             reason,
         )
 
+        # double dots in idna names
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                'niño.',
+                {'ttl': 301, 'type': 'A', 'value': '1.2.3.4'},
+            )
+        reason = ctx.exception.reasons[0]
+        self.assertEqual(
+            'invalid name, double `.` in "niño..unit.tests."', reason
+        )
+
         # no ttl
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {'type': 'A', 'value': '1.2.3.4'})
