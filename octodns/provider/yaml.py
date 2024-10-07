@@ -38,7 +38,7 @@ class YamlProvider(BaseProvider):
         # - simple: `sort`
         # - natual: https://pypi.org/project/natsort/
         # (optional, default natual)
-        order_mode: natrual
+        order_mode: natural
 
         # Whether duplicate records should replace rather than error
         # (optional, default False)
@@ -179,7 +179,7 @@ class YamlProvider(BaseProvider):
         directory,
         default_ttl=3600,
         enforce_order=True,
-        order_mode='natrual',
+        order_mode='natural',
         populate_should_replace=False,
         supports_root_ns=True,
         split_extension=False,

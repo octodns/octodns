@@ -83,10 +83,10 @@ SimpleSortEnforcingLoader.add_constructor(
 )
 
 
-def safe_load(stream, enforce_order=True, order_mode='natrual'):
+def safe_load(stream, enforce_order=True, order_mode='natural'):
     if enforce_order:
         loader = {
-            'natrual': NaturalSortEnforcingLoader,
+            'natural': NaturalSortEnforcingLoader,
             'simple': SimpleSortEnforcingLoader,
         }[order_mode]
     else:

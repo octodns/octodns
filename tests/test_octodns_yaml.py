@@ -100,7 +100,7 @@ class TestYaml(TestCase):
                 order_mode='simple',
             ),
         )
-        # natrual sort throws error
+        # natural sort throws error
         with self.assertRaises(ConstructorError) as ctx:
             safe_load(
                 '''
