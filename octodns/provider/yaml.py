@@ -34,6 +34,11 @@ class YamlProvider(BaseProvider):
         # Whether or not to enforce sorting order when loading yaml
         # (optional, default True)
         enforce_order: true
+        # What sort mode to employ when enforcing order
+        # - simple: `sort`
+        # - natual: https://pypi.org/project/natsort/
+        # (optional, default natual)
+        order_mode: natrual
 
         # Whether duplicate records should replace rather than error
         # (optional, default False)
@@ -174,6 +179,7 @@ class YamlProvider(BaseProvider):
         directory,
         default_ttl=3600,
         enforce_order=True,
+        order_mode='natrual',
         populate_should_replace=False,
         supports_root_ns=True,
         split_extension=False,
@@ -186,11 +192,12 @@ class YamlProvider(BaseProvider):
         klass = self.__class__.__name__
         self.log = logging.getLogger(f'{klass}[{id}]')
         self.log.debug(
-            '__init__: id=%s, directory=%s, default_ttl=%d, enforce_order=%d, populate_should_replace=%s, supports_root_ns=%s, split_extension=%s, split_catchall=%s, shared_filename=%s, disable_zonefile=%s',
+            '__init__: id=%s, directory=%s, default_ttl=%d, enforce_order=%d, order_mode=%s, populate_should_replace=%s, supports_root_ns=%s, split_extension=%s, split_catchall=%s, shared_filename=%s, disable_zonefile=%s',
             id,
             directory,
             default_ttl,
             enforce_order,
+            order_mode,
             populate_should_replace,
             supports_root_ns,
             split_extension,
@@ -202,6 +209,7 @@ class YamlProvider(BaseProvider):
         self.directory = directory
         self.default_ttl = default_ttl
         self.enforce_order = enforce_order
+        self.order_mode = order_mode
         self.populate_should_replace = populate_should_replace
         self.supports_root_ns = supports_root_ns
         self.split_extension = split_extension
@@ -304,7 +312,9 @@ class YamlProvider(BaseProvider):
 
     def _populate_from_file(self, filename, zone, lenient):
         with open(filename, 'r') as fh:
-            yaml_data = safe_load(fh, enforce_order=self.enforce_order)
+            yaml_data = safe_load(
+                fh, enforce_order=self.enforce_order, order_mode=self.order_mode
+            )
             if yaml_data:
                 for name, data in yaml_data.items():
                     if not isinstance(data, list):

@@ -44,11 +44,12 @@ ContextLoader.add_constructor(
 # Found http://stackoverflow.com/a/21912744 which guided me on how to hook in
 # here
 class SortEnforcingLoader(ContextLoader):
+
     def _construct(self, node):
         ret, pairs, context = self._pairs(node)
 
         keys = [d[0] for d in pairs]
-        keys_sorted = sorted(keys, key=_natsort_key)
+        keys_sorted = sorted(keys, key=self.KEYGEN)
         for key in keys:
             expected = keys_sorted.pop(0)
             if key != expected:
@@ -62,13 +63,36 @@ class SortEnforcingLoader(ContextLoader):
         return ret
 
 
-SortEnforcingLoader.add_constructor(
-    SortEnforcingLoader.DEFAULT_MAPPING_TAG, SortEnforcingLoader._construct
+class NaturalSortEnforcingLoader(SortEnforcingLoader):
+    KEYGEN = _natsort_key
+
+
+NaturalSortEnforcingLoader.add_constructor(
+    SortEnforcingLoader.DEFAULT_MAPPING_TAG,
+    NaturalSortEnforcingLoader._construct,
 )
 
 
-def safe_load(stream, enforce_order=True):
-    return load(stream, SortEnforcingLoader if enforce_order else ContextLoader)
+class SimpleSortEnforcingLoader(SortEnforcingLoader):
+    KEYGEN = lambda _, s: s
+
+
+SimpleSortEnforcingLoader.add_constructor(
+    SortEnforcingLoader.DEFAULT_MAPPING_TAG,
+    SimpleSortEnforcingLoader._construct,
+)
+
+
+def safe_load(stream, enforce_order=True, order_mode='natrual'):
+    if enforce_order:
+        loader = {
+            'natrual': NaturalSortEnforcingLoader,
+            'simple': SimpleSortEnforcingLoader,
+        }[order_mode]
+    else:
+        loader = ContextLoader
+
+    return load(stream, loader)
 
 
 class SortingDumper(SafeDumper):

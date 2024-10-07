@@ -86,3 +86,32 @@ class TestYaml(TestCase):
                 "[Errno 2] No such file or directory: 'tests/config/include/does-not-exist.yaml'",
                 str(ctx.exception),
             )
+
+    def test_order_mode(self):
+        self.assertEqual(
+            {'*.1.2': 'a', '*.10.1': 'c', '*.11.2': 'd', '*.2.2': 'b'},
+            safe_load(
+                '''
+'*.1.2': 'a'
+'*.10.1': 'c'
+'*.11.2': 'd'
+'*.2.2': 'b'
+''',
+                order_mode='simple',
+            ),
+        )
+        # natrual sort throws error
+        with self.assertRaises(ConstructorError) as ctx:
+            safe_load(
+                '''
+'*.1.2': 'a'
+'*.2.2': 'b'
+'*.10.1': 'c'
+'*.11.2': 'd'
+''',
+                order_mode='simple',
+            )
+        self.assertTrue(
+            'keys out of order: expected *.10.1 got *.2.2 at'
+            in ctx.exception.problem
+        )
