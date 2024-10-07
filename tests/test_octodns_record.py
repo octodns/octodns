@@ -616,6 +616,7 @@ class TestRecordValidation(TestCase):
 
         # should not raise with dots
         name = 'xxxxxxxx.' * 10
+        name = name[:-1]
         Record.new(
             self.zone, name, {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
         )
@@ -664,6 +665,32 @@ class TestRecordValidation(TestCase):
         # control over the exact message :-/ (doesn't give context like octoDNS
         # does)
         self.assertEqual('Label too long', reason)
+
+        # double dots are not valid, ends with
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                'this.ends.with.a.dot.',
+                {'ttl': 301, 'type': 'A', 'value': '1.2.3.4'},
+            )
+        reason = ctx.exception.reasons[0]
+        self.assertEqual(
+            'invalid name, double `.` in "this.ends.with.a.dot..unit.tests."',
+            reason,
+        )
+
+        # double dots are not valid when eplxicit
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                'this.has.double..dots',
+                {'ttl': 301, 'type': 'A', 'value': '1.2.3.4'},
+            )
+        reason = ctx.exception.reasons[0]
+        self.assertEqual(
+            'invalid name, double `.` in "this.has.double..dots.unit.tests."',
+            reason,
+        )
 
         # no ttl
         with self.assertRaises(ValidationError) as ctx:

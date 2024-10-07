@@ -102,6 +102,9 @@ class Record(EqualityTupleMixin):
                     f'invalid label, "{label}" is too long at {n}'
                     ' chars, max is 63'
                 )
+        # in the case of endswith there's an implicit second . from the Zone
+        if '..' in name or name.endswith('.'):
+            reasons.append(f'invalid name, double `.` in "{idna_decode(fqdn)}"')
         # TODO: look at the idna lib for a lot more potential validations...
         try:
             ttl = int(data['ttl'])
