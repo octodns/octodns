@@ -1,6 +1,6 @@
 ## v1.?.? - 2024-??-?? - ???
 
-* Add YamlProvider.order_mode to allow picking between natrual (human)
+* Add YamlProvider.order_mode to allow picking between natural (human)
   the default when enforce_order=True and simple `sort`.
 
 ## v1.10.0 - 2024-10-06 - Lots of little stuff
