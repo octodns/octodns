@@ -1,5 +1,6 @@
 ## v1.?.? - 2024-??-?? - ???
 
+* Record validation checks for double dots in names
 * MetaProcessor.include_extra to add support for arbitrary extra values to be
   set on the meta record.
 * Correctly handled quoted svcparams when parsing SVCB/HTTPS rdata text

@@ -666,6 +666,32 @@ class TestRecordValidation(TestCase):
         # does)
         self.assertEqual('Label too long', reason)
 
+        # double dots are not valid, ends with
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                'this.ends.with.a.dot.',
+                {'ttl': 301, 'type': 'A', 'value': '1.2.3.4'},
+            )
+        reason = ctx.exception.reasons[0]
+        self.assertEqual(
+            'invalid name, double `.` in "this.ends.with.a.dot..unit.tests."',
+            reason,
+        )
+
+        # double dots are not valid when eplxicit
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                'this.has.double..dots',
+                {'ttl': 301, 'type': 'A', 'value': '1.2.3.4'},
+            )
+        reason = ctx.exception.reasons[0]
+        self.assertEqual(
+            'invalid name, double `.` in "this.has.double..dots.unit.tests."',
+            reason,
+        )
+
         # no ttl
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {'type': 'A', 'value': '1.2.3.4'})
