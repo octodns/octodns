@@ -45,7 +45,10 @@ def idna_decode(name):
             if name.startswith('*'):
                 # idna.decode doesn't like the *
                 return f'*.{_decode(name[2:])}'
-            return _decode(name)
+            # idna.decode doesn't like .. so we stick a unique placeholder
+            # anywhere we see it and then remove it again afterwards.
+            name = name.replace('..', '.pl-a-ce--hold-e--r.')
+            return _decode(name).replace('.pl-a-ce--hold-e--r.', '..')
         except _IDNAError as e:
             raise IdnaError(e)
     # not idna, just return as-is
