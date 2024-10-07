@@ -1,4 +1,4 @@
-## v1.?.? - 2024-??-?? - ???
+## v1.10.0 - 2024-10-06 - Lots of little stuff
 
 * Zone name validation checking for double dots, and throwing InvalidNameError
   rather than base Exception
