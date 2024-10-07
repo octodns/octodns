@@ -616,6 +616,7 @@ class TestRecordValidation(TestCase):
 
         # should not raise with dots
         name = 'xxxxxxxx.' * 10
+        name = name[:-1]
         Record.new(
             self.zone, name, {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
         )

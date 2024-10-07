@@ -487,7 +487,9 @@ class TestZoneNameFilter(TestCase):
         with_dot = zone.copy()
         with_dot.add_record(
             Record.new(
-                zone, zone.name, {'type': 'A', 'ttl': 43, 'value': '1.2.3.4'}
+                zone,
+                zone.name[:-1],
+                {'type': 'A', 'ttl': 43, 'value': '1.2.3.4'},
             )
         )
         self.assertEqual(3, len(with_dot.records))
@@ -514,7 +516,9 @@ class TestZoneNameFilter(TestCase):
         zone = Zone('unit.tests.', [])
         zone.add_record(
             Record.new(
-                zone, zone.name, {'type': 'A', 'ttl': 43, 'value': '1.2.3.4'}
+                zone,
+                zone.name[:-1],
+                {'type': 'A', 'ttl': 43, 'value': '1.2.3.4'},
             )
         )
         with self.assertRaises(ValidationError) as ctx:
