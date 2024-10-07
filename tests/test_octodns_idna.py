@@ -66,8 +66,10 @@ class TestIdna(TestCase):
         self.assertEqual('Empty Label', str(ctx.exception))
 
         with self.assertRaises(IdnaError) as ctx:
-            idna_decode('xn--djvu-1na6c..com.')
-        self.assertEqual('Empty Label', str(ctx.exception))
+            idna_decode('xn--djvu-1na6c.something-.com.')
+        self.assertEqual(
+            'Label must not start or end with a hyphen', str(ctx.exception)
+        )
 
 
 class TestIdnaDict(TestCase):
