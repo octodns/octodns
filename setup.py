@@ -63,9 +63,6 @@ setup(
             # https://black.readthedocs.io/en/stable/the_black_code_style/index.html#stability-policy
             'black>=24.3.0,<25.0.0',
             'build>=0.7.0',
-            # docutils 0.21.x bumped to >=3.9 and 3.8 is still active. we'll
-            # have to clamp it down until we remove 3.8
-            'docutils<=0.20.1',
             'isort>=5.11.5',
             'pycountry>=19.8.18',
             'pycountry-convert>=0.7.2',
@@ -87,7 +84,7 @@ setup(
     long_description_content_type='text/markdown',
     name='octodns',
     packages=find_packages(),
-    python_requires='>=3.8',
+    python_requires='>=3.9',
     tests_require=tests_require,
     url='https://github.com/octodns/octodns',
     version=octodns.__version__,
