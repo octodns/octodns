@@ -11,7 +11,9 @@ from yaml.representer import SafeRepresenter
 
 from .context import ContextDict
 
-_natsort_key = natsort_keygen()
+# as of python 3.13 functools.partial is a method descriptor and must be wrapped
+# in staticmethod() to preserve the behavior natsort is expecting it to have
+_natsort_key = staticmethod(natsort_keygen())
 
 
 class ContextLoader(SafeLoader):
