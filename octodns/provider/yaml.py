@@ -36,8 +36,8 @@ class YamlProvider(BaseProvider):
         enforce_order: true
         # What sort mode to employ when enforcing order
         # - simple: `sort`
-        # - natual: https://pypi.org/project/natsort/
-        # (optional, default natual)
+        # - natural: https://pypi.org/project/natsort/
+        # (optional, default natural)
         order_mode: natural
 
         # Whether duplicate records should replace rather than error
