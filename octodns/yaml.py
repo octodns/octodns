@@ -83,12 +83,27 @@ SimpleSortEnforcingLoader.add_constructor(
 )
 
 
+_loaders = {
+    'natural': NaturalSortEnforcingLoader,
+    'simple': SimpleSortEnforcingLoader,
+}
+
+
+class InvalidOrder(Exception):
+
+    def __init__(self, order_mode):
+        options = '", "'.join(_loaders.keys())
+        super().__init__(
+            f'Invalid order_mode, "{order_mode}", options are "{options}"'
+        )
+
+
 def safe_load(stream, enforce_order=True, order_mode='natural'):
     if enforce_order:
-        loader = {
-            'natural': NaturalSortEnforcingLoader,
-            'simple': SimpleSortEnforcingLoader,
-        }[order_mode]
+        try:
+            loader = _loaders[order_mode]
+        except KeyError as e:
+            raise InvalidOrder(order_mode) from e
     else:
         loader = ContextLoader
 
@@ -105,7 +120,7 @@ class SortingDumper(SafeDumper):
     '''
 
     def _representer(self, data):
-        data = sorted(data.items(), key=lambda d: _natsort_key(d[0]))
+        data = sorted(data.items(), key=self.KEYGEN)
         return self.represent_mapping(self.DEFAULT_MAPPING_TAG, data)
 
 
@@ -116,7 +131,18 @@ SortingDumper.add_multi_representer(str, SafeRepresenter.represent_str)
 SortingDumper.add_multi_representer(dict, SortingDumper._representer)
 
 
-def safe_dump(data, fh, **options):
+class NaturalSortingDumper(SortingDumper):
+    KEYGEN = _natsort_key
+
+
+class SimpleSortingDumper(SortingDumper):
+    KEYGEN = lambda _, s: s
+
+
+_dumpers = {'natural': NaturalSortingDumper, 'simple': SimpleSortingDumper}
+
+
+def safe_dump(data, fh, order_mode='natural', **options):
     kwargs = {
         'canonical': False,
         'indent': 2,
@@ -125,4 +151,8 @@ def safe_dump(data, fh, **options):
         'explicit_start': True,
     }
     kwargs.update(options)
-    dump(data, fh, SortingDumper, **kwargs)
+    try:
+        dumper = _dumpers[order_mode]
+    except KeyError as e:
+        raise InvalidOrder(order_mode) from e
+    dump(data, fh, dumper, **kwargs)

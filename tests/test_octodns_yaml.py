@@ -7,7 +7,7 @@ from unittest import TestCase
 
 from yaml.constructor import ConstructorError
 
-from octodns.yaml import safe_dump, safe_load
+from octodns.yaml import InvalidOrder, safe_dump, safe_load
 
 
 class TestYaml(TestCase):
@@ -88,30 +88,58 @@ class TestYaml(TestCase):
             )
 
     def test_order_mode(self):
-        self.assertEqual(
-            {'*.1.2': 'a', '*.10.1': 'c', '*.11.2': 'd', '*.2.2': 'b'},
-            safe_load(
-                '''
-'*.1.2': 'a'
-'*.10.1': 'c'
-'*.11.2': 'd'
-'*.2.2': 'b'
-''',
-                order_mode='simple',
-            ),
-        )
-        # natural sort throws error
+        data = {'*.1.2': 'a', '*.10.1': 'c', '*.11.2': 'd', '*.2.2': 'b'}
+        natural = '''---
+'*.1.2': a
+'*.2.2': b
+'*.10.1': c
+'*.11.2': d
+'''
+        simple = '''---
+'*.1.2': a
+'*.10.1': c
+'*.11.2': d
+'*.2.2': b
+'''
+
+        ## natural
+        # correct order
+        self.assertEqual(data, safe_load(natural))
+        # wrong order
         with self.assertRaises(ConstructorError) as ctx:
-            safe_load(
-                '''
-'*.1.2': 'a'
-'*.2.2': 'b'
-'*.10.1': 'c'
-'*.11.2': 'd'
-''',
-                order_mode='simple',
-            )
-        self.assertTrue(
-            'keys out of order: expected *.10.1 got *.2.2 at'
-            in ctx.exception.problem
+            safe_load(simple)
+        problem = ctx.exception.problem.split(' at')[0]
+        self.assertEqual(
+            'keys out of order: expected *.2.2 got *.10.1', problem
+        )
+        # dump
+        buf = StringIO()
+        safe_dump(data, buf)
+        self.assertEqual(natural, buf.getvalue())
+
+        ## simple
+        # correct order
+        self.assertEqual(data, safe_load(simple, order_mode='simple'))
+        # wrong order
+        with self.assertRaises(ConstructorError) as ctx:
+            safe_load(natural, order_mode='simple')
+        problem = ctx.exception.problem.split(' at')[0]
+        self.assertEqual(
+            'keys out of order: expected *.10.1 got *.2.2', problem
+        )
+        buf = StringIO()
+        safe_dump(data, buf, order_mode='simple')
+        self.assertEqual(simple, buf.getvalue())
+
+        with self.assertRaises(InvalidOrder) as ctx:
+            safe_load(None, order_mode='bad')
+        self.assertEqual(
+            'Invalid order_mode, "bad", options are "natural", "simple"',
+            str(ctx.exception),
+        )
+        with self.assertRaises(InvalidOrder) as ctx:
+            safe_dump(None, None, order_mode='bad2')
+        self.assertEqual(
+            'Invalid order_mode, "bad2", options are "natural", "simple"',
+            str(ctx.exception),
         )

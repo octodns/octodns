@@ -430,7 +430,7 @@ class YamlProvider(BaseProvider):
 
                 with open(filename, 'w') as fh:
                     record_data = {record: config}
-                    safe_dump(record_data, fh)
+                    safe_dump(record_data, fh, order_mode=self.order_mode)
 
             if catchall:
                 # Scrub the trailing . to make filenames more sane.
@@ -439,14 +439,19 @@ class YamlProvider(BaseProvider):
                     '_apply:   writing catchall filename=%s', filename
                 )
                 with open(filename, 'w') as fh:
-                    safe_dump(catchall, fh)
+                    safe_dump(catchall, fh, order_mode=self.order_mode)
 
         else:
             # single large file
             filename = join(self.directory, f'{desired.decoded_name}yaml')
             self.log.debug('_apply:   writing filename=%s', filename)
             with open(filename, 'w') as fh:
-                safe_dump(dict(data), fh, allow_unicode=True)
+                safe_dump(
+                    dict(data),
+                    fh,
+                    allow_unicode=True,
+                    order_mode=self.order_mode,
+                )
 
 
 class SplitYamlProvider(YamlProvider):
