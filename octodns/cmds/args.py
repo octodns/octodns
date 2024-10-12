@@ -8,9 +8,8 @@ from logging.config import dictConfig
 from logging.handlers import SysLogHandler
 from sys import stderr, stdout
 
-from yaml import safe_load
-
 from octodns import __version__
+from octodns.yaml import safe_load
 
 
 class ArgumentParser(_Base):
@@ -68,7 +67,7 @@ class ArgumentParser(_Base):
     def _setup_logging(self, args, default_log_level):
         if args.logging_config:
             with open(args.logging_config) as fh:
-                config = safe_load(fh.read())
+                config = safe_load(fh.read(), enforce_order=False)
             dictConfig(config)
             # if we're provided a logging_config we won't do any of our normal
             # configuration
