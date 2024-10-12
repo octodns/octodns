@@ -10,7 +10,6 @@ from dns.resolver import Answer
 
 from octodns.record.base import Record
 
-from ..deprecation import deprecated
 from .base import BaseProcessor, ProcessorException
 
 
@@ -56,10 +55,6 @@ class SpfDnsLookupProcessor(BaseProcessor):
 
     def __init__(self, name):
         self.log.debug(f"SpfDnsLookupProcessor: {name}")
-        deprecated(
-            'SpfDnsLookupProcessor is DEPRECATED in favor of the version relocated into octodns-spf and will be removed in 2.0',
-            stacklevel=99,
-        )
         super().__init__(name)
 
     def _get_spf_from_txt_values(
