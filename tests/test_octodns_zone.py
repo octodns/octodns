@@ -179,6 +179,9 @@ class TestZone(TestCase):
 
         # before == after -> no changes
         self.assertFalse(before.changes(after, target))
+        copy = before.copy()
+        copy.apply([])
+        self.assertEqual(copy.records, before.records)
 
         # add a record, delete a record -> [Delete, Create]
         c = ARecord(before, 'c', {'ttl': 42, 'value': '1.1.1.1'})
@@ -198,6 +201,15 @@ class TestZone(TestCase):
         self.assertFalse(create.existing)
         delete.__repr__()
         create.__repr__()
+
+        # make a copy of before
+        copy = before.copy()
+        # apply the changes to it
+        copy.apply(changes)
+        # copy should not match it's origin any longer
+        self.assertNotEqual(copy.records, before.records)
+        # and it should now match the target
+        self.assertEqual(copy.records, after.records)
 
         after = Zone('unit.tests.', [])
         changed = ARecord(before, 'a', {'ttl': 42, 'value': '2.2.2.2'})

@@ -29,11 +29,12 @@ class TestYamlProvider(TestCase):
         zone = Zone('unit.tests.', [])
         dynamic_zone = Zone('dynamic.tests.', [])
 
-        # With target we don't add anything
+        # With target we see everything
         source.populate(zone, target=source)
-        self.assertEqual(0, len(zone.records))
+        self.assertEqual(25, len(zone.records))
 
         # without it we see everything
+        zone = Zone('unit.tests.', [])
         source.populate(zone)
         self.assertEqual(25, len(zone.records))
 
@@ -95,11 +96,9 @@ class TestYamlProvider(TestCase):
 
             self.assertFalse(zone.changes(reloaded, target=source))
 
-            # A 2nd sync should still create everything
+            # A 2nd sync should result in no changes, thus no plan
             plan = target.plan(zone)
-            self.assertEqual(
-                22, len([c for c in plan.changes if isinstance(c, Create)])
-            )
+            self.assertFalse(plan)
 
             with open(yaml_file) as fh:
                 data = safe_load(fh.read())
@@ -177,7 +176,8 @@ class TestYamlProvider(TestCase):
             zone = Zone(idna_encode(name), [])
 
             # create a idna named file
-            with open(join(td.dirname, idna_encode(filename)), 'w') as fh:
+            idna_filename = join(td.dirname, idna_encode(filename))
+            with open(idna_filename, 'w') as fh:
                 fh.write(
                     '''---
 '':
@@ -204,7 +204,14 @@ xn--dj-kia8a:
             self.assertEqual(['2.3.4.5'], d['xn--dj-kia8a'].values)
             self.assertEqual(['3.4.5.6'], d['xn--28jm5b5a8k5k8cra'].values)
 
-            # create a utf8 named file (provider always writes utf-8 filenames
+            # if we plan there'll be nothing to do
+            plan = provider.plan(zone)
+            self.assertFalse(plan)
+
+            # get rid of the idna file
+            remove(idna_filename)
+            # create a utf8 named file (provider always writes utf-8 filenames,
+            # no file should have a plan now
             plan = provider.plan(zone)
             provider.apply(plan)
 
@@ -214,6 +221,9 @@ xn--dj-kia8a:
                 self.assertTrue('déjà:' in content)
                 self.assertTrue('これはテストです:' in content)
 
+            # recreate the idna version of the file
+            with open(idna_filename, 'w') as fh:
+                fh.write('')
             # does not allow both idna and utf8 named files
             with self.assertRaises(ProviderException) as ctx:
                 provider.populate(zone)
@@ -495,11 +505,12 @@ class TestSplitYamlProvider(TestCase):
         zone = Zone('unit.tests.', [])
         dynamic_zone = Zone('dynamic.tests.', [])
 
-        # With target we don't add anything
+        # With target we still see whatever is in the file
         source.populate(zone, target=source)
-        self.assertEqual(0, len(zone.records))
+        self.assertEqual(20, len(zone.records))
 
-        # without it we see everything
+        # without it we see everything too, doesn't make a difference
+        zone = Zone('unit.tests.', [])
         source.populate(zone)
         self.assertEqual(20, len(zone.records))
         self.assertFalse([r for r in zone.records if r.name.startswith('only')])
@@ -586,11 +597,9 @@ class TestSplitYamlProvider(TestCase):
 
             self.assertFalse(zone.changes(reloaded, target=source))
 
-            # A 2nd sync should still create everything
+            # A 2nd sync should have nothing to do
             plan = target.plan(zone)
-            self.assertEqual(
-                17, len([c for c in plan.changes if isinstance(c, Create)])
-            )
+            self.assertFalse(plan)
 
             yaml_file = join(zone_dir, '$unit.tests.yaml')
             self.assertTrue(isfile(yaml_file))
