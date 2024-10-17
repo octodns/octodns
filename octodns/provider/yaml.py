@@ -342,11 +342,6 @@ class YamlProvider(BaseProvider):
             lenient,
         )
 
-        if target:
-            # When acting as a target we ignore any existing records so that we
-            # create a completely new copy
-            return False
-
         before = len(zone.records)
 
         sources = []
@@ -363,20 +358,22 @@ class YamlProvider(BaseProvider):
         if self.shared_filename:
             sources.append(join(self.directory, self.shared_filename))
 
-        if not sources:
+        if not sources and not target:
             raise ProviderException(f'no YAMLs found for {zone.decoded_name}')
 
-        # determinstically order our sources
+        # deterministically order our sources
         sources.sort()
 
         for source in sources:
             self._populate_from_file(source, zone, lenient)
 
+        exists = len(sources) > 0
         self.log.info(
-            'populate:   found %s records, exists=False',
+            'populate:   found %s records, exists=%s',
             len(zone.records) - before,
+            exists,
         )
-        return False
+        return exists
 
     def _apply(self, plan):
         # make a copy of existing we can muck with
