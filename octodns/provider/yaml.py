@@ -379,17 +379,19 @@ class YamlProvider(BaseProvider):
         return False
 
     def _apply(self, plan):
-        desired = plan.desired
+        # make a copy of existing we can muck with
+        copy = plan.existing.copy()
         changes = plan.changes
         self.log.debug(
-            '_apply: zone=%s, len(changes)=%d',
-            desired.decoded_name,
-            len(changes),
+            '_apply: zone=%s, len(changes)=%d', copy.decoded_name, len(changes)
         )
-        # Since we don't have existing we'll only see creates
-        records = [c.new for c in changes]
-        # Order things alphabetically (records sort that way
-        records.sort()
+
+        # apply our pending changes to that copy
+        copy.apply(changes)
+
+        # we now have the records we need to write out, order things
+        # alphabetically (records sort that way
+        records = sorted(copy.records)
         data = defaultdict(list)
         for record in records:
             d = record.data
@@ -411,7 +413,7 @@ class YamlProvider(BaseProvider):
 
         if self.split_extension:
             # we're going to do split files
-            decoded_name = desired.decoded_name[:-1]
+            decoded_name = copy.decoded_name[:-1]
             directory = join(
                 self.directory, f'{decoded_name}{self.split_extension}'
             )
@@ -443,7 +445,7 @@ class YamlProvider(BaseProvider):
 
         else:
             # single large file
-            filename = join(self.directory, f'{desired.decoded_name}yaml')
+            filename = join(self.directory, f'{copy.decoded_name}yaml')
             self.log.debug('_apply:   writing filename=%s', filename)
             with open(filename, 'w') as fh:
                 safe_dump(
