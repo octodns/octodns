@@ -73,6 +73,12 @@ class YamlProvider(BaseProvider):
         # (optional, default False)
         disable_zonefile: false
 
+    Note
+    ----
+
+    When using this provider as a target any existing comments or formatting
+    in the zone files will be lost when changes are applyed.
+
     Split Details
     -------------
 
