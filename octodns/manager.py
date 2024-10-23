@@ -13,6 +13,7 @@ from logging import getLogger
 from sys import stdout
 
 from . import __version__
+from .deprecation import deprecated
 from .idna import IdnaDict, idna_decode, idna_encode
 from .processor.arpa import AutoArpa
 from .processor.meta import MetaProcessor
@@ -509,6 +510,10 @@ class Manager(object):
                 except TypeError as e:
                     if "unexpected keyword argument 'lenient'" not in str(e):
                         raise
+                    deprecated(
+                        f'`populate` method does not support the `lenient` param, fallback is DEPRECATED. Will be removed in 2.0. Class {source.__class__.__name__}',
+                        stacklevel=99,
+                    )
                     self.log.warning(
                         'provider %s does not accept lenient param',
                         source.__class__.__name__,
@@ -527,6 +532,10 @@ class Manager(object):
             except TypeError as e:
                 if "keyword argument 'processors'" not in str(e):
                     raise
+                deprecated(
+                    f'`plan` method does not support the `processors` param, fallback is DEPRECATED. Will be removed in 2.0. Class {target.__class__.__name__}',
+                    stacklevel=99,
+                )
                 self.log.warning(
                     'provider.plan %s does not accept processors param',
                     target.__class__.__name__,
@@ -568,7 +577,7 @@ class Manager(object):
             sources = collected
         except KeyError:
             raise ManagerException(
-                f'Zone {decoded_zone_name}, unknown ' f'source: {source}'
+                f'Zone {decoded_zone_name}, unknown source: {source}'
             )
 
         return sources
