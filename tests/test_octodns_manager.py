@@ -2,7 +2,7 @@
 #
 #
 
-from os import environ, listdir
+from os import environ, listdir, remove
 from os.path import dirname, isfile, join
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
@@ -37,6 +37,13 @@ config_dir = join(dirname(__file__), 'config')
 
 def get_config_filename(which):
     return join(config_dir, which)
+
+
+def reset(directory):
+    for filename in listdir(directory):
+        if filename.endswith('.yaml'):
+            filename = join(directory, filename)
+            remove(filename)
 
 
 class TestManager(TestCase):
@@ -147,40 +154,47 @@ class TestManager(TestCase):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             environ['YAML_TMP_DIR2'] = tmpdir.dirname
+
             tc = Manager(get_config_filename('simple.yaml')).sync(dry_run=False)
             self.assertEqual(28, tc)
 
             # try with just one of the zones
+            reset(tmpdir.dirname)
             tc = Manager(get_config_filename('simple.yaml')).sync(
                 dry_run=False, eligible_zones=['unit.tests.']
             )
             self.assertEqual(22, tc)
 
             # the subzone, with 2 targets
+            reset(tmpdir.dirname)
             tc = Manager(get_config_filename('simple.yaml')).sync(
                 dry_run=False, eligible_zones=['subzone.unit.tests.']
             )
             self.assertEqual(6, tc)
 
             # and finally the empty zone
+            reset(tmpdir.dirname)
             tc = Manager(get_config_filename('simple.yaml')).sync(
                 dry_run=False, eligible_zones=['empty.']
             )
             self.assertEqual(0, tc)
 
             # Again with force
+            reset(tmpdir.dirname)
             tc = Manager(get_config_filename('simple.yaml')).sync(
                 dry_run=False, force=True
             )
             self.assertEqual(28, tc)
 
             # Again with max_workers = 1
+            reset(tmpdir.dirname)
             tc = Manager(
                 get_config_filename('simple.yaml'), max_workers=1
             ).sync(dry_run=False, force=True)
             self.assertEqual(28, tc)
 
             # Include meta
+            reset(tmpdir.dirname)
             tc = Manager(
                 get_config_filename('simple.yaml'),
                 max_workers=1,
@@ -1011,22 +1025,23 @@ class TestManager(TestCase):
         )
 
     def test_auto_arpa(self):
-        manager = Manager(get_config_filename('simple-arpa.yaml'))
-
-        # provider config
-        self.assertEqual(
-            True, manager.providers.get("auto-arpa").populate_should_replace
-        )
-        self.assertEqual(1800, manager.providers.get("auto-arpa").ttl)
-
-        # processor config
-        self.assertEqual(
-            True, manager.processors.get("auto-arpa").populate_should_replace
-        )
-        self.assertEqual(1800, manager.processors.get("auto-arpa").ttl)
-
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
+
+            manager = Manager(get_config_filename('simple-arpa.yaml'))
+
+            # provider config
+            self.assertEqual(
+                True, manager.providers.get("auto-arpa").populate_should_replace
+            )
+            self.assertEqual(1800, manager.providers.get("auto-arpa").ttl)
+
+            # processor config
+            self.assertEqual(
+                True,
+                manager.processors.get("auto-arpa").populate_should_replace,
+            )
+            self.assertEqual(1800, manager.processors.get("auto-arpa").ttl)
 
             # we can sync eligible_zones so long as they're not arpa
             tc = manager.sync(dry_run=False, eligible_zones=['unit.tests.'])
@@ -1043,6 +1058,7 @@ class TestManager(TestCase):
             )
 
             # same for eligible_sources
+            reset(tmpdir.dirname)
             tc = manager.sync(
                 dry_run=False,
                 eligible_zones=['unit.tests.'],
@@ -1058,6 +1074,7 @@ class TestManager(TestCase):
             )
 
             # same for eligible_targets
+            reset(tmpdir.dirname)
             tc = manager.sync(
                 dry_run=False,
                 eligible_zones=['unit.tests.'],
@@ -1073,10 +1090,11 @@ class TestManager(TestCase):
             )
 
             # full sync with arpa is fine, 2 extra records from it
+            reset(tmpdir.dirname)
             tc = manager.sync(dry_run=False)
             self.assertEqual(26, tc)
 
-    def test_dynamic_config(self):
+    def test_dynamic_config_targeted(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
 
@@ -1099,6 +1117,12 @@ class TestManager(TestCase):
                     eligible_zones=['subzone.unit.tests.'], dry_run=False
                 ),
             )
+
+    def test_dynamic_config_all(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+
+            manager = Manager(get_config_filename('dynamic-config.yaml'))
 
             # should sync everything across all zones, total of 32 records
             self.assertEqual(32, manager.sync(dry_run=False))

@@ -340,6 +340,16 @@ class Zone(object):
 
         return changes
 
+    def apply(self, changes):
+        '''
+        Apply the provided changes to the zone.
+        '''
+        for change in changes:
+            if isinstance(change, Delete):
+                self.remove_record(change.existing)
+            else:
+                self.add_record(change.new, replace=True, lenient=True)
+
     def hydrate(self):
         '''
         Take a shallow copy Zone and make it a deeper copy holding its own

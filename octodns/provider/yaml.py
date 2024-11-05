@@ -73,6 +73,12 @@ class YamlProvider(BaseProvider):
         # (optional, default False)
         disable_zonefile: false
 
+    Note
+    ----
+
+    When using this provider as a target any existing comments or formatting
+    in the zone files will be lost when changes are applyed.
+
     Split Details
     -------------
 
@@ -342,11 +348,6 @@ class YamlProvider(BaseProvider):
             lenient,
         )
 
-        if target:
-            # When acting as a target we ignore any existing records so that we
-            # create a completely new copy
-            return False
-
         before = len(zone.records)
 
         sources = []
@@ -363,33 +364,37 @@ class YamlProvider(BaseProvider):
         if self.shared_filename:
             sources.append(join(self.directory, self.shared_filename))
 
-        if not sources:
+        if not sources and not target:
             raise ProviderException(f'no YAMLs found for {zone.decoded_name}')
 
-        # determinstically order our sources
+        # deterministically order our sources
         sources.sort()
 
         for source in sources:
             self._populate_from_file(source, zone, lenient)
 
+        exists = len(sources) > 0
         self.log.info(
-            'populate:   found %s records, exists=False',
+            'populate:   found %s records, exists=%s',
             len(zone.records) - before,
+            exists,
         )
-        return False
+        return exists
 
     def _apply(self, plan):
-        desired = plan.desired
+        # make a copy of existing we can muck with
+        copy = plan.existing.copy()
         changes = plan.changes
         self.log.debug(
-            '_apply: zone=%s, len(changes)=%d',
-            desired.decoded_name,
-            len(changes),
+            '_apply: zone=%s, len(changes)=%d', copy.decoded_name, len(changes)
         )
-        # Since we don't have existing we'll only see creates
-        records = [c.new for c in changes]
-        # Order things alphabetically (records sort that way
-        records.sort()
+
+        # apply our pending changes to that copy
+        copy.apply(changes)
+
+        # we now have the records we need to write out, order things
+        # alphabetically (records sort that way
+        records = sorted(copy.records)
         data = defaultdict(list)
         for record in records:
             d = record.data
@@ -411,7 +416,7 @@ class YamlProvider(BaseProvider):
 
         if self.split_extension:
             # we're going to do split files
-            decoded_name = desired.decoded_name[:-1]
+            decoded_name = copy.decoded_name[:-1]
             directory = join(
                 self.directory, f'{decoded_name}{self.split_extension}'
             )
@@ -443,7 +448,7 @@ class YamlProvider(BaseProvider):
 
         else:
             # single large file
-            filename = join(self.directory, f'{desired.decoded_name}yaml')
+            filename = join(self.directory, f'{copy.decoded_name}yaml')
             self.log.debug('_apply:   writing filename=%s', filename)
             with open(filename, 'w') as fh:
                 safe_dump(
