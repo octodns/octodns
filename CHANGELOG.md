@@ -1,5 +1,9 @@
 ## v1.?.? - 2024-??-?? - ???
 
+* Deprecation warning for Source.populate w/o the lenient param, to be removed
+  in 2.x
+* Deprecation warning for Provider.populate w/o the processors param, to be
+  removed in 2.x
 * Add YamlProvider.order_mode to allow picking between natural (human)
   the default when enforce_order=True and simple `sort`.
 
