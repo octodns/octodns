@@ -43,7 +43,7 @@ jobs:
       - name: Store Code Coverage Data
         # if the previous step(s) failed try anyways
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: code-coverage-${{ matrix.python-version }}
           path: |
