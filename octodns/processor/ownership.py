@@ -13,10 +13,13 @@ from .base import BaseProcessor
 # delete. We'll take ownership of existing records that we're told to manage
 # and thus "own" them going forward.
 class OwnershipProcessor(BaseProcessor):
-    def __init__(self, name, txt_name='_owner', txt_value='*octodns*'):
+    def __init__(
+        self, name, txt_name='_owner', txt_value='*octodns*', txt_ttl=60
+    ):
         super().__init__(name)
         self.txt_name = txt_name
         self.txt_value = txt_value
+        self.txt_ttl = txt_ttl
         self._txt_values = [txt_value]
 
     def process_source_zone(self, desired, *args, **kwargs):
@@ -30,7 +33,7 @@ class OwnershipProcessor(BaseProcessor):
             txt = Record.new(
                 desired,
                 name,
-                {'type': 'TXT', 'ttl': 60, 'value': self.txt_value},
+                {'type': 'TXT', 'ttl': self.txt_ttl, 'value': self.txt_value},
             )
             # add these w/lenient to cover the case when the ownership record
             # for a NS delegation record should technically live in the subzone

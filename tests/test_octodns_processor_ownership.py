@@ -55,10 +55,20 @@ class TestOwnershipProcessor(TestCase):
                 self.assertEqual([ownership.txt_value], record.values)
                 # test _is_ownership while we're in here
                 self.assertTrue(ownership._is_ownership(record))
+                # default ttl value
+                self.assertEqual(60, record.ttl)
                 found = True
             else:
                 self.assertFalse(ownership._is_ownership(record))
         self.assertTrue(found)
+
+        # change the ttl from the default
+        ownership.txt_ttl = 300
+        got = ownership.process_source_zone(zone.copy())
+        record = next(
+            r for r in got.records if r.name.startswith(ownership.txt_name)
+        )
+        self.assertEqual(300, record.ttl)
 
     def test_process_plan(self):
         ownership = OwnershipProcessor('ownership')

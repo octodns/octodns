@@ -7,6 +7,7 @@
 * Add YamlProvider.order_mode to allow picking between natural (human)
   the default when enforce_order=True and simple `sort`.
 * Fix type-o in _build_kwargs handler notification
+* Add support for configuring OwnershipProcessor TXT record's TTL
 
 ## v1.10.0 - 2024-10-06 - Lots of little stuff
 
