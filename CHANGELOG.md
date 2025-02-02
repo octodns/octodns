@@ -8,6 +8,8 @@
   the default when enforce_order=True and simple `sort`.
 * Fix type-o in _build_kwargs handler notification
 * Add support for configuring OwnershipProcessor TXT record's TTL
+* Add Plan.meta to allow providers to indicate they need to make changes to the
+  zone that are not record specific
 
 ## v1.10.0 - 2024-10-06 - Lots of little stuff
 
