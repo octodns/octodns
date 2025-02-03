@@ -177,6 +177,29 @@ class TestBaseProvider(TestCase):
         plan = provider.plan(ignored)
         self.assertTrue(plan)
         self.assertEqual(1, len(plan.changes))
+        self.assertIsNone(plan.meta)
+
+    def test_plan_meta(self):
+        class HasMetaProvider(HelperProvider):
+            def _plan_meta(self, *args, **kwargs):
+                return 42
+
+        provider = HasMetaProvider([])
+        ignored = Zone('unit.tests.', [])
+        # we will get a plan even without any changes b/c there's a meta change
+        plan = provider.plan(ignored)
+        self.assertTrue(plan)
+        self.assertEqual(42, plan.meta)
+
+        # with a change we get meta & and change
+        record = Record.new(
+            ignored, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        provider = HasMetaProvider([Create(record)])
+        plan = provider.plan(ignored)
+        self.assertTrue(plan)
+        self.assertEqual(1, len(plan.changes))
+        self.assertEqual(42, plan.meta)
 
     def test_plan_with_process_desired_zone_kwarg_fallback(self):
         ignored = Zone('unit.tests.', [])
