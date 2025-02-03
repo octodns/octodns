@@ -84,7 +84,7 @@ providers:
     directory: ./config
     default_ttl: 3600
     enforce_order: True
-  ns:
+  ns1:
     class: octodns_ns1.Ns1Provider
     api_key: env/NS1_API_KEY
   route53:
@@ -120,7 +120,7 @@ providers:
     directory: ./config
     default_ttl: 3600
     enforce_order: True
-  ns:
+  ns1:
     class: octodns_ns1.Ns1Provider
     api_key: env/NS1_API_KEY
   route53:
