@@ -1,4 +1,4 @@
-## v1.?.? - 2024-??-?? - ???
+## v1.11.0 - 2025-02-03 - Cleanup & deprecations with meta planning
 
 * Deprecation warning for Source.populate w/o the lenient param, to be removed
   in 2.x
