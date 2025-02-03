@@ -64,6 +64,7 @@ changes = [create, create2, delete, update]
 plans = [
     (simple, Plan(zone, zone, changes, True)),
     (simple, Plan(zone, zone, changes, False)),
+    (simple, Plan(zone, zone, changes, False, meta={'key': 'val'})),
 ]
 
 
@@ -105,8 +106,8 @@ class TestPlanLogger(TestCase):
         PlanLogger('logger').run(log, plans)
         out = log.out.getvalue()
         self.assertTrue(
-            'Summary: Creates=2, Updates=1, '
-            'Deletes=1, Existing Records=0' in out
+            'Summary: Creates=2, Updates=1, Deletes=1, Existing=0, Meta=False'
+            in out
         )
 
 
@@ -123,8 +124,8 @@ class TestPlanHtml(TestCase):
         PlanHtml('html').run(plans, fh=out)
         out = out.getvalue()
         self.assertTrue(
-            '    <td colspan=6>Summary: Creates=2, Updates=1, '
-            'Deletes=1, Existing Records=0</td>' in out
+            '    <td colspan=6>Summary: Creates=2, Updates=1, Deletes=1, Existing=0, Meta=False</td>'
+            in out
         )
 
 
@@ -398,7 +399,7 @@ class TestPlanSafety(TestCase):
     def test_data(self):
         data = plans[0][1].data
         # plans should have a single key, changes
-        self.assertEqual(('changes',), tuple(data.keys()))
+        self.assertEqual(('changes', 'meta'), tuple(data.keys()))
         # it should be a list
         self.assertIsInstance(data['changes'], list)
         # w/4 elements

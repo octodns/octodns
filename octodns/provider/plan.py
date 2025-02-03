@@ -6,6 +6,7 @@ from collections import defaultdict
 from io import StringIO
 from json import dumps
 from logging import DEBUG, ERROR, INFO, WARN, getLogger
+from pprint import pformat
 from sys import stdout
 
 
@@ -50,6 +51,7 @@ class Plan(object):
         exists,
         update_pcent_threshold=MAX_SAFE_UPDATE_PCENT,
         delete_pcent_threshold=MAX_SAFE_DELETE_PCENT,
+        meta=None,
     ):
         self.existing = existing
         self.desired = desired
@@ -59,6 +61,7 @@ class Plan(object):
         # them and/or is as safe as possible.
         self.changes = sorted(changes)
         self.exists = exists
+        self.meta = meta
 
         # Zone thresholds take precedence over provider
         if existing and existing.update_pcent_threshold is not None:
@@ -74,22 +77,11 @@ class Plan(object):
             change_counts[change.__class__.__name__] += 1
         self.change_counts = change_counts
 
-        try:
-            existing_n = len(self.existing.records)
-        except AttributeError:
-            existing_n = 0
-
-        self.log.debug(
-            '__init__: Creates=%d, Updates=%d, Deletes=%d Existing=%d',
-            self.change_counts['Create'],
-            self.change_counts['Update'],
-            self.change_counts['Delete'],
-            existing_n,
-        )
+        self.log.debug('__init__: %s', self.__repr__())
 
     @property
     def data(self):
-        return {'changes': [c.data for c in self.changes]}
+        return {'changes': [c.data for c in self.changes], 'meta': self.meta}
 
     def raise_if_unsafe(self):
         if (
@@ -140,11 +132,12 @@ class Plan(object):
         creates = self.change_counts['Create']
         updates = self.change_counts['Update']
         deletes = self.change_counts['Delete']
-        existing = len(self.existing.records)
-        return (
-            f'Creates={creates}, Updates={updates}, Deletes={deletes}, '
-            f'Existing Records={existing}'
-        )
+        try:
+            existing = len(self.existing.records)
+        except AttributeError:
+            existing = 0
+        meta = self.meta is not None
+        return f'Creates={creates}, Updates={updates}, Deletes={deletes}, Existing={existing}, Meta={meta}'
 
 
 class _PlanOutput(object):
@@ -167,10 +160,7 @@ class PlanLogger(_PlanOutput):
             raise Exception(f'Unsupported level: {level}')
 
     def run(self, log, plans, *args, **kwargs):
-        hr = (
-            '*************************************************************'
-            '*******************\n'
-        )
+        hr = '********************************************************************************\n'
         buf = StringIO()
         buf.write('\n')
         if plans:
@@ -198,6 +188,11 @@ class PlanLogger(_PlanOutput):
                 for change in plan.changes:
                     buf.write(change.__repr__(leader='* '))
                     buf.write('\n*   ')
+
+                if plan.meta:
+                    buf.write('Meta: \n')
+                    buf.write(pformat(plan.meta, indent=2, sort_dicts=True))
+                    buf.write('\n')
 
                 buf.write('Summary: ')
                 buf.write(str(plan))
@@ -291,6 +286,11 @@ class PlanMarkdown(_PlanOutput):
                             fh.write(new.source.id)
                         fh.write(' |\n')
 
+                if plan.meta:
+                    fh.write('\nMeta: ')
+                    fh.write(pformat(plan.meta, indent=2, sort_dicts=True))
+                    fh.write('\n')
+
                 fh.write('\nSummary: ')
                 fh.write(str(plan))
                 fh.write('\n\n')
@@ -360,6 +360,11 @@ class PlanHtml(_PlanOutput):
                         if new.source:
                             fh.write(new.source.id)
                         fh.write('</td>\n  </tr>\n')
+
+                if plan.meta:
+                    fh.write('  <tr>\n    <td colspan=6>Meta: ')
+                    fh.write(pformat(plan.meta, indent=2, sort_dicts=True))
+                    fh.write('</td>\n  </tr>\n</table>\n')
 
                 fh.write('  <tr>\n    <td colspan=6>Summary: ')
                 fh.write(str(plan))

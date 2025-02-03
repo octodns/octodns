@@ -214,6 +214,16 @@ class BaseProvider(BaseSource):
         '''
         return []
 
+    def _plan_meta(self, existing, desired, changes):
+        '''
+        An opportunity for providers to indicate they have "meta" changes
+        to the zone which are unrelated to records. Examples may include service
+        plan changes, replication settings, and notes. The returned data is
+        arbitrary/opaque to octoDNS, with the only requirement being that
+        pprint.pformat can display it. A dict is recommended.
+        '''
+        return None
+
     def supports_warn_or_except(self, msg, fallback):
         if self.strict_supports:
             raise SupportsException(f'{self.id}: {msg}')
@@ -269,14 +279,19 @@ class BaseProvider(BaseSource):
             )
             changes += extra
 
-        if changes:
+        meta = self._plan_meta(
+            existing=existing, desired=desired, changes=changes
+        )
+
+        if changes or meta:
             plan = Plan(
                 existing,
                 desired,
                 changes,
                 exists,
-                self.update_pcent_threshold,
-                self.delete_pcent_threshold,
+                update_pcent_threshold=self.update_pcent_threshold,
+                delete_pcent_threshold=self.delete_pcent_threshold,
+                meta=meta,
             )
             self.log.info('plan:   %s', plan)
             return plan
