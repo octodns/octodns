@@ -217,8 +217,10 @@ class BaseProvider(BaseSource):
     def _plan_meta(self, existing, desired, changes):
         '''
         An opportunity for providers to indicate they have "meta" changes
-        to the zone which are unrelated to records. Examples may include servive
-        plan changes, replication settings, and notes.
+        to the zone which are unrelated to records. Examples may include service
+        plan changes, replication settings, and notes. The returned data is
+        arbitrary/opaque to octoDNS, with the only requirement being that
+        pprint.pformat can display it. A dict is recommended.
         '''
         return None
 
