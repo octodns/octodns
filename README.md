@@ -465,6 +465,7 @@ If you have a problem or suggestion, please [open an issue](https://github.com/o
   - [`kompetenzbolzen/octodns-custom-provider`](https://github.com/kompetenzbolzen/octodns-custom-provider): zonefile provider & phpIPAM source.
   - [`Financial-Times/octodns-fastly`](https://github.com/Financial-Times/octodns-fastly): An octoDNS source for Fastly.
   - [`jvoss/octodns-pihole`](https://github.com/jvoss/octodns-pihole): [Pi-hole](https://pi-hole.net/) provider.
+  - [`M0NsTeRRR/octodns-infomaniak`](https://github.com/M0NsTeRRR/octodns-infomaniak): [Infomaniak](https://www.infomaniak.com/) provider.
 - **Resources.**
   - Article: [Visualising DNS records with Neo4j](https://medium.com/@costask/querying-and-visualising-octodns-records-with-neo4j-f4f72ab2d474) + code
   - Video: [FOSDEM 2019 - DNS as code with octodns](https://archive.fosdem.org/2019/schedule/event/dns_octodns/)
