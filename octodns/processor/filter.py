@@ -234,8 +234,10 @@ class _ValueBaseFilter(_FilterProcessor):
             if hasattr(record, 'values'):
                 values = [value.rdata_text for value in record.values]
             else:
-                values = [record.value.rdata_text]
-
+                try:
+                    values = [record.value.rdata_text]
+                except AttributeError:
+                    self.log.warning(f"Record value is NoneType: {record.fqdn}")
             if any(value in self.exact for value in values):
                 self.matches(zone, record)
                 continue
@@ -317,6 +319,7 @@ class ValueRejectlistFilter(_ValueBaseFilter, RejectsMixin):
     '''
 
     def __init__(self, name, rejectlist):
+        self.log = getLogger(f'ValueRejectlistFilter[{name}]')
         super().__init__(name, rejectlist)
 
 
