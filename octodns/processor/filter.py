@@ -283,6 +283,7 @@ class ValueAllowlistFilter(_ValueBaseFilter, AllowsMixin):
     '''
 
     def __init__(self, name, allowlist):
+        self.log = getLogger(f'ValueAllowlistFilter[{name}]')
         super().__init__(name, allowlist)
 
 
