@@ -237,7 +237,9 @@ class _ValueBaseFilter(_FilterProcessor):
                 try:
                     values = [record.value.rdata_text]
                 except AttributeError:
-                    self.log.warning(f"Record value is NoneType: {record.fqdn}")
+                    self.log.warning(
+                        f"Value processor ignoring record, value is NoneType: {record.fqdn}"
+                    )
             if any(value in self.exact for value in values):
                 self.matches(zone, record)
                 continue
