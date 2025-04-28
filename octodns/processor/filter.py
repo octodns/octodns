@@ -233,8 +233,12 @@ class _ValueBaseFilter(_FilterProcessor):
             values = []
             if hasattr(record, 'values'):
                 values = [value.rdata_text for value in record.values]
-            else:
+            elif record.value is not None:
                 values = [record.value.rdata_text]
+            else:
+                self.log.warning(
+                    'value for %s is NoneType, ignoring', record.fqdn
+                )
 
             if any(value in self.exact for value in values):
                 self.matches(zone, record)
@@ -281,6 +285,7 @@ class ValueAllowlistFilter(_ValueBaseFilter, AllowsMixin):
     '''
 
     def __init__(self, name, allowlist):
+        self.log = getLogger(f'ValueAllowlistFilter[{name}]')
         super().__init__(name, allowlist)
 
 
@@ -317,6 +322,7 @@ class ValueRejectlistFilter(_ValueBaseFilter, RejectsMixin):
     '''
 
     def __init__(self, name, rejectlist):
+        self.log = getLogger(f'ValueRejectlistFilter[{name}]')
         super().__init__(name, rejectlist)
 
 
