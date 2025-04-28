@@ -233,13 +233,13 @@ class _ValueBaseFilter(_FilterProcessor):
             values = []
             if hasattr(record, 'values'):
                 values = [value.rdata_text for value in record.values]
+            elif record.value is not None:
+                values = [record.value.rdata_text]
             else:
-                try:
-                    values = [record.value.rdata_text]
-                except AttributeError:
-                    self.log.warning(
-                        f"Value processor ignoring record, value is NoneType: {record.fqdn}"
-                    )
+                self.log.warning(
+                    'value for %s is NoneType, ignoring', record.fqdn
+                )
+
             if any(value in self.exact for value in values):
                 self.matches(zone, record)
                 continue
