@@ -299,6 +299,7 @@ The table below lists the providers octoDNS supports. They are maintained in the
 | [TransIP](https://www.transip.eu/knowledgebase/entry/155-dns-and-nameservers/) | [octodns_transip](https://github.com/octodns/octodns-transip/) | |
 | [UltraDNS](https://vercara.com/authoritative-dns) | [octodns_ultra](https://github.com/octodns/octodns-ultra/) | |
 | [YamlProvider](/octodns/provider/yaml.py) | built-in | Supports all record types and core functionality |
+| [deSEC](https://desec.io/) | [octodns_desec](https://github.com/rootshell-labs/octodns-desec) | |
 
 ### Updating to use extracted providers
 
