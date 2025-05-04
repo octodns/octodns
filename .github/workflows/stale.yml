@@ -2,6 +2,8 @@ name: 'Close stale issues and PRs'
 on:
   schedule:
     - cron: '42 4 * * *'
+  workflow_dispatch:
+
 jobs:
   stale:
     runs-on: ubuntu-latest
