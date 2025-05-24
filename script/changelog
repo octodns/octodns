@@ -1,7 +1,238 @@
-#!/bin/bash
+#!/usr/bin/env python
 
-set -e
+from argparse import ArgumentParser
+from datetime import datetime
+from importlib import import_module
+from io import StringIO
+from json import loads
+from os import getcwd, listdir, makedirs
+from os.path import basename, isdir, join
+from subprocess import PIPE, run
+from sys import argv, exit, path
+from uuid import uuid4
 
-VERSION=v$(grep __version__ octodns/__init__.py | sed -e "s/^[^']*'//" -e "s/'$//")
-echo $VERSION
-git log --pretty="%h - %cr - %s (%an)" "${VERSION}..HEAD"
+from yaml import safe_load_all
+
+
+def create(argv):
+    prog = basename(argv.pop(0))
+    parser = ArgumentParser(
+        prog=f'{prog} create',
+        description='TODO: description',
+        epilog='TODO: epilog',
+        add_help=True,
+    )
+
+    parser.add_argument(
+        '-t',
+        '--type',
+        choices=('none', 'patch', 'minor', 'major'),
+        required=True,
+        help='TODO: type',
+    )
+    parser.add_argument('md', metavar='change-description-markdown', nargs='+')
+
+    args = parser.parse_args(argv)
+
+    if not isdir('.changelog'):
+        makedirs('.changelog')
+    with open(join('.changelog', f'{uuid4().hex}.md'), 'w') as fh:
+        fh.write('---\ntype: ')
+        fh.write(args.type)
+        fh.write('\n---\n')
+        fh.write(' '.join(args.md))
+
+
+def check(argv):
+    if isdir('.changelog'):
+        result = run(
+            ['git', 'diff', '--name-only', 'origin/main', '.changelog/'],
+            check=False,
+            stdout=PIPE,
+        )
+        if not result.returncode and result.stdout != b'':
+            exit(0)
+
+    print(
+        'PR is missing required changelog file, run ./script/changelog create'
+    )
+    exit(1)
+
+
+def _get_current_version(module_name):
+    cwd = getcwd()
+    path.append(cwd)
+    module = import_module(module_name)
+    return tuple(int(v) for v in module.__version__.split('.', 2))
+
+
+class _ChangeMeta:
+    _pr_cache = None
+
+    @classmethod
+    def get(cls, filepath):
+        if cls._pr_cache is None:
+            result = run(
+                [
+                    'gh',
+                    'pr',
+                    'list',
+                    '--base',
+                    'main',
+                    '--state',
+                    'merged',
+                    '--limit=50',
+                    '--json',
+                    'files,mergedAt,number',
+                ],
+                check=True,
+                stdout=PIPE,
+            )
+            cls._pr_cache = {}
+            for pr in loads(result.stdout):
+                for file in pr['files']:
+                    path = file['path']
+                    if path.startswith('.changelog'):
+                        cls._pr_cache[path] = (
+                            pr['number'],
+                            datetime.fromisoformat(pr['mergedAt']).replace(
+                                tzinfo=None
+                            ),
+                        )
+
+        try:
+            return cls._pr_cache[filepath]
+        except KeyError:
+            return None, datetime(year=1970, month=1, day=1)
+
+
+def _get_changelogs():
+    ret = []
+    dirname = '.changelog'
+    for filename in listdir(dirname):
+        if not filename.endswith('.md'):
+            continue
+        filepath = join(dirname, filename)
+        with open(filepath) as fh:
+            data, md = safe_load_all(fh)
+        pr, time = _ChangeMeta.get(filepath)
+        ret.append(
+            {
+                'type': data.get('type', None),
+                'md': md,
+                'pr': pr,
+                'time': time,
+                'ordering': {
+                    'major': 0,
+                    'minor': 1,
+                    'patch': 2,
+                    'none': 3,
+                    '': 3,
+                }[data.get('type', '').lower()],
+            }
+        )
+
+    ret.sort(key=lambda c: (c['ordering'], c['time']))
+    return ret
+
+
+def _get_new_version(current_version, changelogs):
+    try:
+        bump_type = changelogs[0]['type']
+    except IndexError:
+        return None
+    new_version = list(current_version)
+    if bump_type == 'major':
+        new_version[0] += 1
+        new_version[1] = 0
+        new_version[2] = 0
+    elif bump_type == 'minor':
+        new_version[1] += 1
+        new_version[2] = 0
+    else:
+        new_version[2] += 1
+    return tuple(new_version)
+
+
+def _format_version(version):
+    return '.'.join(str(v) for v in version)
+
+
+def bump(argv):
+    buf = StringIO()
+
+    cwd = getcwd()
+    module_name = basename(cwd).replace('-', '_')
+
+    buf.write('## ')
+    current_version = _get_current_version(module_name)
+    changelogs = _get_changelogs()
+    new_version = _get_new_version(current_version, changelogs)
+    new_version = _format_version(new_version)
+    buf.write(new_version)
+    buf.write(' - ')
+    buf.write(datetime.now().strftime('%Y-%m-%d'))
+    buf.write(' - ')
+    buf.write(' '.join(argv[1:]))
+    buf.write('\n')
+
+    current_type = None
+    for changelog in changelogs:
+        md = changelog['md']
+        if not md:
+            continue
+
+        _type = changelog['type']
+        if _type != current_type:
+            buf.write('\n')
+            buf.write(_type.capitalize())
+            buf.write(':\n')
+            current_type = _type
+        buf.write('* ')
+        buf.write(md)
+
+        pr = changelog['pr']
+        if pr:
+            pr = str(pr)
+            buf.write(' [#')
+            buf.write(pr)
+            buf.write('](https://github.com/octodns/')
+            buf.write(module_name)
+            buf.write('/pull/')
+            buf.write(pr)
+            buf.write(')')
+
+        buf.write('\n')
+
+    buf.write('\n')
+
+    with open('CHANGELOG.md') as fh:
+        existing = fh.read()
+
+    with open('CHANGELOG.md', 'w') as fh:
+        fh.write(buf.getvalue())
+        fh.write(existing)
+
+    with open(f'{module_name}/__init__.py') as fh:
+        existing = fh.read()
+
+    current_version = _format_version(current_version)
+    with open(f'{module_name}/__init__.py', 'w') as fh:
+        fh.write(existing.replace(current_version, new_version))
+
+
+cmds = {'create': create, 'check': check, 'bump': bump}
+
+try:
+    cmd = cmds[argv.pop(1).lower()]
+except IndexError:
+    cmd = None
+    print('TODO: command usage (missing)')
+    exit(1)
+except KeyError:
+    cmd = None
+    print('TODO: command usage (unknown)')
+    exit(1)
+
+
+cmd(argv)
