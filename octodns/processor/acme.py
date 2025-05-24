@@ -7,14 +7,14 @@ from logging import getLogger
 from .base import BaseProcessor
 
 
-class AcmeMangingProcessor(BaseProcessor):
-    log = getLogger('AcmeMangingProcessor')
+class AcmeManagingProcessor(BaseProcessor):
+    log = getLogger('AcmeManagingProcessor')
 
     def __init__(self, name):
         '''
         processors:
           acme:
-            class: octodns.processor.acme.AcmeMangingProcessor
+            class: octodns.processor.acme.AcmeManagingProcessor
 
         ...
 

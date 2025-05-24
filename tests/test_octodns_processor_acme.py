@@ -4,7 +4,7 @@
 
 from unittest import TestCase
 
-from octodns.processor.acme import AcmeMangingProcessor
+from octodns.processor.acme import AcmeManagingProcessor
 from octodns.record import Record
 from octodns.zone import Zone
 
@@ -46,9 +46,9 @@ records = {
 }
 
 
-class TestAcmeMangingProcessor(TestCase):
+class TestAcmeManagingProcessor(TestCase):
     def test_process_zones(self):
-        acme = AcmeMangingProcessor('acme')
+        acme = AcmeManagingProcessor('acme')
 
         source = Zone(zone.name, [])
         # Unrelated stuff that should be untouched
