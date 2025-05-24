@@ -4,12 +4,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  config:
-    runs-on: ubuntu-latest
-    outputs:
-      json: ${{ steps.load.outputs.json }}
-    steps:
-    - uses: actions/checkout@v4
   changelog:
     runs-on: ubuntu-latest
     steps:
