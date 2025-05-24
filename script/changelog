@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, RawTextHelpFormatter
 from datetime import datetime
 from importlib import import_module
 from io import StringIO
 from json import loads
-from os import getcwd, listdir, makedirs
+from os import getcwd, listdir, makedirs, remove
 from os.path import basename, isdir, join
 from subprocess import PIPE, run
-from sys import argv, exit, path
+from sys import argv, exit, path, stderr
 from uuid import uuid4
 
 from yaml import safe_load_all
@@ -18,9 +18,9 @@ def create(argv):
     prog = basename(argv.pop(0))
     parser = ArgumentParser(
         prog=f'{prog} create',
-        description='TODO: description',
-        epilog='TODO: epilog',
+        description='Creates a new changelog entry.',
         add_help=True,
+        formatter_class=RawTextHelpFormatter,
     )
 
     parser.add_argument(
@@ -28,19 +28,40 @@ def create(argv):
         '--type',
         choices=('none', 'patch', 'minor', 'major'),
         required=True,
-        help='TODO: type',
+        help='''The scope of the change.
+
+* patch - This is a bug fix
+* minor - This adds new functionality or makes changes in a fully backwards
+          compatible way
+* major - This includes substantial new functionality and/or changes that break
+          compatibility and may require careful migration
+* none - This change does not need to be mentioned in the changelog
+
+See https://semver.org/ for more info''',
     )
-    parser.add_argument('md', metavar='change-description-markdown', nargs='+')
+    parser.add_argument(
+        'md',
+        metavar='change-description-markdown',
+        nargs='+',
+        help='''A short description of the changes in this PR, suitable as an entry in
+CHANGELOG.md. Should be a single line. Can include simple markdown formatting
+and links.''',
+    )
 
     args = parser.parse_args(argv)
 
     if not isdir('.changelog'):
         makedirs('.changelog')
-    with open(join('.changelog', f'{uuid4().hex}.md'), 'w') as fh:
+    filepath = join('.changelog', f'{uuid4().hex}.md')
+    with open(filepath, 'w') as fh:
         fh.write('---\ntype: ')
         fh.write(args.type)
         fh.write('\n---\n')
         fh.write(' '.join(args.md))
+
+    print(
+        f'Created {filepath}, it can be further edited and should be committed to your branch.'
+    )
 
 
 def check(argv):
@@ -54,7 +75,8 @@ def check(argv):
             exit(0)
 
     print(
-        'PR is missing required changelog file, run ./script/changelog create'
+        'PR is missing required changelog file, run ./script/changelog create',
+        file=stderr,
     )
     exit(1)
 
@@ -116,23 +138,20 @@ def _get_changelogs():
         with open(filepath) as fh:
             data, md = safe_load_all(fh)
         pr, time = _ChangeMeta.get(filepath)
+        if not pr:
+            continue
         ret.append(
             {
-                'type': data.get('type', None),
+                'filepath': filepath,
                 'md': md,
                 'pr': pr,
                 'time': time,
-                'ordering': {
-                    'major': 0,
-                    'minor': 1,
-                    'patch': 2,
-                    'none': 3,
-                    '': 3,
-                }[data.get('type', '').lower()],
+                'type': data.get('type', '').lower(),
             }
         )
 
-    ret.sort(key=lambda c: (c['ordering'], c['time']))
+    ordering = {'major': 0, 'minor': 1, 'patch': 2, 'none': 3, '': 3}
+    ret.sort(key=lambda c: (ordering[c['type']], c['time']))
     return ret
 
 
@@ -220,19 +239,42 @@ def bump(argv):
     with open(f'{module_name}/__init__.py', 'w') as fh:
         fh.write(existing.replace(current_version, new_version))
 
+    for changelog in changelogs:
+        remove(changelog['filepath'])
+
 
 cmds = {'create': create, 'check': check, 'bump': bump}
 
+
+def general_usage(msg=None):
+    global cmds
+
+    exe = basename(argv[0])
+    cmds = ','.join(sorted(cmds.keys()))
+    print(f'usage: {exe} {{{cmds}}} ...')
+    if msg:
+        print(msg)
+    else:
+        print(
+            '''
+Creates and checks or changelog entries, located in the .changelog directory.
+Additionally supports updating CHANGELOG.md and bumping the package version
+based on one or more entries in that directory.
+'''
+        )
+
+
 try:
-    cmd = cmds[argv.pop(1).lower()]
+    cmd = cmds[argv[1].lower()]
+    argv.pop(1)
 except IndexError:
-    cmd = None
-    print('TODO: command usage (missing)')
+    general_usage('missing command')
     exit(1)
 except KeyError:
-    cmd = None
-    print('TODO: command usage (unknown)')
+    if argv[1] in ('-h', '--help', 'help'):
+        general_usage()
+        exit(0)
+    general_usage(f'unknown command "{argv[1]}"')
     exit(1)
-
 
 cmd(argv)
