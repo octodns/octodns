@@ -8,8 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        ref: main
+      - name: Fetch main
+        run: git fetch origin main --depth 1
       - name: Setup python
         uses: actions/setup-python@v4
         with:
