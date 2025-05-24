@@ -71,7 +71,12 @@ def check(argv):
             check=False,
             stdout=PIPE,
         )
-        if not result.returncode and result.stdout != b'':
+        entries = {
+            l
+            for l in result.stdout.decode('utf-8').split()
+            if l.endswith('.md')
+        }
+        if not result.returncode and entries:
             exit(0)
 
     print(
@@ -178,6 +183,21 @@ def _format_version(version):
 
 
 def bump(argv):
+    prog = basename(argv.pop(0))
+    parser = ArgumentParser(
+        prog=f'{prog} bump',
+        description='Builds a changelog update and calculates a new version number.',
+        add_help=True,
+    )
+
+    parser.add_argument(
+        '--make-changes',
+        action='store_true',
+        help='Write changelog update and bump version number',
+    )
+
+    args = parser.parse_args(argv)
+
     buf = StringIO()
 
     cwd = getcwd()
@@ -187,6 +207,9 @@ def bump(argv):
     current_version = _get_current_version(module_name)
     changelogs = _get_changelogs()
     new_version = _get_new_version(current_version, changelogs)
+    if not new_version:
+        print('No changelog entries found that would bump, nothing to do')
+        exit(1)
     new_version = _format_version(new_version)
     buf.write(new_version)
     buf.write(' - ')
@@ -224,6 +247,11 @@ def bump(argv):
         buf.write('\n')
 
     buf.write('\n')
+
+    if not args.make_changes:
+        print(f'New version number {new_version}\n')
+        print(buf.getvalue())
+        exit(0)
 
     with open('CHANGELOG.md') as fh:
         existing = fh.read()
