@@ -67,7 +67,7 @@ and links.''',
 def check(argv):
     if isdir('.changelog'):
         result = run(
-            ['git', 'diff', '--name-only', 'main', '.changelog/'],
+            ['git', 'diff', '--name-only', 'origin/main', '.changelog/'],
             check=False,
             stdout=PIPE,
         )
