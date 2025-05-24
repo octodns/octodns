@@ -59,3 +59,6 @@ class AcmeManagingProcessor(BaseProcessor):
                 existing.remove_record(record)
 
         return existing
+
+
+AcmeMangingProcessor = AcmeManagingProcessor
