@@ -10,3 +10,4 @@ ROOT=$(dirname "$GIT")
 "$ROOT/script/lint"
 "$ROOT/script/format" --check --quiet || (echo "Formatting check failed, run ./script/format" && exit 1)
 "$ROOT/script/coverage"
+"$ROOT/script/changelog" check

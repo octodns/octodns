@@ -17,8 +17,11 @@ This project uses the [GitHub Flow](https://guides.github.com/introduction/flow/
 0. Create a new branch: `git checkout -b my-branch-name`
 0. Make your change, add tests, and make sure the tests still pass
 0. Make sure that `./script/lint` passes without any warnings
+0. Run `./script/format` to make sure your changes follow Python's preferred
+   coding style
+0. Run `./script/changelog create ...` to add a changelog entry to your PR
 0. Make sure that coverage is at :100:% `./script/coverage` and open `htmlcov/index.html`
-   * You can open PRs for :eyes: & discussion prior to this
+   * You can open a draft PR for :eyes: & discussion prior to this
 0. Push to your fork and submit a pull request
 
 We will handle updating the version, tagging the release, and releasing the gem. Please don't bump the version or otherwise attempt to take on these administrative internal tasks as part of your pull request.

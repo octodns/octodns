@@ -1,3 +1,8 @@
+## v1.11.? - 2025-??-?? - ???
+
+* Correct type-o in name of AcmeManagingProcessor, backwards compatible alias
+  in place
+
 ## v1.11.0 - 2025-02-03 - Cleanup & deprecations with meta planning
 
 * Deprecation warning for Source.populate w/o the lenient param, to be removed
