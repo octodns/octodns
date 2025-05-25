@@ -334,11 +334,16 @@ class YamlProvider(BaseProvider):
                         data = [data]
                     for d in data:
                         _type = d.get('type')
-                        if not self.escaped_semicolons and _type in ('SPF', 'TXT'):
+                        if not self.escaped_semicolons and _type in (
+                            'SPF',
+                            'TXT',
+                        ):
                             if 'value' in d:
-                                d['value'] = d[''].replace(';', '\\;')
+                                d['value'] = d['value'].replace(';', '\\;')
                             if 'values' in d:
-                                d['values'] = [v.replace(';', '\\;') for v in d['values']]
+                                d['values'] = [
+                                    v.replace(';', '\\;') for v in d['values']
+                                ]
                         if 'ttl' not in d:
                             d['ttl'] = self.default_ttl
                         record = Record.new(

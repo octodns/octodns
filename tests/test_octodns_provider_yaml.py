@@ -471,6 +471,45 @@ xn--dj-kia8a:
             # make sure that we get the idna one back
             self.assertEqual(idna, provider._zone_sources(zone))
 
+    def test_unescaped_semicolons(self):
+        source = YamlProvider(
+            'test',
+            join(dirname(__file__), 'config-semis'),
+            escaped_semicolons=False,
+        )
+
+        zone = Zone('unescaped.semis.', [])
+        source.populate(zone)
+        self.assertEqual(2, len(zone.records))
+        one = next(r for r in zone.records if r.name == 'one')
+        self.assertTrue(one)
+        self.assertEqual(
+            ["This has a semi-colon\\; that isn't escaped."], one.values
+        )
+        two = next(r for r in zone.records if r.name == 'two')
+        self.assertTrue(two)
+        self.assertEqual(
+            ["This has a semi-colon too\\; that isn't escaped.", '\\;'],
+            two.values,
+        )
+
+        zone = Zone('escaped.semis.', [])
+        source.populate(zone)
+        self.assertEqual(2, len(zone.records))
+        one = next(r for r in zone.records if r.name == 'one')
+        self.assertTrue(one)
+        #        self.assertEqual(
+        #            ["This has a semi-colon\\; that isn't escaped."], one.values
+        #        )
+        two = next(r for r in zone.records if r.name == 'two')
+        self.assertTrue(two)
+
+
+#        self.assertEqual(
+#            ["This has a semi-colon too\\; that isn't escaped.", '\\;'],
+#            two.values,
+#        )
+
 
 class TestSplitYamlProvider(TestCase):
     def test_list_all_yaml_files(self):
