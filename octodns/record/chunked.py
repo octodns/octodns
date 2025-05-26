@@ -9,7 +9,6 @@ from .base import ValuesMixin
 
 class _ChunkedValuesMixin(ValuesMixin):
     CHUNK_SIZE = 255
-    _unescaped_semicolon_re = re.compile(r'\w;')
 
     def chunked_value(self, value):
         value = value.replace('"', '\\"')
