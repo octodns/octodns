@@ -6,3 +6,4 @@ two:
   type: TXT
   values:
     - This has a semi-colon too\; that is escaped.
+    - \;

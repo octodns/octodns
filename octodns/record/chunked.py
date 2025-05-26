@@ -44,6 +44,7 @@ class _ChunkedValuesMixin(ValuesMixin):
 
 class _ChunkedValue(str):
     _unescaped_semicolon_re = re.compile(r'\w;')
+    _double_escaped_semicolon_re = re.compile(r'\\\\;')
 
     @classmethod
     def parse_rdata_text(cls, value):
@@ -62,6 +63,8 @@ class _ChunkedValue(str):
         for value in data:
             if cls._unescaped_semicolon_re.search(value):
                 reasons.append(f'unescaped ; in "{value}"')
+            if cls._double_escaped_semicolon_re.search(value):
+                reasons.append(f'double escaped ; in "{value}"')
             try:
                 value.encode('ascii')
             except UnicodeEncodeError:

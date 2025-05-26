@@ -15,6 +15,7 @@ from octodns.idna import idna_encode
 from octodns.provider import ProviderException
 from octodns.provider.yaml import SplitYamlProvider, YamlProvider
 from octodns.record import Create, NsValue, Record, ValuesMixin
+from octodns.record.exception import ValidationError
 from octodns.zone import SubzoneRecordException, Zone
 
 
@@ -494,21 +495,14 @@ xn--dj-kia8a:
         )
 
         zone = Zone('escaped.semis.', [])
-        source.populate(zone)
-        self.assertEqual(2, len(zone.records))
-        one = next(r for r in zone.records if r.name == 'one')
-        self.assertTrue(one)
-        #        self.assertEqual(
-        #            ["This has a semi-colon\\; that isn't escaped."], one.values
-        #        )
-        two = next(r for r in zone.records if r.name == 'two')
-        self.assertTrue(two)
-
-
-#        self.assertEqual(
-#            ["This has a semi-colon too\\; that isn't escaped.", '\\;'],
-#            two.values,
-#        )
+        with self.assertRaises(ValidationError) as ctx:
+            source.populate(zone)
+        self.assertEqual(
+            [
+                'double escaped ; in "This has a semi-colon\\\\; that is escaped."'
+            ],
+            ctx.exception.reasons,
+        )
 
 
 class TestSplitYamlProvider(TestCase):
