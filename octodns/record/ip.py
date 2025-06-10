@@ -46,9 +46,7 @@ class _IpValue(str):
         return self
 
     def template(self, params):
-        if '{' not in self:
-            return self
-        return self.__class__(self.format(**params))
+        return self
 
 
 _IpAddress = _IpValue

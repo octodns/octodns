@@ -137,7 +137,7 @@ class TlsaValue(EqualityTupleMixin, dict):
         return f'{self.certificate_usage} {self.selector} {self.matching_type} {self.certificate_association_data}'
 
     def template(self, params):
-        if '{' in self.certificate_association_data:
+        if '{' not in self.certificate_association_data:
             return self
         new = self.__class__(self)
         new.certificate_association_data = (

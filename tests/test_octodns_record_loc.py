@@ -715,3 +715,26 @@ class TestRecordLoc(TestCase):
         self.assertEqual(
             ['invalid value for size "99999999.99"'], ctx.exception.reasons
         )
+
+
+class TestLocValue(TestCase):
+
+    def test_template(self):
+        value = LocValue(
+            {
+                'lat_degrees': 31,
+                'lat_minutes': 58,
+                'lat_seconds': 52.1,
+                'lat_direction': 'S',
+                'long_degrees': 115,
+                'long_minutes': 49,
+                'long_seconds': 11.7,
+                'long_direction': 'E',
+                'altitude': 20,
+                'size': 10,
+                'precision_horz': 10,
+                'precision_vert': 2,
+            }
+        )
+        # loc value template is a noop
+        self.assertIs(value, value.template({}))

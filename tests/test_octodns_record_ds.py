@@ -259,3 +259,30 @@ class TestRecordDs(TestCase):
         self.assertEqual(DsValue(values[1]), a.values[1].data)
         self.assertEqual('1 2 3 99148c44', a.values[1].rdata_text)
         self.assertEqual('1 2 3 99148c44', a.values[1].__repr__())
+
+
+class TestDsValue(TestCase):
+
+    def test_template(self):
+        value = DsValue(
+            {
+                'key_tag': 0,
+                'algorithm': 1,
+                'digest_type': 2,
+                'digest': 'abcdef0123456',
+            }
+        )
+        got = value.template({'needle': 42})
+        self.assertIs(value, got)
+
+        value = DsValue(
+            {
+                'key_tag': 0,
+                'algorithm': 1,
+                'digest_type': 2,
+                'digest': 'abcd{needle}ef0123456',
+            }
+        )
+        got = value.template({'needle': 42})
+        self.assertIsNot(value, got)
+        self.assertEqual('abcd42ef0123456', got.digest)

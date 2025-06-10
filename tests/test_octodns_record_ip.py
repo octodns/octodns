@@ -27,3 +27,11 @@ class TestRecordIp(TestCase):
         zone = Zone('unit.tests.', [])
         a = ARecord(zone, 'a', {'ttl': 42, 'value': '1.2.3.4'})
         self.assertEqual('1.2.3.4', a.values[0].rdata_text)
+
+
+class TestIpValue(TestCase):
+
+    def test_template(self):
+        value = Ipv4Value('1.2.3.4')
+        # template is a noop
+        self.assertIs(value, value.template({'needle': 42}))
