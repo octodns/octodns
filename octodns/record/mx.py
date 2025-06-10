@@ -101,6 +101,13 @@ class MxValue(EqualityTupleMixin, dict):
     def rdata_text(self):
         return f'{self.preference} {self.exchange}'
 
+    def template(self, params):
+        if '{' not in self.exchange:
+            return self
+        new = self.__class__(self)
+        new.exchange = new.exchange.format(**params)
+        return new
+
     def __hash__(self):
         return hash((self.preference, self.exchange))
 

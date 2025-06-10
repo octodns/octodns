@@ -450,3 +450,30 @@ class TestRecordSrv(TestCase):
             ['Invalid SRV target "100 foo.bar.com." is not a valid FQDN.'],
             ctx.exception.reasons,
         )
+
+
+class TestSrvValue(TestCase):
+
+    def test_template(self):
+        value = SrvValue(
+            {
+                'priority': 10,
+                'weight': 11,
+                'port': 12,
+                'target': 'no_placeholders',
+            }
+        )
+        got = value.template({'needle': 42})
+        self.assertIs(value, got)
+
+        value = SrvValue(
+            {
+                'priority': 10,
+                'weight': 11,
+                'port': 12,
+                'target': 'has_{needle}_placeholder',
+            }
+        )
+        got = value.template({'needle': 42})
+        self.assertIsNot(value, got)
+        self.assertEqual('has_42_placeholder', got.target)

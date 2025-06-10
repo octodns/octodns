@@ -285,3 +285,20 @@ class TestRecordCaa(TestCase):
                 {'type': 'CAA', 'ttl': 600, 'value': {'tag': 'iodef'}},
             )
         self.assertEqual(['missing value'], ctx.exception.reasons)
+
+
+class TestCaaValue(TestCase):
+
+    def test_template(self):
+        value = CaaValue(
+            {'flags': 0, 'tag': 'issue', 'value': 'ca.example.net'}
+        )
+        got = value.template({'needle': 42})
+        self.assertIs(value, got)
+
+        value = CaaValue(
+            {'flags': 0, 'tag': 'issue', 'value': 'ca.{needle}.net'}
+        )
+        got = value.template({'needle': 42})
+        self.assertIsNot(value, got)
+        self.assertEqual('ca.42.net', got.value)

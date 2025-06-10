@@ -45,5 +45,8 @@ class _IpValue(str):
     def rdata_text(self):
         return self
 
+    def template(self, params):
+        return self
+
 
 _IpAddress = _IpValue

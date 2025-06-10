@@ -132,6 +132,14 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     def rdata_text(self):
         return f'"{self.path}" "{self.target}" {self.code} {self.masking} {self.query}'
 
+    def template(self, params):
+        if '{' not in self.path and '{' not in self.target:
+            return self
+        new = self.__class__(self)
+        new.path = new.path.format(**params)
+        new.target = new.target.format(**params)
+        return new
+
     def _equality_tuple(self):
         return (self.path, self.target, self.code, self.masking, self.query)
 
