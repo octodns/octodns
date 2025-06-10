@@ -305,6 +305,9 @@ class LocValue(EqualityTupleMixin, dict):
     def rdata_text(self):
         return f'{self.lat_degrees} {self.lat_minutes} {self.lat_seconds} {self.lat_direction} {self.long_degrees} {self.long_minutes} {self.long_seconds} {self.long_direction} {self.altitude}m {self.size}m {self.precision_horz}m {self.precision_vert}m'
 
+    def template(self, params):
+        return self
+
     def __hash__(self):
         return hash(
             (

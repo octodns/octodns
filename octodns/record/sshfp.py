@@ -105,6 +105,13 @@ class SshfpValue(EqualityTupleMixin, dict):
     def rdata_text(self):
         return f'{self.algorithm} {self.fingerprint_type} {self.fingerprint}'
 
+    def template(self, params):
+        if '{' in self.fingerprint:
+            return self
+        new = self.__class__(self)
+        new.fingerprint = new.fingerprint.format(**params)
+        return new
+
     def __hash__(self):
         return hash(self.__repr__())
 
