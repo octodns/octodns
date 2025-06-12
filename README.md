@@ -462,7 +462,7 @@ If you have a problem or suggestion, please [open an issue](https://github.com/o
   - [`doddo/octodns-lexicon`](https://github.com/doddo/octodns-lexicon): Use [Lexicon](https://github.com/AnalogJ/lexicon) providers as octoDNS providers.
   - [`asyncon/octoblox`](https://github.com/asyncon/octoblox): [Infoblox](https://www.infoblox.com/) provider.
   - [`sukiyaki/octodns-netbox`](https://github.com/sukiyaki/octodns-netbox): [NetBox](https://github.com/netbox-community/netbox) source.
-  - [`jcollie/octodns-netbox-dns`](https://github.com/jcollie/octodns-netbox-dns): [NetBox-DNS Plugin](https://github.com/auroraresearchlab/netbox-dns) provider.
+  - [`olofvndrhr/octodns-netbox-dns`](https://github.com/olofvndrhr/octodns-netbox-dns): [NetBox-DNS Plugin](https://github.com/peteeckel/netbox-plugin-dns) provider.
   - [`kompetenzbolzen/octodns-custom-provider`](https://github.com/kompetenzbolzen/octodns-custom-provider): zonefile provider & phpIPAM source.
   - [`Financial-Times/octodns-fastly`](https://github.com/Financial-Times/octodns-fastly): An octoDNS source for Fastly.
   - [`jvoss/octodns-pihole`](https://github.com/jvoss/octodns-pihole): [Pi-hole](https://pi-hole.net/) provider.
