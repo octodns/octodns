@@ -300,6 +300,8 @@ The table below lists the providers octoDNS supports. They are maintained in the
 | [UltraDNS](https://vercara.com/authoritative-dns) | [octodns_ultra](https://github.com/octodns/octodns-ultra/) | |
 | [YamlProvider](/octodns/provider/yaml.py) | built-in | Supports all record types and core functionality |
 | [deSEC](https://desec.io/) | [octodns_desec](https://github.com/rootshell-labs/octodns-desec) | |
+| [ClouDNS](https://www.cloudns.net/) | [octodns_cloudns](https://github.com/ClouDNS/octodns_cloudns) | |
+
 
 ### Updating to use extracted providers
 
