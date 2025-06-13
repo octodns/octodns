@@ -1,0 +1,28 @@
+from pathlib import Path
+
+SRCDIR = Path("octodns")
+DOC_MODULE_DIR = Path("docs/modules")
+
+DOC_MODULE_TEMPLATE = """
+====================================
+``{module_name}``
+====================================
+
+.. automodule:: {module_name}"""
+
+for module in SRCDIR.rglob("*.py"):
+    if module.name in ["__init__.py", "__about__.py"]:
+        continue
+
+    module_docname = str(module).replace("/", ".").removesuffix(".py")
+
+    if module.parent.name != "octodns":
+        module_docpath = DOC_MODULE_DIR / module.parent.name / f"{module_docname}.rst"
+    else:
+        module_docpath = DOC_MODULE_DIR / f"{module_docname}.rst"
+
+    print(f"creating sphinx doc module for: {module_docname}")
+    module_docpath.parent.mkdir(exist_ok=True, parents=True)
+    module_docpath.write_text(
+        DOC_MODULE_TEMPLATE.format(module_name=module_docname).strip()
+    )

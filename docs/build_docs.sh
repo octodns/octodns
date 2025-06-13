@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+set -xeuo pipefail
+
+rm -rf docs/_build
+sphinx-build -M html docs docs/_build "${@}"
