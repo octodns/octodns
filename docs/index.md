@@ -25,6 +25,7 @@
 :maxdepth: 1
 :glob:
 
+pages/*
 ```
 
 ---
