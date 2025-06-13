@@ -53,6 +53,9 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "sphinx": ("https://www.sphinx-doc.org/en/master", None),
     "dnspython": ("https://dnspython.readthedocs.io/en/stable/", None),
+    "six": ("https://six.readthedocs.io/", None),
+    "python-dateutil": ("https://dateutil.readthedocs.io/en/stable/", None),
+    "fqdn": ("https://fqdn.readthedocs.io/en/latest/", None),
 }
 
 
