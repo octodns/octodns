@@ -22,36 +22,38 @@ class SpfDnsLookupException(ProcessorException):
 
 
 class SpfDnsLookupProcessor(BaseProcessor):
-    '''
+    """
     Validate that SPF values in TXT records are valid.
 
     Example usage:
 
-    processors:
-      spf:
-        class: octodns.processor.spf.SpfDnsLookupProcessor
+    .. code-block:: yaml
 
-    zones:
-      example.com.:
-        sources:
-          - config
         processors:
-          - spf
-        targets:
-          - route53
+        spf:
+            class: octodns.processor.spf.SpfDnsLookupProcessor
 
-    The validation can be skipped for specific records by setting the lenient
-    flag, e.g.
+        zones:
+        example.com.:
+            sources:
+            - config
+            processors:
+            - spf
+            targets:
+            - route53
 
-    _spf:
-      octodns:
-        lenient: true
-      ttl: 86400
-      type: TXT
-      value: v=spf1 ptr ~all
-    '''
+        The validation can be skipped for specific records by setting the lenient
+        flag, e.g.
 
-    log = getLogger('SpfDnsLookupProcessor')
+        _spf:
+        octodns:
+            lenient: true
+        ttl: 86400
+        type: TXT
+        value: v=spf1 ptr ~all
+    """
+
+    log = getLogger("SpfDnsLookupProcessor")
 
     def __init__(self, name):
         self.log.debug(f"SpfDnsLookupProcessor: {name}")
@@ -65,7 +67,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
         )
 
         # SPF values to validate will begin with 'v=spf1 '
-        spf = [value for value in values if value.startswith('v=spf1 ')]
+        spf = [value for value in values if value.startswith("v=spf1 ")]
 
         # No SPF values in the TXT record
         if len(spf) == 0:
@@ -84,7 +86,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
 
         for value in answer:
             text_value = value.to_text()
-            processed_value = text_value[1:-1].replace('" "', '')
+            processed_value = text_value[1:-1].replace('" "', "")
             values.append(processed_value)
 
         return values
@@ -101,7 +103,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
         if spf is None:
             return lookups
 
-        terms = spf[len('v=spf1 ') :].split(' ')
+        terms = spf[len("v=spf1 ") :].split(" ")
 
         for term in terms:
             if lookups > 10:
@@ -109,19 +111,19 @@ class SpfDnsLookupProcessor(BaseProcessor):
                     f"{record.fqdn} exceeds the 10 DNS lookup limit in the SPF record"
                 )
 
-            if term.startswith('ptr'):
+            if term.startswith("ptr"):
                 raise SpfValueException(
                     f"{record.fqdn} uses the deprecated ptr mechanism"
                 )
 
             # These mechanisms cost one DNS lookup each
-            if term.startswith(('a', 'mx', 'exists:', 'redirect', 'include:')):
+            if term.startswith(("a", "mx", "exists:", "redirect", "include:")):
                 lookups += 1
 
             # The include mechanism can result in further lookups after resolving the DNS record
-            if term.startswith('include:'):
-                domain = term[len('include:') :]
-                answer = dns.resolver.resolve(domain, 'TXT')
+            if term.startswith("include:"):
+                domain = term[len("include:") :]
+                answer = dns.resolver.resolve(domain, "TXT")
                 answer_values = self._process_answer(answer)
                 lookups = self._check_dns_lookups(
                     record, answer_values, lookups
@@ -131,7 +133,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
 
     def process_source_zone(self, zone, *args, **kwargs):
         for record in zone.records:
-            if record._type != 'TXT':
+            if record._type != "TXT":
                 continue
 
             if record.lenient:

@@ -15,69 +15,70 @@ from .base import BaseProvider
 
 
 class YamlProvider(BaseProvider):
-    '''
+    """
     Core provider for records configured in yaml files on disk.
 
-    config:
-        class: octodns.provider.yaml.YamlProvider
+    .. code-block:: yaml
 
-        # The location of yaml config files. By default records are defined in a
-        # file named for the zone in this directory, the zone file, e.g.
-        # something.com.yaml.
-        # (required)
-        directory: ./config
+        config:
+            class: octodns.provider.yaml.YamlProvider
 
-        # The ttl to use for records when not specified in the data
-        # (optional, default 3600)
-        default_ttl: 3600
+            # The location of yaml config files. By default records are defined in a
+            # file named for the zone in this directory, the zone file, e.g.
+            # something.com.yaml.
+            # (required)
+            directory: ./config
 
-        # Whether or not to enforce sorting order when loading yaml
-        # (optional, default True)
-        enforce_order: true
-        # What sort mode to employ when enforcing order
-        # - simple: `sort`
-        # - natural: https://pypi.org/project/natsort/
-        # (optional, default natural)
-        order_mode: natural
+            # The ttl to use for records when not specified in the data
+            # (optional, default 3600)
+            default_ttl: 3600
 
-        # Whether duplicate records should replace rather than error
-        # (optional, default False)
-        populate_should_replace: false
+            # Whether or not to enforce sorting order when loading yaml
+            # (optional, default True)
+            enforce_order: true
+            # What sort mode to employ when enforcing order
+            # - simple: `sort`
+            # - natural: https://pypi.org/project/natsort/
+            # (optional, default natural)
+            order_mode: natural
 
-        # The file extension used when loading split style zones, Null means
-        # disabled. When enabled the provider will search for zone records split
-        # across multiple YAML files in the directory with split_extension
-        # appended to the zone name, See "Split Details" below.
-        # split_extension should include the "."
-        # (optional, default null, "." is the recommended best practice when
-        # enabling)
-        split_extension: null
+            # Whether duplicate records should replace rather than error
+            # (optional, default False)
+            populate_should_replace: false
 
-        # When writing YAML records out to disk with split_extension enabled
-        # each record is written out into its own file with .yaml appended to
-        # the name of the record. The two exceptions are for the root and
-        # wildcard nodes. These records are written into a file named
-        # `$[zone.name].yaml`. If you would prefer this catchall file not be
-        # used `split_catchall` can be set to False to instead write those
-        # records out to `.yaml` and `*.yaml` respectively. Note that some
-        # operating systems may not allow files with those names.
-        # (optional, default True)
-        split_catchall: true
+            # The file extension used when loading split style zones, Null means
+            # disabled. When enabled the provider will search for zone records split
+            # across multiple YAML files in the directory with split_extension
+            # appended to the zone name, See "Split Details" below.
+            # split_extension should include the "."
+            # (optional, default null, "." is the recommended best practice when
+            # enabling)
+            split_extension: null
 
-        # Optional filename with record data to be included in all zones
-        # populated by this provider. Has no effect when used as a target.
-        # (optional, default null)
-        shared_filename: null
+            # When writing YAML records out to disk with split_extension enabled
+            # each record is written out into its own file with .yaml appended to
+            # the name of the record. The two exceptions are for the root and
+            # wildcard nodes. These records are written into a file named
+            # `$[zone.name].yaml`. If you would prefer this catchall file not be
+            # used `split_catchall` can be set to False to instead write those
+            # records out to `.yaml` and `*.yaml` respectively. Note that some
+            # operating systems may not allow files with those names.
+            # (optional, default True)
+            split_catchall: true
 
-        # Disable loading of the zone .yaml files.
-        # (optional, default False)
-        disable_zonefile: false
+            # Optional filename with record data to be included in all zones
+            # populated by this provider. Has no effect when used as a target.
+            # (optional, default null)
+            shared_filename: null
 
-    Note
-    ----
+            # Disable loading of the zone .yaml files.
+            # (optional, default False)
+            disable_zonefile: false
 
-    When using this provider as a target any existing comments or formatting
-    in the zone files will be lost when changes are applyed.
+    .. warning::
+
+        When using this provider as a target any existing comments or formatting
+        in the zone files will be lost when changes are applyed.
 
     Split Details
     -------------
@@ -91,11 +92,12 @@ class YamlProvider(BaseProvider):
     With `split_extension: .` the directory structure for the zone github.com.
     managed under directory "zones/" would look like:
 
-    zones/
-      github.com./
-        $github.com.yaml
-        www.yaml
-        ...
+    .. code-block:: yaml
+        zones/
+        github.com./
+            $github.com.yaml
+            www.yaml
+            ...
 
     Overriding Values
     -----------------
@@ -106,68 +108,70 @@ class YamlProvider(BaseProvider):
     to external DNS providers and internally, but you want to modify some of
     the records in the internal version.
 
-    config/octodns.com.yaml
-    ---
-    other:
-      type: A
-      values:
-        - 192.30.252.115
-        - 192.30.252.116
-    www:
-      type: A
-      values:
-        - 192.30.252.113
-        - 192.30.252.114
+    `config/octodns.com.yaml`
+    .. code-block:: yaml
+        ---
+        other:
+        type: A
+        values:
+            - 192.30.252.115
+            - 192.30.252.116
+        www:
+        type: A
+        values:
+            - 192.30.252.113
+            - 192.30.252.114
 
 
-    internal/octodns.com.yaml
-    ---
-    'www':
-      type: A
-      values:
-        - 10.0.0.12
-        - 10.0.0.13
+    `internal/octodns.com.yaml`
+    .. code-block:: yaml
+        ---
+        'www':
+        type: A
+        values:
+            - 10.0.0.12
+            - 10.0.0.13
 
-    external.yaml
-    ---
-    providers:
-      config:
-        class: octodns.provider.yaml.YamlProvider
-        directory: ./config
+        external.yaml
+        ---
+        providers:
+        config:
+            class: octodns.provider.yaml.YamlProvider
+            directory: ./config
 
-    zones:
+        zones:
 
-      octodns.com.:
-        sources:
-          - config
-        targets:
-          - route53
+        octodns.com.:
+            sources:
+            - config
+            targets:
+            - route53
 
-    internal.yaml
-    ---
-    providers:
-      config:
-        class: octodns.provider.yaml.YamlProvider
-        directory: ./config
+        internal.yaml
+        ---
+        providers:
+        config:
+            class: octodns.provider.yaml.YamlProvider
+            directory: ./config
 
-      internal:
-        class: octodns.provider.yaml.YamlProvider
-        directory: ./internal
-        populate_should_replace: true
+        internal:
+            class: octodns.provider.yaml.YamlProvider
+            directory: ./internal
+            populate_should_replace: true
 
-    zones:
+        zones:
 
-      octodns.com.:
-        sources:
-          - config
-          - internal
-        targets:
-          - pdns
+        octodns.com.:
+            sources:
+            - config
+            - internal
+            targets:
+            - pdns
 
     You can then sync our records eternally with `--config-file=external.yaml`
     and internally (with the custom overrides) with
     `--config-file=internal.yaml`
-    '''
+    """
 
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
@@ -177,7 +181,7 @@ class YamlProvider(BaseProvider):
 
     # Any record name added to this set will be included in the catch-all file,
     # instead of a file matching the record name.
-    CATCHALL_RECORD_NAMES = ('*', '')
+    CATCHALL_RECORD_NAMES = ("*", "")
 
     def __init__(
         self,
@@ -185,7 +189,7 @@ class YamlProvider(BaseProvider):
         directory,
         default_ttl=3600,
         enforce_order=True,
-        order_mode='natural',
+        order_mode="natural",
         populate_should_replace=False,
         supports_root_ns=True,
         split_extension=False,
@@ -196,9 +200,9 @@ class YamlProvider(BaseProvider):
         **kwargs,
     ):
         klass = self.__class__.__name__
-        self.log = logging.getLogger(f'{klass}[{id}]')
+        self.log = logging.getLogger(f"{klass}[{id}]")
         self.log.debug(
-            '__init__: id=%s, directory=%s, default_ttl=%d, enforce_order=%d, order_mode=%s, populate_should_replace=%s, supports_root_ns=%s, split_extension=%s, split_catchall=%s, shared_filename=%s, disable_zonefile=%s',
+            "__init__: id=%s, directory=%s, default_ttl=%d, enforce_order=%d, order_mode=%s, populate_should_replace=%s, supports_root_ns=%s, split_extension=%s, split_catchall=%s, shared_filename=%s, disable_zonefile=%s",
             id,
             directory,
             default_ttl,
@@ -225,8 +229,8 @@ class YamlProvider(BaseProvider):
 
     def copy(self):
         kwargs = dict(self.__dict__)
-        kwargs['id'] = f'{kwargs["id"]}-copy'
-        del kwargs['log']
+        kwargs["id"] = f"{kwargs['id']}-copy"
+        del kwargs["log"]
         return YamlProvider(**kwargs)
 
     @property
@@ -250,7 +254,7 @@ class YamlProvider(BaseProvider):
         return self.supports_root_ns
 
     def list_zones(self):
-        self.log.debug('list_zones:')
+        self.log.debug("list_zones:")
         zones = set()
 
         extension = self.split_extension
@@ -258,7 +262,7 @@ class YamlProvider(BaseProvider):
             # we want to leave the .
             trim = len(extension) - 1
             self.log.debug(
-                'list_zones:   looking for split zones, trim=%d', trim
+                "list_zones:   looking for split zones, trim=%d", trim
             )
             for dirname in listdir(self.directory):
                 not_ends_with = not dirname.endswith(extension)
@@ -270,10 +274,10 @@ class YamlProvider(BaseProvider):
                 zones.add(dirname)
 
         if not self.disable_zonefile:
-            self.log.debug('list_zones:   looking for zone files')
+            self.log.debug("list_zones:   looking for zone files")
             for filename in listdir(self.directory):
-                not_ends_with = not filename.endswith('.yaml')
-                too_few_dots = filename.count('.') < 2
+                not_ends_with = not filename.endswith(".yaml")
+                too_few_dots = filename.count(".") < 2
                 not_file = not isfile(join(self.directory, filename))
                 if not_file or not_ends_with or too_few_dots:
                     continue
@@ -284,8 +288,8 @@ class YamlProvider(BaseProvider):
 
     def _split_sources(self, zone):
         ext = self.split_extension
-        utf8 = join(self.directory, f'{zone.decoded_name[:-1]}{ext}')
-        idna = join(self.directory, f'{zone.name[:-1]}{ext}')
+        utf8 = join(self.directory, f"{zone.decoded_name[:-1]}{ext}")
+        idna = join(self.directory, f"{zone.name[:-1]}{ext}")
         directory = None
         if isdir(utf8):
             if utf8 != idna and isdir(idna):
@@ -299,12 +303,12 @@ class YamlProvider(BaseProvider):
             return []
 
         for filename in listdir(directory):
-            if filename.endswith('.yaml'):
+            if filename.endswith(".yaml"):
                 yield join(directory, filename)
 
     def _zone_sources(self, zone):
-        utf8 = join(self.directory, f'{zone.decoded_name}yaml')
-        idna = join(self.directory, f'{zone.name}yaml')
+        utf8 = join(self.directory, f"{zone.decoded_name}yaml")
+        idna = join(self.directory, f"{zone.name}yaml")
         if isfile(utf8):
             if utf8 != idna and isfile(idna):
                 raise ProviderException(
@@ -317,7 +321,7 @@ class YamlProvider(BaseProvider):
         return None
 
     def _populate_from_file(self, filename, zone, lenient):
-        with open(filename, 'r') as fh:
+        with open(filename, "r") as fh:
             yaml_data = safe_load(
                 fh, enforce_order=self.enforce_order, order_mode=self.order_mode
             )
@@ -326,8 +330,8 @@ class YamlProvider(BaseProvider):
                     if not isinstance(data, list):
                         data = [data]
                     for d in data:
-                        if 'ttl' not in d:
-                            d['ttl'] = self.default_ttl
+                        if "ttl" not in d:
+                            d["ttl"] = self.default_ttl
                         record = Record.new(
                             zone, name, d, source=self, lenient=lenient
                         )
@@ -342,7 +346,7 @@ class YamlProvider(BaseProvider):
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug(
-            'populate: name=%s, target=%s, lenient=%s',
+            "populate: name=%s, target=%s, lenient=%s",
             zone.decoded_name,
             target,
             lenient,
@@ -365,7 +369,7 @@ class YamlProvider(BaseProvider):
             sources.append(join(self.directory, self.shared_filename))
 
         if not sources and not target:
-            raise ProviderException(f'no YAMLs found for {zone.decoded_name}')
+            raise ProviderException(f"no YAMLs found for {zone.decoded_name}")
 
         # deterministically order our sources
         sources.sort()
@@ -375,7 +379,7 @@ class YamlProvider(BaseProvider):
 
         exists = len(sources) > 0
         self.log.info(
-            'populate:   found %s records, exists=%s',
+            "populate:   found %s records, exists=%s",
             len(zone.records) - before,
             exists,
         )
@@ -386,7 +390,7 @@ class YamlProvider(BaseProvider):
         copy = plan.existing.copy()
         changes = plan.changes
         self.log.debug(
-            '_apply: zone=%s, len(changes)=%d', copy.decoded_name, len(changes)
+            "_apply: zone=%s, len(changes)=%d", copy.decoded_name, len(changes)
         )
 
         # apply our pending changes to that copy
@@ -398,10 +402,10 @@ class YamlProvider(BaseProvider):
         data = defaultdict(list)
         for record in records:
             d = record.data
-            d['type'] = record._type
+            d["type"] = record._type
             if record.ttl == self.default_ttl:
                 # ttl is the default, we don't need to store it
-                del d['ttl']
+                del d["ttl"]
             # we want to output the utf-8 version of the name
             data[record.decoded_name].append(d)
 
@@ -411,18 +415,18 @@ class YamlProvider(BaseProvider):
                 data[k] = data[k][0]
 
         if not isdir(self.directory):
-            self.log.debug('_apply: creating directory=%s', self.directory)
+            self.log.debug("_apply: creating directory=%s", self.directory)
             makedirs(self.directory)
 
         if self.split_extension:
             # we're going to do split files
             decoded_name = copy.decoded_name[:-1]
             directory = join(
-                self.directory, f'{decoded_name}{self.split_extension}'
+                self.directory, f"{decoded_name}{self.split_extension}"
             )
 
             if not isdir(directory):
-                self.log.debug('_apply: creating split directory=%s', directory)
+                self.log.debug("_apply: creating split directory=%s", directory)
                 makedirs(directory)
 
             catchall = {}
@@ -430,27 +434,27 @@ class YamlProvider(BaseProvider):
                 if self.split_catchall and record in self.CATCHALL_RECORD_NAMES:
                     catchall[record] = config
                     continue
-                filename = join(directory, f'{record}.yaml')
-                self.log.debug('_apply:   writing filename=%s', filename)
+                filename = join(directory, f"{record}.yaml")
+                self.log.debug("_apply:   writing filename=%s", filename)
 
-                with open(filename, 'w') as fh:
+                with open(filename, "w") as fh:
                     record_data = {record: config}
                     safe_dump(record_data, fh, order_mode=self.order_mode)
 
             if catchall:
                 # Scrub the trailing . to make filenames more sane.
-                filename = join(directory, f'${decoded_name}.yaml')
+                filename = join(directory, f"${decoded_name}.yaml")
                 self.log.debug(
-                    '_apply:   writing catchall filename=%s', filename
+                    "_apply:   writing catchall filename=%s", filename
                 )
-                with open(filename, 'w') as fh:
+                with open(filename, "w") as fh:
                     safe_dump(catchall, fh, order_mode=self.order_mode)
 
         else:
             # single large file
-            filename = join(self.directory, f'{copy.decoded_name}yaml')
-            self.log.debug('_apply:   writing filename=%s', filename)
-            with open(filename, 'w') as fh:
+            filename = join(self.directory, f"{copy.decoded_name}yaml")
+            self.log.debug("_apply:   writing filename=%s", filename)
+            with open(filename, "w") as fh:
                 safe_dump(
                     dict(data),
                     fh,
@@ -460,11 +464,14 @@ class YamlProvider(BaseProvider):
 
 
 class SplitYamlProvider(YamlProvider):
-    '''
-    DEPRECATED: Use YamlProvider with the split_extension parameter instead.
+    """
+    .. deprecated::
+        DEPRECATED: Use YamlProvider with the split_extension parameter instead.
 
     When migrating the following configuration options would result in the same
     behavior as SplitYamlProvider
+
+    .. code-block:: yaml
 
        config:
          class: octodns.provider.yaml.YamlProvider
@@ -474,18 +481,18 @@ class SplitYamlProvider(YamlProvider):
          disable_zonefile: true
 
     TO BE REMOVED: 2.0
-    '''
+    """
 
-    def __init__(self, id, directory, *args, extension='.', **kwargs):
+    def __init__(self, id, directory, *args, extension=".", **kwargs):
         kwargs.update(
             {
-                'split_extension': extension,
-                'split_catchall': True,
-                'disable_zonefile': True,
+                "split_extension": extension,
+                "split_catchall": True,
+                "disable_zonefile": True,
             }
         )
         super().__init__(id, directory, *args, **kwargs)
         deprecated(
-            'SplitYamlProvider is DEPRECATED, use YamlProvider with split_extension, split_catchall, and disable_zonefile instead, will go away in v2.0',
+            "SplitYamlProvider is DEPRECATED, use YamlProvider with split_extension, split_catchall, and disable_zonefile instead, will go away in v2.0",
             stacklevel=99,
         )

@@ -55,7 +55,7 @@ class TinyDnsBaseSource(BaseSource):
             # no arpa
             return []
 
-        if not zone.owns('MX', name):
+        if not zone.owns("MX", name):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
@@ -65,11 +65,11 @@ class TinyDnsBaseSource(BaseSource):
         for line in lines:
             mx = line[2]
             # if there's a . in the mx we hit a special case and use it as-is
-            if '.' not in mx:
+            if "." not in mx:
                 # otherwise we treat it as the MX hostnam and construct the rest
-                mx = f'{mx}.mx.{zone.name}'
-            elif mx[-1] != '.':
-                mx = f'{mx}.'
+                mx = f"{mx}.mx.{zone.name}"
+            elif mx[-1] != ".":
+                mx = f"{mx}."
 
             # default distance is 0
             try:
@@ -79,12 +79,12 @@ class TinyDnsBaseSource(BaseSource):
 
             # if we have an IP then we need to create an A for the MX
             ip = line[1]
-            if ip and zone.owns('A', mx):
-                yield 'A', mx, ttl, [ip]
+            if ip and zone.owns("A", mx):
+                yield "A", mx, ttl, [ip]
 
-            values.append({'preference': dist, 'exchange': mx})
+            values.append({"preference": dist, "exchange": mx})
 
-        yield 'MX', name, ttl, values
+        yield "MX", name, ttl, values
 
     def _records_for_C(self, zone, name, lines, arpa=False):
         # Cfqdn:p:ttl:timestamp:lo
@@ -94,17 +94,17 @@ class TinyDnsBaseSource(BaseSource):
             # no arpa
             return []
 
-        if not zone.owns('CNAME', name):
+        if not zone.owns("CNAME", name):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
         value = lines[0][1]
-        if value[-1] != '.':
-            value = f'{value}.'
+        if value[-1] != ".":
+            value = f"{value}."
 
         ttl = self._ttl_for(lines, 2)
 
-        yield 'CNAME', name, ttl, [value]
+        yield "CNAME", name, ttl, [value]
 
     def _records_for_caret(self, zone, name, lines, arpa=False):
         # ^fqdn:p:ttl:timestamp:lo
@@ -116,8 +116,8 @@ class TinyDnsBaseSource(BaseSource):
 
         names = defaultdict(list)
         for line in lines:
-            if line[0].endswith('in-addr.arpa') or line[0].endswith(
-                'ip6.arpa.'
+            if line[0].endswith("in-addr.arpa") or line[0].endswith(
+                "ip6.arpa."
             ):
                 # it's a straight PTR record, already in in-addr.arpa format,
                 # 2nd item is the name it points to
@@ -128,20 +128,20 @@ class TinyDnsBaseSource(BaseSource):
                 # we're given
                 value = line[0]
                 addr = line[1]
-                if '.' not in addr:
-                    addr = u':'.join(textwrap.wrap(line[1], 4))
+                if "." not in addr:
+                    addr = ":".join(textwrap.wrap(line[1], 4))
                 addr = ip_address(addr)
                 name = addr.reverse_pointer
 
-            if value[-1] != '.':
-                value = f'{value}.'
+            if value[-1] != ".":
+                value = f"{value}."
             names[name].append(value)
 
         ttl = self._ttl_for(lines, 2)
 
         for name, values in names.items():
-            if zone.owns('PTR', name):
-                yield 'PTR', name, ttl, values
+            if zone.owns("PTR", name):
+                yield "PTR", name, ttl, values
 
     def _records_for_equal(self, zone, name, lines, arpa=False):
         # =fqdn:ip:ttl:timestamp:lo
@@ -159,7 +159,7 @@ class TinyDnsBaseSource(BaseSource):
             # no arpa
             return []
 
-        if not zone.owns('NS', name):
+        if not zone.owns("NS", name):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
@@ -169,20 +169,20 @@ class TinyDnsBaseSource(BaseSource):
         for line in lines:
             ns = line[2]
             # if there's a . in the ns we hit a special case and use it as-is
-            if '.' not in ns:
+            if "." not in ns:
                 # otherwise we treat it as the NS hostnam and construct the rest
-                ns = f'{ns}.ns.{zone.name}'
-            elif ns[-1] != '.':
-                ns = f'{ns}.'
+                ns = f"{ns}.ns.{zone.name}"
+            elif ns[-1] != ".":
+                ns = f"{ns}."
 
             # if we have an IP then we need to create an A for the MX
             ip = line[1]
-            if ip and zone.owns('A', ns):
-                yield 'A', ns, ttl, [ip]
+            if ip and zone.owns("A", ns):
+                yield "A", ns, ttl, [ip]
 
             values.append(ns)
 
-        yield 'NS', name, ttl, values
+        yield "NS", name, ttl, values
 
     _records_for_amp = _records_for_dot
 
@@ -194,12 +194,12 @@ class TinyDnsBaseSource(BaseSource):
             # no arpa
             return []
 
-        if not zone.owns('A', name):
+        if not zone.owns("A", name):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
         # collect our ip(s)
-        ips = [l[1] for l in lines if l[1] != '0.0.0.0']
+        ips = [l[1] for l in lines if l[1] != "0.0.0.0"]
 
         if not ips:
             # we didn't find any value ips so nothing to do
@@ -207,7 +207,7 @@ class TinyDnsBaseSource(BaseSource):
 
         ttl = self._ttl_for(lines, 2)
 
-        yield 'A', name, ttl, ips
+        yield "A", name, ttl, ips
 
     def _records_for_quote(self, zone, name, lines, arpa=False):
         # 'fqdn:s:ttl:timestamp:lo
@@ -217,19 +217,19 @@ class TinyDnsBaseSource(BaseSource):
             # no arpa
             return []
 
-        if not zone.owns('TXT', name):
+        if not zone.owns("TXT", name):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
         # collect our ip(s)
         values = [
-            l[1].encode('latin1').decode('unicode-escape').replace(";", "\\;")
+            l[1].encode("latin1").decode("unicode-escape").replace(";", "\\;")
             for l in lines
         ]
 
         ttl = self._ttl_for(lines, 2)
 
-        yield 'TXT', name, ttl, values
+        yield "TXT", name, ttl, values
 
     def _records_for_three(self, zone, name, lines, arpa=False):
         # 3fqdn:ip:ttl:timestamp:lo
@@ -239,7 +239,7 @@ class TinyDnsBaseSource(BaseSource):
             # no arpa
             return []
 
-        if not zone.owns('AAAA', name):
+        if not zone.owns("AAAA", name):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
@@ -249,11 +249,11 @@ class TinyDnsBaseSource(BaseSource):
             # TinyDNS files have the ipv6 address written in full, but with the
             # colons removed. This inserts a colon every 4th character to make
             # the address correct.
-            ips.append(u':'.join(textwrap.wrap(line[1], 4)))
+            ips.append(":".join(textwrap.wrap(line[1], 4)))
 
         ttl = self._ttl_for(lines, 2)
 
-        yield 'AAAA', name, ttl, ips
+        yield "AAAA", name, ttl, ips
 
     def _records_for_S(self, zone, name, lines, arpa=False):
         # Sfqdn:ip:x:port:priority:weight:ttl:timestamp:lo
@@ -263,7 +263,7 @@ class TinyDnsBaseSource(BaseSource):
             # no arpa
             return []
 
-        if not zone.owns('SRV', name):
+        if not zone.owns("SRV", name):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
@@ -273,17 +273,17 @@ class TinyDnsBaseSource(BaseSource):
         for line in lines:
             target = line[2]
             # if there's a . in the mx we hit a special case and use it as-is
-            if '.' not in target:
+            if "." not in target:
                 # otherwise we treat it as the MX hostnam and construct the rest
-                target = f'{target}.srv.{zone.name}'
-            elif target[-1] != '.':
-                target = f'{target}.'
+                target = f"{target}.srv.{zone.name}"
+            elif target[-1] != ".":
+                target = f"{target}."
 
             # if we have an IP then we need to create an A for the SRV
             # has to be present, but can be empty
             ip = line[1]
-            if ip and zone.owns('A', target):
-                yield 'A', target, ttl, [ip]
+            if ip and zone.owns("A", target):
+                yield "A", target, ttl, [ip]
 
             # required
             port = int(line[3])
@@ -302,14 +302,14 @@ class TinyDnsBaseSource(BaseSource):
 
             values.append(
                 {
-                    'priority': priority,
-                    'weight': weight,
-                    'port': port,
-                    'target': target,
+                    "priority": priority,
+                    "weight": weight,
+                    "port": port,
+                    "target": target,
                 }
             )
 
-        yield 'SRV', name, ttl, values
+        yield "SRV", name, ttl, values
 
     def _records_for_colon(self, zone, name, lines, arpa=False):
         # :fqdn:n:rdata:ttl:timestamp:lo
@@ -319,7 +319,7 @@ class TinyDnsBaseSource(BaseSource):
             # no arpa
             return []
 
-        if not zone.owns('SRV', name):
+        if not zone.owns("SRV", name):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
@@ -333,7 +333,7 @@ class TinyDnsBaseSource(BaseSource):
             _class = classes.get(_type, None)
             if not _class:
                 self.log.info(
-                    '_records_for_colon: unrecognized type %s, %s', _type, line
+                    "_records_for_colon: unrecognized type %s, %s", _type, line
                 )
                 continue
 
@@ -351,18 +351,18 @@ class TinyDnsBaseSource(BaseSource):
             yield from self._records_for_three(zone, name, lines, arpa)
 
     SYMBOL_MAP = {
-        '=': _records_for_equal,  # A
-        '^': _records_for_caret,  # PTR
-        '.': _records_for_dot,  # NS
-        'C': _records_for_C,  # CNAME
-        '+': _records_for_plus,  # A
-        '@': _records_for_at,  # MX
-        '&': _records_for_amp,  # NS
-        '\'': _records_for_quote,  # TXT
-        '3': _records_for_three,  # AAAA
-        'S': _records_for_S,  # SRV
-        ':': _records_for_colon,  # arbitrary
-        '6': _records_for_six,  # AAAA
+        "=": _records_for_equal,  # A
+        "^": _records_for_caret,  # PTR
+        ".": _records_for_dot,  # NS
+        "C": _records_for_C,  # CNAME
+        "+": _records_for_plus,  # A
+        "@": _records_for_at,  # MX
+        "&": _records_for_amp,  # NS
+        "'": _records_for_quote,  # TXT
+        "3": _records_for_three,  # AAAA
+        "S": _records_for_S,  # SRV
+        ":": _records_for_colon,  # arbitrary
+        "6": _records_for_six,  # AAAA
     }
 
     def _process_lines(self, zone, lines):
@@ -371,9 +371,9 @@ class TinyDnsBaseSource(BaseSource):
             symbol = line[0]
 
             # Skip type, remove trailing comments, and omit newline
-            line = line[1:].split('#', 1)[0]
+            line = line[1:].split("#", 1)[0]
             # Split on :'s including :: and strip leading/trailing ws
-            line = [p.strip() for p in line.split(':')]
+            line = [p.strip() for p in line.split(":")]
             data[symbol][line[0]].append(line)
 
         return data
@@ -386,7 +386,7 @@ class TinyDnsBaseSource(BaseSource):
             if not records_for:
                 # Something we don't care about
                 self.log.info(
-                    'skipping type %s, not supported/interested', symbol
+                    "skipping type %s, not supported/interested", symbol
                 )
                 continue
 
@@ -406,7 +406,7 @@ class TinyDnsBaseSource(BaseSource):
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug(
-            'populate: name=%s, target=%s, lenient=%s',
+            "populate: name=%s, target=%s, lenient=%s",
             zone.name,
             target,
             lenient,
@@ -425,8 +425,8 @@ class TinyDnsBaseSource(BaseSource):
 
         # then work through those to group values by their _type and name
         zone_name = zone.name
-        arpa = zone_name.endswith('in-addr.arpa.') or zone_name.endswith(
-            'ip6.arpa.'
+        arpa = zone_name.endswith("in-addr.arpa.") or zone_name.endswith(
+            "ip6.arpa."
         )
         types, ttls = self._process_symbols(zone, symbols, arpa)
 
@@ -436,32 +436,34 @@ class TinyDnsBaseSource(BaseSource):
         for _type, names in types.items():
             for name, values in names.items():
                 data = {
-                    'ttl': ttls[_type].get(name, self.default_ttl),
-                    'type': _type,
+                    "ttl": ttls[_type].get(name, self.default_ttl),
+                    "type": _type,
                 }
                 if len(values) > 1:
-                    data['values'] = _unique(values)
+                    data["values"] = _unique(values)
                 else:
-                    data['value'] = values[0]
+                    data["value"] = values[0]
                 record = Record.new(zone, name, data, lenient=lenient)
                 zone.add_record(record, lenient=lenient)
 
         self.log.info(
-            'populate:   found %s records', len(zone.records) - before
+            "populate:   found %s records", len(zone.records) - before
         )
 
 
 class TinyDnsFileSource(TinyDnsBaseSource):
-    '''
+    """
     A basic TinyDNS zonefile importer created to import legacy data.
 
-    tinydns:
-        class: octodns.source.tinydns.TinyDnsFileSource
-        # The location of the TinyDNS zone files
-        directory: ./zones
-        # The ttl to use for records when not specified in the data
-        # (optional, default 3600)
-        default_ttl: 3600
+    .. code-block:: yaml
+
+        tinydns:
+            class: octodns.source.tinydns.TinyDnsFileSource
+            # The location of the TinyDNS zone files
+            directory: ./zones
+            # The ttl to use for records when not specified in the data
+            # (optional, default 3600)
+            default_ttl: 3600
 
     NOTE: timestamps & lo fields are ignored if present.
 
@@ -469,12 +471,12 @@ class TinyDnsFileSource(TinyDnsBaseSource):
     https://cr.yp.to/djbdns/tinydns-data.html and the common patch/extensions to
     support IPv6 and a few other record types,
     https://docs.bytemark.co.uk/article/tinydns-format/.
-    '''
+    """
 
     def __init__(self, id, directory, default_ttl=3600):
-        self.log = logging.getLogger(f'TinyDnsFileSource[{id}]')
+        self.log = logging.getLogger(f"TinyDnsFileSource[{id}]")
         self.log.debug(
-            '__init__: id=%s, directory=%s, default_ttl=%d',
+            "__init__: id=%s, directory=%s, default_ttl=%d",
             id,
             directory,
             default_ttl,
@@ -489,11 +491,11 @@ class TinyDnsFileSource(TinyDnsBaseSource):
             # be defined anywhere so we'll just read all files
             lines = []
             for filename in listdir(self.directory):
-                if filename[0] == '.':
+                if filename[0] == ".":
                     # Ignore hidden files
                     continue
-                with open(join(self.directory, filename), 'r') as fh:
-                    lines += [l for l in fh.read().split('\n') if l]
+                with open(join(self.directory, filename), "r") as fh:
+                    lines += [l for l in fh.read().split("\n") if l]
 
             self._cache = lines
 

@@ -20,11 +20,11 @@ except ImportError:  # pragma: no cover
 
 
 def _keys(values):
-    return set(v.split('=', 1)[0] for v in values)
+    return set(v.split("=", 1)[0] for v in values)
 
 
 class MetaProcessor(BaseProcessor):
-    '''
+    """
     Add a special metadata record with timestamps, UUIDs, versions, and/or
     provider name. Will only be updated when there are other changes being made.
     A useful tool to aid in debugging and monitoring of DNS infrastructure.
@@ -39,32 +39,34 @@ class MetaProcessor(BaseProcessor):
     settings. Values are in the form `key=<value>`, e.g.
     `time=2023-09-10T05:49:04.246953`
 
-    processors:
-      meta:
-        class: octodns.processor.meta.MetaProcessor
-        # The name to use for the meta record.
-        # (default: meta)
-        record_name: meta
-        # Include a timestamp with a UTC value indicating the timeframe when the
-        # last change was made.
-        # (default: true)
-        include_time: true
-        # Include a UUID that can be utilized to uniquely identify the run
-        # pushing data
-        # (default: false)
-        include_uuid: false
-        # Include the provider id for the target where data is being pushed
-        # (default: false)
-        include_provider: false
-        # Include the octoDNS version being used
-        # (default: false)
-        include_version: false
-        # Extra values to set on the records
-        # (default: None)
-        #include_extra:
-        #  key: val
-        #  foo: env/BAR
-    '''
+    .. code-block:: yaml
+
+        processors:
+        meta:
+            class: octodns.processor.meta.MetaProcessor
+            # The name to use for the meta record.
+            # (default: meta)
+            record_name: meta
+            # Include a timestamp with a UTC value indicating the timeframe when the
+            # last change was made.
+            # (default: true)
+            include_time: true
+            # Include a UUID that can be utilized to uniquely identify the run
+            # pushing data
+            # (default: false)
+            include_uuid: false
+            # Include the provider id for the target where data is being pushed
+            # (default: false)
+            include_provider: false
+            # Include the octoDNS version being used
+            # (default: false)
+            include_version: false
+            # Extra values to set on the records
+            # (default: None)
+            #include_extra:
+            #  key: val
+            #  foo: env/BAR
+    """
 
     @classmethod
     def get_time(cls):
@@ -77,7 +79,7 @@ class MetaProcessor(BaseProcessor):
     def __init__(
         self,
         id,
-        record_name='meta',
+        record_name="meta",
         include_time=True,
         include_uuid=False,
         include_version=False,
@@ -85,10 +87,10 @@ class MetaProcessor(BaseProcessor):
         include_extra=None,
         ttl=60,
     ):
-        self.log = getLogger(f'MetaSource[{id}]')
+        self.log = getLogger(f"MetaSource[{id}]")
         super().__init__(id)
         self.log.info(
-            '__init__: record_name=%s, include_time=%s, include_uuid=%s, include_version=%s, include_provider=%s, include_extra=%s, ttl=%d',
+            "__init__: record_name=%s, include_time=%s, include_uuid=%s, include_version=%s, include_provider=%s, include_extra=%s, ttl=%d",
             record_name,
             include_time,
             include_uuid,
@@ -103,7 +105,7 @@ class MetaProcessor(BaseProcessor):
         self.include_version = include_version
         self.include_provider = include_provider
         self.include_extra = (
-            [f'{key}={val}' for key, val in include_extra.items()]
+            [f"{key}={val}" for key, val in include_extra.items()]
             if include_extra is not None
             else []
         )
@@ -112,13 +114,13 @@ class MetaProcessor(BaseProcessor):
     def values(self, target_id):
         ret = []
         if self.include_version:
-            ret.append(f'octodns-version={__version__}')
+            ret.append(f"octodns-version={__version__}")
         if self.include_provider:
-            ret.append(f'provider={target_id}')
+            ret.append(f"provider={target_id}")
         if self.time:
-            ret.append(f'time={self.time}')
+            ret.append(f"time={self.time}")
         if self.uuid:
-            ret.append(f'uuid={self.uuid}')
+            ret.append(f"uuid={self.uuid}")
         # these were previously converted into key=value or will otherwise be []
         ret.extend(self.include_extra)
         return ret
@@ -127,7 +129,7 @@ class MetaProcessor(BaseProcessor):
         meta = Record.new(
             desired,
             self.record_name,
-            {'ttl': self.ttl, 'type': 'TXT', 'values': self.values(target.id)},
+            {"ttl": self.ttl, "type": "TXT", "values": self.values(target.id)},
             # we may be passing in empty values here to be filled out later in
             # process_source_and_target_zones
             lenient=True,
@@ -139,9 +141,9 @@ class MetaProcessor(BaseProcessor):
         # always something so we can see if its type and name
         record = change.record
         # existing state, if there is one
-        existing = getattr(change, 'existing', None)
+        existing = getattr(change, "existing", None)
         return (
-            record._type == 'TXT'
+            record._type == "TXT"
             and record.name == self.record_name
             and existing is not None
             # don't care about the values here, just the fields/keys

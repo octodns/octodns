@@ -57,59 +57,63 @@ class _TypeBaseFilter(_FilterProcessor):
 
 
 class TypeAllowlistFilter(_TypeBaseFilter, AllowsMixin):
-    '''Only manage records of the specified type(s).
+    """Only manage records of the specified type(s).
 
     Example usage:
 
-    processors:
-      only-a-and-aaaa:
-        class: octodns.processor.filter.TypeAllowlistFilter
-        allowlist:
-          - A
-          - AAAA
-        # Optional param that can be set to False to leave the target zone
-        # alone, thus allowing deletion of existing records
-        # (default: true)
-        # include_target: True
+    .. code-block:: yaml
 
-    zones:
-      exxampled.com.:
-        sources:
-          - config
         processors:
-          - only-a-and-aaaa
-        targets:
-          - ns1
-    '''
+        only-a-and-aaaa:
+            class: octodns.processor.filter.TypeAllowlistFilter
+            allowlist:
+            - A
+            - AAAA
+            # Optional param that can be set to False to leave the target zone
+            # alone, thus allowing deletion of existing records
+            # (default: true)
+            # include_target: True
+
+        zones:
+        exxampled.com.:
+            sources:
+            - config
+            processors:
+            - only-a-and-aaaa
+            targets:
+            - ns1
+    """
 
     def __init__(self, name, allowlist, **kwargs):
         super().__init__(name, allowlist, **kwargs)
 
 
 class TypeRejectlistFilter(_TypeBaseFilter, RejectsMixin):
-    '''Ignore records of the specified type(s).
+    """Ignore records of the specified type(s).
 
     Example usage:
 
-    processors:
-      ignore-cnames:
-        class: octodns.processor.filter.TypeRejectlistFilter
-        rejectlist:
-          - CNAME
-        # Optional param that can be set to False to leave the target zone
-        # alone, thus allowing deletion of existing records
-        # (default: true)
-        # include_target: True
+    .. code-block:: yaml
 
-    zones:
-      exxampled.com.:
-        sources:
-          - config
         processors:
-          - ignore-cnames
-        targets:
-          - route53
-    '''
+        ignore-cnames:
+            class: octodns.processor.filter.TypeRejectlistFilter
+            rejectlist:
+            - CNAME
+            # Optional param that can be set to False to leave the target zone
+            # alone, thus allowing deletion of existing records
+            # (default: true)
+            # include_target: True
+
+        zones:
+        exxampled.com.:
+            sources:
+            - config
+            processors:
+            - ignore-cnames
+            targets:
+            - route53
+    """
 
     def __init__(self, name, rejectlist, **kwargs):
         super().__init__(name, rejectlist, **kwargs)
@@ -121,7 +125,7 @@ class _NameBaseFilter(_FilterProcessor):
         exact = set()
         regex = []
         for pattern in _list:
-            if pattern.startswith('/'):
+            if pattern.startswith("/"):
                 regex.append(re_compile(pattern[1:-1]))
             else:
                 exact.add(pattern)
@@ -144,72 +148,76 @@ class _NameBaseFilter(_FilterProcessor):
 
 
 class NameAllowlistFilter(_NameBaseFilter, AllowsMixin):
-    '''Only manage records with names that match the provider patterns
+    """Only manage records with names that match the provider patterns
 
     Example usage:
 
-    processors:
-      only-these:
-        class: octodns.processor.filter.NameAllowlistFilter
-        allowlist:
-          # exact string match
-          - www
-          # contains/substring match
-          - /substring/
-          # regex pattern match
-          - /some-pattern-\\d\\+/
-          # regex - anchored so has to match start to end
-          - /^start-.+-end$/
-        # Optional param that can be set to False to leave the target zone
-        # alone, thus allowing deletion of existing records
-        # (default: true)
-        # include_target: True
+    .. code-block:: yaml
 
-    zones:
-      exxampled.com.:
-        sources:
-          - config
         processors:
-          - only-these
-        targets:
-          - route53
-    '''
+        only-these:
+            class: octodns.processor.filter.NameAllowlistFilter
+            allowlist:
+            # exact string match
+            - www
+            # contains/substring match
+            - /substring/
+            # regex pattern match
+            - /some-pattern-\\d\\+/
+            # regex - anchored so has to match start to end
+            - /^start-.+-end$/
+            # Optional param that can be set to False to leave the target zone
+            # alone, thus allowing deletion of existing records
+            # (default: true)
+            # include_target: True
+
+        zones:
+        exxampled.com.:
+            sources:
+            - config
+            processors:
+            - only-these
+            targets:
+            - route53
+    """
 
     def __init__(self, name, allowlist):
         super().__init__(name, allowlist)
 
 
 class NameRejectlistFilter(_NameBaseFilter, RejectsMixin):
-    '''Reject managing records with names that match the provider patterns
+    """Reject managing records with names that match the provider patterns
 
     Example usage:
 
-    processors:
-      not-these:
-        class: octodns.processor.filter.NameRejectlistFilter
-        rejectlist:
-          # exact string match
-          - www
-          # contains/substring match
-          - /substring/
-          # regex pattern match
-          - /some-pattern-\\d\\+/
-          # regex - anchored so has to match start to end
-          - /^start-.+-end$/
-        # Optional param that can be set to False to leave the target zone
-        # alone, thus allowing deletion of existing records
-        # (default: true)
-        # include_target: True
+    .. code-block:: yaml
 
-    zones:
-      exxampled.com.:
-        sources:
-          - config
         processors:
-          - not-these
-        targets:
-          - route53
-    '''
+        not-these:
+            class: octodns.processor.filter.NameRejectlistFilter
+            rejectlist:
+            # exact string match
+            - www
+            # contains/substring match
+            - /substring/
+            # regex pattern match
+            - /some-pattern-\\d\\+/
+            # regex - anchored so has to match start to end
+            - /^start-.+-end$/
+            # Optional param that can be set to False to leave the target zone
+            # alone, thus allowing deletion of existing records
+            # (default: true)
+            # include_target: True
+
+        zones:
+        exxampled.com.:
+            sources:
+            - config
+            processors:
+            - not-these
+            targets:
+            - route53
+    """
 
     def __init__(self, name, rejectlist):
         super().__init__(name, rejectlist)
@@ -221,7 +229,7 @@ class _ValueBaseFilter(_FilterProcessor):
         exact = set()
         regex = []
         for pattern in _list:
-            if pattern.startswith('/'):
+            if pattern.startswith("/"):
                 regex.append(re_compile(pattern[1:-1]))
             else:
                 exact.add(pattern)
@@ -231,13 +239,13 @@ class _ValueBaseFilter(_FilterProcessor):
     def _process(self, zone, *args, **kwargs):
         for record in zone.records:
             values = []
-            if hasattr(record, 'values'):
+            if hasattr(record, "values"):
                 values = [value.rdata_text for value in record.values]
             elif record.value is not None:
                 values = [record.value.rdata_text]
             else:
                 self.log.warning(
-                    'value for %s is NoneType, ignoring', record.fqdn
+                    "value for %s is NoneType, ignoring", record.fqdn
                 )
 
             if any(value in self.exact for value in values):
@@ -253,76 +261,80 @@ class _ValueBaseFilter(_FilterProcessor):
 
 
 class ValueAllowlistFilter(_ValueBaseFilter, AllowsMixin):
-    '''Only manage records with values that match the provider patterns
+    """Only manage records with values that match the provider patterns
 
     Example usage:
 
-    processors:
-      only-these:
-        class: octodns.processor.filter.ValueAllowlistFilter
-        allowlist:
-          # exact string match
-          - www
-          # contains/substring match
-          - /substring/
-          # regex pattern match
-          - /some-pattern-\\d\\+/
-          # regex - anchored so has to match start to end
-          - /^start-.+-end$/
-        # Optional param that can be set to False to leave the target zone
-        # alone, thus allowing deletion of existing records
-        # (default: true)
-        # include_target: True
+    .. code-block:: yaml
 
-    zones:
-      exxampled.com.:
-        sources:
-          - config
         processors:
-          - only-these
-        targets:
-          - route53
-    '''
+        only-these:
+            class: octodns.processor.filter.ValueAllowlistFilter
+            allowlist:
+            # exact string match
+            - www
+            # contains/substring match
+            - /substring/
+            # regex pattern match
+            - /some-pattern-\\d\\+/
+            # regex - anchored so has to match start to end
+            - /^start-.+-end$/
+            # Optional param that can be set to False to leave the target zone
+            # alone, thus allowing deletion of existing records
+            # (default: true)
+            # include_target: True
+
+        zones:
+        exxampled.com.:
+            sources:
+            - config
+            processors:
+            - only-these
+            targets:
+            - route53
+    """
 
     def __init__(self, name, allowlist):
-        self.log = getLogger(f'ValueAllowlistFilter[{name}]')
+        self.log = getLogger(f"ValueAllowlistFilter[{name}]")
         super().__init__(name, allowlist)
 
 
 class ValueRejectlistFilter(_ValueBaseFilter, RejectsMixin):
-    '''Reject managing records with names that match the provider patterns
+    """Reject managing records with names that match the provider patterns
 
     Example usage:
 
-    processors:
-      not-these:
-        class: octodns.processor.filter.ValueRejectlistFilter
-        rejectlist:
-          # exact string match
-          - www
-          # contains/substring match
-          - /substring/
-          # regex pattern match
-          - /some-pattern-\\d\\+/
-          # regex - anchored so has to match start to end
-          - /^start-.+-end$/
-        # Optional param that can be set to False to leave the target zone
-        # alone, thus allowing deletion of existing records
-        # (default: true)
-        # include_target: True
+    .. code-block:: yaml
 
-    zones:
-      exxampled.com.:
-        sources:
-          - config
         processors:
-          - not-these
-        targets:
-          - route53
-    '''
+        not-these:
+            class: octodns.processor.filter.ValueRejectlistFilter
+            rejectlist:
+            # exact string match
+            - www
+            # contains/substring match
+            - /substring/
+            # regex pattern match
+            - /some-pattern-\\d\\+/
+            # regex - anchored so has to match start to end
+            - /^start-.+-end$/
+            # Optional param that can be set to False to leave the target zone
+            # alone, thus allowing deletion of existing records
+            # (default: true)
+            # include_target: True
+
+        zones:
+        exxampled.com.:
+            sources:
+            - config
+            processors:
+            - not-these
+            targets:
+            - route53
+    """
 
     def __init__(self, name, rejectlist):
-        self.log = getLogger(f'ValueRejectlistFilter[{name}]')
+        self.log = getLogger(f"ValueRejectlistFilter[{name}]")
         super().__init__(name, rejectlist)
 
 
@@ -334,11 +346,11 @@ class _NetworkValueBaseFilter(BaseProcessor):
             try:
                 self.networks.append(ip_network(value))
             except ValueError:
-                raise ValueError(f'{value} is not a valid CIDR to use')
+                raise ValueError(f"{value} is not a valid CIDR to use")
 
     def _process(self, zone, *args, **kwargs):
         for record in zone.records:
-            if record._type not in ['A', 'AAAA']:
+            if record._type not in ["A", "AAAA"]:
                 continue
 
             ips = [ip_address(value) for value in record.values]
@@ -356,83 +368,89 @@ class _NetworkValueBaseFilter(BaseProcessor):
 
 
 class NetworkValueAllowlistFilter(_NetworkValueBaseFilter, AllowsMixin):
-    '''Only manage A and AAAA records with values that match the provider patterns
+    """Only manage A and AAAA records with values that match the provider patterns
     All other types will be left as-is.
 
     Example usage:
 
-    processors:
-      only-these:
-        class: octodns.processor.filter.NetworkValueAllowlistFilter
-        allowlist:
-          - 127.0.0.1/32
-          - 192.168.0.0/16
-          - fd00::/8
+    .. code-block:: yaml
 
-    zones:
-      exxampled.com.:
-        sources:
-          - config
         processors:
-          - only-these
-        targets:
-          - route53
-    '''
+        only-these:
+            class: octodns.processor.filter.NetworkValueAllowlistFilter
+            allowlist:
+            - 127.0.0.1/32
+            - 192.168.0.0/16
+            - fd00::/8
+
+        zones:
+        exxampled.com.:
+            sources:
+            - config
+            processors:
+            - only-these
+            targets:
+            - route53
+    """
 
     def __init__(self, name, allowlist):
         super().__init__(name, allowlist)
 
 
 class NetworkValueRejectlistFilter(_NetworkValueBaseFilter, RejectsMixin):
-    '''Reject managing A and AAAA records with value matching a that match the provider patterns
+    """Reject managing A and AAAA records with value matching a that match the provider patterns
     All other types will be left as-is.
 
     Example usage:
 
-    processors:
-      not-these:
-        class: octodns.processor.filter.NetworkValueRejectlistFilter
-        rejectlist:
-          - 127.0.0.1/32
-          - 192.168.0.0/16
-          - fd00::/8
+    .. code-block:: yaml
 
-    zones:
-      exxampled.com.:
-        sources:
-          - config
         processors:
-          - not-these
-        targets:
-          - route53
-    '''
+        not-these:
+            class: octodns.processor.filter.NetworkValueRejectlistFilter
+            rejectlist:
+            - 127.0.0.1/32
+            - 192.168.0.0/16
+            - fd00::/8
+
+        zones:
+        exxampled.com.:
+            sources:
+            - config
+            processors:
+            - not-these
+            targets:
+            - route53
+    """
 
     def __init__(self, name, rejectlist):
         super().__init__(name, rejectlist)
 
 
 class IgnoreRootNsFilter(BaseProcessor):
-    '''Do not manage Root NS Records.
+    """Do not manage Root NS Records.
 
     Example usage:
 
-    processors:
-      no-root-ns:
-        class: octodns.processor.filter.IgnoreRootNsFilter
+    .. code-block:: yaml
 
-    zones:
-      exxampled.com.:
-        sources:
-          - config
         processors:
-          - no-root-ns
-        targets:
-          - ns1
-    '''
+        no-root-ns:
+            class: octodns.processor.filter.IgnoreRootNsFilter
+
+        zones:
+        exxampled.com.:
+            sources:
+            - config
+            processors:
+            - no-root-ns
+            targets:
+            - ns1
+    """
 
     def _process(self, zone, *args, **kwargs):
         for record in zone.records:
-            if record._type == 'NS' and not record.name:
+            if record._type == "NS" and not record.name:
                 zone.remove_record(record)
 
         return zone
@@ -442,31 +460,33 @@ class IgnoreRootNsFilter(BaseProcessor):
 
 
 class ExcludeRootNsChanges(BaseProcessor):
-    '''Do not allow root NS record changes
+    """Do not allow root NS record changes
 
     Example usage:
 
-    processors:
-      exclude-root-ns-changes:
-        class: octodns.processor.filter.ExcludeRootNsChanges
-        # If true an a change for a root NS is seen an error will be thrown. If
-        # false a warning will be printed and the change will be removed from
-        # the plan.
-        # (default: true)
-        error: true
+    .. code-block:: yaml
 
-    zones:
-      exxampled.com.:
-        sources:
-          - config
         processors:
-          - exclude-root-ns-changes
-        targets:
-          - ns1
-    '''
+        exclude-root-ns-changes:
+            class: octodns.processor.filter.ExcludeRootNsChanges
+            # If true an a change for a root NS is seen an error will be thrown. If
+            # false a warning will be printed and the change will be removed from
+            # the plan.
+            # (default: true)
+            error: true
+
+        zones:
+        exxampled.com.:
+            sources:
+            - config
+            processors:
+            - exclude-root-ns-changes
+            targets:
+            - ns1
+    """
 
     def __init__(self, name, error=True):
-        self.log = getLogger(f'ExcludeRootNsChanges[{name}]')
+        self.log = getLogger(f"ExcludeRootNsChanges[{name}]")
         super().__init__(name)
         self.error = error
 
@@ -474,14 +494,14 @@ class ExcludeRootNsChanges(BaseProcessor):
         if plan:
             for change in list(plan.changes):
                 record = change.record
-                if record._type == 'NS' and record.name == '':
+                if record._type == "NS" and record.name == "":
                     self.log.warning(
-                        'root NS changes are disallowed, fqdn=%s', record.fqdn
+                        "root NS changes are disallowed, fqdn=%s", record.fqdn
                     )
                     if self.error:
                         raise ValidationError(
                             record.fqdn,
-                            ['root NS changes are disallowed'],
+                            ["root NS changes are disallowed"],
                             record.context,
                         )
                     plan.changes.remove(change)
@@ -490,30 +510,32 @@ class ExcludeRootNsChanges(BaseProcessor):
 
 
 class ZoneNameFilter(_FilterProcessor):
-    '''Filter or error on record names that contain the zone name
+    """Filter or error on record names that contain the zone name
 
     Example usage:
 
-    processors:
-      zone-name:
-        class: octodns.processor.filter.ZoneNameFilter
-        # If true a ValidationError will be throw when such records are
-        # encouterd, if false the records will just be ignored/omitted.
-        # (default: true)
-        # Optional param that can be set to False to leave the target zone
-        # alone, thus allowing deletion of existing records
-        # (default: true)
-        # include_target: True
+    .. code-block:: yaml
 
-    zones:
-      exxampled.com.:
-        sources:
-          - config
         processors:
-          - zone-name
-        targets:
-          - azure
-    '''
+        zone-name:
+            class: octodns.processor.filter.ZoneNameFilter
+            # If true a ValidationError will be throw when such records are
+            # encouterd, if false the records will just be ignored/omitted.
+            # (default: true)
+            # Optional param that can be set to False to leave the target zone
+            # alone, thus allowing deletion of existing records
+            # (default: true)
+            # include_target: True
+
+        zones:
+        exxampled.com.:
+            sources:
+            - config
+            processors:
+            - zone-name
+            targets:
+            - azure
+    """
 
     def __init__(self, name, error=True, **kwargs):
         super().__init__(name, **kwargs)
@@ -530,7 +552,7 @@ class ZoneNameFilter(_FilterProcessor):
                 if self.error:
                     raise ValidationError(
                         record.fqdn,
-                        ['record name ends with zone name'],
+                        ["record name ends with zone name"],
                         record.context,
                     )
                 else:

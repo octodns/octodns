@@ -10,7 +10,7 @@ class RestrictionException(ProcessorException):
 
 
 class TtlRestrictionFilter(BaseProcessor):
-    '''
+    """
     Ensure that configured TTLs are between a configured minimum and maximum or
     in an allowed set of values.
 
@@ -20,34 +20,38 @@ class TtlRestrictionFilter(BaseProcessor):
 
     Example usage:
 
-    processors:
-      min-max-ttl:
-        class: octodns.processor.restrict.TtlRestrictionFilter
-        min_ttl: 60
-        max_ttl: 3600
-        # allowed_ttls: [300, 900, 3600]
+    .. code-block:: yaml
 
-    zones:
-      exxampled.com.:
-        sources:
-          - config
         processors:
-          - min-max-ttl
-        targets:
-          - azure
+        min-max-ttl:
+            class: octodns.processor.restrict.TtlRestrictionFilter
+            min_ttl: 60
+            max_ttl: 3600
+            # allowed_ttls: [300, 900, 3600]
+
+        zones:
+        exxampled.com.:
+            sources:
+            - config
+            processors:
+            - min-max-ttl
+            targets:
+            - azure
 
     The restriction can be skipped for specific records by setting the lenient
     flag, e.g.
 
-    a:
-      octodns:
-        lenient: true
-      ttl: 0
-      value: 1.2.3.4
+    .. code-block:: yaml
+
+        a:
+        octodns:
+            lenient: true
+        ttl: 0
+        value: 1.2.3.4
 
     The higher level lenient flags are not checked as it would make more sense
     to just avoid enabling the processor in those cases.
-    '''
+    """
 
     SEVEN_DAYS = 60 * 60 * 24 * 7
 
@@ -63,14 +67,14 @@ class TtlRestrictionFilter(BaseProcessor):
                 continue
             if self.allowed_ttls and record.ttl not in self.allowed_ttls:
                 raise RestrictionException(
-                    f'{record.fqdn} ttl={record.ttl} not an allowed value, allowed_ttls={self.allowed_ttls}'
+                    f"{record.fqdn} ttl={record.ttl} not an allowed value, allowed_ttls={self.allowed_ttls}"
                 )
             elif record.ttl < self.min_ttl:
                 raise RestrictionException(
-                    f'{record.fqdn} ttl={record.ttl} too low, min_ttl={self.min_ttl}'
+                    f"{record.fqdn} ttl={record.ttl} too low, min_ttl={self.min_ttl}"
                 )
             elif record.ttl > self.max_ttl:
                 raise RestrictionException(
-                    f'{record.fqdn} ttl={record.ttl} too high, max_ttl={self.max_ttl}'
+                    f"{record.fqdn} ttl={record.ttl} too high, max_ttl={self.max_ttl}"
                 )
         return zone

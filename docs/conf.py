@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path("..", "src").resolve()))
+sys.path.insert(0, str(Path("..").resolve()))
 
 from octodns.__init__ import __version__
 
@@ -81,7 +81,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 ### theme ###
 
-# tml_theme = "alabaster"
+# html_theme = "alabaster"
 html_theme = "furo"
 html_theme_options = {
     "source_repository": "https://github.com/octodns/octodns/",
