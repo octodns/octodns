@@ -9,37 +9,37 @@ The architecture is pluggable and the tooling is flexible to make it applicable 
 
 ## Table of Contents
 
-- [Getting started](#getting-started)
-  - [Workspace](#workspace)
-    - [Installing a specific commit SHA](#installing-a-specific-commit-sha)
-  - [Config](#config)
-    - [Dynamic Zone Config](#dynamic-zone-config)
-    - [Static Zone Config](#static-zone-config)
-    - [General Configuration Concepts](#general-configuration-concepts)
-    - [Quick Example Record](#quick-example-record)
-  - [Noop](#noop)
-  - [Making changes](#making-changes)
-  - [Workflow](#workflow)
-  - [Bootstrapping config files](#bootstrapping-config-files)
-- [Providers](#providers)
-  - [Updating to use extracted providers](#updating-to-use-extracted-providers)
-- [Sources](#sources)
-  - [Notes](#notes)
-- [Processors](#processors)
-- [Automatic PTR generation](#automatic-ptr-generation)
-- [Compatibility and Compliance](#compatibility-and-compliance)
-  - [`lenient`](#lenient)
-  - [`strict_supports`](#strict_supports)
-  - [Configuring `strict_supports`](#configuring-strict_supports)
-- [Custom Sources and Providers](#custom-sources-and-providers)
-- [Other Uses](#other-uses)
-  - [Syncing between providers](#syncing-between-providers)
-  - [Dynamic sources](#dynamic-sources)
-- [Contributing](#contributing)
-- [Getting help](#getting-help)
-- [Related Projects and Resources](#related-projects-and-resources)
-- [License](#license)
-- [Authors](#authors)
+* [Getting started](#getting-started)
+   * [Workspace](#workspace)
+      * [Installing a specific commit SHA](#installing-a-specific-commit-sha)
+   * [Config](#config)
+      * [Dynamic Zone Config](#dynamic-zone-config)
+      * [Static Zone Config](#static-zone-config)
+      * [General Configuration Concepts](#general-configuration-concepts)
+      * [Quick Example Record](#quick-example-record)
+   * [Noop](#noop)
+   * [Making changes](#making-changes)
+   * [Workflow](#workflow)
+   * [Bootstrapping config files](#bootstrapping-config-files)
+* [Providers](#providers)
+   * [Updating to use extracted providers](#updating-to-use-extracted-providers)
+* [Sources](#sources)
+   * [Notes](#notes)
+* [Processors](#processors)
+* [Automatic PTR generation](#automatic-ptr-generation)
+* [Compatibility and Compliance](#compatibility-and-compliance)
+   * [`lenient`](#lenient)
+   * [`strict_supports`](#strict_supports)
+   * [Configuring `strict_supports`](#configuring-strict_supports)
+* [Custom Sources and Providers](#custom-sources-and-providers)
+* [Other Uses](#other-uses)
+   * [Syncing between providers](#syncing-between-providers)
+   * [Dynamic sources](#dynamic-sources)
+* [Contributing](#contributing)
+* [Getting help](#getting-help)
+* [Related Projects and Resources](#related-projects-and-resources)
+* [License](#license)
+* [Authors](#authors)
 
 ## Getting started
 
@@ -63,7 +63,7 @@ $ mkdir config
 If you'd like to install a version that has not yet been released in a repeatable/safe manner you can do the following. In general octoDNS is fairly stable in between releases thanks to the plan and apply process, but care should be taken regardless.
 
 ```console
-pip install -e git+https://git@github.com/octodns/octodns.git@<SHA>#egg=octodns
+$ pip install -e git+https://git@github.com/octodns/octodns.git@<SHA>#egg=octodns
 ```
 
 ### Config
@@ -96,7 +96,7 @@ zones:
   # This is a dynamic zone config. The source(s), here `config`, will be
   # queried for a list of zone names and each will dynamically be set up to
   # match the dynamic entry.
-  "*":
+  '*':
     sources:
       - config
     targets:
@@ -173,7 +173,7 @@ Now that we have something to tell octoDNS about our providers & zones we need t
 
 ```yaml
 ---
-"":
+'':
   ttl: 60
   type: A
   values:
@@ -267,46 +267,46 @@ It is important to review any `WARNING` log lines printed out during an `octodns
 
 The table below lists the providers octoDNS supports. They are maintained in their own repositories and released as independent modules.
 
-| Provider                                                                                                                                                  | Module                                                                                                | Notes                                            |
+| Provider | Module | Notes |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| /etc/hosts                                                                                                                                                | [octodns_etchosts](https://github.com/octodns/octodns-etchosts/)                                      |                                                  |
-| [Akamai Edge DNS](https://www.akamai.com/products/edge-dns)                                                                                               | [octodns_edgedns](https://github.com/octodns/octodns-edgedns/)                                        |                                                  |
-| [Amazon Route 53](https://aws.amazon.com/route53/)                                                                                                        | [octodns_route53](https://github.com/octodns/octodns-route53)                                         |                                                  |
-| [AutoDNS](https://www.internetx.com/autodns/)                                                                                                             | [octodns_autodns](https://github.com/octodns/octodns-autodns)                                         |                                                  |
-| [Azure DNS](https://azure.microsoft.com/en-us/services/dns/)                                                                                              | [octodns_azure](https://github.com/octodns/octodns-azure/)                                            |                                                  |
-| [BIND, AXFR, RFC-2136](https://www.isc.org/bind/)                                                                                                         | [octodns_bind](https://github.com/octodns/octodns-bind/)                                              |                                                  |
-| [Cloudflare DNS](https://www.cloudflare.com/dns/)                                                                                                         | [octodns_cloudflare](https://github.com/octodns/octodns-cloudflare/)                                  |                                                  |
-| [ClouDNS](https://www.cloudns.net/)                                                                                                                       | [octodns_cloudns](https://github.com/ClouDNS/octodns_cloudns)                                         |                                                  |
-| [Constellix](https://constellix.com/)                                                                                                                     | [octodns_constellix](https://github.com/octodns/octodns-constellix/)                                  |                                                  |
-| [deSEC](https://desec.io/)                                                                                                                                | [octodns_desec](https://github.com/rootshell-labs/octodns-desec)                                      |                                                  |
-| [DigitalOcean](https://docs.digitalocean.com/products/networking/dns/)                                                                                    | [octodns_digitalocean](https://github.com/octodns/octodns-digitalocean/)                              |                                                  |
-| [DNS Made Easy](https://dnsmadeeasy.com/)                                                                                                                 | [octodns_dnsmadeeasy](https://github.com/octodns/octodns-dnsmadeeasy/)                                |                                                  |
-| [DNSimple](https://dnsimple.com/)                                                                                                                         | [octodns_dnsimple](https://github.com/octodns/octodns-dnsimple/)                                      |                                                  |
-| [Dyn](https://www.oracle.com/cloud/networking/dns/) ([deprecated](https://www.oracle.com/corporate/acquisitions/dyn/technologies/migrate-your-services/)) | [octodns_dyn](https://github.com/octodns/octodns-dyn/)                                                |                                                  |
-| [easyDNS](https://easydns.com/)                                                                                                                           | [octodns_easydns](https://github.com/octodns/octodns-easydns/)                                        |                                                  |
-| [EdgeCenter DNS](https://edgecenter.ru/dns/)                                                                                                              | [octodns_edgecenter](https://github.com/octodns/octodns-edgecenter/)                                  |                                                  |
-| [Fastly](https://www.fastly.com/de/)                                                                                                                      | [Financial-Times/octodns-fastly](https://github.com/Financial-Times/octodns-fastly)                   |                                                  |
-| [G-Core Labs DNS](https://gcorelabs.com/dns/)                                                                                                             | [octodns_gcore](https://github.com/octodns/octodns-gcore/)                                            |                                                  |
-| [Gandi](https://www.gandi.net/en-US/domain/dns)                                                                                                           | [octodns_gandi](https://github.com/octodns/octodns-gandi/)                                            |                                                  |
-| [Google Cloud DNS](https://cloud.google.com/dns)                                                                                                          | [octodns_googlecloud](https://github.com/octodns/octodns-googlecloud/)                                |                                                  |
-| [Hetzner DNS](https://www.hetzner.com/dns-console)                                                                                                        | [octodns_hetzner](https://github.com/octodns/octodns-hetzner/)                                        |                                                  |
-| [Infoblox](https://www.infoblox.com/)                                                                                                                     | [asyncon/octoblox](https://github.com/asyncon/octoblox)                                               |                                                  |
-| [Infomaniak](https://www.infomaniak.com/)                                                                                                                 | [octodns_infomaniak](https://github.com/M0NsTeRRR/octodns-infomaniak)                                 |                                                  |
-| [Lexicon](https://dns-lexicon.github.io/dns-lexicon/#)                                                                                                    | [dns-lexicon/dns-lexicon](https://github.com/dns-lexicon/dns-lexicon)                                 |                                                  |
-| [Mythic Beasts DNS](https://www.mythic-beasts.com/support/hosting/dns)                                                                                    | [octodns_mythicbeasts](https://github.com/octodns/octodns-mythicbeasts/)                              |                                                  |
-| [NetBox-DNS Plugin](https://github.com/peteeckel/netbox-plugin-dns)                                                                                       | [olofvndrhr/octodns-netbox-dns](https://github.com/olofvndrhr/octodns-netbox-dns)                     |                                                  |
-| [NS1](https://ns1.com/products/managed-dns)                                                                                                               | [octodns_ns1](https://github.com/octodns/octodns-ns1/)                                                |                                                  |
-| [OVHcloud DNS](https://www.ovhcloud.com/en/domains/dns-subdomain/)                                                                                        | [octodns_ovh](https://github.com/octodns/octodns-ovh/)                                                |                                                  |
-| [Pi-hole](https://pi-hole.net/)                                                                                                                           | [jvoss/octodns-pihole](https://github.com/jvoss/octodns-pihole)                                       |                                                  |
-| [PowerDNS](https://www.powerdns.com/)                                                                                                                     | [octodns_powerdns](https://github.com/octodns/octodns-powerdns/)                                      |                                                  |
-| [Rackspace](https://www.rackspace.com/library/what-is-dns)                                                                                                | [octodns_rackspace](https://github.com/octodns/octodns-rackspace/)                                    |                                                  |
-| [Scaleway](https://www.scaleway.com/en/dns/)                                                                                                              | [octodns_scaleway](https://github.com/scaleway/octodns-scaleway)                                      |                                                  |
-| [Selectel](https://selectel.ru/en/services/additional/dns/)                                                                                               | [octodns_selectel](https://github.com/octodns/octodns-selectel/)                                      |                                                  |
-| [SPF Value Management](https://github.com/octodns/octodns-spf)                                                                                            | [octodns_spf](https://github.com/octodns/octodns-spf/)                                                |                                                  |
-| [TransIP](https://www.transip.eu/knowledgebase/entry/155-dns-and-nameservers/)                                                                            | [octodns_transip](https://github.com/octodns/octodns-transip/)                                        |                                                  |
-| [UltraDNS](https://vercara.com/authoritative-dns)                                                                                                         | [octodns_ultra](https://github.com/octodns/octodns-ultra/)                                            |                                                  |
-| [YamlProvider](/octodns/provider/yaml.py)                                                                                                                 | built-in                                                                                              | Supports all record types and core functionality |
-| Zonefile                                                                                                                                                  | [kompetenzbolzen/octodns-custom-provider](https://github.com/kompetenzbolzen/octodns-custom-provider) |                                                  |
+| /etc/hosts | [octodns_etchosts](https://github.com/octodns/octodns-etchosts/) | |
+| [Akamai Edge DNS](https://www.akamai.com/products/edge-dns) | [octodns_edgedns](https://github.com/octodns/octodns-edgedns/) | |
+| [Amazon Route 53](https://aws.amazon.com/route53/) | [octodns_route53](https://github.com/octodns/octodns-route53) | |
+| [AutoDNS](https://www.internetx.com/autodns/) | [octodns_autodns](https://github.com/octodns/octodns-autodns) | |
+| [Azure DNS](https://azure.microsoft.com/en-us/services/dns/) | [octodns_azure](https://github.com/octodns/octodns-azure/) | |
+| [BIND, AXFR, RFC-2136](https://www.isc.org/bind/) | [octodns_bind](https://github.com/octodns/octodns-bind/) | |
+| [Cloudflare DNS](https://www.cloudflare.com/dns/) | [octodns_cloudflare](https://github.com/octodns/octodns-cloudflare/) | |
+| [ClouDNS](https://www.cloudns.net/) | [octodns_cloudns](https://github.com/ClouDNS/octodns_cloudns) | |
+| [Constellix](https://constellix.com/) | [octodns_constellix](https://github.com/octodns/octodns-constellix/) | |
+| [deSEC](https://desec.io/) | [octodns_desec](https://github.com/rootshell-labs/octodns-desec) | |
+| [DigitalOcean](https://docs.digitalocean.com/products/networking/dns/) | [octodns_digitalocean](https://github.com/octodns/octodns-digitalocean/) | |
+| [DNS Made Easy](https://dnsmadeeasy.com/) | [octodns_dnsmadeeasy](https://github.com/octodns/octodns-dnsmadeeasy/) | |
+| [DNSimple](https://dnsimple.com/) | [octodns_dnsimple](https://github.com/octodns/octodns-dnsimple/) | |
+| [Dyn](https://www.oracle.com/cloud/networking/dns/) ([deprecated](https://www.oracle.com/corporate/acquisitions/dyn/technologies/migrate-your-services/)) | [octodns_dyn](https://github.com/octodns/octodns-dyn/) | |
+| [easyDNS](https://easydns.com/) | [octodns_easydns](https://github.com/octodns/octodns-easydns/) | |
+| [EdgeCenter DNS](https://edgecenter.ru/dns/) | [octodns_edgecenter](https://github.com/octodns/octodns-edgecenter/) | |
+| [Fastly](https://www.fastly.com/de/) | [Financial-Times/octodns-fastly](https://github.com/Financial-Times/octodns-fastly) | |
+| [G-Core Labs DNS](https://gcorelabs.com/dns/) | [octodns_gcore](https://github.com/octodns/octodns-gcore/) | |
+| [Gandi](https://www.gandi.net/en-US/domain/dns) | [octodns_gandi](https://github.com/octodns/octodns-gandi/) | |
+| [Google Cloud DNS](https://cloud.google.com/dns) | [octodns_googlecloud](https://github.com/octodns/octodns-googlecloud/) | |
+| [Hetzner DNS](https://www.hetzner.com/dns-console) | [octodns_hetzner](https://github.com/octodns/octodns-hetzner/) | |
+| [Infoblox](https://www.infoblox.com/) | [asyncon/octoblox](https://github.com/asyncon/octoblox) | |
+| [Infomaniak](https://www.infomaniak.com/) | [octodns_infomaniak](https://github.com/M0NsTeRRR/octodns-infomaniak) | |
+| [Lexicon](https://dns-lexicon.github.io/dns-lexicon/#) | [dns-lexicon/dns-lexicon](https://github.com/dns-lexicon/dns-lexicon) | |
+| [Mythic Beasts DNS](https://www.mythic-beasts.com/support/hosting/dns) | [octodns_mythicbeasts](https://github.com/octodns/octodns-mythicbeasts/) | |
+| [NetBox-DNS Plugin](https://github.com/peteeckel/netbox-plugin-dns) | [olofvndrhr/octodns-netbox-dns](https://github.com/olofvndrhr/octodns-netbox-dns) | |
+| [NS1](https://ns1.com/products/managed-dns) | [octodns_ns1](https://github.com/octodns/octodns-ns1/) | |
+| [OVHcloud DNS](https://www.ovhcloud.com/en/domains/dns-subdomain/) | [octodns_ovh](https://github.com/octodns/octodns-ovh/) | |
+| [Pi-hole](https://pi-hole.net/) | [jvoss/octodns-pihole](https://github.com/jvoss/octodns-pihole) | |
+| [PowerDNS](https://www.powerdns.com/) | [octodns_powerdns](https://github.com/octodns/octodns-powerdns/) | |
+| [Rackspace](https://www.rackspace.com/library/what-is-dns) | [octodns_rackspace](https://github.com/octodns/octodns-rackspace/) | |
+| [Scaleway](https://www.scaleway.com/en/dns/) | [octodns_scaleway](https://github.com/scaleway/octodns-scaleway) | |
+| [Selectel](https://selectel.ru/en/services/additional/dns/) | [octodns_selectel](https://github.com/octodns/octodns-selectel/) | |
+| [SPF Value Management](https://github.com/octodns/octodns-spf) | [octodns_spf](https://github.com/octodns/octodns-spf/) | |
+| [TransIP](https://www.transip.eu/knowledgebase/entry/155-dns-and-nameservers/) | [octodns_transip](https://github.com/octodns/octodns-transip/) | |
+| [UltraDNS](https://vercara.com/authoritative-dns) | [octodns_ultra](https://github.com/octodns/octodns-ultra/) | |
+| [YamlProvider](/octodns/provider/yaml.py) | built-in | Supports all record types and core functionality |
+| Zonefile | [kompetenzbolzen/octodns-custom-provider](https://github.com/kompetenzbolzen/octodns-custom-provider) | |
 
 ### Updating to use extracted providers
 
@@ -319,44 +319,44 @@ The module required and provider class path for extracted providers can be found
 
 Similar to providers, but can only serve to populate records into a zone, cannot be synced to.
 
-| Source                                                                       | Record Support                                       | Dynamic | Notes                                    |
+| Source | Record Support | Dynamic | Notes |
 | ---------------------------------------------------------------------------- | ---------------------------------------------------- | ------- | ---------------------------------------- |
-| [AxfrSource (BIND)](https://github.com/octodns/octodns-bind/)                | A, AAAA, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No      | read-only                                |
-| [DDNS Source](https://github.com/octodns/octodns-ddns)                       | A, AAAA                                              | No      | read-only                                |
-| [EnvVarSource](/octodns/source/envvar.py)                                    | TXT                                                  | No      | read-only environment variable injection |
-| [Lexicon Source](https://github.com/doddo/octodns-lexicon)                   | A, 'AAA, ALIAS, CAA, CNAME, MX, NS, SRV, TXT         | No      | read-only                                |
-| [Netbox Source](https://github.com/sukiyaki/octodns-netbox)                  | A, AAAA, PTR                                         | No      | read-only                                |
-| [PHPIPAM source](https://github.com/kompetenzbolzen/octodns-custom-provider) | A, AAAA                                              | No      | read-only                                |
-| [TinyDnsFileSource](/octodns/source/tinydns.py)                              | A, CNAME, MX, NS, PTR                                | No      | read-only                                |
-| [ZoneFileSource](https://github.com/octodns/octodns-bind/)                   | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT      | No      | read-only                                |
+| [AxfrSource (BIND)](https://github.com/octodns/octodns-bind/) | A, AAAA, CAA, CNAME, LOC, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
+| [DDNS Source](https://github.com/octodns/octodns-ddns) | A, AAAA | No | read-only |
+| [EnvVarSource](/octodns/source/envvar.py) | TXT | No | read-only environment variable injection |
+| [Lexicon Source](https://github.com/doddo/octodns-lexicon) | A, 'AAA, ALIAS, CAA, CNAME, MX, NS, SRV, TXT | No | read-only |
+| [Netbox Source](https://github.com/sukiyaki/octodns-netbox) | A, AAAA, PTR | No | read-only |
+| [PHPIPAM source](https://github.com/kompetenzbolzen/octodns-custom-provider) | A, AAAA | No | read-only |
+| [TinyDnsFileSource](/octodns/source/tinydns.py) | A, CNAME, MX, NS, PTR | No | read-only |
+| [ZoneFileSource](https://github.com/octodns/octodns-bind/) | A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, TXT | No | read-only |
 
 ### Notes
 
-- ALIAS support varies a lot from provider to provider care should be taken to verify that your needs are met in detail.
-- Dyn's UI doesn't allow editing or view of TTL, but the API accepts and stores the value provided, this value does not appear to be used when served
-- Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
-- octoDNS itself supports non-ASCII character sets, but in testing Cloudflare is the only provider where that is currently functional end-to-end. Others have failures either in the client libraries or API calls
+* ALIAS support varies a lot from provider to provider care should be taken to verify that your needs are met in detail.
+   * Dyn's UI doesn't allow editing or view of TTL, but the API accepts and stores the value provided, this value does not appear to be used when served
+   * Dnsimple's uses the configured TTL when serving things through the ALIAS, there's also a secondary TXT record created alongside the ALIAS that octoDNS ignores
+* octoDNS itself supports non-ASCII character sets, but in testing Cloudflare is the only provider where that is currently functional end-to-end. Others have failures either in the client libraries or API calls
 
 ## Processors
 
-| Processor                                                 | Description                                                                                                                            |
+| Processor | Description |
 | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| [AcmeManagingProcessor](/octodns/processor/acme.py)       | Useful when processes external to octoDNS are managing acme challenge DNS records, e.g. LetsEncrypt                                    |
-| [AutoArpa](/octodns/processor/arpa.py)                    | See [Automatic PTR generation](#automatic-ptr-generation) below                                                                        |
-| [EnsureTrailingDots](/octodns/processor/trailing_dots.py) | Processor that ensures ALIAS, CNAME, DNAME, MX, NS, PTR, and SRVs have trailing dots                                                   |
-| [ExcludeRootNsChanges](/octodns/processor/filter.py)      | Filter that errors or warns on planned root/APEX NS records changes.                                                                   |
-| [IgnoreRootNsFilter](/octodns/processor/filter.py)        | Filter that IGNORES root/APEX NS records and prevents octoDNS from trying to manage them (where supported.)                            |
-| [MetaProcessor](/octodns/processor/meta.py)               | Adds a special meta record with timing, UUID, providers, and/or version to aid in debugging and monitoring.                            |
-| [NameAllowlistFilter](/octodns/processor/filter.py)       | Filter that ONLY manages records that match specified naming patterns, all others will be ignored                                      |
-| [NameRejectlistFilter](/octodns/processor/filter.py)      | Filter that IGNORES records that match specified naming patterns, all others will be managed                                           |
-| [ValueAllowlistFilter](/octodns/processor/filter.py)      | Filter that ONLY manages records that match specified value patterns based on `rdata_text`, all others will be ignored                 |
-| [ValueRejectlistFilter](/octodns/processor/filter.py)     | Filter that IGNORES records that match specified value patterns based on `rdata_text`, all others will be managed                      |
-| [OwnershipProcessor](/octodns/processor/ownership.py)     | Processor that implements ownership in octoDNS so that it can manage only the records in a zone in sources and will ignore all others. |
-| [SpfDnsLookupProcessor](/octodns/processor/spf.py)        | Processor that checks SPF values for violations of DNS query limits                                                                    |
-| [TtlRestrictionFilter](/octodns/processor/restrict.py)    | Processor that restricts the allow TTL values to a specified range or list of specific values                                          |
-| [TypeAllowlistFilter](/octodns/processor/filter.py)       | Filter that ONLY manages records of specified types, all others will be ignored                                                        |
-| [TypeRejectlistFilter](/octodns/processor/filter.py)      | Filter that IGNORES records of specified types, all others will be managed                                                             |
-| [octodns-spf](https://github.com/octodns/octodns-spf)     | SPF Value Management for octoDNS                                                                                                       |
+| [AcmeManagingProcessor](/octodns/processor/acme.py) | Useful when processes external to octoDNS are managing acme challenge DNS records, e.g. LetsEncrypt |
+| [AutoArpa](/octodns/processor/arpa.py) | See [Automatic PTR generation](#automatic-ptr-generation) below |
+| [EnsureTrailingDots](/octodns/processor/trailing_dots.py) | Processor that ensures ALIAS, CNAME, DNAME, MX, NS, PTR, and SRVs have trailing dots |
+| [ExcludeRootNsChanges](/octodns/processor/filter.py) | Filter that errors or warns on planned root/APEX NS records changes. |
+| [IgnoreRootNsFilter](/octodns/processor/filter.py) | Filter that IGNORES root/APEX NS records and prevents octoDNS from trying to manage them (where supported.) |
+| [MetaProcessor](/octodns/processor/meta.py) | Adds a special meta record with timing, UUID, providers, and/or version to aid in debugging and monitoring. |
+| [NameAllowlistFilter](/octodns/processor/filter.py) | Filter that ONLY manages records that match specified naming patterns, all others will be ignored |
+| [NameRejectlistFilter](/octodns/processor/filter.py) | Filter that IGNORES records that match specified naming patterns, all others will be managed |
+| [ValueAllowlistFilter](/octodns/processor/filter.py) | Filter that ONLY manages records that match specified value patterns based on `rdata_text`, all others will be ignored |
+| [ValueRejectlistFilter](/octodns/processor/filter.py) | Filter that IGNORES records that match specified value patterns based on `rdata_text`, all others will be managed |
+| [OwnershipProcessor](/octodns/processor/ownership.py) | Processor that implements ownership in octoDNS so that it can manage only the records in a zone in sources and will ignore all others. |
+| [SpfDnsLookupProcessor](/octodns/processor/spf.py) | Processor that checks SPF values for violations of DNS query limits |
+| [TtlRestrictionFilter](/octodns/processor/restrict.py) | Processor that restricts the allow TTL values to a specified range or list of specific values |
+| [TypeAllowlistFilter](/octodns/processor/filter.py) | Filter that ONLY manages records of specified types, all others will be ignored |
+| [TypeRejectlistFilter](/octodns/processor/filter.py) | Filter that IGNORES records of specified types, all others will be managed |
+| [octodns-spf](https://github.com/octodns/octodns-spf) | SPF Value Management for octoDNS |
 
 ## Automatic PTR generation
 
@@ -390,7 +390,7 @@ providers:
 
 ## Custom Sources and Providers
 
-You can check out the [source](/octodns/source/) and [provider](/octodns/provider/) directory to see what's currently supported. Sources act as a source of record information. AxfrSource and TinyDnsFileSource are currently the only OSS sources, though we have several others internally that are specific to our environment. These include something to pull host data from [gPanel](https://githubengineering.com/githubs-metal-cloud/) and a similar provider that sources information about our network gear to create both `A` & `PTR` records for their interfaces. Things that might make good OSS sources might include an `ElbSource` that pulls information about [AWS Elastic Load Balancers](https://aws.amazon.com/elasticloadbalancing/) and dynamically creates `CNAME`s for them, or `Ec2Source` that pulls instance information so that records can be created for hosts similar to how our `GPanelProvider` works.
+You can check out the [source](/octodns/source/) and [provider](/octodns/provider/) directory to see what's currently supported. Sources act as a source of record information. AxfrSource and TinyDnsFileSource are currently the only OSS sources, though we have several others internally that are specific to our environment. These include something to pull host data from  [gPanel](https://githubengineering.com/githubs-metal-cloud/) and a similar provider that sources information about our network gear to create both `A` & `PTR` records for their interfaces. Things that might make good OSS sources might include an `ElbSource` that pulls information about [AWS Elastic Load Balancers](https://aws.amazon.com/elasticloadbalancing/) and dynamically creates `CNAME`s for them, or `Ec2Source` that pulls instance information so that records can be created for hosts similar to how our `GPanelProvider` works.
 
 Most of the things included in octoDNS are providers, the obvious difference being that they can serve as both sources and targets of data. We'd really like to see this list grow over time so if you use an unsupported provider then PRs are welcome. The existing providers should serve as reasonable examples. Those that have no GeoDNS support are relatively straightforward. Unfortunately most of the APIs involved to do GeoDNS style traffic management are complex and somewhat inconsistent so adding support for that function would be nice, but is optional and best done in a separate pass.
 
@@ -434,7 +434,7 @@ Internally we use custom sources to create records based on dynamic data that ch
 providers:
   gpanel-site:
     class: github.octodns.source.gpanel.GPanelProvider
-    host: "gpanel.site.github.foo"
+    host: 'gpanel.site.github.foo'
     token: env/GPANEL_SITE_TOKEN
   powerdns-site:
     class: octodns.provider.powerdns.PowerDnsProvider
@@ -481,10 +481,10 @@ If you know of any other resources, please do let us know!
 
 octoDNS is licensed under the [MIT license](LICENSE).
 
-The MIT license grant is not for GitHub's trademarks, which include the logo designs. GitHub reserves all trademark and copyright rights in and to all GitHub trademarks. GitHub's logos include, for instance, the stylized designs that include "logo" in the file title in the following folder: <https://github.com/octodns/octodns/tree/main/docs/logos/>
+The MIT license grant is not for GitHub's trademarks, which include the logo designs. GitHub reserves all trademark and copyright rights in and to all GitHub trademarks. GitHub's logos include, for instance, the stylized designs that include "logo" in the file title in the following folder: https://github.com/octodns/octodns/tree/main/docs/logos/
 
 GitHub® and its stylized versions and the Invertocat mark are GitHub's Trademarks or registered Trademarks. When using GitHub's logos, be sure to follow the GitHub logo guidelines.
 
 ## Authors
 
-octoDNS was designed and authored by [Ross McFarland](https://github.com/ross) and [Joe Williams](https://github.com/joewilliams). See <https://github.com/octodns/octodns/graphs/contributors> for a complete list of people who've contributed.
+octoDNS was designed and authored by [Ross McFarland](https://github.com/ross) and [Joe Williams](https://github.com/joewilliams). See https://github.com/octodns/octodns/graphs/contributors for a complete list of people who've contributed.
