@@ -4,4 +4,6 @@ set -xeuo pipefail
 
 #rm -rf docs/_build
 
+pip install -U Sphinx furo myst-parser sphinx-copybutton
+
 sphinx-build -M html docs docs/_build "${@}"
