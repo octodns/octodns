@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from pathlib import Path
 
 SRCDIR = Path("octodns")
@@ -17,7 +19,9 @@ for module in SRCDIR.rglob("*.py"):
     module_docname = str(module).replace("/", ".").removesuffix(".py")
 
     if module.parent.name != "octodns":
-        module_docpath = DOC_MODULE_DIR / module.parent.name / f"{module_docname}.rst"
+        module_docpath = (
+            DOC_MODULE_DIR / module.parent.name / f"{module_docname}.rst"
+        )
     else:
         module_docpath = DOC_MODULE_DIR / f"{module_docname}.rst"
 
