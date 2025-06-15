@@ -25,8 +25,8 @@ class SpfDnsLookupProcessor(BaseProcessor):
     """
     Validate that SPF values in TXT records are valid.
 
-    Example usage:
-
+    Example
+    -------
     .. code-block:: yaml
 
         processors:

@@ -59,8 +59,8 @@ class _TypeBaseFilter(_FilterProcessor):
 class TypeAllowlistFilter(_TypeBaseFilter, AllowsMixin):
     """Only manage records of the specified type(s).
 
-    Example usage:
-
+    Example
+    -------
     .. code-block:: yaml
 
         processors:
@@ -91,8 +91,8 @@ class TypeAllowlistFilter(_TypeBaseFilter, AllowsMixin):
 class TypeRejectlistFilter(_TypeBaseFilter, RejectsMixin):
     """Ignore records of the specified type(s).
 
-    Example usage:
-
+    Example
+    -------
     .. code-block:: yaml
 
         processors:
@@ -150,8 +150,8 @@ class _NameBaseFilter(_FilterProcessor):
 class NameAllowlistFilter(_NameBaseFilter, AllowsMixin):
     """Only manage records with names that match the provider patterns
 
-    Example usage:
-
+    Example
+    -------
     .. code-block:: yaml
 
         processors:
@@ -188,8 +188,8 @@ class NameAllowlistFilter(_NameBaseFilter, AllowsMixin):
 class NameRejectlistFilter(_NameBaseFilter, RejectsMixin):
     """Reject managing records with names that match the provider patterns
 
-    Example usage:
-
+    Example
+    -------
     .. code-block:: yaml
 
         processors:
@@ -263,8 +263,8 @@ class _ValueBaseFilter(_FilterProcessor):
 class ValueAllowlistFilter(_ValueBaseFilter, AllowsMixin):
     """Only manage records with values that match the provider patterns
 
-    Example usage:
-
+    Example
+    -------
     .. code-block:: yaml
 
         processors:
@@ -302,8 +302,8 @@ class ValueAllowlistFilter(_ValueBaseFilter, AllowsMixin):
 class ValueRejectlistFilter(_ValueBaseFilter, RejectsMixin):
     """Reject managing records with names that match the provider patterns
 
-    Example usage:
-
+    Example
+    -------
     .. code-block:: yaml
 
         processors:
@@ -371,8 +371,8 @@ class NetworkValueAllowlistFilter(_NetworkValueBaseFilter, AllowsMixin):
     """Only manage A and AAAA records with values that match the provider patterns
     All other types will be left as-is.
 
-    Example usage:
-
+    Example
+    -------
     .. code-block:: yaml
 
         processors:
@@ -401,8 +401,8 @@ class NetworkValueRejectlistFilter(_NetworkValueBaseFilter, RejectsMixin):
     """Reject managing A and AAAA records with value matching a that match the provider patterns
     All other types will be left as-is.
 
-    Example usage:
-
+    Example
+    -------
     .. code-block:: yaml
 
         processors:
@@ -430,8 +430,8 @@ class NetworkValueRejectlistFilter(_NetworkValueBaseFilter, RejectsMixin):
 class IgnoreRootNsFilter(BaseProcessor):
     """Do not manage Root NS Records.
 
-    Example usage:
-
+    Example
+    -------
     .. code-block:: yaml
 
         processors:
@@ -462,8 +462,8 @@ class IgnoreRootNsFilter(BaseProcessor):
 class ExcludeRootNsChanges(BaseProcessor):
     """Do not allow root NS record changes
 
-    Example usage:
-
+    Example
+    -------
     .. code-block:: yaml
 
         processors:
@@ -512,8 +512,8 @@ class ExcludeRootNsChanges(BaseProcessor):
 class ZoneNameFilter(_FilterProcessor):
     """Filter or error on record names that contain the zone name
 
-    Example usage:
-
+    Example
+    -------
     .. code-block:: yaml
 
         processors:

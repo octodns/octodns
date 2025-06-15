@@ -39,6 +39,8 @@ class MetaProcessor(BaseProcessor):
     settings. Values are in the form `key=<value>`, e.g.
     `time=2023-09-10T05:49:04.246953`
 
+    Example
+    -------
     .. code-block:: yaml
 
         processors:

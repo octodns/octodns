@@ -18,8 +18,8 @@ class TtlRestrictionFilter(BaseProcessor):
     default maximum is 604800 (seven days.) allowed_ttls is only used when
     explicitly configured and min and max are ignored in that case.
 
-    Example usage:
-
+    Example
+    -------
     .. code-block:: yaml
 
         processors:

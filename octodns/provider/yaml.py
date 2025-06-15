@@ -75,14 +75,14 @@ class YamlProvider(BaseProvider):
             # (optional, default False)
             disable_zonefile: false
 
-    .. warning::
 
-        When using this provider as a target any existing comments or formatting
-        in the zone files will be lost when changes are applyed.
+    Attention
+    ---------
+    When using this provider as a target any existing comments or formatting
+    in the zone files will be lost when changes are applyed.
 
     Split Details
     -------------
-
     All files are stored in a subdirectory matching the name of the zone
     (including the trailing .) of the directory config. It is a recommended
     best practice that the files be named RECORD.yaml, but all files are
@@ -101,7 +101,6 @@ class YamlProvider(BaseProvider):
 
     Overriding Values
     -----------------
-
     Overriding values can be accomplished using multiple yaml providers in the
     `sources` list where subsequent providers have `populate_should_replace`
     set to `true`. An example use of this would be a zone that you want to push
@@ -465,8 +464,8 @@ class YamlProvider(BaseProvider):
 
 class SplitYamlProvider(YamlProvider):
     """
-    .. deprecated::
-        DEPRECATED: Use YamlProvider with the split_extension parameter instead.
+    .. deprecated:: 2.0
+        Use YamlProvider with the split_extension parameter instead.
 
     When migrating the following configuration options would result in the same
     behavior as SplitYamlProvider
@@ -480,6 +479,8 @@ class SplitYamlProvider(YamlProvider):
          split_catchall: true
          disable_zonefile: true
 
+    Warning
+    -------
     TO BE REMOVED: 2.0
     """
 

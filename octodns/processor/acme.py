@@ -11,7 +11,30 @@ class AcmeManagingProcessor(BaseProcessor):
     log = getLogger("AcmeManagingProcessor")
 
     def __init__(self, name):
-        """
+        """Manage or ignore ACME records.
+
+        **ACME records in the source:**
+            Will be marked with metadata so octodns knows they are managed by octodns.
+
+        **ACME records in the target:**
+            If the octodns mark **IS NOT** found, they will be ignored. So ACME records in the
+            target will not be updated or deleted.
+
+            If the octodns mark **IS** found, they will be treated like normal records.
+
+        Note
+        ----
+        This filter processes records with names starting with: `_acme-challenge`,
+        mostly used for the DNS-01 challenge.
+
+        For example: `_acme-challenge.foo.domain.com`
+
+        References
+        ---------
+        https://letsencrypt.org/docs/challenge-types/#dns-01-challenge
+
+        Example
+        -------
         .. code-block:: yaml
 
             processors:
@@ -20,8 +43,12 @@ class AcmeManagingProcessor(BaseProcessor):
 
             zones:
                 something.com.:
+                    sources:
+                        - x
                     processors:
-                        - acme2
+                        - acme
+                    targets:
+                        - y
         """
         super().__init__(name)
 

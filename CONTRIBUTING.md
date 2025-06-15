@@ -11,30 +11,30 @@ If you have questions, or you'd like to check with us before embarking on a majo
 This project uses the [GitHub Flow](https://guides.github.com/introduction/flow/). That means that the `main` branch is stable and new development is done in feature branches. Feature branches are merged into the `main` branch via a Pull Request.
 
 0. Fork and clone the repository
-0. Configure and install the dependencies: `./script/bootstrap`
-0. Activate virtual environment: `source env/bin/activate`
-0. Make sure the tests pass on your machine: `./script/test`
-0. Create a new branch: `git checkout -b my-branch-name`
-0. Make your change, add tests, and make sure the tests still pass
-0. Make sure that `./script/lint` passes without any warnings
-0. Run `./script/format` to make sure your changes follow Python's preferred
+1. Configure and install the dependencies: `./script/bootstrap`
+2. Activate virtual environment: `source env/bin/activate`
+3. Make sure the tests pass on your machine: `./script/test`
+4. Create a new branch: `git checkout -b my-branch-name`
+5. Make your change, add tests, and make sure the tests still pass
+6. Make sure that `./script/lint` passes without any warnings
+7. Run `./script/format` to make sure your changes follow Python's preferred
    coding style
-0. Run `./script/changelog create ...` to add a changelog entry to your PR
-0. Make sure that coverage is at :100:% `./script/coverage` and open `htmlcov/index.html`
-   * You can open a draft PR for :eyes: & discussion prior to this
-0. Push to your fork and submit a pull request
+8. Run `./script/changelog create ...` to add a changelog entry to your PR
+9. Make sure that coverage is at :100:% `./script/coverage` and open `htmlcov/index.html`
+   - You can open a draft PR for :eyes: & discussion prior to this
+10. Push to your fork and submit a pull request
 
 We will handle updating the version, tagging the release, and releasing the gem. Please don't bump the version or otherwise attempt to take on these administrative internal tasks as part of your pull request.
 
 Here are a few things you can do that will increase the likelihood of your pull request being accepted:
 
-* Follow [pep8](https://www.python.org/dev/peps/pep-0008/)
+- Follow [pep8](https://www.python.org/dev/peps/pep-0008/)
 
 - Write thorough tests. No PRs will be merged without :100:% code coverage. More than that tests should be very thorough and cover as many (edge) cases as possible. We're working with DNS here and bugs can have a major impact so we need to do as much as reasonably possible to ensure quality. While :100:% doesn't even begin to mean there are no bugs, getting there often requires close inspection & a relatively complete understanding of the code. More times than not the endeavor will uncover at least minor problems.
 
 - Bug fixes require specific tests covering the addressed behavior.
 
-- Write or update documentation. If you have added a feature or changed an existing one, please make appropriate changes to the docs. Doc-only PRs are always welcome.
+- Write or update documentation. If you have added a feature or changed an existing one, please make appropriate changes to the docs. Doc-only PRs are always welcome. Style guide: <https://numpydoc.readthedocs.io/en/latest/format.html#>
 
 - Keep your change as focused as possible. If there are multiple changes you would like to make that are not dependent upon each other, consider submitting them as separate pull requests.
 

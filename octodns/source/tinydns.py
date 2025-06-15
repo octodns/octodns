@@ -465,7 +465,10 @@ class TinyDnsFileSource(TinyDnsBaseSource):
             # (optional, default 3600)
             default_ttl: 3600
 
-    NOTE: timestamps & lo fields are ignored if present.
+    Note
+    ----
+    timestamps & lo fields are ignored if present.
+
 
     The source intends to conform to and fully support the official spec,
     https://cr.yp.to/djbdns/tinydns-data.html and the common patch/extensions to
