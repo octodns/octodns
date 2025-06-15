@@ -1,0 +1,39 @@
+name: build docs
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+  pull_request:
+    branches: [main, master]
+
+  workflow_dispatch:
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install hatch
+        run: pip install -r requirements.txt
+
+      - name: get docs
+        run: ./script/get-docs
+
+      - name: build docs
+        run: ./script/build-docs
+
+      - name: deploy page
+        uses: peaceiris/actions-gh-pages@v4
+        if: github.event_name != 'pull_request'
+        with:
+          publish_dir: docs/_build/html
+          github_token: ${{ secrets.GITHUB_TOKEN }}
