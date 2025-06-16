@@ -25,6 +25,9 @@ jobs:
       - name: Install requirements-dev
         run: pip install -r requirements-dev.txt
 
+      - name: Install octodns in develop mode
+        run: pip install -e .
+
       - name: Run scripts/get-docs
         run: ./script/get-docs
 
