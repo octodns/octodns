@@ -10,4 +10,8 @@ SOURCE_MARKDOWN="$(find *.md docs examples -name '*.md')"
 isort "$@" $SOURCES_PYTHON
 black "$@" $SOURCES_PYTHON
 
-mdformat --compact-tables --number $SOURCE_MARKDOWN
+if [[ "$*" =~ check ]]; then
+    mdformat --check --compact-tables --number $SOURCE_MARKDOWN
+else
+    mdformat --compact-tables --number $SOURCE_MARKDOWN
+fi
