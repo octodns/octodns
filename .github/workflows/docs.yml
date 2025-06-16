@@ -28,11 +28,8 @@ jobs:
       - name: Run scripts/get-docs
         run: ./script/get-docs
 
-      - name: Build Sphinx
-        uses: ammaraskar/sphinx-action@8.2.3
-        with:
-          docs-folder: "docs/"
-          build-command: "sphinx-build -b html . _build"
+      - name: Run scripts/build-docs
+        run: ./script/build-docs
 
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
