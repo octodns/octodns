@@ -31,14 +31,15 @@ extensions = [
 autodoc_default_options = {
     "members": True,
     "undoc-members": True,
-    "private-members": False,
-    "special-members": "__init__",
-    "show-inheritance": True,
+    "private-members": True,
+    "special-members": "__init__, __repr__",
+    # "inherited-members": True,
     "exclude-members": "__weakref__",
+    "show-inheritance": True,
 }
 autodoc_typehints = "both"
 autodoc_typehints_description_target = "all"
-autodoc_member_order = "alphabetical"
+autodoc_member_order = "bysource"
 
 ### extlinks ###
 
