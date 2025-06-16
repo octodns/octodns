@@ -1,4 +1,4 @@
-name: OctoDNS Docs
+name: OctoDNS Documentation
 
 on:
   push:
@@ -14,24 +14,24 @@ jobs:
   build-docs:
     runs-on: ubuntu-latest
     steps:
-      - name: checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: setup python
+      - name: Setup python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: install hatch
+      - name: Install requirements
         run: pip install -r requirements.txt
 
-      - name: get docs
+      - name: Run scripts/get-docs
         run: ./script/get-docs
 
-      - name: build docs
+      - name: Run scripts/build-docs
         run: ./script/build-docs
 
-      - name: deploy page
+      - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
         if: github.event_name != 'pull_request'
         with:
