@@ -4,24 +4,24 @@
 
 octoDNS supports the following record types:
 
-* `A`
-* `AAAA`
-* `ALIAS`
-* `CAA`
-* `CNAME`
-* `DNAME`
-* `DS`
-* `LOC`
-* `MX`
-* `NAPTR`
-* `NS`
-* `PTR`
-* `SPF`
-* `SRV`
-* `SSHFP`
-* `TLSA`
-* `TXT`
-* `URLFWD`
+- `A`
+- `AAAA`
+- `ALIAS`
+- `CAA`
+- `CNAME`
+- `DNAME`
+- `DS`
+- `LOC`
+- `MX`
+- `NAPTR`
+- `NS`
+- `PTR`
+- `SPF`
+- `SRV`
+- `SSHFP`
+- `TLSA`
+- `TXT`
+- `URLFWD`
 
 Underlying provider support for each of these varies and some providers have extra requirements or limitations. In cases where a record type is not supported by a provider octoDNS will ignore it there and continue to manage the record elsewhere. For example `SSHFP` is supported by Dyn, but not Route53. If your source data includes an SSHFP record octoDNS will keep it in sync on Dyn, but not consider it when evaluating the state of Route53. The best way to find out what types are supported by a provider is to look for its `supports` method. If that method exists the logic will drive which records are supported and which are ignored. If the provider does not implement the method it will fall back to `BaseProvider.supports` which indicates full support.
 
@@ -29,8 +29,8 @@ Adding new record types to octoDNS is relatively straightforward, but will requi
 
 ## Advanced Record Support (GeoDNS, Weighting)
 
-* [Dynamic Records](/docs/dynamic_records.md) - the preferred method for configuring geo-location, weights, and healthcheck based fallback between pools of services.
-* [Geo Records](/docs/geo_records.md) - the original implementation of geo-location based records, now superseded by Dynamic Records (above)
+- [Dynamic Records](/docs/dynamic_records.md) - the preferred method for configuring geo-location, weights, and healthcheck based fallback between pools of services.
+- [Geo Records](/docs/geo_records.md) - the original implementation of geo-location based records, now superseded by Dynamic Records (above)
 
 ## Config (`YamlProvider`)
 
@@ -96,6 +96,7 @@ octoDNS is fairly strict in terms of standards compliance and is opinionated in 
 It's best to think of the `lenient` flag as "I know what I'm doing and accept any problems I run across." The main reason being is that some providers may allow the non-compliant setup and others may not. The behavior of the non-compliant records may even vary from one provider to another. Caveat emptor.
 
 #### Record priority for AutoArpa
+
 When multiple A or AAAA records point to the same IP, it is possible to set an optional priority on each record. The records with the lowest priority will have the highest preference when being processed by AutoArpa. The AutoArpa provider will create PTR records in order of preference, up to a set limit defined by the `max_auto_arpa` option in the provider configuration.
 
 ```yaml
@@ -143,12 +144,12 @@ If left unconfigured, suitable defaults take over instead. In the below example,
 the Dyn provider is configured with limits of 40% on both update and
 delete operations over all the records present.
 
-````yaml
+```yaml
 dyn:
     class: octodns.provider.dyn.DynProvider
     update_pcent_threshold: 0.4
     delete_pcent_threshold: 0.4
-````
+```
 
 Additionally, thresholds can be configured at the zone level. Zone thresholds
 take precedence over any provider default or explicit configuration. Zone

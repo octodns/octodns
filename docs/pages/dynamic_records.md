@@ -106,25 +106,23 @@ flowchart LR
     class values valueColor
 ```
 
-
-
 #### Geo Codes
 
 Geo codes consist of one to three parts depending on the scope of the area being targeted. Examples of these look like:
 
-* 'NA-US-KY' - North America, United States, Kentucky
-* 'NA-US' - North America, United States
-* 'NA' - North America
+- 'NA-US-KY' - North America, United States, Kentucky
+- 'NA-US' - North America, United States
+- 'NA' - North America
 
 The first portion is the continent:
 
-* 'AF': 14,  # Continental Africa
-* 'AN': 17,  # Continental Antarctica
-* 'AS': 15,  # Continental Asia
-* 'EU': 13,  # Continental Europe
-* 'NA': 11,  # Continental North America
-* 'OC': 16,  # Continental Australia/Oceania
-* 'SA': 12,  # Continental South America
+- 'AF': 14, # Continental Africa
+- 'AN': 17, # Continental Antarctica
+- 'AS': 15, # Continental Asia
+- 'EU': 13, # Continental Europe
+- 'NA': 11, # Continental North America
+- 'OC': 16, # Continental Australia/Oceania
+- 'SA': 12, # Continental South America
 
 The second is the two-letter ISO Country Code https://en.wikipedia.org/wiki/ISO_3166-2 and the third is the ISO Country Code Subdivision as per https://en.wikipedia.org/wiki/ISO_3166-2:US. Change the code at the end for the country you are subdividing. Note that these may not always be supported depending on the providers in use.
 
@@ -160,7 +158,7 @@ Subnet targeting is considered more specific than geo targeting. This means that
 
 ### Health Checks
 
-octoDNS will automatically configure the provider to monitor each IP and check for a 200 response for **https://<ip_address>/_dns**.
+octoDNS will automatically configure the provider to monitor each IP and check for a 200 response for **https://\<ip_address>/\_dns**.
 
 These checks can be customized via the `healthcheck` configuration options.
 
@@ -178,10 +176,10 @@ test:
   ...
 ```
 
-| Key  | Description | Default |
-|--|--|--|
+| Key | Description | Default |
+| -- | -- | -- |
 | host | FQDN for host header and SNI | - |
-| path | path to check | _dns |
+| path | path to check | \_dns |
 | port | port to check | 443 |
 | protocol | HTTP/HTTPS/TCP | HTTPS |
 
@@ -206,7 +204,8 @@ test:
 ```
 
 Support matrix:
-* NS1 and Azure DNS support all 3 flag values
-* All other dynamic-capable providers only support the default `obey`
+
+- NS1 and Azure DNS support all 3 flag values
+- All other dynamic-capable providers only support the default `obey`
 
 See "Health Check Options" in individual provider documentation for customization support.

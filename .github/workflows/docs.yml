@@ -1,0 +1,42 @@
+name: OctoDNS Documentation
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+  pull_request:
+    branches: [main, master]
+
+  workflow_dispatch:
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install requirements-dev
+        run: pip install -r requirements-dev.txt
+
+      - name: Install octodns in develop mode
+        run: pip install -e .
+
+      - name: Run scripts/get-docs
+        run: ./script/get-docs
+
+      - name: Run scripts/build-docs
+        run: ./script/build-docs
+
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        if: github.event_name != 'pull_request'
+        with:
+          publish_dir: docs/_build/html
+          github_token: ${{ secrets.GITHUB_TOKEN }}

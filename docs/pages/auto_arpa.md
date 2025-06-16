@@ -46,7 +46,7 @@ In order to add `PTR` records for a zone the `auto-arpa` source should be added 
     - ...
 ```
 
-The above will add `PTR` records for any `A` records previously seen with IP addresses 10.0.0.*.
+The above will add `PTR` records for any `A` records previously seen with IP addresses 10.0.0.\*.
 
 ### A Complete Example
 
@@ -98,9 +98,9 @@ fileserver:
 
 #### Auto-generated PTRs
 
-* 101.0.0.10: exxampled.com.
-* 102.0.0.10: exxampled.com.
-* 103.0.0.10: email.exxampled.com., fileserver.exxampled.com.
+- 101.0.0.10: exxampled.com.
+- 102.0.0.10: exxampled.com.
+- 103.0.0.10: email.exxampled.com., fileserver.exxampled.com.
 
 ### Notes
 
@@ -123,4 +123,5 @@ example.com.:
   targets:
     - ...
 ```
+
 That would take all the relevant records from example.com and add them as PTR records for the arpa zones in the same place as the 'config' source specifies.

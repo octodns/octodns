@@ -6,9 +6,9 @@ might see for managing a set of personal domains or a small business.
 Most of the actual documentation for this example is found in the comments in
 the YAML configuration files.
 
-* [config/octodns.yaml](config/octodns.yaml)
-* [config/my-domain.com.yaml](config/my-domain.com.yaml)
-* [config/unused-domain.io.yaml](config/unused-domain.io.yaml)
+- [config/octodns.yaml](config/octodns.yaml)
+- [config/my-domain.com.yaml](config/my-domain.com.yaml)
+- [config/unused-domain.io.yaml](config/unused-domain.io.yaml)
 
 From here on this README focuses on the general process of running octoDNS.
 
@@ -250,5 +250,5 @@ No changes were planned
 
 ## What's Next
 
-* Check out [migrating to octoDNS](../migrating-to-octodns) for an example of how to create zone configuration YAML files from your existing provider's configuration
-* For a complete list check out the [Examples Directory](../)
+- Check out [migrating to octoDNS](../migrating-to-octodns) for an example of how to create zone configuration YAML files from your existing provider's configuration
+- For a complete list check out the [Examples Directory](../)

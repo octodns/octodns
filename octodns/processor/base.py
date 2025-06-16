@@ -13,7 +13,7 @@ class BaseProcessor(object):
         self.id = self.name = name
 
     def process_source_zone(self, desired, sources):
-        '''
+        """
         Called after all sources have completed populate. Provides an
         opportunity for the processor to modify the desired `Zone` that targets
         will receive.
@@ -28,11 +28,11 @@ class BaseProcessor(object):
           be used with `replace=True`.
         - May call `Zone.remove_record` to remove records from `desired`.
         - Sources may be empty, as will be the case for aliased zones.
-        '''
+        """
         return desired
 
     def process_target_zone(self, existing, target):
-        '''
+        """
         Called after a target has completed `populate`, before changes are
         computed between `existing` and `desired`. This provides an opportunity
         to modify the `existing` `Zone`.
@@ -45,11 +45,11 @@ class BaseProcessor(object):
           the results of which can be modified, and then `Zone.add_record` may
           be used with `replace=True`.
         - May call `Zone.remove_record` to remove records from `existing`.
-        '''
+        """
         return existing
 
     def process_source_and_target_zones(self, desired, existing, target):
-        '''
+        """
         Called just prior to computing changes for `target` between `desired`
         and `existing`. Provides an opportunity for the processor to modify
         either the desired or existing `Zone`s that will be used to compute the
@@ -72,11 +72,11 @@ class BaseProcessor(object):
           be used with `replace=True`.
         - May call `Zone.remove_record` to remove records from `desired`.
         - May call `Zone.remove_record` to remove records from `existing`.
-        '''
+        """
         return desired, existing
 
     def process_plan(self, plan, sources, target):
-        '''
+        """
         Called after the planning phase has completed. Provides an opportunity
         for the processors to modify the plan thus changing the actions that
         will be displayed and potentially applied.
@@ -90,7 +90,7 @@ class BaseProcessor(object):
           `plan.delete_pcent_threshold` when creating a new `Plan`.
         - Must return a `Plan` which may be `plan` or can be a newly created
           one `plan.desired` and `plan.existing` copied over as-is or modified.
-        '''
+        """
         # plan may be None if no changes were detected up until now, the
         # process may still create a plan.
         # sources may be empty, as will be the case for aliased zones

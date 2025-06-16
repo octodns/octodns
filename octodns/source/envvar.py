@@ -11,11 +11,11 @@ class EnvVarSourceException(Exception):
 
 class EnvironmentVariableNotFoundException(EnvVarSourceException):
     def __init__(self, data):
-        super().__init__(f'Unknown environment variable {data}')
+        super().__init__(f"Unknown environment variable {data}")
 
 
 class EnvVarSource(BaseSource):
-    '''
+    """
     This source allows for environment variables to be embedded at octodns
     execution time into zones.  Intended to capture artifacts of deployment to
     facilitate operational objectives.
@@ -31,41 +31,45 @@ class EnvVarSource(BaseSource):
      - Capturing identifying information about the deployment process to
        record where and when the zone was updated.
 
-    version:
-        class: octodns.source.envvar.EnvVarSource
-        # The environment variable in question, in this example the username
-        # currently executing octodns
-        variable: USER
-        # The TXT record name to embed the value found at the above
-        # environment variable
-        name: deployuser
-        # The TTL of the TXT record (optional, default 60)
-        ttl: 3600
+    .. code-block:: yaml
+
+        version:
+            class: octodns.source.envvar.EnvVarSource
+            # The environment variable in question, in this example the username
+            # currently executing octodns
+            variable: USER
+            # The TXT record name to embed the value found at the above
+            # environment variable
+            name: deployuser
+            # The TTL of the TXT record (optional, default 60)
+            ttl: 3600
 
     This source is then combined with other sources in the octodns config
     file:
 
-    zones:
-      netflix.com.:
-        sources:
-          - yaml
-          - version
-        targets:
-          - ultra
-          - ns1
-    '''
+    .. code-block:: yaml
+
+        zones:
+        netflix.com.:
+            sources:
+            - yaml
+            - version
+            targets:
+            - ultra
+            - ns1
+    """
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    SUPPORTS = set(('TXT'))
+    SUPPORTS = set(("TXT"))
 
     DEFAULT_TTL = 60
 
     def __init__(self, id, variable, name, ttl=DEFAULT_TTL):
         klass = self.__class__.__name__
-        self.log = logging.getLogger(f'{klass}[{id}]')
+        self.log = logging.getLogger(f"{klass}[{id}]")
         self.log.debug(
-            '__init__: id=%s, variable=%s, name=%s, ttl=%d',
+            "__init__: id=%s, variable=%s, name=%s, ttl=%d",
             id,
             variable,
             name,
@@ -82,7 +86,7 @@ class EnvVarSource(BaseSource):
             raise EnvironmentVariableNotFoundException(self.envvar)
 
         self.log.debug(
-            '_read_variable: successfully loaded var=%s val=%s',
+            "_read_variable: successfully loaded var=%s val=%s",
             self.envvar,
             value,
         )
@@ -90,7 +94,7 @@ class EnvVarSource(BaseSource):
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug(
-            'populate: name=%s, target=%s, lenient=%s',
+            "populate: name=%s, target=%s, lenient=%s",
             zone.name,
             target,
             lenient,
@@ -102,13 +106,13 @@ class EnvVarSource(BaseSource):
 
         # We don't need to worry about conflicting records here because the
         # manager will deconflict sources on our behalf.
-        payload = {'ttl': self.ttl, 'type': 'TXT', 'values': [value]}
+        payload = {"ttl": self.ttl, "type": "TXT", "values": [value]}
         record = Record.new(
             zone, self.name, payload, source=self, lenient=lenient
         )
         zone.add_record(record, lenient=lenient)
 
         self.log.info(
-            'populate:   found %s records, exists=False',
+            "populate:   found %s records, exists=False",
             len(zone.records) - before,
         )

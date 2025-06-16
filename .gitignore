@@ -17,3 +17,5 @@ octodns.egg-info/
 output/
 tests/zones/unit.tests.
 tmp/
+docs/_build/
+docs/modules/

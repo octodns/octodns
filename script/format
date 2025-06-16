@@ -2,9 +2,16 @@
 
 set -e
 
-SOURCES="$(find *.py octodns tests -name '*.py') $(grep --files-with-matches '^#!.*python' script/*)"
+SOURCES_PYTHON="$(find *.py octodns tests -name '*.py') $(grep --files-with-matches '^#!.*python' script/*)"
+SOURCE_MARKDOWN="$(find *.md docs examples -name '*.md')"
 
 . env/bin/activate
 
-isort "$@" $SOURCES
-black "$@" $SOURCES
+isort "$@" $SOURCES_PYTHON
+black "$@" $SOURCES_PYTHON
+
+if [[ "$*" =~ check ]]; then
+    mdformat --check --compact-tables --number $SOURCE_MARKDOWN
+else
+    mdformat --compact-tables --number $SOURCE_MARKDOWN
+fi

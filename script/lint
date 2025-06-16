@@ -15,6 +15,6 @@ if [ ! -f "$ACTIVATE" ]; then
 fi
 . "$ACTIVATE"
 
-SOURCES="$(find *.py octodns tests -name '*.py') $(grep --files-with-matches '^#!.*python' script/*)"
+SOURCES_PYTHON="$(find *.py octodns tests -name '*.py') $(grep --files-with-matches '^#!.*python' script/*)"
 
-pyflakes $SOURCES
+pyflakes $SOURCES_PYTHON
