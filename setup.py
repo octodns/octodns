@@ -64,11 +64,16 @@ setup(
             'black>=24.3.0,<25.0.0',
             'build>=0.7.0',
             'isort>=5.11.5',
+            'mdformat>=0.7.22',
             'pycountry>=19.8.18',
             'pycountry-convert>=0.7.2',
             'pyflakes>=2.2.0',
             'readme_renderer[md]>=26.0',
             'twine>=3.4.2',
+            'Sphinx>=8.2.3',
+            'furo>=2024.8.6',
+            'myst-parser>=4.0.1',
+            'sphinx-copybutton>=0.5.2',
         )
     },
     install_requires=(
