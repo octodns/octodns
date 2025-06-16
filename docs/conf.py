@@ -1,7 +1,9 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path("..").resolve()))
+sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
+
+print(f"SYS.PATH={sys.path}")
 
 from octodns.__init__ import __version__
 
