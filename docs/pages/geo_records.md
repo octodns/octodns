@@ -28,33 +28,31 @@ test:
   value: 111.111.111.5
 ```
 
-
 The geo labels breakdown based on:
 
-1.
-    - 'AF': 14,  # Continental Africa
-    - 'AN': 17,  # Continental Antarctica
-    - 'AS': 15,  # Continental Asia
-    - 'EU': 13,  # Continental Europe
-    - 'NA': 11,  # Continental North America
-    - 'OC': 16,  # Continental Australia/Oceania
-    - 'SA': 12,  # Continental South America
+1. - 'AF': 14, # Continental Africa
+   - 'AN': 17, # Continental Antarctica
+   - 'AS': 15, # Continental Asia
+   - 'EU': 13, # Continental Europe
+   - 'NA': 11, # Continental North America
+   - 'OC': 16, # Continental Australia/Oceania
+   - 'SA': 12, # Continental South America
 
 2. ISO Country Code https://en.wikipedia.org/wiki/ISO_3166-2
 
-3. ISO Country Code Subdivision as per https://en.wikipedia.org/wiki/ISO_3166-2:US   (change the code at the end for the country you are subdividing) * these may not always be supported depending on the provider.
+3. ISO Country Code Subdivision as per https://en.wikipedia.org/wiki/ISO_3166-2:US (change the code at the end for the country you are subdividing) * these may not always be supported depending on the provider.
 
 So the example is saying:
 
-- North America - United States - New York:  gets served an "A" record of  111.111.111.1
-- North America - United States - California:   gets served an "A" record of  111.111.111.2
+- North America - United States - New York: gets served an "A" record of 111.111.111.1
+- North America - United States - California: gets served an "A" record of 111.111.111.2
 - Oceania - Australia: Gets served an "A" record of 111.111.111.3
 - Europe: gets an "A" record of 111.111.111.4
 - Everyone else gets an "A" record of 111.111.111.5
 
 ### Health Checks
 
-octoDNS will automatically set up monitors check for a 200 response for **https://<ip_address>/_dns**.
+octoDNS will automatically set up monitors check for a 200 response for **https://\<ip_address>/\_dns**.
 
 These checks can be configured by adding a `healthcheck` configuration to the record:
 
@@ -74,17 +72,17 @@ test:
       protocol: HTTPS
 ```
 
-| Key  | Description | Default |
-|--|--|--|
+| Key | Description | Default |
+| -- | -- | -- |
 | host | FQDN for host header and SNI | - |
-| path | path to check | _dns |
+| path | path to check | \_dns |
 | port | port to check | 443 |
 | protocol | HTTP/HTTPS | HTTPS |
 
 #### Route53 Healtch Check Options
 
-| Key  | Description | Default |
-|--|--|--|
+| Key | Description | Default |
+| -- | -- | -- |
 | measure_latency | Show latency in AWS console | true |
 | request_interval | Healthcheck interval [10\|30] seconds | 10 |
 

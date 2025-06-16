@@ -6,10 +6,10 @@ straightforward process and can generally be completed in minutes.
 Some relevant documentation for this example is in comments in the YAML
 configuration files.
 
-* [config/octodns.yaml](config/octodns.yaml)
-* [populate/octodns.yaml](populate/octodns.yaml)
-* [populate/my-dumpable.com.yaml](populate/my-dumpable.com.yaml)
-* [populate/unused-dumpable.com.yaml](populate/unused-dumpable.com.yaml)
+- [config/octodns.yaml](config/octodns.yaml)
+- [populate/octodns.yaml](populate/octodns.yaml)
+- [populate/my-dumpable.com.yaml](populate/my-dumpable.com.yaml)
+- [populate/unused-dumpable.com.yaml](populate/unused-dumpable.com.yaml)
 
 From here on this README focuses on the process of using `octodns-dump` to
 import your existing DNS data into octoDNS.
@@ -267,5 +267,5 @@ which is beyond the scope of this example.
 So now you can commit your config and start managing you DNS with octoDNS rather
 than clicking buttons in UIs or using whatever you previous had used.
 
-* Check out [octoDNS basic example](../basic) for an example of how to create zone configuration YAML files from your existing provider's configuration
-* For a complete list check out the [Examples Directory](../)
+- Check out [octoDNS basic example](../basic) for an example of how to create zone configuration YAML files from your existing provider's configuration
+- For a complete list check out the [Examples Directory](../)

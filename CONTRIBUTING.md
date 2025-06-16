@@ -10,18 +10,18 @@ If you have questions, or you'd like to check with us before embarking on a majo
 
 This project uses the [GitHub Flow](https://guides.github.com/introduction/flow/). That means that the `main` branch is stable and new development is done in feature branches. Feature branches are merged into the `main` branch via a Pull Request.
 
-0. Fork and clone the repository
-1. Configure and install the dependencies: `./script/bootstrap`
-2. Activate virtual environment: `source env/bin/activate`
-3. Make sure the tests pass on your machine: `./script/test`
-4. Create a new branch: `git checkout -b my-branch-name`
-5. Make your change, add tests, and make sure the tests still pass
-6. Make sure that `./script/lint` passes without any warnings
-7. Run `./script/format` to make sure your changes follow Python's preferred
-   coding style
-8. Run `./script/changelog create ...` to add a changelog entry to your PR
-9. Make sure that coverage is at :100:% `./script/coverage` and open `htmlcov/index.html`
-   - You can open a draft PR for :eyes: & discussion prior to this
+00. Fork and clone the repository
+01. Configure and install the dependencies: `./script/bootstrap`
+02. Activate virtual environment: `source env/bin/activate`
+03. Make sure the tests pass on your machine: `./script/test`
+04. Create a new branch: `git checkout -b my-branch-name`
+05. Make your change, add tests, and make sure the tests still pass
+06. Make sure that `./script/lint` passes without any warnings
+07. Run `./script/format` to make sure your changes follow Python's preferred
+    coding style
+08. Run `./script/changelog create ...` to add a changelog entry to your PR
+09. Make sure that coverage is at :100:% `./script/coverage` and open `htmlcov/index.html`
+    - You can open a draft PR for :eyes: & discussion prior to this
 10. Push to your fork and submit a pull request
 
 We will handle updating the version, tagging the release, and releasing the gem. Please don't bump the version or otherwise attempt to take on these administrative internal tasks as part of your pull request.

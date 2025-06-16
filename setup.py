@@ -74,6 +74,7 @@ setup(
             'furo>=2024.8.6',
             'myst-parser>=4.0.1',
             'sphinx-copybutton>=0.5.2',
+            'mdformat-myst>=0.2.1',
         )
     },
     install_requires=(

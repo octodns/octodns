@@ -1,10 +1,12 @@
 # octodns documentation
 
 ```{include} ../README.md
-:end-before: "## Table of Contents"
+---
+end-before: '## Table of Contents'
+---
 ```
 
----
+______________________________________________________________________
 
 ## Indices and tables
 
@@ -16,7 +18,7 @@
 - [License](infos/license.md)
 - [Changelog](infos/changelog.md)
 
----
+______________________________________________________________________
 
 ## User documentation
 
@@ -28,7 +30,7 @@
 pages/*
 ```
 
----
+______________________________________________________________________
 
 ## Module documentation
 
