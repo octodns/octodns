@@ -22,8 +22,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install requirements
-        run: pip install -U Sphinx furo myst-parser sphinx-copybutton
+      - name: Install requirements-dev
+        run: pip install -r requirements-dev.txt
 
       - name: Run scripts/get-docs
         run: ./script/get-docs
