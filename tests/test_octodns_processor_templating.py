@@ -6,8 +6,57 @@ from unittest import TestCase
 from unittest.mock import call, patch
 
 from octodns.processor.templating import Templating
-from octodns.record import Record
+from octodns.record import Record, ValueMixin, ValuesMixin
 from octodns.zone import Zone
+
+
+class DummySource:
+
+    def __init__(self, id):
+        self.id = str(id)
+
+
+class CustomValue(str):
+
+    @classmethod
+    def validate(cls, *args, **kwargs):
+        return []
+
+    @classmethod
+    def process(cls, v):
+        if isinstance(v, (list, tuple)):
+            return (CustomValue(i) for i in v)
+        return CustomValue(v)
+
+    @classmethod
+    def parse_rdata_text(cls, *args, **kwargs):
+        pass
+
+    def __init__(self, *args, **kwargs):
+        self._asked_for = set()
+
+    def rdata_text(self):
+        pass
+
+    def __getattr__(self, item):
+        self._asked_for.add(item)
+        raise AttributeError('nope')
+
+
+class Single(ValueMixin, Record):
+    _type = 'S'
+    _value_type = CustomValue
+
+
+Record.register_type(Single, 'S')
+
+
+class Multiple(ValuesMixin, Record):
+    _type = 'M'
+    _value_type = CustomValue
+
+
+Record.register_type(Multiple, 'M')
 
 
 def _find(zone, name):
@@ -75,14 +124,29 @@ class TemplatingTest(TestCase):
         noop = _find(got, 'noop')
         self.assertEqual('Nothing to template here.', noop.values[0])
 
+    def test_no_template(self):
+        templ = Templating('test')
+
+        zone = Zone('unit.tests.', [])
+        s = Record.new(zone, 's', {'type': 'S', 'ttl': 42, 'value': 'string'})
+        zone.add_record(s)
+
+        m = Record.new(
+            zone, 'm', {'type': 'M', 'ttl': 43, 'values': ('string', 'another')}
+        )
+        zone.add_record(m)
+
+        # this should check for the template method on our values that don't
+        # have one
+        templ.process_source_zone(zone, None)
+        # and these should make sure that the value types were asked if they
+        # have a template method
+        self.assertEqual({'template'}, s.value._asked_for)
+        self.assertEqual({'template'}, m.values[0]._asked_for)
+
     @patch('octodns.record.TxtValue.template')
     def test_params(self, mock_template):
         templ = Templating('test')
-
-        class DummySource:
-
-            def __init__(self, id):
-                self.id = id
 
         zone = Zone('unit.tests.', [])
         record_source = DummySource('record')
@@ -123,3 +187,41 @@ class TemplatingTest(TestCase):
             ),
             mock_template.call_args,
         )
+
+    def test_context(self):
+        templ = Templating(
+            'test',
+            context={
+                # static
+                'the_answer': 42,
+                # dynamic
+                'the_date': lambda _, __: 'today',
+                # uses a param
+                'num_sources': lambda z, ss: len(ss),
+            },
+        )
+
+        zone = Zone('unit.tests.', [])
+        txt = Record.new(
+            zone,
+            'txt',
+            {
+                'type': 'TXT',
+                'ttl': 42,
+                'values': (
+                    'the_answer: {the_answer}',
+                    'the_date: {the_date}',
+                    'num_sources: {num_sources}',
+                ),
+            },
+        )
+        zone.add_record(txt)
+
+        got = templ.process_source_zone(
+            zone, tuple(DummySource(i) for i in range(3))
+        )
+        txt = _find(got, 'txt')
+        self.assertEqual(3, len(txt.values))
+        self.assertEqual('num_sources: 3', txt.values[0])
+        self.assertEqual('the_answer: 42', txt.values[1])
+        self.assertEqual('the_date: today', txt.values[2])
