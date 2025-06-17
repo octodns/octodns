@@ -275,6 +275,7 @@ The table below lists the providers octoDNS supports. They are maintained in the
 | [AutoDNS](https://www.internetx.com/autodns/) | [octodns_autodns](https://github.com/octodns/octodns-autodns) | |
 | [Azure DNS](https://azure.microsoft.com/en-us/services/dns/) | [octodns_azure](https://github.com/octodns/octodns-azure/) | |
 | [BIND, AXFR, RFC-2136](https://www.isc.org/bind/) | [octodns_bind](https://github.com/octodns/octodns-bind/) | |
+| [Bunny DNS](https://bunny.net/dns/) | [octodns_bunny](https://github.com/Relkian/octodns-bunny) | |
 | [Cloudflare DNS](https://www.cloudflare.com/dns/) | [octodns_cloudflare](https://github.com/octodns/octodns-cloudflare/) | |
 | [ClouDNS](https://www.cloudns.net/) | [octodns_cloudns](https://github.com/ClouDNS/octodns_cloudns) | |
 | [Constellix](https://constellix.com/) | [octodns_constellix](https://github.com/octodns/octodns-constellix/) | |
