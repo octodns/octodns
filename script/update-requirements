@@ -75,7 +75,7 @@ def freeze_reqs(our_package_name: str, tmpdir: str, target: str) -> None:
 
     run_command(f'{tmpdir}/bin/pip install {target_selector}')
     _stdout, _, _ = run_command(f'{tmpdir}/bin/pip freeze')
-    frozen = filter_output(_stdout, our_package_name)  #
+    frozen = filter_output(_stdout, our_package_name)
 
     # remove base deps from extras
     frozen = sorted([*{*frozen} - {*base_reqs}])
