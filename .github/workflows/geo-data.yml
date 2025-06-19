@@ -39,6 +39,7 @@ jobs:
           ./script/bootstrap
           source env/bin/activate
           ./script/generate-geo-data > octodns/record/geo_data.py
+          git diff
           [ `git status --porcelain=1 | wc -l` -ne 0 ] && ./script/changelog create -t minor Periodic updates to geo_data.py || true
       - name: Create Pull Request
         id: cpr
