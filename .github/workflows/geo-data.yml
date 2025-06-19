@@ -2,7 +2,7 @@ name: Update geo_data.py
 on:
   workflow_dispatch: # option to run manually if/when needed
   schedule:
-    - cron: "42 3 * * 7" # sat @ 3:42am
+    - cron: "42 3 * * 6" # sat @ 3:42am
 
 jobs:
   config:
