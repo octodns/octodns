@@ -36,7 +36,6 @@ jobs:
           pip install virtualenv
       - name: Generate geo_data.py
         run: |
-          source env/bin/activate
           ./script/generate-geo-data > octodns/record/geo_data.py
           [ `git status --porcelain=1 | wc -l` -ne 0 ] && ./script/changelog create -t minor Periodic updates to geo_data.py
       - name: Create Pull Request
