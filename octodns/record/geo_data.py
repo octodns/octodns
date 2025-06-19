@@ -123,7 +123,7 @@ geo_data = {
         'TJ': {'name': 'Tajikistan'},
         'TL': {'name': 'Timor-Leste'},
         'TM': {'name': 'Turkmenistan'},
-        'TR': {'name': 'Turkey'},
+        'TR': {'name': 'Türkiye'},
         'TW': {'name': 'Taiwan, Province of China'},
         'UZ': {'name': 'Uzbekistan'},
         'VN': {'name': 'Viet Nam'},
