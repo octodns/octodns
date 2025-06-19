@@ -1,0 +1,55 @@
+name: Update geo_data.py
+on:
+  workflow_dispatch: # option to run manually if/when needed
+  schedule:
+    - cron: "42 3 * * 6" # sat @ 3:42am
+
+jobs:
+  config:
+    runs-on: ubuntu-latest
+    outputs:
+      json: ${{ steps.load.outputs.json }}
+    steps:
+    - uses: actions/checkout@v4
+    - id: load
+      # based on https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings
+      run: |
+        {
+          echo 'json<<EOF'
+          cat ./.ci-config.json
+          echo EOF
+        } >> $GITHUB_OUTPUT
+  update-geo-data:
+    needs: config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ fromJson(needs.config.outputs.json).python_version_current }}
+          architecture: x64
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install virtualenv
+      - name: Generate geo_data.py
+        run: |
+          source env/bin/activate
+          ./script/generate-geo-data > octodns/record/geo_data.py
+          [ `git status --porcelain=1 | wc -l` -ne 0 ] && ./script/changelog create -t minor Periodic updates to geo_data.py
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.PAT }}
+          commit-message: Periodic updates to geo_data.py
+          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
+          signoff: false
+          branch: update-geo-data
+          delete-branch: true
+          title: 'Update geo data to reflect recent changes'
+          body: Auto-generated with https://github.com/peter-evans/create-pull-request
+          draft: false
