@@ -483,3 +483,33 @@ class TestRecordUrlfwd(TestCase):
             {'ttl': 32, 'value': UrlfwdValue.parse_rdata_text(rdata)},
         )
         self.assertEqual(rdata, record.values[0].rdata_text)
+
+
+class TestUrlfwdValue(TestCase):
+
+    def test_template(self):
+        value = UrlfwdValue(
+            {
+                'path': '/',
+                'target': 'http://foo',
+                'code': 301,
+                'masking': 2,
+                'query': 0,
+            }
+        )
+        got = value.template({'needle': 42})
+        self.assertIs(value, got)
+
+        value = UrlfwdValue(
+            {
+                'path': '/{needle}',
+                'target': 'http://foo.{needle}',
+                'code': 301,
+                'masking': 2,
+                'query': 0,
+            }
+        )
+        got = value.template({'needle': 42})
+        self.assertIsNot(value, got)
+        self.assertEqual('/42', got.path)
+        self.assertEqual('http://foo.42', got.target)

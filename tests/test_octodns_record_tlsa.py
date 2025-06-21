@@ -429,3 +429,32 @@ class TestRecordTlsa(TestCase):
                 'invalid matching_type "{value["matching_type"]}"',
                 ctx.exception.reasons,
             )
+
+
+class TestTlsaValue(TestCase):
+
+    def test_template(self):
+        value = TlsaValue(
+            {
+                'certificate_usage': 1,
+                'selector': 1,
+                'matching_type': 1,
+                'certificate_association_data': 'ABABABABABABABABAB',
+            }
+        )
+        got = value.template({'needle': 42})
+        self.assertIs(value, got)
+
+        value = TlsaValue(
+            {
+                'certificate_usage': 1,
+                'selector': 1,
+                'matching_type': 1,
+                'certificate_association_data': 'ABAB{needle}ABABABABABABAB',
+            }
+        )
+        got = value.template({'needle': 42})
+        self.assertIsNot(value, got)
+        self.assertEqual(
+            'ABAB42ABABABABABABAB', got.certificate_association_data
+        )

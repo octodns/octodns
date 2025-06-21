@@ -673,3 +673,18 @@ class TestRecordSvcb(TestCase):
             ],
             ctx.exception.reasons,
         )
+
+
+class TestSrvValue(TestCase):
+
+    def test_template(self):
+        value = SvcbValue({'svcpriority': 0, 'targetname': 'foo.example.com.'})
+        got = value.template({'needle': 42})
+        self.assertIs(value, got)
+
+        value = SvcbValue(
+            {'svcpriority': 0, 'targetname': 'foo.{needle}.example.com.'}
+        )
+        got = value.template({'needle': 42})
+        self.assertIsNot(value, got)
+        self.assertEqual('foo.42.example.com.', got.targetname)

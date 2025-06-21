@@ -164,6 +164,13 @@ class DsValue(EqualityTupleMixin, dict):
             f'{self.key_tag} {self.algorithm} {self.digest_type} {self.digest}'
         )
 
+    def template(self, params):
+        if '{' not in self.digest:
+            return self
+        new = self.__class__(self)
+        new.digest = new.digest.format(**params)
+        return new
+
     def _equality_tuple(self):
         return (self.key_tag, self.algorithm, self.digest_type, self.digest)
 

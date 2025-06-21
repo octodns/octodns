@@ -136,6 +136,15 @@ class TlsaValue(EqualityTupleMixin, dict):
     def rdata_text(self):
         return f'{self.certificate_usage} {self.selector} {self.matching_type} {self.certificate_association_data}'
 
+    def template(self, params):
+        if '{' not in self.certificate_association_data:
+            return self
+        new = self.__class__(self)
+        new.certificate_association_data = (
+            new.certificate_association_data.format(**params)
+        )
+        return new
+
     def _equality_tuple(self):
         return (
             self.certificate_usage,
