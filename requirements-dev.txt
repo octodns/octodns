@@ -6,7 +6,8 @@ build==1.2.2.post1
 certifi==2025.6.15
 cffi==1.17.1
 charset-normalizer==3.4.2
-click==8.2.1
+click==8.1.8; python_version<'3.10'
+click==8.2.1; python_version>='3.10'
 cmarkgfm==2024.11.20
 coverage==7.9.1
 cryptography==45.0.4
