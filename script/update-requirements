@@ -53,6 +53,16 @@ def filter_output(stdout: str, our_package_name: str) -> list[str]:
         p for p in output if not p.startswith(our_package_name)
     ]  # remove our package
 
+    # special handling for click until python 3.9 is gone due to it dropping
+    # support for active versions early
+    i = 0
+    for c, n in enumerate(output):
+        if n.startswith('click=='):
+            i = c
+    if i:
+        output.insert(i + 1, f"{output[i]}; python_version>='3.10'")
+        output[i] = "click==8.1.8; python_version<'3.10'"
+
     return output
 
 
