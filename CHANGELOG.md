@@ -1,3 +1,11 @@
+## 1.12.0 - 2025-06-25 - Automated changelogs
+
+Minor:
+* Templating processor added [#1259](https://github.com/octodns/octodns/pull/1259)
+* Update geo-data, Türkiye [#1263](https://github.com/octodns/octodns/pull/1263)
+* New provider: Bunny DNS [#1262](https://github.com/octodns/octodns/pull/1262)
+* Correct type-o in name of AcmeManagingProcessor, backwards compatible alias in place [#1251](https://github.com/octodns/octodns/pull/1251)
+
 ## v1.11.0 - 2025-02-03 - Cleanup & deprecations with meta planning
 
 * Deprecation warning for Source.populate w/o the lenient param, to be removed
