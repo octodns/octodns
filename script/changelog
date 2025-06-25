@@ -40,6 +40,12 @@ def create(argv):
 See https://semver.org/ for more info''',
     )
     parser.add_argument(
+        '-a',
+        '--add',
+        default=False,
+        help='git add the newly created changelog entry',
+    )
+    parser.add_argument(
         'md',
         metavar='change-description-markdown',
         nargs='+',
@@ -62,6 +68,9 @@ and links.''',
     print(
         f'Created {filepath}, it can be further edited and should be committed to your branch.'
     )
+
+    if args.add:
+        run(['git', 'add', filepath])
 
 
 def check(argv):
