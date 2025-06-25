@@ -11,7 +11,7 @@ from subprocess import PIPE, run
 from sys import argv, exit, path, stderr
 from uuid import uuid4
 
-from yaml import safe_load_all
+from yaml import safe_load
 
 
 def create(argv):
@@ -40,6 +40,11 @@ def create(argv):
 See https://semver.org/ for more info''',
     )
     parser.add_argument(
+        '-p',
+        '--pr',
+        help='Manually override the PR number for the change, maintainer use only.',
+    )
+    parser.add_argument(
         '-a',
         '--add',
         default=False,
@@ -62,6 +67,9 @@ and links.''',
     with open(filepath, 'w') as fh:
         fh.write('---\ntype: ')
         fh.write(args.type)
+        if args.pr:
+            fh.write('\npr: ')
+            fh.write(args.pr)
         fh.write('\n---\n')
         fh.write(' '.join(args.md))
 
@@ -106,7 +114,7 @@ class _ChangeMeta:
     _pr_cache = None
 
     @classmethod
-    def get(cls, filepath):
+    def get(cls, filepath, data):
         if cls._pr_cache is None:
             result = run(
                 [
@@ -139,7 +147,13 @@ class _ChangeMeta:
         try:
             return cls._pr_cache[filepath]
         except KeyError:
-            return None, datetime(year=1970, month=1, day=1)
+            # couldn't find a PR with the changelog file in it
+            try:
+                # if a PR number was specified in the changelog entry use it
+                return data['pr'], datetime(year=1970, month=1, day=1)
+            except KeyError:
+                # otherwise just give up
+                return None, datetime(year=1970, month=1, day=1)
 
 
 def _get_changelogs():
@@ -150,8 +164,12 @@ def _get_changelogs():
             continue
         filepath = join(dirname, filename)
         with open(filepath) as fh:
-            data, md = safe_load_all(fh)
-        pr, time = _ChangeMeta.get(filepath)
+            pieces = fh.read().split('---\n')
+            data = safe_load(pieces[1])
+            md = pieces[2]
+            if md[-1] == '\n':
+                md = md[:-1]
+        pr, time = _ChangeMeta.get(filepath, data)
         if not pr:
             continue
         ret.append(
@@ -165,7 +183,7 @@ def _get_changelogs():
         )
 
     ordering = {'major': 0, 'minor': 1, 'patch': 2, 'none': 3, '': 3}
-    ret.sort(key=lambda c: (ordering[c['type']], c['time']))
+    ret.sort(key=lambda c: (ordering[c['type']], c['time']), reverse=True)
     return ret
 
 
@@ -204,6 +222,9 @@ def bump(argv):
         action='store_true',
         help='Write changelog update and bump version number',
     )
+    parser.add_argument(
+        'title', nargs='+', help='A short title/quip for the release title'
+    )
 
     args = parser.parse_args(argv)
 
@@ -224,7 +245,7 @@ def bump(argv):
     buf.write(' - ')
     buf.write(datetime.now().strftime('%Y-%m-%d'))
     buf.write(' - ')
-    buf.write(' '.join(argv[1:]))
+    buf.write(' '.join(args.title))
     buf.write('\n')
 
     current_type = None
@@ -234,6 +255,9 @@ def bump(argv):
             continue
 
         _type = changelog['type']
+        if _type == 'none':
+            # these aren't included in the listing
+            continue
         if _type != current_type:
             buf.write('\n')
             buf.write(_type.capitalize())
