@@ -41,6 +41,11 @@ class _TargetValue(str):
     def rdata_text(self):
         return self
 
+    def template(self, params):
+        if '{' not in self:
+            return self
+        return self.__class__(self.format(**params))
+
 
 #
 # much like _TargetValue, but geared towards multiple values
@@ -75,3 +80,8 @@ class _TargetsValue(str):
     @property
     def rdata_text(self):
         return self
+
+    def template(self, params):
+        if '{' not in self:
+            return self
+        return self.__class__(self.format(**params))

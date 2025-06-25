@@ -449,3 +449,36 @@ class TestRecordNaptr(TestCase):
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {'type': 'NAPTR', 'ttl': 600, 'value': v})
         self.assertEqual(['unrecognized flags "X"'], ctx.exception.reasons)
+
+
+class TestNaptrValue(TestCase):
+
+    def test_template(self):
+        value = NaptrValue(
+            {
+                'order': 10,
+                'preference': 11,
+                'flags': 'X',
+                'service': 'Y',
+                'regexp': 'Z',
+                'replacement': '.',
+            }
+        )
+        got = value.template({'needle': 42})
+        self.assertIs(value, got)
+
+        value = NaptrValue(
+            {
+                'order': 10,
+                'preference': 11,
+                'flags': 'X',
+                'service': 'Y{needle}',
+                'regexp': 'Z{needle}',
+                'replacement': '.{needle}',
+            }
+        )
+        got = value.template({'needle': 42})
+        self.assertIsNot(value, got)
+        self.assertEqual('Y42', got.service)
+        self.assertEqual('Z42', got.regexp)
+        self.assertEqual('.42', got.replacement)
