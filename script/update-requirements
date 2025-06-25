@@ -42,6 +42,18 @@ dev_frozen = sorted(
     [p for p in dev_frozen if not p.startswith(our_package_name)]
 )
 
+# special handling for click until python 3.9 is gone due to it dropping
+# support for active versions early
+i = [i for i, r in enumerate(dev_frozen) if r.startswith('click==')][0]
+dev_frozen = (
+    dev_frozen[:i]
+    + [
+        "click==8.1.8; python_version<'3.10'",
+        f"{dev_frozen[i]}; python_version>='3.10'",
+    ]
+    + dev_frozen[i + 1 :]
+)
+
 print_packages(frozen, 'frozen')
 print_packages(dev_frozen, 'dev_frozen')
 
