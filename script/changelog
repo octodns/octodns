@@ -115,6 +115,8 @@ class _ChangeMeta:
 
     @classmethod
     def get(cls, filepath, data):
+        if 'pr' in data:
+            return data['pr'], datetime(year=1970, month=1, day=1)
         if cls._pr_cache is None:
             result = run(
                 [
@@ -148,12 +150,7 @@ class _ChangeMeta:
             return cls._pr_cache[filepath]
         except KeyError:
             # couldn't find a PR with the changelog file in it
-            try:
-                # if a PR number was specified in the changelog entry use it
-                return data['pr'], datetime(year=1970, month=1, day=1)
-            except KeyError:
-                # otherwise just give up
-                return None, datetime(year=1970, month=1, day=1)
+            return None, datetime(year=1970, month=1, day=1)
 
 
 def _get_changelogs():
@@ -182,7 +179,7 @@ def _get_changelogs():
             }
         )
 
-    ordering = {'major': 0, 'minor': 1, 'patch': 2, 'none': 3, '': 3}
+    ordering = {'major': 3, 'minor': 2, 'patch': 1, 'none': 0, '': 0}
     ret.sort(key=lambda c: (ordering[c['type']], c['time']), reverse=True)
     return ret
 
