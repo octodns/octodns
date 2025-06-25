@@ -47,6 +47,7 @@ See https://semver.org/ for more info''',
     parser.add_argument(
         '-a',
         '--add',
+        action='store_true',
         default=False,
         help='git add the newly created changelog entry',
     )
