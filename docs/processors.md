@@ -39,7 +39,7 @@ Each domain can utilise the processor independently by adding the name of the de
 
 ```yaml
 zones:
-    "example.com":
+    example.com.:
         source:
             - yaml_config
         target:
