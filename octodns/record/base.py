@@ -42,6 +42,54 @@ class Record(EqualityTupleMixin):
         return cls._CLASSES
 
     @classmethod
+    def jsonschema(cls):
+        schema = {
+            # base Record requirements
+            'title': 'Record',
+            'type': 'object',
+            'properties': {
+                'type': {'type': 'string', 'enum': list(cls._CLASSES.keys())}
+            },
+        }
+
+        class_schemas = []
+        for _type, _class in cls._CLASSES.items():
+            _value_type = _class._value_type
+            if not hasattr(_value_type, 'jsonschema'):
+                # type does not support schema
+                continue
+            class_schemas.append(
+                {
+                    'if': {'properties': {'type': {'enum': [_type]}}},
+                    'then': {
+                        'title': _type,
+                        'properties': {
+                            'type': {},
+                            'ttl': {
+                                'type': 'integer',
+                                'minimum': 0,
+                                'maximum': 86400,
+                            },
+                            'value': _class._value_type.jsonschema(),
+                        },
+                        'required': ['ttl', 'type', 'value'],
+                        "unevaluatedProperties": False,
+                    },
+                }
+            )
+
+        if class_schemas:
+            schema['allOf'] = class_schemas
+
+        # validate(schema=schema, instance={
+        #    'type': 'A',
+        #    'ttl': 42,
+        #    'value': 'nope',
+        # }, format_checker=Draft202012Validator.FORMAT_CHECKER)
+
+        return schema
+
+    @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
         reasons = []
         try:

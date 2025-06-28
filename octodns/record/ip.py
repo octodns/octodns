@@ -5,6 +5,14 @@
 
 class _IpValue(str):
     @classmethod
+    def jsonschema(cls):
+        return {
+            'type': 'string',
+            #'pattern': cls._regex,
+            'format': cls._format,
+        }
+
+    @classmethod
     def parse_rdata_text(cls, value):
         return value
 

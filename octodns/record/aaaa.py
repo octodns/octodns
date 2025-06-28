@@ -13,6 +13,7 @@ from .ip import _IpValue
 class Ipv6Value(_IpValue):
     _address_type = _IPv6Address
     _address_name = 'IPv6'
+    _format = 'ipv6'
 
 
 Ipv6Address = Ipv6Value

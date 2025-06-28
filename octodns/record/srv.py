@@ -40,6 +40,35 @@ class SrvValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
+    def jsonschema(cls):
+        return {
+            'type': 'object',
+            'properties': {
+                'priority': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 9999999999,
+                },
+                'weight': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 9999999999,
+                },
+                'port': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 9999999999,
+                },
+                'target': {
+                    'type': 'string',
+                    # TODO: pattern FQDN
+                },
+            },
+            'required': ['priority', 'weight', 'port', 'target'],
+            "unevaluatedProperties": False,
+        }
+
+    @classmethod
     def validate(cls, data, _type):
         reasons = []
         for value in data:
