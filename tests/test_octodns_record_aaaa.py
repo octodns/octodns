@@ -87,14 +87,14 @@ class TestRecordAaaa(TestCase):
             Record.new(
                 self.zone, 'www', {'type': 'AAAA', 'ttl': 600, 'values': []}
             )
-        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(['[] should be non-empty'], ctx.exception.reasons)
 
         # missing value(s), None values
         with self.assertRaises(ValidationError) as ctx:
             Record.new(
                 self.zone, 'www', {'type': 'AAAA', 'ttl': 600, 'values': None}
             )
-        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(["None is not of type 'array'"], ctx.exception.reasons)
 
         # missing value(s) and empty value
         with self.assertRaises(ValidationError) as ctx:
@@ -104,7 +104,8 @@ class TestRecordAaaa(TestCase):
                 {'type': 'AAAA', 'ttl': 600, 'values': [None, '']},
             )
         self.assertEqual(
-            ['missing value(s)', 'empty value'], ctx.exception.reasons
+            ["None is not of type 'string'", "'' is not a 'ipv6'"],
+            ctx.exception.reasons,
         )
 
         # missing value(s), None value
@@ -112,20 +113,23 @@ class TestRecordAaaa(TestCase):
             Record.new(
                 self.zone, 'www', {'type': 'AAAA', 'ttl': 600, 'value': None}
             )
-        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(
+            ["None is not of type 'string'"], ctx.exception.reasons
+        )
 
         # empty value, empty string value
         with self.assertRaises(ValidationError) as ctx:
             Record.new(
                 self.zone, 'www', {'type': 'AAAA', 'ttl': 600, 'value': ''}
             )
-        self.assertEqual(['empty value'], ctx.exception.reasons)
+        self.assertEqual(["'' is not a 'ipv6'"], ctx.exception.reasons)
 
         # missing value(s) & ttl
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {'type': 'AAAA'})
         self.assertEqual(
-            ['missing ttl', 'missing value(s)'], ctx.exception.reasons
+            ["'ttl' is a required property", 'missing value(s)'],
+            ctx.exception.reasons,
         )
 
         # invalid IPv6 address
@@ -133,9 +137,7 @@ class TestRecordAaaa(TestCase):
             Record.new(
                 self.zone, '', {'type': 'AAAA', 'ttl': 600, 'value': 'hello'}
             )
-        self.assertEqual(
-            ['invalid IPv6 address "hello"'], ctx.exception.reasons
-        )
+        self.assertEqual(["'hello' is not a 'ipv6'"], ctx.exception.reasons)
 
         # invalid IPv6 addresses
         with self.assertRaises(ValidationError) as ctx:
@@ -145,7 +147,7 @@ class TestRecordAaaa(TestCase):
                 {'type': 'AAAA', 'ttl': 600, 'values': ['hello', 'goodbye']},
             )
         self.assertEqual(
-            ['invalid IPv6 address "hello"', 'invalid IPv6 address "goodbye"'],
+            ["'hello' is not a 'ipv6'", "'goodbye' is not a 'ipv6'"],
             ctx.exception.reasons,
         )
 
@@ -164,7 +166,7 @@ class TestRecordAaaa(TestCase):
                 },
             )
         self.assertEqual(
-            ['missing ttl', 'invalid IPv6 address "hello"'],
+            ["'hello' is not a 'ipv6'", "'ttl' is a required property"],
             ctx.exception.reasons,
         )
 
@@ -197,9 +199,7 @@ class TestRecordAaaa(TestCase):
             Record.new(
                 self.zone, '', {'type': 'AAAA', 'ttl': 600, 'value': 'hello'}
             )
-        self.assertEqual(
-            ['invalid IPv6 address "hello"'], ctx.exception.reasons
-        )
+        self.assertEqual(["'hello' is not a 'ipv6'"], ctx.exception.reasons)
         with self.assertRaises(ValidationError) as ctx:
             Record.new(
                 self.zone,
@@ -207,10 +207,7 @@ class TestRecordAaaa(TestCase):
                 {'type': 'AAAA', 'ttl': 600, 'values': ['1.2.3.4', '2.3.4.5']},
             )
         self.assertEqual(
-            [
-                'invalid IPv6 address "1.2.3.4"',
-                'invalid IPv6 address "2.3.4.5"',
-            ],
+            ["'1.2.3.4' is not a 'ipv6'", "'2.3.4.5' is not a 'ipv6'"],
             ctx.exception.reasons,
         )
 
@@ -222,6 +219,6 @@ class TestRecordAaaa(TestCase):
                 {'type': 'AAAA', 'ttl': 600, 'values': ['hello', 'goodbye']},
             )
         self.assertEqual(
-            ['invalid IPv6 address "hello"', 'invalid IPv6 address "goodbye"'],
+            ["'hello' is not a 'ipv6'", "'goodbye' is not a 'ipv6'"],
             ctx.exception.reasons,
         )

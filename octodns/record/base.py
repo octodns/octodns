@@ -6,6 +6,8 @@ from collections import defaultdict
 from copy import deepcopy
 from logging import getLogger
 
+from jsonschema import Draft202012Validator
+
 from ..context import ContextDict
 from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
@@ -24,6 +26,7 @@ class Record(EqualityTupleMixin):
     log = getLogger('Record')
 
     _CLASSES = {}
+    _SCHEMAS = {}
 
     @classmethod
     def register_type(cls, _class, _type=None):
@@ -37,57 +40,17 @@ class Record(EqualityTupleMixin):
             raise RecordException(msg)
         cls._CLASSES[_type] = _class
 
+        try:
+            cls._SCHEMAS[_type] = Draft202012Validator(
+                schema=_class.jsonschema(),
+                format_checker=Draft202012Validator.FORMAT_CHECKER,
+            )
+        except AttributeError:
+            pass
+
     @classmethod
     def registered_types(cls):
         return cls._CLASSES
-
-    @classmethod
-    def jsonschema(cls):
-        schema = {
-            # base Record requirements
-            'title': 'Record',
-            'type': 'object',
-            'properties': {
-                'type': {'type': 'string', 'enum': list(cls._CLASSES.keys())}
-            },
-        }
-
-        class_schemas = []
-        for _type, _class in cls._CLASSES.items():
-            _value_type = _class._value_type
-            if not hasattr(_value_type, 'jsonschema'):
-                # type does not support schema
-                continue
-            class_schemas.append(
-                {
-                    'if': {'properties': {'type': {'enum': [_type]}}},
-                    'then': {
-                        'title': _type,
-                        'properties': {
-                            'type': {},
-                            'ttl': {
-                                'type': 'integer',
-                                'minimum': 0,
-                                'maximum': 86400,
-                            },
-                            'value': _class._value_type.jsonschema(),
-                        },
-                        'required': ['ttl', 'type', 'value'],
-                        "unevaluatedProperties": False,
-                    },
-                }
-            )
-
-        if class_schemas:
-            schema['allOf'] = class_schemas
-
-        # validate(schema=schema, instance={
-        #    'type': 'A',
-        #    'ttl': 42,
-        #    'value': 'nope',
-        # }, format_checker=Draft202012Validator.FORMAT_CHECKER)
-
-        return schema
 
     @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
@@ -118,7 +81,20 @@ class Record(EqualityTupleMixin):
             if context:
                 msg += f', {context}'
             raise Exception(msg)
-        reasons.extend(_class.validate(name, fqdn, data))
+
+        validator = cls._SCHEMAS.get(_type)
+        if validator:
+            # new jsonschema based validaton
+            for e in validator.iter_errors(data):
+                message = e.message
+                for frm, to in e.schema.get('translations', {}).items():
+                    if frm in message:
+                        message = to
+                reasons.append(message)
+        else:
+            # original .validate
+            reasons.extend(_class.validate(name, fqdn, data))
+
         try:
             lenient |= data['octodns']['lenient']
         except KeyError:
@@ -347,6 +323,32 @@ class Record(EqualityTupleMixin):
 
 
 class ValuesMixin(object):
+
+    @classmethod
+    def jsonschema(cls):
+        value_type = cls._value_type
+        schema = (
+            value_type.jsonschema() if hasattr(value_type, 'jsonschema') else {}
+        )
+
+        return {
+            'title': cls._type,
+            'properties': {
+                # TODO: what schema validations make sense for octodns?
+                'octodns': {},
+                'type': {'const': cls._type},
+                'ttl': {'type': 'integer', 'minimum': 0, 'maximum': 86400},
+                'value': schema,
+                'values': {'type': 'array', 'items': schema, 'minItems': 1},
+            },
+            'required': ['ttl', 'type'],
+            'oneOf': [{'required': ['value']}, {'required': ['values']}],
+            'translations': {
+                'is not valid under any of the given schemas': 'missing value(s)'
+            },
+            "unevaluatedProperties": False,
+        }
+
     @classmethod
     def validate(cls, name, fqdn, data):
         reasons = super().validate(name, fqdn, data)
@@ -416,6 +418,25 @@ class ValuesMixin(object):
 
 
 class ValueMixin(object):
+
+    @classmethod
+    def jsonschema(cls):
+        value_type = cls._value_type
+        schema = (
+            value_type.jsonschema() if hasattr(value_type, 'jsonattr') else {}
+        )
+
+        return {
+            'title': cls._type,
+            'properties': {
+                'type': {},
+                'ttl': {'type': 'integer', 'minimum': 0, 'maximum': 86400},
+                'value': schema,
+            },
+            'required': ['ttl', 'type', 'value'],
+            "unevaluatedProperties": False,
+        }
+
     @classmethod
     def validate(cls, name, fqdn, data):
         reasons = super().validate(name, fqdn, data)
