@@ -1,0 +1,9 @@
+---
+one:
+  type: TXT
+  value: This has a semi-colon\; that is escaped.
+two:
+  type: TXT
+  values:
+    - This has a semi-colon too\; that is escaped.
+    - \;

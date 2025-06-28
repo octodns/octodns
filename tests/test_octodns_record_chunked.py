@@ -59,6 +59,12 @@ class TestChunkedValue(TestCase):
             _ChunkedValue.validate('hello; world', 'TXT'),
         )
 
+        # double escaped ;
+        self.assertEqual(
+            ['double escaped ; in "hello\\\\; world"'],
+            _ChunkedValue.validate('hello\\\\; world', 'TXT'),
+        )
+
         # non-asci
         self.assertEqual(
             ['non ASCII character in "v=spf1 –all"'],
