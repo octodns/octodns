@@ -4,6 +4,7 @@
 
 from collections import defaultdict
 from copy import deepcopy
+from itertools import chain
 from logging import getLogger
 
 from jsonschema import Draft202012Validator
@@ -26,7 +27,8 @@ class Record(EqualityTupleMixin):
     log = getLogger('Record')
 
     _CLASSES = {}
-    _SCHEMAS = {}
+    _NAME_SCHEMAS = {}
+    _DATA_VALIDATORS = {}
 
     @classmethod
     def register_type(cls, _class, _type=None):
@@ -40,13 +42,22 @@ class Record(EqualityTupleMixin):
             raise RecordException(msg)
         cls._CLASSES[_type] = _class
 
+        # see if there's a record schema
         try:
-            cls._SCHEMAS[_type] = Draft202012Validator(
-                schema=_class.jsonschema(),
+            cls._NAME_SCHEMAS[_type] = Draft202012Validator(
+                schema=_class.name_schema(),
                 format_checker=Draft202012Validator.FORMAT_CHECKER,
             )
         except AttributeError:
             pass
+
+        # see if there's a data schema
+        schema = _class.data_schema()
+        if schema:
+            cls._DATA_VALIDATORS[_type] = Draft202012Validator(
+                schema=schema,
+                format_checker=Draft202012Validator.FORMAT_CHECKER,
+            )
 
     @classmethod
     def registered_types(cls):
@@ -82,14 +93,19 @@ class Record(EqualityTupleMixin):
                 msg += f', {context}'
             raise Exception(msg)
 
-        validator = cls._SCHEMAS.get(_type)
-        if validator:
+        # name_validator = cls._NAME_VALIDATORS.get(_type)
+        data_validator = cls._DATA_VALIDATORS.get(_type)
+        if data_validator:
             # new jsonschema based validaton
-            for e in validator.iter_errors(data):
-                message = e.message
-                for frm, to in e.schema.get('translations', {}).items():
-                    if frm in message:
-                        message = to
+            for e in chain(iter([]), data_validator.iter_errors(data)):
+                # some of the jsonschema error messages are opaque and useless
+                # to end uses, this provides a mechinism to translate them.
+                try:
+                    translations = e.schema['translations']
+                    path = '.'.join(e.schema_path)
+                    message = translations[path]
+                except KeyError:
+                    message = e.message
                 reasons.append(message)
         else:
             # original .validate
@@ -107,6 +123,40 @@ class Record(EqualityTupleMixin):
             else:
                 raise ValidationError(fqdn, reasons, context)
         return _class(zone, name, data, source=source, context=context)
+
+    def TODO_remove(cls):
+        class_schemas = []
+        for _type, schema in cls._SCHEMAS.items():
+            class_schemas.append(
+                {
+                    'if': {'properties': {'type': {'enum': [_type]}}},
+                    'then': {
+                        'title': _type,
+                        'properties': {
+                            'type': {},
+                            'ttl': {
+                                'type': 'integer',
+                                'minimum': 0,
+                                'maximum': 86400,
+                            },
+                            'value': schema,
+                        },
+                        'required': ['ttl', 'type', 'value'],
+                        "unevaluatedProperties": False,
+                    },
+                }
+            )
+
+        if class_schemas:
+            schema['allOf'] = class_schemas
+
+        # validate(schema=schema, instance={
+        #    'type': 'A',
+        #    'ttl': 42,
+        #    'value': 'nope',
+        # }, format_checker=Draft202012Validator.FORMAT_CHECKER)
+
+        return schema
 
     @classmethod
     def validate(cls, name, fqdn, data):
@@ -325,28 +375,33 @@ class Record(EqualityTupleMixin):
 class ValuesMixin(object):
 
     @classmethod
-    def jsonschema(cls):
+    def data_schema(cls):
         value_type = cls._value_type
-        schema = (
-            value_type.jsonschema() if hasattr(value_type, 'jsonschema') else {}
-        )
+        if not hasattr(value_type, 'schema'):
+            return
 
         return {
+            '$schema': 'https://json-schema.org/draft/2020-12/schema',
+            '$defs': {'schema': value_type.schema()},
             'title': cls._type,
             'properties': {
                 # TODO: what schema validations make sense for octodns?
                 'octodns': {},
                 'type': {'const': cls._type},
                 'ttl': {'type': 'integer', 'minimum': 0, 'maximum': 86400},
-                'value': schema,
-                'values': {'type': 'array', 'items': schema, 'minItems': 1},
+                'value': {'$ref': '#/$defs/schema'},
+                'values': {
+                    'type': 'array',
+                    'items': {'$ref': '#/$defs/schema'},
+                    'minItems': 1,
+                },
             },
             'required': ['ttl', 'type'],
             'oneOf': [{'required': ['value']}, {'required': ['values']}],
-            'translations': {
-                'is not valid under any of the given schemas': 'missing value(s)'
-            },
             "unevaluatedProperties": False,
+            'translations': {
+                'oneOf': "one of 'value' or 'values' is a required property"
+            },
         }
 
     @classmethod
@@ -420,18 +475,20 @@ class ValuesMixin(object):
 class ValueMixin(object):
 
     @classmethod
-    def jsonschema(cls):
+    def data_schema(cls):
         value_type = cls._value_type
-        schema = (
-            value_type.jsonschema() if hasattr(value_type, 'jsonattr') else {}
-        )
+        if not hasattr(value_type, 'schema'):
+            return
 
         return {
+            '$schema': 'https://json-schema.org/draft/2020-12/schema',
             'title': cls._type,
             'properties': {
-                'type': {},
+                # TODO: what schema validations make sense for octodns?
+                'octodns': {},
+                'type': {'const': cls._type},
                 'ttl': {'type': 'integer', 'minimum': 0, 'maximum': 86400},
-                'value': schema,
+                'value': value_type.schema(),
             },
             'required': ['ttl', 'type', 'value'],
             "unevaluatedProperties": False,

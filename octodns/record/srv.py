@@ -40,7 +40,7 @@ class SrvValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def jsonschema(cls):
+    def schema(cls):
         return {
             'type': 'object',
             'properties': {
@@ -61,7 +61,8 @@ class SrvValue(EqualityTupleMixin, dict):
                 },
                 'target': {
                     'type': 'string',
-                    # TODO: pattern FQDN
+                    'format': 'idn-hostname',
+                    'pattern': r'\.$',
                 },
             },
             'required': ['priority', 'weight', 'port', 'target'],
@@ -185,6 +186,13 @@ class SrvRecord(ValuesMixin, Record):
     _type = 'SRV'
     _value_type = SrvValue
     _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
+
+    @classmethod
+    def name_schema(cls):
+        schema = super().jsonschema()
+        # we'll have _
+        schema['pattern'] = r'^(\*|_[^\.]+)\.[^\.]+'
+        return schema
 
     @classmethod
     def validate(cls, name, fqdn, data):

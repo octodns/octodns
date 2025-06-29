@@ -5,7 +5,7 @@
 
 class _IpValue(str):
     @classmethod
-    def jsonschema(cls):
+    def schema(cls):
         return {
             'type': 'string',
             #'pattern': cls._regex,

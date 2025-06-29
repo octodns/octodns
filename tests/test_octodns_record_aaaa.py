@@ -80,7 +80,10 @@ class TestRecordAaaa(TestCase):
         # missing value(s), no value or value
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {'type': 'AAAA', 'ttl': 600})
-        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(
+            ["one of 'value' or 'values' is a required property"],
+            ctx.exception.reasons,
+        )
 
         # missing value(s), empty values
         with self.assertRaises(ValidationError) as ctx:
@@ -128,7 +131,10 @@ class TestRecordAaaa(TestCase):
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {'type': 'AAAA'})
         self.assertEqual(
-            ["'ttl' is a required property", 'missing value(s)'],
+            [
+                "'ttl' is a required property",
+                "one of 'value' or 'values' is a required property",
+            ],
             ctx.exception.reasons,
         )
 
