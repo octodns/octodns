@@ -4,7 +4,10 @@
 
 from collections import defaultdict
 from copy import deepcopy
+from itertools import chain
 from logging import getLogger
+
+from jsonschema import Draft202012Validator
 
 from ..context import ContextDict
 from ..deprecation import deprecated
@@ -24,6 +27,7 @@ class Record(EqualityTupleMixin):
     log = getLogger('Record')
 
     _CLASSES = {}
+    _VALIDATORS = {}
 
     @classmethod
     def register_type(cls, _class, _type=None):
@@ -36,6 +40,16 @@ class Record(EqualityTupleMixin):
             msg = f'Type "{_type}" already registered by {module}.{name}'
             raise RecordException(msg)
         cls._CLASSES[_type] = _class
+
+        # see if there's a data schema
+        schema = _class.data_schema()
+        if schema:
+            # data_schema is a flag for using the updated validation mechinism,
+            # so use the schema based name validation as well
+            cls._VALIDATORS[_type] = (
+                Draft202012Validator(schema=_class.name_schema()),
+                Draft202012Validator(schema=schema),
+            )
 
     @classmethod
     def registered_types(cls):
@@ -70,7 +84,40 @@ class Record(EqualityTupleMixin):
             if context:
                 msg += f', {context}'
             raise Exception(msg)
-        reasons.extend(_class.validate(name, fqdn, data))
+
+        if _type in cls._VALIDATORS:
+            # TODO: this should live somewhere else
+            # new jsonschema based validaton
+            name_validator, data_validator = cls._VALIDATORS.get(_type)
+            errors = chain(
+                name_validator.iter_errors({'name': name, 'fqdn': fqdn}),
+                data_validator.iter_errors(data),
+            )
+            for error in errors:
+                print('error:')
+                # some of the jsonschema error messages are opaque and useless
+                # to end uses, this provides a mechinism to translate them.
+                schema = error.schema
+                print(f'schema={schema}')
+                try:
+                    message = schema['$error_message']
+                    print(f'$error_message: message={message}')
+                except KeyError:
+                    path = '.'.join(str(p) for p in error.schema_path)
+                    print(f'$error_messages: path={path}')
+                    try:
+                        messages = schema['$error_messages']
+                        print(f'$error_messages: messages={messages}')
+                        message = messages[path]
+                        print(f'$error_messages: message={message}')
+                    except KeyError:
+                        message = error.message
+                        print(f'error.messages: message={message}')
+                reasons.append(message)
+        else:
+            # original .validate
+            reasons.extend(_class.validate(name, fqdn, data))
+
         try:
             lenient |= data['octodns']['lenient']
         except KeyError:
@@ -83,6 +130,88 @@ class Record(EqualityTupleMixin):
             else:
                 raise ValidationError(fqdn, reasons, context)
         return _class(zone, name, data, source=source, context=context)
+
+    @classmethod
+    def name_schema(cls):
+        # https://github.com/ypcrts/fqdn?tab=readme-ov-file#ietf-specification
+        # https://datatracker.ietf.org/doc/html/rfc1034
+        # https://datatracker.ietf.org/doc/html/rfc1035
+        return {
+            'properties': {
+                'name': {'type': 'string'},
+                'fqdn': {'type': 'string', 'maxLength': 253},
+            },
+            'allOf': [
+                {
+                    'properties': {
+                        'name': {
+                            'not': {'const': '@'},
+                            # TODO: quote name
+                            '$error_message': 'invalid name "@", use "" instead',
+                        }
+                    }
+                },
+                {
+                    'properties': {
+                        'name': {
+                            'not': {'pattern': r'[^\.]{63}'},
+                            '$error_message': 'invalid label, too long, max is 63',
+                        }
+                    }
+                },
+                {
+                    'properties': {
+                        'name': {
+                            'not': {'pattern': r'\.\.'},
+                            '$error_message': 'invalid name, double `.`',
+                        }
+                    }
+                },
+                {
+                    'properties': {
+                        'name': {
+                            'not': {'pattern': r'\.$'},
+                            '$error_message': 'invalid name, double `.`',
+                        }
+                    }
+                },
+            ],
+            'required': ['name', 'fqdn'],
+        }
+
+    def TODO_remove(cls):
+        class_schemas = []
+        for _type, schema in cls._SCHEMAS.items():
+            class_schemas.append(
+                {
+                    'if': {'properties': {'type': {'enum': [_type]}}},
+                    'then': {
+                        'title': _type,
+                        'properties': {
+                            'type': {},
+                            'ttl': {
+                                'type': 'integer',
+                                'minimum': 0,
+                                'maximum': 86400,
+                            },
+                            'value': schema,
+                        },
+                        'required': ['ttl', 'type', 'value'],
+                        "unevaluatedProperties": False,
+                    },
+                }
+            )
+
+        if class_schemas:
+            schema['allOf'] = class_schemas
+
+        # validate(schema=schema, instance={
+        #    'type': 'A',
+        #    'ttl': 42,
+        #    'value': 'nope',
+        # }, format_checker=Draft202012Validator.FORMAT_CHECKER)
+
+        return schema
 
     @classmethod
     def validate(cls, name, fqdn, data):
@@ -299,6 +428,39 @@ class Record(EqualityTupleMixin):
 
 
 class ValuesMixin(object):
+
+    @classmethod
+    def data_schema(cls):
+        value_type = cls._value_type
+        if not hasattr(value_type, 'schema'):
+            return
+
+        return {
+            '$schema': 'https://json-schema.org/draft/2020-12/schema',
+            '$defs': {'schema': value_type.schema()},
+            'title': cls._type,
+            'properties': {
+                # TODO: what schema validations make sense for these
+                'octodns': {},
+                'geo': {},
+                'dynamic': {},
+                'type': {'const': cls._type},
+                'ttl': {'type': 'integer', 'minimum': 0, 'maximum': 86400},
+                'value': {'$ref': '#/$defs/schema'},
+                'values': {
+                    'type': 'array',
+                    'items': {'$ref': '#/$defs/schema'},
+                    'minItems': 1,
+                },
+            },
+            'required': ['ttl', 'type'],
+            'anyOf': [{'required': ['value']}, {'required': ['values']}],
+            "unevaluatedProperties": False,
+            '$error_messages': {
+                'anyOf': "one of 'value' or 'values' is a required property"
+            },
+        }
+
     @classmethod
     def validate(cls, name, fqdn, data):
         reasons = super().validate(name, fqdn, data)
@@ -368,6 +530,27 @@ class ValuesMixin(object):
 
 
 class ValueMixin(object):
+
+    @classmethod
+    def data_schema(cls):
+        value_type = cls._value_type
+        if not hasattr(value_type, 'schema'):
+            return
+
+        return {
+            '$schema': 'https://json-schema.org/draft/2020-12/schema',
+            'title': cls._type,
+            'properties': {
+                # TODO: what schema validations make sense for octodns?
+                'octodns': {},
+                'type': {'const': cls._type},
+                'ttl': {'type': 'integer', 'minimum': 0, 'maximum': 86400},
+                'value': value_type.schema(),
+            },
+            'required': ['ttl', 'type', 'value'],
+            "unevaluatedProperties": False,
+        }
+
     @classmethod
     def validate(cls, name, fqdn, data):
         reasons = super().validate(name, fqdn, data)
