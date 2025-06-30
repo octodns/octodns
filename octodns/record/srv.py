@@ -189,7 +189,7 @@ class SrvRecord(ValuesMixin, Record):
 
     @classmethod
     def name_schema(cls):
-        schema = super().jsonschema()
+        schema = super().name_schema()
         # we'll have _
         schema['pattern'] = r'^(\*|_[^\.]+)\.[^\.]+'
         return schema

@@ -583,12 +583,8 @@ class TestRecordValidation(TestCase):
                 self.zone, name, {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
             )
         reason = ctx.exception.reasons[0]
-        self.assertTrue(reason.startswith('invalid fqdn, "xxxx'))
-        self.assertTrue(
-            reason.endswith(
-                '.unit.tests." is too long at 254 chars, max is 253'
-            )
-        )
+        self.assertTrue(reason.startswith("'xxxx"))
+        self.assertTrue(reason.endswith("xxxx.unit.tests.' is too long"))
 
         # label length, DNS defines max as 63
         with self.assertRaises(ValidationError) as ctx:
@@ -597,10 +593,8 @@ class TestRecordValidation(TestCase):
             Record.new(
                 self.zone, name, {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
             )
-        reason = ctx.exception.reasons[0]
-        self.assertTrue(reason.startswith('invalid label, "xxxx'))
-        self.assertTrue(
-            reason.endswith('xxx" is too long at 64 chars, max is 63')
+        self.assertEqual(
+            'invalid label, too long, max is 63', ctx.exception.reasons[0]
         )
 
         with self.assertRaises(ValidationError) as ctx:
@@ -608,10 +602,8 @@ class TestRecordValidation(TestCase):
             Record.new(
                 self.zone, name, {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
             )
-        reason = ctx.exception.reasons[0]
-        self.assertTrue(reason.startswith('invalid label, "xxxx'))
-        self.assertTrue(
-            reason.endswith('xxx" is too long at 64 chars, max is 63')
+        self.assertEqual(
+            'invalid label, too long, max is 63', ctx.exception.reasons[0]
         )
 
         # should not raise with dots
@@ -634,12 +626,8 @@ class TestRecordValidation(TestCase):
                 {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'},
             )
         reason = ctx.exception.reasons[0]
-        self.assertTrue(reason.startswith('invalid fqdn, "déjà-vu'))
-        self.assertTrue(
-            reason.endswith(
-                '.unit.tests." is too long at 259' ' chars, max is 253'
-            )
-        )
+        self.assertTrue(reason.startswith("'xn--dj-vu-sqa5d.xxxxx"))
+        self.assertTrue(reason.endswith(".unit.tests.' is too long"))
 
         # same, but with ascii version of things
         plain = 'deja-vu'
@@ -673,11 +661,7 @@ class TestRecordValidation(TestCase):
                 'this.ends.with.a.dot.',
                 {'ttl': 301, 'type': 'A', 'value': '1.2.3.4'},
             )
-        reason = ctx.exception.reasons[0]
-        self.assertEqual(
-            'invalid name, double `.` in "this.ends.with.a.dot..unit.tests."',
-            reason,
-        )
+        self.assertEqual('invalid name, double `.`', ctx.exception.reasons[0])
 
         # double dots are not valid when eplxicit
         with self.assertRaises(ValidationError) as ctx:
@@ -686,11 +670,7 @@ class TestRecordValidation(TestCase):
                 'this.has.double..dots',
                 {'ttl': 301, 'type': 'A', 'value': '1.2.3.4'},
             )
-        reason = ctx.exception.reasons[0]
-        self.assertEqual(
-            'invalid name, double `.` in "this.has.double..dots.unit.tests."',
-            reason,
-        )
+        self.assertEqual('invalid name, double `.`', ctx.exception.reasons[0])
 
         # double dots in idna names
         with self.assertRaises(ValidationError) as ctx:
@@ -699,15 +679,14 @@ class TestRecordValidation(TestCase):
                 'niño.',
                 {'ttl': 301, 'type': 'A', 'value': '1.2.3.4'},
             )
-        reason = ctx.exception.reasons[0]
-        self.assertEqual(
-            'invalid name, double `.` in "niño..unit.tests."', reason
-        )
+        self.assertEqual('invalid name, double `.`', ctx.exception.reasons[0])
 
         # no ttl
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {'type': 'A', 'value': '1.2.3.4'})
-        self.assertEqual(['missing ttl'], ctx.exception.reasons)
+        self.assertEqual(
+            ["'ttl' is a required property"], ctx.exception.reasons
+        )
 
         # invalid ttl
         with self.assertRaises(ValidationError) as ctx:
@@ -715,7 +694,9 @@ class TestRecordValidation(TestCase):
                 self.zone, 'www', {'type': 'A', 'ttl': -1, 'value': '1.2.3.4'}
             )
         self.assertEqual('www.unit.tests.', ctx.exception.fqdn)
-        self.assertEqual(['invalid ttl'], ctx.exception.reasons)
+        self.assertEqual(
+            ['-1 is less than the minimum of 0'], ctx.exception.reasons
+        )
 
         # no exception if we're in lenient mode
         Record.new(

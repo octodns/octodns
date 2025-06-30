@@ -27,8 +27,7 @@ class Record(EqualityTupleMixin):
     log = getLogger('Record')
 
     _CLASSES = {}
-    _NAME_SCHEMAS = {}
-    _DATA_VALIDATORS = {}
+    _VALIDATORS = {}
 
     @classmethod
     def register_type(cls, _class, _type=None):
@@ -42,21 +41,14 @@ class Record(EqualityTupleMixin):
             raise RecordException(msg)
         cls._CLASSES[_type] = _class
 
-        # see if there's a record schema
-        try:
-            cls._NAME_SCHEMAS[_type] = Draft202012Validator(
-                schema=_class.name_schema(),
-                format_checker=Draft202012Validator.FORMAT_CHECKER,
-            )
-        except AttributeError:
-            pass
-
         # see if there's a data schema
         schema = _class.data_schema()
         if schema:
-            cls._DATA_VALIDATORS[_type] = Draft202012Validator(
-                schema=schema,
-                format_checker=Draft202012Validator.FORMAT_CHECKER,
+            # data_schema is a flag for using the updated validation mechinism,
+            # so use the schema based name validation as well
+            cls._VALIDATORS[_type] = (
+                Draft202012Validator(schema=_class.name_schema()),
+                Draft202012Validator(schema=schema),
             )
 
     @classmethod
@@ -93,19 +85,34 @@ class Record(EqualityTupleMixin):
                 msg += f', {context}'
             raise Exception(msg)
 
-        # name_validator = cls._NAME_VALIDATORS.get(_type)
-        data_validator = cls._DATA_VALIDATORS.get(_type)
-        if data_validator:
+        if _type in cls._VALIDATORS:
+            # TODO: this should live somewhere else
             # new jsonschema based validaton
-            for e in chain(iter([]), data_validator.iter_errors(data)):
+            name_validator, data_validator = cls._VALIDATORS.get(_type)
+            errors = chain(
+                name_validator.iter_errors({'name': name, 'fqdn': fqdn}),
+                data_validator.iter_errors(data),
+            )
+            for error in errors:
+                print('error:')
                 # some of the jsonschema error messages are opaque and useless
                 # to end uses, this provides a mechinism to translate them.
+                schema = error.schema
+                print(f'schema={schema}')
                 try:
-                    translations = e.schema['translations']
-                    path = '.'.join(e.schema_path)
-                    message = translations[path]
+                    message = schema['$error_message']
+                    print(f'$error_message: message={message}')
                 except KeyError:
-                    message = e.message
+                    path = '.'.join(str(p) for p in error.schema_path)
+                    print(f'$error_messages: path={path}')
+                    try:
+                        messages = schema['$error_messages']
+                        print(f'$error_messages: messages={messages}')
+                        message = messages[path]
+                        print(f'$error_messages: message={message}')
+                    except KeyError:
+                        message = error.message
+                        print(f'error.messages: message={message}')
                 reasons.append(message)
         else:
             # original .validate
@@ -123,6 +130,54 @@ class Record(EqualityTupleMixin):
             else:
                 raise ValidationError(fqdn, reasons, context)
         return _class(zone, name, data, source=source, context=context)
+
+    @classmethod
+    def name_schema(cls):
+        # https://github.com/ypcrts/fqdn?tab=readme-ov-file#ietf-specification
+        # https://datatracker.ietf.org/doc/html/rfc1034
+        # https://datatracker.ietf.org/doc/html/rfc1035
+        return {
+            'properties': {
+                'name': {'type': 'string'},
+                'fqdn': {'type': 'string', 'maxLength': 253},
+            },
+            'allOf': [
+                {
+                    'properties': {
+                        'name': {
+                            'not': {'const': '@'},
+                            # TODO: quote name
+                            '$error_message': 'invalid name "@", use "" instead',
+                        }
+                    }
+                },
+                {
+                    'properties': {
+                        'name': {
+                            'not': {'pattern': r'[^\.]{63}'},
+                            '$error_message': 'invalid label, too long, max is 63',
+                        }
+                    }
+                },
+                {
+                    'properties': {
+                        'name': {
+                            'not': {'pattern': r'\.\.'},
+                            '$error_message': 'invalid name, double `.`',
+                        }
+                    }
+                },
+                {
+                    'properties': {
+                        'name': {
+                            'not': {'pattern': r'\.$'},
+                            '$error_message': 'invalid name, double `.`',
+                        }
+                    }
+                },
+            ],
+            'required': ['name', 'fqdn'],
+        }
 
     def TODO_remove(cls):
         class_schemas = []
@@ -385,8 +440,10 @@ class ValuesMixin(object):
             '$defs': {'schema': value_type.schema()},
             'title': cls._type,
             'properties': {
-                # TODO: what schema validations make sense for octodns?
+                # TODO: what schema validations make sense for these
                 'octodns': {},
+                'geo': {},
+                'dynamic': {},
                 'type': {'const': cls._type},
                 'ttl': {'type': 'integer', 'minimum': 0, 'maximum': 86400},
                 'value': {'$ref': '#/$defs/schema'},
@@ -397,10 +454,10 @@ class ValuesMixin(object):
                 },
             },
             'required': ['ttl', 'type'],
-            'oneOf': [{'required': ['value']}, {'required': ['values']}],
+            'anyOf': [{'required': ['value']}, {'required': ['values']}],
             "unevaluatedProperties": False,
-            'translations': {
-                'oneOf': "one of 'value' or 'values' is a required property"
+            '$error_messages': {
+                'anyOf': "one of 'value' or 'values' is a required property"
             },
         }
 
