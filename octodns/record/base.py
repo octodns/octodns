@@ -94,25 +94,28 @@ class Record(EqualityTupleMixin):
                 data_validator.iter_errors(data),
             )
             for error in errors:
-                print('error:')
                 # some of the jsonschema error messages are opaque and useless
                 # to end uses, this provides a mechinism to translate them.
                 schema = error.schema
-                print(f'schema={schema}')
                 try:
                     message = schema['$error_message']
-                    print(f'$error_message: message={message}')
+                    cls.log.debug('new: $error_message=`%s`, instance=%s', message, error.instance)
                 except KeyError:
                     path = '.'.join(str(p) for p in error.schema_path)
-                    print(f'$error_messages: path={path}')
                     try:
                         messages = schema['$error_messages']
-                        print(f'$error_messages: messages={messages}')
+                        cls.log.debug('new: $error_messages=%s, path=%s', messages, path)
                         message = messages[path]
-                        print(f'$error_messages: message={message}')
+                        cls.log.debug('new: $error_message=`%sr`, instance=%s', message, error.instance)
+                        message = message.format(instance=error.instance)
+                        cls.log.debug('new: $error_message.format=`%sr`', message)
                     except KeyError:
                         message = error.message
-                        print(f'error.messages: message={message}')
+                        cls.log.debug('new: error.message=`%sr`', message)
+                else:
+                    instance = error.instance
+                    message = message, instance=error.instance)
+                    cls.log.debug('new: $error_message.format=`%s`', message)
                 reasons.append(message)
         else:
             # original .validate
@@ -139,7 +142,8 @@ class Record(EqualityTupleMixin):
         return {
             'properties': {
                 'name': {'type': 'string'},
-                'fqdn': {'type': 'string', 'maxLength': 253},
+                'fqdn': {'type': 'string', 'maxLength': 253,
+                         '$error_message': 'invalid fqdn, "{instance} is too long at {len(instance)}, max is 253"'},
             },
             'allOf': [
                 {

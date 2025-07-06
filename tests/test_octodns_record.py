@@ -583,8 +583,13 @@ class TestRecordValidation(TestCase):
                 self.zone, name, {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
             )
         reason = ctx.exception.reasons[0]
-        self.assertTrue(reason.startswith("'xxxx"))
-        self.assertTrue(reason.endswith("xxxx.unit.tests.' is too long"))
+        print(reason)
+        self.assertTrue(reason.startswith('invalid fqdn, "xxxx'))
+        self.assertTrue(
+            reason.endswith(
+                '.unit.tests." is too long at 254 chars, max is 253'
+            )
+        )
 
         # label length, DNS defines max as 63
         with self.assertRaises(ValidationError) as ctx:
