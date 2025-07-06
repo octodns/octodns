@@ -420,6 +420,11 @@ class YamlProvider(BaseProvider):
             if record.ttl == self.default_ttl:
                 # ttl is the default, we don't need to store it
                 del d['ttl']
+            if not self.escaped_semicolons and record._type in ('SPF', 'TXT'):
+                if 'value' in d:
+                    d['value'] = d['value'].replace('\\;', ';')
+                if 'values' in d:
+                    d['values'] = [v.replace('\\;', ';') for v in d['values']]
             # we want to output the utf-8 version of the name
             data[record.decoded_name].append(d)
 

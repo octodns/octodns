@@ -494,15 +494,33 @@ xn--dj-kia8a:
             two.values,
         )
 
-        zone = Zone('escaped.semis.', [])
+        escaped = Zone('escaped.semis.', [])
         with self.assertRaises(ValidationError) as ctx:
-            source.populate(zone)
+            source.populate(escaped)
         self.assertEqual(
             [
                 'double escaped ; in "This has a semi-colon\\\\; that is escaped."'
             ],
             ctx.exception.reasons,
         )
+
+        with TemporaryDirectory() as td:
+            # Add some subdirs to make sure that it can create them
+            target = YamlProvider(
+                'target', td.dirname, escaped_semicolons=False
+            )
+            yaml_file = join(td.dirname, 'unescaped.semis.yaml')
+
+            plan = target.plan(zone)
+            target.apply(plan)
+
+            with open(yaml_file) as fh:
+                content = fh.read()
+            self.assertTrue('value: This has a semi-colon; that' in content)
+            self.assertTrue(
+                "- This has a semi-colon too; that isn't escaped." in content
+            )
+            self.assertTrue('- ;' in content)
 
 
 class TestSplitYamlProvider(TestCase):
