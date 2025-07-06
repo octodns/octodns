@@ -273,6 +273,7 @@ The table below lists the providers octoDNS supports. They are maintained in the
 | [Akamai Edge DNS](https://www.akamai.com/products/edge-dns) | [octodns_edgedns](https://github.com/octodns/octodns-edgedns/) | |
 | [Amazon Route 53](https://aws.amazon.com/route53/) | [octodns_route53](https://github.com/octodns/octodns-route53) | |
 | [AutoDNS](https://www.internetx.com/autodns/) | [octodns_autodns](https://github.com/octodns/octodns-autodns) | |
+| [Azion DNS](https://www.azion.com/en/products/edge-dns/) | [octodns_azion](https://github.com/aziontech/octodns-azion/) | |
 | [Azure DNS](https://azure.microsoft.com/en-us/services/dns/) | [octodns_azure](https://github.com/octodns/octodns-azure/) | |
 | [BIND, AXFR, RFC-2136](https://www.isc.org/bind/) | [octodns_bind](https://github.com/octodns/octodns-bind/) | |
 | [Bunny DNS](https://bunny.net/dns/) | [octodns_bunny](https://github.com/Relkian/octodns-bunny) | |
