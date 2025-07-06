@@ -333,3 +333,24 @@ class TestRecordSshfp(TestCase):
                 },
             )
         self.assertEqual(['missing fingerprint'], ctx.exception.reasons)
+
+
+class TestSshFpValue(TestCase):
+
+    def test_template(self):
+        value = SshfpValue(
+            {'algorithm': 10, 'fingerprint_type': 11, 'fingerprint': 'abc123'}
+        )
+        got = value.template({'needle': 42})
+        self.assertIs(value, got)
+
+        value = SshfpValue(
+            {
+                'algorithm': 10,
+                'fingerprint_type': 11,
+                'fingerprint': 'ab{needle}c123',
+            }
+        )
+        got = value.template({'needle': 42})
+        self.assertIsNot(value, got)
+        self.assertEqual('ab42c123', got.fingerprint)

@@ -44,6 +44,10 @@ echo "Created clean room $TMP_DIR and archived $VERSION into it"
 
 (cd "$TMP_DIR" && python -m build --sdist --wheel)
 
+if [ ! -d dist ]; then
+  mkdir dist/
+fi
+
 cp $TMP_DIR/dist/*$VERSION.tar.gz $TMP_DIR/dist/*$VERSION*.whl dist/
 echo "Copied $TMP_DIR/dists into ./dist"
 

@@ -5,4 +5,4 @@ fqdn==1.5.1
 idna==3.10
 natsort==8.4.0
 python-dateutil==2.9.0.post0
-six==1.16.0
+six==1.17.0

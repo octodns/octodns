@@ -135,6 +135,13 @@ class SrvValue(EqualityTupleMixin, dict):
     def rdata_text(self):
         return f"{self.priority} {self.weight} {self.port} {self.target}"
 
+    def template(self, params):
+        if '{' not in self.target:
+            return self
+        new = self.__class__(self)
+        new.target = new.target.format(**params)
+        return new
+
     def __hash__(self):
         return hash(self.__repr__())
 

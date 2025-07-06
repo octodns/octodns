@@ -268,3 +268,16 @@ class TestRecordMx(TestCase):
             },
         )
         self.assertEqual('.', record.values[0].exchange)
+
+
+class TestMxValue(TestCase):
+
+    def test_template(self):
+        value = MxValue({'preference': 10, 'exchange': 'smtp1.'})
+        got = value.template({'needle': 42})
+        self.assertIs(value, got)
+
+        value = MxValue({'preference': 10, 'exchange': 'smtp1.{needle}.'})
+        got = value.template({'needle': 42})
+        self.assertIsNot(value, got)
+        self.assertEqual('smtp1.42.', got.exchange)

@@ -87,6 +87,13 @@ class CaaValue(EqualityTupleMixin, dict):
     def rdata_text(self):
         return f'{self.flags} {self.tag} {self.value}'
 
+    def template(self, params):
+        if '{' not in self.value:
+            return self
+        new = self.__class__(self)
+        new.value = new.value.format(**params)
+        return new
+
     def _equality_tuple(self):
         return (self.flags, self.tag, self.value)
 

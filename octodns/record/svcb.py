@@ -287,6 +287,14 @@ class SvcbValue(EqualityTupleMixin, dict):
                     params += f'={svcparamvalue}'
         return f'{self.svcpriority} {self.targetname}{params}'
 
+    def template(self, params):
+        if '{' not in self.targetname:
+            return self
+        new = self.__class__(self)
+        new.targetname = new.targetname.format(**params)
+        # TODO: what, if any of the svcparams should be templated
+        return new
+
     def __hash__(self):
         return hash(self.__repr__())
 

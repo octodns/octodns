@@ -82,3 +82,8 @@ class _ChunkedValue(str):
     @property
     def rdata_text(self):
         return self
+
+    def template(self, params):
+        if '{' not in self:
+            return self
+        return self.__class__(self.format(**params))

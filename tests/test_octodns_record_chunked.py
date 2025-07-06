@@ -121,3 +121,15 @@ class TestChunkedValue(TestCase):
 
         sc = self.SmallerChunkedMixin(['0123456789'])
         self.assertEqual(['"01234567" "89"'], sc.chunked_values)
+
+    def test_template(self):
+        s = 'this.has.no.templating.'
+        value = _ChunkedValue(s)
+        got = value.template({'needle': 42})
+        self.assertIs(value, got)
+
+        s = 'this.does.{needle}.have.templating.'
+        value = _ChunkedValue(s)
+        got = value.template({'needle': 42})
+        self.assertIsNot(value, got)
+        self.assertEqual('this.does.42.have.templating.', got)

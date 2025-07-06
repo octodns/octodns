@@ -138,6 +138,19 @@ class NaptrValue(EqualityTupleMixin, dict):
     def rdata_text(self):
         return f'{self.order} {self.preference} {self.flags} {self.service} {self.regexp} {self.replacement}'
 
+    def template(self, params):
+        if (
+            '{' not in self.service
+            and '{' not in self.regexp
+            and '{' not in self.replacement
+        ):
+            return self
+        new = self.__class__(self)
+        new.service = new.service.format(**params)
+        new.regexp = new.regexp.format(**params)
+        new.replacement = new.replacement.format(**params)
+        return new
+
     def __hash__(self):
         return hash(self.__repr__())
 
