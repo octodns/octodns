@@ -175,8 +175,8 @@ class NameAllowlistFilter(_NameBaseFilter, AllowsMixin):
           - route53
     '''
 
-    def __init__(self, name, allowlist):
-        super().__init__(name, allowlist)
+    def __init__(self, name, allowlist, **kwargs):
+        super().__init__(name, allowlist, **kwargs)
 
 
 class NameRejectlistFilter(_NameBaseFilter, RejectsMixin):
@@ -211,8 +211,8 @@ class NameRejectlistFilter(_NameBaseFilter, RejectsMixin):
           - route53
     '''
 
-    def __init__(self, name, rejectlist):
-        super().__init__(name, rejectlist)
+    def __init__(self, name, rejectlist, **kwargs):
+        super().__init__(name, rejectlist, **kwargs)
 
 
 class _ValueBaseFilter(_FilterProcessor):
@@ -284,9 +284,9 @@ class ValueAllowlistFilter(_ValueBaseFilter, AllowsMixin):
           - route53
     '''
 
-    def __init__(self, name, allowlist):
+    def __init__(self, name, allowlist, **kwargs):
         self.log = getLogger(f'ValueAllowlistFilter[{name}]')
-        super().__init__(name, allowlist)
+        super().__init__(name, allowlist, **kwargs)
 
 
 class ValueRejectlistFilter(_ValueBaseFilter, RejectsMixin):
@@ -321,9 +321,9 @@ class ValueRejectlistFilter(_ValueBaseFilter, RejectsMixin):
           - route53
     '''
 
-    def __init__(self, name, rejectlist):
+    def __init__(self, name, rejectlist, **kwargs):
         self.log = getLogger(f'ValueRejectlistFilter[{name}]')
-        super().__init__(name, rejectlist)
+        super().__init__(name, rejectlist, **kwargs)
 
 
 class _NetworkValueBaseFilter(BaseProcessor):
@@ -500,6 +500,7 @@ class ZoneNameFilter(_FilterProcessor):
         # If true a ValidationError will be throw when such records are
         # encouterd, if false the records will just be ignored/omitted.
         # (default: true)
+        # error: True
         # Optional param that can be set to False to leave the target zone
         # alone, thus allowing deletion of existing records
         # (default: true)
