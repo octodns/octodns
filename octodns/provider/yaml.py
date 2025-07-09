@@ -73,7 +73,7 @@ class YamlProvider(BaseProvider):
         # (optional, default False)
         disable_zonefile: false
 
-        # Whether or not ; in values, e.g. TXT, are escaped \\;
+        # Whether or not ; in values, e.g. TXT, need to be escaped \\;
         # (optional, default True)
         escaped_semicolons: True
 
