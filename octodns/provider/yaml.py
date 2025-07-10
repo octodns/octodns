@@ -73,6 +73,10 @@ class YamlProvider(BaseProvider):
         # (optional, default False)
         disable_zonefile: false
 
+        # Whether or not ; in values, e.g. TXT, need to be escaped \\;
+        # (optional, default True)
+        escaped_semicolons: True
+
     Note
     ----
 
@@ -192,13 +196,14 @@ class YamlProvider(BaseProvider):
         split_catchall=True,
         shared_filename=False,
         disable_zonefile=False,
+        escaped_semicolons=True,
         *args,
         **kwargs,
     ):
         klass = self.__class__.__name__
         self.log = logging.getLogger(f'{klass}[{id}]')
         self.log.debug(
-            '__init__: id=%s, directory=%s, default_ttl=%d, enforce_order=%d, order_mode=%s, populate_should_replace=%s, supports_root_ns=%s, split_extension=%s, split_catchall=%s, shared_filename=%s, disable_zonefile=%s',
+            '__init__: id=%s, directory=%s, default_ttl=%d, enforce_order=%d, order_mode=%s, populate_should_replace=%s, supports_root_ns=%s, split_extension=%s, split_catchall=%s, shared_filename=%s, disable_zonefile=%s, escaped_semicolons=%s',
             id,
             directory,
             default_ttl,
@@ -210,6 +215,7 @@ class YamlProvider(BaseProvider):
             split_catchall,
             shared_filename,
             disable_zonefile,
+            escaped_semicolons,
         )
         super().__init__(id, *args, **kwargs)
         self.directory = directory
@@ -222,6 +228,7 @@ class YamlProvider(BaseProvider):
         self.split_catchall = split_catchall
         self.shared_filename = shared_filename
         self.disable_zonefile = disable_zonefile
+        self.escaped_semicolons = escaped_semicolons
 
     def copy(self):
         kwargs = dict(self.__dict__)
@@ -326,6 +333,17 @@ class YamlProvider(BaseProvider):
                     if not isinstance(data, list):
                         data = [data]
                     for d in data:
+                        _type = d.get('type')
+                        if not self.escaped_semicolons and _type in (
+                            'SPF',
+                            'TXT',
+                        ):
+                            if 'value' in d:
+                                d['value'] = d['value'].replace(';', '\\;')
+                            if 'values' in d:
+                                d['values'] = [
+                                    v.replace(';', '\\;') for v in d['values']
+                                ]
                         if 'ttl' not in d:
                             d['ttl'] = self.default_ttl
                         record = Record.new(
@@ -402,6 +420,11 @@ class YamlProvider(BaseProvider):
             if record.ttl == self.default_ttl:
                 # ttl is the default, we don't need to store it
                 del d['ttl']
+            if not self.escaped_semicolons and record._type in ('SPF', 'TXT'):
+                if 'value' in d:
+                    d['value'] = d['value'].replace('\\;', ';')
+                if 'values' in d:
+                    d['values'] = [v.replace('\\;', ';') for v in d['values']]
             # we want to output the utf-8 version of the name
             data[record.decoded_name].append(d)
 

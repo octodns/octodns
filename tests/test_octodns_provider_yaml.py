@@ -15,6 +15,7 @@ from octodns.idna import idna_encode
 from octodns.provider import ProviderException
 from octodns.provider.yaml import SplitYamlProvider, YamlProvider
 from octodns.record import Create, NsValue, Record, ValuesMixin
+from octodns.record.exception import ValidationError
 from octodns.zone import SubzoneRecordException, Zone
 
 
@@ -470,6 +471,56 @@ xn--dj-kia8a:
             remove(utf8)
             # make sure that we get the idna one back
             self.assertEqual(idna, provider._zone_sources(zone))
+
+    def test_unescaped_semicolons(self):
+        source = YamlProvider(
+            'test',
+            join(dirname(__file__), 'config-semis'),
+            escaped_semicolons=False,
+        )
+
+        zone = Zone('unescaped.semis.', [])
+        source.populate(zone)
+        self.assertEqual(2, len(zone.records))
+        one = next(r for r in zone.records if r.name == 'one')
+        self.assertTrue(one)
+        self.assertEqual(
+            ["This has a semi-colon\\; that isn't escaped."], one.values
+        )
+        two = next(r for r in zone.records if r.name == 'two')
+        self.assertTrue(two)
+        self.assertEqual(
+            ["This has a semi-colon too\\; that isn't escaped.", '\\;'],
+            two.values,
+        )
+
+        escaped = Zone('escaped.semis.', [])
+        with self.assertRaises(ValidationError) as ctx:
+            source.populate(escaped)
+        self.assertEqual(
+            [
+                'double escaped ; in "This has a semi-colon\\\\; that is escaped."'
+            ],
+            ctx.exception.reasons,
+        )
+
+        with TemporaryDirectory() as td:
+            # Add some subdirs to make sure that it can create them
+            target = YamlProvider(
+                'target', td.dirname, escaped_semicolons=False
+            )
+            yaml_file = join(td.dirname, 'unescaped.semis.yaml')
+
+            plan = target.plan(zone)
+            target.apply(plan)
+
+            with open(yaml_file) as fh:
+                content = fh.read()
+            self.assertTrue('value: This has a semi-colon; that' in content)
+            self.assertTrue(
+                "- This has a semi-colon too; that isn't escaped." in content
+            )
+            self.assertTrue('- ;' in content)
 
 
 class TestSplitYamlProvider(TestCase):
