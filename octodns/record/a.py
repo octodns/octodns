@@ -13,6 +13,7 @@ from .ip import _IpValue
 class Ipv4Value(_IpValue):
     _address_type = _IPv4Address
     _address_name = 'IPv4'
+    _format = 'ipv4'
 
 
 Ipv4Address = Ipv4Value

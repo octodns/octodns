@@ -101,21 +101,24 @@ class TestRecordA(TestCase):
         # missing value(s), no value or value
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {'type': 'A', 'ttl': 600})
-        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(
+            ["one of 'value' or 'values' is a required property"],
+            ctx.exception.reasons,
+        )
 
         # missing value(s), empty values
         with self.assertRaises(ValidationError) as ctx:
             Record.new(
                 self.zone, 'www', {'type': 'A', 'ttl': 600, 'values': []}
             )
-        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(['[] should be non-empty'], ctx.exception.reasons)
 
         # missing value(s), None values
         with self.assertRaises(ValidationError) as ctx:
             Record.new(
                 self.zone, 'www', {'type': 'A', 'ttl': 600, 'values': None}
             )
-        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(["None is not of type 'array'"], ctx.exception.reasons)
 
         # missing value(s) and empty value
         with self.assertRaises(ValidationError) as ctx:
@@ -125,7 +128,8 @@ class TestRecordA(TestCase):
                 {'type': 'A', 'ttl': 600, 'values': [None, '']},
             )
         self.assertEqual(
-            ['missing value(s)', 'empty value'], ctx.exception.reasons
+            ["None is not of type 'string'", "'' is not a 'ipv4'"],
+            ctx.exception.reasons,
         )
 
         # missing value(s), None value
@@ -133,18 +137,24 @@ class TestRecordA(TestCase):
             Record.new(
                 self.zone, 'www', {'type': 'A', 'ttl': 600, 'value': None}
             )
-        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(
+            ["None is not of type 'string'"], ctx.exception.reasons
+        )
 
         # empty value, empty string value
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, 'www', {'type': 'A', 'ttl': 600, 'value': ''})
-        self.assertEqual(['empty value'], ctx.exception.reasons)
+        self.assertEqual(["'' is not a 'ipv4'"], ctx.exception.reasons)
 
         # missing value(s) & ttl
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {'type': 'A'})
         self.assertEqual(
-            ['missing ttl', 'missing value(s)'], ctx.exception.reasons
+            [
+                "'ttl' is a required property",
+                "one of 'value' or 'values' is a required property",
+            ],
+            ctx.exception.reasons,
         )
 
         # invalid ipv4 address
@@ -152,9 +162,7 @@ class TestRecordA(TestCase):
             Record.new(
                 self.zone, '', {'type': 'A', 'ttl': 600, 'value': 'hello'}
             )
-        self.assertEqual(
-            ['invalid IPv4 address "hello"'], ctx.exception.reasons
-        )
+        self.assertEqual(["'hello' is not a 'ipv4'"], ctx.exception.reasons)
 
         # invalid ipv4 addresses
         with self.assertRaises(ValidationError) as ctx:
@@ -164,7 +172,7 @@ class TestRecordA(TestCase):
                 {'type': 'A', 'ttl': 600, 'values': ['hello', 'goodbye']},
             )
         self.assertEqual(
-            ['invalid IPv4 address "hello"', 'invalid IPv4 address "goodbye"'],
+            ["'hello' is not a 'ipv4'", "'goodbye' is not a 'ipv4'"],
             ctx.exception.reasons,
         )
 
@@ -176,6 +184,6 @@ class TestRecordA(TestCase):
                 {'type': 'A', 'values': ['1.2.3.4', 'hello', '5.6.7.8']},
             )
         self.assertEqual(
-            ['missing ttl', 'invalid IPv4 address "hello"'],
+            ["'hello' is not a 'ipv4'", "'ttl' is a required property"],
             ctx.exception.reasons,
         )
