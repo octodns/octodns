@@ -63,6 +63,7 @@ setup(
             # https://black.readthedocs.io/en/stable/the_black_code_style/index.html#stability-policy
             'black>=24.3.0,<25.0.0',
             'build>=0.7.0',
+            'changelet',
             'isort>=5.11.5',
             'pycountry>=19.8.18',
             'pycountry-convert>=0.7.2',
