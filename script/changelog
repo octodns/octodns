@@ -9,10 +9,8 @@ if [ -z "$VENV_NAME" ]; then
 fi
 
 ACTIVATE="$VENV_NAME/bin/activate"
-if [ ! -f "$ACTIVATE" ]; then
-    echo "$ACTIVATE does not exist, run ./script/bootstrap" >&2
-    exit 1
+if [ -f "$ACTIVATE" ]; then
+    . "$ACTIVATE"
 fi
-. "$ACTIVATE"
 
 changelet "$@"
