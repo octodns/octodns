@@ -74,7 +74,7 @@ class TemplatingTest(TestCase):
             {
                 'type': 'CNAME',
                 'ttl': 42,
-                'value': '_cname.{zone_name}something.else.',
+                'value': '_cname.{zone_name}.something.else.',
             },
             lenient=True,
         )
@@ -107,7 +107,7 @@ class TemplatingTest(TestCase):
             {
                 'type': 'TXT',
                 'ttl': 42,
-                'value': 'There are {zone_num_records} record(s) in {zone_name}',
+                'value': 'There are {zone_num_records} record(s) in {zone_name}.',
             },
         )
         zone.add_record(txt)
@@ -156,7 +156,7 @@ class TemplatingTest(TestCase):
             {
                 'type': 'TXT',
                 'ttl': 42,
-                'value': 'There are {zone_num_records} record(s) in {zone_name}',
+                'value': 'There are {zone_num_records} record(s) in {zone_name}.',
             },
             source=record_source,
         )
@@ -172,15 +172,15 @@ class TemplatingTest(TestCase):
                     'record_name': 'txt',
                     'record_decoded_name': 'txt',
                     'record_encoded_name': 'txt',
-                    'record_fqdn': 'txt.unit.tests.',
-                    'record_decoded_fqdn': 'txt.unit.tests.',
-                    'record_encoded_fqdn': 'txt.unit.tests.',
+                    'record_fqdn': 'txt.unit.tests',
+                    'record_decoded_fqdn': 'txt.unit.tests',
+                    'record_encoded_fqdn': 'txt.unit.tests',
                     'record_type': 'TXT',
                     'record_ttl': 42,
                     'record_source_id': 'record',
-                    'zone_name': 'unit.tests.',
-                    'zone_decoded_name': 'unit.tests.',
-                    'zone_encoded_name': 'unit.tests.',
+                    'zone_name': 'unit.tests',
+                    'zone_decoded_name': 'unit.tests',
+                    'zone_encoded_name': 'unit.tests',
                     'zone_num_records': 1,
                     'zone_source_ids': 'record, other',
                 }

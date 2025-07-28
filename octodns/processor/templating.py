@@ -62,9 +62,9 @@ class Templating(BaseProcessor):
     def process_source_zone(self, desired, sources):
         sources = sources or []
         zone_params = {
-            'zone_name': desired.decoded_name,
-            'zone_decoded_name': desired.decoded_name,
-            'zone_encoded_name': desired.name,
+            'zone_name': desired.decoded_name.rstrip('.'),
+            'zone_decoded_name': desired.decoded_name.rstrip('.'),
+            'zone_encoded_name': desired.name.rstrip('.'),
             'zone_num_records': len(desired.records),
             'zone_source_ids': ', '.join(s.id for s in sources),
             # add any extra context provided to us, if the value is a callable
@@ -81,9 +81,9 @@ class Templating(BaseProcessor):
                 'record_name': record.decoded_name,
                 'record_decoded_name': record.decoded_name,
                 'record_encoded_name': record.name,
-                'record_fqdn': record.decoded_fqdn,
-                'record_decoded_fqdn': record.decoded_fqdn,
-                'record_encoded_fqdn': record.fqdn,
+                'record_fqdn': record.decoded_fqdn.rstrip('.'),
+                'record_decoded_fqdn': record.decoded_fqdn.rstrip('.'),
+                'record_encoded_fqdn': record.fqdn.rstrip('.'),
                 'record_type': record._type,
                 'record_ttl': record.ttl,
                 'record_source_id': record.source.id if record.source else None,
