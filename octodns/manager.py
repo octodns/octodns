@@ -4,6 +4,7 @@
 
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from hashlib import sha256
 from importlib import import_module
 from importlib.metadata import PackageNotFoundError
@@ -500,7 +501,7 @@ class Manager(object):
         if desired:
             # This is an alias zone, rather than populate it we'll copy the
             # records over from `desired`.
-            for _, records in desired._records.items():
+            for _, records in desired._pre_processing_records.items():
                 for record in records:
                     zone.add_record(record.copy(zone=zone), lenient=lenient)
         else:
@@ -519,6 +520,10 @@ class Manager(object):
                         source.__class__.__name__,
                     )
                     source.populate(zone)
+
+            # Frozen copy of zone records *before* going through processors so
+            # alias zone can copy them if needed.
+            zone._pre_processing_records = deepcopy(zone._records)
 
         for processor in processors:
             zone = processor.process_source_zone(zone, sources=sources)
@@ -690,6 +695,7 @@ class Manager(object):
                     raise ManagerException(msg)
 
                 aliased_zones[zone_name] = source_zone
+                self.log.info('sync:     alias_of=%s', source_zone)
                 continue
 
             lenient = config.get('lenient', False)
