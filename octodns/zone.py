@@ -90,12 +90,6 @@ class Zone(object):
         # node that we always store things with Record.name which will be idna
         # encoded thus we don't have to deal with idna/utf8 collisions
         self._records = defaultdict(set)
-        # Frozen copy of populated records set just before calling processors in
-        # Manager._populate_and_plan(), so alias zones can be populated with
-        # "raw" records instead of already processed records.
-        # This is especially useful for processors who changes records based on
-        # zone/records data like Templating processor.
-        self._pre_processing_records = None
         self._root_ns = None
         # optional leading . to match empty hostname
         # optional trailing . b/c some sources don't have it on their fqdn
