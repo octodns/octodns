@@ -59,19 +59,17 @@ class Templating(BaseProcessor):
         super().__init__(id, *args, **kwargs)
         self.context = context
 
-    def process_source_zone(self, desired, sources):
-        sources = sources or []
+    def process_source_and_target_zones(self, desired, existing, provider):
         zone_params = {
             'zone_name': desired.decoded_name,
             'zone_decoded_name': desired.decoded_name,
             'zone_encoded_name': desired.name,
             'zone_num_records': len(desired.records),
-            'zone_source_ids': ', '.join(s.id for s in sources),
             # add any extra context provided to us, if the value is a callable
             # object call it passing our params so that arbitrary dynamic
             # context can be added for use in formatting
             **{
-                k: (v(desired, sources) if callable(v) else v)
+                k: (v(desired, provider) if callable(v) else v)
                 for k, v in self.context.items()
             },
         }
@@ -110,4 +108,4 @@ class Templating(BaseProcessor):
                     new.value = new_value
                     desired.add_record(new, replace=True)
 
-        return desired
+        return desired, existing

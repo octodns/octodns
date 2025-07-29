@@ -3,7 +3,6 @@
 #
 
 from unittest import TestCase
-from unittest.mock import call, patch
 
 from octodns.processor.templating import Templating
 from octodns.record import Record, ValueMixin, ValuesMixin
@@ -91,7 +90,7 @@ class TemplatingTest(TestCase):
         )
         zone.add_record(noop)
 
-        got = templ.process_source_zone(zone, None)
+        got, _ = templ.process_source_and_target_zones(zone, None, None)
         cname = _find(got, 'cname')
         self.assertEqual('_cname.unit.tests.something.else.', cname.value)
         noop = _find(got, 'noop')
@@ -118,7 +117,7 @@ class TemplatingTest(TestCase):
         )
         zone.add_record(noop)
 
-        got = templ.process_source_zone(zone, None)
+        got, _ = templ.process_source_and_target_zones(zone, None, None)
         txt = _find(got, 'txt')
         self.assertEqual('There are 2 record(s) in unit.tests.', txt.values[0])
         noop = _find(got, 'noop')
@@ -138,55 +137,11 @@ class TemplatingTest(TestCase):
 
         # this should check for the template method on our values that don't
         # have one
-        templ.process_source_zone(zone, None)
+        templ.process_source_and_target_zones(zone, None, None)
         # and these should make sure that the value types were asked if they
         # have a template method
         self.assertEqual({'template'}, s.value._asked_for)
         self.assertEqual({'template'}, m.values[0]._asked_for)
-
-    @patch('octodns.record.TxtValue.template')
-    def test_params(self, mock_template):
-        templ = Templating('test')
-
-        zone = Zone('unit.tests.', [])
-        record_source = DummySource('record')
-        txt = Record.new(
-            zone,
-            'txt',
-            {
-                'type': 'TXT',
-                'ttl': 42,
-                'value': 'There are {zone_num_records} record(s) in {zone_name}',
-            },
-            source=record_source,
-        )
-        zone.add_record(txt)
-
-        templ.process_source_zone(
-            zone, sources=[record_source, DummySource('other')]
-        )
-        mock_template.assert_called_once()
-        self.assertEqual(
-            call(
-                {
-                    'record_name': 'txt',
-                    'record_decoded_name': 'txt',
-                    'record_encoded_name': 'txt',
-                    'record_fqdn': 'txt.unit.tests.',
-                    'record_decoded_fqdn': 'txt.unit.tests.',
-                    'record_encoded_fqdn': 'txt.unit.tests.',
-                    'record_type': 'TXT',
-                    'record_ttl': 42,
-                    'record_source_id': 'record',
-                    'zone_name': 'unit.tests.',
-                    'zone_decoded_name': 'unit.tests.',
-                    'zone_encoded_name': 'unit.tests.',
-                    'zone_num_records': 1,
-                    'zone_source_ids': 'record, other',
-                }
-            ),
-            mock_template.call_args,
-        )
 
     def test_context(self):
         templ = Templating(
@@ -197,7 +152,7 @@ class TemplatingTest(TestCase):
                 # dynamic
                 'the_date': lambda _, __: 'today',
                 # uses a param
-                'num_sources': lambda z, ss: len(ss),
+                'provider': lambda _, pro: pro,
             },
         )
 
@@ -211,17 +166,15 @@ class TemplatingTest(TestCase):
                 'values': (
                     'the_answer: {the_answer}',
                     'the_date: {the_date}',
-                    'num_sources: {num_sources}',
+                    'provider: {provider}',
                 ),
             },
         )
         zone.add_record(txt)
 
-        got = templ.process_source_zone(
-            zone, tuple(DummySource(i) for i in range(3))
-        )
+        got, _ = templ.process_source_and_target_zones(zone, None, 'da-pro')
         txt = _find(got, 'txt')
         self.assertEqual(3, len(txt.values))
-        self.assertEqual('num_sources: 3', txt.values[0])
+        self.assertEqual('provider: da-pro', txt.values[0])
         self.assertEqual('the_answer: 42', txt.values[1])
         self.assertEqual('the_date: today', txt.values[2])
