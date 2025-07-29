@@ -5,6 +5,14 @@
 from octodns.processor.base import BaseProcessor
 
 
+class TemplatingError(Exception):
+
+    def __init__(self, record, msg):
+        self.record = record
+        msg = f'Invalid record "{record.fqdn}", {msg}'
+        super().__init__(msg)
+
+
 class Templating(BaseProcessor):
     '''
     Record templating using python format. For simple records like TXT and CAA
@@ -76,7 +84,7 @@ class Templating(BaseProcessor):
             },
         }
 
-        def params(record):
+        def build_params(record):
             return {
                 'record_name': record.decoded_name,
                 'record_decoded_name': record.decoded_name,
@@ -90,12 +98,24 @@ class Templating(BaseProcessor):
                 **zone_params,
             }
 
+        def template(value, params, record):
+            try:
+                return value.template(params)
+            except KeyError as e:
+                raise TemplatingError(
+                    record,
+                    f'undefined template parameter "{e.args[0]}" in value',
+                ) from e
+
         for record in desired.records:
+            params = build_params(record)
             if hasattr(record, 'values'):
                 if record.values and not hasattr(record.values[0], 'template'):
                     # the (custom) value type does not support templating
                     continue
-                new_values = [v.template(params(record)) for v in record.values]
+                new_values = [
+                    template(v, params, record) for v in record.values
+                ]
                 if record.values != new_values:
                     new = record.copy()
                     new.values = new_values
@@ -104,7 +124,7 @@ class Templating(BaseProcessor):
                 if not hasattr(record.value, 'template'):
                     # the (custom) value type does not support templating
                     continue
-                new_value = record.value.template(params(record))
+                new_value = template(record.value, params, record)
                 if record.value != new_value:
                     new = record.copy()
                     new.value = new_value
