@@ -156,7 +156,7 @@ class TemplatingTest(TestCase):
             {
                 'type': 'TXT',
                 'ttl': 42,
-                'value': 'There are {zone_num_records} record(s) in {zone_name}.',
+                'value': 'There are {zone_num_records} record(s) in {zone_name}',
             },
             source=record_source,
         )

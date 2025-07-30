@@ -66,10 +66,17 @@ class Templating(BaseProcessor):
 
     def process_source_zone(self, desired, sources):
         sources = sources or []
+        zone_name = desired.decoded_name
+        zone_decoded_name = desired.decoded_name
+        zone_encoded_name = desired.name
+        if not self.trailing_dots:
+            zone_name = zone_name[:-1]
+            zone_decoded_name = zone_decoded_name[:-1]
+            zone_encoded_name = zone_encoded_name[:-1]
         zone_params = {
-            'zone_name': desired.decoded_name,
-            'zone_decoded_name': desired.decoded_name,
-            'zone_encoded_name': desired.name,
+            'zone_name': zone_name,
+            'zone_decoded_name': zone_decoded_name,
+            'zone_encoded_name': zone_encoded_name,
             'zone_num_records': len(desired.records),
             'zone_source_ids': ', '.join(s.id for s in sources),
             # add any extra context provided to us, if the value is a callable
@@ -80,33 +87,27 @@ class Templating(BaseProcessor):
                 for k, v in self.context.items()
             },
         }
-        if not self.trailing_dots:
-            zone_params = zone_params | {
-                'zone_name': desired.decoded_name[:-1],
-                'zone_decoded_name': desired.decoded_name[:-1],
-                'zone_encoded_name': desired.name[:-1],
-            }
 
         def params(record):
-            record_params = {
+            record_fqdn = record.decoded_fqdn
+            record_decoded_fqdn = record.decoded_fqdn
+            record_encoded_fqdn = record.fqdn
+            if not self.trailing_dots:
+                record_fqdn = record_fqdn[:-1]
+                record_decoded_fqdn = record_decoded_fqdn[:-1]
+                record_encoded_fqdn = record_encoded_fqdn[:-1]
+            return {
                 'record_name': record.decoded_name,
                 'record_decoded_name': record.decoded_name,
                 'record_encoded_name': record.name,
-                'record_fqdn': record.decoded_fqdn,
-                'record_decoded_fqdn': record.decoded_fqdn,
-                'record_encoded_fqdn': record.fqdn,
+                'record_fqdn': record_fqdn,
+                'record_decoded_fqdn': record_decoded_fqdn,
+                'record_encoded_fqdn': record_encoded_fqdn,
                 'record_type': record._type,
                 'record_ttl': record.ttl,
                 'record_source_id': record.source.id if record.source else None,
                 **zone_params,
             }
-            if not self.trailing_dots:
-                record_params = record_params | {
-                    'record_fqdn': record.decoded_fqdn[:-1],
-                    'record_decoded_fqdn': record.decoded_fqdn[:-1],
-                    'record_encoded_fqdn': record.fqdn[:-1],
-                }
-            return record_params
 
         for record in desired.records:
             if hasattr(record, 'values'):
