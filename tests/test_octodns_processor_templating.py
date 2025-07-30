@@ -3,8 +3,9 @@
 #
 
 from unittest import TestCase
+from unittest.mock import call, patch
 
-from octodns.processor.templating import Templating
+from octodns.processor.templating import Templating, TemplatingError
 from octodns.record import Record, ValueMixin, ValuesMixin
 from octodns.zone import Zone
 
@@ -143,6 +144,47 @@ class TemplatingTest(TestCase):
         self.assertEqual({'template'}, s.value._asked_for)
         self.assertEqual({'template'}, m.values[0]._asked_for)
 
+    @patch('octodns.record.TxtValue.template')
+    def test_trailing_dots(self, mock_template):
+        templ = Templating('test', trailing_dots=False)
+
+        zone = Zone('unit.tests.', [])
+        record_source = DummySource('record')
+        txt = Record.new(
+            zone,
+            'txt',
+            {
+                'type': 'TXT',
+                'ttl': 42,
+                'value': 'There are {zone_num_records} record(s) in {zone_name}.',
+            },
+            source=record_source,
+        )
+        zone.add_record(txt)
+
+        templ.process_source_and_target_zones(zone, None, None)
+        mock_template.assert_called_once()
+        self.assertEqual(
+            call(
+                {
+                    'record_name': 'txt',
+                    'record_decoded_name': 'txt',
+                    'record_encoded_name': 'txt',
+                    'record_fqdn': 'txt.unit.tests',
+                    'record_decoded_fqdn': 'txt.unit.tests',
+                    'record_encoded_fqdn': 'txt.unit.tests',
+                    'record_source_id': 'record',
+                    'record_type': 'TXT',
+                    'record_ttl': 42,
+                    'zone_name': 'unit.tests',
+                    'zone_decoded_name': 'unit.tests',
+                    'zone_encoded_name': 'unit.tests',
+                    'zone_num_records': 1,
+                }
+            ),
+            mock_template.call_args,
+        )
+
     def test_context(self):
         templ = Templating(
             'test',
@@ -178,3 +220,41 @@ class TemplatingTest(TestCase):
         self.assertEqual('provider: da-pro', txt.values[0])
         self.assertEqual('the_answer: 42', txt.values[1])
         self.assertEqual('the_date: today', txt.values[2])
+
+    def test_bad_key(self):
+        templ = Templating('test')
+
+        zone = Zone('unit.tests.', [])
+        txt = Record.new(
+            zone,
+            'txt',
+            {'type': 'TXT', 'ttl': 42, 'value': 'this {bad} does not exist'},
+        )
+        zone.add_record(txt)
+
+        with self.assertRaises(TemplatingError) as ctx:
+            templ.process_source_and_target_zones(zone, None, None)
+        self.assertEqual(
+            'Invalid record "txt.unit.tests.", undefined template parameter "bad" in value',
+            str(ctx.exception),
+        )
+
+        zone = Zone('unit.tests.', [])
+        cname = Record.new(
+            zone,
+            'cname',
+            {
+                'type': 'CNAME',
+                'ttl': 42,
+                'value': '_cname.{bad}something.else.',
+            },
+            lenient=True,
+        )
+        zone.add_record(cname)
+
+        with self.assertRaises(TemplatingError) as ctx:
+            templ.process_source_and_target_zones(zone, None, None)
+        self.assertEqual(
+            'Invalid record "cname.unit.tests.", undefined template parameter "bad" in value',
+            str(ctx.exception),
+        )
