@@ -5,7 +5,7 @@
 from unittest import TestCase
 from unittest.mock import call, patch
 
-from octodns.processor.templating import Templating
+from octodns.processor.templating import Templating, TemplatingError
 from octodns.record import Record, ValueMixin, ValuesMixin
 from octodns.zone import Zone
 
@@ -269,3 +269,45 @@ class TemplatingTest(TestCase):
         self.assertEqual('num_sources: 3', txt.values[0])
         self.assertEqual('the_answer: 42', txt.values[1])
         self.assertEqual('the_date: today', txt.values[2])
+
+    def test_bad_key(self):
+        templ = Templating('test')
+
+        zone = Zone('unit.tests.', [])
+        txt = Record.new(
+            zone,
+            'txt',
+            {'type': 'TXT', 'ttl': 42, 'value': 'this {bad} does not exist'},
+        )
+        zone.add_record(txt)
+
+        with self.assertRaises(TemplatingError) as ctx:
+            templ.process_source_zone(
+                zone, tuple(DummySource(i) for i in range(3))
+            )
+        self.assertEqual(
+            'Invalid record "txt.unit.tests.", undefined template parameter "bad" in value',
+            str(ctx.exception),
+        )
+
+        zone = Zone('unit.tests.', [])
+        cname = Record.new(
+            zone,
+            'cname',
+            {
+                'type': 'CNAME',
+                'ttl': 42,
+                'value': '_cname.{bad}something.else.',
+            },
+            lenient=True,
+        )
+        zone.add_record(cname)
+
+        with self.assertRaises(TemplatingError) as ctx:
+            templ.process_source_zone(
+                zone, tuple(DummySource(i) for i in range(3))
+            )
+        self.assertEqual(
+            'Invalid record "cname.unit.tests.", undefined template parameter "bad" in value',
+            str(ctx.exception),
+        )
