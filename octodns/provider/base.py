@@ -16,21 +16,27 @@ class BaseProvider(BaseSource):
         update_pcent_threshold=Plan.MAX_SAFE_UPDATE_PCENT,
         delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT,
         strict_supports=True,
+        root_ns_warnings=True,
     ):
         super().__init__(id)
         self.log.debug(
             '__init__: id=%s, apply_disabled=%s, '
             'update_pcent_threshold=%.2f, '
-            'delete_pcent_threshold=%.2f',
+            'delete_pcent_threshold=%.2f, '
+            'strict_supports=%s, '
+            'root_ns_warnings=%s',
             id,
             apply_disabled,
             update_pcent_threshold,
             delete_pcent_threshold,
+            strict_supports,
+            root_ns_warnings,
         )
         self.apply_disabled = apply_disabled
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
         self.strict_supports = strict_supports
+        self.root_ns_warnings = root_ns_warnings
 
     def _process_desired_zone(self, desired):
         '''
@@ -151,7 +157,7 @@ class BaseProvider(BaseSource):
 
         record = desired.root_ns
         if self.SUPPORTS_ROOT_NS:
-            if not record:
+            if not record and self.root_ns_warnings:
                 self.log.warning(
                     'root NS record supported, but no record '
                     'is configured for %s',
@@ -162,7 +168,10 @@ class BaseProvider(BaseSource):
                 # we can't manage root NS records, get rid of it
                 msg = f'root NS record not supported for {record.fqdn}'
                 fallback = 'ignoring it'
-                self.supports_warn_or_except(msg, fallback)
+                if self.strict_supports:
+                    raise SupportsException(f'{self.id}: {msg}')
+                if self.root_ns_warnings:
+                    self.log.warning('%s; %s', msg, fallback)
                 desired.remove_record(record)
 
         return desired
@@ -191,10 +200,11 @@ class BaseProvider(BaseSource):
         if existing_root_ns and (
             not self.SUPPORTS_ROOT_NS or not desired.root_ns
         ):
-            self.log.info(
-                'root NS record in existing, but not supported or '
-                'not configured; ignoring it'
-            )
+            if self.root_ns_warnings:
+                self.log.info(
+                    'root NS record in existing, but not supported or '
+                    'not configured; ignoring it'
+                )
             existing.remove_record(existing_root_ns)
 
         return existing

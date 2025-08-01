@@ -29,12 +29,14 @@ class HelperProvider(BaseProvider):
         extra_changes=[],
         apply_disabled=False,
         include_change_callback=None,
+        root_ns_warnings=True,
     ):
         self.__extra_changes = extra_changes
         self.apply_disabled = apply_disabled
         self.include_change_callback = include_change_callback
         self.update_pcent_threshold = Plan.MAX_SAFE_UPDATE_PCENT
         self.delete_pcent_threshold = Plan.MAX_SAFE_DELETE_PCENT
+        self.root_ns_warnings = root_ns_warnings
 
     def populate(self, zone, target=False, lenient=False):
         return True
@@ -696,6 +698,101 @@ class TestBaseProvider(TestCase):
             ).raise_if_unsafe()
 
         self.assertTrue('Too many deletes' in str(ctx.exception))
+
+    def test_root_ns_warnings(self):
+        class PopulateProvider(HelperProvider):
+            SUPPORTS_ROOT_NS = False
+
+            def populate(self, zone, target=False, lenient=False):
+                zone.add_record(
+                    Record.new(
+                        zone,
+                        '',
+                        {'ttl': 60, 'type': 'NS', 'value': 'dns1.octo.dns.'},
+                    ),
+                    lenient=lenient,
+                )
+
+        provider = HelperProvider([])
+        zone = Zone('unit.tests.', [])
+
+        # Provider supports root NS, but no root NS records configured in zone.
+        provider.SUPPORTS_ROOT_NS = True
+        with self.assertLogs('HelperProvider', level='DEBUG') as lc:
+            provider.plan(zone)
+        self.assertIn(
+            'WARNING:HelperProvider:root NS record supported, but no record is '
+            'configured for unit.tests.',
+            lc.output,
+        )
+
+        # No warning logged if "root_ns_warnings" is disabled.
+        provider.root_ns_warnings = False
+        with self.assertLogs('HelperProvider', level='DEBUG') as lc:
+            provider.plan(zone)
+        self.assertNotIn(
+            'WARNING:HelperProvider:root NS record supported, but no record is '
+            'configured for unit.tests.',
+            lc.output,
+        )
+
+        # Provider doesn't supports root NS, but root NS records are configured
+        # in zone.
+        provider.SUPPORTS_ROOT_NS = False
+        provider.root_ns_warnings = True
+        zone.add_record(
+            Record.new(
+                zone, '', {'ttl': 60, 'type': 'NS', 'value': 'ns1.octo.dns.'}
+            )
+        )
+        with self.assertLogs('HelperProvider', level='DEBUG') as lc:
+            provider.plan(zone)
+        self.assertIn(
+            'WARNING:HelperProvider:root NS record not supported for '
+            'unit.tests.; ignoring it',
+            lc.output,
+        )
+
+        # No warning logged if "root_ns_warnings" is disabled.
+        provider.root_ns_warnings = False
+        with self.assertLogs('HelperProvider', level='DEBUG') as lc:
+            provider.plan(zone)
+        self.assertNotIn(
+            'WARNING:HelperProvider:root NS record not supported for '
+            'unit.tests.; ignoring it',
+            lc.output,
+        )
+
+        # When "strict_supports" is enabled, a SupportsException is raised
+        # instead.
+        provider.strict_supports = True
+        with self.assertRaises(SupportsException) as ctx:
+            provider.plan(zone)
+        self.assertEqual(
+            'test: root NS record not supported for unit.tests.',
+            str(ctx.exception),
+        )
+
+        # Root NS records are present in existing zone, but provider doesn't
+        # supports root NS.
+        provider = PopulateProvider([])
+        with self.assertLogs('HelperProvider', level='DEBUG') as lc:
+            provider.plan(zone)
+        self.assertIn(
+            'INFO:HelperProvider:root NS record in existing, but not supported '
+            'or not configured; ignoring it',
+            lc.output,
+        )
+
+        # No warning logged if "root_ns_warnings" is disabled.
+        provider.root_ns_warnings = False
+        with self.assertLogs('HelperProvider', level='DEBUG') as lc:
+            provider.plan(zone)
+        self.assertNotIn(
+            'INFO:HelperProvider:root NS record in existing, but not supported '
+            'or not configured; ignoring it',
+            lc.output,
+        )
 
     def test_supports_warn_or_except(self):
         class MinimalProvider(BaseProvider):
