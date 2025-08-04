@@ -40,11 +40,25 @@ with TemporaryDirectory() as tmpdir:
         p, v = pv.split('==')
         versions[p] = (v,)
 
-# special handling for click until python 3.9 is gone due to it dropping
-# support for active versions early
+
+# special handling for older python versions due to libraries dropping support
+# early
+versions['alabaster'] = (
+    "0.7.16; python_version<'3.10'",
+    f"{versions['alabaster'][0]}; python_version>='3.10'",
+)
 versions['click'] = (
     "8.1.8; python_version<'3.10'",
     f"{versions['click'][0]}; python_version>='3.10'",
+)
+versions['myst-parser'] = (
+    "3.0.1; python_version<'3.10'",
+    f"{versions['myst-parser'][0]}; python_version>='3.10'",
+)
+versions['Sphinx'] = (
+    "7.4.7; python_version=='3.9'",
+    "8.1.3; python_version=='3.10'",
+    f"{versions['Sphinx'][0]}; python_version>='3.11'",
 )
 
 

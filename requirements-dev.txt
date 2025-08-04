@@ -10,7 +10,7 @@ charset-normalizer==3.4.2
 click==8.1.8; python_version<'3.10'
 click==8.2.1; python_version>='3.10'
 cmarkgfm==2024.11.20
-coverage==7.10.1
+coverage==7.10.2
 cryptography==45.0.5
 docutils==0.21.2
 id==1.5.0
