@@ -29,4 +29,6 @@ echo "## formatting ############################################################
 script/format --check || (echo "Formatting check failed, run ./script/format" && exit 1)
 echo "## tests/coverage ##############################################################"
 script/coverage
+echo "## documentation ###############################################################"
+script/generate-docs
 echo "## complete ####################################################################"

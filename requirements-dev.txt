@@ -2,15 +2,15 @@
 Pygments==2.19.2
 SecretStorage==3.3.3
 black==24.10.0
-build==1.2.2.post1
-certifi==2025.7.14
+build==1.3.0
+certifi==2025.8.3
 cffi==1.17.1
 changelet==0.1.0
 charset-normalizer==3.4.2
 click==8.1.8; python_version<'3.10'
 click==8.2.1; python_version>='3.10'
 cmarkgfm==2024.11.20
-coverage==7.10.0
+coverage==7.10.2
 cryptography==45.0.5
 docutils==0.21.2
 id==1.5.0
@@ -31,19 +31,19 @@ pathspec==0.12.1
 platformdirs==4.3.8
 pluggy==1.6.0
 pprintpp==0.4.0
-pycountry-convert==0.7.2
 pycountry==24.6.1
+pycountry-convert==0.7.2
 pycparser==2.22
 pyflakes==3.4.0
 pyproject_hooks==1.2.0
+pytest==8.4.1
 pytest-cov==6.2.1
 pytest-mock==3.14.1
-pytest==8.4.1
 pytest_network==0.0.1
 readme_renderer==44.0
 repoze.lru==0.7
-requests-toolbelt==1.0.0
 requests==2.32.4
+requests-toolbelt==1.0.0
 rfc3986==2.0.0
 rich==14.1.0
 semver==3.0.4
