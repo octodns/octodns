@@ -1,4 +1,4 @@
-## Migrating to octoDNS via octodns-dump
+# Migrating to octoDNS via octodns-dump
 
 Importing an existing DNS setup into octoDNS management is a very
 straightforward process and can generally be completed in minutes.

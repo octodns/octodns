@@ -8,26 +8,25 @@ end-before: '## Table of Contents'
 
 ______________________________________________________________________
 
-## Indices and tables
-
-- {ref}`genindex`
-- {ref}`modindex`
-
-### Project info
-
-- [License](info/license.md)
-- [Changelog](info/changelog.md)
-
-______________________________________________________________________
-
 ## User documentation
+
+```{toctree}
+:caption: Getting Started:
+:maxdepth: 1
+
+examples/basic/README.md
+examples/migrating-to-octodns/README.md
+records.md
+```
 
 ```{toctree}
 :caption: Guides:
 :maxdepth: 1
 :glob:
 
-*
+[a-q]*
+#records.md
+[s-z]*
 ```
 
 ______________________________________________________________________
@@ -75,3 +74,15 @@ modules/*
 modules/cmds/*
 modules/secret/*
 ```
+
+______________________________________________________________________
+
+## Indices and tables
+
+- {ref}`genindex`
+- {ref}`modindex`
+
+### Project info
+
+- [License](info/license.md)
+- [Changelog](info/changelog.md)
