@@ -18,41 +18,38 @@ class IdnaError(Exception):
         super().__init__(str(idna_error))
 
 
+def encode(s):
+    if s.isascii():
+        return s
+    # there's non-ascii char we need to try and idna deocde it
+    return _encode(s).decode('utf-8')
+
+
 def idna_encode(name):
-    # Based on https://github.com/psf/requests/pull/3695/files
-    # #diff-0debbb2447ce5debf2872cb0e17b18babe3566e9d9900739e8581b355bd513f7R39
-    name = name.lower()
+    # based on urllib3's util.url._normalize_host
+    # https://github.com/urllib3/urllib3/blob/6e0e96c76fedec21a7189342f59cd39a1d8e7086/src/urllib3/util/url.py#L323-L326
     try:
-        name.encode('ascii')
-        # No utf8 chars, just use as-is
-        return name
-    except UnicodeEncodeError:
-        try:
-            if name.startswith('*'):
-                # idna.encode doesn't like the *
-                name = _encode(name[2:]).decode('utf-8')
-                return f'*.{name}'
-            return _encode(name).decode('utf-8')
-        except _IDNAError as e:
-            raise IdnaError(e)
+        # individually process each label, that allows a mixture of idna and
+        # ascii sections where more is allowed in the ascii sections, e.g. '*'
+        # and '_'
+        return '.'.join(encode(p) for p in name.lower().split('.'))
+    except _IDNAError as e:
+        raise IdnaError(e)
+
+
+def decode(s):
+    if s.startswith('xn--'):
+        # appears to be encoded idna so decode it
+        return _decode(s)
+    return s
 
 
 def idna_decode(name):
-    pieces = name.lower().split('.')
-    if any(p.startswith('xn--') for p in pieces):
-        try:
-            # it's idna
-            if name.startswith('*'):
-                # idna.decode doesn't like the *
-                return f'*.{_decode(name[2:])}'
-            # idna.decode doesn't like .. so we stick a unique placeholder
-            # anywhere we see it and then remove it again afterwards.
-            name = name.replace('..', '.pl-a-ce--hold-e--r.')
-            return _decode(name).replace('.pl-a-ce--hold-e--r.', '..')
-        except _IDNAError as e:
-            raise IdnaError(e)
-    # not idna, just return as-is
-    return name
+    try:
+        # similar to idna_encode, process things by label
+        return '.'.join(decode(p) for p in name.lower().split('.'))
+    except _IDNAError as e:
+        raise IdnaError(e)
 
 
 class IdnaDict(MutableMapping):
