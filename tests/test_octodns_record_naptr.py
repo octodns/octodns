@@ -382,7 +382,7 @@ class TestRecordNaptr(TestCase):
         self.assertEqual('service', a.values[0].service)
         self.assertEqual('regexp', a.values[0].regexp)
         self.assertEqual('replacement', a.values[0].replacement)
-        s = '1 2 S service regexp replacement'
+        s = '1 2 "S" "service" "regexp" replacement'
         self.assertEqual(s, a.values[0].rdata_text)
 
     def test_validation(self):
