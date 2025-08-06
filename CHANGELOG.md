@@ -1,3 +1,19 @@
+## 1.13.0 - 2025-08-06 - And then there was changelet
+
+Minor:
+* Quote NAPTR 'flags', 'service' and 'regexp' values as required by RFC2915 - [#1284](https://github.com/None/pull/1284)
+* Add new provider parameter root_ns_warnings to disable root NS related warnings - [#1282](https://github.com/None/pull/1282)
+* Fix issues with using Templating processor on alias zones - [#1279](https://github.com/None/pull/1279)
+* Add trailing_dots parameter to templating processor - [#1278](https://github.com/None/pull/1278)
+* Add unescaped semicolons support to YamlProvider - [#1253](https://github.com/None/pull/1253)
+* Add validation to TXT records to check for double escaped semi-colons - [#1253](https://github.com/None/pull/1253)
+* Add support for the URI record type - [#1275](https://github.com/None/pull/1275)
+* Add kwags to filter processors __init__ - [#1274](https://github.com/None/pull/1274)
+
+Patch:
+* Fix encoding and decoding of mixed idna fqdns - [#1285](https://github.com/None/pull/1285)
+* Improve error messaging for unknown templating parameters - [#1280](https://github.com/None/pull/1280)
+
 ## 1.12.0 - 2025-06-25 - Automated changelogs
 
 Minor:
