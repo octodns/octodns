@@ -136,7 +136,11 @@ class NaptrValue(EqualityTupleMixin, dict):
 
     @property
     def rdata_text(self):
-        return f'{self.order} {self.preference} {self.flags} {self.service} {self.regexp} {self.replacement}'
+        # RFC 3403 requires flags, service, and regexp to be quoted character-strings
+        flags = self.flags or ''
+        service = self.service or ''
+        regexp = self.regexp or ''
+        return f'{self.order} {self.preference} "{flags}" "{service}" "{regexp}" {self.replacement}'
 
     def template(self, params):
         if (
