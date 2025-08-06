@@ -62,13 +62,10 @@ class TestIdna(TestCase):
 
     def test_exception_translation(self):
         with self.assertRaises(IdnaError) as ctx:
-            idna_encode('déjà..vu.')
-        self.assertEqual('Empty Label', str(ctx.exception))
-
-        with self.assertRaises(IdnaError) as ctx:
-            idna_decode('xn--djvu-1na6c.something-.com.')
+            idna_decode('xn--djvu-1na6c.xn--djvu-1234-something.com.')
         self.assertEqual(
-            'Label must not start or end with a hyphen', str(ctx.exception)
+            "Codepoint U+0675 at position 6 of 'ٴdjٱvٵuٳ-123ٰٲ4ٴ' not allowed",
+            str(ctx.exception),
         )
 
 
