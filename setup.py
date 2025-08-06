@@ -70,7 +70,13 @@ setup(
             'pyflakes>=2.2.0',
             'readme_renderer[md]>=26.0',
             'twine>=3.4.2',
-        )
+        ),
+        'docs': (
+            'Sphinx>=8.2.3',
+            'furo>=2024.8.6',
+            'myst-parser>=4.0.1',
+            'sphinx-copybutton>=0.5.2',
+        ),
     },
     install_requires=(
         'PyYaml>=4.2b1',

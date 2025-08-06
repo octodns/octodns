@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -e
+
+cd "$(dirname "$0")/.."
+ROOT=$(pwd)
+cd "$ROOT"
+
+rm -rf ./docs/_build ./docs/modules
+
+for f in $(find octodns -name "*.py" | grep -v __init__.py); do
+    module_name=$(echo $f | sed -e 's#/#.#g' -e 's/.py//')
+    outdir="docs/modules$(dirname $f | sed -e 's#octodns##')"
+    mkdir -p "$outdir"
+    cat <<EOL > "${outdir}/${module_name}.rst"
+====================================
+``${module_name}``
+====================================
+.. automodule:: ${module_name}
+EOL
+done
+
+sphinx-build -M html "${ROOT}/docs" "${ROOT}/docs/_build" "$@"

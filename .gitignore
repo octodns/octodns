@@ -2,18 +2,20 @@
 # Do not add editor or OS specific ignores here. Have a look at adding
 # `excludesfile` to your `~/.gitconfig` to globally ignore such things.
 #
-*.pyc
-.coverage
-.env
 /build/
 /config/
+.coverage
 coverage.xml
 dist/
+docs/_build/
+docs/modules/
+.env
 env/
 examples/migrating-to-octodns/config/
 htmlcov/
 nosetests.xml
 octodns.egg-info/
 output/
+*.pyc
 tests/zones/unit.tests.
 tmp/
