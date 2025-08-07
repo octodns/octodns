@@ -1,11 +1,4 @@
-### This is all a WIP
-
-This is a WIP and will definitely be rough around the edges, but in the spirit
-of not letting perfect get in the way of good enough, or really existing at
-all. It's being uploaded as a starting point. PRs/suggestions welcome as are
-ideas for other subjects to cover.
-
-### Examples
+# Examples
 
 * Getting started with a [basic octoDNS configuration](basic/) - new to octoDNS
   this is the place to start. It'll walk you through the main pieces of DNS IaC
@@ -16,7 +9,12 @@ ideas for other subjects to cover.
   pull the existing data out of your provider into matching YAML config files on
   disk.
 
-### Running PowerDNS
+This is a WIP and will definitely be rough around the edges, but in the spirit
+of not letting perfect get in the way of good enough, or really existing at
+all. It's being uploaded as a starting point. PRs/suggestions welcome as are
+ideas for other subjects to cover.
+
+## Running PowerDNS
 
 If you'd like to play around with running the examples in this directory
 interactively you'll need a target for pushing data to.

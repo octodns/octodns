@@ -1,10 +1,10 @@
-## Dynamic Record Support
+# Dynamic Record Support
 
 Dynamic records provide support for GeoDNS and weighting to records. `A` and `AAAA` are fully supported and reasonably well tested for both Dyn (via Traffic Directors) and Route53. There is preliminary support for `CNAME` records, but caution should be exercised as they have not been thoroughly tested.
 
 Configuring GeoDNS is complex and the details of the functionality vary widely from provider to provider. octoDNS has an opinionated view mostly to give a reasonably consistent behavior across providers which is similar to the overall philosophy and approach of octoDNS itself. It may not fit your needs or use cases, in which case please open an issue for discussion. We expect this functionality to grow and evolve over time as it's more widely used.
 
-### An Annotated Example
+## An Annotated Example
 
 ```yaml
 
@@ -75,9 +75,9 @@ test:
   - 7.7.7.7
 ```
 
-If you encounter validation errors in dynamic records suggesting best practices that you have specific reasons for not following see [docs/records.md#Lenience](/docs/records.md#Lenience) for how to turn the errors into warnings. Doing so is taking on the burden of thoroughly testing and verifying that what you're doing behaves the way you expect. You may well encounter situations where the octoDNS providers and/or the underlying DNS services do not behave as desired.
+If you encounter validation errors in dynamic records suggesting best practices that you have specific reasons for not following see [records.md#Lenience](records.md#Lenience) for how to turn the errors into warnings. Doing so is taking on the burden of thoroughly testing and verifying that what you're doing behaves the way you expect. You may well encounter situations where the octoDNS providers and/or the underlying DNS services do not behave as desired.
 
-#### Visual Representation of the Rules and Pools
+### Visual Representation of the Rules and Pools
 
 ```mermaid
 ---
@@ -108,7 +108,7 @@ flowchart LR
 
 
 
-#### Geo Codes
+### Geo Codes
 
 Geo codes consist of one to three parts depending on the scope of the area being targeted. Examples of these look like:
 
@@ -128,7 +128,7 @@ The first portion is the continent:
 
 The second is the two-letter ISO Country Code https://en.wikipedia.org/wiki/ISO_3166-2 and the third is the ISO Country Code Subdivision as per https://en.wikipedia.org/wiki/ISO_3166-2:US. Change the code at the end for the country you are subdividing. Note that these may not always be supported depending on the providers in use.
 
-#### Subnets
+### Subnets
 
 Dynamic record rules also support subnet targeting in some providers:
 
@@ -145,7 +145,7 @@ Dynamic record rules also support subnet targeting in some providers:
 ...
 ```
 
-### Rule ordering
+## Rule ordering
 
 octoDNS has validations in place to ensure that sources have the rules ordered from the most specific match to the least specific match per the following categories:
 
@@ -158,7 +158,7 @@ The first 3 categories are optional, while the last one is mandatory.
 
 Subnet targeting is considered more specific than geo targeting. This means that if there is a subnet rule match as well as a geo rule match, subnet match must take precedence. Provider implementations must ensure this behavior of targeting precedence.
 
-### Health Checks
+## Health Checks
 
 octoDNS will automatically configure the provider to monitor each IP and check for a 200 response for **https://<ip_address>/_dns**.
 
