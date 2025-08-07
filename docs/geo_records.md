@@ -1,4 +1,4 @@
-## Geo Record Support
+# Geo Record Support
 
 Note: Geo DNS records are still supported for the time being, but it is still strongly encouraged that you look at [Dynamic Records](/docs/dynamic_records.md) instead as they are a superset of functionality.
 
@@ -52,7 +52,7 @@ So the example is saying:
 - Europe: gets an "A" record of 111.111.111.4
 - Everyone else gets an "A" record of 111.111.111.5
 
-### Health Checks
+## Health Checks
 
 octoDNS will automatically set up monitors check for a 200 response for **https://<ip_address>/_dns**.
 
@@ -81,7 +81,7 @@ test:
 | port | port to check | 443 |
 | protocol | HTTP/HTTPS | HTTPS |
 
-#### Route53 Healtch Check Options
+### Route53 Healtch Check Options
 
 | Key  | Description | Default |
 |--|--|--|

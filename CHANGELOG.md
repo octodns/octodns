@@ -56,7 +56,7 @@ Minor:
 * Improved handling of present, but empty/None config file values.
 * Add PlanJson plan_output support
 * Include `record_type` in Change data
- 
+
 ## v1.8.0 - 2024-06-10 - Set the records straight
 
 * Add support for SVCB and HTTPS records
@@ -119,7 +119,7 @@ Minor:
 
 ## v1.3.0 - 2023-11-14 - New and improved processors
 
-#### Noteworthy changes
+### Noteworthy changes
 
 * Added `octodns.__version__` to replace `octodns.__VERSION__` as the former is
   more of a standard, per pep-8. `__VERSION__` is deprecated and will go away
@@ -134,7 +134,7 @@ Minor:
   bug, but it's possible (non-public) third party providers are susceptible. The
   most likely place to hit issues in is tests where data and/or copy are abused.
 
-#### Stuff
+### Stuff
 
 * Added ZoneNameFilter processor to enable ignoring/alerting on type-os like
   octodns.com.octodns.com
@@ -172,7 +172,7 @@ Minor:
 
 ## v1.1.0 - 2023-09-13 - More than enough for a minor release
 
-#### Noteworthy changes
+### Noteworthy changes
 
 * New dynamic zone config support that allows wildcard entries in the octoDNS
   config to be expanded by the source provider(s). See
@@ -198,7 +198,7 @@ Minor:
   DNS changes. Specifically timestamps/uuid so you can track whether changes
   that have been pushed to providers have propogated/transferred correctly.
 
-#### Stuff
+### Stuff
 
 * Add context to general configuration and Record validation, e.g.
   Some problem at filename.yaml, line 42, column 14. Our custom Yaml Loaders
@@ -218,11 +218,11 @@ going away with 2.0 more than specific functionality that has been added or
 having reached a notable level of stability (beyond what is normal.) It is also
 long (years) overdue.
 
-#### Noteworthy changes
+### Noteworthy changes
 
 * `geo` records are deprecated.
 
-#### Stuff
+### Stuff
 
 * Removal of a Python 3.7 specific import work-around now that it's no longer an
   active/supported version. Also bumps required minimum version of Python 3.8
@@ -240,7 +240,7 @@ long (years) overdue.
 
 ## v1.0.0.rc0 - 2023-05-16 - First of the ones
 
-#### Noteworthy changes
+### Noteworthy changes
 
 * 1.x Deprecation removals
    * Provider, Source, and Processor shims removed, they've been warnings for >
@@ -271,7 +271,7 @@ long (years) overdue.
      subnet-only rules must appear before any subnet+geo rules, followed by
      geo-only rules (and catch-all rule w/o any geos/subnets in the end)
 
-#### Stuff
+### Stuff
 
 * Added new DsRecord type (provider support will be added over time)
 * Added simple IgnoreRootNsFilter
@@ -286,7 +286,7 @@ long (years) overdue.
 
 ## v0.9.20 - 2022-10-05 - International friendly
 
-#### Noteworthy changes
+### Noteworthy changes
 
 * Added support for automatic handling of IDNA (utf-8) zones. Everything is
   stored IDNA encoded internally. For ASCII zones that's a noop. For zones with
@@ -302,7 +302,7 @@ long (years) overdue.
 * Support for configuring global processors that apply to all zones with
   `manager.processors`
 
-#### Stuff
+### Stuff
 
 * Addressed shortcomings with YamlProvider.SUPPORTS in that it didn't include
   dynamically registered types, was a static list that could have drifted over
@@ -346,7 +346,7 @@ long (years) overdue.
 
 ## v0.9.17 - 2022-04-02 - Registration required
 
-#### Noteworthy changes
+### Noteworthy changes
 
 * The changes in plans are now ordered based on change type prior to
   considering the record name and type as was previously done. The chosen
@@ -364,7 +364,7 @@ long (years) overdue.
 * New `octodns-versions` command which will log out the version of octodns and
   any provider/processor/plan_output modules you are using.
 
-#### Stuff
+### Stuff
 
 * Manager includes the octoDNS version in its init log line
 * Non-official release installs will now include a bit of the sha to indicate
@@ -373,7 +373,7 @@ long (years) overdue.
 
 ## v0.9.16 - 2022-03-04 - Manage the root of the problem
 
-#### Noteworthy changes
+### Noteworthy changes
 
 * Foundational support for root NS record management.
    * YamlProvider has it enabled and in general everyone should add root NS
@@ -387,7 +387,7 @@ long (years) overdue.
    * Root NS record changes will always require `--force` indicating that they
      are impactful changes that need a careful :eyes:
 
-#### Stuff
+### Stuff
 
 * _AggregateTarget has more complete handling of SUPPORTS* functionality,
   mostly applicable for the compare operation.
@@ -396,7 +396,7 @@ long (years) overdue.
 
 ## v0.9.15 - 2022-02-07 - Where have all the providers gone?
 
-#### Noteworthy changes
+### Noteworthy changes
 
 * Providers extracted from octoDNS core into individual repos
   https://github.com/octodns/octodns/issues/622 &
@@ -430,7 +430,7 @@ long (years) overdue.
   script/update-requirements has been added to help manage the txt files going
   forward.
 
-#### Prior to extraction
+### Prior to extraction
 
 * NS1 provider has received improvements to the dynamic record implementation.
   As a result, if octoDNS is downgraded from this version, any dynamic records
@@ -443,7 +443,7 @@ long (years) overdue.
   will not be read/parsed correctly by the older version and will show a diff.
 * Transip was updated to their new client api
 
-#### Stuff
+### Stuff
 
 * Additional FQDN validation to ALIAS/CNAME value, MX exchange, SRV target and
   tests of the functionality.
@@ -452,7 +452,7 @@ long (years) overdue.
 
 ## v0.9.14 - 2021-10-10 - A new supports system
 
-#### Noteworthy changes
+### Noteworthy changes
 
 * Provider `strict_supports` param added, currently defaults to `false`, along
   with Provider._process_desired_zone this forms the foundations of a new
@@ -477,7 +477,7 @@ long (years) overdue.
   new python versions and hasn't seen a release since 2010. May return with
   https://github.com/octodns/octodns/pull/762
 
-#### Stuff
+### Stuff
 
 * Fully remove python 2.7 support & sims
 * Dynamic record pool status flag: up/down/obey added w/provider support as
@@ -499,7 +499,7 @@ long (years) overdue.
 
 ## v0.9.13 - 2021-07-18 - Processors Alpha
 
-#### Noteworthy changes
+### Noteworthy changes
 
 * Alpha support for Processors has been added. Processors allow for hooking
   into the source, target, and planing process to make nearly arbitrary changes
@@ -513,7 +513,7 @@ long (years) overdue.
    America list for backwards compatibility reasons. They will be added in the
    next releaser.
 
-#### Stuff
+### Stuff
 
 * Lots of progress on the partial/beta support for dynamic records in Azure,
   still not production ready.
@@ -525,13 +525,13 @@ long (years) overdue.
 
 ## v0.9.12 - 2021-04-30 - Enough time has passed
 
-#### Noteworthy changes
+### Noteworthy changes
 
 * Formal Python 2.7 support removed, deps and tooling were becoming
   unmaintainable
 * octodns/octodns move, from github/octodns, more to come
 
-#### Stuff
+### Stuff
 
 * ZoneFileSource supports specifying an extension & no files end in . to better
   support Windows
@@ -548,18 +548,18 @@ long (years) overdue.
 
 ## v0.9.11 - 2020-11-05 - We still don't know edition
 
-#### Noteworthy changes
+### Noteworthy changes
 
 * ALIAS records only allowed at the root of zones - see `leient` in record docs
   for work-arounds if you really need them.
 
-#### New Providers
+### New Providers
 
 * Gandi LiveDNS
 * UltraDNS
 * easyDNS
 
-#### Stuff
+### Stuff
 
 * Add support for zones aliases
 * octodns-compare: Prefix filtering and status code on on mismatch
@@ -768,7 +768,7 @@ from our OSS users. There's too much to list out since the previous release was
 cut, but I'll try to cover the highlights/important bits and promise to do
 better in the future :fingers_crossed:
 
-#### Major:
+### Major:
 
 * Complete rework of record validation with lenient mode support added to
   octodns-dump so that data with validation problems can be dumped to config
@@ -784,7 +784,7 @@ better in the future :fingers_crossed:
 * Ignored record support added, `octodns:\n  ignored: True`
 * Ns1Provider added
 
-#### Miscellaneous
+### Miscellaneous
 
 * Use a 3rd party lib for natural sorting of keys, rather than my old
   implementation. Sorting can be disabled in the YamlProvider with

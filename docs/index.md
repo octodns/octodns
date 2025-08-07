@@ -14,6 +14,7 @@ ______________________________________________________________________
 :caption: Getting Started:
 :maxdepth: 1
 
+examples/README.md
 examples/basic/README.md
 examples/migrating-to-octodns/README.md
 records.md
@@ -25,8 +26,6 @@ records.md
 :glob:
 
 [a-q]*
-#records.md
-[s-z]*
 ```
 
 ______________________________________________________________________
