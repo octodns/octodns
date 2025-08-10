@@ -81,7 +81,12 @@ ______________________________________________________________________
 - {ref}`genindex`
 - {ref}`modindex`
 
-### Project info
 
-- [License](info/license.md)
-- [Changelog](info/changelog.md)
+
+```{toctree}
+:caption: Project info:
+:titlesonly:
+
+info/changelog.md
+info/license.md
+```

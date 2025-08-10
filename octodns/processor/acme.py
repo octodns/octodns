@@ -12,18 +12,20 @@ class AcmeManagingProcessor(BaseProcessor):
 
     def __init__(self, name):
         '''
-        processors:
-          acme:
-            class: octodns.processor.acme.AcmeManagingProcessor
+        Example configuration::
 
-        ...
-
-        zones:
-          something.com.:
-          ...
           processors:
-            - acme
+            acme:
+              class: octodns.processor.acme.AcmeManagingProcessor
+
           ...
+
+          zones:
+            something.com.:
+            ...
+            processors:
+              - acme
+            ...
         '''
         super().__init__(name)
 

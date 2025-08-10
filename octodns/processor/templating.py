@@ -19,34 +19,34 @@ class Templating(BaseProcessor):
     that is the value itself. For multi-field records like MX or SRV it's the
     text portions, exchange and target respectively.
 
-    Example Processor Config:
+    Example Processor Config::
 
-        templating:
-          class: octodns.processor.templating.Templating
-          # When `trailing_dots` is disabled, trailing dots are removed from all
-          # built-in variables values who represent a FQDN, like `{zone_name}`
-          # or `{record_fqdn}`. Optional. Default to `True`.
-          trailing_dots: False
-          # Any k/v present in context will be passed into the .format method and
-          # thus be available as additional variables in the template. This is all
-          # optional.
-          context:
-            key: value
-            another: 42
+      templating:
+        class: octodns.processor.templating.Templating
+        # When `trailing_dots` is disabled, trailing dots are removed from all
+        # built-in variables values who represent a FQDN, like `{zone_name}`
+        # or `{record_fqdn}`. Optional. Default to `True`.
+        trailing_dots: False
+        # Any k/v present in context will be passed into the .format method and
+        # thus be available as additional variables in the template. This is all
+        # optional.
+        context:
+          key: value
+          another: 42
 
-    Example Records:
+    Example Records::
 
-        foo:
-          type: TXT
-          value: The zone this record lives in is {zone_name}. There are {zone_num_records} record(s).
+      foo:
+        type: TXT
+        value: The zone this record lives in is {zone_name}. There are {zone_num_records} record(s).
 
-        bar:
-          type: MX
-          values:
-            - preference: 1
-              exchange: mx1.{zone_name}.mail.mx.
-            - preference: 1
-              exchange: mx2.{zone_name}.mail.mx.
+      bar:
+        type: MX
+        values:
+          - preference: 1
+            exchange: mx1.{zone_name}.mail.mx.
+          - preference: 1
+            exchange: mx2.{zone_name}.mail.mx.
 
     Note that validations for some types reject values with {}. When
     encountered the best option is to use record level `lenient: true`
@@ -54,17 +54,16 @@ class Templating(BaseProcessor):
 
     Note that if you need to add dynamic context you can create a custom
     processor that inherits from Templating and passes them into the call to
-    super, e.g.
+    super, e.g.::
 
-        class MyTemplating(Templating):
-            def __init__(self, *args, context={}, **kwargs):
-                context['year'] = lambda desired, sources: datetime.now().strftime('%Y')
-                super().__init__(*args, context, **kwargs)
+      class MyTemplating(Templating):
+          def __init__(self, *args, context={}, **kwargs):
+              context['year'] = lambda desired, sources: datetime.now().strftime('%Y')
+              super().__init__(*args, context, **kwargs)
 
     See https://docs.python.org/3/library/string.html#custom-string-formatting
     for details on formatting options. Anything possible in an `f-string` or
     `.format` should work here.
-
     '''
 
     def __init__(self, id, *args, trailing_dots=True, context={}, **kwargs):
