@@ -18,32 +18,32 @@ class TtlRestrictionFilter(BaseProcessor):
     default maximum is 604800 (seven days.) allowed_ttls is only used when
     explicitly configured and min and max are ignored in that case.
 
-    Example usage:
+    Example usage::
 
-    processors:
-      min-max-ttl:
-        class: octodns.processor.restrict.TtlRestrictionFilter
-        min_ttl: 60
-        max_ttl: 3600
-        # allowed_ttls: [300, 900, 3600]
+      processors:
+        min-max-ttl:
+          class: octodns.processor.restrict.TtlRestrictionFilter
+          min_ttl: 60
+          max_ttl: 3600
+          # allowed_ttls: [300, 900, 3600]
 
-    zones:
-      exxampled.com.:
-        sources:
-          - config
-        processors:
-          - min-max-ttl
-        targets:
-          - azure
+      zones:
+        exxampled.com.:
+          sources:
+            - config
+          processors:
+            - min-max-ttl
+          targets:
+            - azure
 
     The restriction can be skipped for specific records by setting the lenient
-    flag, e.g.
+    flag, e.g.::
 
-    a:
-      octodns:
-        lenient: true
-      ttl: 0
-      value: 1.2.3.4
+      a:
+        octodns:
+          lenient: true
+        ttl: 0
+        value: 1.2.3.4
 
     The higher level lenient flags are not checked as it would make more sense
     to just avoid enabling the processor in those cases.

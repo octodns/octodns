@@ -20,9 +20,10 @@ class GeoCodes(object):
         '''
         Validates an octoDNS geo code making sure that it is a valid and
         corresponding:
-            * continent
-            * continent & country
-            * continent, country, & province
+
+          * continent
+          * continent & country
+          * continent, country, & province
         '''
         reasons = []
 

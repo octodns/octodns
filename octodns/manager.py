@@ -442,13 +442,16 @@ class Manager(object):
         '''
         Accepts either UTF-8 or IDNA encoded zone name and returns the list of
         any configured sub-zones in IDNA form. E.g. for the following
-        configured zones:
-          some.com.
-          other.some.com.
-          deep.thing.some.com.
+
+        Configured zones:
+          - some.com.
+          - other.some.com.
+          - deep.thing.some.com.
+
         It would return
-          other
-          deep.thing
+          - other
+          - deep.thing
+
         '''
         if self._configured_sub_zones is None:
             # First time through we compute all the sub-zones

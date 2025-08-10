@@ -16,9 +16,12 @@ from .base import BaseProvider
 
 class YamlProvider(BaseProvider):
     '''
-    Core provider for records configured in yaml files on disk.
+    Example Configuration
+    ---------------------
 
-    config:
+    Core provider for records configured in yaml files on disk.::
+
+      config:
         class: octodns.provider.yaml.YamlProvider
 
         # The location of yaml config files. By default records are defined in a
@@ -77,11 +80,10 @@ class YamlProvider(BaseProvider):
         # (optional, default True)
         escaped_semicolons: True
 
-    Note
-    ----
+    .. Note::
 
-    When using this provider as a target any existing comments or formatting
-    in the zone files will be lost when changes are applyed.
+      When using this provider as a target any existing comments or formatting in
+      the zone files will be lost when changes are applyed.
 
     Split Details
     -------------
@@ -93,13 +95,13 @@ class YamlProvider(BaseProvider):
     organize them.
 
     With `split_extension: .` the directory structure for the zone github.com.
-    managed under directory "zones/" would look like:
+    managed under directory "zones/" would look like::
 
-    zones/
-      github.com./
-        $github.com.yaml
-        www.yaml
-        ...
+      zones/
+        github.com./
+          $github.com.yaml
+          www.yaml
+          ...
 
     Overriding Values
     -----------------
@@ -110,63 +112,67 @@ class YamlProvider(BaseProvider):
     to external DNS providers and internally, but you want to modify some of
     the records in the internal version.
 
-    config/octodns.com.yaml
-    ---
-    other:
-      type: A
-      values:
-        - 192.30.252.115
-        - 192.30.252.116
-    www:
-      type: A
-      values:
-        - 192.30.252.113
-        - 192.30.252.114
+    config/octodns.com.yaml::
+
+      ---
+      other:
+        type: A
+        values:
+          - 192.30.252.115
+          - 192.30.252.116
+      www:
+        type: A
+        values:
+          - 192.30.252.113
+          - 192.30.252.114
 
 
-    internal/octodns.com.yaml
-    ---
-    'www':
-      type: A
-      values:
-        - 10.0.0.12
-        - 10.0.0.13
+    internal/octodns.com.yaml::
 
-    external.yaml
-    ---
-    providers:
-      config:
-        class: octodns.provider.yaml.YamlProvider
-        directory: ./config
+      ---
+      'www':
+        type: A
+        values:
+          - 10.0.0.12
+          - 10.0.0.13
 
-    zones:
+    external.yaml::
 
-      octodns.com.:
-        sources:
-          - config
-        targets:
-          - route53
+      ---
+      providers:
+        config:
+          class: octodns.provider.yaml.YamlProvider
+          directory: ./config
 
-    internal.yaml
-    ---
-    providers:
-      config:
-        class: octodns.provider.yaml.YamlProvider
-        directory: ./config
+      zones:
 
-      internal:
-        class: octodns.provider.yaml.YamlProvider
-        directory: ./internal
-        populate_should_replace: true
+        octodns.com.:
+          sources:
+            - config
+          targets:
+            - route53
 
-    zones:
+    internal.yaml::
 
-      octodns.com.:
-        sources:
-          - config
-          - internal
-        targets:
-          - pdns
+      ---
+      providers:
+        config:
+          class: octodns.provider.yaml.YamlProvider
+          directory: ./config
+
+        internal:
+          class: octodns.provider.yaml.YamlProvider
+          directory: ./internal
+          populate_should_replace: true
+
+      zones:
+
+        octodns.com.:
+          sources:
+            - config
+            - internal
+          targets:
+            - pdns
 
     You can then sync our records eternally with `--config-file=external.yaml`
     and internally (with the custom overrides) with
@@ -487,7 +493,7 @@ class SplitYamlProvider(YamlProvider):
     DEPRECATED: Use YamlProvider with the split_extension parameter instead.
 
     When migrating the following configuration options would result in the same
-    behavior as SplitYamlProvider
+    behavior as SplitYamlProvider::
 
        config:
          class: octodns.provider.yaml.YamlProvider
