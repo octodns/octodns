@@ -9,7 +9,7 @@ from octodns.__init__ import __version__
 
 ### sphinx config ###
 
-project = "octodns"
+project = "octoDNS"
 copyright = "2017-present"  # noqa
 author = "Ross McFarland"
 release = __version__
@@ -69,10 +69,7 @@ todo_include_todos = True
 
 ### myst ###
 
-myst_enable_extensions = [
-    "colon_fence",
-    "deflist",
-]
+myst_enable_extensions = ["colon_fence", "deflist"]
 myst_heading_anchors = 3
 
 

@@ -1,23 +1,30 @@
-#!/bin/bash
-
+#!/bin/sh
 set -e
 
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
-cd "$ROOT"
 
-rm -rf ./docs/_build ./docs/modules
+if [ -z "$VENV_NAME" ]; then
+    VENV_NAME="env"
+fi
 
-for f in $(find octodns -name "*.py" | grep -v __init__.py); do
-    module_name=$(echo $f | sed -e 's#/#.#g' -e 's/.py//')
-    outdir="docs/modules$(dirname $f | sed -e 's#octodns##')"
-    mkdir -p "$outdir"
-    cat <<EOL > "${outdir}/${module_name}.rst"
-====================================
-``${module_name}``
-====================================
-.. automodule:: ${module_name}
-EOL
-done
+ACTIVATE="$VENV_NAME/bin/activate"
+if [ ! -f "$ACTIVATE" ]; then
+    echo "$ACTIVATE does not exist, run ./script/bootstrap" >&2
+    exit 1
+fi
+. "$ACTIVATE"
 
-sphinx-build -M html "${ROOT}/docs" "${ROOT}/docs/_build" "$@"
+cd docs
+
+builder=$1
+if [ -n "$builder" ]; then
+    shift
+else
+    builder=html
+fi
+
+build="_build/${builder}"
+rm -rf "$build"
+
+sphinx-build --builder "$builder" --conf-dir . "source/" "$build" "$@"
