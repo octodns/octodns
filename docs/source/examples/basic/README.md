@@ -1,4 +1,4 @@
-# Basic octoDNS Setup
+# Example Setup
 
 This is the starting point octoDNS config, it's pretty similar to what you
 might see for managing a set of personal domains or a small business.
@@ -250,5 +250,5 @@ No changes were planned
 
 ## What's Next
 
-* Check out [migrating to octoDNS](../migrating-to-octodns) for an example of how to create zone configuration YAML files from your existing provider's configuration
-* For a complete list check out the [Examples Directory](../)
+* Check out [migrating to octoDNS](../migrating-to-octodns/README.md) for an example of how to create zone configuration YAML files from your existing provider's configuration
+* For a complete list check out the [Examples Directory](../README.rst)

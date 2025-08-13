@@ -23,6 +23,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "myst_parser",
     "sphinx_copybutton",
+    "sphinxcontrib.mermaid",
 ]
 
 

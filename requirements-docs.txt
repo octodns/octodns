@@ -11,7 +11,7 @@ babel==2.17.0
 beautifulsoup4==4.13.4
 furo==2025.7.19
 imagesize==1.4.1
-mdit-py-plugins==0.4.2
+mdit-py-plugins==0.5.0
 myst-parser==3.0.1; python_version<'3.10'
 myst-parser==4.0.1; python_version>='3.10'
 roman-numerals-py==3.1.0
@@ -23,6 +23,7 @@ sphinxcontrib-applehelp==2.0.0
 sphinxcontrib-devhelp==2.0.0
 sphinxcontrib-htmlhelp==2.1.0
 sphinxcontrib-jsmath==1.0.1
+sphinxcontrib-mermaid==1.0.0
 sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-serializinghtml==2.0.0
 typing_extensions==4.14.1

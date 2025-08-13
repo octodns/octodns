@@ -76,6 +76,7 @@ setup(
             'furo>=2024.8.6',
             'myst-parser>=4.0.1',
             'sphinx-copybutton>=0.5.2',
+            'sphinxcontrib-mermaid>=1.0.0',
         ),
     },
     install_requires=(

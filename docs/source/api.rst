@@ -5,5 +5,7 @@ Developer Interface
 
 .. module:: octodns
 
-.. autoclass:: octodns.provider.yaml.YamlProvider
-   :inherited-members:
+.. toctree::
+   :maxdepth: 1
+
+   /api/yaml-provider.rst

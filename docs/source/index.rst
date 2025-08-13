@@ -23,62 +23,12 @@ Documentation
    :maxdepth: 1
 
    getting-started.rst
-   examples/basic/README.md
-   examples/migrating-to-octodns/README.md
-
-``lenient``
-...........
-
-``lenient`` mostly focuses on the details of ``Record``s and standards
-compliance.  When set to ``true`` octoDNS will allow non-compliant
-configurations & values where possible. For example CNAME values that don't end
-with a ``.``, label length restrictions, and invalid geo codes on ``dynamic``
-records. When in lenient mode octoDNS will log validation problems at
-``WARNING`` and try and continue with the configuration or source data as it
-exists. See Lenience_ for more information on the concept and how it can be
-configured.
-
-.. _Lenience: records.rst#lenience
-
-``strict_supports``
-...................
-
-``strict_supports`` is a ``Provider`` level parameter that comes into play when
-a provider has been asked to create a record that it is unable to support. The
-simplest case of this would be record type, e.g. ``SSHFP`` not being supported
-by ``AzureProvider``. If such a record is passed to an ``AzureProvider`` as a
-target the provider will take action based on the ``strict_supports``. When
-``true`` it will throw an exception saying that it's unable to create the
-record, when set to ``false`` it will log at ``WARNING`` with information about
-what it's unable to do and how it is attempting to work around it. Other
-examples of things that cannot be supported would be ``dynamic`` records on a
-provider that only supports simple or the lack of support for specific geos in
-a provider, e.g.  Route53Provider does not support ``NA-CA-*``.
-
-It is worth noting that these errors will happen during the plan phase of
-things so that problems will be visible without having to make changes.
-
-As of octoDNS 1.x ``strict_supports`` is on by default. You have the choice to
-set ``strict_supports=false`` on a per provider basis to request that things warn
-and continue in a best-effort fashion.
-
-Configuring ``strict_supports``
-*******************************
-
-The ``strict_supports`` parameter is available on all providers and can be
-configured in YAML as follows::
-
-  providers:
-    someprovider:
-      class: whatever.TheProvider
-      ...
-      strict_supports: true
-
-Automatic PTR generation
-........................
-
-octoDNS supports automatically generating PTR records from the ``A``/``AAAA``
-records it manages. For more information see the `auto-arpa`_ documentation.
+   records.md
+   configuration.rst
+   dynamic_records.rst
+   auto_arpa.rst
+   examples/README.rst
+   api.rst
 
 Providers
 ---------
@@ -299,6 +249,7 @@ cannot be synced to.
 
 .. list-table::
    :header-rows: 1
+   :widths: 50 50
 
    * - Source/Module
      - Notes
@@ -339,7 +290,7 @@ Processors
    * - `AcmeManagingProcessor`_
      - Useful when processes external to octoDNS are managing acme challenge DNS records, e.g. LetsEncrypt
    * - `AutoArpa`_
-     - See `Automatic PTR generation`_
+     - See :doc:`configuration#automatic-ptr-generation`
    * - `EnsureTrailingDots`_
      - Processor that ensures ALIAS, CNAME, DNAME, MX, NS, PTR, and SRVs have trailing dots
    * - `ExcludeRootNsChanges`_
@@ -422,14 +373,6 @@ easily be included with no coordination beyond getting them into
 
 For examples of building third-party sources and providers, see `Related
 Projects and Resources`_
-
-API Documentation
------------------
-
-.. toctree::
-   :maxdepth: 2
-
-   api
 
 Contributing
 ------------
