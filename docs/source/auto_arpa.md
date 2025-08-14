@@ -1,4 +1,4 @@
-# Automatic PTR Generation With auto_arpa
+# Automatic PTR Generation
 
 octoDNS supports the automatic generation of `PTR` records for in-addr.arpa. and ip6.arpa. zones. In order to enable the functionality the `auto_arpa` key needs to be passed to the manager configuration.
 
@@ -48,7 +48,7 @@ In order to add `PTR` records for a zone the `auto-arpa` source should be added 
 
 The above will add `PTR` records for any `A` records previously seen with IP addresses 10.0.0.*.
 
-## A Complete Example
+## Example
 
 ### config/octodns.yaml
 
@@ -102,11 +102,11 @@ fileserver:
 * 102.0.0.10: exxampled.com.
 * 103.0.0.10: email.exxampled.com., fileserver.exxampled.com.
 
-## Notes
+## Complete picture
 
 Automatic `PTR` generation requires a "complete" picture of records and thus cannot be done during partial syncs. Thus syncing `arpa.` zones will throw an error any time filtering of zones, targets, or sources is being done.
 
-### AutoArpa and Dynamic Zone Config
+## AutoArpa and Dynamic Zone Config
 
 The AutoArpa provider works with Dynamic Zone Config, but only in the sense that it doesn't stop it from working. It requires another provider to actually generate the list of zones. It could be the Yaml provider like so:
 

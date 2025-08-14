@@ -1,5 +1,5 @@
 YamlProvider
 ============
 
-.. autoclass:: octodns.provider.yaml.YamlProvider
+.. automodule:: octodns.provider.yaml
    :inherited-members:

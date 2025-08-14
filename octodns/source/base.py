@@ -10,6 +10,11 @@ class BaseSource(object):
     SUPPORTS_DYNAMIC_SUBNETS = False
 
     def __init__(self, id):
+        '''
+        :param id: unique identifier for the provider or source
+        :type id: str
+        '''
+
         self.id = id
         if not getattr(self, 'log', False):
             raise NotImplementedError(

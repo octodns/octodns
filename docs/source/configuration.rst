@@ -7,11 +7,14 @@ Basics
 This document picks up where :doc:`getting-started` and :doc:`records` leave off,
 discussing details and less common scenarios.
 
-:doc:`api/yaml-provider` lays out the options for configuring the most commonly
+YamlProvider
+------------
+
+:doc:`api/provider-yaml` lays out the options for configuring the most commonly
 used source of record data.
 
 Static Zone Config
-..................
+------------------
 
 In cases where finer grained control is desired and the configuration of
 individual zones varies ``zones`` can be an explicit list with each configured
@@ -66,7 +69,7 @@ where zones share config, but not records.::
         - ns1
 
 General Configuration Concepts
-..............................
+------------------------------
 
 ``class`` is a special key that tells octoDNS what python class should be
 loaded.  Any other keys will be passed as configuration values to that
@@ -88,7 +91,7 @@ The ``max_workers`` key in the ``manager`` section of the config enables threadi
 to parallelize the planning portion of the sync.
 
 ``lenient``
-...........
+-----------
 
 ``lenient`` mostly focuses on the details of ``Record``s and standards
 compliance.  When set to ``true`` octoDNS will allow non-compliant
@@ -102,7 +105,7 @@ configured.
 .. _Lenience: records.rst#lenience
 
 ``strict_supports``
-...................
+-------------------
 
 ``strict_supports`` is a ``Provider`` level parameter that comes into play when
 a provider has been asked to create a record that it is unable to support. The
@@ -124,7 +127,7 @@ set ``strict_supports=false`` on a per provider basis to request that things war
 and continue in a best-effort fashion.
 
 Configuring ``strict_supports``
-*******************************
+...............................
 
 The ``strict_supports`` parameter is available on all providers and can be
 configured in YAML as follows::
@@ -136,7 +139,7 @@ configured in YAML as follows::
       strict_supports: true
 
 Automatic PTR generation
-........................
+------------------------
 
 octoDNS supports automatically generating PTR records from the ``A``/``AAAA``
 records it manages. For more information see the :doc:`auto_arpa`

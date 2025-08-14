@@ -7,5 +7,6 @@ Developer Interface
 
 .. toctree::
    :maxdepth: 1
+   :glob:
 
-   /api/yaml-provider.rst
+   /api/*
