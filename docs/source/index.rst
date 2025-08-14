@@ -1,3 +1,6 @@
+.. image:: assets/octodns-logo.png
+   :alt: GitHub user interface of a pull request
+
 DNS as Code
 ===========
 

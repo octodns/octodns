@@ -1,4 +1,4 @@
-# Example Setup
+# Basic Setup
 
 This is the starting point octoDNS config, it's pretty similar to what you
 might see for managing a set of personal domains or a small business.
