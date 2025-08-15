@@ -25,6 +25,7 @@ extensions = [
     "myst_parser",
     "sphinx_copybutton",
     "sphinxcontrib.mermaid",
+    "sphinx_rtd_theme",
 ]
 
 
@@ -85,10 +86,4 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 ### theme ###
 
-# html_theme = "alabaster"
-html_theme = "furo"
-html_theme_options = {
-    "source_repository": "https://github.com/octodns/octodns/",
-    "source_branch": "main",
-    "source_directory": "docs/",
-}
+html_theme = "sphinx_rtd_theme"

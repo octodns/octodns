@@ -72,11 +72,11 @@ setup(
             'twine>=3.4.2',
         ),
         'docs': (
-            'Sphinx>=8.2.3',
-            'furo>=2024.8.6',
             'myst-parser>=4.0.1',
-            'sphinx-copybutton>=0.5.2',
+            'Sphinx>=8.2.3',
             'sphinxcontrib-mermaid>=1.0.0',
+            'sphinx-copybutton>=0.5.2',
+            'sphinx_rtd_theme',
         ),
     },
     install_requires=(
