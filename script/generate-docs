@@ -17,14 +17,11 @@ fi
 
 cd docs
 
-builder=$1
-if [ -n "$builder" ]; then
-    shift
-else
-    builder=html
+if [ -z "$BUILDER" ]; then
+    BUILDER=html
 fi
 
-build="_build/${builder}"
+build="_build/${BUILDER}"
 rm -rf "$build"
 
-sphinx-build --builder "$builder" --conf-dir . "source/" "$build" "$@"
+sphinx-build --builder "$BUILDER" --conf-dir . --fail-on-warning "$@" "source/" "$build"

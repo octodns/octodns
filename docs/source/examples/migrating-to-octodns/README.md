@@ -204,7 +204,7 @@ config.
 
 So for now we'll enable `lenient` on the SSHFP record by editing
 my-dumpable.com.yaml adding `octodns.lenient = true` as shown below. For more
-details on see [lenience](../../records.md#lenience).
+details on see [lenience](#lenience).
 
 ```yaml
 ...
