@@ -27,7 +27,7 @@ $ source env/bin/activate
 (env) $ pip install -r requirements.txt
 ```
 
-Finally check out [Running PowerDNS](../README.md#running-powerdns) to get a local
+Finally check out [Running PowerDNS](#running-powerdns) to get a local
 instance of PowerDNS up and going before continuing.
 
 ## Running octoDNS the first time

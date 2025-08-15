@@ -15,6 +15,8 @@ of not letting perfect get in the way of good enough, or really existing at
 all. It's being uploaded as a starting point. PRs/suggestions welcome as are
 ideas for other subjects to cover.
 
+.. _running-powerdns:
+
 Running PowerDNS
 ----------------
 

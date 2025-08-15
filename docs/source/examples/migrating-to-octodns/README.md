@@ -55,7 +55,7 @@ just to have something to work with the the actual process that begins in the
 next step. It's not something you'd normally do when migrating to octoDNS.
 
 Step 0 is to get a local PowerDNS instance running.
-Check out out [Running PowerDNS](../README.rst#running-powerdns) for info on
+Check out out [Running PowerDNS](#running-powerdns) for info on
 starting that up. Once you've done that run the following. You can ignore the
 output and move on to the next step.
 
@@ -68,7 +68,7 @@ output and move on to the next step.
 Once you have your configuration files and octoDNS installed you're ready to
 dump your zone configs. Here we've assumed that the provider being used
 supports `list_zones`, not all do. If you get an error to that effect see
-[dynamic-zone-config](/getting-started#dynamic-zone-config) for
+[dynamic-zone-config](#dynamic-zone-config) for
 details on how to explicitly list your zones in the config file.
 
 We first tell octodns-dump where to find our config file. We then tell it that

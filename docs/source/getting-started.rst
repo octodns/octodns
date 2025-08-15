@@ -6,7 +6,7 @@ Workspace
 
 Running through the following commands will install the latest release of
 octoDNS and set up a place for your config files to live. To determine if
-provider specific requirements are necessary see the :doc:`index#providers`
+provider specific requirements are necessary see the :ref:`provider-list`
 below.::
 
   $ mkdir dns
@@ -40,6 +40,8 @@ records for each. You can also have multiple config files, that make use of
 separate accounts and each manage a distinct set of zones. A good example of
 this this might be ``./config/staging.yaml`` & ``./config/production.yaml``.
 We'll focus on a ``config/production.yaml``.
+
+.. _dynamic-zone-config:
 
 Dynamic Zone Config
 ...................

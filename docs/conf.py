@@ -82,7 +82,6 @@ templates_path = ["_templates"]
 html_static_path = ["_static"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
-
 ### theme ###
 
 # html_theme = "alabaster"

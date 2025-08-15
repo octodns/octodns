@@ -138,6 +138,8 @@ configured in YAML as follows::
       ...
       strict_supports: true
 
+.. _automatic-ptr-generation:
+
 Automatic PTR generation
 ------------------------
 

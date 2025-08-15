@@ -33,6 +33,8 @@ Documentation
    examples/README.rst
    api.rst
 
+.. _provider-list:
+
 Providers
 ---------
 
@@ -293,7 +295,7 @@ Processors
    * - `AcmeManagingProcessor`_
      - Useful when processes external to octoDNS are managing acme challenge DNS records, e.g. LetsEncrypt
    * - `AutoArpa`_
-     - See :doc:`configuration#automatic-ptr-generation`
+     - See :ref:`automatic-ptr-generation`
    * - `EnsureTrailingDots`_
      - Processor that ensures ALIAS, CNAME, DNAME, MX, NS, PTR, and SRVs have trailing dots
    * - `ExcludeRootNsChanges`_
