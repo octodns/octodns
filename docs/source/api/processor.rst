@@ -55,33 +55,18 @@ domains added to the ``zones`` config in future then you can add this to the
       processors:
           - custom_meta
 
+.. currentmodule:: octodns.processor
 
-.. autoclass:: octodns.processor.base.BaseProcessor
-   :inherited-members:
+.. autosummary::
+   :toctree: processors
 
-.. automodule:: octodns.processor.acme
-   :inherited-members:
-
-.. automodule:: octodns.processor.arpa
-   :inherited-members:
-
-.. automodule:: octodns.processor.filter
-   :inherited-members:
-
-.. automodule:: octodns.processor.meta
-   :inherited-members:
-
-.. automodule:: octodns.processor.ownership
-   :inherited-members:
-
-.. automodule:: octodns.processor.restrict
-   :inherited-members:
-
-.. automodule:: octodns.processor.spf
-   :inherited-members:
-
-.. automodule:: octodns.processor.templating
-   :inherited-members:
-
-.. automodule:: octodns.processor.trailing_dots
-   :inherited-members:
+   base
+   acme
+   arpa
+   filter
+   meta
+   ownership
+   restrict
+   spf
+   templating
+   trailing_dots

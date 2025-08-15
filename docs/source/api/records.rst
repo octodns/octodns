@@ -1,35 +1,38 @@
 Records
 =======
 
-.. automodule:: octodns.record.base
-.. automodule:: octodns.record.aaaa
-.. automodule:: octodns.record.alias
-.. automodule:: octodns.record.a
-.. automodule:: octodns.record.caa
-.. automodule:: octodns.record.change
-.. automodule:: octodns.record.chunked
-.. automodule:: octodns.record.cname
-.. automodule:: octodns.record.dname
-.. automodule:: octodns.record.ds
-.. automodule:: octodns.record.dynamic
-.. automodule:: octodns.record.exception
-.. automodule:: octodns.record.geo_data
-.. automodule:: octodns.record.geo
-.. automodule:: octodns.record.https
-.. automodule:: octodns.record.ip
-.. automodule:: octodns.record.loc
-.. automodule:: octodns.record.mx
-.. automodule:: octodns.record.naptr
-.. automodule:: octodns.record.ns
-.. automodule:: octodns.record.ptr
-.. automodule:: octodns.record.rr
-.. automodule:: octodns.record.spf
-.. automodule:: octodns.record.srv
-.. automodule:: octodns.record.sshfp
-.. automodule:: octodns.record.subnet
-.. automodule:: octodns.record.svcb
-.. automodule:: octodns.record.target
-.. automodule:: octodns.record.tlsa
-.. automodule:: octodns.record.txt
-.. automodule:: octodns.record.uri
-.. automodule:: octodns.record.urlfwd
+.. autosummary::
+   :toctree: records
+
+   octodns.record.base
+   octodns.record.aaaa
+   octodns.record.alias
+   octodns.record.a
+   octodns.record.caa
+   octodns.record.change
+   octodns.record.chunked
+   octodns.record.cname
+   octodns.record.dname
+   octodns.record.ds
+   octodns.record.dynamic
+   octodns.record.exception
+   octodns.record.geo_data
+   octodns.record.geo
+   octodns.record.https
+   octodns.record.ip
+   octodns.record.loc
+   octodns.record.mx
+   octodns.record.naptr
+   octodns.record.ns
+   octodns.record.ptr
+   octodns.record.rr
+   octodns.record.spf
+   octodns.record.srv
+   octodns.record.sshfp
+   octodns.record.subnet
+   octodns.record.svcb
+   octodns.record.target
+   octodns.record.tlsa
+   octodns.record.txt
+   octodns.record.uri
+   octodns.record.urlfwd
