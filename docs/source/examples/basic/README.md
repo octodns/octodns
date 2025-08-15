@@ -1,4 +1,4 @@
-# Basic octoDNS Setup
+# Basic Setup
 
 This is the starting point octoDNS config, it's pretty similar to what you
 might see for managing a set of personal domains or a small business.
@@ -27,7 +27,7 @@ $ source env/bin/activate
 (env) $ pip install -r requirements.txt
 ```
 
-Finally check out [Running PowerDNS](../README.md#running-powerdns) to get a local
+Finally check out [Running PowerDNS](#running-powerdns) to get a local
 instance of PowerDNS up and going before continuing.
 
 ## Running octoDNS the first time
@@ -250,5 +250,5 @@ No changes were planned
 
 ## What's Next
 
-* Check out [migrating to octoDNS](../migrating-to-octodns) for an example of how to create zone configuration YAML files from your existing provider's configuration
-* For a complete list check out the [Examples Directory](../)
+* Check out [migrating to octoDNS](../migrating-to-octodns/README.md) for an example of how to create zone configuration YAML files from your existing provider's configuration
+* For a complete list check out the [Examples Directory](../README.rst)

@@ -1,4 +1,168 @@
 #
+'''
+Example Configuration
+---------------------
+
+Core provider for records configured in yaml files on disk::
+
+  config:
+    class: octodns.provider.yaml.YamlProvider
+
+    # The location of yaml config files. By default records are defined in a
+    # file named for the zone in this directory, the zone file, e.g.
+    # something.com.yaml.
+    # (required)
+    directory: ./config
+
+    # The ttl to use for records when not specified in the data
+    # (optional, default 3600)
+    default_ttl: 3600
+
+    # Whether or not to enforce sorting order when loading yaml
+    # (optional, default True)
+    enforce_order: true
+    # What sort mode to employ when enforcing order
+    # - simple: `sort`
+    # - natural: https://pypi.org/project/natsort/
+    # (optional, default natural)
+    order_mode: natural
+
+    # Whether duplicate records should replace rather than error
+    # (optional, default False)
+    populate_should_replace: false
+
+    # The file extension used when loading split style zones, Null means
+    # disabled. When enabled the provider will search for zone records split
+    # across multiple YAML files in the directory with split_extension
+    # appended to the zone name, See "Split Details" below.
+    # split_extension should include the "."
+    # (optional, default null, "." is the recommended best practice when
+    # enabling)
+    split_extension: null
+
+    # When writing YAML records out to disk with split_extension enabled
+    # each record is written out into its own file with .yaml appended to
+    # the name of the record. The two exceptions are for the root and
+    # wildcard nodes. These records are written into a file named
+    # `$[zone.name].yaml`. If you would prefer this catchall file not be
+    # used `split_catchall` can be set to False to instead write those
+    # records out to `.yaml` and `*.yaml` respectively. Note that some
+    # operating systems may not allow files with those names.
+    # (optional, default True)
+    split_catchall: true
+
+    # Optional filename with record data to be included in all zones
+    # populated by this provider. Has no effect when used as a target.
+    # (optional, default null)
+    shared_filename: null
+
+    # Disable loading of the zone .yaml files.
+    # (optional, default False)
+    disable_zonefile: false
+
+    # Whether or not ; in values, e.g. TXT, need to be escaped \\;
+    # (optional, default True)
+    escaped_semicolons: True
+
+.. Note::
+
+  When using this provider as a target any existing comments or formatting in
+  the zone files will be lost when changes are applyed.
+
+Split Details
+-------------
+
+All files are stored in a subdirectory matching the name of the zone
+(including the trailing .) of the directory config. It is a recommended
+best practice that the files be named RECORD.yaml, but all files are
+sourced and processed ignoring the filenames so it is up to you how to
+organize them.
+
+With `split_extension: .` the directory structure for the zone github.com.
+managed under directory "zones/" would look like::
+
+  zones/
+    github.com./
+      $github.com.yaml
+      www.yaml
+      ...
+
+Overriding Values
+-----------------
+
+Overriding values can be accomplished using multiple yaml providers in the
+`sources` list where subsequent providers have `populate_should_replace`
+set to `true`. An example use of this would be a zone that you want to push
+to external DNS providers and internally, but you want to modify some of
+the records in the internal version.
+
+config/octodns.com.yaml::
+
+  ---
+  other:
+    type: A
+    values:
+      - 192.30.252.115
+      - 192.30.252.116
+  www:
+    type: A
+    values:
+      - 192.30.252.113
+      - 192.30.252.114
+
+
+internal/octodns.com.yaml::
+
+  ---
+  'www':
+    type: A
+    values:
+      - 10.0.0.12
+      - 10.0.0.13
+
+external.yaml::
+
+  ---
+  providers:
+    config:
+      class: octodns.provider.yaml.YamlProvider
+      directory: ./config
+
+  zones:
+
+    octodns.com.:
+      sources:
+        - config
+      targets:
+        - route53
+
+internal.yaml::
+
+  ---
+  providers:
+    config:
+      class: octodns.provider.yaml.YamlProvider
+      directory: ./config
+
+    internal:
+      class: octodns.provider.yaml.YamlProvider
+      directory: ./internal
+      populate_should_replace: true
+
+  zones:
+
+    octodns.com.:
+      sources:
+        - config
+        - internal
+      targets:
+        - pdns
+
+You can then sync our records eternally with `--config-file=external.yaml`
+and internally (with the custom overrides) with
+`--config-file=internal.yaml`
+'''
+
 #
 #
 
@@ -15,170 +179,6 @@ from .base import BaseProvider
 
 
 class YamlProvider(BaseProvider):
-    '''
-    Example Configuration
-    ---------------------
-
-    Core provider for records configured in yaml files on disk.::
-
-      config:
-        class: octodns.provider.yaml.YamlProvider
-
-        # The location of yaml config files. By default records are defined in a
-        # file named for the zone in this directory, the zone file, e.g.
-        # something.com.yaml.
-        # (required)
-        directory: ./config
-
-        # The ttl to use for records when not specified in the data
-        # (optional, default 3600)
-        default_ttl: 3600
-
-        # Whether or not to enforce sorting order when loading yaml
-        # (optional, default True)
-        enforce_order: true
-        # What sort mode to employ when enforcing order
-        # - simple: `sort`
-        # - natural: https://pypi.org/project/natsort/
-        # (optional, default natural)
-        order_mode: natural
-
-        # Whether duplicate records should replace rather than error
-        # (optional, default False)
-        populate_should_replace: false
-
-        # The file extension used when loading split style zones, Null means
-        # disabled. When enabled the provider will search for zone records split
-        # across multiple YAML files in the directory with split_extension
-        # appended to the zone name, See "Split Details" below.
-        # split_extension should include the "."
-        # (optional, default null, "." is the recommended best practice when
-        # enabling)
-        split_extension: null
-
-        # When writing YAML records out to disk with split_extension enabled
-        # each record is written out into its own file with .yaml appended to
-        # the name of the record. The two exceptions are for the root and
-        # wildcard nodes. These records are written into a file named
-        # `$[zone.name].yaml`. If you would prefer this catchall file not be
-        # used `split_catchall` can be set to False to instead write those
-        # records out to `.yaml` and `*.yaml` respectively. Note that some
-        # operating systems may not allow files with those names.
-        # (optional, default True)
-        split_catchall: true
-
-        # Optional filename with record data to be included in all zones
-        # populated by this provider. Has no effect when used as a target.
-        # (optional, default null)
-        shared_filename: null
-
-        # Disable loading of the zone .yaml files.
-        # (optional, default False)
-        disable_zonefile: false
-
-        # Whether or not ; in values, e.g. TXT, need to be escaped \\;
-        # (optional, default True)
-        escaped_semicolons: True
-
-    .. Note::
-
-      When using this provider as a target any existing comments or formatting in
-      the zone files will be lost when changes are applyed.
-
-    Split Details
-    -------------
-
-    All files are stored in a subdirectory matching the name of the zone
-    (including the trailing .) of the directory config. It is a recommended
-    best practice that the files be named RECORD.yaml, but all files are
-    sourced and processed ignoring the filenames so it is up to you how to
-    organize them.
-
-    With `split_extension: .` the directory structure for the zone github.com.
-    managed under directory "zones/" would look like::
-
-      zones/
-        github.com./
-          $github.com.yaml
-          www.yaml
-          ...
-
-    Overriding Values
-    -----------------
-
-    Overriding values can be accomplished using multiple yaml providers in the
-    `sources` list where subsequent providers have `populate_should_replace`
-    set to `true`. An example use of this would be a zone that you want to push
-    to external DNS providers and internally, but you want to modify some of
-    the records in the internal version.
-
-    config/octodns.com.yaml::
-
-      ---
-      other:
-        type: A
-        values:
-          - 192.30.252.115
-          - 192.30.252.116
-      www:
-        type: A
-        values:
-          - 192.30.252.113
-          - 192.30.252.114
-
-
-    internal/octodns.com.yaml::
-
-      ---
-      'www':
-        type: A
-        values:
-          - 10.0.0.12
-          - 10.0.0.13
-
-    external.yaml::
-
-      ---
-      providers:
-        config:
-          class: octodns.provider.yaml.YamlProvider
-          directory: ./config
-
-      zones:
-
-        octodns.com.:
-          sources:
-            - config
-          targets:
-            - route53
-
-    internal.yaml::
-
-      ---
-      providers:
-        config:
-          class: octodns.provider.yaml.YamlProvider
-          directory: ./config
-
-        internal:
-          class: octodns.provider.yaml.YamlProvider
-          directory: ./internal
-          populate_should_replace: true
-
-      zones:
-
-        octodns.com.:
-          sources:
-            - config
-            - internal
-          targets:
-            - pdns
-
-    You can then sync our records eternally with `--config-file=external.yaml`
-    and internally (with the custom overrides) with
-    `--config-file=internal.yaml`
-    '''
-
     SUPPORTS_GEO = True
     SUPPORTS_DYNAMIC = True
     SUPPORTS_POOL_VALUE_STATUS = True

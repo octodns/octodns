@@ -9,13 +9,14 @@ from octodns.__init__ import __version__
 
 ### sphinx config ###
 
-project = "octodns"
+project = "octoDNS"
 copyright = "2017-present"  # noqa
 author = "Ross McFarland"
 release = __version__
 
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
     "sphinx.ext.coverage",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
@@ -23,6 +24,8 @@ extensions = [
     "sphinx.ext.viewcode",
     "myst_parser",
     "sphinx_copybutton",
+    "sphinxcontrib.mermaid",
+    "sphinx_rtd_theme",
 ]
 
 
@@ -69,10 +72,7 @@ todo_include_todos = True
 
 ### myst ###
 
-myst_enable_extensions = [
-    "colon_fence",
-    "deflist",
-]
+myst_enable_extensions = ["colon_fence", "deflist"]
 myst_heading_anchors = 3
 
 
@@ -84,13 +84,6 @@ templates_path = ["_templates"]
 html_static_path = ["_static"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
-
 ### theme ###
 
-# html_theme = "alabaster"
-html_theme = "furo"
-html_theme_options = {
-    "source_repository": "https://github.com/octodns/octodns/",
-    "source_branch": "main",
-    "source_directory": "docs/",
-}
+html_theme = "sphinx_rtd_theme"

@@ -1,4 +1,4 @@
-# Migrating to octoDNS via octodns-dump
+# Migrating to octoDNS
 
 Importing an existing DNS setup into octoDNS management is a very
 straightforward process and can generally be completed in minutes.
@@ -55,7 +55,7 @@ just to have something to work with the the actual process that begins in the
 next step. It's not something you'd normally do when migrating to octoDNS.
 
 Step 0 is to get a local PowerDNS instance running.
-Check out out [Running PowerDNS](../README.md#running-powerdns) for info on
+Check out out [Running PowerDNS](#running-powerdns) for info on
 starting that up. Once you've done that run the following. You can ignore the
 output and move on to the next step.
 
@@ -66,10 +66,10 @@ output and move on to the next step.
 ## Running octodns-dump
 
 Once you have your configuration files and octoDNS installed you're ready to
-dump your zone configs. Here we've assumed that the provider being used supports
-`list_zones`, not all do. If you get an error to that effect see
-[dynamic-zone-config](../dynamic-zone-config) for details on how to explicitly
-list your zones in the config file.
+dump your zone configs. Here we've assumed that the provider being used
+supports `list_zones`, not all do. If you get an error to that effect see
+[dynamic-zone-config](#dynamic-zone-config) for
+details on how to explicitly list your zones in the config file.
 
 We first tell octodns-dump where to find our config file. We then tell it that
 we want to use the output provider defined in that file named `config` rather
@@ -136,7 +136,7 @@ This is especially true if you have any advanced records configured in your
 provider. octoDNS generally cannot convert records with functionality like
 weights and/or geo-coding enabled. It'll generally import a "simple" version of
 that record and indicate it's doing so with a WARNING log message. If you hit
-this situation see [Dynamic Records](/docs/dynamic_records.md).
+this situation see [Dynamic Records](/dynamic_records.rst).
 
 ## Running octodns-dump again, now with --lenient
 
@@ -204,7 +204,7 @@ config.
 
 So for now we'll enable `lenient` on the SSHFP record by editing
 my-dumpable.com.yaml adding `octodns.lenient = true` as shown below. For more
-details on see [lenience](/docs/records.md#lenience).
+details on see [lenience](#lenience).
 
 ```yaml
 ...
@@ -259,7 +259,7 @@ If you see things in the plan output section it's time to triple check and make
 sure they're, hopefully minimal, modifications your OK with making.
 
 If the changes are due to advanced functionality you'll need to step back and
-plan a careful migration over to [Dynamic Records](/docs/dynamic_records.md)
+plan a careful migration over to [Dynamic Records](/dynamic_records.rst)
 which is beyond the scope of this example.
 
 ## What's Next
@@ -267,5 +267,5 @@ which is beyond the scope of this example.
 So now you can commit your config and start managing you DNS with octoDNS rather
 than clicking buttons in UIs or using whatever you previous had used.
 
-* Check out [octoDNS basic example](../basic) for an example of how to create zone configuration YAML files from your existing provider's configuration
-* For a complete list check out the [Examples Directory](../)
+* Check out [octoDNS basic example](../basic/README.md) for an example of how to create zone configuration YAML files from your existing provider's configuration
+* For a complete list check out the [Examples Directory](../README.rst)
