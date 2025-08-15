@@ -32,6 +32,7 @@ Documentation
    auto_arpa.rst
    examples/README.rst
    api.rst
+   changelog.md
 
 .. _provider-list:
 

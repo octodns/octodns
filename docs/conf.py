@@ -78,7 +78,7 @@ myst_heading_anchors = 3
 
 ### content ###
 
-master_doc = "source/index"
+master_doc = "index"
 
 templates_path = ["_templates"]
 html_static_path = ["_static"]
