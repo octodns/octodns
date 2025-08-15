@@ -8,7 +8,8 @@ alabaster==0.7.16; python_version<'3.10'
 alabaster==1.0.0; python_version>='3.10'
 babel==2.17.0
 imagesize==1.4.1
-mdit-py-plugins==0.5.0
+mdit-py-plugins==0.4.2; python_version=='3.9'
+mdit-py-plugins==0.5.0; python_version>='3.10'
 myst-parser==3.0.1; python_version<'3.10'
 myst-parser==4.0.1; python_version>='3.10'
 roman-numerals-py==3.1.0
