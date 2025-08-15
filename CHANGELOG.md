@@ -175,8 +175,7 @@ Minor:
 ### Noteworthy changes
 
 * New dynamic zone config support that allows wildcard entries in the octoDNS
-  config to be expanded by the source provider(s). See
-  [Dynamic Zone Config](/README.md#dynamic-zone-config) for more information.
+  config to be expanded by the source provider(s).
 * SplitYamlProvider has been deprecated and will be removed in 2.0. YamlProvider
   now includes the ability to process split zones when configured to do so and
   allows for more flexibility in how things are laid out than was previously
@@ -254,11 +253,8 @@ long (years) overdue.
   from octodns.record you'll need to update and pull them from their actual
   home. Classes beginning with _ are not exported from octodns.record any
   longer as they were considered private/protected.
-* Beta support for auto-arpa has been added, See the
-  [auto-arpa documentation](/docs/auto_arpa.md) for more information.
-* Support for subnet targeting in dynamic records, see
-  [this section](/docs/dynamic_records.md#subnets) of dynamic records
-  documentation for more information.
+* Beta support for auto-arpa has been added
+* Support for subnet targeting in dynamic records
 * Enhanced validations on dynamic rules to encourage best practices
    * The last rule must be a catch-all w/o any targeted geos or subnets
    * Geos must not be repeated in multiple rules
@@ -360,7 +356,7 @@ long (years) overdue.
   to do so, but weren't. There was an ordering before, but it was essentially
   arbitrarily picked.
 * Record.register_type added so that providers can register custom record
-  types, see [docs/records.md](docs/records.md) for more information
+  types.
 * New `octodns-versions` command which will log out the version of octodns and
   any provider/processor/plan_output modules you are using.
 
@@ -503,9 +499,10 @@ long (years) overdue.
 
 * Alpha support for Processors has been added. Processors allow for hooking
   into the source, target, and planing process to make nearly arbitrary changes
-  to data. See the [octodns/processor/](/octodns/processor) directory for
-  examples. The change has been designed to have no impact on the process
-  unless the `processors` key is present in zone configs.
+  to data. See the
+  [octodns/processor/](https://github.com/octodns/octodns/tree/main/octodns/processor)
+  directory for examples. The change has been designed to have no impact on the
+  process unless the `processors` key is present in zone configs.
 * Fixes NS1 provider's geotarget limitation of using `NA` continent. Now, when
   `NA` is used in geos it considers **all** the countries of `North America`
   instead of just `us-east`, `us-west` and `us-central` regions
