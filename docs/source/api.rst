@@ -9,4 +9,4 @@ Developer Interface
    :maxdepth: 1
    :glob:
 
-   /api/*
+   api/*
