@@ -1,0 +1,5 @@
+Manager
+=======
+
+.. automodule::
+   octodns.manager

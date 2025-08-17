@@ -1,5 +1,5 @@
-Processor
-=========
+Processors
+==========
 
 Defining a processor configuration
 ----------------------------------
@@ -55,18 +55,16 @@ domains added to the ``zones`` config in future then you can add this to the
       processors:
           - custom_meta
 
-.. currentmodule:: octodns.processor
-
 .. autosummary::
    :toctree: processors
 
-   base
-   acme
-   arpa
-   filter
-   meta
-   ownership
-   restrict
-   spf
-   templating
-   trailing_dots
+   octodns.processor.base
+   octodns.processor.acme
+   octodns.processor.arpa
+   octodns.processor.filter
+   octodns.processor.meta
+   octodns.processor.ownership
+   octodns.processor.restrict
+   octodns.processor.spf
+   octodns.processor.templating
+   octodns.processor.trailing_dots
