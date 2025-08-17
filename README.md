@@ -1,11 +1,11 @@
-<img src="https://raw.githubusercontent.com/octodns/octodns/main/docs/source/assets/octodns-logo.png?" alt="octoDNS Logo" height=251 width=404>
+<img src="https://raw.githubusercontent.com/octodns/octodns/main/docs/assets/octodns-logo.png?" alt="octoDNS Logo" height=251 width=404>
 
 ## DNS as code - Tools for managing DNS across multiple providers
 
 In the vein of [infrastructure as
 code](https://en.wikipedia.org/wiki/Infrastructure_as_Code) octoDNS provides a set of tools & patterns that make it easy to manage your DNS records across multiple providers. The resulting config can live in a repository and be [deployed](https://github.com/blog/1241-deploying-at-github) just like the rest of your code, maintaining a clear history and using your existing review & workflow.
 
-The architecture is pluggable and the tooling is flexible to make it applicable to a wide variety of use-cases. Effort has been made to make adding new providers as easy as possible. In the simple case that involves writing of a single `class` and a couple hundred lines of code, most of which is translating between the provider's schema and octoDNS's. More on some of the ways we use it and how to go about extending it below and in the [/docs directory](/docs).
+The architecture is pluggable and the tooling is flexible to make it applicable to a wide variety of use-cases. Effort has been made to make adding new providers as easy as possible. In the simple case that involves writing of a single `class` and a couple hundred lines of code, most of which is translating between the provider's schema and octoDNS's. More on some of the ways we use it and how to go about extending it below and in the [the documentation](https://octodns.readthedocs.io/en/latest/).
 
 ## Documentation
 
