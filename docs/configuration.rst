@@ -10,7 +10,7 @@ discussing details and less common scenarios.
 YamlProvider
 ------------
 
-:doc:`api/provider-yaml` lays out the options for configuring the most commonly
+:py:mod:`octodns.provider.yaml` lays out the options for configuring the most commonly
 used source of record data.
 
 Static Zone Config

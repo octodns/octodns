@@ -8,8 +8,13 @@
 coverage.xml
 dist/
 docs/_build/
+docs/api/cmds/
+docs/api/helpers/
 docs/api/processors/
+docs/api/providers/
 docs/api/records/
+docs/api/secrets/
+docs/api/sources/
 .env
 env/
 examples/migrating-to-octodns/config/
