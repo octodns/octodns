@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/octodns/octodns/main/docs/source/assets/octodns-logo.png?" alt="octoDNS Logo" height=251 width=404>
+<img src="https://raw.githubusercontent.com/octodns/octodns/main/docs/assets/octodns-logo.png?" alt="octoDNS Logo" height=251 width=404>
 
 ## DNS as code - Tools for managing DNS across multiple providers
 
