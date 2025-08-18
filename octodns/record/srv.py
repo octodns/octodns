@@ -40,6 +40,36 @@ class SrvValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
+    def schema(cls):
+        return {
+            'type': 'object',
+            'properties': {
+                'priority': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 9999999999,
+                },
+                'weight': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 9999999999,
+                },
+                'port': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 9999999999,
+                },
+                'target': {
+                    'type': 'string',
+                    'format': 'idn-hostname',
+                    'pattern': r'\.$',
+                },
+            },
+            'required': ['priority', 'weight', 'port', 'target'],
+            "unevaluatedProperties": False,
+        }
+
+    @classmethod
     def validate(cls, data, _type):
         reasons = []
         for value in data:
@@ -156,6 +186,13 @@ class SrvRecord(ValuesMixin, Record):
     _type = 'SRV'
     _value_type = SrvValue
     _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
+
+    @classmethod
+    def name_schema(cls):
+        schema = super().name_schema()
+        # we'll have _
+        schema['pattern'] = r'^(\*|_[^\.]+)\.[^\.]+'
+        return schema
 
     @classmethod
     def validate(cls, name, fqdn, data):
