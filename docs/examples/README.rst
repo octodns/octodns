@@ -45,3 +45,4 @@ and running.
 
    basic/README.md
    migrating-to-octodns/README.md
+   custom/index.rst

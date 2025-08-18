@@ -1,0 +1,5 @@
+---
+'':
+  # just going to put something in here for the hell of it
+  - type: TXT
+    value: Try querying for TXT records named fibonacci-N where N is an integer 0-25
