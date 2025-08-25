@@ -326,22 +326,22 @@ Processors
    * - `octodns-spf`_
      - SPF Value Management for octoDNS
 
-.. _AcmeManagingProcessor: https://github.com/octodns/octodns/tree/main/octodns/processor/acme.py)
-.. _AutoArpa: https://github.com/octodns/octodns/tree/main/octodns/processor/arpa.py)
-.. _EnsureTrailingDots: https://github.com/octodns/octodns/tree/main/octodns/processor/trailing_dots.py)
-.. _ExcludeRootNsChanges: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py)
-.. _IgnoreRootNsFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py)
-.. _MetaProcessor: https://github.com/octodns/octodns/tree/main/octodns/processor/meta.py)
-.. _NameAllowlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py)
-.. _NameRejectlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py)
-.. _ValueAllowlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py)
-.. _ValueRejectlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py)
-.. _OwnershipProcessor: https://github.com/octodns/octodns/tree/main/octodns/processor/ownership.py)
-.. _SpfDnsLookupProcessor: https://github.com/octodns/octodns/tree/main/octodns/processor/spf.py)
-.. _TtlRestrictionFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/restrict.py)
-.. _TypeAllowlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py)
-.. _TypeRejectlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py)
-.. _octodns-spf: https://github.com/octodns/octodns/tree/main//github.com/octodns/octodns-spf)
+.. _AcmeManagingProcessor: https://github.com/octodns/octodns/tree/main/octodns/processor/acme.py
+.. _AutoArpa: https://github.com/octodns/octodns/tree/main/octodns/processor/arpa.py
+.. _EnsureTrailingDots: https://github.com/octodns/octodns/tree/main/octodns/processor/trailing_dots.py
+.. _ExcludeRootNsChanges: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
+.. _IgnoreRootNsFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
+.. _MetaProcessor: https://github.com/octodns/octodns/tree/main/octodns/processor/meta.py
+.. _NameAllowlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
+.. _NameRejectlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
+.. _ValueAllowlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
+.. _ValueRejectlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
+.. _OwnershipProcessor: https://github.com/octodns/octodns/tree/main/octodns/processor/ownership.py
+.. _SpfDnsLookupProcessor: https://github.com/octodns/octodns/tree/main/octodns/processor/spf.py
+.. _TtlRestrictionFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/restrict.py
+.. _TypeAllowlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
+.. _TypeRejectlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
+.. _octodns-spf: https://github.com/octodns/octodns/tree/main//github.com/octodns/octodns-spf
 
 Custom Sources and Providers
 ----------------------------
@@ -421,10 +421,10 @@ Related Projects and Resources
 
 .. _octoDNS-Sync: https://github.com/marketplace/actions/octodns-sync
 .. _NixOS-DNS: https://github.com/Janik-Haag/nixos-dns/
-.. _hackclub/dns: https://github.com/hackclub/dns)
-.. _`kubernetes/k8s.io:/dns`: https://github.com/kubernetes/k8s.io/tree/main/dns)
-.. _g0v-network/domains: https://github.com/g0v-network/domains)
-.. _jekyll/dns: https://github.com/jekyll/dns)
+.. _hackclub/dns: https://github.com/hackclub/dns
+.. _`kubernetes/k8s.io:/dns`: https://github.com/kubernetes/k8s.io/tree/main/dns
+.. _g0v-network/domains: https://github.com/g0v-network/domains
+.. _jekyll/dns: https://github.com/jekyll/dns
 .. _Visualising DNS records with Neo4j: https://medium.com/@costask/querying-and-visualising-octodns-records-with-neo4j-f4f72ab2d474
 .. _FOSDEM 2019 - DNS as code with octodns: https://archive.fosdem.org/2019/schedule/event/dns_octodns/
 .. _Enabling DNS split authority with octoDNS: https://github.blog/2017-04-27-enabling-split-authority-dns-with-octodns/
