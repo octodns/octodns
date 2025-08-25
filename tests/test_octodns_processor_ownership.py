@@ -9,7 +9,7 @@ from helpers import PlannableProvider
 from octodns.processor.ownership import OwnershipProcessor
 from octodns.provider.plan import Plan
 from octodns.record import Delete, Record
-from octodns.zone import Zone
+from octodns.zone import DuplicateRecordException, Zone
 
 zone = Zone('unit.tests.', [])
 records = {}
@@ -150,3 +150,30 @@ class TestOwnershipProcessor(TestCase):
         self.assertEqual(1, len(plan.changes))
         plan = ownership.process_plan(plan)
         self.assertFalse(plan)
+
+    def test_should_replace(self):
+        ownership = OwnershipProcessor('ownership')
+        self.assertFalse(ownership.should_replace)
+
+        zone = Zone('unit.tests.', [])
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '4.4.4.4'}
+        )
+        zone.add_record(record)
+
+        got = ownership.process_source_zone(zone.copy())
+        self.assertEqual(
+            ['_owner.a.a', 'a'], sorted([r.name for r in got.records])
+        )
+
+        # will fail w/a duplicate
+        with self.assertRaises(DuplicateRecordException):
+            ownership.process_source_zone(got.copy())
+
+        # enable should_replace, will replace instead of failing
+        ownership.should_replace = True
+        got = ownership.process_source_zone(got.copy())
+        # same expected result
+        self.assertEqual(
+            ['_owner.a.a', 'a'], sorted([r.name for r in got.records])
+        )
