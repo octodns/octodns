@@ -199,7 +199,7 @@ class Zone(object):
             not lenient
             # existing and new records aren't lenient
             and not (existing_lenient and new_lenient)
-            # new record or ecisting record are a CNAME
+            # and there'll be a CNAME co-existing with other records
             and (
                 (record._type == 'CNAME' and len(node) > 0)
                 or ('CNAME' in [r._type for r in node])
