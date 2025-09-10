@@ -514,6 +514,81 @@ class TestZone(TestCase):
         zone.add_record(a, lenient=True)
         self.assertEqual(set([a, cname]), zone.records)
 
+        # add cname to lenient a
+        a = Record.new(
+            zone,
+            'www',
+            {
+                'ttl': 60,
+                'type': 'A',
+                'value': '9.9.9.9',
+                'octodns': {'lenient': True},
+            },
+        )
+        zone = Zone('unit.tests.', [])
+        zone.add_record(a)
+        with self.assertRaises(InvalidNodeException) as ctx:
+            zone.add_record(cname)
+        self.assertTrue(', has some context' in str(ctx.exception))
+        self.assertEqual(set([a]), zone.records)
+
+        # add lenient a to cname
+        zone = Zone('unit.tests.', [])
+        zone.add_record(cname)
+        with self.assertRaises(InvalidNodeException):
+            zone.add_record(a)
+        self.assertEqual(set([cname]), zone.records)
+
+        # add lenient cname to lenient a
+        cname = Record.new(
+            zone,
+            'www',
+            {
+                'ttl': 60,
+                'type': 'CNAME',
+                'value': 'foo.bar.com.',
+                'octodns': {'lenient': True},
+            },
+        )
+        zone = Zone('unit.tests.', [])
+        zone.add_record(a)
+        zone.add_record(cname)
+        self.assertEqual(set([a, cname]), zone.records)
+
+        # add lenient a to lenient cname
+        zone = Zone('unit.tests.', [])
+        zone.add_record(cname)
+        zone.add_record(a)
+        self.assertEqual(set([a, cname]), zone.records)
+
+        # adding something else w/o lenient still errors
+        zone = Zone('unit.tests.', [])
+        zone.add_record(cname)
+        zone.add_record(a)
+        txt = Record.new(
+            zone, 'www', {'ttl': 60, 'type': 'TXT', 'value': 'Hello World'}
+        )
+        with self.assertRaises(InvalidNodeException):
+            zone.add_record(txt)
+        self.assertEqual(set([a, cname]), zone.records)
+
+        # if the 3rd record is lenient it can be added
+        zone = Zone('unit.tests.', [])
+        zone.add_record(cname)
+        zone.add_record(a)
+        txt = Record.new(
+            zone,
+            'www',
+            {
+                'ttl': 60,
+                'type': 'TXT',
+                'value': 'Hello World',
+                'octodns': {'lenient': True},
+            },
+        )
+        zone.add_record(txt)
+        self.assertEqual(set([a, cname, txt]), zone.records)
+
     def test_excluded_records(self):
         zone_normal = Zone('unit.tests.', [])
         zone_excluded = Zone('unit.tests.', [])
