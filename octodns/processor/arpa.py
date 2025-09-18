@@ -18,25 +18,30 @@ class AutoArpa(BaseProcessor):
         populate_should_replace=False,
         max_auto_arpa=999,
         inherit_ttl=False,
+        wildcard_replacement=None,
     ):
         super().__init__(name)
         self.log = getLogger(f'AutoArpa[{name}]')
         self.log.info(
-            '__init__: ttl=%d, populate_should_replace=%s, max_auto_arpa=%d, inherit_ttl=%s',
+            '__init__: ttl=%d, populate_should_replace=%s, max_auto_arpa=%d, inherit_ttl=%s, wildcard_replacement=%s',
             ttl,
             populate_should_replace,
             max_auto_arpa,
             inherit_ttl,
+            wildcard_replacement,
         )
         self.ttl = ttl
         self.populate_should_replace = populate_should_replace
         self.max_auto_arpa = max_auto_arpa
         self.inherit_ttl = inherit_ttl
+        self.wildcard_replacement = wildcard_replacement
         self._records = defaultdict(list)
 
     def process_source_zone(self, desired, sources):
         for record in desired.records:
-            if record._type in ('A', 'AAAA'):
+            if record._type in ('A', 'AAAA') and (
+                record.name != '*' or self.wildcard_replacement is not None
+            ):
                 ips = record.values
                 if record.geo:
                     for geo in record.geo.values():
@@ -46,6 +51,9 @@ class AutoArpa(BaseProcessor):
                         for value in pool.data['values']:
                             ips.append(value['value'])
 
+                fqdn = record.fqdn
+                if self.wildcard_replacement is not None:
+                    fqdn = fqdn.replace('*', self.wildcard_replacement)
                 for ip in ips:
                     ptr = ip_address(ip).reverse_pointer
                     auto_arpa_priority = record.octodns.get(
@@ -56,7 +64,7 @@ class AutoArpa(BaseProcessor):
                     else:
                         record_ttl = self.ttl
                     self._records[f'{ptr}.'].append(
-                        (auto_arpa_priority, record_ttl, record.fqdn)
+                        (auto_arpa_priority, record_ttl, fqdn)
                     )
 
         return desired
