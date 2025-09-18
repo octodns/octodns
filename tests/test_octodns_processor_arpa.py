@@ -367,3 +367,23 @@ class TestAutoArpa(TestCase):
         aa.populate(arpa)
         (ptr,) = arpa.records
         self.assertEqual(64, ptr.ttl)
+
+    def test_wildcard(self):
+        zone = Zone('unit.tests.', [])
+        record = Record.new(
+            zone, '*', {'ttl': 32, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        zone.add_record(record)
+
+        # with defaults, wildcards are ignored
+        aa = AutoArpa('auto-arpa')
+        aa.process_source_zone(zone, [])
+        self.assertEqual({}, aa._records)
+
+        # with a wildcard fill-in set they are included using it
+        aa = AutoArpa('auto-arpa', wildcard_replacement='wildcard')
+        aa.process_source_zone(zone, [])
+        self.assertEqual(
+            {'4.3.2.1.in-addr.arpa.': [(999, 3600, 'wildcard.unit.tests.')]},
+            aa._records,
+        )
