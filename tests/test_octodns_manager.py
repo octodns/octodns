@@ -1341,6 +1341,59 @@ class TestManager(TestCase):
             self.assertIsNone(zone_with_defaults.update_pcent_threshold)
             self.assertIsNone(zone_with_defaults.delete_pcent_threshold)
 
+    def test_preprocess_zones(self):
+        environ['YAML_TMP_DIR'] = '/tmp'
+        environ['YAML_TMP_DIR2'] = '/tmp'
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        # nothing returns nothing
+        mock_source = MagicMock()
+        got = manager._preprocess_zones({}, sources=[mock_source])
+        self.assertEqual({}, got)
+        mock_source.list_zones.assert_not_called()
+
+        # non-dynamic returns as-is, no calls to sources
+        mock_source.reset_mock()
+        zones = {'unit.tests.': {}}
+        got = manager._preprocess_zones(zones, sources=[mock_source])
+        self.assertEqual(zones, got)
+        mock_source.list_zones.assert_not_called()
+
+        # source that doesn't support list_zones
+        class SimpleSource:
+            id = 'simple-source'
+
+        # dynamic with a source that doesn't support it
+        mock_source.reset_mock()
+        zones = {'*': {}}
+        with self.assertRaises(ManagerException) as ctx:
+            manager._preprocess_zones(zones, sources=[SimpleSource()])
+        self.assertEqual(
+            'dynamic zone=* includes a source, simple-source, that does not support `list_zones`',
+            str(ctx.exception),
+        )
+        mock_source.list_zones.assert_not_called()
+
+        # same, but w/a source supports it
+        mock_source.reset_mock()
+        config = {'foo': 42}
+        zones = {'*': config}
+        mock_source.list_zones.return_value = ['one', 'two', 'three']
+        got = manager._preprocess_zones(zones, sources=[mock_source])
+        self.assertEqual({'one': config, 'two': config, 'three': config}, got)
+        mock_source.list_zones.assert_called_once()
+
+        # same, but one of the zones is expliticly configured, so left alone
+        mock_source.reset_mock()
+        config = {'foo': 42}
+        zones = {'*': config, 'two': {'bar': 43}}
+        mock_source.list_zones.return_value = ['one', 'two', 'three']
+        got = manager._preprocess_zones(zones, sources=[mock_source])
+        self.assertEqual(
+            {'one': config, 'two': {'bar': 43}, 'three': config}, got
+        )
+        mock_source.list_zones.assert_called_once()
+
 
 class TestMainThreadExecutor(TestCase):
     def test_success(self):
