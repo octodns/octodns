@@ -10,6 +10,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as module_version
 from json import dumps
 from logging import getLogger
+from re import compile as re_compile
 from sys import stdout
 
 from . import __version__
@@ -591,30 +592,49 @@ class Manager(object):
         the call and the zones returned from this function should be used
         instead.
         '''
-        for name, config in list(zones.items()):
-            if not name.startswith('*'):
-                continue
-            # we've found a dynamic config element
 
-            # find its sources
+        # sorting longest first with the assumption that'll longer wildcards or
+        # regexes will be more specific, but mostly it's just to make the
+        # behavior consistent
+        for name, config in sorted(
+            zones.items(), key=lambda d: len(d[0]), reverse=True
+        ):
+            if name[0] != '*' and name[-1] != '$':
+                # this isn't a dynamic zone config, move along
+                continue
+
+            # it's dynamic, get a list of zone names from the configured sources
             found_sources = sources or self._get_sources(
                 name, config, eligible_sources
             )
             self.log.info('sync:   dynamic zone=%s, sources=%s', name, sources)
+            sourced_zones = set()
             for source in found_sources:
                 if not hasattr(source, 'list_zones'):
                     raise ManagerException(
                         f'dynamic zone={name} includes a source, {source.id}, that does not support `list_zones`'
                     )
-                for zone_name in source.list_zones():
-                    if zone_name in zones:
-                        self.log.info(
-                            'sync:      zone=%s already in config, ignoring',
-                            zone_name,
-                        )
-                        continue
-                    self.log.info('sync:     adding dynamic zone=%s', zone_name)
-                    zones[zone_name] = config
+                sourced_zones |= set(source.list_zones())
+
+            self.log.debug('_preprocess_zones: sourced_zones=%s', sourced_zones)
+
+            if name[-1] == '$':
+                # it's an end-anchored regex
+                re = re_compile(name)
+                # filter the zones we sourced with it
+                sourced_zones = set(z for z in sourced_zones if re.match(z))
+            # old-style wildcards are implcit catch-alls so they don't need
+            # filtering
+
+            # we do want to remove any explicitly configured zones or those
+            # that matched a previous wildcard/regex
+            sourced_zones -= set(zones.keys())
+
+            self.log.debug('_preprocess_zones: filtered=%s', sourced_zones)
+
+            for match in sourced_zones:
+                self.log.info('sync:     adding dynamic zone=%s', match)
+                zones[match] = config
 
             # remove the dynamic config element so we don't try and populate it
             del zones[name]

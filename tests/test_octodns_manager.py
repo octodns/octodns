@@ -1394,6 +1394,39 @@ class TestManager(TestCase):
         )
         mock_source.list_zones.assert_called_once()
 
+        # doesn't matter what the actual name is, just that it starts with a *,
+        mock_source.reset_mock()
+        config = {'foo': 42}
+        zones = {'*SDFLKJSDFL': config, 'two': {'bar': 43}}
+        mock_source.list_zones.return_value = ['one', 'two', 'three']
+        got = manager._preprocess_zones(zones, sources=[mock_source])
+        self.assertEqual(
+            {'one': config, 'two': {'bar': 43}, 'three': config}, got
+        )
+        mock_source.list_zones.assert_called_once()
+
+        # multiple wildcards, this didn't make sense previously as the 2nd one
+        # would just win
+        mock_source.reset_mock()
+        config_a = {'foo': 42}
+        config_b = {'bar': 43}
+        zones = {r'.*\.a\.com\.$': config_a, r'.*\.b\.com\.$': config_b}
+        mock_source.list_zones.return_value = [
+            'one.a.com.',
+            'two.a.com.',
+            'three.b.com.',
+        ]
+        got = manager._preprocess_zones(zones, sources=[mock_source])
+        self.assertEqual(
+            {
+                'one.a.com.': config_a,
+                'two.a.com.': config_a,
+                'three.b.com.': config_b,
+            },
+            got,
+        )
+        self.assertEqual(2, mock_source.list_zones.call_count)
+
 
 class TestMainThreadExecutor(TestCase):
     def test_success(self):
