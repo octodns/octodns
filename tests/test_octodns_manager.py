@@ -1489,31 +1489,64 @@ class TestManager(TestCase):
         manager._get_sources = MagicMock()
         manager._get_sources.return_value = [mock_source]
 
+        # won't match anything
+        config_n = {'foo': 42, 'glob': r'*.nope.com.'}
         # match things with .a.
         config_a = {'foo': 42, 'glob': r'*.a.com.'}
         # match things with .b.
         config_b = {'bar': 43, 'glob': r'*.b.com.'}
-        zones = {'*.a.com.': config_a, '*.b.com.': config_b}
-        mock_source.list_zones.side_effect = [
-            [
-                'one.a.com.',
-                'two.a.com.',
-                'one.b.com.',
-                'two.b.com.',
-                'ignored.com.',
-            ]
+        # will match anything
+        config_c = {'bar': 43, 'glob': r'*'}
+        zones = {
+            '*.nope.com.': config_n,
+            '*.a.com.': config_a,
+            '*.b.com.': config_b,
+            '*': config_c,
+        }
+        mock_source.list_zones.return_value = [
+            # matched by a
+            'one.a.com.',
+            # matched by a
+            'two.a.com.',
+            # matched by b
+            'one.b.com.',
+            # matched by b
+            'two.b.com.',
+            # matched by c, catch all
+            'ignored.com.',
         ]
         got = manager._preprocess_zones(zones, sources=[])
-        self.assertEqual(2, manager._get_sources.call_count)
+        # 4 configs
+        self.assertEqual(4, manager._get_sources.call_count)
+        # 1 shared source
         self.assertEqual(1, mock_source.list_zones.call_count)
-        # a will glob match .a.com., b will .b.com., ignored.com. won't match
-        # anything
         self.assertEqual(
             {
                 'one.a.com.': config_a,
                 'two.a.com.': config_a,
                 'one.b.com.': config_b,
                 'two.b.com.': config_b,
+                'ignored.com.': config_c,
+            },
+            got,
+        )
+
+        # if we define the catch all first it'll take everything and leave
+        # nothing for the others
+        zones = {
+            '*': config_c,
+            '*.nope.com.': config_n,
+            '*.a.com.': config_a,
+            '*.b.com.': config_b,
+        }
+        got = manager._preprocess_zones(zones, sources=[])
+        self.assertEqual(
+            {
+                'one.a.com.': config_c,
+                'two.a.com.': config_c,
+                'one.b.com.': config_c,
+                'two.b.com.': config_c,
+                'ignored.com.': config_c,
             },
             got,
         )
@@ -1555,6 +1588,56 @@ class TestManager(TestCase):
                 'two.a.com.': config_a,
                 'one.b.com.': config_b,
                 'two.b.com.': config_b,
+            },
+            got,
+        )
+
+    def test_preprocess_zones_regex_claimed(self):
+        # these will be unused
+        environ['YAML_TMP_DIR'] = '/tmp'
+        environ['YAML_TMP_DIR2'] = '/tmp'
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        manager._get_sources = MagicMock()
+        mock_source = MagicMock()
+        mock_source.id = 'mm'
+        manager._get_sources = MagicMock()
+        manager._get_sources.return_value = [mock_source]
+
+        # match things with .a.
+        config_a = {'foo': 42, 'regex': r'\.a\.'}
+        # match everything
+        config_b = {'bar': 43, 'regex': r'.*'}
+        zones = {'*.a.com.': config_a, '*.b.com.': config_b}
+        mock_source.list_zones.side_effect = [
+            [
+                # won't match a b/c no . before the a, will match b
+                'a.com.',
+                # will match a, and be claimed
+                'one.a.com.',
+                # will match a, and be claimed
+                'two.a.com.',
+                # will match b
+                'one.b.com.',
+                # will match b
+                'two.b.com.',
+                # will match b
+                'ignored.com.',
+            ]
+        ]
+        got = manager._preprocess_zones(zones, sources=[])
+        self.assertEqual(2, manager._get_sources.call_count)
+        self.assertEqual(1, mock_source.list_zones.call_count)
+        # a will regex match .a.com., b will .b.com., ignored.com. won't match
+        # anything
+        self.assertEqual(
+            {
+                'a.com.': config_b,
+                'one.a.com.': config_a,
+                'two.a.com.': config_a,
+                'one.b.com.': config_b,
+                'two.b.com.': config_b,
+                'ignored.com.': config_b,
             },
             got,
         )
