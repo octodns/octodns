@@ -1,3 +1,5 @@
+(basic-setup)=
+
 # Basic Setup
 
 This is the starting point octoDNS config, it's pretty similar to what you
