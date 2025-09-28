@@ -37,7 +37,7 @@ to get a copy of the example files::
   $ source env/bin/activate
   (env) $ pip install -r requirements.txt
 
-Finally check out :ref:`Running PowerDNS` to get a local instance of PowerDNS
+Finally check out :ref:`running-powerdns` to get a local instance of PowerDNS
 up and going before continuing.
 
 Running octoDNS sync
@@ -111,7 +111,7 @@ Everything here matches the output and meaning of the first run in
 :ref:`basic-setup`, with the important difference that both the statically
 configured and dynamically generated records are listed as planned changes.
 From here a ``--doit`` run can be executed to create the records in the
-PowerDNS server, which can then be queried::
+PowerDNS server, which can then be queried.
 
 Viewing the results
 -------------------
