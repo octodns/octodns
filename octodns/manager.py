@@ -4,6 +4,7 @@
 
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+from fnmatch import filter as fnmatch_filter
 from hashlib import sha256
 from importlib import import_module
 from importlib.metadata import PackageNotFoundError
@@ -593,13 +594,11 @@ class Manager(object):
         instead.
         '''
 
-        # sorting longest first with the assumption that'll longer wildcards or
-        # regexes will be more specific, but mostly it's just to make the
-        # behavior consistent
-        for name, config in sorted(
-            zones.items(), key=lambda d: len(d[0]), reverse=True
-        ):
-            if name[0] != '*' and name[-1] != '$':
+        source_zones = {}
+
+        # list since we'll be modifying zones in the loop
+        for name, config in list(zones.items()):
+            if name[0] != '*':
                 # this isn't a dynamic zone config, move along
                 continue
 
@@ -607,33 +606,51 @@ class Manager(object):
             found_sources = sources or self._get_sources(
                 name, config, eligible_sources
             )
-            self.log.info('sync:   dynamic zone=%s, sources=%s', name, sources)
-            sourced_zones = set()
+            self.log.info(
+                '_preprocess_zones: dynamic zone=%s, sources=%s',
+                name,
+                (s.id for s in found_sources),
+            )
+            candidates = set()
             for source in found_sources:
-                if not hasattr(source, 'list_zones'):
-                    raise ManagerException(
-                        f'dynamic zone={name} includes a source, {source.id}, that does not support `list_zones`'
+                if source.id not in source_zones:
+                    if not hasattr(source, 'list_zones'):
+                        raise ManagerException(
+                            f'dynamic zone={name} includes a source, {source.id}, that does not support `list_zones`'
+                        )
+                    # get this source's zones
+                    listed_zones = set(source.list_zones())
+                    # cache them
+                    source_zones[source.id] = listed_zones
+                    self.log.debug(
+                        '_preprocess_zones: source=%s, list_zones=%s',
+                        source.id,
+                        listed_zones,
                     )
-                sourced_zones |= set(source.list_zones())
+                # add this source's zones to the candidates
+                candidates |= source_zones[source.id]
 
-            self.log.debug('_preprocess_zones: sourced_zones=%s', sourced_zones)
+            self.log.debug('_preprocess_zones: candidates=%s', candidates)
 
-            if name[-1] == '$':
-                # it's an end-anchored regex
-                re = re_compile(name)
-                # filter the zones we sourced with it
-                sourced_zones = set(z for z in sourced_zones if re.match(z))
-            # old-style wildcards are implcit catch-alls so they don't need
-            # filtering
+            # remove any zones that are already configured, either explicitly or
+            # from a previous dyanmic config
+            candidates -= set(zones.keys())
 
-            # we do want to remove any explicitly configured zones or those
-            # that matched a previous wildcard/regex
-            sourced_zones -= set(zones.keys())
+            if glob := config.pop('glob', None):
+                self.log.debug('_preprocess_zones: glob=%s', glob)
+                candidates = set(fnmatch_filter(candidates, glob))
+            elif regex := config.pop('regex', None):
+                self.log.debug('_preprocess_zones: regex=%s', regex)
+                regex = re_compile(regex)
+                self.log.debug('_preprocess_zones: compiled=%s', regex)
+                candidates = set(z for z in candidates if regex.search(z))
+            else:
+                # old-style wildcard that uses everything
+                self.log.debug('_preprocess_zones: old semantics, catch all')
 
-            self.log.debug('_preprocess_zones: filtered=%s', sourced_zones)
+            self.log.debug('_preprocess_zones: matches=%s', candidates)
 
-            for match in sourced_zones:
-                self.log.info('sync:     adding dynamic zone=%s', match)
+            for match in candidates:
                 zones[match] = config
 
             # remove the dynamic config element so we don't try and populate it
