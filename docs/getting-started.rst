@@ -41,9 +41,7 @@ separate accounts and each manage a distinct set of zones. A good example of
 this this might be ``./config/staging.yaml`` & ``./config/production.yaml``.
 We'll focus on a ``config/production.yaml``.
 
-.. _dynamic-zone-config:
-
-Dynamic Zone Config
+Zone Config
 ...................
 
 octoDNS supports dynamically building the list of zones it will work with when

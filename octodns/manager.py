@@ -630,25 +630,37 @@ class Manager(object):
                 # add this source's zones to the candidates
                 candidates |= source_zones[source.id]
 
-            self.log.debug('_preprocess_zones: candidates=%s', candidates)
+            self.log.debug(
+                '_preprocess_zones: name=%s, candidates=%s', name, candidates
+            )
 
             # remove any zones that are already configured, either explicitly or
             # from a previous dyanmic config
             candidates -= set(zones.keys())
 
             if glob := config.pop('glob', None):
-                self.log.debug('_preprocess_zones: glob=%s', glob)
+                self.log.debug(
+                    '_preprocess_zones: name=%s, glob=%s', name, glob
+                )
                 candidates = set(fnmatch_filter(candidates, glob))
             elif regex := config.pop('regex', None):
-                self.log.debug('_preprocess_zones: regex=%s', regex)
+                self.log.debug(
+                    '_preprocess_zones: name=%s, regex=%s', name, regex
+                )
                 regex = re_compile(regex)
-                self.log.debug('_preprocess_zones: compiled=%s', regex)
+                self.log.debug(
+                    '_preprocess_zones: name=%s, compiled=%s', name, regex
+                )
                 candidates = set(z for z in candidates if regex.search(z))
             else:
                 # old-style wildcard that uses everything
-                self.log.debug('_preprocess_zones: old semantics, catch all')
+                self.log.debug(
+                    '_preprocess_zones: name=%s, old semantics, catch all', name
+                )
 
-            self.log.debug('_preprocess_zones: matches=%s', candidates)
+            self.log.debug(
+                '_preprocess_zones: name=%s, matches=%s', name, candidates
+            )
 
             for match in candidates:
                 zones[match] = config

@@ -28,6 +28,7 @@ Documentation
    getting-started.rst
    records.md
    configuration.rst
+   dynamic_zone_config.rst
    dynamic_records.rst
    auto_arpa.rst
    examples/README.rst
