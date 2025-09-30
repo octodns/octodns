@@ -13,10 +13,45 @@ YamlProvider
 :py:mod:`octodns.provider.yaml` lays out the options for configuring the most commonly
 used source of record data.
 
+Dynamic Zone Config
+-------------------
+
+In many cases octoDNS's dynamic zone configuration is the best option for
+configuring octoDNS to manage your zones. In its simplest form that would look
+something like::
+
+  ---
+  providers:
+    config:
+      class: octodns.provider.yaml.YamlProvider
+      directory: ./config
+      default_ttl: 3600
+      enforce_order: True
+    ns1:
+      class: octodns_ns1.Ns1Provider
+      api_key: env/NS1_API_KEY
+    route53:
+      class: octodns_route53.Route53Provider
+      access_key_id: env/AWS_ACCESS_KEY_ID
+      secret_access_key: env/AWS_SECRET_ACCESS_KEY
+
+  zones:
+    '*':
+      sources:
+        - config
+      targets:
+        - ns1
+        - route53
+
+This configuration will query both ns1 and route53 for the list of zones they
+are managing and dynamically add them to the list being managed using the
+sources and targets corresponding to the '*' section. See
+:ref:`dynamic-zone-config` for details.
+
 Static Zone Config
 ------------------
 
-In cases where finer grained control is desired and the configuration of
+In cases where fine grained control is desired and the configuration of
 individual zones varies ``zones`` can be an explicit list with each configured
 zone listed along with its specific setup. As exemplified below ``alias`` zones
 can be useful when two zones are exact copies of each other, with the same

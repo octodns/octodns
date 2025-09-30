@@ -4,12 +4,14 @@
 
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+from fnmatch import filter as fnmatch_filter
 from hashlib import sha256
 from importlib import import_module
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as module_version
 from json import dumps
 from logging import getLogger
+from re import compile as re_compile
 from sys import stdout
 
 from . import __version__
@@ -591,30 +593,77 @@ class Manager(object):
         the call and the zones returned from this function should be used
         instead.
         '''
-        for name, config in list(zones.items()):
-            if not name.startswith('*'):
-                continue
-            # we've found a dynamic config element
 
-            # find its sources
+        source_zones = {}
+
+        # list since we'll be modifying zones in the loop
+        for name, config in list(zones.items()):
+            if name[0] != '*':
+                # this isn't a dynamic zone config, move along
+                continue
+
+            # it's dynamic, get a list of zone names from the configured sources
             found_sources = sources or self._get_sources(
                 name, config, eligible_sources
             )
-            self.log.info('sync:   dynamic zone=%s, sources=%s', name, sources)
+            self.log.info(
+                '_preprocess_zones: dynamic zone=%s, sources=%s',
+                name,
+                (s.id for s in found_sources),
+            )
+            candidates = set()
             for source in found_sources:
-                if not hasattr(source, 'list_zones'):
-                    raise ManagerException(
-                        f'dynamic zone={name} includes a source, {source.id}, that does not support `list_zones`'
-                    )
-                for zone_name in source.list_zones():
-                    if zone_name in zones:
-                        self.log.info(
-                            'sync:      zone=%s already in config, ignoring',
-                            zone_name,
+                if source.id not in source_zones:
+                    if not hasattr(source, 'list_zones'):
+                        raise ManagerException(
+                            f'dynamic zone={name} includes a source, {source.id}, that does not support `list_zones`'
                         )
-                        continue
-                    self.log.info('sync:     adding dynamic zone=%s', zone_name)
-                    zones[zone_name] = config
+                    # get this source's zones
+                    listed_zones = set(source.list_zones())
+                    # cache them
+                    source_zones[source.id] = listed_zones
+                    self.log.debug(
+                        '_preprocess_zones: source=%s, list_zones=%s',
+                        source.id,
+                        listed_zones,
+                    )
+                # add this source's zones to the candidates
+                candidates |= source_zones[source.id]
+
+            self.log.debug(
+                '_preprocess_zones: name=%s, candidates=%s', name, candidates
+            )
+
+            # remove any zones that are already configured, either explicitly or
+            # from a previous dyanmic config
+            candidates -= set(zones.keys())
+
+            if glob := config.pop('glob', None):
+                self.log.debug(
+                    '_preprocess_zones: name=%s, glob=%s', name, glob
+                )
+                candidates = set(fnmatch_filter(candidates, glob))
+            elif regex := config.pop('regex', None):
+                self.log.debug(
+                    '_preprocess_zones: name=%s, regex=%s', name, regex
+                )
+                regex = re_compile(regex)
+                self.log.debug(
+                    '_preprocess_zones: name=%s, compiled=%s', name, regex
+                )
+                candidates = set(z for z in candidates if regex.search(z))
+            else:
+                # old-style wildcard that uses everything
+                self.log.debug(
+                    '_preprocess_zones: name=%s, old semantics, catch all', name
+                )
+
+            self.log.debug(
+                '_preprocess_zones: name=%s, matches=%s', name, candidates
+            )
+
+            for match in candidates:
+                zones[match] = config
 
             # remove the dynamic config element so we don't try and populate it
             del zones[name]

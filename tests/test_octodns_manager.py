@@ -1341,6 +1341,307 @@ class TestManager(TestCase):
             self.assertIsNone(zone_with_defaults.update_pcent_threshold)
             self.assertIsNone(zone_with_defaults.delete_pcent_threshold)
 
+    def test_preprocess_zones_original(self):
+        # these will be unused
+        environ['YAML_TMP_DIR'] = '/tmp'
+        environ['YAML_TMP_DIR2'] = '/tmp'
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        # nothing returns nothing
+        mock_source = MagicMock()
+        got = manager._preprocess_zones({}, sources=[mock_source])
+        self.assertEqual({}, got)
+        mock_source.list_zones.assert_not_called()
+
+        # non-dynamic returns as-is, no calls to sources
+        mock_source.reset_mock()
+        zones = {'unit.tests.': {}}
+        got = manager._preprocess_zones(zones, sources=[mock_source])
+        self.assertEqual(zones, got)
+        mock_source.list_zones.assert_not_called()
+
+        # source that doesn't support list_zones
+        class SimpleSource:
+            id = 'simple-source'
+
+        # dynamic with a source that doesn't support it
+        mock_source.reset_mock()
+        zones = {'*': {}}
+        with self.assertRaises(ManagerException) as ctx:
+            manager._preprocess_zones(zones, sources=[SimpleSource()])
+        self.assertEqual(
+            'dynamic zone=* includes a source, simple-source, that does not support `list_zones`',
+            str(ctx.exception),
+        )
+        mock_source.list_zones.assert_not_called()
+
+        # same, but w/a source supports it
+        mock_source.reset_mock()
+        config = {'foo': 42}
+        zones = {'*': config}
+        mock_source.list_zones.return_value = ['one', 'two', 'three']
+        got = manager._preprocess_zones(zones, sources=[mock_source])
+        self.assertEqual({'one': config, 'two': config, 'three': config}, got)
+        mock_source.list_zones.assert_called_once()
+
+        # same, but one of the zones is expliticly configured, so left alone
+        mock_source.reset_mock()
+        config = {'foo': 42}
+        zones = {'*': config, 'two': {'bar': 43}}
+        mock_source.list_zones.return_value = ['one', 'two', 'three']
+        got = manager._preprocess_zones(zones, sources=[mock_source])
+        self.assertEqual(
+            {'one': config, 'two': {'bar': 43}, 'three': config}, got
+        )
+        mock_source.list_zones.assert_called_once()
+
+        # doesn't matter what the actual name is, just that it starts with a *,
+        mock_source.reset_mock()
+        config = {'foo': 42}
+        zones = {'*SDFLKJSDFL': config, 'two': {'bar': 43}}
+        mock_source.list_zones.return_value = ['one', 'two', 'three']
+        got = manager._preprocess_zones(zones, sources=[mock_source])
+        self.assertEqual(
+            {'one': config, 'two': {'bar': 43}, 'three': config}, got
+        )
+        mock_source.list_zones.assert_called_once()
+
+    def test_preprocess_zones_multiple_single_source(self):
+        # these will be unused
+        environ['YAML_TMP_DIR'] = '/tmp'
+        environ['YAML_TMP_DIR2'] = '/tmp'
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        manager._get_sources = MagicMock()
+        mock_source = MagicMock()
+        mock_source.id = 'mm'
+        manager._get_sources = MagicMock()
+        manager._get_sources.return_value = [mock_source]
+
+        config_a = {'foo': 42}
+        config_b = {'bar': 43}
+        zones = {'*.a.com.': config_a, '*.b.com.': config_b}
+        mock_source.list_zones.side_effect = [
+            ['one.a.com.', 'two.a.com.', 'one.b.com.', 'two.b.com.']
+        ]
+        got = manager._preprocess_zones(zones, sources=[])
+        # each zone will have it's sources looked up
+        self.assertEqual(2, manager._get_sources.call_count)
+        # but there's only one source so it's zones will be cached
+        self.assertEqual(1, mock_source.list_zones.call_count)
+        # everything will have been matched by the first old style wildcard and
+        # thus have its config, nothing will have b's
+        self.assertEqual(
+            {
+                'one.a.com.': config_a,
+                'two.a.com.': config_a,
+                'one.b.com.': config_a,
+                'two.b.com.': config_a,
+            },
+            got,
+        )
+
+    def test_preprocess_zones_multiple_seperate_sources(self):
+        # these will be unused
+        environ['YAML_TMP_DIR'] = '/tmp'
+        environ['YAML_TMP_DIR2'] = '/tmp'
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        manager._get_sources = MagicMock()
+        mock_source_a = MagicMock()
+        mock_source_a.id = 'mm_a'
+        mock_source_b = MagicMock()
+        mock_source_b.id = 'mm_b'
+        manager._get_sources = MagicMock()
+        manager._get_sources.side_effect = [[mock_source_a], [mock_source_b]]
+
+        config_a = {'foo': 42}
+        config_b = {'bar': 43}
+        zones = {'*.a.com.': config_a, '*.b.com.': config_b}
+        mock_source_a.list_zones.side_effect = [['one.a.com.', 'two.a.com.']]
+        mock_source_b.list_zones.side_effect = [['one.b.com.', 'two.b.com.']]
+        got = manager._preprocess_zones(zones, sources=[])
+        # each zone will have it's sources looked up
+        self.assertEqual(2, manager._get_sources.call_count)
+        # so each mock will be called once
+        self.assertEqual(1, mock_source_a.list_zones.call_count)
+        self.assertEqual(1, mock_source_b.list_zones.call_count)
+        # the souces from each source will be matched with the coresponding config
+        self.assertEqual(
+            {
+                'one.a.com.': config_a,
+                'two.a.com.': config_a,
+                'one.b.com.': config_b,
+                'two.b.com.': config_b,
+            },
+            got,
+        )
+
+    def test_preprocess_zones_glob(self):
+        # these will be unused
+        environ['YAML_TMP_DIR'] = '/tmp'
+        environ['YAML_TMP_DIR2'] = '/tmp'
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        manager._get_sources = MagicMock()
+        mock_source = MagicMock()
+        mock_source.id = 'mm'
+        manager._get_sources = MagicMock()
+        manager._get_sources.return_value = [mock_source]
+
+        # won't match anything
+        config_n = {'foo': 42, 'glob': r'*.nope.com.'}
+        # match things with .a.
+        config_a = {'foo': 42, 'glob': r'*.a.com.'}
+        # match things with .b.
+        config_b = {'bar': 43, 'glob': r'*.b.com.'}
+        # will match anything
+        config_c = {'bar': 43, 'glob': r'*'}
+        zones = {
+            '*.nope.com.': config_n,
+            '*.a.com.': config_a,
+            '*.b.com.': config_b,
+            '*': config_c,
+        }
+        mock_source.list_zones.return_value = [
+            # matched by a
+            'one.a.com.',
+            # matched by a
+            'two.a.com.',
+            # matched by b
+            'one.b.com.',
+            # matched by b
+            'two.b.com.',
+            # matched by c, catch all
+            'ignored.com.',
+        ]
+        got = manager._preprocess_zones(zones, sources=[])
+        # 4 configs
+        self.assertEqual(4, manager._get_sources.call_count)
+        # 1 shared source
+        self.assertEqual(1, mock_source.list_zones.call_count)
+        self.assertEqual(
+            {
+                'one.a.com.': config_a,
+                'two.a.com.': config_a,
+                'one.b.com.': config_b,
+                'two.b.com.': config_b,
+                'ignored.com.': config_c,
+            },
+            got,
+        )
+
+        # if we define the catch all first it'll take everything and leave
+        # nothing for the others
+        zones = {
+            '*': config_c,
+            '*.nope.com.': config_n,
+            '*.a.com.': config_a,
+            '*.b.com.': config_b,
+        }
+        got = manager._preprocess_zones(zones, sources=[])
+        self.assertEqual(
+            {
+                'one.a.com.': config_c,
+                'two.a.com.': config_c,
+                'one.b.com.': config_c,
+                'two.b.com.': config_c,
+                'ignored.com.': config_c,
+            },
+            got,
+        )
+
+    def test_preprocess_zones_regex(self):
+        # these will be unused
+        environ['YAML_TMP_DIR'] = '/tmp'
+        environ['YAML_TMP_DIR2'] = '/tmp'
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        manager._get_sources = MagicMock()
+        mock_source = MagicMock()
+        mock_source.id = 'mm'
+        manager._get_sources = MagicMock()
+        manager._get_sources.return_value = [mock_source]
+
+        # match things with .a.
+        config_a = {'foo': 42, 'regex': r'\.a\.'}
+        # match things with .b.
+        config_b = {'bar': 43, 'regex': r'\.b\.'}
+        zones = {'*.a.com.': config_a, '*.b.com.': config_b}
+        mock_source.list_zones.side_effect = [
+            [
+                'one.a.com.',
+                'two.a.com.',
+                'one.b.com.',
+                'two.b.com.',
+                'ignored.com.',
+            ]
+        ]
+        got = manager._preprocess_zones(zones, sources=[])
+        self.assertEqual(2, manager._get_sources.call_count)
+        self.assertEqual(1, mock_source.list_zones.call_count)
+        # a will regex match .a.com., b will .b.com., ignored.com. won't match
+        # anything
+        self.assertEqual(
+            {
+                'one.a.com.': config_a,
+                'two.a.com.': config_a,
+                'one.b.com.': config_b,
+                'two.b.com.': config_b,
+            },
+            got,
+        )
+
+    def test_preprocess_zones_regex_claimed(self):
+        # these will be unused
+        environ['YAML_TMP_DIR'] = '/tmp'
+        environ['YAML_TMP_DIR2'] = '/tmp'
+        manager = Manager(get_config_filename('simple.yaml'))
+
+        manager._get_sources = MagicMock()
+        mock_source = MagicMock()
+        mock_source.id = 'mm'
+        manager._get_sources = MagicMock()
+        manager._get_sources.return_value = [mock_source]
+
+        # match things with .a.
+        config_a = {'foo': 42, 'regex': r'\.a\.'}
+        # match everything
+        config_b = {'bar': 43, 'regex': r'.*'}
+        zones = {'*.a.com.': config_a, '*.b.com.': config_b}
+        mock_source.list_zones.side_effect = [
+            [
+                # won't match a b/c no . before the a, will match b
+                'a.com.',
+                # will match a, and be claimed
+                'one.a.com.',
+                # will match a, and be claimed
+                'two.a.com.',
+                # will match b
+                'one.b.com.',
+                # will match b
+                'two.b.com.',
+                # will match b
+                'ignored.com.',
+            ]
+        ]
+        got = manager._preprocess_zones(zones, sources=[])
+        self.assertEqual(2, manager._get_sources.call_count)
+        self.assertEqual(1, mock_source.list_zones.call_count)
+        # a will regex match .a.com., b will .b.com., ignored.com. won't match
+        # anything
+        self.assertEqual(
+            {
+                'a.com.': config_b,
+                'one.a.com.': config_a,
+                'two.a.com.': config_a,
+                'one.b.com.': config_b,
+                'two.b.com.': config_b,
+                'ignored.com.': config_b,
+            },
+            got,
+        )
+
 
 class TestMainThreadExecutor(TestCase):
     def test_success(self):
