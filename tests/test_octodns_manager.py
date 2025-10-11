@@ -278,9 +278,9 @@ class TestManager(TestCase):
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             environ['YAML_TMP_DIR2'] = tmpdir.dirname
             # Only allow a target that doesn't exist
-            tc = Manager(get_config_filename('simple.yaml')).sync(
-                eligible_sources=['foo']
-            )
+            tc = Manager(
+                get_config_filename('simple.yaml'), active_sources=['foo']
+            ).sync()
             self.assertEqual(0, tc)
 
     def test_eligible_targets(self):
@@ -417,30 +417,25 @@ class TestManager(TestCase):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             environ['YAML_TMP_DIR2'] = tmpdir.dirname
-            manager = Manager(get_config_filename('simple.yaml'))
+            manager = Manager(
+                get_config_filename('simple.yaml'), active_sources=['nope']
+            )
 
             with self.assertRaises(ManagerException) as ctx:
                 manager.dump(
-                    zone='unit.tests.',
-                    output_dir=tmpdir.dirname,
-                    split=True,
-                    sources=['nope'],
+                    zone='unit.tests.', output_dir=tmpdir.dirname, split=True
                 )
             self.assertEqual('Unknown source: nope', str(ctx.exception))
 
             # specific zone
+            manager.active_sources = ['in']
             manager.dump(
-                zone='unit.tests.',
-                output_dir=tmpdir.dirname,
-                split=True,
-                sources=['in'],
+                zone='unit.tests.', output_dir=tmpdir.dirname, split=True
             )
             self.assertEqual(['unit.tests.'], listdir(tmpdir.dirname))
 
             # all configured zones
-            manager.dump(
-                zone='*', output_dir=tmpdir.dirname, split=True, sources=['in']
-            )
+            manager.dump(zone='*', output_dir=tmpdir.dirname, split=True)
             self.assertEqual(
                 [
                     'empty.',
@@ -455,21 +450,18 @@ class TestManager(TestCase):
             # when trying to find sub zones
             with self.assertRaises(ManagerException):
                 manager.dump(
-                    zone='unknown.zone.',
-                    output_dir=tmpdir.dirname,
-                    split=True,
-                    sources=['in'],
+                    zone='unknown.zone.', output_dir=tmpdir.dirname, split=True
                 )
 
     def test_dump_empty(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             environ['YAML_TMP_DIR2'] = tmpdir.dirname
-            manager = Manager(get_config_filename('simple.yaml'))
-
-            manager.dump(
-                zone='empty.', output_dir=tmpdir.dirname, sources=['in']
+            manager = Manager(
+                get_config_filename('simple.yaml'), active_sources=['in']
             )
+
+            manager.dump(zone='empty.', output_dir=tmpdir.dirname)
 
             with open(join(tmpdir.dirname, 'empty.yaml')) as fh:
                 data = safe_load(fh, False)
@@ -481,7 +473,9 @@ class TestManager(TestCase):
             # this time we'll use seperate tmp dirs
             with TemporaryDirectory() as tmpdir2:
                 environ['YAML_TMP_DIR2'] = tmpdir2.dirname
-                manager = Manager(get_config_filename('simple.yaml'))
+                manager = Manager(
+                    get_config_filename('simple.yaml'), active_sources=['in']
+                )
 
                 # we're going to tell it to use dump2 to do the dumping, but a
                 # copy should be made and directory set to tmpdir.dirname
@@ -490,7 +484,6 @@ class TestManager(TestCase):
                     zone='unit.tests.',
                     output_dir=tmpdir.dirname,
                     output_provider='dump2',
-                    sources=['in'],
                 )
 
                 self.assertTrue(isfile(join(tmpdir.dirname, 'unit.tests.yaml')))
@@ -504,7 +497,6 @@ class TestManager(TestCase):
                     zone='unit.tests.',
                     output_dir=tmpdir2.dirname,
                     output_provider='dump2',
-                    sources=['in'],
                 )
                 self.assertTrue(
                     isfile(join(tmpdir2.dirname, 'unit.tests.yaml'))
@@ -516,7 +508,6 @@ class TestManager(TestCase):
                         zone='unit.tests.',
                         output_dir=tmpdir.dirname,
                         output_provider='nope',
-                        sources=['in'],
                     )
                 self.assertEqual(
                     'Unknown output_provider: nope', str(ctx.exception)
@@ -529,7 +520,6 @@ class TestManager(TestCase):
                         zone='unit.tests.',
                         output_dir=tmpdir.dirname,
                         output_provider='simple',
-                        sources=['in'],
                     )
                 self.assertEqual(
                     'output_provider=simple, does not support '
@@ -545,7 +535,6 @@ class TestManager(TestCase):
                         zone='unit.tests.',
                         output_dir=tmpdir.dirname,
                         output_provider='simple',
-                        sources=['in'],
                     )
                 self.assertEqual(
                     'output_provider=simple, does not support copy method',
@@ -556,32 +545,27 @@ class TestManager(TestCase):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             environ['YAML_TMP_DIR2'] = tmpdir.dirname
-            manager = Manager(get_config_filename('simple-split.yaml'))
+            manager = Manager(
+                get_config_filename('simple-split.yaml'),
+                active_sources=['nope'],
+            )
 
             with self.assertRaises(ManagerException) as ctx:
                 manager.dump(
-                    zone='unit.tests.',
-                    output_dir=tmpdir.dirname,
-                    split=True,
-                    sources=['nope'],
+                    zone='unit.tests.', output_dir=tmpdir.dirname, split=True
                 )
             self.assertEqual('Unknown source: nope', str(ctx.exception))
 
+            manager.active_sources = ['in']
             manager.dump(
-                zone='unit.tests.',
-                output_dir=tmpdir.dirname,
-                split=True,
-                sources=['in'],
+                zone='unit.tests.', output_dir=tmpdir.dirname, split=True
             )
 
             # make sure this fails with an ManagerException and not a KeyError
             # when trying to find sub zones
             with self.assertRaises(ManagerException):
                 manager.dump(
-                    zone='unknown.zone.',
-                    output_dir=tmpdir.dirname,
-                    split=True,
-                    sources=['in'],
+                    zone='unknown.zone.', output_dir=tmpdir.dirname, split=True
                 )
 
     def test_validate_configs(self):
@@ -1057,24 +1041,22 @@ class TestManager(TestCase):
                 str(ctx.exception),
             )
 
-            # same for eligible_sources
+            # same for active_sources
             reset(tmpdir.dirname)
-            tc = manager.sync(
-                dry_run=False,
-                eligible_zones=['unit.tests.'],
-                eligible_sources=['in'],
-            )
+            manager.active_sources = ['in']
+            tc = manager.sync(dry_run=False, eligible_zones=['unit.tests.'])
             self.assertEqual(22, tc)
             # can't do partial syncs that include arpa zones
             with self.assertRaises(ManagerException) as ctx:
-                manager.sync(dry_run=False, eligible_sources=['in'])
+                manager.sync(dry_run=False)
             self.assertEqual(
-                'eligible_sources is incompatible with auto_arpa',
+                'active_sources is incompatible with auto_arpa',
                 str(ctx.exception),
             )
 
             # same for eligible_targets
             reset(tmpdir.dirname)
+            manager.active_sources = None
             tc = manager.sync(
                 dry_run=False,
                 eligible_zones=['unit.tests.'],
@@ -1091,6 +1073,7 @@ class TestManager(TestCase):
 
             # full sync with arpa is fine, 2 extra records from it
             reset(tmpdir.dirname)
+            manager.active_sources = None
             tc = manager.sync(dry_run=False)
             self.assertEqual(26, tc)
 

@@ -98,11 +98,17 @@ class Manager(object):
         include_meta=False,
         auto_arpa=False,
         enable_checksum=False,
+        active_sources=None,
     ):
         version = self._try_version('octodns', version=__version__)
         self.log.info(
-            '__init__: config_file=%s, (octoDNS %s)', config_file, version
+            '__init__: config_file=%s, active_sources=%s (octoDNS %s)',
+            config_file,
+            active_sources,
+            version,
         )
+
+        self.active_sources = active_sources
 
         self._configured_sub_zones = None
 
@@ -673,7 +679,6 @@ class Manager(object):
     def sync(
         self,
         eligible_zones=[],
-        eligible_sources=[],
         eligible_targets=[],
         dry_run=True,
         force=False,
@@ -692,7 +697,7 @@ class Manager(object):
 
         zones = self.config['zones']
 
-        zones = self._preprocess_zones(zones, eligible_sources)
+        zones = self._preprocess_zones(zones, self.active_sources)
 
         if eligible_zones:
             zones = IdnaDict({n: zones.get(n) for n in eligible_zones})
@@ -706,9 +711,9 @@ class Manager(object):
                 raise ManagerException(
                     'ARPA zones cannot be synced during partial runs when auto_arpa is enabled'
                 )
-            if eligible_sources:
+            if self.active_sources:
                 raise ManagerException(
-                    'eligible_sources is incompatible with auto_arpa'
+                    'active_sources is incompatible with auto_arpa'
                 )
             if eligible_targets:
                 raise ManagerException(
@@ -747,7 +752,7 @@ class Manager(object):
             lenient = config.get('lenient', False)
 
             sources = self._get_sources(
-                decoded_zone_name, config, eligible_sources
+                decoded_zone_name, config, self.active_sources
             )
 
             try:
@@ -944,30 +949,23 @@ class Manager(object):
         return zb.changes(za, _AggregateTarget(a + b))
 
     def dump(
-        self,
-        zone,
-        output_dir,
-        sources,
-        lenient=False,
-        split=False,
-        output_provider=None,
+        self, zone, output_dir, lenient=False, split=False, output_provider=None
     ):
         '''
         Dump zone data from the specified source
         '''
         self.log.info(
             'dump: zone=%s, output_dir=%s, output_provider=%s, '
-            'lenient=%s, split=%s, sources=%s',
+            'lenient=%s, split=%s',
             zone,
             output_dir,
             output_provider,
             lenient,
             split,
-            sources,
         )
 
         try:
-            sources = [self.providers[s] for s in sources]
+            sources = [self.providers[s] for s in self.active_sources]
         except KeyError as e:
             raise ManagerException(f'Unknown source: {e.args[0]}')
 
