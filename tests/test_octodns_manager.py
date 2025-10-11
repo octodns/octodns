@@ -1124,8 +1124,10 @@ class TestManager(TestCase):
 
             manager = Manager(get_config_filename('dynamic-config.yaml'))
 
-            # should sync everything across all zones, total of 32 records
-            self.assertEqual(32, manager.sync(dry_run=False))
+            # should sync everything across all zones, total of 33 records
+            # unit.tests. (22) + dynamic.tests. (7) + sub.dynamic.tests. (1) +
+            # subzone.unit.tests. (3) = 33
+            self.assertEqual(33, manager.sync(dry_run=False))
 
     def test_dynamic_config_with_arpa(self):
         with TemporaryDirectory() as tmpdir:
@@ -1155,6 +1157,47 @@ class TestManager(TestCase):
         with self.assertRaises(ManagerException) as ctx:
             manager.sync()
         self.assertTrue('does not support `list_zones`' in str(ctx.exception))
+
+    def test_dynamic_config_with_subzones(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+
+            manager = Manager(get_config_filename('dynamic-config.yaml'))
+
+            # Before sync, the dynamic zones haven't been discovered yet
+            # But we can verify they will be after preprocessing
+            zones = dict(manager.config['zones'])
+            preprocessed = manager._preprocess_zones(
+                zones, eligible_sources=None
+            )
+
+            # Verify that both dynamic.tests. and sub.dynamic.tests. were discovered
+            self.assertIn('dynamic.tests.', preprocessed)
+            self.assertIn('sub.dynamic.tests.', preprocessed)
+
+            # Now update the config with preprocessed zones so we can verify subzones
+            manager.config['zones'] = preprocessed
+            manager._configured_sub_zones = None
+
+            # Verify that dynamic.tests. zone has sub.dynamic.tests. as a subzone
+            dynamic_zone = manager.get_zone('dynamic.tests.')
+            self.assertEqual({'sub'}, dynamic_zone.sub_zones)
+
+            # Sync and verify both parent and subzone records are synced
+            # dynamic.tests. has 7 records, sub.dynamic.tests. has 1 record
+            # unit.tests. has 22 records
+            # Total: 7 + 1 + 22 = 30 records
+            self.assertEqual(
+                30,
+                manager.sync(
+                    eligible_zones=[
+                        'unit.tests.',
+                        'dynamic.tests.',
+                        'sub.dynamic.tests.',
+                    ],
+                    dry_run=False,
+                ),
+            )
 
     def test_build_kwargs(self):
         manager = Manager(get_config_filename('simple.yaml'))
