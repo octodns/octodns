@@ -1380,22 +1380,27 @@ class TestManager(TestCase):
             self.assertIsNone(zone_with_defaults.update_pcent_threshold)
             self.assertIsNone(zone_with_defaults.delete_pcent_threshold)
 
-    def test_preprocess_zones_original(self):
+    @patch('octodns.manager.Manager._get_sources')
+    def test_preprocess_zones_original(self, get_sources_mock):
         # these will be unused
         environ['YAML_TMP_DIR'] = '/tmp'
         environ['YAML_TMP_DIR2'] = '/tmp'
         manager = Manager(get_config_filename('simple.yaml'))
 
-        # nothing returns nothing
         mock_source = MagicMock()
-        got = manager._preprocess_zones({}, sources=[mock_source])
+
+        # nothing returns nothing
+        get_sources_mock.return_value = [mock_source]
+        mock_source.reset_mock()
+        got = manager._preprocess_zones({})
         self.assertEqual({}, got)
         mock_source.list_zones.assert_not_called()
 
         # non-dynamic returns as-is, no calls to sources
+        get_sources_mock.return_value = [mock_source]
         mock_source.reset_mock()
         zones = {'unit.tests.': {}}
-        got = manager._preprocess_zones(zones, sources=[mock_source])
+        got = manager._preprocess_zones(zones)
         self.assertEqual(zones, got)
         mock_source.list_zones.assert_not_called()
 
@@ -1404,10 +1409,10 @@ class TestManager(TestCase):
             id = 'simple-source'
 
         # dynamic with a source that doesn't support it
-        mock_source.reset_mock()
+        get_sources_mock.return_value = [SimpleSource()]
         zones = {'*': {}}
         with self.assertRaises(ManagerException) as ctx:
-            manager._preprocess_zones(zones, sources=[SimpleSource()])
+            manager._preprocess_zones(zones)
         self.assertEqual(
             'dynamic zone=* includes a source, simple-source, that does not support `list_zones`',
             str(ctx.exception),
@@ -1415,37 +1420,41 @@ class TestManager(TestCase):
         mock_source.list_zones.assert_not_called()
 
         # same, but w/a source supports it
+        get_sources_mock.return_value = [mock_source]
         mock_source.reset_mock()
         config = {'foo': 42}
         zones = {'*': config}
         mock_source.list_zones.return_value = ['one', 'two', 'three']
-        got = manager._preprocess_zones(zones, sources=[mock_source])
+        got = manager._preprocess_zones(zones)
         self.assertEqual({'one': config, 'two': config, 'three': config}, got)
         mock_source.list_zones.assert_called_once()
 
         # same, but one of the zones is expliticly configured, so left alone
+        get_sources_mock.return_value = [mock_source]
         mock_source.reset_mock()
         config = {'foo': 42}
         zones = {'*': config, 'two': {'bar': 43}}
         mock_source.list_zones.return_value = ['one', 'two', 'three']
-        got = manager._preprocess_zones(zones, sources=[mock_source])
+        got = manager._preprocess_zones(zones)
         self.assertEqual(
             {'one': config, 'two': {'bar': 43}, 'three': config}, got
         )
         mock_source.list_zones.assert_called_once()
 
         # doesn't matter what the actual name is, just that it starts with a *,
+        get_sources_mock.return_value = [mock_source]
         mock_source.reset_mock()
         config = {'foo': 42}
         zones = {'*SDFLKJSDFL': config, 'two': {'bar': 43}}
         mock_source.list_zones.return_value = ['one', 'two', 'three']
-        got = manager._preprocess_zones(zones, sources=[mock_source])
+        got = manager._preprocess_zones(zones)
         self.assertEqual(
             {'one': config, 'two': {'bar': 43}, 'three': config}, got
         )
         mock_source.list_zones.assert_called_once()
 
-    def test_preprocess_zones_multiple_single_source(self):
+    @patch('octodns.manager.Manager._get_sources')
+    def test_preprocess_zones_multiple_single_source(self, get_sources_mock):
         # these will be unused
         environ['YAML_TMP_DIR'] = '/tmp'
         environ['YAML_TMP_DIR2'] = '/tmp'
@@ -1463,7 +1472,8 @@ class TestManager(TestCase):
         mock_source.list_zones.side_effect = [
             ['one.a.com.', 'two.a.com.', 'one.b.com.', 'two.b.com.']
         ]
-        got = manager._preprocess_zones(zones, sources=[])
+        get_sources_mock.return_value = []
+        got = manager._preprocess_zones(zones)
         # each zone will have it's sources looked up
         self.assertEqual(2, manager._get_sources.call_count)
         # but there's only one source so it's zones will be cached
@@ -1480,7 +1490,8 @@ class TestManager(TestCase):
             got,
         )
 
-    def test_preprocess_zones_multiple_seperate_sources(self):
+    @patch('octodns.manager.Manager._get_sources')
+    def test_preprocess_zones_multiple_seperate_sources(self, get_sources_mock):
         # these will be unused
         environ['YAML_TMP_DIR'] = '/tmp'
         environ['YAML_TMP_DIR2'] = '/tmp'
@@ -1499,7 +1510,8 @@ class TestManager(TestCase):
         zones = {'*.a.com.': config_a, '*.b.com.': config_b}
         mock_source_a.list_zones.side_effect = [['one.a.com.', 'two.a.com.']]
         mock_source_b.list_zones.side_effect = [['one.b.com.', 'two.b.com.']]
-        got = manager._preprocess_zones(zones, sources=[])
+        get_sources_mock.return_value = []
+        got = manager._preprocess_zones(zones)
         # each zone will have it's sources looked up
         self.assertEqual(2, manager._get_sources.call_count)
         # so each mock will be called once
@@ -1554,7 +1566,7 @@ class TestManager(TestCase):
             # matched by c, catch all
             'ignored.com.',
         ]
-        got = manager._preprocess_zones(zones, sources=[])
+        got = manager._preprocess_zones(zones)
         # 4 configs
         self.assertEqual(4, manager._get_sources.call_count)
         # 1 shared source
@@ -1578,7 +1590,7 @@ class TestManager(TestCase):
             '*.a.com.': config_a,
             '*.b.com.': config_b,
         }
-        got = manager._preprocess_zones(zones, sources=[])
+        got = manager._preprocess_zones(zones)
         self.assertEqual(
             {
                 'one.a.com.': config_c,
@@ -1590,7 +1602,8 @@ class TestManager(TestCase):
             got,
         )
 
-    def test_preprocess_zones_regex(self):
+    @patch('octodns.manager.Manager._get_sources')
+    def test_preprocess_zones_regex(self, get_sources_mock):
         # these will be unused
         environ['YAML_TMP_DIR'] = '/tmp'
         environ['YAML_TMP_DIR2'] = '/tmp'
@@ -1616,7 +1629,8 @@ class TestManager(TestCase):
                 'ignored.com.',
             ]
         ]
-        got = manager._preprocess_zones(zones, sources=[])
+        get_sources_mock.return_value = []
+        got = manager._preprocess_zones(zones)
         self.assertEqual(2, manager._get_sources.call_count)
         self.assertEqual(1, mock_source.list_zones.call_count)
         # a will regex match .a.com., b will .b.com., ignored.com. won't match
@@ -1631,7 +1645,8 @@ class TestManager(TestCase):
             got,
         )
 
-    def test_preprocess_zones_regex_claimed(self):
+    @patch('octodns.manager.Manager._get_sources')
+    def test_preprocess_zones_regex_claimed(self, get_sources_mock):
         # these will be unused
         environ['YAML_TMP_DIR'] = '/tmp'
         environ['YAML_TMP_DIR2'] = '/tmp'
@@ -1664,7 +1679,8 @@ class TestManager(TestCase):
                 'ignored.com.',
             ]
         ]
-        got = manager._preprocess_zones(zones, sources=[])
+        get_sources_mock.return_value = []
+        got = manager._preprocess_zones(zones)
         self.assertEqual(2, manager._get_sources.call_count)
         self.assertEqual(1, mock_source.list_zones.call_count)
         # a will regex match .a.com., b will .b.com., ignored.com. won't match
