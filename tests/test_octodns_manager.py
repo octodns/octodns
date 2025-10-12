@@ -311,6 +311,15 @@ class TestManager(TestCase):
             ).sync()
             self.assertEqual(0, tc)
 
+    def test_eligible_zones(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
+            # Test eligible_zones parameter for runtime filtering
+            manager = Manager(get_config_filename('simple.yaml'))
+            tc = manager.sync(eligible_zones=['unit.tests.'], dry_run=False)
+            self.assertEqual(22, tc)
+
     def test_aliases(self):
         with TemporaryDirectory() as tmpdir:
             environ['YAML_TMP_DIR'] = tmpdir.dirname
@@ -1091,6 +1100,25 @@ class TestManager(TestCase):
                 manager.sync(dry_run=False)
             self.assertEqual(
                 'active_targets is incompatible with auto_arpa',
+                str(ctx.exception),
+            )
+
+            # same for eligible_zones parameter
+            reset(tmpdir.dirname)
+            manager.active_zones = None
+            manager.active_sources = None
+            manager.active_targets = None
+            manager._zones = None
+            tc = manager.sync(eligible_zones=['unit.tests.'], dry_run=False)
+            self.assertEqual(22, tc)
+            # can't do partial syncs that include arpa zones via eligible_zones
+            with self.assertRaises(ManagerException) as ctx:
+                manager.sync(
+                    eligible_zones=['unit.tests.', '3.2.2.in-addr.arpa.'],
+                    dry_run=False,
+                )
+            self.assertEqual(
+                'ARPA zones cannot be synced during partial runs when auto_arpa is enabled',
                 str(ctx.exception),
             )
 

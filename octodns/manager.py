@@ -703,24 +703,35 @@ class Manager(object):
         return sources
 
     def sync(
-        self, dry_run=True, force=False, plan_output_fh=stdout, checksum=None
+        self,
+        dry_run=True,
+        force=False,
+        plan_output_fh=stdout,
+        checksum=None,
+        eligible_zones=None,
     ):
         self.log.info(
-            'sync: dry_run=%s, force=%s, plan_output_fh=%s, checksum=%s',
+            'sync: dry_run=%s, force=%s, plan_output_fh=%s, checksum=%s, eligible_zones=%s',
             dry_run,
             force,
             getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__),
             checksum,
+            eligible_zones,
         )
 
         zones = self.zones
+
+        if eligible_zones:
+            zones = IdnaDict({n: zones.get(n) for n in eligible_zones})
 
         includes_arpa = any(e.endswith('arpa.') for e in zones.keys())
         if self.auto_arpa and includes_arpa:
             # it's not safe to mess with auto_arpa when we don't have a complete
             # picture of records, so if any filtering is happening while arpa
-            # zones are in play we need to abort
-            if any(e.endswith('arpa.') for e in (self.active_zones or [])):
+            # zones are in play we need to abort. If eligible or active are present
+            # we are filtering.
+            target_zones = eligible_zones or self.active_zones or []
+            if any(e.endswith('arpa.') for e in target_zones):
                 raise ManagerException(
                     'ARPA zones cannot be synced during partial runs when auto_arpa is enabled'
                 )
