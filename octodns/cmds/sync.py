@@ -58,13 +58,14 @@ def main():
 
     args = parser.parse_args()
 
-    manager = Manager(args.config_file, active_sources=args.source)
+    manager = Manager(
+        args.config_file,
+        active_zones=args.zone,
+        active_sources=args.source,
+        active_targets=args.target,
+    )
     manager.sync(
-        eligible_zones=args.zone,
-        eligible_targets=args.target,
-        dry_run=not args.doit,
-        force=args.force,
-        checksum=args.checksum,
+        dry_run=not args.doit, force=args.force, checksum=args.checksum
     )
 
 
