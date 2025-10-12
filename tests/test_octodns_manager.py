@@ -92,30 +92,34 @@ class TestManager(TestCase):
 
     def test_missing_zone(self):
         with self.assertRaises(ManagerException) as ctx:
-            Manager(get_config_filename('dynamic-config.yaml')).sync(
-                ['missing.zones.']
-            )
+            Manager(
+                get_config_filename('dynamic-config.yaml'),
+                active_zones=['missing.zones.'],
+            ).sync()
         self.assertTrue('Requested zone ' in str(ctx.exception))
 
     def test_missing_targets(self):
         with self.assertRaises(ManagerException) as ctx:
-            Manager(get_config_filename('provider-problems.yaml')).sync(
-                ['missing.targets.']
-            )
+            Manager(
+                get_config_filename('provider-problems.yaml'),
+                active_zones=['missing.targets.'],
+            ).sync()
         self.assertTrue('missing targets' in str(ctx.exception))
 
     def test_unknown_source(self):
         with self.assertRaises(ManagerException) as ctx:
-            Manager(get_config_filename('provider-problems.yaml')).sync(
-                ['unknown.source.']
-            )
+            Manager(
+                get_config_filename('provider-problems.yaml'),
+                active_zones=['unknown.source.'],
+            ).sync()
         self.assertTrue('unknown source' in str(ctx.exception))
 
     def test_unknown_target(self):
         with self.assertRaises(ManagerException) as ctx:
-            Manager(get_config_filename('provider-problems.yaml')).sync(
-                ['unknown.target.']
-            )
+            Manager(
+                get_config_filename('provider-problems.yaml'),
+                active_zones=['unknown.target.'],
+            ).sync()
         self.assertTrue('unknown target' in str(ctx.exception))
 
     def test_bad_plan_output_class(self):
@@ -135,9 +139,10 @@ class TestManager(TestCase):
 
     def test_source_only_as_a_target(self):
         with self.assertRaises(ManagerException) as ctx:
-            Manager(get_config_filename('provider-problems.yaml')).sync(
-                ['not.targetable.']
-            )
+            Manager(
+                get_config_filename('provider-problems.yaml'),
+                active_zones=['not.targetable.'],
+            ).sync()
         self.assertTrue('does not support targeting' in str(ctx.exception))
 
     def test_always_dry_run(self):
@@ -160,23 +165,24 @@ class TestManager(TestCase):
 
             # try with just one of the zones
             reset(tmpdir.dirname)
-            tc = Manager(get_config_filename('simple.yaml')).sync(
-                dry_run=False, eligible_zones=['unit.tests.']
-            )
+            tc = Manager(
+                get_config_filename('simple.yaml'), active_zones=['unit.tests.']
+            ).sync(dry_run=False)
             self.assertEqual(22, tc)
 
             # the subzone, with 2 targets
             reset(tmpdir.dirname)
-            tc = Manager(get_config_filename('simple.yaml')).sync(
-                dry_run=False, eligible_zones=['subzone.unit.tests.']
-            )
+            tc = Manager(
+                get_config_filename('simple.yaml'),
+                active_zones=['subzone.unit.tests.'],
+            ).sync(dry_run=False)
             self.assertEqual(6, tc)
 
             # and finally the empty zone
             reset(tmpdir.dirname)
-            tc = Manager(get_config_filename('simple.yaml')).sync(
-                dry_run=False, eligible_zones=['empty.']
-            )
+            tc = Manager(
+                get_config_filename('simple.yaml'), active_zones=['empty.']
+            ).sync(dry_run=False)
             self.assertEqual(0, tc)
 
             # Again with force
@@ -245,30 +251,36 @@ class TestManager(TestCase):
 
         # refer to them with utf-8
         with self.assertRaises(ManagerException) as ctx:
-            manager.sync(eligible_zones=('déjà.vu.',))
+            manager.active_zones = ('déjà.vu.',)
+            manager.sync()
         self.assertEqual('Zone déjà.vu. is missing sources', str(ctx.exception))
 
         with self.assertRaises(ManagerException) as ctx:
-            manager.sync(eligible_zones=('deja.vu.',))
+            manager.active_zones = ('deja.vu.',)
+            manager.sync()
         self.assertEqual('Zone deja.vu. is missing sources', str(ctx.exception))
 
         with self.assertRaises(ManagerException) as ctx:
-            manager.sync(eligible_zones=('こんにちは.jp.',))
+            manager.active_zones = ('こんにちは.jp.',)
+            manager.sync()
         self.assertEqual(
             'Zone こんにちは.jp. is missing sources', str(ctx.exception)
         )
 
         # refer to them with idna (exceptions are still utf-8
         with self.assertRaises(ManagerException) as ctx:
-            manager.sync(eligible_zones=(idna_encode('déjà.vu.'),))
+            manager.active_zones = (idna_encode('déjà.vu.'),)
+            manager.sync()
         self.assertEqual('Zone déjà.vu. is missing sources', str(ctx.exception))
 
         with self.assertRaises(ManagerException) as ctx:
-            manager.sync(eligible_zones=(idna_encode('deja.vu.'),))
+            manager.active_zones = (idna_encode('deja.vu.'),)
+            manager.sync()
         self.assertEqual('Zone deja.vu. is missing sources', str(ctx.exception))
 
         with self.assertRaises(ManagerException) as ctx:
-            manager.sync(eligible_zones=(idna_encode('こんにちは.jp.'),))
+            manager.active_zones = (idna_encode('こんにちは.jp.'),)
+            manager.sync()
         self.assertEqual(
             'Zone こんにちは.jp. is missing sources', str(ctx.exception)
         )
@@ -288,9 +300,9 @@ class TestManager(TestCase):
             environ['YAML_TMP_DIR'] = tmpdir.dirname
             environ['YAML_TMP_DIR2'] = tmpdir.dirname
             # Only allow a target that doesn't exist
-            tc = Manager(get_config_filename('simple.yaml')).sync(
-                eligible_targets=['foo']
-            )
+            tc = Manager(
+                get_config_filename('simple.yaml'), active_targets=['foo']
+            ).sync()
             self.assertEqual(0, tc)
 
     def test_aliases(self):
@@ -324,8 +336,9 @@ class TestManager(TestCase):
             # Sync an alias without the zone it refers to
             with self.assertRaises(ManagerException) as ctx:
                 tc = Manager(
-                    get_config_filename('simple-alias-zone.yaml')
-                ).sync(eligible_zones=["alias.tests."])
+                    get_config_filename('simple-alias-zone.yaml'),
+                    active_zones=["alias.tests."],
+                ).sync()
             self.assertEqual(
                 'Zone alias.tests. cannot be synced without zone '
                 'unit.tests. sinced it is aliased',
@@ -696,13 +709,15 @@ class TestManager(TestCase):
         self.assertEqual(['global-counter'], manager.global_processors)
         self.assertEqual(0, manager.processors['global-counter'].count)
         # This zone specifies a valid processor
-        manager.sync(['unit.tests.'])
+        manager.active_zones = ['unit.tests.']
+        manager.sync()
         # make sure the global processor ran and counted some records
         self.assertTrue(manager.processors['global-counter'].count >= 25)
 
         with self.assertRaises(ManagerException) as ctx:
             # This zone specifies a non-existent processor
-            manager.sync(['bad.unit.tests.'])
+            manager.active_zones = ['bad.unit.tests.']
+            manager.sync()
         self.assertTrue(
             'Zone bad.unit.tests., unknown processor: '
             'doesnt-exist' in str(ctx.exception)
@@ -1028,14 +1043,13 @@ class TestManager(TestCase):
             self.assertEqual(1800, manager.processors.get("auto-arpa").ttl)
 
             # we can sync eligible_zones so long as they're not arpa
-            tc = manager.sync(dry_run=False, eligible_zones=['unit.tests.'])
+            manager.active_zones = ['unit.tests.']
+            tc = manager.sync(dry_run=False)
             self.assertEqual(22, tc)
             # can't do partial syncs that include arpa zones
             with self.assertRaises(ManagerException) as ctx:
-                manager.sync(
-                    dry_run=False,
-                    eligible_zones=['unit.tests.', '3.2.2.in-addr.arpa.'],
-                )
+                manager.active_zones = ['unit.tests.', '3.2.2.in-addr.arpa.']
+                manager.sync(dry_run=False)
             self.assertEqual(
                 'ARPA zones cannot be synced during partial runs when auto_arpa is enabled',
                 str(ctx.exception),
@@ -1043,37 +1057,40 @@ class TestManager(TestCase):
 
             # same for active_sources
             reset(tmpdir.dirname)
+            manager.active_zones = ['unit.tests.']
             manager.active_sources = ['in']
-            tc = manager.sync(dry_run=False, eligible_zones=['unit.tests.'])
+            tc = manager.sync(dry_run=False)
             self.assertEqual(22, tc)
             # can't do partial syncs that include arpa zones
             with self.assertRaises(ManagerException) as ctx:
+                manager.active_zones = None
                 manager.sync(dry_run=False)
             self.assertEqual(
                 'active_sources is incompatible with auto_arpa',
                 str(ctx.exception),
             )
 
-            # same for eligible_targets
+            # same for active_targets
             reset(tmpdir.dirname)
+            manager.active_zones = ['unit.tests.']
             manager.active_sources = None
-            tc = manager.sync(
-                dry_run=False,
-                eligible_zones=['unit.tests.'],
-                eligible_targets=['dump'],
-            )
+            manager.active_targets = ['dump']
+            tc = manager.sync(dry_run=False)
             self.assertEqual(22, tc)
             # can't do partial syncs that include arpa zones
             with self.assertRaises(ManagerException) as ctx:
-                manager.sync(dry_run=False, eligible_targets=['dump'])
+                manager.active_zones = None
+                manager.sync(dry_run=False)
             self.assertEqual(
-                'eligible_targets is incompatible with auto_arpa',
+                'active_targets is incompatible with auto_arpa',
                 str(ctx.exception),
             )
 
             # full sync with arpa is fine, 2 extra records from it
             reset(tmpdir.dirname)
+            manager.active_zones = None
             manager.active_sources = None
+            manager.active_targets = None
             tc = manager.sync(dry_run=False)
             self.assertEqual(26, tc)
 
@@ -1085,21 +1102,12 @@ class TestManager(TestCase):
 
             # two zones which should have been dynamically configured via
             # list_zones
-            self.assertEqual(
-                29,
-                manager.sync(
-                    eligible_zones=['unit.tests.', 'dynamic.tests.'],
-                    dry_run=False,
-                ),
-            )
+            manager.active_zones = ['unit.tests.', 'dynamic.tests.']
+            self.assertEqual(29, manager.sync(dry_run=False))
 
             # just subzone.unit.tests. which was explicitly configured
-            self.assertEqual(
-                3,
-                manager.sync(
-                    eligible_zones=['subzone.unit.tests.'], dry_run=False
-                ),
-            )
+            manager.active_zones = ['subzone.unit.tests.']
+            self.assertEqual(3, manager.sync(dry_run=False))
 
     def test_dynamic_config_all(self):
         with TemporaryDirectory() as tmpdir:
@@ -1150,9 +1158,8 @@ class TestManager(TestCase):
             # Before sync, the dynamic zones haven't been discovered yet
             # But we can verify they will be after preprocessing
             zones = dict(manager.config['zones'])
-            preprocessed = manager._preprocess_zones(
-                zones, eligible_sources=None
-            )
+            manager.active_sources = None
+            preprocessed = manager._preprocess_zones(zones)
 
             # Verify that both dynamic.tests. and sub.dynamic.tests. were discovered
             self.assertIn('dynamic.tests.', preprocessed)
@@ -1170,17 +1177,12 @@ class TestManager(TestCase):
             # dynamic.tests. has 7 records, sub.dynamic.tests. has 1 record
             # unit.tests. has 22 records
             # Total: 7 + 1 + 22 = 30 records
-            self.assertEqual(
-                30,
-                manager.sync(
-                    eligible_zones=[
-                        'unit.tests.',
-                        'dynamic.tests.',
-                        'sub.dynamic.tests.',
-                    ],
-                    dry_run=False,
-                ),
-            )
+            manager.active_zones = [
+                'unit.tests.',
+                'dynamic.tests.',
+                'sub.dynamic.tests.',
+            ]
+            self.assertEqual(30, manager.sync(dry_run=False))
 
     def test_build_kwargs(self):
         manager = Manager(get_config_filename('simple.yaml'))

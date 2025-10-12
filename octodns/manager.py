@@ -98,17 +98,23 @@ class Manager(object):
         include_meta=False,
         auto_arpa=False,
         enable_checksum=False,
+        active_zones=None,
         active_sources=None,
+        active_targets=None,
     ):
         version = self._try_version('octodns', version=__version__)
         self.log.info(
-            '__init__: config_file=%s, active_sources=%s (octoDNS %s)',
+            '__init__: config_file=%s, active_zones=%s, active_sources=%s, active_targets=%s (octoDNS %s)',
             config_file,
+            active_zones,
             active_sources,
+            active_targets,
             version,
         )
 
+        self.active_zones = active_zones
         self.active_sources = active_sources
+        self.active_targets = active_targets
 
         self._configured_sub_zones = None
 
@@ -563,7 +569,7 @@ class Manager(object):
         # Return the zone as it's the desired state
         return plans, zone
 
-    def _get_sources(self, decoded_zone_name, config, eligible_sources):
+    def _get_sources(self, decoded_zone_name, config):
         try:
             sources = config['sources'] or []
         except KeyError:
@@ -571,9 +577,13 @@ class Manager(object):
                 f'Zone {decoded_zone_name} is missing sources'
             )
 
-        if eligible_sources and not [
-            s for s in sources if s in eligible_sources
+        if self.active_sources and not [
+            s for s in sources if s in self.active_sources
         ]:
+            self.log.warning(
+                '_get_sources: no active souces configured for %s',
+                decoded_zone_name,
+            )
             return None
 
         self.log.info('sync:     sources=%s', sources)
@@ -593,7 +603,7 @@ class Manager(object):
 
         return sources
 
-    def _preprocess_zones(self, zones, eligible_sources=None, sources=None):
+    def _preprocess_zones(self, zones, sources=None):
         '''
         This may modify the passed in zone object, it should be ignored after
         the call and the zones returned from this function should be used
@@ -609,9 +619,7 @@ class Manager(object):
                 continue
 
             # it's dynamic, get a list of zone names from the configured sources
-            found_sources = sources or self._get_sources(
-                name, config, eligible_sources
-            )
+            found_sources = sources or self._get_sources(name, config)
             self.log.info(
                 '_preprocess_zones: dynamic zone=%s, sources=%s',
                 name,
@@ -677,18 +685,10 @@ class Manager(object):
         return zones
 
     def sync(
-        self,
-        eligible_zones=[],
-        eligible_targets=[],
-        dry_run=True,
-        force=False,
-        plan_output_fh=stdout,
-        checksum=None,
+        self, dry_run=True, force=False, plan_output_fh=stdout, checksum=None
     ):
         self.log.info(
-            'sync: eligible_zones=%s, eligible_targets=%s, dry_run=%s, force=%s, plan_output_fh=%s, checksum=%s',
-            eligible_zones,
-            eligible_targets,
+            'sync: dry_run=%s, force=%s, plan_output_fh=%s, checksum=%s',
             dry_run,
             force,
             getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__),
@@ -699,15 +699,15 @@ class Manager(object):
 
         zones = self._preprocess_zones(zones, self.active_sources)
 
-        if eligible_zones:
-            zones = IdnaDict({n: zones.get(n) for n in eligible_zones})
+        if self.active_zones:
+            zones = IdnaDict({n: zones.get(n) for n in self.active_zones})
 
         includes_arpa = any(e.endswith('arpa.') for e in zones.keys())
         if self.auto_arpa and includes_arpa:
             # it's not safe to mess with auto_arpa when we don't have a complete
             # picture of records, so if any filtering is happening while arpa
             # zones are in play we need to abort
-            if any(e.endswith('arpa.') for e in eligible_zones):
+            if any(e.endswith('arpa.') for e in (self.active_zones or [])):
                 raise ManagerException(
                     'ARPA zones cannot be synced during partial runs when auto_arpa is enabled'
                 )
@@ -715,9 +715,9 @@ class Manager(object):
                 raise ManagerException(
                     'active_sources is incompatible with auto_arpa'
                 )
-            if eligible_targets:
+            if self.active_targets:
                 raise ManagerException(
-                    'eligible_targets is incompatible with auto_arpa'
+                    'active_targets is incompatible with auto_arpa'
                 )
 
         aliased_zones = {}
@@ -751,9 +751,7 @@ class Manager(object):
 
             lenient = config.get('lenient', False)
 
-            sources = self._get_sources(
-                decoded_zone_name, config, self.active_sources
-            )
+            sources = self._get_sources(decoded_zone_name, config)
 
             try:
                 targets = config['targets'] or []
@@ -773,8 +771,8 @@ class Manager(object):
                 self.log.info('sync:   no eligible sources, skipping')
                 continue
 
-            if eligible_targets:
-                targets = [t for t in targets if t in eligible_targets]
+            if self.active_targets:
+                targets = [t for t in targets if t in self.active_targets]
 
             if not targets:
                 # Don't bother planning (and more importantly populating) zones
