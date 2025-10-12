@@ -27,6 +27,7 @@ from octodns.manager import (
     _AggregateTarget,
 )
 from octodns.processor.base import BaseProcessor
+from octodns.provider.yaml import YamlProvider
 from octodns.record import Create, Delete, Record, Update
 from octodns.secret.environ import EnvironSecretsException
 from octodns.yaml import safe_load
@@ -595,6 +596,33 @@ class TestManager(TestCase):
                 manager.dump(
                     zone='unknown.zone.', output_dir=tmpdir.dirname, split=True
                 )
+
+    def test_dump_processors(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            manager = Manager(
+                get_config_filename('dump-processors.yaml'),
+                active_sources=['config'],
+            )
+
+            # Dump with processor that filters to only A records
+            manager.dump(zone='unit.tests.', output_dir=tmpdir.dirname)
+
+            # Read the dumped file and verify only A records are present
+            dumped = YamlProvider('dumped', tmpdir.dirname)
+            zone = Zone('unit.tests.', [])
+            dumped.populate(zone)
+
+            # Should only have A records, not AAAA, CNAME, etc.
+            record_types = {r._type for r in zone.records}
+            self.assertIn('A', record_types)
+            self.assertNotIn('AAAA', record_types)
+            self.assertNotIn('CNAME', record_types)
+
+            # Test unknown processor error
+            with self.assertRaises(ManagerException) as ctx:
+                manager.dump(zone='bad.unit.tests.', output_dir=tmpdir.dirname)
+            self.assertIn('unknown processor', str(ctx.exception))
 
     def test_validate_configs(self):
         Manager(get_config_filename('simple-validate.yaml')).validate_configs()

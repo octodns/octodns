@@ -1,0 +1,35 @@
+providers:
+  config:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+    strict_supports: False
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+    supports_root_ns: False
+    strict_supports: False
+
+processors:
+  only-a-records:
+    class: octodns.processor.filter.TypeAllowlistFilter
+    allowlist:
+      - A
+  counter:
+    class: helpers.CountingProcessor
+
+zones:
+  unit.tests.:
+    sources:
+      - config
+    processors:
+      - only-a-records
+    targets:
+      - dump
+
+  bad.unit.tests.:
+    sources:
+      - config
+    processors:
+      - unknown-processor
+    targets:
+      - dump

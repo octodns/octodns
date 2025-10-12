@@ -702,6 +702,27 @@ class Manager(object):
 
         return sources
 
+    def _get_processors(self, decoded_zone_name, config):
+        # Build list of processor names
+        processors = (
+            self.global_processors
+            + (config.get('processors') or [])
+            + self.global_post_processors
+        )
+
+        # Translate processor names to processor objects
+        try:
+            collected = []
+            for processor in processors:
+                collected.append(self.processors[processor])
+            processors = collected
+        except KeyError:
+            raise ManagerException(
+                f'Zone {decoded_zone_name}, unknown processor: {processor}'
+            )
+
+        return processors
+
     def sync(
         self,
         dry_run=True,
@@ -794,12 +815,8 @@ class Manager(object):
                     f'Zone {decoded_zone_name} is missing targets'
                 )
 
-            processors = (
-                self.global_processors
-                + (config.get('processors') or [])
-                + self.global_post_processors
-            )
-            self.log.info('sync:     processors=%s', processors)
+            processors = self._get_processors(decoded_zone_name, config)
+            self.log.info('sync:     processors=%s', [p.id for p in processors])
 
             if not sources:
                 self.log.info('sync:   no eligible sources, skipping')
@@ -816,17 +833,6 @@ class Manager(object):
                 continue
 
             self.log.info('sync:     targets=%s', targets)
-
-            try:
-                collected = []
-                for processor in processors:
-                    collected.append(self.processors[processor])
-                processors = collected
-            except KeyError:
-                raise ManagerException(
-                    f'Zone {decoded_zone_name}, unknown '
-                    f'processor: {processor}'
-                )
 
             try:
                 trgs = []
@@ -1046,16 +1052,31 @@ class Manager(object):
         zones = self.zones
 
         if '*' in zone:
-            # we want to do everything, just need the names though
-            zones = zones.keys()
+            # we want to do everything
+            zones = zones.items()
         else:
             # we want to do a specific zone
-            zones = [zone]
+            try:
+                zones = [(zone, zones[zone])]
+            except KeyError:
+                raise ManagerException(
+                    f'Requested zone "{zone}" not found in config'
+                )
 
-        for zone in zones:
-            zone = self.get_zone(zone)
+        for zone_name, config in zones:
+            decoded_zone_name = idna_decode(zone_name)
+            self.log.info('dump:   zone=%s', decoded_zone_name)
+
+            processors = self._get_processors(decoded_zone_name, config)
+            self.log.info('dump:     processors=%s', [p.id for p in processors])
+
+            zone = self.get_zone(zone_name)
             for source in sources:
                 source.populate(zone, lenient=lenient)
+
+            # Apply processors
+            for processor in processors:
+                zone = processor.process_source_zone(zone, sources=sources)
 
             plan = target.plan(zone)
             if plan is None:
