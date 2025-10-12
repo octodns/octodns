@@ -116,14 +116,14 @@ class Manager(object):
         self.active_sources = active_sources
         self.active_targets = active_targets
 
+        self._zones = None
         self._configured_sub_zones = None
 
         # Read our config file
         with open(config_file, 'r') as fh:
             self.config = safe_load(fh, enforce_order=False)
 
-        zones = self.config['zones']
-        self.config['zones'] = self._config_zones(zones)
+        self._validate_idna(self.config['zones'].keys())
 
         manager_config = self.config.get('manager') or {}
         self._executor = self._config_executor(manager_config, max_workers)
@@ -193,23 +193,34 @@ class Manager(object):
         }
         self.plan_outputs = self._config_plan_outputs(plan_outputs_config)
 
-    def _config_zones(self, zones):
-        # record the set of configured zones we have as they are
-        configured_zones = set([z.lower() for z in zones.keys()])
-        # walk the configured zones
-        for name in configured_zones:
+    def _validate_idna(self, names):
+        names = {n.lower() for n in names}
+        # verify that we don't have zones both with and without idna encoding
+        for name in names:
             if 'xn--' not in name:
+                # not idna
                 continue
             # this is an IDNA format zone name
             decoded = idna_decode(name)
             # do we also have a config for its utf-8
-            if decoded in configured_zones:
+            if decoded in names:
                 raise ManagerException(
                     f'"{decoded}" configured both in utf-8 and idna "{name}"'
                 )
 
-        # convert the zones portion of things into an IdnaDict
-        return IdnaDict(zones)
+    @property
+    def zones(self):
+        if self._zones is None:
+            zones = self.config['zones']
+
+            zones = self._preprocess_zones(zones, self.active_sources)
+
+            if self.active_zones:
+                zones = {n: zones.get(n) for n in self.active_zones}
+
+            self._zones = IdnaDict(zones)
+
+        return self._zones
 
     def _config_executor(self, manager_config, max_workers=None):
         max_workers = (
@@ -475,7 +486,7 @@ class Manager(object):
             # Get a list of all of our zone names. Sort them from shortest to
             # longest so that parents will always come before their subzones
             zones = sorted(
-                self.config['zones'].keys(), key=lambda z: len(z), reverse=True
+                self.zones.keys(), key=lambda z: len(z), reverse=True
             )
             zones = deque(zones)
             # Until we're done processing zones
@@ -695,12 +706,7 @@ class Manager(object):
             checksum,
         )
 
-        zones = self.config['zones']
-
-        zones = self._preprocess_zones(zones, self.active_sources)
-
-        if self.active_zones:
-            zones = IdnaDict({n: zones.get(n) for n in self.active_zones})
+        zones = self.zones
 
         includes_arpa = any(e.endswith('arpa.') for e in zones.keys())
         if self.auto_arpa and includes_arpa:
@@ -1009,8 +1015,7 @@ class Manager(object):
                 clz = SplitYamlProvider
             target = clz('dump', output_dir)
 
-        zones = self.config['zones']
-        zones = self._preprocess_zones(zones, sources=sources)
+        zones = self.zones
 
         if '*' in zone:
             # we want to do everything, just need the names though
@@ -1032,8 +1037,7 @@ class Manager(object):
     def validate_configs(self, lenient=False):
         # TODO: this code can probably be shared with stuff in sync
 
-        zones = self.config['zones']
-        zones = self._preprocess_zones(zones)
+        zones = self.zones
 
         for zone_name, config in zones.items():
             decoded_zone_name = idna_decode(zone_name)

@@ -245,23 +245,26 @@ class TestManager(TestCase):
 
         # these configs won't be valid, but that's fine we can test what we're
         # after based on exceptions raised
-        manager.config['zones'] = manager._config_zones(
+        manager.config['zones'] = IdnaDict(
             {'déjà.vu.': {}, 'deja.vu.': {}, idna_encode('こんにちは.jp.'): {}}
         )
 
         # refer to them with utf-8
         with self.assertRaises(ManagerException) as ctx:
             manager.active_zones = ('déjà.vu.',)
+            manager._zones = None
             manager.sync()
         self.assertEqual('Zone déjà.vu. is missing sources', str(ctx.exception))
 
         with self.assertRaises(ManagerException) as ctx:
             manager.active_zones = ('deja.vu.',)
+            manager._zones = None
             manager.sync()
         self.assertEqual('Zone deja.vu. is missing sources', str(ctx.exception))
 
         with self.assertRaises(ManagerException) as ctx:
             manager.active_zones = ('こんにちは.jp.',)
+            manager._zones = None
             manager.sync()
         self.assertEqual(
             'Zone こんにちは.jp. is missing sources', str(ctx.exception)
@@ -270,16 +273,19 @@ class TestManager(TestCase):
         # refer to them with idna (exceptions are still utf-8
         with self.assertRaises(ManagerException) as ctx:
             manager.active_zones = (idna_encode('déjà.vu.'),)
+            manager._zones = None
             manager.sync()
         self.assertEqual('Zone déjà.vu. is missing sources', str(ctx.exception))
 
         with self.assertRaises(ManagerException) as ctx:
             manager.active_zones = (idna_encode('deja.vu.'),)
+            manager._zones = None
             manager.sync()
         self.assertEqual('Zone deja.vu. is missing sources', str(ctx.exception))
 
         with self.assertRaises(ManagerException) as ctx:
             manager.active_zones = (idna_encode('こんにちは.jp.'),)
+            manager._zones = None
             manager.sync()
         self.assertEqual(
             'Zone こんにちは.jp. is missing sources', str(ctx.exception)
@@ -714,9 +720,12 @@ class TestManager(TestCase):
         # make sure the global processor ran and counted some records
         self.assertTrue(manager.processors['global-counter'].count >= 25)
 
+        # This zone specifies a non-existent processor
+        manager = Manager(
+            get_config_filename('processors.yaml'),
+            active_zones=['bad.unit.tests.'],
+        )
         with self.assertRaises(ManagerException) as ctx:
-            # This zone specifies a non-existent processor
-            manager.active_zones = ['bad.unit.tests.']
             manager.sync()
         self.assertTrue(
             'Zone bad.unit.tests., unknown processor: '
@@ -908,6 +917,7 @@ class TestManager(TestCase):
             'skipped.alevel.unit.tests.': {},
             'skipped.alevel.unit2.tests.': {},
         }
+        manager._zones = None
         manager._configured_sub_zones = None
         self.assertEqual(
             {'another.sub', 'sub', 'skipped.alevel'},
@@ -942,6 +952,7 @@ class TestManager(TestCase):
             'uunit.tests.': {},
             'uuunit.tests.': {},
         }
+        manager._zones = None
         manager._configured_sub_zones = None
         self.assertEqual(set(), manager.configured_sub_zones('unit.tests.'))
         self.assertEqual(set(), manager.configured_sub_zones('uunit.tests.'))
@@ -952,6 +963,7 @@ class TestManager(TestCase):
             'unit.tests.': {},
             'foo.bar.baz.unit.tests.': {},
         }
+        manager._zones = None
         manager._configured_sub_zones = None
         self.assertEqual(
             {'foo.bar.baz'}, manager.configured_sub_zones('unit.tests.')
@@ -967,6 +979,7 @@ class TestManager(TestCase):
             'unit.org.': {},
             'bar.unit.org.': {},
         }
+        manager._zones = None
         manager._configured_sub_zones = None
         self.assertEqual({'foo'}, manager.configured_sub_zones('unit.tests.'))
         self.assertEqual(set(), manager.configured_sub_zones('foo.unit.tests.'))
@@ -979,6 +992,7 @@ class TestManager(TestCase):
             'bar.foo.unit.tests.': {},
             'bleep.bloop.foo.unit.tests.': {},
         }
+        manager._zones = None
         manager._configured_sub_zones = None
         self.assertEqual(
             {'bar', 'bleep.bloop'},
@@ -991,33 +1005,21 @@ class TestManager(TestCase):
     def test_config_zones(self):
         manager = Manager(get_config_filename('simple.yaml'))
 
-        # empty == empty
-        self.assertEqual({}, manager._config_zones({}))
+        # empty no issues
+        manager._validate_idna(set())
 
-        # single ascii comes back as-is, but in a IdnaDict
-        zones = manager._config_zones({'unit.tests.': 42})
-        self.assertEqual({'unit.tests.': 42}, zones)
-        self.assertIsInstance(zones, IdnaDict)
+        # single ascii no issues
+        manager._validate_idna({'unit.tests.'})
 
-        # single utf-8 comes back idna encoded
-        self.assertEqual(
-            {idna_encode('Déjà.vu.'): 42},
-            dict(manager._config_zones({'Déjà.vu.': 42})),
-        )
+        # single utf-8 no issues
+        manager._validate_idna({idna_encode('Déjà.vu.')})
 
         # ascii and non-matching idna as ok
-        self.assertEqual(
-            {idna_encode('déjà.vu.'): 42, 'deja.vu.': 43},
-            dict(
-                manager._config_zones(
-                    {idna_encode('déjà.vu.'): 42, 'deja.vu.': 43}
-                )
-            ),
-        )
+        manager._validate_idna({idna_encode('déjà.vu.'), 'deja.vu.'})
 
         with self.assertRaises(ManagerException) as ctx:
             # zone configured with both utf-8 and idna is an error
-            manager._config_zones({'Déjà.vu.': 42, idna_encode('Déjà.vu.'): 43})
+            manager._validate_idna({'Déjà.vu.', idna_encode('Déjà.vu.')})
         self.assertEqual(
             '"déjà.vu." configured both in utf-8 and idna "xn--dj-kia8a.vu."',
             str(ctx.exception),
@@ -1044,11 +1046,13 @@ class TestManager(TestCase):
 
             # we can sync eligible_zones so long as they're not arpa
             manager.active_zones = ['unit.tests.']
+            manager._zones = None
             tc = manager.sync(dry_run=False)
             self.assertEqual(22, tc)
             # can't do partial syncs that include arpa zones
             with self.assertRaises(ManagerException) as ctx:
                 manager.active_zones = ['unit.tests.', '3.2.2.in-addr.arpa.']
+                manager._zones = None
                 manager.sync(dry_run=False)
             self.assertEqual(
                 'ARPA zones cannot be synced during partial runs when auto_arpa is enabled',
@@ -1059,11 +1063,13 @@ class TestManager(TestCase):
             reset(tmpdir.dirname)
             manager.active_zones = ['unit.tests.']
             manager.active_sources = ['in']
+            manager._zones = None
             tc = manager.sync(dry_run=False)
             self.assertEqual(22, tc)
             # can't do partial syncs that include arpa zones
             with self.assertRaises(ManagerException) as ctx:
                 manager.active_zones = None
+                manager._zones = None
                 manager.sync(dry_run=False)
             self.assertEqual(
                 'active_sources is incompatible with auto_arpa',
@@ -1075,11 +1081,13 @@ class TestManager(TestCase):
             manager.active_zones = ['unit.tests.']
             manager.active_sources = None
             manager.active_targets = ['dump']
+            manager._zones = None
             tc = manager.sync(dry_run=False)
             self.assertEqual(22, tc)
             # can't do partial syncs that include arpa zones
             with self.assertRaises(ManagerException) as ctx:
                 manager.active_zones = None
+                manager._zones = None
                 manager.sync(dry_run=False)
             self.assertEqual(
                 'active_targets is incompatible with auto_arpa',
@@ -1091,6 +1099,7 @@ class TestManager(TestCase):
             manager.active_zones = None
             manager.active_sources = None
             manager.active_targets = None
+            manager._zones = None
             tc = manager.sync(dry_run=False)
             self.assertEqual(26, tc)
 
@@ -1107,6 +1116,7 @@ class TestManager(TestCase):
 
             # just subzone.unit.tests. which was explicitly configured
             manager.active_zones = ['subzone.unit.tests.']
+            manager._zones = None
             self.assertEqual(3, manager.sync(dry_run=False))
 
     def test_dynamic_config_all(self):
@@ -1182,6 +1192,7 @@ class TestManager(TestCase):
                 'dynamic.tests.',
                 'sub.dynamic.tests.',
             ]
+            manager._zones = None
             self.assertEqual(30, manager.sync(dry_run=False))
 
     def test_build_kwargs(self):
