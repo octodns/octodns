@@ -570,7 +570,7 @@ class Manager(object):
         ]:
             return None
 
-        self.log.info('sync:     sources=%s', sources)
+        self.log.info('_get_sources:     sources=%s', sources)
 
         try:
             # rather than using a list comprehension, we break this loop
@@ -630,7 +630,7 @@ class Manager(object):
             self.log.info(
                 '_preprocess_zones: dynamic zone=%s, sources=%s',
                 name,
-                (s.id for s in found_sources),
+                list(s.id for s in found_sources),
             )
             candidates = set()
             for source in found_sources:
