@@ -249,7 +249,7 @@ class Manager(object):
             self.log.info(
                 '_preprocess_zones: dynamic zone=%s, sources=%s',
                 name,
-                (s.id for s in sources),
+                list(s.id for s in sources),
             )
             candidates = set()
             for source in sources:
@@ -680,12 +680,12 @@ class Manager(object):
             s for s in sources if s in self.active_sources
         ]:
             self.log.warning(
-                '_get_sources: no active souces configured for %s',
+                '_get_sources: no active sources configured for %s',
                 decoded_zone_name,
             )
             return None
 
-        self.log.info('sync:     sources=%s', sources)
+        self.log.info('_get_sources:     sources=%s', sources)
 
         try:
             # rather than using a list comprehension, we break this loop
