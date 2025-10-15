@@ -59,14 +59,14 @@ An Annotated Example
       - geos:
         # AF-ZA was sent to apac above and the rest of AF else goes to eu here,
         # sub-locations (e.g. AF-ZA) should come before their parents (AF.) If a
-        # more specific geo occured after a general one requests in that
+        # more specific geo occurred after a general one requests in that
         # location would have already matched the previous rule. For the same
         # reasons locations may not be repeated in multiple rules.
         - AF
         - EU
         pool: eu
       # No geos means match all queries, the final rule should generally be a
-      # "catch-all", served to any requests that didn't match the preceeding
+      # "catch-all", served to any requests that didn't match the preceding
       # rules. The catch-all is the only case where a pool may be re-used.
       - pool: na
     ttl: 60
@@ -75,7 +75,7 @@ An Annotated Example
     # should be a superset of the catch-all pool and include enough capacity to
     # try and serve all global requests (with degraded performance.) The main
     # case they will come into play is if all dynamic healthchecks are failing,
-    # either on the service side or if the providers systems are expeiencing
+    # either on the service side or if the providers systems are experiencing
     # problems. They will also be used for when the record is pushed to a
     # provider that doesn't support dynamic records.
     values:
