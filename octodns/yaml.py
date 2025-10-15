@@ -38,7 +38,7 @@ class ContextLoader(SafeLoader):
         def load_file(filename):
             filename = join(directory, filename)
             with open(filename, 'r') as fh:
-                return safe_load(fh, self.__class__)
+                return load(fh, self.__class__)
 
         if not isinstance(node.value, list):
             # single filename, just load and return whatever is in it
