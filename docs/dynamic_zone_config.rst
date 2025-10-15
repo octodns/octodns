@@ -69,13 +69,13 @@ The following octoDNS configuration would match them as described in comments::
   zones:
 
     # the names here do not really matter beyond starting with a *, it is a
-    # reccomended best practice to match the glob, but not required. It will be
+    # recommended best practice to match the glob, but not required. It will be
     # used in logging to aid in debugging.
 
     # they are applied in the order defined and once claimed a zone is no
     # longer available for matching
 
-    # everytyhing is available for matching
+    # everything is available for matching
     '*internal.net':
       # we only want the private zones here and they are all under
       # internet.net. so this glob will claim them.
@@ -142,7 +142,7 @@ The following octoDNS configuration would match them as described in comments::
     # regexes are too ugly to use as names, so these have useful info for
     # logging/debugging
 
-    # everytyhing is available for matching
+    # everything is available for matching
     '*us-east-1':
       # we only want the private zones here and they are all under
       # internet.net. So this regex will claim them, yes this could be done
@@ -154,7 +154,7 @@ The following octoDNS configuration would match them as described in comments::
         # only push it to the us-east-1 provider
         - us-east-1
 
-    # everytyhing with the exception of the us-east-1 .net zones are available
+    # everything with the exception of the us-east-1 .net zones are available
     '*us-west-2':
       regex: '^.*us-west-2.*.net.$'
       sources:
