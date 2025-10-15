@@ -4,5 +4,12 @@ included-dict: !include dict.yaml
 included-empty: !include empty.yaml
 included-nested: !include nested.yaml
 included-subdir: !include subdir/value.yaml
+included-array-of-arrays: !include
+  - array.yaml
+  - array.yaml
+included-array-of-dicts: !include
+  - dict.yaml
+  - dict_too.yaml
+included-empty-array: !include []
 key: value
 name: main

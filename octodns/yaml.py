@@ -17,11 +17,15 @@ _natsort_key = staticmethod(natsort_keygen())
 
 
 class ContextLoader(SafeLoader):
+
+    def _context(self, node):
+        start_mark = node.start_mark
+        return f'{start_mark.name}, line {start_mark.line+1}, column {start_mark.column+1}'
+
     def _pairs(self, node):
         self.flatten_mapping(node)
         pairs = self.construct_pairs(node)
-        start_mark = node.start_mark
-        context = f'{start_mark.name}, line {start_mark.line+1}, column {start_mark.column+1}'
+        context = self._context(node)
         return ContextDict(pairs, context=context), pairs, context
 
     def _construct(self, node):
@@ -31,10 +35,54 @@ class ContextLoader(SafeLoader):
         mark = self.get_mark()
         directory = dirname(mark.name)
 
-        filename = join(directory, self.construct_scalar(node))
+        def load_file(filename):
+            filename = join(directory, filename)
+            with open(filename, 'r') as fh:
+                return safe_load(fh, self.__class__)
 
-        with open(filename, 'r') as fh:
-            return safe_load(fh, self.__class__)
+        if not isinstance(node.value, list):
+            # single filename, just load and return whatever is in it
+            scalar = node.value
+            return load_file(scalar)
+
+        scalars = node.value
+        data = [load_file(s.value) for s in scalars]
+
+        if not data:
+            return None
+        elif isinstance(data[0], list):
+            # we're working with lists
+            ret = data[0]
+            for i, d in enumerate(data[1:]):
+                if not isinstance(d, list):
+                    context = self._context(node)
+                    raise ConstructorError(
+                        None,
+                        None,
+                        f'!include first element contained a list, element {i+1} contained a {d.__class__.__name__} at {context}',
+                    )
+                ret.extend(d)
+            return ret
+        elif isinstance(data[0], dict):
+            # assume we're working with dict
+            ret = data[0]
+            for i, d in enumerate(data[1:]):
+                if not isinstance(d, dict):
+                    context = self._context(node)
+                    raise ConstructorError(
+                        None,
+                        None,
+                        f'!include first element contained a dict, element {i+1} contained a {d.__class__.__name__} at {context}',
+                    )
+                ret.update(d)
+            return ret
+
+        context = self._context(node)
+        raise ConstructorError(
+            None,
+            None,
+            f'!include first element contained an unsupported type, {data[0].__class__.__name__} at {context}',
+        )
 
 
 ContextLoader.add_constructor('!include', ContextLoader.include)
