@@ -1,22 +1,23 @@
 from logging import getLogger
+
 from octodns.processor.base import BaseProcessor
 
 
 class TtlClampProcessor(BaseProcessor):
     """
     Processor that clamps TTL values to a specified range.
-    
+
     Configuration:
         min_ttl: Minimum TTL value (default: 300 seconds / 5 minutes)
         max_ttl: Maximum TTL value (default: 86400 seconds / 24 hours)
-    
+
     Example config.yaml:
         processors:
           clamp:
             class: octodns.processor.clamp.TtlClampProcessor
             min_ttl: 300
             max_ttl: 3600
-        
+
         zones:
           example.com.:
             sources:
@@ -26,38 +27,40 @@ class TtlClampProcessor(BaseProcessor):
             targets:
               - route53
     """
-    
+
     def __init__(self, id, min_ttl=300, max_ttl=86400):
         super().__init__(id)
-        self.log = getLogger(f'{self.__class__.__module__}.{self.__class__.__name__}')
+        self.log = getLogger(
+            f'{self.__class__.__module__}.{self.__class__.__name__}'
+        )
         self.min_ttl = min_ttl
         self.max_ttl = max_ttl
         self.log.info(
             f'TtlClampProcessor initialized: min={min_ttl}s, max={max_ttl}s'
         )
-    
+
     def process_source_zone(self, desired, sources):
         """
         Process records from source zone(s).
-        
+
         Args:
             desired: Zone object containing the desired records
             sources: List of source names
-            
+
         Returns:
             The modified zone
         """
         self.log.debug(f'Processing source zone: {desired.name}')
-        
+
         for record in desired.records:
             original_ttl = record.ttl
             clamped_ttl = max(self.min_ttl, min(self.max_ttl, original_ttl))
-            
+
             if clamped_ttl != original_ttl:
                 self.log.info(
                     f'Clamping TTL for {record.fqdn} ({record._type}): '
                     f'{original_ttl}s -> {clamped_ttl}s'
                 )
                 record.ttl = clamped_ttl
-        
+
         return desired
