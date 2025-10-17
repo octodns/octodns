@@ -1,6 +1,9 @@
 from logging import getLogger
 
-from octodns.processor.base import BaseProcessor
+from .base import BaseProcessor, ProcessorException
+
+class TTLArgumentException(ProcessorException):
+    pass
 
 
 class TtlClampProcessor(BaseProcessor):
@@ -33,6 +36,8 @@ class TtlClampProcessor(BaseProcessor):
         self.log = getLogger(
             f'{self.__class__.__module__}.{self.__class__.__name__}'
         )
+        if not min_ttl <= max_ttl:
+            raise TTLArgumentException(f'Min TTL {min_ttl} is not lower than max TTL {max_ttl}')
         self.min_ttl = min_ttl
         self.max_ttl = max_ttl
         self.log.info(
