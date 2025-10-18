@@ -2,6 +2,7 @@ from logging import getLogger
 
 from .base import BaseProcessor, ProcessorException
 
+
 class TTLArgumentException(ProcessorException):
     pass
 
@@ -33,15 +34,17 @@ class TtlClampProcessor(BaseProcessor):
 
     def __init__(self, id, min_ttl=300, max_ttl=86400):
         super().__init__(id)
-        self.log = getLogger(
-            f'{self.__class__.__module__}.{self.__class__.__name__}'
-        )
+        self.log = getLogger(self.__class__.__name__)
         if not min_ttl <= max_ttl:
-            raise TTLArgumentException(f'Min TTL {min_ttl} is not lower than max TTL {max_ttl}')
+            raise TTLArgumentException(
+                f'Min TTL {min_ttl} is not lower than max TTL {max_ttl}'
+            )
         self.min_ttl = min_ttl
         self.max_ttl = max_ttl
         self.log.info(
-            f'TtlClampProcessor initialized: min={min_ttl}s, max={max_ttl}s'
+            'TtlClampProcessor initialized: min=%ds, max=%ds',
+            self.min_ttl,
+            self.max_ttl,
         )
 
     def process_source_zone(self, desired, sources):
@@ -55,7 +58,7 @@ class TtlClampProcessor(BaseProcessor):
         Returns:
             The modified zone
         """
-        self.log.debug(f'Processing source zone: {desired.name}')
+        self.log.debug('Processing source zone: %s', desired.name)
 
         for record in desired.records:
             original_ttl = record.ttl
@@ -63,8 +66,11 @@ class TtlClampProcessor(BaseProcessor):
 
             if clamped_ttl != original_ttl:
                 self.log.info(
-                    f'Clamping TTL for {record.fqdn} ({record._type}): '
-                    f'{original_ttl}s -> {clamped_ttl}s'
+                    'Clamping TTL for %s (%s) %s -> %s',
+                    record.fqdn,
+                    record._type,
+                    original_ttl,
+                    clamped_ttl,
                 )
                 record.ttl = clamped_ttl
 
