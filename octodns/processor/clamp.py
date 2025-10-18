@@ -41,11 +41,7 @@ class TtlClampProcessor(BaseProcessor):
             )
         self.min_ttl = min_ttl
         self.max_ttl = max_ttl
-        self.log.info(
-            'TtlClampProcessor initialized: min=%ds, max=%ds',
-            self.min_ttl,
-            self.max_ttl,
-        )
+        self.log.info('__init__: min=%ds, max=%ds', self.min_ttl, self.max_ttl)
 
     def process_source_zone(self, desired, sources):
         """
@@ -58,7 +54,7 @@ class TtlClampProcessor(BaseProcessor):
         Returns:
             The modified zone
         """
-        self.log.debug('Processing source zone: %s', desired.name)
+        self.log.debug('process_source_zone: desired=%s', desired.name)
 
         for record in desired.records:
             original_ttl = record.ttl
@@ -66,7 +62,7 @@ class TtlClampProcessor(BaseProcessor):
 
             if clamped_ttl != original_ttl:
                 self.log.info(
-                    'Clamping TTL for %s (%s) %s -> %s',
+                    'process_source_zone: clamping TTL for %s (%s) %s -> %s',
                     record.fqdn,
                     record._type,
                     original_ttl,
