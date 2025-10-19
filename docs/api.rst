@@ -8,3 +8,4 @@ Developer Interface
    :glob:
 
    api/*
+   zone_lifecycle.rst
