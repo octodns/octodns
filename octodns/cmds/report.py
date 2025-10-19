@@ -27,7 +27,7 @@ async def async_resolve(record, resolver, timeout, limit):
 
         try:
             query = await r.resolve(qname=record.fqdn, rdtype=record._type)
-            answer = [str(a) for a in query]
+            answer = sorted([str(a) for a in query])
         except (dns.resolver.NoAnswer, dns.resolver.NoNameservers):
             answer = ['*no answer*']
         except dns.resolver.NXDOMAIN:
@@ -37,7 +37,7 @@ async def async_resolve(record, resolver, timeout, limit):
         except dns.resolver.LifetimeTimeout:
             answer = ['*timeout*']
 
-    return [record, resolver, sorted(answer)]
+    return [record, resolver, answer]
 
 
 def main():
@@ -161,7 +161,7 @@ def main():
 
     output = io.StringIO()
     if output_format == 'csv':
-        csvout = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
+        csvout = csv.writer(output, quoting=csv.QUOTE_NONE, quotechar=None)
         csvheader = ['Name', 'Type', 'TTL']
         csvheader = [*csvheader, *resolvers]
         csvheader.append('Consistent')
@@ -185,7 +185,9 @@ def main():
             values_check = {}
 
             for resolver in resolvers:
-                answer = answers.get(resolver)
+                # Stripping the surrounding quotes of TXT records values to
+                # avoid them being unnecessarily escaped by JSON module.
+                answer = [a.strip('"') for a in answers.get(resolver)]
                 jsonout[record.fqdn][record._type][resolver] = answer
                 values_check[' '.join(answer).lower()] = True
 
