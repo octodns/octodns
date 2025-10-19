@@ -137,7 +137,7 @@ def main():
             resolvers.append(resolver)
 
     if not resolvers:
-        print(f'Error: No valid resolver specified ({', '.join(servers)})')
+        print(f'Error: No valid resolver specified ({", ".join(servers)})')
         sys.exit(1)
 
     loop = asyncio.new_event_loop()
@@ -172,7 +172,7 @@ def main():
             values_check = {}
 
             for resolver in resolvers:
-                answer = f'{' '.join(answers.get(resolver))}'
+                answer = ' '.join(answers.get(resolver))
                 values_check[answer.lower()] = True
                 csvrow.append(answer)
 
@@ -187,7 +187,7 @@ def main():
             for resolver in resolvers:
                 answer = answers.get(resolver)
                 jsonout[record.fqdn][record._type][resolver] = answer
-                values_check[f'{' '.join(answer)}'.lower()] = True
+                values_check[' '.join(answer).lower()] = True
 
             jsonout[record.fqdn][record._type]['consistent'] = bool(
                 len(values_check) == 1
