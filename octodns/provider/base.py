@@ -9,6 +9,56 @@ from .plan import Plan
 
 
 class BaseProvider(BaseSource):
+    '''
+    Base class for all octoDNS providers.
+
+    Providers extend :class:`octodns.source.base.BaseSource` to add the ability
+    to apply DNS changes to a target system. While sources only need to
+    implement ``populate()`` to read DNS data, providers also implement
+    ``plan()`` and ``apply()`` to manage the complete sync workflow.
+
+    The provider workflow:
+
+    1. **Populate**: Load current state from the provider via ``populate()``
+    2. **Process**: Modify zones through ``_process_desired_zone()`` and
+       ``_process_existing_zone()`` to handle provider-specific limitations
+    3. **Plan**: Compute changes between desired and existing state via ``plan()``
+    4. **Apply**: Submit approved changes to the provider via ``apply()``
+
+    Subclasses must implement:
+
+    - **_apply(plan)**: Actually submit changes to the provider's API/backend
+
+    Subclasses should override as needed:
+
+    - **_process_desired_zone(desired)**: Modify desired state before planning
+    - **_process_existing_zone(existing, desired)**: Modify existing state before planning
+    - **_include_change(change)**: Filter out false positive changes
+    - **_extra_changes(existing, desired, changes)**: Add provider-specific changes
+    - **_plan_meta(existing, desired, changes)**: Add metadata to the plan
+
+    Example provider configuration::
+
+      providers:
+        route53:
+          class: octodns_route53.Route53Provider
+          access_key_id: env/AWS_ACCESS_KEY_ID
+          secret_access_key: env/AWS_SECRET_ACCESS_KEY
+
+      zones:
+        example.com.:
+          sources:
+            - config
+          targets:
+            - route53
+
+    See Also:
+        - :class:`octodns.source.base.BaseSource`
+        - :class:`octodns.provider.plan.Plan`
+        - :class:`octodns.provider.yaml.YamlProvider`
+        - :doc:`/zone_lifecycle`
+    '''
+
     def __init__(
         self,
         id,
@@ -18,6 +68,30 @@ class BaseProvider(BaseSource):
         strict_supports=True,
         root_ns_warnings=True,
     ):
+        '''
+        Initialize the provider.
+
+        :param id: Unique identifier for this provider instance.
+        :type id: str
+        :param apply_disabled: If True, the provider will plan changes but not
+                               apply them. Useful for read-only/validation mode.
+        :type apply_disabled: bool
+        :param update_pcent_threshold: Maximum percentage of existing records
+                                       that can be updated in one sync before
+                                       requiring ``--force``. Default: 0.3 (30%).
+        :type update_pcent_threshold: float
+        :param delete_pcent_threshold: Maximum percentage of existing records
+                                       that can be deleted in one sync before
+                                       requiring ``--force``. Default: 0.3 (30%).
+        :type delete_pcent_threshold: float
+        :param strict_supports: If True, raise exceptions when unsupported
+                                features are encountered. If False, log warnings
+                                and attempt to work around limitations.
+        :type strict_supports: bool
+        :param root_ns_warnings: If True, log warnings about root NS record
+                                 handling. If False, silently handle root NS.
+        :type root_ns_warnings: bool
+        '''
         super().__init__(id)
         self.log.debug(
             '__init__: id=%s, apply_disabled=%s, '
@@ -40,21 +114,33 @@ class BaseProvider(BaseSource):
 
     def _process_desired_zone(self, desired):
         '''
-        An opportunity for providers to modify the desired zone records before
-        planning. `desired` is a "shallow" copy, see `Zone.copy` for more
-        information
+        Process the desired zone before planning.
 
-        - Must call `super` at an appropriate point for their work, generally
-          that means as the final step of the method, returning the result of
-          the `super` call.
-        - May modify `desired` directly.
-        - Must not modify records directly, `record.copy` should be called,
-          the results of which can be modified, and then `Zone.add_record` may
-          be used with `replace=True`.
-        - May call `Zone.remove_record` to remove records from `desired`.
-        - Must call supports_warn_or_except with information about any changes
-          that are made to have them logged or throw errors depending on the
-          provider configuration.
+        Called during the planning phase to modify the desired zone records
+        before changes are computed. This is where providers handle their
+        limitations by removing or modifying records that aren't supported. The
+        parent method will deal with "standard" unsupported cases like types,
+        dynamic, and root NS handling. The ``desired`` zone is a shallow copy
+        (see :meth:`octodns.zone.Zone.copy`).
+
+        :param desired: The desired zone state to be processed. This is a shallow
+                        copy that can be modified.
+        :type desired: octodns.zone.Zone
+
+        :return: The processed desired zone, typically the same object passed in.
+        :rtype: octodns.zone.Zone
+
+        .. important::
+           - Must call ``super()`` at an appropriate point, generally as the
+             final step of the method, returning the result of the super call.
+           - May modify ``desired`` directly.
+           - Must not modify records directly; ``record.copy()`` should be called,
+             the results of which can be modified, and then ``Zone.add_record()``
+             may be used with ``replace=True``.
+           - May call ``Zone.remove_record()`` to remove records from ``desired``.
+           - Must call :meth:`supports_warn_or_except` with information about any
+             changes that are made to have them logged or throw errors depending
+             on the provider configuration.
         '''
 
         for record in desired.records:
@@ -178,22 +264,35 @@ class BaseProvider(BaseSource):
 
     def _process_existing_zone(self, existing, desired):
         '''
-        An opportunity for providers to modify the existing zone records before
-        planning. `existing` is a "shallow" copy, see `Zone.copy` for more
-        information
+        Process the existing zone before planning.
 
-        - `desired` must not be modified in anyway, it is only for reference
-        - Must call `super` at an appropriate point for their work, generally
-          that means as the final step of the method, returning the result of
-          the `super` call.
-        - May modify `existing` directly.
-        - Must not modify records directly, `record.copy` should be called,
-          the results of which can be modified, and then `Zone.add_record` may
-          be used with `replace=True`.
-        - May call `Zone.remove_record` to remove records from `existing`.
-        - Must call supports_warn_or_except with information about any changes
-          that are made to have them logged or throw errors depending on the
-          provider configuration.
+        Called during the planning phase to modify the existing zone records
+        before changes are computed. This allows providers to normalize or filter
+        the current state from the provider. The ``existing`` zone is a shallow
+        copy (see :meth:`octodns.zone.Zone.copy`).
+
+        :param existing: The existing zone state from the provider. This is a
+                         shallow copy that can be modified.
+        :type existing: octodns.zone.Zone
+        :param desired: The desired zone state. This is for reference only and
+                        must not be modified.
+        :type desired: octodns.zone.Zone
+
+        :return: The processed existing zone, typically the same object passed in.
+        :rtype: octodns.zone.Zone
+
+        .. important::
+           - ``desired`` must not be modified in any way; it is only for reference.
+           - Must call ``super()`` at an appropriate point, generally as the
+             final step of the method, returning the result of the super call.
+           - May modify ``existing`` directly.
+           - Must not modify records directly; ``record.copy()`` should be called,
+             the results of which can be modified, and then ``Zone.add_record()``
+             may be used with ``replace=True``.
+           - May call ``Zone.remove_record()`` to remove records from ``existing``.
+           - Must call :meth:`supports_warn_or_except` with information about any
+             changes that are made to have them logged or throw errors depending
+             on the provider configuration.
         '''
 
         existing_root_ns = existing.root_ns
@@ -211,35 +310,116 @@ class BaseProvider(BaseSource):
 
     def _include_change(self, change):
         '''
-        An opportunity for providers to filter out false positives due to
-        peculiarities in their implementation. E.g. minimum TTLs.
+        Filter out false positive changes.
+
+        Called during planning to allow providers to filter out changes that
+        are false positives due to peculiarities in their implementation (e.g.,
+        providers that enforce minimum TTLs).
+
+        :param change: A change being considered for inclusion in the plan.
+        :type change: octodns.record.change.Change
+
+        :return: True if the change should be included in the plan, False to
+                 filter it out.
+        :rtype: bool
         '''
         return True
 
     def _extra_changes(self, existing, desired, changes):
         '''
-        An opportunity for providers to add extra changes to the plan that are
-        necessary to update ancillary record data or configure the zone. E.g.
-        base NS records.
+        Add provider-specific extra changes to the plan.
+
+        Called during planning to allow providers to add extra changes that are
+        necessary to update ancillary record data or configure the zone (e.g.,
+        base NS records that must be managed separately).
+
+        :param existing: The existing zone state.
+        :type existing: octodns.zone.Zone
+        :param desired: The desired zone state.
+        :type desired: octodns.zone.Zone
+        :param changes: The list of changes already computed.
+        :type changes: list[octodns.record.change.Change]
+
+        :return: A list of additional changes to add to the plan. Return an
+                 empty list if no extra changes are needed.
+        :rtype: list[octodns.record.change.Change]
         '''
         return []
 
     def _plan_meta(self, existing, desired, changes):
         '''
-        An opportunity for providers to indicate they have "meta" changes
-        to the zone which are unrelated to records. Examples may include service
-        plan changes, replication settings, and notes. The returned data is
-        arbitrary/opaque to octoDNS, with the only requirement being that
-        pprint.pformat can display it. A dict is recommended.
+        Indicate provider-specific metadata changes to the zone.
+
+        Called during planning to allow providers to indicate they have "meta"
+        changes to the zone which are unrelated to records. Examples may include
+        service plan changes, replication settings, and notes.
+
+        :param existing: The existing zone state.
+        :type existing: octodns.zone.Zone
+        :param desired: The desired zone state.
+        :type desired: octodns.zone.Zone
+        :param changes: The list of changes computed for this plan.
+        :type changes: list[octodns.record.change.Change]
+
+        :return: Arbitrary metadata about zone-level changes. The only
+                 requirement is that ``pprint.pformat`` can display it. A dict
+                 is recommended. Return None if no meta changes.
+        :rtype: dict or None
         '''
         return None
 
     def supports_warn_or_except(self, msg, fallback):
+        '''
+        Handle unsupported features based on strict_supports setting.
+
+        If ``strict_supports`` is True, raises a :class:`SupportsException`.
+        Otherwise, logs a warning with the message and fallback behavior.
+
+        :param msg: Description of the unsupported feature or limitation.
+        :type msg: str
+        :param fallback: Description of the fallback behavior being used.
+        :type fallback: str
+
+        :raises SupportsException: If ``strict_supports`` is True.
+        '''
         if self.strict_supports:
             raise SupportsException(f'{self.id}: {msg}')
         self.log.warning('%s; %s', msg, fallback)
 
     def plan(self, desired, processors=[]):
+        '''
+        Compute a plan of changes needed to sync the desired state to this provider.
+
+        This is the main planning method that orchestrates the entire planning
+        workflow. It populates the current state, processes both desired and
+        existing zones, runs processors, computes changes, and returns a
+        :class:`Plan` object.
+
+        The planning workflow:
+
+        1. Populate existing state from the provider via :meth:`populate`
+        2. Process desired zone via :meth:`_process_desired_zone`
+        3. Process existing zone via :meth:`_process_existing_zone`
+        4. Run target zone processors
+        5. Run source and target zone processors
+        6. Compute changes between existing and desired
+        7. Filter changes via :meth:`_include_change`
+        8. Add extra changes via :meth:`_extra_changes`
+        9. Add metadata via :meth:`_plan_meta`
+        10. Create and return a Plan (or None if no changes)
+
+        :param desired: The desired zone state to sync to this provider.
+        :type desired: octodns.zone.Zone
+        :param processors: List of processors to run during planning.
+        :type processors: list[octodns.processor.base.BaseProcessor]
+
+        :return: A Plan containing the computed changes, or None if no changes
+                 are needed.
+        :rtype: octodns.provider.plan.Plan or None
+
+        See Also:
+            - :doc:`/zone_lifecycle` for details on the complete sync workflow
+        '''
         self.log.info('plan: desired=%s', desired.decoded_name)
 
         existing = Zone(desired.name, desired.sub_zones)
@@ -310,8 +490,21 @@ class BaseProvider(BaseSource):
 
     def apply(self, plan):
         '''
-        Submits actual planned changes to the provider. Returns the number of
-        changes made
+        Apply the planned changes to the provider.
+
+        This is the main apply method that submits the approved plan to the
+        provider's backend. If ``apply_disabled`` is True, this method does
+        nothing and returns 0.
+
+        :param plan: The plan containing changes to apply.
+        :type plan: octodns.provider.plan.Plan
+
+        :return: The number of changes that were applied.
+        :rtype: int
+
+        See Also:
+            - :meth:`_apply` for the provider-specific implementation
+            - :doc:`/zone_lifecycle` for details on the complete sync workflow
         '''
         if self.apply_disabled:
             self.log.info('apply: disabled')
@@ -324,4 +517,28 @@ class BaseProvider(BaseSource):
         return len(plan.changes)
 
     def _apply(self, plan):
+        '''
+        Actually submit the changes to the provider's backend.
+
+        This is an abstract method that must be implemented by all provider
+        subclasses. It should take the changes in the plan and apply them to
+        the provider's API or backend system.
+
+        :param plan: The plan containing changes to apply.
+        :type plan: octodns.provider.plan.Plan
+
+        :raises NotImplementedError: This base class method must be overridden
+                                     by subclasses.
+
+        .. important::
+           - Must implement the actual logic to submit changes to the provider.
+           - Should handle errors appropriately (log, raise exceptions, etc.).
+           - May apply changes in any order that makes sense for the provider
+             with as much safety as possible given the API methods available.
+             Often the order of changes should apply deletes before adds to
+             avoid comflicts during type changes, specidically **CNAME** <->
+             other types. If the provider's API supports batching or atomic
+             changes they should be used.
+           - Should be idempotent where possible.
+        '''
         raise NotImplementedError('Abstract base class, _apply method missing')
