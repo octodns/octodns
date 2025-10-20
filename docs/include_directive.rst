@@ -35,23 +35,24 @@ Then ``common-config`` will be set to ``{'key': 'value', 'setting': 42}``.
 The included file can contain any valid YAML type: dictionaries, lists, strings,
 numbers, or even ``null`` values.
 
-Array Syntax
+Merge Syntax
 ............
 
-The ``!include`` directive also supports an array syntax to merge multiple files
-together. This is useful for composing configurations from multiple sources.
+The ``!include`` directive can also be used with the merge operator, ``<<:``.
+This is useful for composing configurations from multiple sources.
 
 Merging Dictionaries
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 When including multiple files that contain dictionaries, the dictionaries are
 merged together. Later files override keys from earlier files::
 
   ---
   # main.yaml
-  merged-config: !include
-    - base-config.yaml
-    - overrides.yaml
+  merged-config:
+    <<: !include base-config.yaml
+    <<: !include overrides.yaml
+    key: value
 
 If ``base-config.yaml`` contains::
 
@@ -73,44 +74,9 @@ Then ``merged-config`` will be::
     'timeout': 60,      # overridden
     'retries': 3,       # from base
     'debug': true,      # overridden
-    'added': 'hi'       # added by overrides
+    'added': 'hi',      # added by overrides
+    'key': 'value',     # from main
   }
-
-Merging Arrays
-~~~~~~~~~~~~~~
-
-When including multiple files that contain arrays, the arrays are concatenated
-together::
-
-  ---
-  # main.yaml
-  all-values: !include
-    - values-1.yaml
-    - values-2.yaml
-
-If ``values-1.yaml`` contains::
-
-  ---
-  - item1
-  - item2
-
-And ``values-2.yaml`` contains::
-
-  ---
-  - item3
-  - item4
-
-Then ``all-values`` will be ``['item1', 'item2', 'item3', 'item4']``.
-
-Empty Arrays
-~~~~~~~~~~~~
-
-An empty array can be used with ``!include``, which results in ``null``::
-
-  ---
-  empty-value: !include []
-
-This sets ``empty-value`` to ``null``.
 
 Use Cases
 ---------
@@ -126,7 +92,8 @@ Shared Provider Configuration::
   ---
   # production.yaml
   providers:
-    base-config: !include providers/common.yaml
+    # contents will be merged with what's defined here
+    <<: !include providers/common.yaml
 
     route53:
       class: octodns_route53.Route53Provider
@@ -135,14 +102,33 @@ Shared Provider Configuration::
       # Include common retry/timeout settings
       settings: !include providers/aws-settings.yaml
 
+  ---
+  # providers/common.yaml
+  config:
+    class: octodns.providers.yaml.YamlProvider
+    directory: ./config/
+
+  internal:
+    class: octodns_powerdns.PdnsProvider
+    ...
+
 Shared Zone Configuration::
 
   ---
   # config.yaml
   zones:
+    # contents will become the value for example.com.
     example.com.: &standard-setup !include zones/standard-setup.yaml
     example.net.: *standard-setup
     example.org.: *standard-setup
+
+  ---
+  # zones/standard-ssetup.yaml
+  sources:
+    - config
+  targets:
+    - internal
+    - route53
 
 Zone Files
 ..........
@@ -153,7 +139,7 @@ duplication of common record configurations.
 Shared APEX Records
 ~~~~~~~~~~~~~~~~~~~
 
-When you have multiple zones with shared APEX records but differing records 
+When you have multiple zones with shared APEX records but differing records
 otherwise, you can share the APEX configuration::
 
   ---
@@ -166,9 +152,9 @@ otherwise, you can share the APEX configuration::
     type: A
     value: 1.2.3.5
 
-Where ``common/apex.yaml`` might contain::
 
   ---
+  # common/apex.yaml
   - type: A
     value: 1.2.3.4
   - type: MX
@@ -186,22 +172,6 @@ Where ``common/apex.yaml`` might contain::
       - some-domain-claiming-value=gimme
       - v=spf1 -all
 
-Common Record Values
-~~~~~~~~~~~~~~~~~~~~
-
-You can merge multiple files to build up complex record sets::
-
-  ---
-  # zone.yaml
-  '':
-    type: TXT
-    values: !include
-      - txt-records/verification.yaml
-      - txt-records/spf.yaml
-      - txt-records/dmarc.yaml
-
-This combines TXT records from multiple files into a single record set.
-
 Subdirectories
 ..............
 
@@ -216,63 +186,11 @@ Files in subdirectories can be included using relative paths::
 Type Requirements
 -----------------
 
-When using the array syntax to include multiple files, all files must contain
-compatible types:
+Any valid YAML datatype can be used in the basic **!include** stile.
 
-* All files must contain **dictionaries**, or
-* All files must contain **arrays**
+When using the merge syntax all files must contain **dictionaries**.
 
-If the first file contains a dictionary and a subsequent file contains an array
-(or vice versa), octoDNS will raise a ``ConstructorError`` with a clear message
-indicating which file and position caused the type mismatch.
-
-Simple scalar values (strings, numbers, booleans) are not supported with the
-array syntax. Use single file includes for scalar values.
-
-Examples
---------
-
-Example 1: Shared Provider Settings
-....................................
-
-Create reusable provider configurations::
-
-  # providers/retry-settings.yaml
-  ---
-  max_retries: 5
-  retry_delay: 2
-  timeout: 30
-
-  # production.yaml
-  ---
-  providers:
-    dacloud:
-      class: octodns_route53.DaCloudProvider
-      access_key_id: env/DC_ACCESS_KEY_ID
-      secret_access_key: env/DC_SECRET_ACCESS_KEY
       network: !include providers/retry-settings.yaml
-
-Example 2: Composing TXT Records
-.................................
-
-Build TXT records from multiple sources::
-
-  # txt-records/spf.yaml
-  ---
-  - "v=spf1 include:_spf.google.com ~all"
-
-  # txt-records/verification.yaml
-  ---
-  - "google-site-verification=abc123"
-  - "ms-domain-verification=xyz789"
-
-  # example.com.yaml
-  ---
-  '':
-    type: TXT
-    values: !include
-      - txt-records/spf.yaml
-      - txt-records/verification.yaml
 
 Best Practices
 --------------

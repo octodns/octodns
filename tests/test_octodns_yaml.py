@@ -65,17 +65,14 @@ class TestYaml(TestCase):
 
     def test_include(self):
         with open('tests/config/include/main.yaml') as fh:
-            data = safe_load(fh, enforce_order=False)
+            data = safe_load(fh)
         self.assertEqual(
             {
                 'included-array': [14, 15, 16, 72],
-                'included-dict': {'k': 'v', 'z': 42},
+                'included-dict': {'k': 'v', 'm': 'o', 'z': 42},
                 'included-empty': None,
                 'included-nested': 'Hello World!',
                 'included-subdir': 'Hello World!',
-                'included-array-of-arrays': [14, 15, 16, 72, 14, 15, 16, 72],
-                'included-array-of-dicts': {'foo': 'bar', 'k': 'v', 'z': 43},
-                'included-empty-array': None,
                 'key': 'value',
                 'name': 'main',
             },
@@ -90,41 +87,24 @@ class TestYaml(TestCase):
                 str(ctx.exception),
             )
 
-        with open(
-            'tests/config/include/include-array-with-non-existant.yaml'
-        ) as fh:
-            with self.assertRaises(FileNotFoundError) as ctx:
-                data = safe_load(fh)
-            self.assertEqual(
-                "[Errno 2] No such file or directory: 'tests/config/include/does-not-exist.yaml'",
-                str(ctx.exception),
-            )
-
-        with open('tests/config/include/include-array-with-dict.yaml') as fh:
-            with self.assertRaises(ConstructorError) as ctx:
-                data = safe_load(fh)
-            self.assertEqual(
-                "!include first element contained a list, element 1 contained a ContextDict at tests/config/include/include-array-with-dict.yaml, line 2, column 7",
-                str(ctx.exception),
-            )
-
-        with open('tests/config/include/include-dict-with-array.yaml') as fh:
-            with self.assertRaises(ConstructorError) as ctx:
-                data = safe_load(fh)
-            self.assertEqual(
-                "!include first element contained a dict, element 1 contained a list at tests/config/include/include-dict-with-array.yaml, line 2, column 7",
-                str(ctx.exception),
-            )
-
-        with open(
-            'tests/config/include/include-array-with-unsupported.yaml'
-        ) as fh:
-            with self.assertRaises(ConstructorError) as ctx:
-                data = safe_load(fh)
-            self.assertEqual(
-                "!include first element contained an unsupported type, str at tests/config/include/include-array-with-unsupported.yaml, line 2, column 7",
-                str(ctx.exception),
-            )
+    def test_include_merge(self):
+        with open('tests/config/include/merge.yaml') as fh:
+            data = safe_load(fh, enforce_order=False)
+        self.assertEqual(
+            {
+                'parent': {
+                    # overwritten by include
+                    'k': 'v',
+                    # added by include
+                    'm': 'o',
+                    # explicitly in parent
+                    'child': 'added',
+                    # overrode by inlucd
+                    'z': 'overwrote',
+                }
+            },
+            data,
+        )
 
     def test_order_mode(self):
         data = {'*.1.2': 'a', '*.10.1': 'c', '*.11.2': 'd', '*.2.2': 'b'}
