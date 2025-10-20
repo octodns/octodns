@@ -121,7 +121,9 @@ class Manager(object):
 
         # Read our config file
         with open(config_file, 'r') as fh:
-            self.config = safe_load(fh, enforce_order=False)
+            config = safe_load(fh, enforce_order=False)
+
+        self.config = self.process_config(config)
 
         self._validate_idna(self.config['zones'].keys())
 
@@ -192,6 +194,25 @@ class Manager(object):
             }
         }
         self.plan_outputs = self._config_plan_outputs(plan_outputs_config)
+
+    def process_config(self, config):
+        '''
+        Process and potentially modify the configuration before use.
+
+        This method is called during Manager initialization and provides a hook
+        for subclasses to transform or validate the configuration dictionary
+        before it is processed by the Manager.
+
+        :param config: The raw configuration dictionary loaded from the config file, may be modified and returned
+        :type config: dict
+        :return: The processed configuration dictionary
+        :rtype: dict
+
+        .. note::
+           The default implementation returns the config unmodified. Subclasses
+           can override this method to perform custom configuration processing.
+        '''
+        return config
 
     def _validate_idna(self, names):
         names = {n.lower() for n in names}
