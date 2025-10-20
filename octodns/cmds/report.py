@@ -3,17 +3,24 @@
 Octo-DNS Reporter
 '''
 
-import asyncio
-import csv
-import io
-import ipaddress
-import json
-import sys
+from asyncio import Semaphore, new_event_loop, wait
 from collections import defaultdict
+from csv import QUOTE_NONE, writer
+from io import StringIO
+from ipaddress import ip_address
+from json import dump
 from logging import getLogger
+from sys import exit
 
-import dns.asyncresolver
-import dns.resolver
+from dns.asyncresolver import Resolver as AsyncResolver
+from dns.resolver import (
+    NXDOMAIN,
+    YXDOMAIN,
+    LifetimeTimeout,
+    NoAnswer,
+    NoNameservers,
+    resolve,
+)
 
 from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
@@ -21,20 +28,20 @@ from octodns.manager import Manager
 
 async def async_resolve(record, resolver, timeout, limit):
     async with limit:
-        r = dns.asyncresolver.Resolver(configure=False)
+        r = AsyncResolver(configure=False)
         r.lifetime = timeout
         r.nameservers = [resolver]
 
         try:
             query = await r.resolve(qname=record.fqdn, rdtype=record._type)
             answer = sorted([str(a) for a in query])
-        except (dns.resolver.NoAnswer, dns.resolver.NoNameservers):
+        except (NoAnswer, NoNameservers):
             answer = ['*no answer*']
-        except dns.resolver.NXDOMAIN:
+        except NXDOMAIN:
             answer = ['*does not exist*']
-        except dns.resolver.YXDOMAIN:
+        except YXDOMAIN:
             answer = ['*should not exist*']
-        except dns.resolver.LifetimeTimeout:
+        except LifetimeTimeout:
             answer = ['*timeout*']
 
     return [record, resolver, answer]
@@ -108,7 +115,7 @@ def main():
         is_hostname = False
 
         try:
-            ip = ipaddress.ip_address(server)
+            ip = ip_address(server)
             # "2001:4860:4860:0:0:0:0:8888" => "2001:4860:4860::8888"
             resolver = ip.compressed
 
@@ -118,7 +125,7 @@ def main():
             # IPv4 first, then IPv6.
             for rrtype in ['A', 'AAAA']:
                 try:
-                    query = dns.resolver.resolve(server, rrtype)
+                    query = resolve(server, rrtype)
                     resolver = str(query.rrset[0])
                     is_hostname = True
                     # Exit on first IP address found.
@@ -138,10 +145,10 @@ def main():
 
     if not resolvers:
         print(f'Error: No valid resolver specified ({", ".join(servers)})')
-        sys.exit(1)
+        exit(1)
 
-    loop = asyncio.new_event_loop()
-    limit = asyncio.Semaphore(concurrency)
+    loop = new_event_loop()
+    limit = Semaphore(concurrency)
     tasks = []
     for record in sorted(zone.records):
         for resolver in resolvers:
@@ -152,16 +159,16 @@ def main():
             )
 
     queries = defaultdict(dict)
-    done, _ = loop.run_until_complete(asyncio.wait(tasks))
+    done, _ = loop.run_until_complete(wait(tasks))
     for task in done:
         _record, _resolver, _answer = task.result()
         queries[_record][_resolver] = _answer
 
     loop.close()
 
-    output = io.StringIO()
+    output = StringIO()
     if output_format == 'csv':
-        csvout = csv.writer(output, quoting=csv.QUOTE_NONE, quotechar=None)
+        csvout = writer(output, quoting=QUOTE_NONE, quotechar=None)
         csvheader = ['Name', 'Type', 'TTL']
         csvheader = [*csvheader, *resolvers]
         csvheader.append('Consistent')
@@ -195,7 +202,7 @@ def main():
                 len(values_check) == 1
             )
 
-        json.dump(jsonout, output)
+        dump(jsonout, output)
 
     print(output.getvalue())
     output.close()
