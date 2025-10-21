@@ -66,7 +66,7 @@ def main():
     parser.add_argument(
         '--concurrency',
         type=int,
-        default=10,
+        default=4,
         help='Maximum number of concurrent DNS queries',
     )
     parser.add_argument(
@@ -132,10 +132,10 @@ def main():
                     break
 
                 # NXDOMAIN, NoAnswer, NoNameservers...
-                except:
+                except Exception:
                     continue
 
-        if resolver and not resolver in resolvers:
+        if resolver and resolver not in resolvers:
             if not is_hostname:
                 log.info(f'server={resolver}')
             else:
@@ -179,7 +179,7 @@ def main():
             values_check = {}
 
             for resolver in resolvers:
-                answer = ' '.join(answers.get(resolver))
+                answer = ' '.join(answers.get(resolver, []))
                 values_check[answer.lower()] = True
                 csvrow.append(answer)
 
@@ -194,8 +194,8 @@ def main():
             for resolver in resolvers:
                 # Stripping the surrounding quotes of TXT records values to
                 # avoid them being unnecessarily escaped by JSON module.
-                answer = [a.strip('"') for a in answers.get(resolver)]
-                jsonout[record.fqdn][record._type][resolver] = answer
+                answer = [a.strip('"') for a in answers.get(resolver, [])]
+                jsonout[record.decoded_fqdn][record._type][resolver] = answer
                 values_check[' '.join(answer).lower()] = True
 
             jsonout[record.fqdn][record._type]['consistent'] = bool(
