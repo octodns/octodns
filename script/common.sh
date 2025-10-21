@@ -9,7 +9,7 @@ set -e
 OCTODNS_PATH="$( dirname -- "${SCRIPT_PATH}"; )"
 
 # Change to path OctoDNS base directory
-cd "$( dirname -- "${SCRIPT_PATH}"; )"
+cd "${OCTODNS_PATH}"
 
 # If no venv name is set, set it to "env"
 if [ -z "${VENV_NAME}" ]; then
