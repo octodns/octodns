@@ -1,13 +1,14 @@
-#!/bin/sh
+#!/bin/bash
 
-set -e
+# Scripts path
+SCRIPT_PATH="$( dirname -- "$( readlink -f -- "${0}"; )"; )/script"
+# Activate OctoDNS Python venv
+source "${SCRIPT_PATH}/common.sh"
 
-HOOKS=$(dirname "$0")
-GIT=$(dirname "$HOOKS")
-ROOT=$(dirname "$GIT")
-
-. "$ROOT/env/bin/activate"
-"$ROOT/script/changelog" check
-"$ROOT/script/lint"
-"$ROOT/script/format" --check --quiet || (echo "Formatting check failed, run ./script/format" && exit 1)
-"$ROOT/script/coverage"
+./script/changelog check
+./script/lint
+./script/format --check --quiet || (
+    echo "Formatting check failed, run ./script/format" &&
+    exit 1
+)
+./script/coverage
