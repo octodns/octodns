@@ -1,16 +1,8 @@
-#!/bin/sh
-set -e
+#!/bin/bash
 
-cd "$(dirname "$0")/.."
-ROOT=$(pwd)
-
-if [ -z "$VENV_NAME" ]; then
-    VENV_NAME="env"
-fi
-
-ACTIVATE="$VENV_NAME/bin/activate"
-if [ -f "$ACTIVATE" ]; then
-    . "$ACTIVATE"
-fi
+# Get current script path
+SCRIPT_PATH="$( dirname -- "$( readlink -f -- "${0}"; )"; )"
+# Activate OctoDNS Python venv
+source "${SCRIPT_PATH}/common.sh"
 
 changelet "$@"

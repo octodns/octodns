@@ -1,13 +1,9 @@
 #!/bin/bash
 
-set -e
-
-cd "$(dirname "$0")"/..
-ROOT=$(pwd)
-
-if [ -z "$VENV_NAME" ]; then
-    VENV_NAME="env"
-fi
+# Get current script path
+SCRIPT_PATH="$( dirname -- "$( readlink -f -- "${0}"; )"; )"
+# Activate OctoDNS Python venv
+source "${SCRIPT_PATH}/common.sh"
 
 PYPYRC="$HOME/.pypirc"
 if [ ! -e "$PYPYRC" ]; then
@@ -21,13 +17,6 @@ $PYPYRC does not exist, please create it with the following contents
 EndOfMessage
     exit 1
 fi
-
-ACTIVATE="$VENV_NAME/bin/activate"
-if [ ! -f "$ACTIVATE" ]; then
-    echo "$ACTIVATE does not exist, run ./script/bootstrap" >&2
-    exit 1
-fi
-. "$ACTIVATE"
 
 # Set so that setup.py will create a public release style version number
 export OCTODNS_RELEASE=1
