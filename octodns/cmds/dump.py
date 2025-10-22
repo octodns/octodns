@@ -47,14 +47,13 @@ def main():
 
     args = parser.parse_args()
 
-    manager = Manager(args.config_file)
+    manager = Manager(args.config_file, active_sources=args.source)
     manager.dump(
         zone=args.zone,
         output_dir=args.output_dir,
         output_provider=args.output_provider,
         lenient=args.lenient,
         split=args.split,
-        sources=args.source,
     )
 
 
