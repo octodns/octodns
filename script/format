@@ -1,10 +1,11 @@
 #!/bin/bash
 
-set -e
+# Get current script path
+SCRIPT_PATH="$( dirname -- "$( readlink -f -- "${0}"; )"; )"
+# Activate OctoDNS Python venv
+source "${SCRIPT_PATH}/common.sh"
 
 SOURCES="$(find *.py octodns tests docs -name '*.py') $(grep --files-with-matches '^#!.*python' script/*)"
-
-. env/bin/activate
 
 isort "$@" $SOURCES
 black "$@" $SOURCES
