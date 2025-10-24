@@ -1,4 +1,4 @@
-## 1.13.0 - 2025-10-24
+## 1.14.0 - 2025-10-24
 
 Minor:
 * Full rewrite of octodns-report: support for IPv6 resolvers, async names resolution and JSON output - [#1321](https://github.com/octodns/octodns/pull/1321)
