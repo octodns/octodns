@@ -5,10 +5,10 @@ SCRIPT_PATH="$( dirname -- "$( readlink -f -- "${0}"; )"; )/script"
 # Activate OctoDNS Python venv
 source "${SCRIPT_PATH}/common.sh"
 
-./script/changelog check
-./script/lint
-./script/format --check --quiet || (
+"${SCRIPT_PATH}/changelog" check
+"${SCRIPT_PATH}/lint"
+"${SCRIPT_PATH}/format" --check --quiet || (
     echo "Formatting check failed, run ./script/format" &&
     exit 1
 )
-./script/coverage
+"${SCRIPT_PATH}/coverage"

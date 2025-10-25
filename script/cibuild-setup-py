@@ -18,6 +18,10 @@ python -m build --sdist --wheel
 echo "## validate wheel install ###################################################"
 pip install dist/*$VERSION*.whl
 echo "## validate tests can run against installed code ###############################"
-pip install pytest pytest-network
+# filename needs to resolved independently as pip requires quoting and doesn't support
+# wildcards when installing extra requirements
+# (see: https://pip.pypa.io/en/stable/user_guide/#installing-from-wheels)
+wheel_file=$(ls dist/*$VERSION*.whl)
+pip install "${wheel_file}[test]"
 pytest --disable-network
 echo "## complete ####################################################################"
