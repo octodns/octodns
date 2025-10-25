@@ -1,0 +1,5 @@
+---
+z: 43
+# keys are intentionally out of order here to ensure !include files are loaded
+# with the same laoder class and thus "settings" as their parent
+foo: bar
