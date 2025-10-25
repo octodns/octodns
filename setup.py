@@ -78,6 +78,7 @@ setup(
             'sphinx-copybutton>=0.5.2',
             'sphinx_rtd_theme',
         ),
+        'test': tests_require,
     },
     install_requires=(
         'PyYaml>=4.2b1',
