@@ -1,0 +1,6 @@
+---
+parent:
+  k: overwritten
+  <<: !include dict.yaml
+  child: added
+  z: overwrote
