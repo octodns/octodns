@@ -1,3 +1,14 @@
+## 1.14.0 - 2025-10-24
+
+Minor:
+* Full rewrite of octodns-report: support for IPv6 resolvers, async names resolution and JSON output - [#1321](https://github.com/octodns/octodns/pull/1321)
+* Add processor for clamping TTLs - [#1318](https://github.com/octodns/octodns/pull/1318)
+* Add processor support to octodns-dump - [#1309](https://github.com/octodns/octodns/pull/1309)
+* Add glob and regex support to dynamic zone config - [#1304](https://github.com/octodns/octodns/pull/1304)
+* Improve AutoArpa wildcard handling with wildcard_replacement option - [#1302](https://github.com/octodns/octodns/pull/1302)
+* Allow CNAME to coexist if all records have lenient=True - [#1300](https://github.com/octodns/octodns/pull/1300)
+* Add OwnershipProcessor.should_replace to support ownership on alias zones - [#1298](https://github.com/octodns/octodns/pull/1298)
+
 ## 1.13.0 - 2025-08-06 - And then there was changelet
 
 Minor:
