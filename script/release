@@ -5,6 +5,8 @@ SCRIPT_PATH="$( dirname -- "$( readlink -f -- "${0}"; )"; )"
 # Activate OctoDNS Python venv
 source "${SCRIPT_PATH}/common.sh"
 
+set -o pipefail
+
 PYPYRC="$HOME/.pypirc"
 if [ ! -e "$PYPYRC" ]; then
     cat << EndOfMessage >&2
@@ -18,28 +20,12 @@ EndOfMessage
     exit 1
 fi
 
-# Set so that setup.py will create a public release style version number
-export OCTODNS_RELEASE=1
-
-VERSION="$(grep "^__version__" "$ROOT/octodns/__init__.py" | sed -e "s/.* = '//" -e "s/'$//")"
+VERSION="$(grep "^__version__" "octodns/__init__.py" | sed -e "s/.* = '//" -e "s/'$//")"
 
 git tag -s "v$VERSION" -m "Release $VERSION"
 git push origin "v$VERSION"
 echo "Tagged and pushed v$VERSION"
-
-TMP_DIR=$(mktemp -d -t ci-XXXXXXXXXX)
-git archive --format tar "v$VERSION" | tar xv -C $TMP_DIR
-echo "Created clean room $TMP_DIR and archived $VERSION into it"
-
-(cd "$TMP_DIR" && python -m build --sdist --wheel)
-
-if [ ! -d dist ]; then
-  mkdir dist/
-fi
-
-cp $TMP_DIR/dist/*$VERSION.tar.gz $TMP_DIR/dist/*$VERSION*.whl dist/
-echo "Copied $TMP_DIR/dists into ./dist"
-
+python -m build --sdist --wheel
 twine check dist/*$VERSION.tar.gz dist/*$VERSION*.whl
 twine upload dist/*$VERSION.tar.gz dist/*$VERSION*.whl
 echo "Uploaded $VERSION"

@@ -1,25 +1,30 @@
 #!/bin/bash
 
 # Get current script path
-SCRIPT_PATH="$( dirname -- "$( readlink -f -- "${0}"; )"; )"
+SCRIPT_PATH="$(dirname -- "$(readlink -f -- "${0}")")"
 # Activate OctoDNS Python venv
 source "${SCRIPT_PATH}/common.sh"
 
 SOURCE_DIR="octodns/"
 
 # Don't allow disabling coverage
-grep -r -I --line-number "# pragma: +no.*cover" $SOURCE_DIR && {
-    echo "Code coverage should not be disabled"
+PRAGMA_OUTPUT=$(grep -r -I --line-number "# pragma: \+no.*cover" "$SOURCE_DIR" || echo)
+PRAGMA_COUNT=$(echo "$PRAGMA_OUTPUT" | grep -c . || true)
+PRAGMA_ALLOWED=2
+if [ "$PRAGMA_COUNT" -gt "$PRAGMA_ALLOWED" ]; then
+    echo "Found $PRAGMA_COUNT instances of 'pragma: no cover' (no more than $PRAGMA_ALLOWED allowed):"
+    echo "$PRAGMA_OUTPUT"
+    echo "Code coverage should not be disabled, except for version handling blocks"
     exit 1
-}
+fi
 
 pytest \
-  --disable-network \
-  --cov-reset \
-  --cov=$SOURCE_DIR \
-  --cov-fail-under=100 \
-  --cov-report=html \
-  --cov-report=xml \
-  --cov-report=term \
-  --cov-branch \
-  "$@"
+    --disable-network \
+    --cov-reset \
+    --cov=$SOURCE_DIR \
+    --cov-fail-under=100 \
+    --cov-report=html \
+    --cov-report=xml \
+    --cov-report=term \
+    --cov-branch \
+    "$@"
