@@ -98,20 +98,34 @@ class Manager(object):
         include_meta=False,
         auto_arpa=False,
         enable_checksum=False,
+        active_zones=None,
+        active_sources=None,
+        active_targets=None,
     ):
         version = self._try_version('octodns', version=__version__)
         self.log.info(
-            '__init__: config_file=%s, (octoDNS %s)', config_file, version
+            '__init__: config_file=%s, active_zones=%s, active_sources=%s, active_targets=%s (octoDNS %s)',
+            config_file,
+            active_zones,
+            active_sources,
+            active_targets,
+            version,
         )
 
+        self.active_zones = active_zones
+        self.active_sources = active_sources
+        self.active_targets = active_targets
+
+        self._zones = None
         self._configured_sub_zones = None
 
         # Read our config file
         with open(config_file, 'r') as fh:
-            self.config = safe_load(fh, enforce_order=False)
+            config = safe_load(fh, enforce_order=False)
 
-        zones = self.config['zones']
-        self.config['zones'] = self._config_zones(zones)
+        self.config = self.process_config(config)
+
+        self._validate_idna(self.config['zones'].keys())
 
         manager_config = self.config.get('manager') or {}
         self._executor = self._config_executor(manager_config, max_workers)
@@ -181,23 +195,141 @@ class Manager(object):
         }
         self.plan_outputs = self._config_plan_outputs(plan_outputs_config)
 
-    def _config_zones(self, zones):
-        # record the set of configured zones we have as they are
-        configured_zones = set([z.lower() for z in zones.keys()])
-        # walk the configured zones
-        for name in configured_zones:
+    def process_config(self, config):
+        '''
+        Process and potentially modify the configuration before use.
+
+        This method is called during Manager initialization and provides a hook
+        for subclasses to transform or validate the configuration dictionary
+        before it is processed by the Manager.
+
+        :param config: The raw configuration dictionary loaded from the config file, may be modified and returned
+        :type config: dict
+        :return: The processed configuration dictionary
+        :rtype: dict
+
+        .. note::
+           The default implementation returns the config unmodified. Subclasses
+           can override this method to perform custom configuration processing.
+        '''
+        return config
+
+    def _validate_idna(self, names):
+        names = {n.lower() for n in names}
+        # verify that we don't have zones both with and without idna encoding
+        for name in names:
             if 'xn--' not in name:
+                # not idna
                 continue
             # this is an IDNA format zone name
             decoded = idna_decode(name)
             # do we also have a config for its utf-8
-            if decoded in configured_zones:
+            if decoded in names:
                 raise ManagerException(
                     f'"{decoded}" configured both in utf-8 and idna "{name}"'
                 )
 
-        # convert the zones portion of things into an IdnaDict
-        return IdnaDict(zones)
+    @property
+    def zones(self):
+        if self._zones is None:
+            zones = self.config['zones']
+
+            zones = IdnaDict(self._preprocess_zones(zones))
+
+            if self.active_zones:
+                zones = IdnaDict({n: zones.get(n) for n in self.active_zones})
+
+            self._zones = zones
+
+        return self._zones
+
+    def _preprocess_zones(self, zones):
+        '''
+        This may modify the passed in zone object, it should be ignored after
+        the call and the zones returned from this function should be used
+        instead.
+        '''
+
+        # we're going to be modifying the zones dict during the course of this
+        # method and then return the results. we'll take a shallow copy here so
+        # that we can safely so without impacting the original config. We don't
+        # momdify any of the values, just copy them as-is, so shallow should be
+        # fine.
+        zones = dict(zones)
+
+        source_zones = {}
+
+        # list since we'll be modifying zones in the loop
+        for name, config in list(zones.items()):
+            if name[0] != '*':
+                # this isn't a dynamic zone config, move along
+                continue
+
+            # it's dynamic, get a list of zone names from the configured sources
+            sources = self._get_sources(name, config)
+            self.log.info(
+                '_preprocess_zones: dynamic zone=%s, sources=%s',
+                name,
+                list(s.id for s in sources),
+            )
+            candidates = set()
+            for source in sources:
+                if source.id not in source_zones:
+                    if not hasattr(source, 'list_zones'):
+                        raise ManagerException(
+                            f'dynamic zone={name} includes a source, {source.id}, that does not support `list_zones`'
+                        )
+                    # get this source's zones
+                    listed_zones = set(source.list_zones())
+                    # cache them
+                    source_zones[source.id] = listed_zones
+                    self.log.debug(
+                        '_preprocess_zones: source=%s, list_zones=%s',
+                        source.id,
+                        listed_zones,
+                    )
+                # add this source's zones to the candidates
+                candidates |= source_zones[source.id]
+
+            self.log.debug(
+                '_preprocess_zones: name=%s, candidates=%s', name, candidates
+            )
+
+            # remove any zones that are already configured, either explicitly or
+            # from a previous dyanmic config
+            candidates -= set(zones.keys())
+
+            if glob := config.pop('glob', None):
+                self.log.debug(
+                    '_preprocess_zones: name=%s, glob=%s', name, glob
+                )
+                candidates = set(fnmatch_filter(candidates, glob))
+            elif regex := config.pop('regex', None):
+                self.log.debug(
+                    '_preprocess_zones: name=%s, regex=%s', name, regex
+                )
+                regex = re_compile(regex)
+                self.log.debug(
+                    '_preprocess_zones: name=%s, compiled=%s', name, regex
+                )
+                candidates = set(z for z in candidates if regex.search(z))
+            else:
+                # old-style wildcard that uses everything
+                self.log.debug(
+                    '_preprocess_zones: name=%s, old semantics, catch all', name
+                )
+
+            self.log.debug(
+                '_preprocess_zones: name=%s, matches=%s', name, candidates
+            )
+
+            for match in candidates:
+                zones[match] = config
+
+            # remove the dynamic config element so we don't try and populate it
+            del zones[name]
+
+        return zones
 
     def _config_executor(self, manager_config, max_workers=None):
         max_workers = (
@@ -463,7 +595,7 @@ class Manager(object):
             # Get a list of all of our zone names. Sort them from shortest to
             # longest so that parents will always come before their subzones
             zones = sorted(
-                self.config['zones'].keys(), key=lambda z: len(z), reverse=True
+                self.zones.keys(), key=lambda z: len(z), reverse=True
             )
             zones = deque(zones)
             # Until we're done processing zones
@@ -557,7 +689,7 @@ class Manager(object):
         # Return the zone as it's the desired state
         return plans, zone
 
-    def _get_sources(self, decoded_zone_name, config, eligible_sources):
+    def _get_sources(self, decoded_zone_name, config):
         try:
             sources = config['sources'] or []
         except KeyError:
@@ -565,9 +697,13 @@ class Manager(object):
                 f'Zone {decoded_zone_name} is missing sources'
             )
 
-        if eligible_sources and not [
-            s for s in sources if s in eligible_sources
+        if self.active_sources and not [
+            s for s in sources if s in self.active_sources
         ]:
+            self.log.warning(
+                '_get_sources: no active sources configured for %s',
+                decoded_zone_name,
+            )
             return None
 
         self.log.info('_get_sources:     sources=%s', sources)
@@ -608,112 +744,24 @@ class Manager(object):
 
         return processors
 
-    def _preprocess_zones(self, zones, eligible_sources=None, sources=None):
-        '''
-        This may modify the passed in zone object, it should be ignored after
-        the call and the zones returned from this function should be used
-        instead.
-        '''
-
-        source_zones = {}
-
-        # list since we'll be modifying zones in the loop
-        for name, config in list(zones.items()):
-            if name[0] != '*':
-                # this isn't a dynamic zone config, move along
-                continue
-
-            # it's dynamic, get a list of zone names from the configured sources
-            found_sources = sources or self._get_sources(
-                name, config, eligible_sources
-            )
-            self.log.info(
-                '_preprocess_zones: dynamic zone=%s, sources=%s',
-                name,
-                list(s.id for s in found_sources),
-            )
-            candidates = set()
-            for source in found_sources:
-                if source.id not in source_zones:
-                    if not hasattr(source, 'list_zones'):
-                        raise ManagerException(
-                            f'dynamic zone={name} includes a source, {source.id}, that does not support `list_zones`'
-                        )
-                    # get this source's zones
-                    listed_zones = set(source.list_zones())
-                    # cache them
-                    source_zones[source.id] = listed_zones
-                    self.log.debug(
-                        '_preprocess_zones: source=%s, list_zones=%s',
-                        source.id,
-                        listed_zones,
-                    )
-                # add this source's zones to the candidates
-                candidates |= source_zones[source.id]
-
-            self.log.debug(
-                '_preprocess_zones: name=%s, candidates=%s', name, candidates
-            )
-
-            # remove any zones that are already configured, either explicitly or
-            # from a previous dyanmic config
-            candidates -= set(zones.keys())
-
-            if glob := config.pop('glob', None):
-                self.log.debug(
-                    '_preprocess_zones: name=%s, glob=%s', name, glob
-                )
-                candidates = set(fnmatch_filter(candidates, glob))
-            elif regex := config.pop('regex', None):
-                self.log.debug(
-                    '_preprocess_zones: name=%s, regex=%s', name, regex
-                )
-                regex = re_compile(regex)
-                self.log.debug(
-                    '_preprocess_zones: name=%s, compiled=%s', name, regex
-                )
-                candidates = set(z for z in candidates if regex.search(z))
-            else:
-                # old-style wildcard that uses everything
-                self.log.debug(
-                    '_preprocess_zones: name=%s, old semantics, catch all', name
-                )
-
-            self.log.debug(
-                '_preprocess_zones: name=%s, matches=%s', name, candidates
-            )
-
-            for match in candidates:
-                zones[match] = config
-
-            # remove the dynamic config element so we don't try and populate it
-            del zones[name]
-
-        return zones
-
     def sync(
         self,
-        eligible_zones=[],
-        eligible_sources=[],
-        eligible_targets=[],
         dry_run=True,
         force=False,
         plan_output_fh=stdout,
         checksum=None,
+        eligible_zones=None,
     ):
         self.log.info(
-            'sync: eligible_zones=%s, eligible_targets=%s, dry_run=%s, force=%s, plan_output_fh=%s, checksum=%s',
-            eligible_zones,
-            eligible_targets,
+            'sync: dry_run=%s, force=%s, plan_output_fh=%s, checksum=%s, eligible_zones=%s',
             dry_run,
             force,
             getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__),
             checksum,
+            eligible_zones,
         )
 
-        zones = self.config['zones']
-
-        zones = self._preprocess_zones(zones, eligible_sources)
+        zones = self.zones
 
         if eligible_zones:
             zones = IdnaDict({n: zones.get(n) for n in eligible_zones})
@@ -722,23 +770,27 @@ class Manager(object):
         if self.auto_arpa and includes_arpa:
             # it's not safe to mess with auto_arpa when we don't have a complete
             # picture of records, so if any filtering is happening while arpa
-            # zones are in play we need to abort
-            if any(e.endswith('arpa.') for e in eligible_zones):
+            # zones are in play we need to abort. If eligible or active are present
+            # we are filtering.
+            target_zones = eligible_zones or self.active_zones or []
+            if any(e.endswith('arpa.') for e in target_zones):
                 raise ManagerException(
                     'ARPA zones cannot be synced during partial runs when auto_arpa is enabled'
                 )
-            if eligible_sources:
+            if self.active_sources:
                 raise ManagerException(
-                    'eligible_sources is incompatible with auto_arpa'
+                    'active_sources is incompatible with auto_arpa'
                 )
-            if eligible_targets:
+            if self.active_targets:
                 raise ManagerException(
-                    'eligible_targets is incompatible with auto_arpa'
+                    'active_targets is incompatible with auto_arpa'
                 )
 
         aliased_zones = {}
         delayed_arpa = []
         futures = []
+
+        config_zones = self.config['zones']
 
         for zone_name, config in zones.items():
             if config is None:
@@ -750,14 +802,22 @@ class Manager(object):
             if 'alias' in config:
                 source_zone = config['alias']
 
+                # look up the zone in both our processed zones (including
+                # dynamic) and the original config as it may not be in
+                # processed b/c of active_zones filtering. Here we're only
+                # concerned with the config validation. We'll check and error
+                # handle the case where it's not active later in when the time
+                # to actually copy the data comes
+                zone = zones.get(source_zone, config_zones.get(source_zone))
+
                 # Check that the source zone is defined.
-                if source_zone not in self.config['zones']:
+                if not zone:
                     msg = f'Invalid alias zone {decoded_zone_name}: source zone {idna_decode(source_zone)} does not exist'
                     self.log.error(msg)
                     raise ManagerException(msg)
 
                 # Check that the source zone is not an alias zone itself.
-                if 'alias' in self.config['zones'][source_zone]:
+                if 'alias' in zone:
                     msg = f'Invalid alias zone {decoded_zone_name}: source zone {idna_decode(source_zone)} is an alias zone'
                     self.log.error(msg)
                     raise ManagerException(msg)
@@ -767,9 +827,7 @@ class Manager(object):
 
             lenient = config.get('lenient', False)
 
-            sources = self._get_sources(
-                decoded_zone_name, config, eligible_sources
-            )
+            sources = self._get_sources(decoded_zone_name, config)
 
             try:
                 targets = config['targets'] or []
@@ -785,8 +843,8 @@ class Manager(object):
                 self.log.info('sync:   no eligible sources, skipping')
                 continue
 
-            if eligible_targets:
-                targets = [t for t in targets if t in eligible_targets]
+            if self.active_targets:
+                targets = [t for t in targets if t in self.active_targets]
 
             if not targets:
                 # Don't bother planning (and more importantly populating) zones
@@ -840,8 +898,8 @@ class Manager(object):
         # Populate aliases zones.
         futures = []
         for zone_name, zone_source in aliased_zones.items():
-            source_config = self.config['zones'][zone_source]
             try:
+                source_config = self.zones[zone_source]
                 desired_config = desired[zone_source]
             except KeyError:
                 raise ManagerException(
@@ -912,7 +970,7 @@ class Manager(object):
 
         total_changes = 0
         self.log.debug('sync:   applying')
-        zones = self.config['zones']
+        zones = self.zones
         for target, plan in plans:
             zone_name = plan.existing.decoded_name
             if zones[zone_name].get('always-dry-run', False):
@@ -950,30 +1008,23 @@ class Manager(object):
         return zb.changes(za, _AggregateTarget(a + b))
 
     def dump(
-        self,
-        zone,
-        output_dir,
-        sources,
-        lenient=False,
-        split=False,
-        output_provider=None,
+        self, zone, output_dir, lenient=False, split=False, output_provider=None
     ):
         '''
         Dump zone data from the specified source
         '''
         self.log.info(
             'dump: zone=%s, output_dir=%s, output_provider=%s, '
-            'lenient=%s, split=%s, sources=%s',
+            'lenient=%s, split=%s',
             zone,
             output_dir,
             output_provider,
             lenient,
             split,
-            sources,
         )
 
         try:
-            sources = [self.providers[s] for s in sources]
+            sources = [self.providers[s] for s in self.active_sources]
         except KeyError as e:
             raise ManagerException(f'Unknown source: {e.args[0]}')
 
@@ -1019,8 +1070,7 @@ class Manager(object):
                 clz = SplitYamlProvider
             target = clz('dump', output_dir)
 
-        zones = self.config['zones']
-        zones = self._preprocess_zones(zones, sources=sources)
+        zones = self.zones
 
         if '*' in zone:
             # we want to do everything
@@ -1057,8 +1107,7 @@ class Manager(object):
     def validate_configs(self, lenient=False):
         # TODO: this code can probably be shared with stuff in sync
 
-        zones = self.config['zones']
-        zones = self._preprocess_zones(zones)
+        zones = self.zones
 
         for zone_name, config in zones.items():
             decoded_zone_name = idna_decode(zone_name)
@@ -1066,7 +1115,7 @@ class Manager(object):
 
             source_zone = config.get('alias')
             if source_zone:
-                if source_zone not in self.config['zones']:
+                if source_zone not in self.zones:
                     self.log.exception('Invalid alias zone')
                     raise ManagerException(
                         f'Invalid alias zone {decoded_zone_name}: '
@@ -1074,7 +1123,7 @@ class Manager(object):
                         'not exist'
                     )
 
-                if 'alias' in self.config['zones'][source_zone]:
+                if 'alias' in self.zones[source_zone]:
                     self.log.exception('Invalid alias zone')
                     raise ManagerException(
                         f'Invalid alias zone {decoded_zone_name}: '
@@ -1130,7 +1179,7 @@ class Manager(object):
                 f'Invalid zone name {idna_decode(zone_name)}, missing ending dot'
             )
 
-        zone = self.config['zones'].get(zone_name)
+        zone = self.zones.get(zone_name)
         if zone is not None:
             sub_zones = self.configured_sub_zones(zone_name)
             update_pcent_threshold = zone.get("update_pcent_threshold", None)

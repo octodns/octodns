@@ -315,6 +315,7 @@ xn--dj-kia8a:
         self.assertEqual(
             [
                 'dynamic.tests.',
+                'sub.dynamic.tests.',
                 'sub.txt.unit.tests.',
                 'subzone.unit.tests.',
                 'unit.tests.',
