@@ -69,7 +69,7 @@ class TestYaml(TestCase):
         self.assertEqual(
             {
                 'included-array': [14, 15, 16, 72],
-                'included-dict': {'k': 'v', 'z': 42},
+                'included-dict': {'k': 'v', 'm': 'o', 'z': 42},
                 'included-empty': None,
                 'included-nested': 'Hello World!',
                 'included-subdir': 'Hello World!',
@@ -86,6 +86,25 @@ class TestYaml(TestCase):
                 "[Errno 2] No such file or directory: 'tests/config/include/does-not-exist.yaml'",
                 str(ctx.exception),
             )
+
+    def test_include_merge(self):
+        with open('tests/config/include/merge.yaml') as fh:
+            data = safe_load(fh, enforce_order=False)
+        self.assertEqual(
+            {
+                'parent': {
+                    # overwritten by include
+                    'k': 'v',
+                    # added by include
+                    'm': 'o',
+                    # explicitly in parent
+                    'child': 'added',
+                    # overrode by inlucd
+                    'z': 'overwrote',
+                }
+            },
+            data,
+        )
 
     def test_order_mode(self):
         data = {'*.1.2': 'a', '*.10.1': 'c', '*.11.2': 'd', '*.2.2': 'b'}

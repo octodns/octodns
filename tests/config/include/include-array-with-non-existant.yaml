@@ -1,0 +1,4 @@
+---
+data: !include
+  - array.yaml
+  - does-not-exist.yaml
