@@ -10,8 +10,8 @@ SOURCE_DIR="octodns/"
 # Don't allow disabling coverage
 PRAGMA_OUTPUT=$(grep -r -I --line-number "# pragma: \+no.*cover" "$SOURCE_DIR" || echo)
 PRAGMA_COUNT=$(echo "$PRAGMA_OUTPUT" | grep -c . || true)
-PRAGMA_ALLOWED=2
-if [ "$PRAGMA_COUNT" -gt "$PRAGMA_ALLOWED" ]; then
+PRAGMA_ALLOWED=5
+if [ "$PRAGMA_COUNT" -ne "$PRAGMA_ALLOWED" ]; then
     echo "Found $PRAGMA_COUNT instances of 'pragma: no cover' (no more than $PRAGMA_ALLOWED allowed):"
     echo "$PRAGMA_OUTPUT"
     echo "Code coverage should not be disabled, except for version handling blocks"

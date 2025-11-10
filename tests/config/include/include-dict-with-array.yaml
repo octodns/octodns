@@ -1,0 +1,4 @@
+---
+data: !include
+  - dict.yaml
+  - array.yaml

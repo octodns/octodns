@@ -28,6 +28,7 @@ Documentation
    getting-started.rst
    records.md
    configuration.rst
+   include_directive.rst
    dynamic_zone_config.rst
    dynamic_records.rst
    auto_arpa.rst
