@@ -13,7 +13,5 @@ formats:
   - pdf
 
 python:
-    install:
-      - requirements: requirements.txt
-      - requirements: requirements-dev.txt
-      - requirements: requirements-docs.txt
+  install:
+    - requirements: requirements.txt
