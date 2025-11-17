@@ -65,6 +65,7 @@ setup(
             'build>=0.7.0',
             'changelet',
             'isort>=5.11.5',
+            'proviso',
             'pycountry>=19.8.18',
             'pycountry-convert>=0.7.2',
             'pyflakes>=2.2.0',

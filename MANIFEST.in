@@ -3,7 +3,6 @@ include CODE_OF_CONDUCT.md
 include CONTRIBUTING.md
 include LICENSE
 include README.md
-include requirements-dev.txt
 include requirements.txt
 include script/*
 recursive-include docs *.png *.md

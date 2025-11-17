@@ -25,10 +25,6 @@ fi
 python -m pip install -U 'pip>=10.0.1'
 python -m pip install -r requirements.txt
 
-if [ "$ENV" != "production" ]; then
-    python -m pip install -r requirements-dev.txt
-fi
-
 if [ -d ".git" ]; then
     if [ -f ".git-blame-ignore-revs" ]; then
         echo ""
