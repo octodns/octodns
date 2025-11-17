@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+
+from datetime import date, datetime
+from json import dump, load
+from urllib.request import urlopen
+
+# Fetch Python version data from endoflife.date
+with urlopen('https://endoflife.date/api/python.json') as response:
+    versions = load(response)
+
+# Get today's date for EOL comparison
+today = date.today()
+
+# Filter for active versions (released and not EOL'd yet)
+active_versions = []
+for version in versions:
+    cycle = version['cycle']
+
+    # Skip Python 2.x versions
+    if cycle.startswith('2.'):
+        continue
+
+    # Check if version has been released
+    release_date_str = version.get('releaseDate')
+    if release_date_str:
+        release_date = datetime.strptime(release_date_str, '%Y-%m-%d').date()
+        if release_date > today:
+            # Skip pre-release versions
+            continue
+
+    # Check if version is not EOL'd yet
+    eol_str = version.get('eol')
+    if eol_str:
+        eol_date = datetime.strptime(eol_str, '%Y-%m-%d').date()
+        if eol_date >= today:
+            active_versions.append(cycle)
+
+# Sort versions
+active_versions.sort(key=lambda v: tuple(map(int, v.split('.'))))
+
+# Determine current version (the latest active version)
+current_version = active_versions[-1] if active_versions else None
+
+# Update .ci-config.json
+config_path = '.ci-config.json'
+with open(config_path, 'r') as fh:
+    config = load(fh)
+
+config['python_versions_active'] = active_versions
+config['python_version_current'] = current_version
+
+with open(config_path, 'w') as fh:
+    dump(config, fh, indent=2)
+    fh.write('\n')
+
+print(f'Updated {config_path}:')
+print(f'  Active versions: {", ".join(active_versions)}')
+print(f'  Current version: {current_version}')
