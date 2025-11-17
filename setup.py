@@ -65,6 +65,7 @@ setup(
             'build>=0.7.0',
             'changelet',
             'isort>=5.11.5',
+            'proviso',
             'pycountry>=19.8.18',
             'pycountry-convert>=0.7.2',
             'pyflakes>=2.2.0',
@@ -73,7 +74,7 @@ setup(
         ),
         'docs': (
             'myst-parser>=4.0.1',
-            'Sphinx>=8.2.3',
+            'Sphinx>=8.1.0',
             'sphinxcontrib-mermaid>=1.0.0',
             'sphinx-copybutton>=0.5.2',
             'sphinx_rtd_theme',
