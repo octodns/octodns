@@ -12,19 +12,20 @@ PRAGMA_OUTPUT=$(grep -r -I --line-number "# pragma: \+no.*cover" "$SOURCE_DIR" |
 PRAGMA_COUNT=$(echo "$PRAGMA_OUTPUT" | grep -c . || true)
 PRAGMA_ALLOWED=5
 if [ "$PRAGMA_COUNT" -ne "$PRAGMA_ALLOWED" ]; then
-    echo "Found $PRAGMA_COUNT instances of 'pragma: no cover' (no more than $PRAGMA_ALLOWED allowed):"
-    echo "$PRAGMA_OUTPUT"
-    echo "Code coverage should not be disabled, except for version handling blocks"
-    exit 1
+  echo "Found $PRAGMA_COUNT instances of 'pragma: no cover' (no more than $PRAGMA_ALLOWED allowed):"
+  echo "$PRAGMA_OUTPUT"
+  echo "Code coverage should not be disabled, except for version handling blocks"
+  exit 1
 fi
 
 pytest \
-    --disable-network \
-    --cov-reset \
-    --cov=$SOURCE_DIR \
-    --cov-fail-under=100 \
-    --cov-report=html \
-    --cov-report=xml \
-    --cov-report=term \
-    --cov-branch \
-    "$@"
+  --disable-network \
+  --cov-reset \
+  --cov=$SOURCE_DIR \
+  --cov-fail-under=100 \
+  --cov-report=html \
+  --cov-report=json \
+  --cov-report=xml \
+  --cov-report=term \
+  --cov-branch \
+  "$@"

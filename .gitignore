@@ -5,6 +5,7 @@
 /build/
 /config/
 .coverage
+coverage.json
 coverage.xml
 dist/
 docs/_build/
