@@ -73,7 +73,8 @@ class ArgumentParser(_Base):
             # configuration
             return
 
-        fmt = '%(asctime)s [%(thread)d] %(levelname)-5s %(name)s %(message)s'
+        # 7 is the length of the largest logging level, warning, that we're concerned with aligning.
+        fmt = '%(asctime)s [%(thread)d] %(levelname)-7s %(name)s %(message)s'
         formatter = Formatter(fmt=fmt, datefmt='%Y-%m-%dT%H:%M:%S ')
         stream = stdout if args.log_stream_stdout else stderr
         handler = StreamHandler(stream=stream)
