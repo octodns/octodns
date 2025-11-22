@@ -5,7 +5,7 @@
 from collections import defaultdict
 from io import StringIO
 from json import dumps
-from logging import DEBUG, ERROR, INFO, WARN, getLogger
+from logging import DEBUG, ERROR, INFO, WARNING, getLogger
 from pprint import pformat
 from sys import stdout
 
@@ -152,8 +152,8 @@ class PlanLogger(_PlanOutput):
             self.level = {
                 'debug': DEBUG,
                 'info': INFO,
-                'warn': WARN,
-                'warning': WARN,
+                'warn': WARNING,
+                'warning': WARNING,
                 'error': ERROR,
             }[level.lower()]
         except (AttributeError, KeyError):

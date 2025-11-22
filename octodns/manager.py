@@ -10,7 +10,7 @@ from importlib import import_module
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as module_version
 from json import dumps
-from logging import getLogger
+from logging import INFO, getLogger
 from re import compile as re_compile
 from sys import stdout
 
@@ -896,7 +896,9 @@ class Manager(object):
             csum = sha256()
             csum.update(data.encode('utf-8'))
             computed_checksum = csum.hexdigest()
-            self.log.info('sync: checksum=%s', computed_checksum)
+            checksum_log = getLogger('Checksum')
+            checksum_log.setLevel(INFO)
+            checksum_log.info('checksum=%s', computed_checksum)
 
         if not force:
             self.log.debug('sync:   checking safety')
