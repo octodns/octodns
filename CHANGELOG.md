@@ -1,3 +1,12 @@
+## 1.15.0 - 2025-11-23
+
+Minor:
+* Use dedicated Checksum logger so that checksum is visible in --quiet mode - [#1333](https://github.com/octodns/octodns/pull/1333)
+* Add merge syntax support to !include tag, `<<: !include file.yaml` - [#1315](https://github.com/octodns/octodns/pull/1315)
+
+Patch:
+* Use WARNING instead of deprecated WARN, fix log level alignment - [#1333](https://github.com/octodns/octodns/pull/1333)
+
 ## 1.14.0 - 2025-10-24
 
 Minor:
