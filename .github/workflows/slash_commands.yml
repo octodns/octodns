@@ -21,10 +21,8 @@ jobs:
           command_body="${{ github.event.comment.body }}"
 
           # Remove the command prefix to get the arguments
-          # The regex 's' modifier allows the dot to match newlines
-          # and the 'm' modifier allows '^' to match at the beginning of each line
-          # This handles commands spanning multiple lines
-          parsed_body=$(echo "$command_body" | sed -E 's/\/changelog create -t ([a-z]+) (.*)$/\1|\2/')
+          # Handles both -t and --type flag formats
+          parsed_body=$(echo "$command_body" | sed -E 's/\/changelog create (-t|--type) ([a-z]+) (.*)$/\2|\3/')
 
           # The parsed output will be 'type|message'
           changelog_type=$(echo "$parsed_body" | cut -d'|' -f1)
@@ -57,12 +55,6 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          sha=$(git rev-parse HEAD)
-          echo "sha=$sha"
-          # the origin one is where we need to push to, other two aren't useful
-          branch=$(git branch --all --contains $SHA | grep origin | sed 's#^.*origin/##;s/[[:space:]]*$//')
-          echo "branch=$branch"
-
           ./script/changelog create -c -t "${{ steps.parse_command.outputs.changelog_type }}" "${{ steps.parse_command.outputs.message }}"
 
-          git push origin HEAD:"$branch"
+          git push origin HEAD:refs/pull/${{ github.event.issue.number }}/head
