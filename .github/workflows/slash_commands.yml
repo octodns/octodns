@@ -53,6 +53,12 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
+          # Get the branch name from the PR using GitHub API
+          branch=$(curl -s -H "Authorization: token ${{ github.token }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}" | \
+            jq -r .head.ref)
+          echo "Branch: $branch"
+
           ./script/changelog create -c -t "${{ steps.parse_command.outputs.changelog_type }}" "${{ steps.parse_command.outputs.message }}"
 
-          git push origin HEAD:refs/pull/${{ github.event.issue.number }}/head
+          git push origin HEAD:"$branch"
