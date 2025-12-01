@@ -2,6 +2,8 @@
 
 ## DNS as code - Tools for managing DNS across multiple providers
 
+This won't be merged
+
 In the vein of [infrastructure as
 code](https://en.wikipedia.org/wiki/Infrastructure_as_Code) octoDNS provides a set of tools & patterns that make it easy to manage your DNS records across multiple providers. The resulting config can live in a repository and be [deployed](https://github.com/blog/1241-deploying-at-github) just like the rest of your code, maintaining a clear history and using your existing review & workflow.
 
