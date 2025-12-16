@@ -242,6 +242,67 @@ xn--dj-kia8a:
         source.populate(zone)
         self.assertEqual(0, len(zone.records))
 
+    def test_ignore_missing_zones(self):
+        # Test that ignore_missing_zones prevents errors when zone files are missing
+        with TemporaryDirectory() as td:
+            directory = td.dirname
+
+            # Create a provider with ignore_missing_zones disabled (default)
+            provider = YamlProvider(
+                'test', directory, ignore_missing_zones=False
+            )
+            zone = Zone('missing.zone.', [])
+
+            # Should raise an exception when zone file is missing
+            with self.assertRaises(ProviderException) as ctx:
+                provider.populate(zone)
+            self.assertEqual(
+                'no YAMLs found for missing.zone.', str(ctx.exception)
+            )
+
+            # Create a provider with ignore_missing_zones enabled
+            provider = YamlProvider(
+                'test', directory, ignore_missing_zones=True
+            )
+            zone = Zone('missing.zone.', [])
+
+            # Should not raise an exception and should return False (zone doesn't exist)
+            exists = provider.populate(zone)
+            self.assertFalse(exists)
+            self.assertEqual(0, len(zone.records))
+
+            # Test with multiple sources where some have the zone and some don't
+            # Create one zone file
+            zone_file = join(directory, 'exists.zone.yaml')
+            with open(zone_file, 'w') as fh:
+                fh.write(
+                    '''---
+www:
+  type: A
+  value: 1.2.3.4
+'''
+                )
+
+            # Create a second directory without the zone file
+            directory2 = join(td.dirname, 'other')
+            makedirs(directory2)
+
+            # Provider 1 has the zone
+            provider1 = YamlProvider('test1', directory)
+            # Provider 2 doesn't have the zone but ignores missing
+            provider2 = YamlProvider(
+                'test2', directory2, ignore_missing_zones=True
+            )
+
+            zone = Zone('exists.zone.', [])
+            provider1.populate(zone)
+            self.assertEqual(1, len(zone.records))
+
+            # Provider 2 should not error when the zone is missing
+            provider2.populate(zone)
+            # Still just 1 record from provider1
+            self.assertEqual(1, len(zone.records))
+
     def test_unsorted(self):
         source = YamlProvider(
             'test', join(dirname(__file__), 'config'), supports_root_ns=False

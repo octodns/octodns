@@ -64,6 +64,10 @@ Core provider for records configured in yaml files on disk::
     # (optional, default True)
     escaped_semicolons: True
 
+    # Whether to ignore missing zone files when used as a source
+    # (optional, default False)
+    ignore_missing_zones: False
+
 .. Note::
 
   When using this provider as a target any existing comments or formatting in
@@ -203,13 +207,14 @@ class YamlProvider(BaseProvider):
         shared_filename=False,
         disable_zonefile=False,
         escaped_semicolons=True,
+        ignore_missing_zones=False,
         *args,
         **kwargs,
     ):
         klass = self.__class__.__name__
         self.log = logging.getLogger(f'{klass}[{id}]')
         self.log.debug(
-            '__init__: id=%s, directory=%s, default_ttl=%d, enforce_order=%d, order_mode=%s, populate_should_replace=%s, supports_root_ns=%s, split_extension=%s, split_catchall=%s, shared_filename=%s, disable_zonefile=%s, escaped_semicolons=%s',
+            '__init__: id=%s, directory=%s, default_ttl=%d, enforce_order=%d, order_mode=%s, populate_should_replace=%s, supports_root_ns=%s, split_extension=%s, split_catchall=%s, shared_filename=%s, disable_zonefile=%s, escaped_semicolons=%s, ignore_missing_zones=%s',
             id,
             directory,
             default_ttl,
@@ -222,6 +227,7 @@ class YamlProvider(BaseProvider):
             shared_filename,
             disable_zonefile,
             escaped_semicolons,
+            ignore_missing_zones,
         )
         super().__init__(id, *args, **kwargs)
         self.directory = directory
@@ -235,6 +241,7 @@ class YamlProvider(BaseProvider):
         self.shared_filename = shared_filename
         self.disable_zonefile = disable_zonefile
         self.escaped_semicolons = escaped_semicolons
+        self.ignore_missing_zones = ignore_missing_zones
 
     def copy(self):
         kwargs = dict(self.__dict__)
@@ -388,7 +395,7 @@ class YamlProvider(BaseProvider):
         if self.shared_filename:
             sources.append(join(self.directory, self.shared_filename))
 
-        if not sources and not target:
+        if not sources and not target and not self.ignore_missing_zones:
             raise ProviderException(f'no YAMLs found for {zone.decoded_name}')
 
         # deterministically order our sources
