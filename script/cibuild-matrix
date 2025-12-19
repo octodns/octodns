@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e
+
+VERS="$1"
+if [ -z "$VERS" ]; then
+    VERS=$(jq -r '.python_versions_active[]' .ci-config.json)
+fi
+
+for ver in $VERS; do
+    echo "Python version ${ver}"
+    docker run --rm -v $(pwd):/source:z python:$ver /bin/sh -c 'cp -r /source /octodns && cd /octodns && ./script/cibuild'
+done
