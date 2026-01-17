@@ -19,6 +19,7 @@ from .loc import LocRecord, LocValue
 from .mx import MxRecord, MxValue
 from .naptr import NaptrRecord, NaptrValue
 from .ns import NsRecord, NsValue
+from .openpgpkey import OpenpgpkeyRecord, OpenpgpkeyValue
 from .ptr import PtrRecord, PtrValue
 from .rr import Rr, RrParseError
 from .spf import SpfRecord
@@ -61,6 +62,8 @@ NaptrRecord
 NaptrValue
 NsRecord
 NsValue
+OpenpgpkeyRecord
+OpenpgpkeyValue
 PtrRecord
 PtrValue
 Record
