@@ -145,6 +145,30 @@ class _PlanOutput(object):
         self.name = name
 
 
+def _custom_fh(func):
+    '''
+    Decorator that handles output_filename for plan output classes.
+    If output_filename is set, opens that file and passes it as fh.
+    '''
+
+    def wrapper(self, *args, **kwargs):
+        if self.output_filename is not None:
+            with open(self.output_filename, 'w') as fh:
+                kwargs['fh'] = fh
+                return func(self, *args, **kwargs)
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
+class _PlanFhOutput(_PlanOutput):
+    '''Intermediate class for plan outputs that write to a file handle.'''
+
+    def __init__(self, name, output_filename=None):
+        super().__init__(name)
+        self.output_filename = output_filename
+
+
 class PlanLogger(_PlanOutput):
     def __init__(self, name, level='info'):
         super().__init__(name)
@@ -217,12 +241,13 @@ def _value_stringifier(record, sep):
     return sep.join(values)
 
 
-class PlanJson(_PlanOutput):
-    def __init__(self, name, indent=None, sort_keys=True):
-        super().__init__(name)
+class PlanJson(_PlanFhOutput):
+    def __init__(self, name, indent=None, sort_keys=True, output_filename=None):
+        super().__init__(name, output_filename=output_filename)
         self.indent = indent
         self.sort_keys = sort_keys
 
+    @_custom_fh
     def run(self, plans, fh=stdout, *args, **kwargs):
         data = defaultdict(dict)
         for target, plan in plans:
@@ -232,7 +257,8 @@ class PlanJson(_PlanOutput):
         fh.write('\n')
 
 
-class PlanMarkdown(_PlanOutput):
+class PlanMarkdown(_PlanFhOutput):
+    @_custom_fh
     def run(self, plans, fh=stdout, *args, **kwargs):
         if plans:
             current_zone = None
@@ -298,7 +324,8 @@ class PlanMarkdown(_PlanOutput):
             fh.write('## No changes were planned\n')
 
 
-class PlanHtml(_PlanOutput):
+class PlanHtml(_PlanFhOutput):
+    @_custom_fh
     def run(self, plans, fh=stdout, *args, **kwargs):
         if plans:
             current_zone = None
