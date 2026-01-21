@@ -141,25 +141,37 @@ class Plan(object):
 
 
 class _PlanOutput(object):
-    def __init__(self, name, output_path=None):
+    def __init__(self, name):
         self.name = name
-        self.output_path = output_path
 
-    def _fh(self, fh):
-        '''
-        Returns a file handle to write to. If output_path is set, opens
-        that file for writing; otherwise returns the provided fh.
-        Returns a tuple of (file_handle, should_close) where should_close
-        indicates if the caller should close the file handle.
-        '''
-        if self.output_path:
-            return open(self.output_path, 'w'), True
-        return fh, False
+
+def _custom_fh(func):
+    '''
+    Decorator that handles output_filename for plan output classes.
+    If output_filename is set, opens that file and passes it as fh.
+    '''
+
+    def wrapper(self, *args, **kwargs):
+        if self.output_filename is not None:
+            with open(self.output_filename, 'w') as fh:
+                kwargs['fh'] = fh
+                return func(self, *args, **kwargs)
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
+class _PlanFhOutput(_PlanOutput):
+    '''Intermediate class for plan outputs that write to a file handle.'''
+
+    def __init__(self, name, output_filename=None):
+        super().__init__(name)
+        self.output_filename = output_filename
 
 
 class PlanLogger(_PlanOutput):
-    def __init__(self, name, level='info', output_path=None):
-        super().__init__(name, output_path=output_path)
+    def __init__(self, name, level='info'):
+        super().__init__(name)
         try:
             self.level = {
                 'debug': DEBUG,
@@ -229,120 +241,105 @@ def _value_stringifier(record, sep):
     return sep.join(values)
 
 
-class PlanJson(_PlanOutput):
-    def __init__(self, name, indent=None, sort_keys=True, output_path=None):
-        super().__init__(name, output_path=output_path)
+class PlanJson(_PlanFhOutput):
+    def __init__(self, name, indent=None, sort_keys=True, output_filename=None):
+        super().__init__(name, output_filename=output_filename)
         self.indent = indent
         self.sort_keys = sort_keys
 
+    @_custom_fh
     def run(self, plans, fh=stdout, *args, **kwargs):
-        fh, should_close = self._fh(fh)
-        try:
-            data = defaultdict(dict)
+        data = defaultdict(dict)
+        for target, plan in plans:
+            data[target.id][plan.desired.name] = plan.data
+
+        fh.write(dumps(data, indent=self.indent, sort_keys=self.sort_keys))
+        fh.write('\n')
+
+
+class PlanMarkdown(_PlanFhOutput):
+    @_custom_fh
+    def run(self, plans, fh=stdout, *args, **kwargs):
+        if plans:
+            current_zone = None
             for target, plan in plans:
-                data[target.id][plan.desired.name] = plan.data
-
-            fh.write(dumps(data, indent=self.indent, sort_keys=self.sort_keys))
-            fh.write('\n')
-        finally:
-            if should_close:
-                fh.close()
-
-
-class PlanMarkdown(_PlanOutput):
-    def __init__(self, name, output_path=None):
-        super().__init__(name, output_path=output_path)
-
-    def run(self, plans, fh=stdout, *args, **kwargs):
-        fh, should_close = self._fh(fh)
-        try:
-            if plans:
-                current_zone = None
-                for target, plan in plans:
-                    if plan.desired.decoded_name != current_zone:
-                        current_zone = plan.desired.decoded_name
-                        fh.write('## ')
-                        fh.write(current_zone)
-                        fh.write('\n\n')
-
-                    fh.write('### ')
-                    fh.write(target.id)
+                if plan.desired.decoded_name != current_zone:
+                    current_zone = plan.desired.decoded_name
+                    fh.write('## ')
+                    fh.write(current_zone)
                     fh.write('\n\n')
 
-                    fh.write(
-                        '| Operation | Name | Type | TTL | Value | Source |\n'
-                        '|--|--|--|--|--|--|\n'
-                    )
+                fh.write('### ')
+                fh.write(target.id)
+                fh.write('\n\n')
 
-                    if plan.exists is False:
-                        fh.write('| Create | ')
-                        fh.write(str(plan.desired))
-                        fh.write(' | | | | |\n')
+                fh.write(
+                    '| Operation | Name | Type | TTL | Value | Source |\n'
+                    '|--|--|--|--|--|--|\n'
+                )
 
-                    for change in plan.changes:
-                        existing = change.existing
-                        new = change.new
-                        record = change.record
-                        fh.write('| ')
-                        fh.write(change.__class__.__name__)
-                        fh.write(' | ')
-                        fh.write(record.name)
-                        fh.write(' | ')
-                        fh.write(record._type)
-                        fh.write(' | ')
-                        # TTL
-                        if existing:
-                            fh.write(str(existing.ttl))
-                            fh.write(' | ')
-                            fh.write(_value_stringifier(existing, '; '))
-                            fh.write(' | |\n')
-                            if new:
-                                fh.write('| | | | ')
+                if plan.exists is False:
+                    fh.write('| Create | ')
+                    fh.write(str(plan.desired))
+                    fh.write(' | | | | |\n')
 
+                for change in plan.changes:
+                    existing = change.existing
+                    new = change.new
+                    record = change.record
+                    fh.write('| ')
+                    fh.write(change.__class__.__name__)
+                    fh.write(' | ')
+                    fh.write(record.name)
+                    fh.write(' | ')
+                    fh.write(record._type)
+                    fh.write(' | ')
+                    # TTL
+                    if existing:
+                        fh.write(str(existing.ttl))
+                        fh.write(' | ')
+                        fh.write(_value_stringifier(existing, '; '))
+                        fh.write(' | |\n')
                         if new:
-                            fh.write(str(new.ttl))
-                            fh.write(' | ')
-                            fh.write(_value_stringifier(new, '; '))
-                            fh.write(' | ')
-                            if new.source:
-                                fh.write(new.source.id)
-                            fh.write(' |\n')
+                            fh.write('| | | | ')
 
-                    if plan.meta:
-                        fh.write('\nMeta: ')
-                        fh.write(pformat(plan.meta, indent=2, sort_dicts=True))
-                        fh.write('\n')
+                    if new:
+                        fh.write(str(new.ttl))
+                        fh.write(' | ')
+                        fh.write(_value_stringifier(new, '; '))
+                        fh.write(' | ')
+                        if new.source:
+                            fh.write(new.source.id)
+                        fh.write(' |\n')
 
-                    fh.write('\nSummary: ')
-                    fh.write(str(plan))
-                    fh.write('\n\n')
-            else:
-                fh.write('## No changes were planned\n')
-        finally:
-            if should_close:
-                fh.close()
+                if plan.meta:
+                    fh.write('\nMeta: ')
+                    fh.write(pformat(plan.meta, indent=2, sort_dicts=True))
+                    fh.write('\n')
+
+                fh.write('\nSummary: ')
+                fh.write(str(plan))
+                fh.write('\n\n')
+        else:
+            fh.write('## No changes were planned\n')
 
 
-class PlanHtml(_PlanOutput):
-    def __init__(self, name, output_path=None):
-        super().__init__(name, output_path=output_path)
-
+class PlanHtml(_PlanFhOutput):
+    @_custom_fh
     def run(self, plans, fh=stdout, *args, **kwargs):
-        fh, should_close = self._fh(fh)
-        try:
-            if plans:
-                current_zone = None
-                for target, plan in plans:
-                    if plan.desired.decoded_name != current_zone:
-                        current_zone = plan.desired.decoded_name
-                        fh.write('<h2>')
-                        fh.write(current_zone)
-                        fh.write('</h2>\n')
+        if plans:
+            current_zone = None
+            for target, plan in plans:
+                if plan.desired.decoded_name != current_zone:
+                    current_zone = plan.desired.decoded_name
+                    fh.write('<h2>')
+                    fh.write(current_zone)
+                    fh.write('</h2>\n')
 
-                    fh.write('<h3>')
-                    fh.write(target.id)
-                    fh.write(
-                        '''</h3>
+                fh.write('<h3>')
+                fh.write(target.id)
+                fh.write(
+                    '''</h3>
 <table>
   <tr>
     <th>Operation</th>
@@ -353,56 +350,51 @@ class PlanHtml(_PlanOutput):
     <th>Source</th>
   </tr>
 '''
-                    )
+                )
 
-                    if plan.exists is False:
-                        fh.write(
-                            '  <tr>\n    <td>Create</td>\n    <td colspan=5>'
-                        )
-                        fh.write(str(plan.desired))
+                if plan.exists is False:
+                    fh.write('  <tr>\n    <td>Create</td>\n    <td colspan=5>')
+                    fh.write(str(plan.desired))
+                    fh.write('</td>\n  </tr>\n')
+
+                for change in plan.changes:
+                    existing = change.existing
+                    new = change.new
+                    record = change.record
+                    fh.write('  <tr>\n    <td>')
+                    fh.write(change.__class__.__name__)
+                    fh.write('</td>\n    <td>')
+                    fh.write(record.name)
+                    fh.write('</td>\n    <td>')
+                    fh.write(record._type)
+                    fh.write('</td>\n')
+                    # TTL
+                    if existing:
+                        fh.write('    <td>')
+                        fh.write(str(existing.ttl))
+                        fh.write('</td>\n    <td>')
+                        fh.write(_value_stringifier(existing, '<br/>'))
+                        fh.write('</td>\n    <td></td>\n  </tr>\n')
+                        if new:
+                            fh.write('  <tr>\n    <td colspan=3></td>\n')
+
+                    if new:
+                        fh.write('    <td>')
+                        fh.write(str(new.ttl))
+                        fh.write('</td>\n    <td>')
+                        fh.write(_value_stringifier(new, '<br/>'))
+                        fh.write('</td>\n    <td>')
+                        if new.source:
+                            fh.write(new.source.id)
                         fh.write('</td>\n  </tr>\n')
 
-                    for change in plan.changes:
-                        existing = change.existing
-                        new = change.new
-                        record = change.record
-                        fh.write('  <tr>\n    <td>')
-                        fh.write(change.__class__.__name__)
-                        fh.write('</td>\n    <td>')
-                        fh.write(record.name)
-                        fh.write('</td>\n    <td>')
-                        fh.write(record._type)
-                        fh.write('</td>\n')
-                        # TTL
-                        if existing:
-                            fh.write('    <td>')
-                            fh.write(str(existing.ttl))
-                            fh.write('</td>\n    <td>')
-                            fh.write(_value_stringifier(existing, '<br/>'))
-                            fh.write('</td>\n    <td></td>\n  </tr>\n')
-                            if new:
-                                fh.write('  <tr>\n    <td colspan=3></td>\n')
-
-                        if new:
-                            fh.write('    <td>')
-                            fh.write(str(new.ttl))
-                            fh.write('</td>\n    <td>')
-                            fh.write(_value_stringifier(new, '<br/>'))
-                            fh.write('</td>\n    <td>')
-                            if new.source:
-                                fh.write(new.source.id)
-                            fh.write('</td>\n  </tr>\n')
-
-                    if plan.meta:
-                        fh.write('  <tr>\n    <td colspan=6>Meta: ')
-                        fh.write(pformat(plan.meta, indent=2, sort_dicts=True))
-                        fh.write('</td>\n  </tr>\n</table>\n')
-
-                    fh.write('  <tr>\n    <td colspan=6>Summary: ')
-                    fh.write(str(plan))
+                if plan.meta:
+                    fh.write('  <tr>\n    <td colspan=6>Meta: ')
+                    fh.write(pformat(plan.meta, indent=2, sort_dicts=True))
                     fh.write('</td>\n  </tr>\n</table>\n')
-            else:
-                fh.write('<b>No changes were planned</b>')
-        finally:
-            if should_close:
-                fh.close()
+
+                fh.write('  <tr>\n    <td colspan=6>Summary: ')
+                fh.write(str(plan))
+                fh.write('</td>\n  </tr>\n</table>\n')
+        else:
+            fh.write('<b>No changes were planned</b>')
