@@ -104,6 +104,9 @@ their own repositories and released as independent modules.
    * - `EdgeCenter DNS`_
      - `octodns_edgecenter`_
      -
+   * - `Exoscale`_
+     - `octodns_exoscale`_
+     -
    * - `Fastly`_
      - `Financial-Times/octodns-fastly`_
      -
@@ -206,6 +209,8 @@ their own repositories and released as independent modules.
 .. _octodns_easydns: https://github.com/octodns/octodns-easydns/
 .. _EdgeCenter DNS: https://edgecenter.ru/dns/
 .. _octodns_edgecenter: https://github.com/octodns/octodns-edgecenter/
+.. _Exoscale: https://www.exoscale.com/
+.. _octodns_exoscale: https://github.com/roosnic1/octodns-exoscale
 .. _Fastly: https://www.fastly.com/de/
 .. _Financial-Times/octodns-fastly: https://github.com/Financial-Times/octodns-fastly
 .. _G-Core Labs DNS: https://gcorelabs.com/dns/
