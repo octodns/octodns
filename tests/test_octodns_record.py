@@ -42,7 +42,7 @@ class TestRecord(TestCase):
             _type = 'AA'
             _value_type = NsValue
 
-        self.assertTrue('AA' not in Record.registered_types())
+        self.assertNotIn('AA', Record.registered_types())
 
         Record.register_type(AaRecord)
         aa = Record.new(
@@ -52,7 +52,7 @@ class TestRecord(TestCase):
         )
         self.assertEqual(AaRecord, aa.__class__)
 
-        self.assertTrue('AA' in Record.registered_types())
+        self.assertIn('AA', Record.registered_types())
 
     def test_lowering(self):
         record = ARecord(
@@ -244,12 +244,12 @@ class TestRecord(TestCase):
         # Missing type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {})
-        self.assertTrue('missing type' in str(ctx.exception))
+        self.assertIn('missing type', str(ctx.exception))
 
         # Unknown type
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'unknown', {'type': 'XXX'})
-        self.assertTrue('Unknown record type' in str(ctx.exception))
+        self.assertIn('Unknown record type', str(ctx.exception))
 
     def test_record_new_with_values_and_value(self):
         a = Record.new(
@@ -799,7 +799,7 @@ class TestRecordValidation(TestCase):
             Record.new(
                 self.zone, 'www', {'type': 'A', 'ttl': -1, 'value': '1.2.3.4'}
             )
-        self.assertFalse(', line' in str(ctx.exception))
+        self.assertNotIn(', line', str(ctx.exception))
 
         # fails validation, with context
         with self.assertRaises(ValidationError) as ctx:
@@ -811,7 +811,7 @@ class TestRecordValidation(TestCase):
                     context='needle',
                 ),
             )
-        self.assertTrue('needle' in str(ctx.exception))
+        self.assertIn('needle', str(ctx.exception))
 
     def test_invalid_type_context(self):
         # fails validation, no context
@@ -819,7 +819,7 @@ class TestRecordValidation(TestCase):
             Record.new(
                 self.zone, 'www', {'type': 'X', 'ttl': 42, 'value': '1.2.3.4'}
             )
-        self.assertFalse(', line' in str(ctx.exception))
+        self.assertNotIn(', line', str(ctx.exception))
 
         # fails validation, with context
         with self.assertRaises(Exception) as ctx:
@@ -831,13 +831,13 @@ class TestRecordValidation(TestCase):
                     context='needle',
                 ),
             )
-        self.assertTrue('needle' in str(ctx.exception))
+        self.assertIn('needle', str(ctx.exception))
 
     def test_missing_type_context(self):
         # fails validation, no context
         with self.assertRaises(Exception) as ctx:
             Record.new(self.zone, 'www', {'ttl': 42, 'value': '1.2.3.4'})
-        self.assertFalse(', line' in str(ctx.exception))
+        self.assertNotIn(', line', str(ctx.exception))
 
         # fails validation, with context
         with self.assertRaises(Exception) as ctx:
@@ -846,7 +846,7 @@ class TestRecordValidation(TestCase):
                 'www',
                 ContextDict({'ttl': 42, 'value': '1.2.3.4'}, context='needle'),
             )
-        self.assertTrue('needle' in str(ctx.exception))
+        self.assertIn('needle', str(ctx.exception))
 
     def test_context_copied_to_record(self):
         record = Record.new(

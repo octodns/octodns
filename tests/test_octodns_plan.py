@@ -137,7 +137,7 @@ class TestPlanJson(TestCase):
         PlanJson('json').run(plans, fh=out)
         data = loads(out.getvalue())
         for key in ('test', 'unit.tests.', 'changes'):
-            self.assertTrue(key in data)
+            self.assertIn(key, data)
             data = data[key]
         self.assertEqual(4, len(data))
 
@@ -154,11 +154,11 @@ class TestPlanMarkdown(TestCase):
         out = StringIO()
         PlanMarkdown('markdown').run(plans, fh=out)
         out = out.getvalue()
-        self.assertTrue('## unit.tests.' in out)
-        self.assertTrue('Create | b | CNAME | 60 | foo.unit.tests.' in out)
-        self.assertTrue('Update | a | A | 300 | 1.1.1.1;' in out)
-        self.assertTrue('NA-US: 6.6.6.6 | test' in out)
-        self.assertTrue('Delete | a | A | 300 | 2.2.2.2;' in out)
+        self.assertIn('## unit.tests.', out)
+        self.assertIn('Create | b | CNAME | 60 | foo.unit.tests.', out)
+        self.assertIn('Update | a | A | 300 | 1.1.1.1;', out)
+        self.assertIn('NA-US: 6.6.6.6 | test', out)
+        self.assertIn('Delete | a | A | 300 | 2.2.2.2;', out)
 
 
 class HelperPlan(Plan):
@@ -444,7 +444,7 @@ class TestPlanOutputFilename(TestCase):
             with open(output_filename) as fh:
                 data = loads(fh.read())
             for key in ('test', 'unit.tests.', 'changes'):
-                self.assertTrue(key in data)
+                self.assertIn(key, data)
                 data = data[key]
             self.assertEqual(4, len(data))
 
@@ -454,8 +454,8 @@ class TestPlanOutputFilename(TestCase):
             PlanMarkdown('markdown', output_filename=output_filename).run(plans)
             with open(output_filename) as fh:
                 out = fh.read()
-            self.assertTrue('## unit.tests.' in out)
-            self.assertTrue('Create | b | CNAME | 60 | foo.unit.tests.' in out)
+            self.assertIn('## unit.tests.', out)
+            self.assertIn('Create | b | CNAME | 60 | foo.unit.tests.', out)
 
     def test_plan_html_output_filename(self):
         with TemporaryDirectory() as tmpdir:
@@ -463,9 +463,9 @@ class TestPlanOutputFilename(TestCase):
             PlanHtml('html', output_filename=output_filename).run(plans)
             with open(output_filename) as fh:
                 out = fh.read()
-            self.assertTrue(
-                '    <td colspan=6>Summary: Creates=2, Updates=1, Deletes=1, Existing=0, Meta=False</td>'
-                in out
+            self.assertIn(
+                '    <td colspan=6>Summary: Creates=2, Updates=1, Deletes=1, Existing=0, Meta=False</td>',
+                out,
             )
 
     def test_plan_json_no_output_filename(self):
@@ -474,7 +474,7 @@ class TestPlanOutputFilename(TestCase):
         PlanJson('json', output_filename=None).run(plans, fh=out)
         data = loads(out.getvalue())
         for key in ('test', 'unit.tests.', 'changes'):
-            self.assertTrue(key in data)
+            self.assertIn(key, data)
             data = data[key]
         self.assertEqual(4, len(data))
 

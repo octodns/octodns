@@ -262,21 +262,21 @@ class TestZone(TestCase):
     def test_missing_dot(self):
         with self.assertRaises(InvalidNameError) as ctx:
             Zone('not.allowed', [])
-        self.assertTrue('missing ending dot' in str(ctx.exception))
+        self.assertIn('missing ending dot', str(ctx.exception))
 
     def test_double_dot(self):
         with self.assertRaises(InvalidNameError) as ctx:
             Zone('ending.double.dot..', [])
-        self.assertTrue('double dot not allowed' in str(ctx.exception))
+        self.assertIn('double dot not allowed', str(ctx.exception))
 
         with self.assertRaises(InvalidNameError) as ctx:
             Zone('mid.double..dot.', [])
-        self.assertTrue('double dot not allowed' in str(ctx.exception))
+        self.assertIn('double dot not allowed', str(ctx.exception))
 
     def test_whitespace(self):
         with self.assertRaises(InvalidNameError) as ctx:
             Zone('space not allowed.', [])
-        self.assertTrue('whitespace not allowed' in str(ctx.exception))
+        self.assertIn('whitespace not allowed', str(ctx.exception))
 
     def test_owns(self):
         zone = Zone('unit.tests.', set(['sub']))
@@ -500,7 +500,7 @@ class TestZone(TestCase):
         zone.add_record(a)
         with self.assertRaises(InvalidNodeException) as ctx:
             zone.add_record(cname)
-        self.assertTrue(', has some context' in str(ctx.exception))
+        self.assertIn(', has some context', str(ctx.exception))
         self.assertEqual(set([a]), zone.records)
         zone.add_record(cname, lenient=True)
         self.assertEqual(set([a, cname]), zone.records)
@@ -529,7 +529,7 @@ class TestZone(TestCase):
         zone.add_record(a)
         with self.assertRaises(InvalidNodeException) as ctx:
             zone.add_record(cname)
-        self.assertTrue(', has some context' in str(ctx.exception))
+        self.assertIn(', has some context', str(ctx.exception))
         self.assertEqual(set([a]), zone.records)
 
         # add lenient a to cname
