@@ -357,25 +357,26 @@ class Zone(object):
 
         name = record.name
 
-        if not lenient:
-            if name in self.sub_zones:
-                # It's an exact match for a sub-zone
-                if not (record._type == 'NS' or record._type == 'DS'):
-                    # and not a NS or DS record, this should be in the sub
-                    raise SubzoneRecordException(
-                        f'Record {record.fqdn} is a managed sub-zone and not of type NS or DS',
-                        record,
-                    )
-            else:
-                # It's not an exact match so there has to be a `.` before the
-                # sub-zone for it to belong in there
-                for sub_zone in self.sub_zones:
-                    if name.endswith(f'.{sub_zone}'):
-                        # this should be in a sub
-                        raise SubzoneRecordException(
-                            f'Record {record.fqdn} is under a managed subzone',
-                            record,
-                        )
+        if name in self.sub_zones:
+            # It's an exact match for a sub-zone
+            if not (record._type == 'NS' or record._type == 'DS'):
+                # and not a NS or DS record, this should be in the sub
+                msg = f'Record {record.fqdn} is a managed sub-zone and not of type NS or DS'
+                if lenient:
+                    self.log.warning(msg)
+                else:
+                    raise SubzoneRecordException(msg, record)
+        else:
+            # It's not an exact match so there has to be a `.` before the
+            # sub-zone for it to belong in there
+            for sub_zone in self.sub_zones:
+                if name.endswith(f'.{sub_zone}'):
+                    # this should be in a sub
+                    msg = f'Record {record.fqdn} is under a managed subzone'
+                    if lenient:
+                        self.log.warning(msg)
+                    else:
+                        raise SubzoneRecordException(msg, record)
 
         if replace:
             # will remove it if it exists
