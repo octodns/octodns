@@ -526,31 +526,86 @@ class Manager(object):
                     source.populate(zone)
 
         for processor in processors:
-            zone = processor.process_source_zone(zone, sources=sources)
+            try:
+                zone = processor.process_source_zone(
+                    zone, sources=sources, lenient=lenient
+                )
+            except TypeError as e:
+                if "unexpected keyword argument 'lenient'" not in str(e):
+                    raise
+                deprecated(
+                    f'`process_source_zone` method does not support the `lenient` param, fallback is DEPRECATED. Will be removed in 2.0. Class {processor.__class__.__name__}',
+                    stacklevel=99,
+                )
+                self.log.warning(
+                    'processor %s does not accept lenient param',
+                    processor.__class__.__name__,
+                )
+                zone = processor.process_source_zone(zone, sources=sources)
 
         self.log.debug('sync:   planning, zone=%s', zone.decoded_name)
         plans = []
 
         for target in targets:
             try:
-                plan = target.plan(zone, processors=processors)
+                plan = target.plan(zone, processors=processors, lenient=lenient)
             except TypeError as e:
-                if "keyword argument 'processors'" not in str(e):
+                e_str = str(e)
+                if "keyword argument 'lenient'" in e_str:
+                    deprecated(
+                        f'`plan` method does not support the `lenient` param, fallback is DEPRECATED. Will be removed in 2.0. Class {target.__class__.__name__}',
+                        stacklevel=99,
+                    )
+                    self.log.warning(
+                        'provider.plan %s does not accept lenient param',
+                        target.__class__.__name__,
+                    )
+                    try:
+                        plan = target.plan(zone, processors=processors)
+                    except TypeError as e2:
+                        if "keyword argument 'processors'" not in str(e2):
+                            raise
+                        deprecated(
+                            f'`plan` method does not support the `processors` param, fallback is DEPRECATED. Will be removed in 2.0. Class {target.__class__.__name__}',
+                            stacklevel=99,
+                        )
+                        self.log.warning(
+                            'provider.plan %s does not accept processors param',
+                            target.__class__.__name__,
+                        )
+                        plan = target.plan(zone)
+                elif "keyword argument 'processors'" in e_str:
+                    deprecated(
+                        f'`plan` method does not support the `processors` param, fallback is DEPRECATED. Will be removed in 2.0. Class {target.__class__.__name__}',
+                        stacklevel=99,
+                    )
+                    self.log.warning(
+                        'provider.plan %s does not accept processors param',
+                        target.__class__.__name__,
+                    )
+                    plan = target.plan(zone)
+                else:
                     raise
-                deprecated(
-                    f'`plan` method does not support the `processors` param, fallback is DEPRECATED. Will be removed in 2.0. Class {target.__class__.__name__}',
-                    stacklevel=99,
-                )
-                self.log.warning(
-                    'provider.plan %s does not accept processors param',
-                    target.__class__.__name__,
-                )
-                plan = target.plan(zone)
 
             for processor in processors:
-                plan = processor.process_plan(
-                    plan, sources=sources, target=target
-                )
+                try:
+                    plan = processor.process_plan(
+                        plan, sources=sources, target=target, lenient=lenient
+                    )
+                except TypeError as e:
+                    if "unexpected keyword argument 'lenient'" not in str(e):
+                        raise
+                    deprecated(
+                        f'`process_plan` method does not support the `lenient` param, fallback is DEPRECATED. Will be removed in 2.0. Class {processor.__class__.__name__}',
+                        stacklevel=99,
+                    )
+                    self.log.warning(
+                        'processor %s does not accept lenient param',
+                        processor.__class__.__name__,
+                    )
+                    plan = processor.process_plan(
+                        plan, sources=sources, target=target
+                    )
             if plan:
                 plans.append((target, plan))
 
@@ -1049,7 +1104,22 @@ class Manager(object):
 
             # Apply processors
             for processor in processors:
-                zone = processor.process_source_zone(zone, sources=sources)
+                try:
+                    zone = processor.process_source_zone(
+                        zone, sources=sources, lenient=lenient
+                    )
+                except TypeError as e:
+                    if "unexpected keyword argument 'lenient'" not in str(e):
+                        raise
+                    deprecated(
+                        f'`process_source_zone` method does not support the `lenient` param, fallback is DEPRECATED. Will be removed in 2.0. Class {processor.__class__.__name__}',
+                        stacklevel=99,
+                    )
+                    self.log.warning(
+                        'processor %s does not accept lenient param',
+                        processor.__class__.__name__,
+                    )
+                    zone = processor.process_source_zone(zone, sources=sources)
 
             plan = target.plan(zone)
             if plan is None:

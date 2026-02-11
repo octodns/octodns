@@ -16,12 +16,12 @@ class _FilterProcessor(BaseProcessor):
         super().__init__(name, **kwargs)
         self.include_target = include_target
 
-    def process_source_zone(self, *args, **kwargs):
-        return self._process(*args, **kwargs)
+    def process_source_zone(self, desired, sources, lenient=False):
+        return self._process(desired, sources, lenient=lenient)
 
-    def process_target_zone(self, existing, *args, **kwargs):
+    def process_target_zone(self, existing, target, lenient=False):
         if self.include_target:
-            return self._process(existing, *args, **kwargs)
+            return self._process(existing, target, lenient=lenient)
         return existing
 
 
@@ -46,7 +46,7 @@ class _TypeBaseFilter(_FilterProcessor):
         super().__init__(name, **kwargs)
         self._list = set(_list)
 
-    def _process(self, zone, *args, **kwargs):
+    def _process(self, zone, sources_or_target, lenient=False):
         for record in zone.records:
             if record._type in self._list:
                 self.matches(zone, record)
@@ -128,7 +128,7 @@ class _NameBaseFilter(_FilterProcessor):
         self.exact = exact
         self.regex = regex
 
-    def _process(self, zone, *args, **kwargs):
+    def _process(self, zone, sources_or_target, lenient=False):
         for record in zone.records:
             name = record.name
             if name in self.exact:
@@ -228,7 +228,7 @@ class _ValueBaseFilter(_FilterProcessor):
         self.exact = exact
         self.regex = regex
 
-    def _process(self, zone, *args, **kwargs):
+    def _process(self, zone, sources_or_target, lenient=False):
         for record in zone.records:
             values = []
             if hasattr(record, 'values'):
@@ -327,8 +327,8 @@ class ValueRejectlistFilter(_ValueBaseFilter, RejectsMixin):
 
 
 class _NetworkValueBaseFilter(BaseProcessor):
-    def __init__(self, name, _list):
-        super().__init__(name)
+    def __init__(self, name, _list, **kwargs):
+        super().__init__(name, **kwargs)
         self.networks = []
         for value in _list:
             try:
@@ -379,8 +379,8 @@ class NetworkValueAllowlistFilter(_NetworkValueBaseFilter, AllowsMixin):
             - route53
     '''
 
-    def __init__(self, name, allowlist):
-        super().__init__(name, allowlist)
+    def __init__(self, name, allowlist, **kwargs):
+        super().__init__(name, allowlist, **kwargs)
 
 
 class NetworkValueRejectlistFilter(_NetworkValueBaseFilter, RejectsMixin):
@@ -407,8 +407,8 @@ class NetworkValueRejectlistFilter(_NetworkValueBaseFilter, RejectsMixin):
             - route53
     '''
 
-    def __init__(self, name, rejectlist):
-        super().__init__(name, rejectlist)
+    def __init__(self, name, rejectlist, **kwargs):
+        super().__init__(name, rejectlist, **kwargs)
 
 
 class IgnoreRootNsFilter(BaseProcessor):
@@ -465,12 +465,12 @@ class ExcludeRootNsChanges(BaseProcessor):
             - ns1
     '''
 
-    def __init__(self, name, error=True):
+    def __init__(self, name, error=True, **kwargs):
         self.log = getLogger(f'ExcludeRootNsChanges[{name}]')
-        super().__init__(name)
+        super().__init__(name, **kwargs)
         self.error = error
 
-    def process_plan(self, plan, sources, target):
+    def process_plan(self, plan, sources, target, lenient=False):
         if plan:
             for change in list(plan.changes):
                 record = change.record
@@ -520,7 +520,7 @@ class ZoneNameFilter(_FilterProcessor):
         super().__init__(name, **kwargs)
         self.error = error
 
-    def _process(self, zone, *args, **kwargs):
+    def _process(self, zone, sources_or_target, lenient=False):
         zone_name_with_dot = zone.name
         zone_name_without_dot = zone_name_with_dot[:-1]
         for record in zone.records:

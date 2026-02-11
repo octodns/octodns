@@ -245,3 +245,38 @@ class EnsureTrailingDotsTest(TestCase):
             ['absolute.target.', 'relative.target.'],
             [v.target for v in _ensure_trailing_dots(record, 'target').values],
         )
+
+    def test_lenient_with_sub_zones(self):
+        etd = EnsureTrailingDots('test')
+
+        zone = Zone('unit.tests.', ['sub'])
+        # A CNAME record under a managed sub-zone would fail add_record
+        # without lenient
+        record = Record.new(
+            zone,
+            'sub',
+            {'type': 'CNAME', 'ttl': 42, 'value': 'relative.target'},
+            lenient=True,
+        )
+        zone.add_record(record, lenient=True)
+
+        # Without lenient, this would raise SubzoneRecordException
+        got = etd.process_source_zone(zone, None, lenient=True)
+        self.assertEqual('relative.target.', _find(got, 'sub').value)
+
+    def test_lenient_from_config(self):
+        # When lenient is set at the processor config level
+        etd = EnsureTrailingDots('test', lenient=True)
+
+        zone = Zone('unit.tests.', ['sub'])
+        record = Record.new(
+            zone,
+            'sub',
+            {'type': 'CNAME', 'ttl': 42, 'value': 'relative.target'},
+            lenient=True,
+        )
+        zone.add_record(record, lenient=True)
+
+        # Processor-level lenient should work even without call-level lenient
+        got = etd.process_source_zone(zone, None, lenient=False)
+        self.assertEqual('relative.target.', _find(got, 'sub').value)

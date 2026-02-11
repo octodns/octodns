@@ -84,9 +84,10 @@ class MetaProcessor(BaseProcessor):
         include_provider=False,
         include_extra=None,
         ttl=60,
+        **kwargs,
     ):
         self.log = getLogger(f'MetaSource[{id}]')
-        super().__init__(id)
+        super().__init__(id, **kwargs)
         self.log.info(
             '__init__: record_name=%s, include_time=%s, include_uuid=%s, include_version=%s, include_provider=%s, include_extra=%s, ttl=%d',
             record_name,
@@ -123,7 +124,9 @@ class MetaProcessor(BaseProcessor):
         ret.extend(self.include_extra)
         return ret
 
-    def process_source_and_target_zones(self, desired, existing, target):
+    def process_source_and_target_zones(
+        self, desired, existing, target, lenient=False
+    ):
         meta = Record.new(
             desired,
             self.record_name,
@@ -148,7 +151,7 @@ class MetaProcessor(BaseProcessor):
             and _keys(self.values(target_id)) == _keys(existing.values)
         )
 
-    def process_plan(self, plan, sources, target):
+    def process_plan(self, plan, sources, target, lenient=False):
         if (
             plan
             and len(plan.changes) == 1

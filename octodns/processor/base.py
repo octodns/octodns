@@ -55,13 +55,17 @@ class BaseProcessor(object):
         - :class:`octodns.processor.acme.AcmeMangingProcessor`
     '''
 
-    def __init__(self, name):
+    def __init__(self, name, lenient=False):
         '''
         Initialize the processor.
 
         :param name: Unique identifier for this processor instance. Used in
                      logging and configuration references.
         :type name: str
+        :param lenient: When True, the processor will operate in lenient mode.
+                        This value is combined with the per-call ``lenient``
+                        parameter in ``process_*`` methods.
+        :type lenient: bool
 
         .. note::
            The ``name`` parameter is deprecated and will be removed in
@@ -69,8 +73,9 @@ class BaseProcessor(object):
         '''
         # TODO: name is DEPRECATED, remove in 2.0
         self.id = self.name = name
+        self.lenient = lenient
 
-    def process_source_zone(self, desired, sources):
+    def process_source_zone(self, desired, sources, lenient=False):
         '''
         Process the desired zone after all sources have populated.
 
@@ -84,6 +89,9 @@ class BaseProcessor(object):
         :param sources: List of source providers that populated the zone. May be
                         empty for aliased zones.
         :type sources: list[octodns.provider.base.BaseProvider]
+        :param lenient: When True, relaxed validation rules should be applied
+                        when modifying zone records.
+        :type lenient: bool
 
         :return: The modified desired zone, typically the same object passed in.
         :rtype: octodns.zone.Zone
@@ -99,10 +107,13 @@ class BaseProcessor(object):
              may be used with ``replace=True``.
            - May call ``Zone.remove_record`` to remove records from ``desired``.
            - Sources may be empty, as will be the case for aliased zones.
+           - Implementations should combine ``self.lenient or lenient`` and pass
+             the result to any record and zone calls that accept ``lenient`` as
+             a parameter, e.g. ``zone.add_record(..., lenient=lenient)``.
         '''
         return desired
 
-    def process_target_zone(self, existing, target):
+    def process_target_zone(self, existing, target, lenient=False):
         '''
         Process the existing zone after the target has populated.
 
@@ -114,6 +125,9 @@ class BaseProcessor(object):
         :type existing: octodns.zone.Zone
         :param target: The target provider that populated the existing zone.
         :type target: octodns.provider.base.BaseProvider
+        :param lenient: When True, relaxed validation rules should be applied
+                        when modifying zone records.
+        :type lenient: bool
 
         :return: The modified existing zone, typically the same object passed in.
         :rtype: octodns.zone.Zone
@@ -127,10 +141,15 @@ class BaseProcessor(object):
              the results of which can be modified, and then ``Zone.add_record``
              may be used with ``replace=True``.
            - May call ``Zone.remove_record`` to remove records from ``existing``.
+           - Implementations should combine ``self.lenient or lenient`` and pass
+             the result to any record and zone calls that accept ``lenient`` as
+             a parameter, e.g. ``zone.add_record(..., lenient=lenient)``.
         '''
         return existing
 
-    def process_source_and_target_zones(self, desired, existing, target):
+    def process_source_and_target_zones(
+        self, desired, existing, target, lenient=False
+    ):
         '''
         Process both desired and existing zones before computing changes.
 
@@ -145,6 +164,9 @@ class BaseProcessor(object):
         :type existing: octodns.zone.Zone
         :param target: The target provider for which changes will be computed.
         :type target: octodns.provider.base.BaseProvider
+        :param lenient: When True, relaxed validation rules should be applied
+                        when modifying zone records.
+        :type lenient: bool
 
         :return: A tuple of (desired, existing) zones, typically the same
                  objects passed in.
@@ -169,10 +191,13 @@ class BaseProcessor(object):
              may be used with ``replace=True``.
            - May call ``Zone.remove_record`` to remove records from ``desired``.
            - May call ``Zone.remove_record`` to remove records from ``existing``.
+           - Implementations should combine ``self.lenient or lenient`` and pass
+             the result to any record and zone calls that accept ``lenient`` as
+             a parameter, e.g. ``zone.add_record(..., lenient=lenient)``.
         '''
         return desired, existing
 
-    def process_plan(self, plan, sources, target):
+    def process_plan(self, plan, sources, target, lenient=False):
         '''
         Process the plan after it has been computed.
 
@@ -188,6 +213,9 @@ class BaseProcessor(object):
         :type sources: list[octodns.provider.base.BaseProvider]
         :param target: The target provider for which the plan was created.
         :type target: octodns.provider.base.BaseProvider
+        :param lenient: When True, relaxed validation rules should be applied
+                        when modifying zone records.
+        :type lenient: bool
 
         :return: The modified plan, which may be the same object passed in,
                  a newly created Plan, or None if no changes are needed.
@@ -205,6 +233,9 @@ class BaseProcessor(object):
              created one with ``plan.desired`` and ``plan.existing`` copied over
              as-is or modified.
            - Sources may be empty, as will be the case for aliased zones.
+           - Implementations should combine ``self.lenient or lenient`` and pass
+             the result to any record and zone calls that accept ``lenient`` as
+             a parameter, e.g. ``zone.add_record(..., lenient=lenient)``.
         '''
         # plan may be None if no changes were detected up until now, the
         # process may still create a plan.

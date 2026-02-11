@@ -21,7 +21,8 @@ def _ensure_trailing_dots(record, prop):
 
 
 class EnsureTrailingDots(BaseProcessor):
-    def process_source_zone(self, desired, sources):
+    def process_source_zone(self, desired, sources, lenient=False):
+        lenient = self.lenient or lenient
         for record in desired.records:
             _type = record._type
             if _type in ('ALIAS', 'CNAME', 'DNAME') and record.value[-1] != '.':
@@ -30,7 +31,7 @@ class EnsureTrailingDots(BaseProcessor):
                 # way to change a strings value, these all inherit from string,
                 # so we need to create a new one of the same type
                 new.value = new.value.__class__(f'{new.value}.')
-                desired.add_record(new, replace=True)
+                desired.add_record(new, replace=True, lenient=lenient)
             elif _type in ('NS', 'PTR') and any(
                 v[-1] != '.' for v in record.values
             ):
@@ -39,12 +40,12 @@ class EnsureTrailingDots(BaseProcessor):
                 new.values = [
                     v if v[-1] == '.' else klass(f'{v}.') for v in record.values
                 ]
-                desired.add_record(new, replace=True)
+                desired.add_record(new, replace=True, lenient=lenient)
             elif _type == 'MX' and _no_trailing_dot(record, 'exchange'):
                 new = _ensure_trailing_dots(record, 'exchange')
-                desired.add_record(new, replace=True)
+                desired.add_record(new, replace=True, lenient=lenient)
             elif _type == 'SRV' and _no_trailing_dot(record, 'target'):
                 new = _ensure_trailing_dots(record, 'target')
-                desired.add_record(new, replace=True)
+                desired.add_record(new, replace=True, lenient=lenient)
 
         return desired

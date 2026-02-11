@@ -62,10 +62,12 @@ class TrickyProcessor(BaseProcessor):
     def reset(self):
         self.existing = None
         self.target = None
+        self.called_lenient = False
 
-    def process_target_zone(self, existing, target):
+    def process_target_zone(self, existing, target, lenient=False):
         self.existing = existing
         self.target = target
+        self.called_lenient = lenient
 
         new = existing.copy()
         for record in existing.records:
@@ -282,6 +284,78 @@ class TestBaseProvider(TestCase):
         self.assertTrue(another.existing)
         self.assertEqual(zone.name, another.existing.name)
         self.assertEqual(1, len(another.existing.records))
+
+    def test_plan_passes_lenient_to_processors(self):
+        zone = Zone('unit.tests.', [])
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        zone.add_record(record)
+        provider = HelperProvider()
+
+        tricky = TrickyProcessor('tricky', [])
+
+        # Without lenient
+        tricky.reset()
+        provider.plan(zone, processors=[tricky], lenient=False)
+        self.assertFalse(tricky.called_lenient)
+
+        # With lenient
+        tricky.reset()
+        provider.plan(zone, processors=[tricky], lenient=True)
+        self.assertTrue(tricky.called_lenient)
+
+    def test_plan_processor_lenient_fallback(self):
+        zone = Zone('unit.tests.', [])
+        record = Record.new(
+            zone, 'a', {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        zone.add_record(record)
+        provider = HelperProvider()
+
+        # Processor that doesn't accept lenient in process_target_zone
+        class NoLenientTargetProcessor(BaseProcessor):
+            def process_target_zone(self, existing, target):
+                return existing
+
+        proc = NoLenientTargetProcessor('test')
+        # Should fall back gracefully
+        provider.plan(zone, processors=[proc], lenient=True)
+
+        # Processor that doesn't accept lenient in
+        # process_source_and_target_zones
+        class NoLenientSATProcessor(BaseProcessor):
+            def process_source_and_target_zones(
+                self, desired, existing, target
+            ):
+                return desired, existing
+
+        proc = NoLenientSATProcessor('test')
+        # Should fall back gracefully
+        provider.plan(zone, processors=[proc], lenient=True)
+
+        # Processor that raises a different TypeError in process_target_zone
+        class OtherTypeErrorTargetProcessor(BaseProcessor):
+            def process_target_zone(self, existing, target, lenient=False):
+                raise TypeError('something else')
+
+        proc = OtherTypeErrorTargetProcessor('test')
+        with self.assertRaises(TypeError) as ctx:
+            provider.plan(zone, processors=[proc], lenient=True)
+        self.assertEqual('something else', str(ctx.exception))
+
+        # Processor that raises a different TypeError in
+        # process_source_and_target_zones
+        class OtherTypeErrorSATProcessor(BaseProcessor):
+            def process_source_and_target_zones(
+                self, desired, existing, target, lenient=False
+            ):
+                raise TypeError('something else')
+
+        proc = OtherTypeErrorSATProcessor('test')
+        with self.assertRaises(TypeError) as ctx:
+            provider.plan(zone, processors=[proc], lenient=True)
+        self.assertEqual('something else', str(ctx.exception))
 
     def test_plan_with_root_ns(self):
         zone = Zone('unit.tests.', [])

@@ -615,6 +615,48 @@ class TestManager(TestCase):
                 )
             self.assertIn('unknown processor', str(ctx.exception))
 
+    def test_dump_processor_lenient_fallback(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            manager = Manager(get_config_filename('dump-processors.yaml'))
+
+            class NoLenientProcessor(BaseProcessor):
+                def process_source_zone(self, desired, sources):
+                    return desired
+
+            # Patch _get_processors to return a processor without lenient
+            with patch.object(
+                manager,
+                '_get_processors',
+                return_value=[NoLenientProcessor('test')],
+            ):
+                # Should fall back to calling without lenient
+                manager.dump(
+                    zone='unit.tests.',
+                    output_dir=tmpdir.dirname,
+                    sources=['config'],
+                    lenient=True,
+                )
+
+            class OtherTypeProcessor(BaseProcessor):
+                def process_source_zone(self, desired, sources, lenient=False):
+                    raise TypeError('something else')
+
+            # Non-lenient TypeErrors should propagate
+            with patch.object(
+                manager,
+                '_get_processors',
+                return_value=[OtherTypeProcessor('test')],
+            ):
+                with self.assertRaises(TypeError) as ctx:
+                    manager.dump(
+                        zone='unit.tests.',
+                        output_dir=tmpdir.dirname,
+                        sources=['config'],
+                        lenient=True,
+                    )
+                self.assertEqual('something else', str(ctx.exception))
+
     def test_validate_configs(self):
         Manager(get_config_filename('simple-validate.yaml')).validate_configs()
 
@@ -713,6 +755,129 @@ class TestManager(TestCase):
             with self.assertRaises(TypeError) as ctx:
                 manager._populate_and_plan('unit.tests.', [], [], [OtherType()])
             self.assertEqual('something else', str(ctx.exception))
+
+    def test_processor_lenient_fallback(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
+            manager = Manager(get_config_filename('simple.yaml'))
+
+            class NoLenientProcessor(BaseProcessor):
+                def process_source_zone(self, desired, sources):
+                    return desired
+
+            # This should be ok, we'll fall back to not passing lenient
+            manager._populate_and_plan(
+                'unit.tests.', [NoLenientProcessor('test')], [], []
+            )
+
+            class OtherTypeProcessor(BaseProcessor):
+                def process_source_zone(self, desired, sources, lenient=False):
+                    raise TypeError('something else')
+
+            # This will blow up, we don't fallback for non-lenient TypeErrors
+            with self.assertRaises(TypeError) as ctx:
+                manager._populate_and_plan(
+                    'unit.tests.', [OtherTypeProcessor('test')], [], []
+                )
+            self.assertEqual('something else', str(ctx.exception))
+
+    def test_processor_plan_lenient_fallback(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
+            manager = Manager(get_config_filename('simple.yaml'))
+
+            class NoLenientPlanProcessor(BaseProcessor):
+                def process_plan(self, plan, sources, target):
+                    return plan
+
+            class NoLenientTarget(SimpleProvider):
+                def plan(self, zone, processors=[], lenient=False):
+                    return None
+
+            # This should be ok, we'll fall back to not passing lenient
+            manager._populate_and_plan(
+                'unit.tests.',
+                [NoLenientPlanProcessor('test')],
+                [],
+                [NoLenientTarget()],
+            )
+
+            class OtherTypePlanProcessor(BaseProcessor):
+                def process_plan(self, plan, sources, target, lenient=False):
+                    raise TypeError('something else')
+
+            # This will blow up, we don't fallback for non-lenient TypeErrors
+            with self.assertRaises(TypeError) as ctx:
+                manager._populate_and_plan(
+                    'unit.tests.',
+                    [OtherTypePlanProcessor('test')],
+                    [],
+                    [NoLenientTarget()],
+                )
+            self.assertEqual('something else', str(ctx.exception))
+
+    def test_plan_lenient_fallback(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
+            manager = Manager(get_config_filename('simple.yaml'))
+
+            class NoLenientPlan(SimpleProvider):
+                def plan(self, zone, processors=[]):
+                    pass
+
+            # This should be ok, we'll fall back to not passing lenient
+            manager._populate_and_plan('unit.tests.', [], [], [NoLenientPlan()])
+
+            class OtherTypePlan(SimpleProvider):
+                def plan(self, zone, processors=[], lenient=False):
+                    raise TypeError('something else')
+
+            # This will blow up, we don't fallback for non-lenient TypeErrors
+            with self.assertRaises(TypeError) as ctx:
+                manager._populate_and_plan(
+                    'unit.tests.', [], [], [OtherTypePlan()]
+                )
+            self.assertEqual('something else', str(ctx.exception))
+
+    def test_plan_lenient_and_processors_fallback(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
+            manager = Manager(get_config_filename('simple.yaml'))
+
+            # Provider that raises about lenient first, then processors.
+            # This hits the nested fallback path where the plan method
+            # doesn't support either param but the lenient TypeError
+            # comes first.
+            class NoLenientNoProcessors(SimpleProvider):
+                def plan(self, zone, **kwargs):
+                    if 'lenient' in kwargs:
+                        raise TypeError(
+                            "got an unexpected keyword argument 'lenient'"
+                        )
+                    if 'processors' in kwargs:
+                        raise TypeError(
+                            "got an unexpected keyword argument 'processors'"
+                        )
+
+            # This should be ok, we'll fall back through both
+            manager._populate_and_plan(
+                'unit.tests.', [], [], [NoLenientNoProcessors()]
+            )
+
+            # Provider that accepts neither lenient nor processors via
+            # signature (Python raises about processors first since it's the
+            # first kwarg in the call, hitting the elif branch)
+            class NeitherViaSignature(SimpleProvider):
+                def plan(self, zone):
+                    pass
+
+            manager._populate_and_plan(
+                'unit.tests.', [], [], [NeitherViaSignature()]
+            )
 
     @patch('octodns.manager.Manager._get_named_class')
     def test_sync_passes_file_handle(self, mock):

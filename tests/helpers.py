@@ -132,7 +132,7 @@ class CountingProcessor(BaseProcessor):
         super().__init__(*args, **kwargs)
         self.count = 0
 
-    def process_source_zone(self, zone, *args, **kwargs):
+    def process_source_zone(self, zone, sources, lenient=False):
         self.count += len(zone.records)
         return zone
 
