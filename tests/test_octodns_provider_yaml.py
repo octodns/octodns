@@ -106,32 +106,32 @@ class TestYamlProvider(TestCase):
 
                 # '' has some of both
                 roots = sorted(data.pop(''), key=lambda r: r['type'])
-                self.assertTrue('values' in roots[0])  # A
-                self.assertTrue('geo' in roots[0])  # geo made the trip
-                self.assertTrue('value' in roots[1])  # CAA
-                self.assertTrue('values' in roots[2])  # SSHFP
+                self.assertIn('values', roots[0])  # A
+                self.assertIn('geo', roots[0])  # geo made the trip
+                self.assertIn('value', roots[1])  # CAA
+                self.assertIn('values', roots[2])  # SSHFP
 
                 # these are stored as plural 'values'
-                self.assertTrue('values' in data.pop('_srv._tcp'))
-                self.assertTrue('values' in data.pop('mx'))
-                self.assertTrue('values' in data.pop('naptr'))
-                self.assertTrue('values' in data.pop('sub'))
-                self.assertTrue('values' in data.pop('txt'))
-                self.assertTrue('values' in data.pop('loc'))
-                self.assertTrue('values' in data.pop('urlfwd'))
-                self.assertTrue('values' in data.pop('sub.txt'))
-                self.assertTrue('values' in data.pop('subzone'))
+                self.assertIn('values', data.pop('_srv._tcp'))
+                self.assertIn('values', data.pop('mx'))
+                self.assertIn('values', data.pop('naptr'))
+                self.assertIn('values', data.pop('sub'))
+                self.assertIn('values', data.pop('txt'))
+                self.assertIn('values', data.pop('loc'))
+                self.assertIn('values', data.pop('urlfwd'))
+                self.assertIn('values', data.pop('sub.txt'))
+                self.assertIn('values', data.pop('subzone'))
                 # these are stored as singular 'value'
-                self.assertTrue('value' in data.pop('_imap._tcp'))
-                self.assertTrue('value' in data.pop('_pop3._tcp'))
-                self.assertTrue('value' in data.pop('aaaa'))
-                self.assertTrue('value' in data.pop('cname'))
-                self.assertTrue('value' in data.pop('dname'))
-                self.assertTrue('value' in data.pop('included'))
-                self.assertTrue('value' in data.pop('ptr'))
-                self.assertTrue('value' in data.pop('spf'))
-                self.assertTrue('value' in data.pop('www'))
-                self.assertTrue('value' in data.pop('www.sub'))
+                self.assertIn('value', data.pop('_imap._tcp'))
+                self.assertIn('value', data.pop('_pop3._tcp'))
+                self.assertIn('value', data.pop('aaaa'))
+                self.assertIn('value', data.pop('cname'))
+                self.assertIn('value', data.pop('dname'))
+                self.assertIn('value', data.pop('included'))
+                self.assertIn('value', data.pop('ptr'))
+                self.assertIn('value', data.pop('spf'))
+                self.assertIn('value', data.pop('www'))
+                self.assertIn('value', data.pop('www.sub'))
 
                 # make sure nothing is left
                 self.assertEqual([], list(data.keys()))
@@ -141,29 +141,29 @@ class TestYamlProvider(TestCase):
 
                 # make sure dynamic records made the trip
                 dyna = data.pop('a')
-                self.assertTrue('values' in dyna)
-                self.assertTrue('dynamic' in dyna)
+                self.assertIn('values', dyna)
+                self.assertIn('dynamic', dyna)
 
                 # make sure dynamic records made the trip
                 dyna = data.pop('aaaa')
-                self.assertTrue('values' in dyna)
-                self.assertTrue('dynamic' in dyna)
+                self.assertIn('values', dyna)
+                self.assertIn('dynamic', dyna)
 
                 dyna = data.pop('cname')
-                self.assertTrue('value' in dyna)
-                self.assertTrue('dynamic' in dyna)
+                self.assertIn('value', dyna)
+                self.assertIn('dynamic', dyna)
 
                 dyna = data.pop('real-ish-a')
-                self.assertTrue('values' in dyna)
-                self.assertTrue('dynamic' in dyna)
+                self.assertIn('values', dyna)
+                self.assertIn('dynamic', dyna)
 
                 dyna = data.pop('simple-weighted')
-                self.assertTrue('value' in dyna)
-                self.assertTrue('dynamic' in dyna)
+                self.assertIn('value', dyna)
+                self.assertIn('dynamic', dyna)
 
                 dyna = data.pop('pool-only-in-fallback')
-                self.assertTrue('value' in dyna)
-                self.assertTrue('dynamic' in dyna)
+                self.assertIn('value', dyna)
+                self.assertIn('dynamic', dyna)
 
                 # make sure nothing is left
                 self.assertEqual([], list(data.keys()))
@@ -219,8 +219,8 @@ xn--dj-kia8a:
             with open(join(td.dirname, filename), 'r') as fh:
                 content = fh.read()
                 # verify that the non-ascii records were written out in utf-8
-                self.assertTrue('déjà:' in content)
-                self.assertTrue('これはテストです:' in content)
+                self.assertIn('déjà:', content)
+                self.assertIn('これはテストです:', content)
 
             # recreate the idna version of the file
             with open(idna_filename, 'w') as fh:
@@ -229,7 +229,7 @@ xn--dj-kia8a:
             with self.assertRaises(ProviderException) as ctx:
                 provider.populate(zone)
             msg = str(ctx.exception)
-            self.assertTrue('Both UTF-8' in msg)
+            self.assertIn('Both UTF-8', msg)
 
     def test_empty(self):
         source = YamlProvider(
@@ -350,11 +350,11 @@ www:
             _value_type = NsValue
 
         # don't know anything about a yaml type
-        self.assertTrue('YAML' not in source.SUPPORTS)
+        self.assertNotIn('YAML', source.SUPPORTS)
         # register it
         Record.register_type(YamlRecord)
         # when asked again we'll now include it in our list of supports
-        self.assertTrue('YAML' in source.SUPPORTS)
+        self.assertIn('YAML', source.SUPPORTS)
 
     def test_supports(self):
         source = YamlProvider('test', join(dirname(__file__), 'config'))
@@ -499,7 +499,7 @@ www:
             with self.assertRaises(ProviderException) as ctx:
                 list(provider._split_sources(zone))
             msg = str(ctx.exception)
-            self.assertTrue('Both UTF-8' in msg)
+            self.assertIn('Both UTF-8', msg)
 
             # delete the utf8 version
             rmtree(zone_utf8)
@@ -526,7 +526,7 @@ www:
             with self.assertRaises(ProviderException) as ctx:
                 provider._zone_sources(zone)
             msg = str(ctx.exception)
-            self.assertTrue('Both UTF-8' in msg)
+            self.assertIn('Both UTF-8', msg)
 
             # delete the utf8 version
             remove(utf8)
@@ -577,11 +577,11 @@ www:
 
             with open(yaml_file) as fh:
                 content = fh.read()
-            self.assertTrue('value: This has a semi-colon; that' in content)
-            self.assertTrue(
-                "- This has a semi-colon too; that isn't escaped." in content
+            self.assertIn('value: This has a semi-colon; that', content)
+            self.assertIn(
+                "- This has a semi-colon too; that isn't escaped.", content
             )
-            self.assertTrue('- ;' in content)
+            self.assertIn('- ;', content)
 
 
 class TestSplitYamlProvider(TestCase):
@@ -718,10 +718,10 @@ class TestSplitYamlProvider(TestCase):
             with open(yaml_file) as fh:
                 data = safe_load(fh.read())
                 roots = sorted(data.pop(''), key=lambda r: r['type'])
-                self.assertTrue('values' in roots[0])  # A
-                self.assertTrue('geo' in roots[0])  # geo made the trip
-                self.assertTrue('value' in roots[1])  # CAA
-                self.assertTrue('values' in roots[2])  # SSHFP
+                self.assertIn('values', roots[0])  # A
+                self.assertIn('geo', roots[0])  # geo made the trip
+                self.assertIn('value', roots[1])  # CAA
+                self.assertIn('values', roots[2])  # SSHFP
 
             # These records are stored as plural "values." Check each file to
             # ensure correctness.
@@ -737,7 +737,7 @@ class TestSplitYamlProvider(TestCase):
                 self.assertTrue(isfile(yaml_file))
                 with open(yaml_file) as fh:
                     data = safe_load(fh.read())
-                    self.assertTrue('values' in data.pop(record_name))
+                    self.assertIn('values', data.pop(record_name))
 
             # These are stored as singular "value." Again, check each file.
             for record_name in (
@@ -754,7 +754,7 @@ class TestSplitYamlProvider(TestCase):
                 self.assertTrue(isfile(yaml_file))
                 with open(yaml_file) as fh:
                     data = safe_load(fh.read())
-                    self.assertTrue('value' in data.pop(record_name))
+                    self.assertIn('value', data.pop(record_name))
 
             # Again with the plural, this time checking dynamic.tests.
             for record_name in ('a', 'aaaa', 'real-ish-a'):
@@ -763,8 +763,8 @@ class TestSplitYamlProvider(TestCase):
                 with open(yaml_file) as fh:
                     data = safe_load(fh.read())
                     dyna = data.pop(record_name)
-                    self.assertTrue('values' in dyna)
-                    self.assertTrue('dynamic' in dyna)
+                    self.assertIn('values', dyna)
+                    self.assertIn('dynamic', dyna)
 
             # Singular again.
             for record_name in ('cname', 'simple-weighted'):
@@ -773,8 +773,8 @@ class TestSplitYamlProvider(TestCase):
                 with open(yaml_file) as fh:
                     data = safe_load(fh.read())
                     dyna = data.pop(record_name)
-                    self.assertTrue('value' in dyna)
-                    self.assertTrue('dynamic' in dyna)
+                    self.assertIn('value', dyna)
+                    self.assertIn('dynamic', dyna)
 
     def test_empty(self):
         source = SplitYamlProvider(
@@ -924,9 +924,9 @@ class TestOverridingYamlProvider(TestCase):
         got = {r.name: r for r in zone.records}
         self.assertEqual(6, len(got))
         # We get the "dynamic" A from the base config
-        self.assertTrue('dynamic' in got['a'].data)
+        self.assertIn('dynamic', got['a'].data)
         # No added
-        self.assertFalse('added' in got)
+        self.assertNotIn('added', got)
 
         # Load the overrides, should replace one and add 1
         override.populate(zone)
@@ -937,4 +937,4 @@ class TestOverridingYamlProvider(TestCase):
             {'ttl': 3600, 'values': ['4.4.4.4', '5.5.5.5']}, got['a'].data
         )
         # And we have the new one
-        self.assertTrue('added' in got)
+        self.assertIn('added', got)

@@ -196,10 +196,10 @@ class TestRecordSshfp(TestCase):
         # Hash
         values = set()
         values.add(a)
-        self.assertTrue(a in values)
-        self.assertFalse(b in values)
+        self.assertIn(a, values)
+        self.assertNotIn(b, values)
         values.add(b)
-        self.assertTrue(b in values)
+        self.assertIn(b, values)
 
     def test_validation(self):
         # doesn't blow up

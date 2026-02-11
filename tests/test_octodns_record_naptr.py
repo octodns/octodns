@@ -277,10 +277,10 @@ class TestRecordNaptr(TestCase):
         )
         values = set()
         values.add(v)
-        self.assertTrue(v in values)
-        self.assertFalse(o in values)
+        self.assertIn(v, values)
+        self.assertNotIn(o, values)
         values.add(o)
-        self.assertTrue(o in values)
+        self.assertIn(o, values)
 
         self.assertEqual(30, o.order)
         o.order = o.order + 1

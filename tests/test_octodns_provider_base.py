@@ -456,9 +456,9 @@ class TestBaseProvider(TestCase):
         self.assertNotEqual('two', dynamic.rules[0].data['pool'])
         self.assertEqual(2, len(dynamic.rules))
         # subnets are dropped from subnet+geo rule
-        self.assertFalse('subnets' in dynamic.rules[0].data)
+        self.assertNotIn('subnets', dynamic.rules[0].data)
         # unused pool is dropped
-        self.assertFalse('two' in record2.dynamic.pools)
+        self.assertNotIn('two', record2.dynamic.pools)
 
         # SUPPORTS_ROOT_NS
         provider.SUPPORTS_ROOT_NS = False
@@ -568,7 +568,7 @@ class TestBaseProvider(TestCase):
         with self.assertRaises(UnsafePlan) as ctx:
             Plan(zone, zone, changes, True).raise_if_unsafe()
 
-        self.assertTrue('Too many updates' in str(ctx.exception))
+        self.assertIn('Too many updates', str(ctx.exception))
 
     def test_safe_updates_min_existing_pcent(self):
         # MAX_SAFE_UPDATE_PCENT is safe when more
@@ -618,7 +618,7 @@ class TestBaseProvider(TestCase):
         with self.assertRaises(UnsafePlan) as ctx:
             Plan(zone, zone, changes, True).raise_if_unsafe()
 
-        self.assertTrue('Too many deletes' in str(ctx.exception))
+        self.assertIn('Too many deletes', str(ctx.exception))
 
     def test_safe_deletes_min_existing_pcent(self):
         # MAX_SAFE_DELETE_PCENT is safe when more
@@ -669,7 +669,7 @@ class TestBaseProvider(TestCase):
                 zone, zone, changes, True, update_pcent_threshold=safe_pcent
             ).raise_if_unsafe()
 
-        self.assertTrue('Too many updates' in str(ctx.exception))
+        self.assertIn('Too many updates', str(ctx.exception))
 
     def test_safe_deletes_min_existing_override(self):
         safe_pcent = 0.4
@@ -697,7 +697,7 @@ class TestBaseProvider(TestCase):
                 zone, zone, changes, True, delete_pcent_threshold=safe_pcent
             ).raise_if_unsafe()
 
-        self.assertTrue('Too many deletes' in str(ctx.exception))
+        self.assertIn('Too many deletes', str(ctx.exception))
 
     def test_root_ns_warnings(self):
         class PopulateProvider(HelperProvider):

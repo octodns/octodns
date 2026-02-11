@@ -103,19 +103,19 @@ class TestIdnaDict(TestCase):
         self.assertEqual(45, d[idna_encode(self.almost)])
 
         # contains
-        self.assertTrue(self.plain in d)
-        self.assertTrue(self.almost in d)
-        self.assertTrue(idna_encode(self.almost) in d)
-        self.assertTrue(self.utf8 in d)
-        self.assertTrue(idna_encode(self.utf8) in d)
+        self.assertIn(self.plain, d)
+        self.assertIn(self.almost, d)
+        self.assertIn(idna_encode(self.almost), d)
+        self.assertIn(self.utf8, d)
+        self.assertIn(idna_encode(self.utf8), d)
 
         # we can delete with either form
         del d[self.almost]
-        self.assertFalse(self.almost in d)
-        self.assertFalse(idna_encode(self.almost) in d)
+        self.assertNotIn(self.almost, d)
+        self.assertNotIn(idna_encode(self.almost), d)
         del d[idna_encode(self.utf8)]
-        self.assertFalse(self.utf8 in d)
-        self.assertFalse(idna_encode(self.utf8) in d)
+        self.assertNotIn(self.utf8, d)
+        self.assertNotIn(idna_encode(self.utf8), d)
 
         # smoke test of repr
         d.__repr__()

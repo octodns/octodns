@@ -70,10 +70,10 @@ class TestRecordA(TestCase):
         # Hashing
         records = set()
         records.add(a)
-        self.assertTrue(a in records)
-        self.assertFalse(b in records)
+        self.assertIn(a, records)
+        self.assertNotIn(b, records)
         records.add(b)
-        self.assertTrue(b in records)
+        self.assertIn(b, records)
 
         # __repr__ doesn't blow up
         a.__repr__()
