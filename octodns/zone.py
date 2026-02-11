@@ -393,23 +393,20 @@ class Zone(object):
                 existing,
                 record,
             )
-        elif (
-            # add was not called with lenience
-            not lenient
-            # existing and new records aren't lenient
-            and not (existing_lenient and new_lenient)
-            # and there'll be a CNAME co-existing with other records
-            and (
-                (record._type == 'CNAME' and len(node) > 0)
-                or ('CNAME' in [r._type for r in node])
-            )
+        elif (record._type == 'CNAME' and len(node) > 0) or (
+            'CNAME' in [r._type for r in node]
         ):
-            # We're adding a CNAME to existing records or adding to an existing
-            # CNAME
-            raise InvalidNodeException(
-                f'Invalid state, CNAME at {record.fqdn} cannot coexist with other records',
-                record,
-            )
+            # We're adding a CNAME to existing records or adding to an existing CNAME
+            msg = f'Invalid state, CNAME at {record.fqdn} cannot coexist with other records'
+            if (
+                # add was not called with lenience
+                not lenient
+                # existing and new records aren't lenient
+                and not (existing_lenient and new_lenient)
+            ):
+                raise InvalidNodeException(msg, record)
+            else:
+                self.log.warning(msg)
 
         if record._type == 'NS' and record.name == '':
             self._root_ns = record
