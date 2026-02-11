@@ -357,25 +357,26 @@ class Zone(object):
 
         name = record.name
 
-        if not lenient:
-            if name in self.sub_zones:
-                # It's an exact match for a sub-zone
-                if not (record._type == 'NS' or record._type == 'DS'):
-                    # and not a NS or DS record, this should be in the sub
-                    raise SubzoneRecordException(
-                        f'Record {record.fqdn} is a managed sub-zone and not of type NS or DS',
-                        record,
-                    )
-            else:
-                # It's not an exact match so there has to be a `.` before the
-                # sub-zone for it to belong in there
-                for sub_zone in self.sub_zones:
-                    if name.endswith(f'.{sub_zone}'):
-                        # this should be in a sub
-                        raise SubzoneRecordException(
-                            f'Record {record.fqdn} is under a managed subzone',
-                            record,
-                        )
+        if name in self.sub_zones:
+            # It's an exact match for a sub-zone
+            if not (record._type == 'NS' or record._type == 'DS'):
+                # and not a NS or DS record, this should be in the sub
+                msg = f'Record {record.fqdn} is a managed sub-zone and not of type NS or DS'
+                if lenient:
+                    self.log.warning(msg)
+                else:
+                    raise SubzoneRecordException(msg, record)
+        else:
+            # It's not an exact match so there has to be a `.` before the
+            # sub-zone for it to belong in there
+            for sub_zone in self.sub_zones:
+                if name.endswith(f'.{sub_zone}'):
+                    # this should be in a sub
+                    msg = f'Record {record.fqdn} is under a managed subzone'
+                    if lenient:
+                        self.log.warning(msg)
+                    else:
+                        raise SubzoneRecordException(msg, record)
 
         if replace:
             # will remove it if it exists
@@ -392,23 +393,20 @@ class Zone(object):
                 existing,
                 record,
             )
-        elif (
-            # add was not called with lenience
-            not lenient
-            # existing and new records aren't lenient
-            and not (existing_lenient and new_lenient)
-            # and there'll be a CNAME co-existing with other records
-            and (
-                (record._type == 'CNAME' and len(node) > 0)
-                or ('CNAME' in [r._type for r in node])
-            )
+        elif (record._type == 'CNAME' and len(node) > 0) or (
+            'CNAME' in [r._type for r in node]
         ):
-            # We're adding a CNAME to existing records or adding to an existing
-            # CNAME
-            raise InvalidNodeException(
-                f'Invalid state, CNAME at {record.fqdn} cannot coexist with other records',
-                record,
-            )
+            # We're adding a CNAME to existing records or adding to an existing CNAME
+            msg = f'Invalid state, CNAME at {record.fqdn} cannot coexist with other records'
+            if (
+                # add was not called with lenience
+                not lenient
+                # existing and new records aren't lenient
+                and not (existing_lenient and new_lenient)
+            ):
+                raise InvalidNodeException(msg, record)
+            else:
+                self.log.warning(msg)
 
         if record._type == 'NS' and record.name == '':
             self._root_ns = record
