@@ -235,7 +235,7 @@ class TestPlanSafety(TestCase):
         plan = HelperPlan(existing, None, changes, True)
         with self.assertRaises(TooMuchChange) as ctx:
             plan.raise_if_unsafe()
-        self.assertTrue('Too many updates', str(ctx.exception))
+        self.assertIn('Too many updates', str(ctx.exception))
 
         # If we require more records before applying we're still OK though
         plan = HelperPlan(existing, None, changes, True, min_existing=10)
@@ -278,7 +278,7 @@ class TestPlanSafety(TestCase):
         plan = HelperPlan(existing, None, changes, True)
         with self.assertRaises(TooMuchChange) as ctx:
             plan.raise_if_unsafe()
-        self.assertTrue('Too many updates', str(ctx.exception))
+        self.assertIn('Too many updates', str(ctx.exception))
 
     def test_too_many_provider_deletes(self):
         existing = self.existing.copy()
@@ -314,7 +314,7 @@ class TestPlanSafety(TestCase):
         plan = HelperPlan(existing, None, changes, True)
         with self.assertRaises(TooMuchChange) as ctx:
             plan.raise_if_unsafe()
-        self.assertTrue('Too many deletes', str(ctx.exception))
+        self.assertIn('Too many deletes', str(ctx.exception))
 
         # If we require more records before applying we're still OK though
         plan = HelperPlan(existing, None, changes, True, min_existing=10)
@@ -346,7 +346,7 @@ class TestPlanSafety(TestCase):
         plan = HelperPlan(existing, None, changes, True)
         with self.assertRaises(TooMuchChange) as ctx:
             plan.raise_if_unsafe()
-        self.assertTrue('Too many deletes', str(ctx.exception))
+        self.assertIn('Too many deletes', str(ctx.exception))
 
     def test_root_ns_change(self):
         existing = self.existing.copy()
@@ -396,7 +396,7 @@ class TestPlanSafety(TestCase):
         plan = HelperPlan(existing, None, changes, True)
         with self.assertRaises(RootNsChange) as ctx:
             plan.raise_if_unsafe()
-        self.assertTrue('Root Ns record change', str(ctx.exception))
+        self.assertIn('Root NS record change', str(ctx.exception))
 
     def test_data(self):
         data = plans[0][1].data

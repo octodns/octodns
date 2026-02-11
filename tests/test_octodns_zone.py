@@ -324,8 +324,8 @@ class TestZone(TestCase):
         record.context = 'added context'
         with self.assertRaises(SubzoneRecordException) as ctx:
             zone.add_record(record)
-        self.assertTrue('not of type NS', str(ctx.exception))
-        self.assertTrue(', added context' in str(ctx.exception))
+        self.assertIn('not of type NS', str(ctx.exception))
+        self.assertIn(', added context', str(ctx.exception))
         # Can add it w/lenient
         zone.add_record(record, lenient=True)
         self.assertEqual(set([record]), zone.records)
@@ -339,7 +339,7 @@ class TestZone(TestCase):
         )
         with self.assertRaises(SubzoneRecordException) as ctx:
             zone.add_record(record)
-        self.assertTrue('under a managed sub-zone', str(ctx.exception))
+        self.assertIn('under a managed subzone', str(ctx.exception))
         # Can add it w/lenient
         zone.add_record(record, lenient=True)
         self.assertEqual(set([record]), zone.records)
@@ -353,7 +353,7 @@ class TestZone(TestCase):
         )
         with self.assertRaises(SubzoneRecordException) as ctx:
             zone.add_record(record)
-        self.assertTrue('under a managed sub-zone', str(ctx.exception))
+        self.assertIn('under a managed subzone', str(ctx.exception))
         # Can add it w/lenient
         zone.add_record(record, lenient=True)
         self.assertEqual(set([record]), zone.records)
@@ -421,7 +421,7 @@ class TestZone(TestCase):
         )
         with self.assertRaises(SubzoneRecordException) as ctx:
             zone.add_record(record)
-        self.assertTrue('under a managed sub-zone', str(ctx.exception))
+        self.assertIn('under a managed subzone', str(ctx.exception))
         # Can add it w/lenient
         zone.add_record(record, lenient=True)
         self.assertEqual(set([record]), zone.records)
