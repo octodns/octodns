@@ -263,7 +263,7 @@ class BaseProvider(BaseSource):
 
         return desired
 
-    def _process_existing_zone(self, existing, desired):
+    def _process_existing_zone(self, existing, desired, lenient=False):
         '''
         Process the existing zone before planning.
 
@@ -278,6 +278,10 @@ class BaseProvider(BaseSource):
         :param desired: The desired zone state. This is for reference only and
                         must not be modified.
         :type desired: octodns.zone.Zone
+        :param lenient: When True, relaxed validation rules should be applied
+                        when modifying zone records (e.g. passed to
+                        ``Zone.add_record()``).
+        :type lenient: bool
 
         :return: The processed existing zone, typically the same object passed in.
         :rtype: octodns.zone.Zone
@@ -289,7 +293,7 @@ class BaseProvider(BaseSource):
            - May modify ``existing`` directly.
            - Must not modify records directly; ``record.copy()`` should be called,
              the results of which can be modified, and then ``Zone.add_record()``
-             may be used with ``replace=True``.
+             may be used with ``replace=True`` and ``lenient=lenient``.
            - May call ``Zone.remove_record()`` to remove records from ``existing``.
            - Must call :meth:`supports_warn_or_except` with information about any
              changes that are made to have them logged or throw errors depending
@@ -442,7 +446,9 @@ class BaseProvider(BaseSource):
 
         desired = self._process_desired_zone(desired)
 
-        existing = self._process_existing_zone(existing, desired)
+        existing = self._process_existing_zone(
+            existing, desired, lenient=lenient
+        )
 
         for processor in processors:
             try:
