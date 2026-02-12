@@ -32,7 +32,7 @@ class TestOwnershipProcessor(TestCase):
     def test_process_source_zone(self):
         ownership = OwnershipProcessor('ownership')
 
-        got = ownership.process_source_zone(zone.copy())
+        got = ownership.process_source_zone(zone.copy(), None)
         self.assertEqual(
             [
                 '',
@@ -64,7 +64,7 @@ class TestOwnershipProcessor(TestCase):
 
         # change the ttl from the default
         ownership.txt_ttl = 300
-        got = ownership.process_source_zone(zone.copy())
+        got = ownership.process_source_zone(zone.copy(), None)
         record = next(
             r for r in got.records if r.name.startswith(ownership.txt_name)
         )
@@ -75,17 +75,17 @@ class TestOwnershipProcessor(TestCase):
         provider = PlannableProvider('helper')
 
         # No plan, is a quick noop
-        self.assertFalse(ownership.process_plan(None))
+        self.assertFalse(ownership.process_plan(None, None, None))
 
         # Nothing exists create both records and ownership
-        ownership_added = ownership.process_source_zone(zone.copy())
+        ownership_added = ownership.process_source_zone(zone.copy(), None)
         plan = provider.plan(ownership_added)
         self.assertTrue(plan)
         # Double the number of records
         self.assertEqual(len(records) * 2, len(plan.changes))
         # Now process the plan, shouldn't make any changes, we're creating
         # everything
-        got = ownership.process_plan(plan)
+        got = ownership.process_plan(plan, None, None)
         self.assertTrue(got)
         self.assertEqual(len(records) * 2, len(got.changes))
 
@@ -99,7 +99,7 @@ class TestOwnershipProcessor(TestCase):
         plan.changes.append(Delete(extra_a))
         # Process the plan, shouldn't make any changes since the extra bit is
         # something we don't own
-        got = ownership.process_plan(plan)
+        got = ownership.process_plan(plan, None, None)
         self.assertTrue(got)
         self.assertEqual(len(records) * 2, len(got.changes))
 
@@ -110,7 +110,7 @@ class TestOwnershipProcessor(TestCase):
             if record.name != 'the-a':
                 copy.add_record(record)
         # New ownership, without the `the-a`
-        ownership_added = ownership.process_source_zone(copy)
+        ownership_added = ownership.process_source_zone(copy, None)
         self.assertEqual(len(records) * 2 - 2, len(ownership_added.records))
         plan = provider.plan(ownership_added)
         # Fake the extra existing by adding the record, its ownership, and the
@@ -126,7 +126,7 @@ class TestOwnershipProcessor(TestCase):
         plan.changes.append(Delete(the_a_ownership))
         # Finally process the plan, should be a noop and we should get the same
         # plan out, meaning the planned deletes were allowed to happen.
-        got = ownership.process_plan(plan)
+        got = ownership.process_plan(plan, None, None)
         self.assertTrue(got)
         self.assertEqual(plan, got)
         self.assertEqual(len(plan.changes), len(got.changes))
@@ -148,7 +148,7 @@ class TestOwnershipProcessor(TestCase):
             existing=existing, desired=desired, changes=[change], exists=True
         )
         self.assertEqual(1, len(plan.changes))
-        plan = ownership.process_plan(plan)
+        plan = ownership.process_plan(plan, None, None)
         self.assertFalse(plan)
 
     def test_should_replace(self):
@@ -161,18 +161,18 @@ class TestOwnershipProcessor(TestCase):
         )
         zone.add_record(record)
 
-        got = ownership.process_source_zone(zone.copy())
+        got = ownership.process_source_zone(zone.copy(), None)
         self.assertEqual(
             ['_owner.a.a', 'a'], sorted([r.name for r in got.records])
         )
 
         # will fail w/a duplicate
         with self.assertRaises(DuplicateRecordException):
-            ownership.process_source_zone(got.copy())
+            ownership.process_source_zone(got.copy(), None)
 
         # enable should_replace, will replace instead of failing
         ownership.should_replace = True
-        got = ownership.process_source_zone(got.copy())
+        got = ownership.process_source_zone(got.copy(), None)
         # same expected result
         self.assertEqual(
             ['_owner.a.a', 'a'], sorted([r.name for r in got.records])

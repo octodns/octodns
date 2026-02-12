@@ -20,15 +20,16 @@ class OwnershipProcessor(BaseProcessor):
         txt_value='*octodns*',
         txt_ttl=60,
         should_replace=False,
+        **kwargs,
     ):
-        super().__init__(name)
+        super().__init__(name, **kwargs)
         self.txt_name = txt_name
         self.txt_value = txt_value
         self.txt_ttl = txt_ttl
         self._txt_values = [txt_value]
         self.should_replace = should_replace
 
-    def process_source_zone(self, desired, *args, **kwargs):
+    def process_source_zone(self, desired, sources, lenient=False):
         for record in desired.records:
             if self._is_ownership(record):
                 # don't apply ownership to existing ownership recorcs, most
@@ -59,7 +60,7 @@ class OwnershipProcessor(BaseProcessor):
             and record.values == self._txt_values
         )
 
-    def process_plan(self, plan, *args, **kwargs):
+    def process_plan(self, plan, sources, target, lenient=False):
         if not plan:
             # If we don't have any change there's nothing to do
             return plan

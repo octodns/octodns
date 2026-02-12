@@ -2,6 +2,7 @@
 #
 #
 
+from ..deprecation import deprecated
 from ..source.base import BaseSource
 from ..zone import Zone
 from . import SupportsException
@@ -262,7 +263,7 @@ class BaseProvider(BaseSource):
 
         return desired
 
-    def _process_existing_zone(self, existing, desired):
+    def _process_existing_zone(self, existing, desired, lenient=False):
         '''
         Process the existing zone before planning.
 
@@ -277,6 +278,10 @@ class BaseProvider(BaseSource):
         :param desired: The desired zone state. This is for reference only and
                         must not be modified.
         :type desired: octodns.zone.Zone
+        :param lenient: When True, relaxed validation rules should be applied
+                        when modifying zone records (e.g. passed to
+                        ``Zone.add_record()``).
+        :type lenient: bool
 
         :return: The processed existing zone, typically the same object passed in.
         :rtype: octodns.zone.Zone
@@ -288,7 +293,7 @@ class BaseProvider(BaseSource):
            - May modify ``existing`` directly.
            - Must not modify records directly; ``record.copy()`` should be called,
              the results of which can be modified, and then ``Zone.add_record()``
-             may be used with ``replace=True``.
+             may be used with ``replace=True`` and ``lenient=lenient``.
            - May call ``Zone.remove_record()`` to remove records from ``existing``.
            - Must call :meth:`supports_warn_or_except` with information about any
              changes that are made to have them logged or throw errors depending
@@ -386,7 +391,7 @@ class BaseProvider(BaseSource):
             raise SupportsException(f'{self.id}: {msg}')
         self.log.warning('%s; %s', msg, fallback)
 
-    def plan(self, desired, processors=[]):
+    def plan(self, desired, processors=[], lenient=False):
         '''
         Compute a plan of changes needed to sync the desired state to this provider.
 
@@ -412,6 +417,9 @@ class BaseProvider(BaseSource):
         :type desired: octodns.zone.Zone
         :param processors: List of processors to run during planning.
         :type processors: list[octodns.processor.base.BaseProcessor]
+        :param lenient: When True, relaxed validation rules should be applied
+                        by processors when modifying zone records.
+        :type lenient: bool
 
         :return: A Plan containing the computed changes, or None if no changes
                  are needed.
@@ -438,15 +446,39 @@ class BaseProvider(BaseSource):
 
         desired = self._process_desired_zone(desired)
 
-        existing = self._process_existing_zone(existing, desired)
+        existing = self._process_existing_zone(
+            existing, desired, lenient=lenient
+        )
 
         for processor in processors:
-            existing = processor.process_target_zone(existing, target=self)
+            try:
+                existing = processor.process_target_zone(
+                    existing, target=self, lenient=lenient
+                )
+            except TypeError as e:
+                if "unexpected keyword argument 'lenient'" not in str(e):
+                    raise
+                deprecated(
+                    f'`process_target_zone` method does not support the `lenient` param, fallback is DEPRECATED. Will be removed in 2.0. Class {processor.__class__.__name__}',
+                    stacklevel=99,
+                )
+                existing = processor.process_target_zone(existing, target=self)
 
         for processor in processors:
-            desired, existing = processor.process_source_and_target_zones(
-                desired, existing, self
-            )
+            try:
+                desired, existing = processor.process_source_and_target_zones(
+                    desired, existing, self, lenient=lenient
+                )
+            except TypeError as e:
+                if "unexpected keyword argument 'lenient'" not in str(e):
+                    raise
+                deprecated(
+                    f'`process_source_and_target_zones` method does not support the `lenient` param, fallback is DEPRECATED. Will be removed in 2.0. Class {processor.__class__.__name__}',
+                    stacklevel=99,
+                )
+                desired, existing = processor.process_source_and_target_zones(
+                    desired, existing, self
+                )
 
         # compute the changes at the zone/record level
         changes = existing.changes(desired, self)

@@ -32,8 +32,8 @@ class TtlClampProcessor(BaseProcessor):
               - route53
     """
 
-    def __init__(self, id, min_ttl=300, max_ttl=86400):
-        super().__init__(id)
+    def __init__(self, id, min_ttl=300, max_ttl=86400, **kwargs):
+        super().__init__(id, **kwargs)
         self.log = getLogger(self.__class__.__name__)
         if not min_ttl <= max_ttl:
             raise TTLArgumentException(
@@ -43,7 +43,7 @@ class TtlClampProcessor(BaseProcessor):
         self.max_ttl = max_ttl
         self.log.info('__init__: min=%ds, max=%ds', self.min_ttl, self.max_ttl)
 
-    def process_source_zone(self, desired, sources):
+    def process_source_zone(self, desired, sources, lenient=False):
         """
         Process records from source zone(s).
 

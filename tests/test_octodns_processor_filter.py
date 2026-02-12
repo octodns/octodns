@@ -41,19 +41,19 @@ class TestTypeAllowListFilter(TestCase):
     def test_basics(self):
         filter_a = TypeAllowlistFilter('only-a', set(('A')))
 
-        got = filter_a.process_source_zone(zone.copy())
+        got = filter_a.process_source_zone(zone.copy(), None)
         self.assertEqual(['a', 'a2'], sorted([r.name for r in got.records]))
 
         filter_aaaa = TypeAllowlistFilter('only-aaaa', ('AAAA',))
-        got = filter_aaaa.process_source_zone(zone.copy())
+        got = filter_aaaa.process_source_zone(zone.copy(), None)
         self.assertEqual(['aaaa'], sorted([r.name for r in got.records]))
 
         filter_txt = TypeAllowlistFilter('only-txt', ['TXT'])
-        got = filter_txt.process_target_zone(zone.copy())
+        got = filter_txt.process_target_zone(zone.copy(), None)
         self.assertEqual(['txt', 'txt2'], sorted([r.name for r in got.records]))
 
         filter_a_aaaa = TypeAllowlistFilter('only-aaaa', set(('A', 'AAAA')))
-        got = filter_a_aaaa.process_target_zone(zone.copy())
+        got = filter_a_aaaa.process_target_zone(zone.copy(), None)
         self.assertEqual(
             ['a', 'a2', 'aaaa'], sorted([r.name for r in got.records])
         )
@@ -64,11 +64,11 @@ class TestTypeAllowListFilter(TestCase):
         )
 
         # as a source we don't see them
-        got = filter_txt.process_source_zone(zone.copy())
+        got = filter_txt.process_source_zone(zone.copy(), None)
         self.assertEqual(['txt', 'txt2'], sorted([r.name for r in got.records]))
 
         # but as a target we do b/c it's not included
-        got = filter_txt.process_target_zone(zone.copy())
+        got = filter_txt.process_target_zone(zone.copy(), None)
         self.assertEqual(
             ['a', 'a2', 'aaaa', 'txt', 'txt2'],
             sorted([r.name for r in got.records]),
@@ -79,25 +79,25 @@ class TestTypeRejectListFilter(TestCase):
     def test_basics(self):
         filter_a = TypeRejectlistFilter('not-a', set(('A')))
 
-        got = filter_a.process_source_zone(zone.copy())
+        got = filter_a.process_source_zone(zone.copy(), None)
         self.assertEqual(
             ['aaaa', 'txt', 'txt2'], sorted([r.name for r in got.records])
         )
 
         filter_aaaa = TypeRejectlistFilter('not-aaaa', ('AAAA',))
-        got = filter_aaaa.process_source_zone(zone.copy())
+        got = filter_aaaa.process_source_zone(zone.copy(), None)
         self.assertEqual(
             ['a', 'a2', 'txt', 'txt2'], sorted([r.name for r in got.records])
         )
 
         filter_txt = TypeRejectlistFilter('not-txt', ['TXT'])
-        got = filter_txt.process_target_zone(zone.copy())
+        got = filter_txt.process_target_zone(zone.copy(), None)
         self.assertEqual(
             ['a', 'a2', 'aaaa'], sorted([r.name for r in got.records])
         )
 
         filter_a_aaaa = TypeRejectlistFilter('not-a-aaaa', set(('A', 'AAAA')))
-        got = filter_a_aaaa.process_target_zone(zone.copy())
+        got = filter_a_aaaa.process_target_zone(zone.copy(), None)
         self.assertEqual(['txt', 'txt2'], sorted([r.name for r in got.records]))
 
 
@@ -124,7 +124,7 @@ class TestNameAllowListFilter(TestCase):
         allows = NameAllowlistFilter('exact', ('matches',))
 
         self.assertEqual(4, len(self.zone.records))
-        filtered = allows.process_source_zone(self.zone.copy())
+        filtered = allows.process_source_zone(self.zone.copy(), None)
         self.assertEqual(1, len(filtered.records))
         self.assertEqual(['matches'], [r.name for r in filtered.records])
 
@@ -132,7 +132,7 @@ class TestNameAllowListFilter(TestCase):
         allows = NameAllowlistFilter('exact', ('/^start-.+-end$/',))
 
         self.assertEqual(4, len(self.zone.records))
-        filtered = allows.process_source_zone(self.zone.copy())
+        filtered = allows.process_source_zone(self.zone.copy(), None)
         self.assertEqual(2, len(filtered.records))
         self.assertEqual(
             ['start-a3b444c-end', 'start-f43ad96-end'],
@@ -163,7 +163,7 @@ class TestNameRejectListFilter(TestCase):
         rejects = NameRejectlistFilter('exact', ('matches',))
 
         self.assertEqual(4, len(self.zone.records))
-        filtered = rejects.process_source_zone(self.zone.copy())
+        filtered = rejects.process_source_zone(self.zone.copy(), None)
         self.assertEqual(3, len(filtered.records))
         self.assertEqual(
             ['doesnt', 'start-a3b444c-end', 'start-f43ad96-end'],
@@ -174,7 +174,7 @@ class TestNameRejectListFilter(TestCase):
         rejects = NameRejectlistFilter('exact', ('/^start-.+-end$/',))
 
         self.assertEqual(4, len(self.zone.records))
-        filtered = rejects.process_source_zone(self.zone.copy())
+        filtered = rejects.process_source_zone(self.zone.copy(), None)
         self.assertEqual(2, len(filtered.records))
         self.assertEqual(
             ['doesnt', 'matches'], sorted([r.name for r in filtered.records])
@@ -239,7 +239,7 @@ class TestValueAllowListFilter(TestCase):
         allows = ValueAllowlistFilter('exact', ('matches.example.com.',))
 
         self.assertEqual(7, len(self.zone.records))
-        filtered = allows.process_source_zone(self.zone.copy())
+        filtered = allows.process_source_zone(self.zone.copy(), None)
         self.assertEqual(2, len(filtered.records))
         self.assertEqual(
             ['good.exact', 'good.values'],
@@ -250,7 +250,7 @@ class TestValueAllowListFilter(TestCase):
         allows = ValueAllowlistFilter('exact', ('/^start\\..+\\.end\\.$/',))
 
         self.assertEqual(7, len(self.zone.records))
-        filtered = allows.process_source_zone(self.zone.copy())
+        filtered = allows.process_source_zone(self.zone.copy(), None)
         self.assertEqual(2, len(filtered.records))
         self.assertEqual(
             ['first.regex', 'second.regex'],
@@ -316,7 +316,7 @@ class TestValueRejectListFilter(TestCase):
         rejects = ValueRejectlistFilter('exact', ('matches.example.com.',))
 
         self.assertEqual(7, len(self.zone.records))
-        filtered = rejects.process_source_zone(self.zone.copy())
+        filtered = rejects.process_source_zone(self.zone.copy(), None)
         self.assertEqual(5, len(filtered.records))
         self.assertEqual(
             [
@@ -333,7 +333,7 @@ class TestValueRejectListFilter(TestCase):
         rejects = ValueRejectlistFilter('exact', ('/^start\\..+\\.end\\.$/',))
 
         self.assertEqual(7, len(self.zone.records))
-        filtered = rejects.process_source_zone(self.zone.copy())
+        filtered = rejects.process_source_zone(self.zone.copy(), None)
         self.assertEqual(5, len(filtered.records))
         self.assertEqual(
             [
@@ -389,7 +389,7 @@ class TestNetworkValueFilter(TestCase):
             'rejectlist', set(('10.0.0.0/8', 'fd00::/8'))
         )
 
-        got = filter_private.process_source_zone(self.zone.copy())
+        got = filter_private.process_source_zone(self.zone.copy(), None)
         self.assertEqual(
             ['keep-me', 'public-ipv4', 'public-ipv6'],
             sorted([r.name for r in got.records]),
@@ -400,7 +400,7 @@ class TestNetworkValueFilter(TestCase):
             'allowlist', set(('10.0.0.0/8', 'fd00::/8'))
         )
 
-        got = filter_private.process_source_zone(self.zone.copy())
+        got = filter_private.process_source_zone(self.zone.copy(), None)
         self.assertEqual(
             ['keep-me', 'private-ipv4', 'private-ipv6'],
             sorted([r.name for r in got.records]),
@@ -424,7 +424,7 @@ class TestIgnoreRootNsFilter(TestCase):
         proc = IgnoreRootNsFilter('no-root')
 
         self.assertEqual(3, len(self.zone.records))
-        filtered = proc.process_source_zone(self.zone.copy())
+        filtered = proc.process_source_zone(self.zone.copy(), None)
         self.assertEqual(2, len(filtered.records))
         self.assertEqual(
             [('A', ''), ('NS', 'sub')],
@@ -506,7 +506,7 @@ class TestZoneNameFilter(TestCase):
         )
 
         self.assertEqual(2, len(zone.records))
-        filtered = zone_name_filter.process_source_zone(zone.copy())
+        filtered = zone_name_filter.process_source_zone(zone.copy(), None)
         # get everything back
         self.assertEqual(2, len(filtered.records))
 
@@ -519,7 +519,7 @@ class TestZoneNameFilter(TestCase):
             )
         )
         self.assertEqual(3, len(with_dot.records))
-        filtered = zone_name_filter.process_source_zone(with_dot.copy())
+        filtered = zone_name_filter.process_source_zone(with_dot.copy(), None)
         # don't get the one that ends with the zone name
         self.assertEqual(2, len(filtered.records))
 
@@ -532,7 +532,9 @@ class TestZoneNameFilter(TestCase):
             )
         )
         self.assertEqual(3, len(without_dot.records))
-        filtered = zone_name_filter.process_source_zone(without_dot.copy())
+        filtered = zone_name_filter.process_source_zone(
+            without_dot.copy(), None
+        )
         # don't get the one that ends with the zone name
         self.assertEqual(2, len(filtered.records))
 
@@ -548,7 +550,7 @@ class TestZoneNameFilter(TestCase):
             )
         )
         with self.assertRaises(ValidationError) as ctx:
-            errors.process_source_zone(zone)
+            errors.process_source_zone(zone, None)
         self.assertEqual(
             ['record name ends with zone name'], ctx.exception.reasons
         )

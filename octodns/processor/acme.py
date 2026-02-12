@@ -10,7 +10,7 @@ from .base import BaseProcessor
 class AcmeManagingProcessor(BaseProcessor):
     log = getLogger('AcmeManagingProcessor')
 
-    def __init__(self, name):
+    def __init__(self, name, **kwargs):
         '''
         Example configuration::
 
@@ -27,11 +27,12 @@ class AcmeManagingProcessor(BaseProcessor):
               - acme
             ...
         '''
-        super().__init__(name)
+        super().__init__(name, **kwargs)
 
         self._owned = set()
 
-    def process_source_zone(self, desired, *args, **kwargs):
+    def process_source_zone(self, desired, sources, lenient=False):
+        lenient = self.lenient or lenient
         for record in desired.records:
             if record._type == 'TXT' and record.name.startswith(
                 '_acme-challenge'
@@ -44,10 +45,10 @@ class AcmeManagingProcessor(BaseProcessor):
                 # This assumes we'll see things as sources before targets,
                 # which is the case...
                 self._owned.add(record)
-                desired.add_record(record, replace=True)
+                desired.add_record(record, replace=True, lenient=lenient)
         return desired
 
-    def process_target_zone(self, existing, *args, **kwargs):
+    def process_target_zone(self, existing, target, lenient=False):
         for record in existing.records:
             # Uses a startswith rather than == to ignore subdomain challenges,
             # e.g. _acme-challenge.foo.domain.com when managing domain.com

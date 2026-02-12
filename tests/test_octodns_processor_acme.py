@@ -57,7 +57,7 @@ class TestAcmeManagingProcessor(TestCase):
         # A managed acme that will have ownership value added
         source.add_record(records['managed'])
 
-        got = acme.process_source_zone(source)
+        got = acme.process_source_zone(source, None)
         self.assertEqual(
             ['_acme-challenge.managed', '_acme-challenge.not-txt', 'not-acme'],
             sorted([r.name for r in got.records]),
@@ -85,7 +85,7 @@ class TestAcmeManagingProcessor(TestCase):
         # A managed acme that needs to go away
         existing.add_record(records['going-away'])
 
-        got = acme.process_target_zone(existing)
+        got = acme.process_target_zone(existing, None)
         self.assertEqual(
             [
                 '_acme-challenge.going-away',

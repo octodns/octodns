@@ -53,9 +53,9 @@ class SpfDnsLookupProcessor(BaseProcessor):
 
     log = getLogger('SpfDnsLookupProcessor')
 
-    def __init__(self, name):
+    def __init__(self, name, **kwargs):
         self.log.debug(f"SpfDnsLookupProcessor: {name}")
-        super().__init__(name)
+        super().__init__(name, **kwargs)
 
     def _get_spf_from_txt_values(
         self, record: Record, values: List[str]
@@ -129,7 +129,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
 
         return lookups
 
-    def process_source_zone(self, zone, *args, **kwargs):
+    def process_source_zone(self, zone, sources, lenient=False):
         for record in zone.records:
             if record._type != 'TXT':
                 continue

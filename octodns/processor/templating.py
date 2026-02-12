@@ -71,7 +71,10 @@ class Templating(BaseProcessor):
         self.trailing_dots = trailing_dots
         self.context = context
 
-    def process_source_and_target_zones(self, desired, existing, provider):
+    def process_source_and_target_zones(
+        self, desired, existing, provider, lenient=False
+    ):
+        lenient = self.lenient or lenient
         zone_name = desired.decoded_name
         zone_decoded_name = desired.decoded_name
         zone_encoded_name = desired.name
@@ -135,7 +138,7 @@ class Templating(BaseProcessor):
                 if record.values != new_values:
                     new = record.copy()
                     new.values = new_values
-                    desired.add_record(new, replace=True)
+                    desired.add_record(new, replace=True, lenient=lenient)
             else:
                 if not hasattr(record.value, 'template'):
                     # the (custom) value type does not support templating
@@ -144,6 +147,6 @@ class Templating(BaseProcessor):
                 if record.value != new_value:
                     new = record.copy()
                     new.value = new_value
-                    desired.add_record(new, replace=True)
+                    desired.add_record(new, replace=True, lenient=lenient)
 
         return desired, existing

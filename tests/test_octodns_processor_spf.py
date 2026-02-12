@@ -84,7 +84,7 @@ class TestSpfDnsLookupProcessor(TestCase):
             )
         )
 
-        self.assertEqual(zone, processor.process_source_zone(zone))
+        self.assertEqual(zone, processor.process_source_zone(zone, None))
 
         zone = Zone('unit.tests.', [])
         zone.add_record(
@@ -107,7 +107,7 @@ class TestSpfDnsLookupProcessor(TestCase):
         txt_value_mock.to_text.return_value = '"v=spf1 -all"'
         resolver_mock.return_value = [txt_value_mock]
 
-        self.assertEqual(zone, processor.process_source_zone(zone))
+        self.assertEqual(zone, processor.process_source_zone(zone, None))
         resolver_mock.assert_called_once_with('example.com', 'TXT')
 
         zone = Zone('unit.tests.', [])
@@ -126,7 +126,7 @@ class TestSpfDnsLookupProcessor(TestCase):
             )
         )
 
-        self.assertEqual(zone, processor.process_source_zone(zone))
+        self.assertEqual(zone, processor.process_source_zone(zone, None))
 
         zone = Zone('unit.tests.', [])
         zone.add_record(
@@ -145,7 +145,7 @@ class TestSpfDnsLookupProcessor(TestCase):
         )
 
         with self.assertRaises(SpfDnsLookupException):
-            processor.process_source_zone(zone)
+            processor.process_source_zone(zone, None)
 
         zone = Zone('unit.tests.', [])
         zone.add_record(
@@ -171,7 +171,7 @@ class TestSpfDnsLookupProcessor(TestCase):
         resolver_mock.return_value = [txt_value_mock]
 
         with self.assertRaises(SpfDnsLookupException):
-            processor.process_source_zone(zone)
+            processor.process_source_zone(zone, None)
         resolver_mock.assert_called_once_with('example.com', 'TXT')
 
         zone = Zone('unit.tests.', [])
@@ -197,7 +197,7 @@ class TestSpfDnsLookupProcessor(TestCase):
         )
         resolver_mock.return_value = [txt_value_mock]
 
-        self.assertEqual(zone, processor.process_source_zone(zone))
+        self.assertEqual(zone, processor.process_source_zone(zone, None))
         resolver_mock.assert_called_once_with('example.com', 'TXT')
 
         zone = Zone('unit.tests.', [])
@@ -228,7 +228,7 @@ class TestSpfDnsLookupProcessor(TestCase):
             [second_txt_value_mock],
         ]
 
-        self.assertEqual(zone, processor.process_source_zone(zone))
+        self.assertEqual(zone, processor.process_source_zone(zone, None))
         resolver_mock.assert_has_calls(
             [call('example.com', 'TXT'), call('_spf.example.com', 'TXT')]
         )
@@ -257,7 +257,7 @@ class TestSpfDnsLookupProcessor(TestCase):
             )
         )
 
-        self.assertEqual(zone, processor.process_source_zone(zone))
+        self.assertEqual(zone, processor.process_source_zone(zone, None))
 
     @patch('dns.resolver.resolve')
     def test_processor_with_lenient_record(self, resolver_mock):
@@ -276,7 +276,7 @@ class TestSpfDnsLookupProcessor(TestCase):
         )
         zone.add_record(lenient)
 
-        self.assertEqual(zone, processor.process_source_zone(zone))
+        self.assertEqual(zone, processor.process_source_zone(zone, None))
         resolver_mock.assert_not_called()
 
     @patch('dns.resolver.resolve')
@@ -299,7 +299,7 @@ class TestSpfDnsLookupProcessor(TestCase):
         zone.add_record(record)
 
         with self.assertRaises(SpfValueException):
-            processor.process_source_zone(zone)
+            processor.process_source_zone(zone, None)
         resolver_mock.assert_not_called()
 
     @patch('dns.resolver.resolve')
@@ -316,7 +316,7 @@ class TestSpfDnsLookupProcessor(TestCase):
         )
 
         with self.assertRaises(SpfValueException) as context:
-            processor.process_source_zone(zone)
+            processor.process_source_zone(zone, None)
         self.assertEqual(
             'unit.tests. uses the deprecated ptr mechanism',
             str(context.exception),
@@ -340,7 +340,7 @@ class TestSpfDnsLookupProcessor(TestCase):
         resolver_mock.reset_mock(return_value=True, side_effect=True)
 
         with self.assertRaises(SpfValueException) as context:
-            processor.process_source_zone(zone)
+            processor.process_source_zone(zone, None)
         self.assertEqual(
             'unit.tests. uses the deprecated ptr mechanism',
             str(context.exception),
@@ -367,7 +367,7 @@ class TestSpfDnsLookupProcessor(TestCase):
         resolver_mock.return_value = [txt_value_mock]
 
         with self.assertRaises(SpfValueException) as context:
-            processor.process_source_zone(zone)
+            processor.process_source_zone(zone, None)
         self.assertEqual(
             'unit.tests. uses the deprecated ptr mechanism',
             str(context.exception),
@@ -400,5 +400,5 @@ class TestSpfDnsLookupProcessor(TestCase):
         resolver_mock.return_value = [txt_value_mock]
 
         with self.assertRaises(SpfDnsLookupException):
-            processor.process_source_zone(zone)
+            processor.process_source_zone(zone, None)
         resolver_mock.assert_called_with('example.com', 'TXT')

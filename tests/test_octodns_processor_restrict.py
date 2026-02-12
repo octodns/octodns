@@ -19,7 +19,7 @@ class TestTtlRestrictionFilter(TestCase):
         )
         zone.add_record(good)
 
-        restricted = restrictor.process_source_zone(zone)
+        restricted = restrictor.process_source_zone(zone, None)
         self.assertEqual(zone.records, restricted.records)
 
         # too low
@@ -29,7 +29,7 @@ class TestTtlRestrictionFilter(TestCase):
         copy = zone.copy()
         copy.add_record(low)
         with self.assertRaises(RestrictionException) as ctx:
-            restrictor.process_source_zone(copy)
+            restrictor.process_source_zone(copy, None)
         self.assertEqual(
             'low.unit.tests. ttl=16 too low, min_ttl=32', str(ctx.exception)
         )
@@ -47,7 +47,7 @@ class TestTtlRestrictionFilter(TestCase):
         )
         copy = zone.copy()
         copy.add_record(lenient)
-        restricted = restrictor.process_source_zone(copy)
+        restricted = restrictor.process_source_zone(copy, None)
         self.assertEqual(copy.records, restricted.records)
 
         # too high
@@ -57,7 +57,7 @@ class TestTtlRestrictionFilter(TestCase):
         copy = zone.copy()
         copy.add_record(high)
         with self.assertRaises(RestrictionException) as ctx:
-            restrictor.process_source_zone(copy)
+            restrictor.process_source_zone(copy, None)
         self.assertEqual(
             'high.unit.tests. ttl=2048 too high, max_ttl=1024',
             str(ctx.exception),
@@ -71,7 +71,7 @@ class TestTtlRestrictionFilter(TestCase):
         copy = zone.copy()
         copy.add_record(low)
         with self.assertRaises(RestrictionException) as ctx:
-            restrictor.process_source_zone(copy)
+            restrictor.process_source_zone(copy, None)
         self.assertEqual(
             'low.unit.tests. ttl=0 too low, min_ttl=1', str(ctx.exception)
         )
@@ -83,7 +83,7 @@ class TestTtlRestrictionFilter(TestCase):
         copy = zone.copy()
         copy.add_record(high)
         with self.assertRaises(RestrictionException) as ctx:
-            restrictor.process_source_zone(copy)
+            restrictor.process_source_zone(copy, None)
         self.assertEqual(
             'high.unit.tests. ttl=999999 too high, max_ttl=604800',
             str(ctx.exception),
@@ -99,14 +99,14 @@ class TestTtlRestrictionFilter(TestCase):
         zone.add_record(another)
 
         # 42 and 300 are allowed through
-        restricted = restrictor.process_source_zone(zone)
+        restricted = restrictor.process_source_zone(zone, None)
         self.assertEqual(zone.records, restricted.records)
 
         # 16 is not
         copy = zone.copy()
         copy.add_record(low)
         with self.assertRaises(RestrictionException) as ctx:
-            restrictor.process_source_zone(copy)
+            restrictor.process_source_zone(copy, None)
         self.assertEqual(
             'low.unit.tests. ttl=0 not an allowed value, allowed_ttls={42, 300}',
             str(ctx.exception),

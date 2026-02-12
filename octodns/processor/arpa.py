@@ -19,8 +19,9 @@ class AutoArpa(BaseProcessor):
         max_auto_arpa=999,
         inherit_ttl=False,
         wildcard_replacement=None,
+        **kwargs,
     ):
-        super().__init__(name)
+        super().__init__(name, **kwargs)
         self.log = getLogger(f'AutoArpa[{name}]')
         self.log.info(
             '__init__: ttl=%d, populate_should_replace=%s, max_auto_arpa=%d, inherit_ttl=%s, wildcard_replacement=%s',
@@ -37,7 +38,7 @@ class AutoArpa(BaseProcessor):
         self.wildcard_replacement = wildcard_replacement
         self._records = defaultdict(list)
 
-    def process_source_zone(self, desired, sources):
+    def process_source_zone(self, desired, sources, lenient=False):
         for record in desired.records:
             if record._type in ('A', 'AAAA') and (
                 record.name != '*' or self.wildcard_replacement is not None

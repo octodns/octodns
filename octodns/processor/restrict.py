@@ -51,13 +51,15 @@ class TtlRestrictionFilter(BaseProcessor):
 
     SEVEN_DAYS = 60 * 60 * 24 * 7
 
-    def __init__(self, name, min_ttl=1, max_ttl=SEVEN_DAYS, allowed_ttls=None):
-        super().__init__(name)
+    def __init__(
+        self, name, min_ttl=1, max_ttl=SEVEN_DAYS, allowed_ttls=None, **kwargs
+    ):
+        super().__init__(name, **kwargs)
         self.min_ttl = min_ttl
         self.max_ttl = max_ttl
         self.allowed_ttls = set(allowed_ttls) if allowed_ttls else None
 
-    def process_source_zone(self, zone, *args, **kwargs):
+    def process_source_zone(self, zone, sources, lenient=False):
         for record in zone.records:
             if record.lenient:
                 continue
