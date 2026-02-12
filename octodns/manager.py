@@ -748,14 +748,21 @@ class Manager(object):
 
     def sync(
         self,
-        eligible_zones=[],
-        eligible_sources=[],
-        eligible_targets=[],
+        eligible_zones=None,
+        eligible_sources=None,
+        eligible_targets=None,
         dry_run=True,
         force=False,
         plan_output_fh=stdout,
         checksum=None,
     ):
+        if eligible_zones is None:
+            eligible_zones = []
+        if eligible_sources is None:
+            eligible_sources = []
+        if eligible_targets is None:
+            eligible_targets = []
+        
         self.log.info(
             'sync: eligible_zones=%s, eligible_targets=%s, dry_run=%s, force=%s, plan_output_fh=%s, checksum=%s',
             eligible_zones,
