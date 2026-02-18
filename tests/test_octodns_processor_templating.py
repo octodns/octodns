@@ -147,6 +147,7 @@ class TemplatingTest(TestCase):
     @patch('octodns.record.TxtValue.template')
     def test_trailing_dots(self, mock_template):
         templ = Templating('test', trailing_dots=False)
+        mock_template.return_value = 'There are 1 record(s) in unit.tests.'
 
         zone = Zone('unit.tests.', [])
         record_source = DummySource('record')

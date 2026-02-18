@@ -136,8 +136,7 @@ class Templating(BaseProcessor):
                     template(v, params, record) for v in record.values
                 ]
                 if record.values != new_values:
-                    new = record.copy()
-                    new.values = new_values
+                    new = record.copy(values=new_values, lenient=lenient)
                     desired.add_record(new, replace=True, lenient=lenient)
             else:
                 if not hasattr(record.value, 'template'):
@@ -145,8 +144,7 @@ class Templating(BaseProcessor):
                     continue
                 new_value = template(record.value, params, record)
                 if record.value != new_value:
-                    new = record.copy()
-                    new.value = new_value
+                    new = record.copy(value=new_value, lenient=lenient)
                     desired.add_record(new, replace=True, lenient=lenient)
 
         return desired, existing
