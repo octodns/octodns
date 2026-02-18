@@ -4,6 +4,7 @@
 
 from unittest import TestCase
 
+from octodns.processor.templating import Templating
 from octodns.record import Record
 from octodns.record.exception import ValidationError
 from octodns.record.ptr import PtrRecord, PtrValue
@@ -41,7 +42,7 @@ class TestRecordPtr(TestCase):
         # empty value
         with self.assertRaises(ValidationError) as ctx:
             Record.new(self.zone, '', {'type': 'PTR', 'ttl': 600, 'value': ''})
-        self.assertEqual(['missing value(s)'], ctx.exception.reasons)
+        self.assertEqual(['missing value'], ctx.exception.reasons)
 
         # not a valid FQDN
         with self.assertRaises(ValidationError) as ctx:
@@ -49,8 +50,7 @@ class TestRecordPtr(TestCase):
                 self.zone, '', {'type': 'PTR', 'ttl': 600, 'value': '_.'}
             )
         self.assertEqual(
-            ['Invalid PTR value "_." is not a valid FQDN.'],
-            ctx.exception.reasons,
+            ['PTR value "_." is not a valid FQDN'], ctx.exception.reasons
         )
 
         # no trailing .
@@ -86,3 +86,40 @@ class TestRecordPtr(TestCase):
         )
         self.assertEqual('second.target.', a.values[0].rdata_text)
         self.assertEqual('some.target.', a.values[1].rdata_text)
+
+    def test_template_validation(self):
+        templ = Templating('test')
+
+        zone = Zone('0.0.10.in-addr.arpa.', [])
+        ptr = Record.new(
+            zone,
+            '1',
+            {'type': 'PTR', 'ttl': 600, 'value': '{zone_name}example.com.'},
+            lenient=False,
+        )
+        zone.add_record(ptr)
+
+        # Should not raise any ValidationError related to the templating
+        # variables as target value validation must takes place after variables
+        # substitution.
+        templ.process_source_and_target_zones(zone, None, None)
+
+        ptr = Record.new(
+            zone,
+            '2',
+            {
+                'type': 'PTR',
+                'ttl': 600,
+                # Value is missing ending dot.
+                'value': '{zone_name}example.com',
+            },
+            lenient=False,
+        )
+        zone.add_record(ptr, replace=True)
+
+        with self.assertRaises(ValidationError) as ctx:
+            templ.process_source_and_target_zones(zone, None, None)
+        self.assertEqual(
+            ['PTR value "0.0.10.in-addr.arpa.example.com" missing trailing .'],
+            ctx.exception.reasons,
+        )

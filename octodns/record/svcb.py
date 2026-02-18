@@ -7,13 +7,12 @@ from base64 import b64decode
 from binascii import Error as binascii_error
 from ipaddress import AddressValueError, IPv4Address, IPv6Address
 
-from fqdn import FQDN
-
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .chunked import _ChunkedValue
 from .rr import RrParseError
+from .target import validate_target_fqdn
 
 SUPPORTED_PARAMS = {}
 
@@ -179,7 +178,7 @@ class SvcbValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def validate(cls, data, _):
+    def validate(cls, data, _type):
         reasons = []
         for value in data:
             svcpriority = -1
@@ -193,19 +192,7 @@ class SvcbValue(EqualityTupleMixin, dict):
                 except ValueError:
                     reasons.append(f'invalid priority "{value["svcpriority"]}"')
 
-            if 'targetname' not in value or value['targetname'] == '':
-                reasons.append('missing targetname')
-            else:
-                targetname = str(value.get('targetname', ''))
-                targetname = idna_encode(targetname)
-                if not targetname.endswith('.'):
-                    reasons.append(
-                        f'SVCB value "{targetname}" missing trailing .'
-                    )
-                if targetname != '.' and not FQDN(targetname).is_valid:
-                    reasons.append(
-                        f'Invalid SVCB target "{targetname}" is not a valid FQDN.'
-                    )
+            reasons += validate_target_fqdn(value.get('targetname'), _type)
 
             if 'svcparams' in value:
                 svcparams = value.get('svcparams', dict())

@@ -6,6 +6,7 @@ from unittest import TestCase
 
 from helpers import SimpleProvider
 
+from octodns.processor.templating import Templating
 from octodns.record import Record
 from octodns.record.dname import DnameRecord
 from octodns.record.exception import ValidationError
@@ -90,5 +91,42 @@ class TestRecordDname(TestCase):
             )
         self.assertEqual(
             ['DNAME value "foo.bar.com" missing trailing .'],
+            ctx.exception.reasons,
+        )
+
+    def test_template_validation(self):
+        templ = Templating('test')
+
+        zone = Zone('unit.tests.', [])
+        dname = Record.new(
+            zone,
+            'sub',
+            {'type': 'DNAME', 'ttl': 600, 'value': '{zone_name}example.com.'},
+            lenient=False,
+        )
+        zone.add_record(dname)
+
+        # Should not raise any ValidationError related to the templating
+        # variables as target value validation must takes place after variables
+        # substitution.
+        templ.process_source_and_target_zones(zone, None, None)
+
+        dname = Record.new(
+            zone,
+            'sub',
+            {
+                'type': 'DNAME',
+                'ttl': 600,
+                # Value is missing trailing dot
+                'value': '{zone_name}example.com',
+            },
+            lenient=False,
+        )
+        zone.add_record(dname, replace=True)
+
+        with self.assertRaises(ValidationError) as ctx:
+            templ.process_source_and_target_zones(zone, None, None)
+        self.assertEqual(
+            ['DNAME value "unit.tests.example.com" missing trailing .'],
             ctx.exception.reasons,
         )

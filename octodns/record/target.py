@@ -7,6 +7,39 @@ from fqdn import FQDN
 from ..idna import idna_encode
 
 
+def validate_target_fqdn(target, _type):
+    # YAML kay name for target.
+    key = 'value'
+    if _type == 'MX':
+        key = 'exchange'
+    elif _type in ['HTTPS', 'SVCB']:
+        key = 'targetname'
+    elif _type == 'SRV':
+        key = 'target'
+
+    if not target:
+        return [f'missing {key}']
+
+    # Allow null target for records types that support it.
+    if target == '.' and _type in ['HTTPS', 'MX', 'SVCB', 'SRV']:
+        return []
+
+    # Bypass record value validation if it contains templating variables as they
+    # haven't been substituted yet.
+    if '{' and '}' in target:
+        return []
+
+    reasons = []
+    target = idna_encode(target)
+    if not FQDN(str(target), allow_underscores=True).is_valid:
+        reasons.append(f'{_type} {key} "{target}" is not a valid FQDN')
+
+    if not target.endswith('.'):
+        reasons.append(f'{_type} {key} "{target}" missing trailing .')
+
+    return reasons
+
+
 class _TargetValue(str):
     @classmethod
     def parse_rdata_text(self, value):
@@ -14,18 +47,7 @@ class _TargetValue(str):
 
     @classmethod
     def validate(cls, data, _type):
-        reasons = []
-        if data == '':
-            reasons.append('empty value')
-        elif not data:
-            reasons.append('missing value')
-        else:
-            data = idna_encode(data)
-            if not FQDN(str(data), allow_underscores=True).is_valid:
-                reasons.append(f'{_type} value "{data}" is not a valid FQDN')
-            elif not data.endswith('.'):
-                reasons.append(f'{_type} value "{data}" missing trailing .')
-        return reasons
+        return validate_target_fqdn(data, _type)
 
     @classmethod
     def process(cls, value):
@@ -56,17 +78,13 @@ class _TargetsValue(str):
 
     @classmethod
     def validate(cls, data, _type):
-        if not data or all(not d for d in data):
+        if not data:
             return ['missing value(s)']
+
         reasons = []
         for value in data:
-            value = idna_encode(value)
-            if not FQDN(value, allow_underscores=True).is_valid:
-                reasons.append(
-                    f'Invalid {_type} value "{value}" is not a valid FQDN.'
-                )
-            elif not value.endswith('.'):
-                reasons.append(f'{_type} value "{value}" missing trailing .')
+            reasons += validate_target_fqdn(value, _type)
+
         return reasons
 
     @classmethod
