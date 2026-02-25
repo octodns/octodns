@@ -317,7 +317,7 @@ class TestMxValue(TestCase):
                 'ttl': 1800,
                 'value': {
                     'preference': 10,
-                    # Exchange is missing tailing dot
+                    # Exchange is missing trailing dot
                     'exchange': '{zone_name}example.com',
                 },
             },
