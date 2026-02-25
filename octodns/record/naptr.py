@@ -8,7 +8,7 @@ from .rr import RrParseError
 
 
 class NaptrValue(EqualityTupleMixin, dict):
-    VALID_FLAGS = ('S', 'A', 'U', 'P')
+    VALID_FLAGS = ('S', 'A', 'U', 'P', 's', 'a', 'u', 'p')
 
     @classmethod
     def parse_rdata_text(cls, value):
@@ -75,7 +75,7 @@ class NaptrValue(EqualityTupleMixin, dict):
             {
                 'order': int(value['order']),
                 'preference': int(value['preference']),
-                'flags': value['flags'],
+                'flags': value['flags'].upper(),
                 'service': value['service'],
                 'regexp': value['regexp'],
                 'replacement': value['replacement'],
