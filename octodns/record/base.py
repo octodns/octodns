@@ -278,12 +278,12 @@ class Record(EqualityTupleMixin):
         # Copy record data but overrides values during copy instead of setting
         # record.value(s) later. Useful when you want to force the new record
         # values to be validated.
-        if value:
-            data.pop('values', None)
-            data['value'] = value
-        elif values:
+        if values is not None:
             data.pop('value', None)
             data['values'] = values
+        elif value is not None:
+            data.pop('values', None)
+            data['value'] = value
 
         return Record.new(
             zone if zone else self.zone,
