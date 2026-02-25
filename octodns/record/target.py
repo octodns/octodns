@@ -26,7 +26,7 @@ def validate_target_fqdn(target, _type):
 
     # Bypass record value validation if it contains templating variables as they
     # haven't been substituted yet.
-    if '{' and '}' in target:
+    if '{' in target and '}' in target:
         return []
 
     reasons = []
