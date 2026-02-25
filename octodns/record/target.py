@@ -7,16 +7,7 @@ from fqdn import FQDN
 from ..idna import idna_encode
 
 
-def validate_target_fqdn(target, _type):
-    # YAML kay name for target.
-    key = 'value'
-    if _type == 'MX':
-        key = 'exchange'
-    elif _type in ['HTTPS', 'SVCB']:
-        key = 'targetname'
-    elif _type == 'SRV':
-        key = 'target'
-
+def validate_target_fqdn(target, _type, key='value'):
     if not target:
         return [f'missing {key}']
 

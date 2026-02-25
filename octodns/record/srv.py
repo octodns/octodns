@@ -63,7 +63,7 @@ class SrvValue(EqualityTupleMixin, dict):
                 reasons.append(f'invalid port "{value["port"]}"')
             try:
                 target = value['target']
-                reasons += validate_target_fqdn(target, _type)
+                reasons += validate_target_fqdn(target, _type, 'target')
             except KeyError:
                 reasons.append('missing target')
         return reasons

@@ -39,7 +39,7 @@ class MxValue(EqualityTupleMixin, dict):
             exchange = None
             try:
                 exchange = value.get('exchange') or value['value']
-                reasons += validate_target_fqdn(exchange, _type)
+                reasons += validate_target_fqdn(exchange, _type, 'exchange')
             except KeyError:
                 reasons.append('missing exchange')
         return reasons

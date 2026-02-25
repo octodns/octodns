@@ -192,7 +192,9 @@ class SvcbValue(EqualityTupleMixin, dict):
                 except ValueError:
                     reasons.append(f'invalid priority "{value["svcpriority"]}"')
 
-            reasons += validate_target_fqdn(value.get('targetname'), _type)
+            reasons += validate_target_fqdn(
+                value.get('targetname'), _type, 'targetname'
+            )
 
             if 'svcparams' in value:
                 svcparams = value.get('svcparams', dict())
