@@ -6,6 +6,7 @@ from unittest import TestCase
 
 from helpers import SimpleProvider
 
+from octodns.processor.templating import Templating
 from octodns.record import Record
 from octodns.record.alias import AliasRecord
 from octodns.record.exception import ValidationError
@@ -84,7 +85,7 @@ class TestRecordAlias(TestCase):
             Record.new(
                 self.zone, '', {'type': 'ALIAS', 'ttl': 600, 'value': ''}
             )
-        self.assertEqual(['empty value'], ctx.exception.reasons)
+        self.assertEqual(['missing value'], ctx.exception.reasons)
 
         # not a valid FQDN
         with self.assertRaises(ValidationError) as ctx:
@@ -104,5 +105,42 @@ class TestRecordAlias(TestCase):
             )
         self.assertEqual(
             ['ALIAS value "foo.bar.com" missing trailing .'],
+            ctx.exception.reasons,
+        )
+
+    def test_template_validation(self):
+        templ = Templating('test')
+
+        zone = Zone('unit.tests.', [])
+        alias = Record.new(
+            zone,
+            '',
+            {'type': 'ALIAS', 'ttl': 600, 'value': '{zone_name}example.com.'},
+            lenient=False,
+        )
+        zone.add_record(alias)
+
+        # Should not raise any ValidationError related to the templating
+        # variables as target value validation must takes place after variables
+        # substitution.
+        templ.process_source_and_target_zones(zone, None, None)
+
+        alias = Record.new(
+            zone,
+            '',
+            {
+                'type': 'ALIAS',
+                'ttl': 600,
+                # Value is missing trailing dot
+                'value': '{zone_name}example.com',
+            },
+            lenient=False,
+        )
+        zone.add_record(alias, replace=True)
+
+        with self.assertRaises(ValidationError) as ctx:
+            templ.process_source_and_target_zones(zone, None, None)
+        self.assertEqual(
+            ['ALIAS value "unit.tests.example.com" missing trailing .'],
             ctx.exception.reasons,
         )

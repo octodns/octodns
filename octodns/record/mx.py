@@ -2,12 +2,11 @@
 #
 #
 
-from fqdn import FQDN
-
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
+from .target import validate_target_fqdn
 
 
 class MxValue(EqualityTupleMixin, dict):
@@ -39,21 +38,8 @@ class MxValue(EqualityTupleMixin, dict):
                 reasons.append(f'invalid preference "{value["preference"]}"')
             exchange = None
             try:
-                exchange = value.get('exchange', None) or value['value']
-                if not exchange:
-                    reasons.append('missing exchange')
-                    continue
-                exchange = idna_encode(exchange)
-                if (
-                    exchange != '.'
-                    and not FQDN(exchange, allow_underscores=True).is_valid
-                ):
-                    reasons.append(
-                        f'Invalid MX exchange "{exchange}" is not '
-                        'a valid FQDN.'
-                    )
-                elif not exchange.endswith('.'):
-                    reasons.append(f'MX value "{exchange}" missing trailing .')
+                exchange = value.get('exchange') or value['value']
+                reasons += validate_target_fqdn(exchange, _type, 'exchange')
             except KeyError:
                 reasons.append('missing exchange')
         return reasons

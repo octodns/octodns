@@ -6,6 +6,7 @@ from unittest import TestCase
 
 from helpers import SimpleProvider
 
+from octodns.processor.templating import Templating
 from octodns.record import Record
 from octodns.record.cname import CnameRecord
 from octodns.record.exception import ValidationError
@@ -103,7 +104,10 @@ class TestRecordCname(TestCase):
                 {'type': 'CNAME', 'ttl': 600, 'value': 'https://google.com'},
             )
         self.assertEqual(
-            ['CNAME value "https://google.com" is not a valid FQDN'],
+            [
+                'CNAME value "https://google.com" is not a valid FQDN',
+                'CNAME value "https://google.com" missing trailing .',
+            ],
             ctx.exception.reasons,
         )
 
@@ -119,7 +123,10 @@ class TestRecordCname(TestCase):
                 },
             )
         self.assertEqual(
-            ['CNAME value "https://google.com/a/b/c" is not a valid FQDN'],
+            [
+                'CNAME value "https://google.com/a/b/c" is not a valid FQDN',
+                'CNAME value "https://google.com/a/b/c" missing trailing .',
+            ],
             ctx.exception.reasons,
         )
 
@@ -131,6 +138,46 @@ class TestRecordCname(TestCase):
                 {'type': 'CNAME', 'ttl': 600, 'value': 'google.com/some/path'},
             )
         self.assertEqual(
-            ['CNAME value "google.com/some/path" is not a valid FQDN'],
+            [
+                'CNAME value "google.com/some/path" is not a valid FQDN',
+                'CNAME value "google.com/some/path" missing trailing .',
+            ],
+            ctx.exception.reasons,
+        )
+
+    def test_template_validation(self):
+        templ = Templating('test')
+
+        zone = Zone('unit.tests.', [])
+        cname = Record.new(
+            zone,
+            'www',
+            {'type': 'CNAME', 'ttl': 600, 'value': '{zone_name}example.com.'},
+            lenient=False,
+        )
+        zone.add_record(cname)
+
+        # Should not raise any ValidationError related to the templating
+        # variables as target value validation must takes place after variables
+        # substitution.
+        templ.process_source_and_target_zones(zone, None, None)
+
+        cname = Record.new(
+            zone,
+            'www',
+            {
+                'type': 'CNAME',
+                'ttl': 600,
+                # Value is missing trailing dot
+                'value': '{zone_name}example.com',
+            },
+            lenient=False,
+        )
+        zone.add_record(cname, replace=True)
+
+        with self.assertRaises(ValidationError) as ctx:
+            templ.process_source_and_target_zones(zone, None, None)
+        self.assertEqual(
+            ['CNAME value "unit.tests.example.com" missing trailing .'],
             ctx.exception.reasons,
         )
