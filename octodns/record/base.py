@@ -270,17 +270,27 @@ class Record(EqualityTupleMixin):
         if self.ttl != other.ttl:
             return Update(self, other)
 
-    def copy(self, zone=None):
+    def copy(self, zone=None, value=None, values=None, lenient=True):
         # data, via _data(), will preserve context
         data = self.data
         data['type'] = self._type
+
+        # Copy record data but overrides values during copy instead of setting
+        # record.value(s) later. Useful when you want to force the new record
+        # values to be validated.
+        if values is not None:
+            data.pop('value', None)
+            data['values'] = values
+        elif value is not None:
+            data.pop('values', None)
+            data['value'] = value
 
         return Record.new(
             zone if zone else self.zone,
             self.name,
             data,
             self.source,
-            lenient=True,
+            lenient=lenient,
         )
 
     # NOTE: we're using __hash__ and ordering methods that consider Records

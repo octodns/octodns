@@ -6,6 +6,7 @@ from unittest import TestCase
 
 from helpers import SimpleProvider
 
+from octodns.processor.templating import Templating
 from octodns.record import Record
 from octodns.record.exception import ValidationError
 from octodns.record.rr import RrParseError
@@ -408,7 +409,7 @@ class TestRecordSrv(TestCase):
                 },
             )
         self.assertEqual(
-            ['SRV value "foo.bar.baz" missing trailing .'],
+            ['SRV target "foo.bar.baz" missing trailing .'],
             ctx.exception.reasons,
         )
 
@@ -447,7 +448,7 @@ class TestRecordSrv(TestCase):
                 },
             )
         self.assertEqual(
-            ['Invalid SRV target "100 foo.bar.com." is not a valid FQDN.'],
+            ['SRV target "100 foo.bar.com." is not a valid FQDN'],
             ctx.exception.reasons,
         )
 
@@ -477,3 +478,55 @@ class TestSrvValue(TestCase):
         got = value.template({'needle': 42})
         self.assertIsNot(value, got)
         self.assertEqual('has_42_placeholder', got.target)
+
+    def test_template_validation(self):
+        templ = Templating('test')
+
+        zone = Zone('unit.tests.', [])
+        srv = Record.new(
+            zone,
+            '_srv._tcp',
+            {
+                'type': 'SRV',
+                'ttl': 1800,
+                # Only the "target" field can be templated.
+                'value': {
+                    'priority': 1,
+                    'weight': 2,
+                    'port': 3,
+                    'target': '{zone_name}example.com.',
+                },
+            },
+            lenient=False,
+        )
+        zone.add_record(srv)
+
+        # Should not raise any ValidationError related to the templating
+        # variables as target value validation must takes place after variables
+        # substitution.
+        templ.process_source_and_target_zones(zone, None, None)
+
+        srv = Record.new(
+            zone,
+            '_srv._tcp',
+            {
+                'type': 'SRV',
+                'ttl': 1800,
+                'value': {
+                    'priority': 1,
+                    'weight': 2,
+                    'port': 3,
+                    # "{zone_name}" is already ending with a dot.
+                    'target': '{zone_name}.example.com.',
+                },
+            },
+            lenient=False,
+        )
+        zone.add_record(srv, replace=True)
+
+        with self.assertRaises(ValidationError) as ctx:
+            templ.process_source_and_target_zones(zone, None, None)
+        self.assertEqual(
+            ['SRV target "unit.tests..example.com." is not a valid FQDN'],
+            ctx.exception.reasons,
+        )

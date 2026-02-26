@@ -6,6 +6,7 @@ from unittest import TestCase
 
 from helpers import SimpleProvider
 
+from octodns.processor.templating import Templating
 from octodns.record import Record
 from octodns.record.exception import ValidationError
 from octodns.record.mx import MxRecord, MxValue
@@ -225,7 +226,8 @@ class TestRecordMx(TestCase):
                 },
             )
         self.assertEqual(
-            ['MX value "foo.bar.com" missing trailing .'], ctx.exception.reasons
+            ['MX exchange "foo.bar.com" missing trailing .'],
+            ctx.exception.reasons,
         )
 
         # exchange must be a valid FQDN
@@ -240,7 +242,7 @@ class TestRecordMx(TestCase):
                 },
             )
         self.assertEqual(
-            ['Invalid MX exchange "100 foo.bar.com." is not a valid FQDN.'],
+            ['MX exchange "100 foo.bar.com." is not a valid FQDN'],
             ctx.exception.reasons,
         )
 
@@ -281,3 +283,51 @@ class TestMxValue(TestCase):
         got = value.template({'needle': 42})
         self.assertIsNot(value, got)
         self.assertEqual('smtp1.42.', got.exchange)
+
+    def test_template_validation(self):
+        templ = Templating('test')
+
+        zone = Zone('unit.tests.', [])
+        mx = Record.new(
+            zone,
+            '',
+            {
+                'type': 'MX',
+                'ttl': 1800,
+                # Only the "exchange" field can be templated.
+                'value': {
+                    'preference': 10,
+                    'exchange': '{zone_name}example.com.',
+                },
+            },
+            lenient=False,
+        )
+        zone.add_record(mx)
+
+        # Should not raise any ValidationError related to the templating
+        # variables as target value validation must takes place after variables
+        # substitution.
+        templ.process_source_and_target_zones(zone, None, None)
+
+        mx = Record.new(
+            zone,
+            '',
+            {
+                'type': 'MX',
+                'ttl': 1800,
+                'value': {
+                    'preference': 10,
+                    # Exchange is missing trailing dot
+                    'exchange': '{zone_name}example.com',
+                },
+            },
+            lenient=False,
+        )
+        zone.add_record(mx, replace=True)
+
+        with self.assertRaises(ValidationError) as ctx:
+            templ.process_source_and_target_zones(zone, None, None)
+        self.assertEqual(
+            ['MX exchange "unit.tests.example.com" missing trailing .'],
+            ctx.exception.reasons,
+        )

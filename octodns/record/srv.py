@@ -4,12 +4,11 @@
 
 import re
 
-from fqdn import FQDN
-
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
+from .target import validate_target_fqdn
 
 
 class SrvValue(EqualityTupleMixin, dict):
@@ -64,19 +63,7 @@ class SrvValue(EqualityTupleMixin, dict):
                 reasons.append(f'invalid port "{value["port"]}"')
             try:
                 target = value['target']
-                if not target:
-                    reasons.append('missing target')
-                    continue
-                target = idna_encode(target)
-                if not target.endswith('.'):
-                    reasons.append(f'SRV value "{target}" missing trailing .')
-                if (
-                    target != '.'
-                    and not FQDN(target, allow_underscores=True).is_valid
-                ):
-                    reasons.append(
-                        f'Invalid SRV target "{target}" is not a valid FQDN.'
-                    )
+                reasons += validate_target_fqdn(target, _type, 'target')
             except KeyError:
                 reasons.append('missing target')
         return reasons
