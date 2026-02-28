@@ -22,6 +22,7 @@ from .ns import NsRecord, NsValue
 from .openpgpkey import OpenpgpkeyRecord, OpenpgpkeyValue
 from .ptr import PtrRecord, PtrValue
 from .rr import Rr, RrParseError
+from .soa import SoaRecord, SoaValue
 from .spf import SpfRecord
 from .srv import SrvRecord, SrvValue
 from .sshfp import SshfpRecord, SshfpValue
@@ -70,6 +71,8 @@ Record
 RecordException
 Rr
 RrParseError
+SoaRecord
+SoaValue
 SpfRecord
 SrvRecord
 SrvValue
