@@ -356,13 +356,14 @@ class Zone(object):
             self.hydrate()
 
         name = record.name
+        new_lenient = record.lenient
 
         if name in self.sub_zones:
             # It's an exact match for a sub-zone
             if not (record._type == 'NS' or record._type == 'DS'):
                 # and not a NS or DS record, this should be in the sub
                 msg = f'Record {record.fqdn} is a managed sub-zone and not of type NS or DS'
-                if lenient:
+                if lenient or new_lenient:
                     self.log.warning(msg)
                 else:
                     raise SubzoneRecordException(msg, record)
@@ -373,7 +374,7 @@ class Zone(object):
                 if name.endswith(f'.{sub_zone}'):
                     # this should be in a sub
                     msg = f'Record {record.fqdn} is under a managed subzone'
-                    if lenient:
+                    if lenient or new_lenient:
                         self.log.warning(msg)
                     else:
                         raise SubzoneRecordException(msg, record)
@@ -383,7 +384,6 @@ class Zone(object):
             self._records[name].discard(record)
 
         node = self._records[name]
-        new_lenient = record.lenient
         existing_lenient = all(r.lenient for r in node)
         if record in node:
             # We already have a record at this node of this type

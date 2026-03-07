@@ -453,6 +453,21 @@ class TestZone(TestCase):
         zone.add_record(record)
         self.assertEqual(1, len(zone.records))
 
+        # something that should live in the sub is allowed when lenient is enabled at the record level
+        zone = Zone('unit.tests.', set(['sub', 'barred']))
+        record = Record.new(
+            zone,
+            'ns.sub',
+            {
+                'octodns': {'lenient': True},
+                'ttl': 3600,
+                'type': 'A',
+                'value': ['1.2.3.4'],
+            },
+        )
+        zone.add_record(record)
+        self.assertEqual(1, len(zone.records))
+
     def test_ignored_records(self):
         zone_normal = Zone('unit.tests.', [])
         zone_ignored = Zone('unit.tests.', [])
