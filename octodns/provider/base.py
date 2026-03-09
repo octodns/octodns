@@ -46,6 +46,14 @@ class BaseProvider(BaseSource):
           access_key_id: env/AWS_ACCESS_KEY_ID
           secret_access_key: env/AWS_SECRET_ACCESS_KEY
 
+    Environment variables support default values that are used when the
+    variable is not set::
+
+      providers:
+        example:
+          class: whatever.ExampleProvider
+          region: env/AWS_REGION/us-east-1
+
       zones:
         example.com.:
           sources:
