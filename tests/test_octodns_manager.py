@@ -1439,6 +1439,24 @@ class TestManager(TestCase):
             ),
         )
 
+        # default values when env var is missing
+        self.assertEqual(
+            {'secret': 'fallback', 'num': 99, 'flt': 1.5},
+            manager._build_kwargs(
+                {
+                    'secret': 'env/OCTODNS_MISSING/fallback',
+                    'num': 'env/OCTODNS_MISSING/99',
+                    'flt': 'env/OCTODNS_MISSING/1.5',
+                }
+            ),
+        )
+
+        # default value ignored when env var exists
+        self.assertEqual(
+            {'secret': 42},
+            manager._build_kwargs({'secret': 'env/OCTODNS_TEST_1/ignored'}),
+        )
+
     def test_config_secret_handlers(self):
         # config doesn't matter here
         manager = Manager(get_config_filename('simple.yaml'))

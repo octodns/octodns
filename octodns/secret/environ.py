@@ -14,14 +14,22 @@ class EnvironSecretsException(SecretsException):
 
 class EnvironSecrets(BaseSecrets):
     def fetch(self, name, source):
+        # check for a default value, format is VARIABLE_NAME/DEFAULT_VALUE
+        default = None
+        if '/' in name:
+            name, default = name.split('/', 1)
+
         # expand env variables
         try:
             v = environ[name]
         except KeyError:
-            self.log.exception('Invalid provider config')
-            raise EnvironSecretsException(
-                f'Incorrect provider config, missing env var {name}, {source.context}'
-            )
+            if default is not None:
+                v = default
+            else:
+                self.log.exception('Invalid provider config')
+                raise EnvironSecretsException(
+                    f'Incorrect provider config, missing env var {name}, {source.context}'
+                )
 
         try:
             if '.' in v:
