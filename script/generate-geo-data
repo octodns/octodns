@@ -55,8 +55,7 @@ for country in countries:
 
 geos = dict(geos)
 
-print(
-    '''#
+print('''#
 # -*- coding: utf-8 -*-
 #
 # This file is generated using
@@ -64,8 +63,7 @@ print(
 # do not modify it directly
 #
 
-geo_data = {'''
-)
+geo_data = {''')
 
 for continent, details in sorted(geos.items()):
     print(f"    '{continent}': {{")

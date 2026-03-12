@@ -179,8 +179,7 @@ class TestYamlProvider(TestCase):
             # create a idna named file
             idna_filename = join(td.dirname, idna_encode(filename))
             with open(idna_filename, 'w') as fh:
-                fh.write(
-                    '''---
+                fh.write('''---
 '':
   type: A
   value: 1.2.3.4
@@ -192,8 +191,7 @@ xn--dj-kia8a:
 これはテストです:
   type: A
   value: 3.4.5.6
-'''
-                )
+''')
 
             # populates fine when there's just the idna version (as a fallback)
             provider.populate(zone)
@@ -275,13 +273,11 @@ xn--dj-kia8a:
             # Create one zone file
             zone_file = join(directory, 'exists.zone.yaml')
             with open(zone_file, 'w') as fh:
-                fh.write(
-                    '''---
+                fh.write('''---
 www:
   type: A
   value: 1.2.3.4
-'''
-                )
+''')
 
             # Create a second directory without the zone file
             directory2 = join(td.dirname, 'other')

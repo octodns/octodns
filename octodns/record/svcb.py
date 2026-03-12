@@ -145,7 +145,7 @@ class SvcbValue(EqualityTupleMixin, dict):
     @classmethod
     def parse_rdata_text(cls, value):
         try:
-            (svcpriority, targetname, *svcparams) = value.split(' ')
+            svcpriority, targetname, *svcparams = value.split(' ')
         except ValueError:
             raise RrParseError()
         try:

@@ -14,38 +14,32 @@ class TestYaml(TestCase):
     def test_stuff(self):
         self.assertEqual(
             {1: 'a', 2: 'b', '3': 'c', 10: 'd', '11': 'e'},
-            safe_load(
-                '''
+            safe_load('''
 1: a
 2: b
 '3': c
 10: d
 '11': e
-'''
-            ),
+'''),
         )
 
         self.assertEqual(
             {'*.1.2': 'a', '*.2.2': 'b', '*.10.1': 'c', '*.11.2': 'd'},
-            safe_load(
-                '''
+            safe_load('''
 '*.1.2': 'a'
 '*.2.2': 'b'
 '*.10.1': 'c'
 '*.11.2': 'd'
-'''
-            ),
+'''),
         )
 
         with self.assertRaises(ConstructorError) as ctx:
-            safe_load(
-                '''
+            safe_load('''
 '*.2.2': 'b'
 '*.1.2': 'a'
 '*.11.2': 'd'
 '*.10.1': 'c'
-'''
-            )
+''')
         self.assertTrue(
             'keys out of order: expected *.1.2 got *.2.2 at'
             in ctx.exception.problem

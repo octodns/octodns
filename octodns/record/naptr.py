@@ -13,7 +13,7 @@ class NaptrValue(EqualityTupleMixin, dict):
     @classmethod
     def parse_rdata_text(cls, value):
         try:
-            (order, preference, flags, service, regexp, replacement) = (
+            order, preference, flags, service, regexp, replacement = (
                 value.split(' ')
             )
         except ValueError:
