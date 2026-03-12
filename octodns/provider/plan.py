@@ -338,8 +338,7 @@ class PlanHtml(_PlanFhOutput):
 
                 fh.write('<h3>')
                 fh.write(target.id)
-                fh.write(
-                    '''</h3>
+                fh.write('''</h3>
 <table>
   <tr>
     <th>Operation</th>
@@ -349,8 +348,7 @@ class PlanHtml(_PlanFhOutput):
     <th>Value</th>
     <th>Source</th>
   </tr>
-'''
-                )
+''')
 
                 if plan.exists is False:
                     fh.write('  <tr>\n    <td>Create</td>\n    <td colspan=5>')
