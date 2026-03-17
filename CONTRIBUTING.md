@@ -87,7 +87,7 @@ During a Sphinx build, `docs/conf.py` rewrites repo-local links (e.g.
 `/docs/...`, `/octodns/...`) to full GitHub tree URLs. The ref used for those
 URLs is resolved in this order:
 
-1. `OCTODNS_SOURCE_BASE_URL` env var — explicit override (e.g. for forks)
+1. `OCTODNS_SOURCE_BASE_URL` env var — explicit override (e.g. for forks, like https://github.com/MY_FORK/octodns )
 2. `READTHEDOCS_GIT_IDENTIFIER` — set automatically by Read the Docs
 3. Local git checkout context: branch → exact tag → short SHA
 4. Fallback: `main`

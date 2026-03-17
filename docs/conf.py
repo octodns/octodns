@@ -100,7 +100,7 @@ html_theme = "sphinx_rtd_theme"
 # aliases such as "latest" and "stable".
 #
 # The GitHub base URL is resolved in this order:
-#   1. OCTODNS_SOURCE_BASE_URL env var (explicit override, e.g. for forks)
+#   1. OCTODNS_SOURCE_BASE_URL env var (explicit override, e.g. for forks, like https://github.com/MY_FORK/octodns)
 #   2. READTHEDOCS_GIT_IDENTIFIER (ref provided by Read the Docs)
 #   3. Local git checkout context (branch, then exact tag, then commit SHA)
 #   4. Fallback: main
@@ -144,9 +144,10 @@ def _detect_docs_ref():
 
 
 _source_base = os.environ.get(
-    "OCTODNS_SOURCE_BASE_URL",
-    f"https://github.com/octodns/octodns/tree/{_detect_docs_ref()}",
+    "OCTODNS_SOURCE_BASE_URL", "https://github.com/octodns/octodns"
 )
+_source_base = f"{_source_base}/tree/{_detect_docs_ref()}"
+
 _repo_local_link_prefixes = (
     "/octodns/",
     "/CONTRIBUTING.md",
