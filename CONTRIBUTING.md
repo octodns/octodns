@@ -51,6 +51,57 @@ source env/bin/activate
 
 See the [`script/`](/script) if you'd like to run tests and coverage ([`script/coverage`](/script/coverage)) and coverage ([`script/lint`](/script/lint)). After bootstrapping and sourcing the `env/` commands in the [`octodns/cmds/`](/octodns/cmds) directory can be run with `PYTHONPATH=. ./octodns/cmds/sync.py ...`
 
+## Documentation and Read the Docs
+
+### Build docs locally
+
+Use the docs helper script:
+
+```bash
+./script/generate-docs
+```
+
+By default this builds HTML into `docs/_build/html/`. You can choose another
+Sphinx builder with `BUILDER`, for example:
+
+```bash
+BUILDER=pdf ./script/generate-docs
+BUILDER=epub ./script/generate-docs
+```
+
+The script runs `sphinx-build --fail-on-warning`, so any documentation warning
+fails the build.
+
+### How Read the Docs builds docs
+
+Read the Docs configuration lives in [`.readthedocs.yaml`](/.readthedocs.yaml):
+
+- Python 3.13
+- dependencies installed from `requirements.txt`
+- Sphinx configuration from `docs/conf.py`
+- extra formats: `epub` and `pdf`
+
+### Source link ref selection
+
+During a Sphinx build, `docs/conf.py` rewrites repo-local links (e.g.
+`/docs/...`, `/octodns/...`) to full GitHub tree URLs. The ref used for those
+URLs is resolved in this order:
+
+1. `OCTODNS_SOURCE_BASE_URL` env var — explicit override (e.g. for forks, like https://github.com/MY_FORK/octodns )
+2. `READTHEDOCS_GIT_IDENTIFIER` — set automatically by Read the Docs
+3. Local git checkout context: branch → exact tag → short SHA
+4. Error - if no ref can be determined, the build fails with a clear message
+
+This keeps generated source links aligned with the branch/tag/commit actually
+checked out for that docs build.
+
+To build docs locally pointing to your fork:
+
+```bash
+OCTODNS_SOURCE_BASE_URL=https://github.com/MY_FORK/octodns \
+./script/generate-docs
+```
+
 ## License note
 
 We can only accept contributions that are compatible with the MIT license.

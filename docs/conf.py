@@ -1,5 +1,9 @@
+import os
 import sys
 from pathlib import Path
+from subprocess import DEVNULL, STDOUT, CalledProcessError, check_output
+
+from docutils import nodes
 
 sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
 
@@ -87,3 +91,98 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 ### theme ###
 
 html_theme = "sphinx_rtd_theme"
+
+
+### source links ###
+# Keep repo-local links in RST so GitHub/local rendering works as expected.
+# During Sphinx builds, rewrite those links to GitHub so hosted docs resolve.
+#
+# This only affects rewritten source links. Read the Docs controls version
+# aliases such as "latest" and "stable".
+#
+# The GitHub base URL is resolved in this order:
+#   1. OCTODNS_SOURCE_BASE_URL env var (explicit override, e.g. for forks, like https://github.com/MY_FORK/octodns)
+#   2. READTHEDOCS_GIT_IDENTIFIER (ref provided by Read the Docs)
+#   3. Local git checkout context (branch, then exact tag, then commit SHA)
+#   4. Raise an error if no git ref can be determined
+def _detect_git_ref():
+
+    def _git(*args, stderr=DEVNULL):
+        try:
+            return check_output(
+                ["git", *args], stderr=stderr, text=True
+            ).strip()
+        except (FileNotFoundError, OSError) as e:
+            raise RuntimeError(
+                f"Unable to run git, cannot resolve docs source ref: {e}"
+            ) from e
+
+    # If HEAD points at a branch, use that branch name.
+    try:
+        branch = _git("symbolic-ref", "--quiet", "--short", "HEAD")
+        if branch:
+            return branch
+    except CalledProcessError:
+        pass
+
+    # Detached HEAD may still correspond to an exact tag.
+    try:
+        tag = _git("describe", "--tags", "--exact-match", "HEAD")
+        if tag:
+            return tag
+    except CalledProcessError:
+        pass
+
+    # Last-resort: use the checked-out commit directly.
+    try:
+        sha = _git("rev-parse", "--short", "HEAD", stderr=STDOUT)
+        if sha:
+            return sha
+    except CalledProcessError as e:
+        raise RuntimeError(
+            "Unable to determine git ref for docs source links; "
+            "set READTHEDOCS_GIT_IDENTIFIER or OCTODNS_SOURCE_BASE_URL "
+            f"when building outside a git checkout: {e.output}"
+        ) from e
+
+    raise RuntimeError(
+        "Unable to determine git ref for docs source links; "
+        "git returned an empty ref"
+    )
+
+
+def _detect_docs_ref():
+    # RTD controls latest/stable aliases. Use the exact checked-out ref when
+    # available so links always match the docs version being built.
+    rtd_identifier = os.environ.get("READTHEDOCS_GIT_IDENTIFIER", "").strip()
+    if rtd_identifier:
+        return rtd_identifier
+
+    return _detect_git_ref()
+
+
+_source_base = os.environ.get(
+    "OCTODNS_SOURCE_BASE_URL", "https://github.com/octodns/octodns"
+).rstrip("/")
+_source_base = f"{_source_base}/tree/{_detect_docs_ref()}"
+
+_repo_local_link_prefixes = (
+    "/octodns/",
+    "/CONTRIBUTING.md",
+    "/CODE_OF_CONDUCT.md",
+    "/LICENSE",
+    "/docs/",
+)
+
+
+def _rewrite_repo_local_links(app, doctree, _docname):
+    source_base = app.config.octodns_source_base_url.rstrip("/")
+    for node in doctree.findall(nodes.reference):
+        refuri = node.get("refuri")
+        if refuri and refuri.startswith(_repo_local_link_prefixes):
+            node["refuri"] = f"{source_base}{refuri}"
+
+
+def setup(app):
+    app.add_config_value("octodns_source_base_url", _source_base, "env")
+    app.connect("doctree-resolved", _rewrite_repo_local_links)

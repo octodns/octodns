@@ -333,22 +333,22 @@ Processors
    * - `octodns-spf`_
      - SPF Value Management for octoDNS
 
-.. _AcmeManagingProcessor: https://github.com/octodns/octodns/tree/main/octodns/processor/acme.py
-.. _AutoArpa: https://github.com/octodns/octodns/tree/main/octodns/processor/arpa.py
-.. _EnsureTrailingDots: https://github.com/octodns/octodns/tree/main/octodns/processor/trailing_dots.py
-.. _ExcludeRootNsChanges: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
-.. _IgnoreRootNsFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
-.. _MetaProcessor: https://github.com/octodns/octodns/tree/main/octodns/processor/meta.py
-.. _NameAllowlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
-.. _NameRejectlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
-.. _ValueAllowlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
-.. _ValueRejectlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
-.. _OwnershipProcessor: https://github.com/octodns/octodns/tree/main/octodns/processor/ownership.py
-.. _SpfDnsLookupProcessor: https://github.com/octodns/octodns/tree/main/octodns/processor/spf.py
-.. _TtlRestrictionFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/restrict.py
-.. _TypeAllowlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
-.. _TypeRejectlistFilter: https://github.com/octodns/octodns/tree/main/octodns/processor/filter.py
-.. _octodns-spf: https://github.com/octodns/octodns/tree/main//github.com/octodns/octodns-spf
+.. _AcmeManagingProcessor: /octodns/processor/acme.py
+.. _AutoArpa: /octodns/processor/arpa.py
+.. _EnsureTrailingDots: /octodns/processor/trailing_dots.py
+.. _ExcludeRootNsChanges: /octodns/processor/filter.py
+.. _IgnoreRootNsFilter: /octodns/processor/filter.py
+.. _MetaProcessor: /octodns/processor/meta.py
+.. _NameAllowlistFilter: /octodns/processor/filter.py
+.. _NameRejectlistFilter: /octodns/processor/filter.py
+.. _ValueAllowlistFilter: /octodns/processor/filter.py
+.. _ValueRejectlistFilter: /octodns/processor/filter.py
+.. _OwnershipProcessor: /octodns/processor/ownership.py
+.. _SpfDnsLookupProcessor: /octodns/processor/spf.py
+.. _TtlRestrictionFilter: /octodns/processor/restrict.py
+.. _TypeAllowlistFilter: /octodns/processor/filter.py
+.. _TypeRejectlistFilter: /octodns/processor/filter.py
+.. _octodns-spf: https://github.com/octodns/octodns-spf
 
 Custom Sources and Providers
 ----------------------------
@@ -365,8 +365,8 @@ dynamically creates ``CNAME``s for them, or ``Ec2Source`` that pulls instance
 information so that records can be created for hosts similar to how our
 ``GPanelProvider`` works.
 
-.. _source: https://github.com/octodns/octodns/tree/main/octodns/source/
-.. _provider: https://github.com/octodns/octodns/tree/main/octodns/provider/
+.. _source: /octodns/source/
+.. _provider: /octodns/provider/
 .. _gPanel: https://githubengineering.com/githubs-metal-cloud/
 .. _AWS Elastic Load Balancers: https://aws.amazon.com/elasticloadbalancing/
 
@@ -392,7 +392,7 @@ Contributing
 
 Please see our contributing_ document if you would like to participate!
 
-.. _contributing: https://github.com/octodns/octodns/tree/main/CONTRIBUTING.md
+.. _contributing: /CONTRIBUTING.md
 
 Getting help
 ------------
@@ -404,7 +404,7 @@ Please note that this project adheres to the `Contributor Covenant Code of
 Conduct`_.
 
 .. _open an issue: https://github.com/octodns/octodns/issues/new
-.. _Contributor Covenant Code of Conduct: https://github.com/octodns/octodns/tree/main/CODE_OF_CONDUCT.md
+.. _Contributor Covenant Code of Conduct: /CODE_OF_CONDUCT.md
 
 Related Projects and Resources
 ------------------------------
@@ -445,13 +445,14 @@ License
 
 octoDNS is licensed under the `MIT license`_.
 
-.. _MIT license: https://github.com/octodns/octodns/tree/mainLICENSE
+.. _MIT license: /LICENSE
 
 The MIT license grant is not for GitHub's trademarks, which include the logo
 designs. GitHub reserves all trademark and copyright rights in and to all
 GitHub trademarks. GitHub's logos include, for instance, the stylized designs
-that include "logo" in the file title in the following folder:
-https://github.com/octodns/octodns/tree/main/docs/logos/
+that include "logo" in the file title in the following folder: `docs/assets`_.
+
+.. _docs/assets: /docs/assets/
 
 GitHub® and its stylized versions and the Invertocat mark are GitHub's
 Trademarks or registered Trademarks. When using GitHub's logos, be sure to
