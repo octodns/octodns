@@ -90,10 +90,17 @@ URLs is resolved in this order:
 1. `OCTODNS_SOURCE_BASE_URL` env var — explicit override (e.g. for forks, like https://github.com/MY_FORK/octodns )
 2. `READTHEDOCS_GIT_IDENTIFIER` — set automatically by Read the Docs
 3. Local git checkout context: branch → exact tag → short SHA
-4. Fallback: `main`
+4. Error - if no ref can be determined, the build fails with a clear message
 
 This keeps generated source links aligned with the branch/tag/commit actually
 checked out for that docs build.
+
+To build docs locally pointing to your fork:
+
+```bash
+OCTODNS_SOURCE_BASE_URL=https://github.com/MY_FORK/octodns \
+./script/generate-docs
+```
 
 ## License note
 

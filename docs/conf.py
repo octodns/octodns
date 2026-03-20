@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+from subprocess import DEVNULL, STDOUT, CalledProcessError, check_output
 
 from docutils import nodes
 
@@ -103,34 +104,51 @@ html_theme = "sphinx_rtd_theme"
 #   1. OCTODNS_SOURCE_BASE_URL env var (explicit override, e.g. for forks, like https://github.com/MY_FORK/octodns)
 #   2. READTHEDOCS_GIT_IDENTIFIER (ref provided by Read the Docs)
 #   3. Local git checkout context (branch, then exact tag, then commit SHA)
-#   4. Fallback: main
+#   4. Raise an error if no git ref can be determined
 def _detect_git_ref():
-    import subprocess
 
-    def _git(*args):
+    def _git(*args, stderr=DEVNULL):
         try:
-            return subprocess.check_output(
-                ["git", *args], stderr=subprocess.DEVNULL, text=True
+            return check_output(
+                ["git", *args], stderr=stderr, text=True
             ).strip()
-        except (subprocess.CalledProcessError, FileNotFoundError, OSError):
-            return ""
+        except (FileNotFoundError, OSError) as e:
+            raise RuntimeError(
+                f"Unable to run git, cannot resolve docs source ref: {e}"
+            ) from e
 
     # If HEAD points at a branch, use that branch name.
-    branch = _git("symbolic-ref", "--quiet", "--short", "HEAD")
-    if branch:
-        return branch
+    try:
+        branch = _git("symbolic-ref", "--quiet", "--short", "HEAD")
+        if branch:
+            return branch
+    except CalledProcessError:
+        pass
 
     # Detached HEAD may still correspond to an exact tag.
-    tag = _git("describe", "--tags", "--exact-match", "HEAD")
-    if tag:
-        return tag
+    try:
+        tag = _git("describe", "--tags", "--exact-match", "HEAD")
+        if tag:
+            return tag
+    except CalledProcessError:
+        pass
 
     # Last-resort: use the checked-out commit directly.
-    sha = _git("rev-parse", "--short", "HEAD")
-    if sha:
-        return sha
+    try:
+        sha = _git("rev-parse", "--short", "HEAD", stderr=STDOUT)
+        if sha:
+            return sha
+    except CalledProcessError as e:
+        raise RuntimeError(
+            "Unable to determine git ref for docs source links; "
+            "set READTHEDOCS_GIT_IDENTIFIER or OCTODNS_SOURCE_BASE_URL "
+            f"when building outside a git checkout: {e.output}"
+        ) from e
 
-    return "main"
+    raise RuntimeError(
+        "Unable to determine git ref for docs source links; "
+        "git returned an empty ref"
+    )
 
 
 def _detect_docs_ref():
@@ -145,7 +163,7 @@ def _detect_docs_ref():
 
 _source_base = os.environ.get(
     "OCTODNS_SOURCE_BASE_URL", "https://github.com/octodns/octodns"
-)
+).rstrip("/")
 _source_base = f"{_source_base}/tree/{_detect_docs_ref()}"
 
 _repo_local_link_prefixes = (
