@@ -1,3 +1,17 @@
+## 1.16.0 - 2026-03-22
+
+Minor:
+* Add support for default values to env ars, env/VAR_NAME/DEFAULT - [#1364](https://github.com/octodns/octodns/pull/1364)
+* Record level lenience now applies to sub-zone ownership exceptions - [#1363](https://github.com/octodns/octodns/pull/1363)
+* make NAPTR flags field case insensitive - [#1360](https://github.com/octodns/octodns/pull/1360)
+* Using templating variables on some records types no longer require to enable record-level lenience - [#1358](https://github.com/octodns/octodns/pull/1358)
+* Pass lenient to processor methods with backwards compatible fallback - [#1355](https://github.com/octodns/octodns/pull/1355)
+* Add WARNING logs for sub-zone records when in lenient mode - [#1353](https://github.com/octodns/octodns/pull/1353)
+* Add WARNING logs for CNAME coexisting with other records when in lenient mode - [#1353](https://github.com/octodns/octodns/pull/1353)
+* Add output_filename parameter to plan output classes for writing to individual files - [#1348](https://github.com/octodns/octodns/pull/1348)
+* Add OPENPGPKEY record support (RFC 7929) - [#1347](https://github.com/octodns/octodns/pull/1347)
+* Add ignore_missing_zones parameter to YamlProvider - [#1343](https://github.com/octodns/octodns/pull/1343)
+
 ## 1.15.0 - 2025-11-23
 
 Minor:
