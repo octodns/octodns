@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 .claude/docs/get_context.py)",
+      "Bash(python .claude/docs/get_context.py)"
+    ]
+  }
+}

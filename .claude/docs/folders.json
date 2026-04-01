@@ -1,0 +1,1422 @@
+{
+  "folders": {
+    "tests/config/split/unit.tests.tst": {
+      "description": "This folder contains configuration fixtures used by the test suite to validate \u201csplit mode\u201d handling of DNS records for a unit.tests.tst zone. The fixtures collectively exercise parsing/rendering of many RR types, multi-value RRsets, subdomain naming, and metadata-driven include/exclude/ignore behaviors. These files matter because they define the expected structured inputs that downstream split/config processors consume during unit tests.",
+      "key_behaviors": [
+        "Represent a split-config unit-test zone as YAML RRset/value fixtures under a common test domain name",
+        "Exercise parsing and serialization of multiple DNS RR types with type-specific field shapes (e.g., SRV priority/weight/port, MX preference/exchange, NAPTR service/regex/flags)",
+        "Validate multi-value RRsets (lists) where RR type requires multiple targets/values and ordering/preservation matters",
+        "Verify relative name handling for records under subdomains (e.g., www vs www.sub; SRV under _srv._tcp)",
+        "Confirm metadata controls at the record level (octodns.excluded / octodns.ignored) affect processing outcomes"
+      ],
+      "insights": [
+        {
+          "category": "Test fixture semantics",
+          "title": "Fixture-driven validation across many RR type schemas",
+          "problem": "Split-mode logic must correctly interpret heterogeneous RR type schemas and field types (lists, strings, regex-like content) from YAML.",
+          "root_cause": "Different RR types carry different required/optional structured fields (e.g., SRV/MX/NAPTR/URLFWD), and split-mode pipelines are sensitive to schema mismatches.",
+          "solution": "Ensure any edits to parsing/validation/rendering preserve the exact YAML-to-internal-field mappings and string escaping expectations embodied by these fixtures."
+        },
+        {
+          "category": "Metadata filtering",
+          "title": "Record-level include/exclude/ignore must be enforced consistently",
+          "problem": "Records marked as excluded or ignored via octodns metadata must be filtered out during processing.",
+          "root_cause": "Split-mode pipelines likely evaluate metadata before expanding/merging RRsets, and inconsistent evaluation can cause unexpected records to appear or disappear.",
+          "solution": "Maintain the precedence and evaluation rules used for octodns.excluded vs octodns.ignored so the exclusion/ignore fixtures continue to align with expected test outputs."
+        },
+        {
+          "category": "Name and subdomain addressing",
+          "title": "Relative and special-subdomain names must map to correct FQDNs",
+          "problem": "Split-mode record generation must create correct fully qualified names for both standard subdomains and underscore-prefixed service labels.",
+          "root_cause": "Fixtures include both normal relative names (www/sub) and service-metadata-like labels (_srv._tcp), which can be mishandled by naive name join logic.",
+          "solution": "Preserve the name resolution/join rules so that generated FQDN record identifiers match what the unit tests expect for each fixture."
+        },
+        {
+          "category": "String escaping and transport fidelity",
+          "title": "TXT and regex-like fields require exact string fidelity",
+          "problem": "TXT values (including semicolons/escaped content) and NAPTR regexp/service strings must survive YAML parsing and DNS rendering without altering semantics.",
+          "root_cause": "YAML escaping, regex-like characters, and DNS text rendering can interact in ways that change content if transformations are applied.",
+          "solution": "Keep serialization/parsing transformations strictly content-preserving for these special string fields, including correct escaping behavior."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "tests/config/split/unit.tests.tst/$unit.tests.yaml",
+          "why": "Core fixture mapping defining the unit.tests.tst zone\u2019s RR types and structured fields used across split-mode tests."
+        },
+        {
+          "path": "tests/config/split/unit.tests.tst/_srv._tcp.yaml",
+          "why": "Exercises SRV RRset parsing with multiple targets and type-specific fields (priority/weight/port)."
+        },
+        {
+          "path": "tests/config/split/unit.tests.tst/naptr.yaml",
+          "why": "Validates NAPTR complex RRset parsing where regex/flags/order/preference/service fields must be preserved."
+        },
+        {
+          "path": "tests/config/split/unit.tests.tst/excluded.yaml",
+          "why": "Tests filtering behavior using octodns.excluded metadata for a record (CNAME excluded with nested excluded list)."
+        },
+        {
+          "path": "tests/config/split/unit.tests.tst/txt.yaml",
+          "why": "Validates TXT RRset content fidelity including escaped/complex strings relevant to DNS TXT serialization."
+        }
+      ],
+      "construct_relationships": [
+        "The fixtures in this folder collectively establish the input set for unit.tests.tst split-mode processing, where downstream test code likely loads these YAML files and asserts resulting parsed/merged record sets.",
+        "Type-specific fixtures (e.g., SRV, MX, NAPTR, URLFWD) implicitly define the internal data structures that split-mode parsing must populate for each RR type before any merge/split expansion occurs.",
+        "Metadata fixtures (excluded.yaml, ignored.yaml, included.yaml) rely on shared record-processing logic that determines whether a record is retained, merged, or filtered out prior to final planning/output."
+      ],
+      "notable_relationships": [
+        "These fixtures are downstream dependencies for unit tests that validate split-mode configuration behavior; changes to fixture schema/shape will directly affect those tests\u2019 expectations.",
+        "The presence of many RR types suggests tight coupling with a central RR-type parsing/rendering subsystem elsewhere in the project; any modifications to RR schema handling must remain compatible with these fixtures\u2019 YAML shapes and field types."
+      ],
+      "recommendations": [
+        "When editing split-mode parsing or record-schema logic, verify compatibility with all RR types represented here (A/AAAA/CNAME/DNAME/MX/NS/PTR/SPF/TXT/SRV/NAPTR/URLFWD), especially their list vs scalar fields and required ordering/serialization behaviors.",
+        "Preserve YAML string escaping and content fidelity for TXT and NAPTR regexp-like fields, since tests likely assert exact rendered values or exact parsed field values.",
+        "Maintain consistent evaluation and precedence for octodns metadata flags used by these fixtures (octodns.excluded and octodns.ignored), including how they interact with any include/merge behaviors shown by the included.yaml fixture.",
+        "Ensure record name resolution remains consistent for both standard subdomain records (e.g., www/sub) and special labels (e.g., _srv._tcp), so that the generated/parsed FQDNs match what tests expect."
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    "tests/config/split/subzone.unit.tests.tst": {
+      "description": "This folder contains YAML fixture data used by unit tests for split configuration behavior at the subzone level. Each file represents a distinct subzone label within the same parent zone (unit.tests.tst), enabling tests to validate that split mode loads the correct per-subzone inputs and renders the expected DNS records. The contents are tightly coupled to test expectations about label naming (numeric vs non-numeric) and the resulting record values.",
+      "key_behaviors": [
+        "Supports split-mode loading where different YAML files map to different subzone labels/record sets",
+        "Validates correct handling of both numeric subzone labels (e.g., '2', '12') and non-numeric labels (e.g., 'test')",
+        "Ensures rendered A record content matches per-fixture configuration (name/label mapping and IP value)"
+      ],
+      "insights": [
+        {
+          "category": "Test fixture contract",
+          "title": "Filename/label mapping affects which subzone is loaded",
+          "problem": "Changes to fixture naming, structure, or label conventions can break test assumptions about how split mode discovers and associates subzone data.",
+          "root_cause": "Split tests likely rely on conventions that connect file identity to subzone label and the expected record name.",
+          "solution": "Preserve the existing mapping semantics (file identity to label, and label to record name) and avoid altering fixture schema that tests may parse deterministically."
+        },
+        {
+          "category": "Edge-case coverage",
+          "title": "Numeric vs non-numeric subzone labels are distinct behaviors",
+          "problem": "Treating label parsing uniformly can cause failures for numeric labels or for labels like 'test' if naming/normalization differs.",
+          "root_cause": "Test fixtures include both numeric and non-numeric labels to exercise different parsing/handling paths.",
+          "solution": "When adjusting related parsing or loader logic, verify both numeric and non-numeric label cases still select the correct fixture and produce the correct rendered record."
+        },
+        {
+          "category": "Record rendering determinism",
+          "title": "A record values are used as exact assertions",
+          "problem": "If record generation changes formatting or value handling, assertions tied to specific IPs may fail even if behavior is logically equivalent.",
+          "root_cause": "Fixtures define concrete A record targets (e.g., 2.4.4.4, 12.4.4.4, 4.4.4.4) that tests likely compare against expected output.",
+          "solution": "Maintain deterministic rendering/normalization of IP targets and record naming tied to these fixtures."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "tests/config/split/subzone.unit.tests.tst/2.yaml",
+          "why": "Fixture for numeric subzone label '2' with a specific A record target; used to validate numeric label handling in split mode."
+        },
+        {
+          "path": "tests/config/split/subzone.unit.tests.tst/12.yaml",
+          "why": "Fixture for numeric subzone label '12'; exercises multi-digit numeric label parsing/association in split mode."
+        },
+        {
+          "path": "tests/config/split/subzone.unit.tests.tst/test.yaml",
+          "why": "Fixture for non-numeric subzone label 'test'; validates that split loaders and label normalization support general string labels."
+        }
+      ],
+      "construct_relationships": [
+        "The fixture files collectively define the expected set of A records for distinct subzone labels within the same parent zone (unit.tests.tst), and the split-mode test harness must select the correct subset based on label/file association."
+      ],
+      "notable_relationships": [
+        "These fixtures are consumed by tests elsewhere in the suite that exercise the split configuration loader and/or renderer for subzones under the unit.tests.tst zone; failures here typically indicate cross-folder issues in test discovery, fixture loading, or label-to-record mapping."
+      ],
+      "recommendations": [
+        "When editing any loader/parsing/rendering logic that interacts with split configuration, re-validate that subzone label identification still correctly distinguishes numeric ('2','12') from non-numeric ('test') labels and maps them to the right record names.",
+        "Maintain fixture schema compatibility (YAML structure and required keys) as tests likely parse these deterministically; ensure changes elsewhere do not alter how these fixtures are interpreted.",
+        "Run the associated split/subzone unit test suite to confirm record rendering still produces the exact expected A record targets from these fixtures."
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    "tests/config/dynamic-arpa": {
+      "description": "This folder contains YAML fixtures used by the test suite to exercise dynamic ARPA (reverse DNS) handling. The fixtures focus on tolerance for absent or empty zone definitions and correct recognition of dynamic reverse zones, both for IPv4 in-addr.arpa and IPv6 ip6.arpa. Because these are test configurations rather than production logic, their structure and naming conventions directly influence how test harness code discovers zones and asserts behavior.",
+      "key_behaviors": [
+        "Test data provides intentionally empty or blank YAML zone definitions to validate loader/parsing behavior under minimal input",
+        "Fixtures include realistic ARPA zone keys (e.g., in-addr.arpa and long ip6.arpa domains) to ensure zone identification logic triggers correctly even when content is empty",
+        "A dedicated unit fixture supplies a small record set to drive PTR/auto-generation or related dynamic ARPA behaviors in isolation"
+      ],
+      "insights": [
+        {
+          "category": "Test fixture semantics",
+          "title": "Empty YAML must still be considered a valid zone input",
+          "problem": "Dynamic ARPA processing may incorrectly reject or skip zones when zone definitions are empty/blank.",
+          "root_cause": "Parsing/loader logic likely distinguishes between missing keys vs. present-but-empty YAML documents; these fixtures ensure correct interpretation.",
+          "solution": "When editing or reusing these fixtures, preserve their \u201cintentionally empty\u201d characteristics and ensure they remain valid YAML documents that the loader recognizes as zone entries."
+        },
+        {
+          "category": "Zone key/name handling",
+          "title": "Zone recognition relies on ARPA domain keying, not record presence",
+          "problem": "A system might not detect a dynamic ARPA zone if it expects at least one record.",
+          "root_cause": "Zone discovery/registration may be triggered by the presence of a specific zone name (e.g., ip6.arpa long label) rather than non-empty records.",
+          "solution": "Maintain the exact ARPA domain labels used as fixture keys so zone identification continues to align with test expectations."
+        },
+        {
+          "category": "Fixture isolation and record targeting",
+          "title": "Unit fixture includes a \u201cnon-zone-file-name\u201d record to validate PTR/dynamic filtering",
+          "problem": "Dynamic ARPA generation or PTR association may inadvertently treat unrelated records as zone boundaries or zone files.",
+          "root_cause": "Tests likely verify filtering/selection logic that maps records to PTR outcomes or to whether something should be treated as a zone artifact.",
+          "solution": "Preserve the presence and distinguishing characteristics of the extra record in the unit fixture so filtering boundaries exercised by tests remain covered."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "tests/config/dynamic-arpa/3.2.2.in-addr.arpa.yaml",
+          "why": "Primary fixture validating IPv4 reverse dynamic ARPA handling when the YAML zone configuration is intentionally empty."
+        },
+        {
+          "path": "tests/config/dynamic-arpa/b.e.f.f.f.d.1.8.f.2.6.0.1.2.e.0.0.5.0.4.4.6.0.1.0.6.2.ip6.arpa.yaml",
+          "why": "IPv6 reverse zone fixture with an intentionally blank document to confirm the loader still recognizes the zone from its ARPA key."
+        },
+        {
+          "path": "tests/config/dynamic-arpa/unit.tests.yaml",
+          "why": "Focused fixture containing a small record set plus a deliberately unrelated record to test PTR/dynamic ARPA generation and filtering in isolation."
+        }
+      ],
+      "construct_relationships": [
+        "The ARPA reverse-zone identification logic in the test harness likely uses the YAML filename/zone key to map the fixture to a specific dynamic ARPA zone",
+        "Dynamic ARPA/PTR generation behavior exercised by tests likely consumes record sets from unit.tests.yaml and outputs PTR-related expectations for the corresponding reverse zone(s)",
+        "Empty YAML documents likely flow through the same zone-loading path as non-empty ones, with assertions verifying that zone registration/recognition occurs despite missing records"
+      ],
+      "notable_relationships": [
+        "Upstream dependency: test discovery/execution code that reads from tests/config/dynamic-arpa likely expects specific filenames (or derived zone keys) to align with reverse zone naming conventions (in-addr.arpa and ip6.arpa).",
+        "Downstream dependency: dynamic ARPA processing and/or PTR-related logic under test will use these fixtures as inputs; changes to fixture structure could affect multiple test cases that rely on these exact fixtures."
+      ],
+      "recommendations": [
+        "When modifying fixture YAMLs, ensure they remain valid YAML and preserve the intended emptiness/blankness semantics that the tests rely on.",
+        "Preserve the exact ARPA domain labels and filenames because zone discovery/selection in tests may be name-keyed rather than content-keyed.",
+        "In unit.tests.yaml, preserve the presence and distinguishing characteristics of the extra non-zone-file-name record used to validate filtering/mapping logic.",
+        "Run the relevant test suite that covers dynamic ARPA/PTR behaviors, since changes to fixtures can alter both zone recognition and record-to-PTR association expectations."
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    "tests/config/hybrid": {
+      "description": "This folder contains YAML fixtures used by the test suite to validate \u201chybrid\u201d DNS zone configuration behavior, specifically around TXT records. The fixtures model both a flat zone file scenario and a split/merged scenario under a subdomain (two.test), including explicit handling for root-label records. These files matter because they encode the expected zone data structures the test harness loads into the system under test.",
+      "key_behaviors": [
+        "Provides static zone data fixtures for tests that exercise hybrid (single vs split source) loading/merging behaviors",
+        "Represents TXT record definitions with consistent naming and fixed values to ensure deterministic comparisons",
+        "Models special-case semantics for root-label records (empty label '') within a subdomain zone",
+        "Supports scenarios where zone content is derived from an inline fixture vs an external split-zone-file fixture"
+      ],
+      "insights": [
+        {
+          "category": "Test data contract",
+          "title": "Hybrid fixtures encode expected DNS record semantics",
+          "problem": "Changes to fixture structure or record labeling can break the assumptions made by the test harness when it loads zone data and compares plans/sync outcomes.",
+          "root_cause": "The fixtures likely map directly onto parsing/normalization logic for zones and records (including root label handling) and are used as canonical inputs.",
+          "solution": "Maintain exact YAML structure and naming conventions (labels, record types, and values) that the tests rely on; validate that any adjustments remain compatible with the harness loader."
+        },
+        {
+          "category": "Root label handling",
+          "title": "Empty label ('') represents zone apex/root behavior",
+          "problem": "Incorrect representation of the root/apex label can cause missing or mis-scoped records in the merged hybrid zone output.",
+          "root_cause": "Hybrid configuration tests often treat the apex/root label specially when generating absolute record names and when merging sources.",
+          "solution": "Preserve the use of the empty-string label ('') for apex/root record fixtures and ensure any edits keep that mapping consistent."
+        },
+        {
+          "category": "Fixture naming and path correctness",
+          "title": "Fixture filenames and locations drive test discovery",
+          "problem": "A misnamed fixture file (including unusual filenames) can prevent it from being discovered/loaded by parameterized tests.",
+          "root_cause": "Test harnesses frequently glob by filename patterns or derive fixture identity from paths.",
+          "solution": "Avoid changing fixture filenames or directory placement unless the discovery/loader logic is also updated accordingly; confirm patterns used by the tests."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "tests/config/hybrid/one.test.yaml",
+          "why": "Canonical flat-zone-file hybrid fixture containing a TXT record used as a baseline input for hybrid-related tests."
+        },
+        {
+          "path": "tests/config/hybrid/two.test./$two.test.yaml",
+          "why": "Inline YAML fixture dedicated to root-hierarchy TXT record handling under two.test, including the zone root label ('')."
+        },
+        {
+          "path": "tests/config/hybrid/two.test./split-zone-file.yaml",
+          "why": "Split-zone-file fixture used to validate how hybrid zones are loaded/merged from a split source under two.test."
+        }
+      ],
+      "construct_relationships": [
+        "The fixture sets under two.test are related as a pair: the root-hierarchy inline YAML fixture (with label '') and the split-zone-file fixture together represent different source pieces that hybrid tests likely merge into a single effective zone view.",
+        "The one.test.yaml fixture acts as an independent baseline scenario for hybrid behavior centered on a flat zone file TXT record."
+      ],
+      "notable_relationships": [
+        "These fixtures are upstream inputs to the test harness that likely parses YAML into the internal zone/record model; downstream assertions depend on exact record scoping (especially apex/root) and deterministic string values."
+      ],
+      "recommendations": [
+        "When editing fixture content, preserve record type (TXT), record names/labels (including any special apex/root empty label usage), and exact string values to keep test expectations stable.",
+        "Do not rename or relocate fixture files without confirming the test discovery/loading mechanism that references these paths (including any atypical filename conventions).",
+        "Ensure that changes remain compatible with the YAML-to-zone parsing semantics used by the harness, particularly for root/apex record representation and hybrid merge behavior."
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    "tests/config/split": {
+      "description": "This subtree contains YAML fixtures used by the test suite to validate \u201csplit mode\u201d configuration handling for DNS zone rendering. It focuses on how per-file inputs are interpreted into records across many RR types, how subzones/labels are mapped to separate fixture files, and how record-level metadata and dynamic routing structures (geo/weighted pools) are represented. These fixtures are tightly coupled to the expected shapes of parsed/serialized configuration structures and therefore constrain how the split-config pipeline behaves.",
+      "key_behaviors": [
+        "Loading split-mode inputs from multiple YAML files and mapping each file to a specific RRset/record name under a shared test zone",
+        "Handling label/subzone resolution where numeric and non-numeric labels correspond to different fixture filenames and produce distinct record outputs",
+        "Supporting many RR types with type-specific field structures (single values, lists, and multi-entry composite records) in a consistent serialization format",
+        "Applying record metadata-driven filtering such as included/excluded/ignored behavior that affects whether records participate in rendering",
+        "Processing dynamic routing configurations that include geo-based rule selection and weighted pools for both A/AAAA and CNAME targets, including defaults and multi-rule precedence"
+      ],
+      "insights": [
+        {
+          "category": "Test Fixture Contract",
+          "title": "Type-specific YAML shapes must remain parseable and stable",
+          "problem": "Each fixture encodes RR type-specific structures (e.g., SRV priority/weight/port, MX preference/exchange ordering, NAPTR flags/order/preference/regexp/service, PTR lists). Any change to schema expectations or serialization can break downstream comparisons in split-mode tests.",
+          "root_cause": "The fixtures rely on deterministic parsing and output formatting for multiple RRset shapes.",
+          "solution": "When editing parsing/rendering logic that affects these RR types, preserve the fixture-driven field semantics and ordering/representation assumptions."
+        },
+        {
+          "category": "Split Mode File-to-Label Mapping",
+          "title": "Subzone fixture filenames define label resolution semantics",
+          "problem": "Numeric vs non-numeric subzone labels (e.g., '2', '12', 'test') are represented by distinct YAML files and must map to correct record names/labels in output.",
+          "root_cause": "Split mode likely infers label identity from fixture path/filename and uses that to build record names.",
+          "solution": "Ensure any changes to file discovery, label normalization, or subzone path parsing keep the mapping consistent with these fixture conventions."
+        },
+        {
+          "category": "Metadata-driven Filtering",
+          "title": "octodns.* metadata controls participation in final rendered config",
+          "problem": "Fixtures marked with octodns.excluded or octodns.ignored are intended to be filtered out, while others exercise included/nested include behavior.",
+          "root_cause": "The split/config processing pipeline applies record-level metadata rules during merge/split and rendering.",
+          "solution": "Maintain the precedence and scope of metadata filters (ignored vs excluded vs included nesting) so tests continue to reflect intended inclusion/exclusion behavior."
+        },
+        {
+          "category": "Dynamic Routing Representation",
+          "title": "Dynamic geo/weighted pools differ by RR type and must round-trip correctly",
+          "problem": "Dynamic A/AAAA/CNAME fixtures contain geo rule mappings to pools and weighted values; correctness depends on accurate translation of rules, pool weighting, and defaults into the internal dynamic model and/or rendered output.",
+          "root_cause": "Dynamic configurations have nested structures and RR-type-specific target/value shapes (IP vs alias/target semantics).",
+          "solution": "Preserve interpretation of geo codes/rule matching, pool selection precedence across multiple rules, and weighted value representation per RR type."
+        },
+        {
+          "category": "Cross-fixture Inclusion Conditions",
+          "title": "Shared-file fixtures depend on feature flags/conditional inclusion",
+          "problem": "The shared.yaml fixture is described as intended to be included only when shared-file processing is enabled, meaning tests may conditionally load it based on runtime configuration.",
+          "root_cause": "The test harness likely toggles inclusion behavior for shared/split config sources.",
+          "solution": "When modifying split config loading, ensure conditional inclusion behavior remains compatible with the shared fixture expectations."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "tests/config/split/unit.tests.tst/aaaa.yaml",
+          "why": "Represents a simple AAAA RRset fixture used to validate basic split-mode parsing for IPv6 records."
+        },
+        {
+          "path": "tests/config/split/unit.tests.tst/_srv._tcp.yaml",
+          "why": "Covers a composite SRV RRset with multiple targets and fields, making it sensitive to ordering and type-specific parsing."
+        },
+        {
+          "path": "tests/config/split/unit.tests.tst/naptr.yaml",
+          "why": "Exercises complex multi-entry NAPTR data including regexp/service fields, requiring fidelity in representation."
+        },
+        {
+          "path": "tests/config/split/dynamic.tests.tst/a.yaml",
+          "why": "Validates dynamic A geo rule selection with weighted IPv4 pools and defaults, covering nested dynamic structures."
+        },
+        {
+          "path": "tests/config/split/subzone.unit.tests.tst/12.yaml",
+          "why": "Tests split-mode subzone mapping for a numeric label, ensuring correct label/name resolution from filename."
+        }
+      ],
+      "construct_relationships": [
+        "Dynamic A/AAAA/CNAME fixtures encode nested structures of geo rules mapping to pools of weighted targets; these structures must be interpreted consistently by the same dynamic-routing parser/serializer across RR types.",
+        "Unit tests for multiple RR types depend on a shared split-config unit-test zone fixture layout where each YAML file corresponds to specific record names/labels within unit.tests.tst.",
+        "Metadata fixtures (ignored/excluded/included) imply a common filtering/merge mechanism that runs during split-mode config processing before record rendering/output comparison."
+      ],
+      "notable_relationships": [
+        "These fixtures likely connect to a split-config test harness that performs file discovery and loads YAML into the octodns configuration model, so changes in loader/path resolution/normalization will affect many fixtures at once.",
+        "Dynamic routing fixtures probably depend on the same internal dynamic model used by planners/providers for generating final DNS records; failures in model translation will manifest in multiple dynamic.* fixture tests."
+      ],
+      "recommendations": [
+        "Preserve YAML schema compatibility for all covered RR types (including list vs scalar fields and per-entry field ordering) since fixtures encode deterministic expected representations.",
+        "Treat filename-derived label/subzone mapping as a behavioral contract; any change to normalization or mapping logic must remain consistent with both numeric and non-numeric fixture filenames.",
+        "Maintain exact semantics and precedence of record metadata handling (octodns.excluded, octodns.ignored, and included/nested inclusion blocks) as tests depend on filtering outcomes.",
+        "Ensure dynamic geo/weighted pool interpretation (rule matching, default selection, weight handling, and RR-type-specific value/target shapes) remains consistent with fixture structure across A, AAAA, and CNAME."
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    "octodns/record": {
+      "description": "The `octodns/record` package defines octoDNS\u2019 core DNS record domain model: a registry-driven `Record` base with shared validation/normalization, plus per-RR-type value and record implementations. It matters because plan/sync logic depends on consistent parsing of provider \u201cRDATA text\u201d into structured value objects, deterministic serialization for diffs/checksums, and uniform handling of special cases like IDNA normalization and templated values. The folder also exposes a stable public API surface by re-exporting all record/value classes for use by higher-level parsing, planning, and rendering layers.",
+      "key_behaviors": [
+        "Builds concrete record instances via a global registry based on record type, enforcing invariant validation and name normalization before type-specific checks",
+        "Parses provider-specific \u201cRDATA text\u201d into structured dict-like value objects with per-field validation and canonical rendering back to RFC-style text",
+        "Supports templated values (presence of `{...}`) by selectively bypassing validation/normalization and formatting value fields during rendering",
+        "Ensures deterministic serialization for plan/sync consumers by producing stable `_data()`/`data` representations and equality tuples across value objects",
+        "Generates plan changes (Create/Update/Delete and special dynamic/geo-driven Update behavior) when record payloads differ"
+      ],
+      "insights": [
+        {
+          "category": "Serialization / Diff correctness",
+          "title": "Record data omitted `octodns` special section",
+          "problem": "The `Record.data` representation did not include the `_octodns` special section, which can cause copy/serialization and downstream diffs/checksums to diverge from the in-memory model.",
+          "root_cause": "`Record.data`/`Record._data()` behavior did not carry forward the `Record._octodns` metadata into the exported dict.",
+          "solution": "Any edits affecting record serialization must preserve inclusion/exclusion semantics for `_octodns` special data consistently across `data()`, `copy()`, and checksum consumers."
+        },
+        {
+          "category": "Copy semantics / Edge cases",
+          "title": "Empty-string values mishandled due to truthiness",
+          "problem": "Copying records with empty values (e.g., `value=''`) did not behave correctly because logic relied on truthiness checks rather than explicit `None` handling.",
+          "root_cause": "Use of `if value:` / `elif values:` patterns rather than distinguishing empty strings from absent values.",
+          "solution": "When modifying value/copy logic, ensure explicit `None` vs empty-string/list semantics are preserved so diffs and rendered output remain deterministic."
+        },
+        {
+          "category": "Record base validation / Protocol-specific fields",
+          "title": "Healthcheck field semantics assumed HTTP(S)",
+          "problem": "Healthcheck properties applied incorrectly to non-HTTP(S) protocols and healthcheck protocol validation was incomplete, potentially producing invalid record payloads or diffs.",
+          "root_cause": "Validation/rendering logic assumed HTTP/HTTPS-style host/path semantics regardless of the healthcheck protocol.",
+          "solution": "Changes to base validation or healthcheck processing must keep protocol-dependent inclusion/validation rules aligned with the record types that actually support those fields."
+        },
+        {
+          "category": "Chunking / Escaping correctness",
+          "title": "TXT/SPF chunk boundary escaping safety",
+          "problem": "Chunking must not split in a way that leaves an unfinished escape sequence (e.g., trailing backslash), otherwise output becomes syntactically invalid or provider-rejected.",
+          "root_cause": "Chunking works on escaped text and must account for boundary behavior of escape sequences.",
+          "solution": "When adjusting chunk size/escaping or parsing, preserve the boundary checks and delimiter joining semantics used to render multi-string RDATA."
+        },
+        {
+          "category": "Templating semantics consistency",
+          "title": "Templating support varies by record/value type",
+          "problem": "Some value types treat templating placeholders differently (supported vs bypassed), leading to inconsistent validation bypass behavior and potential persistent diffs.",
+          "root_cause": "Per-value `template()` implementations are not fully uniform across types, and not all record values support placeholders for all fields.",
+          "solution": "Edits must respect each value type\u2019s templating contract\u2014especially which fields are formatted vs which are validated/bypassed when `{...}` is present."
+        },
+        {
+          "category": "IDNA / Target normalization unification",
+          "title": "Target FQDN validation and null targets are centralized but protocol-specific",
+          "problem": "Incorrect propagation of record-type/key semantics into `validate_target_fqdn()` can yield inconsistent validation errors or allow/disallow incorrect null targets.",
+          "root_cause": "Shared target validation centralizes common logic (IDNA, trailing dot, templating bypass, `.` null handling) but depends on `_type` and key naming to behave correctly.",
+          "solution": "When changing callers or field keying for target-like values (MX exchange, SRV target, SVCB targetname, Alias/CNAME/DNAME), preserve the exact key and record-type behavior expected by the shared validator."
+        },
+        {
+          "category": "Plan change payload stability",
+          "title": "Change JSON missing per-change `name` field",
+          "problem": "Serialized plan change entries lacked top-level `name`, making it harder to consistently attribute changes to record names in consumers.",
+          "root_cause": "Change serialization did not include expected top-level fields for downstream reporting/checksums.",
+          "solution": "When editing `Change`/`Create`/`Update`/`Delete` serialization, ensure the exported schema remains consistent with any checksum computation and plan/sync consumers."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "octodns/record/base.py",
+          "why": "Central `Record` base class with registry-driven construction, invariant validation, IDNA/name normalization, and core serialization/copy pathways that all record types rely on."
+        },
+        {
+          "path": "octodns/record/target.py",
+          "why": "Shared hostname/target validation and wrapper value types used by multiple RR types (MX/SRV/SVCB/Alias/CNAME/DNAME-like targets) to enforce consistent IDNA and templating/null rules."
+        },
+        {
+          "path": "octodns/record/__init__.py",
+          "why": "Defines the package public API via re-exports, which higher-level planning/sync/parsing code likely imports from `octodns.record` directly."
+        },
+        {
+          "path": "octodns/record/change.py",
+          "why": "Models plan changes (Create/Update/Delete) with serialized payload expectations used by sync planning/reporting and potentially checksums."
+        },
+        {
+          "path": "octodns/record/dynamic.py",
+          "why": "Implements dynamic routing/geo-like payload validation and emits update changes when dynamic content differs, affecting how plan changes are generated."
+        }
+      ],
+      "construct_relationships": [
+        "Concrete record classes (e.g., `ARecord`, `AaaaRecord`, `MxRecord`, `SrvRecord`, `NaptrRecord`, `CaaRecord`, `CnameRecord`, `AliasRecord`, `DnameRecord`, `DsRecord`, `SvcbRecord`) register themselves with the shared `Record` registry via `Record.register_type(...)` and rely on `Record.new()` to instantiate and validate inputs.",
+        "`Record.new()`/`Record.validate()` perform shared invariants (name normalization via IDNA, ttl/name lengths, healthcheck protocol rules) before invoking record/value-specific `parse_rdata_text`, `validate`, `process`, and `template` methods on the appropriate value objects.",
+        "Target-like value objects (`_TargetValue` specializations such as `AliasValue`, `CnameValue`, `DnameValue`, plus MX exchange/SRV target/SVCB targetname) delegate hostname correctness to `validate_target_fqdn()` in `octodns/record/target.py`, with behavior determined by `_type` and the field key passed by each record/value type.",
+        "`Change` (Create/Update/Delete) uses record object references and serializable data derived from record `_data()`/`Record.data` outputs; record serialization consistency therefore directly impacts plan/change payloads.",
+        "Specialized value renderers (e.g., `MxValue`, `SrvValue`, `NaptrValue`, `SvcbValue`, `Chunked` helpers, `CaaValue`) implement `template()`/rendering that must align with base record\u2019s templating bypass and normalization semantics."
+      ],
+      "notable_relationships": [
+        {
+          "direction": "downstream consumer",
+          "relationship": "Plan/Sync layers rely on stable `Record.data`/serialization and `Change` payloads defined here",
+          "evidence_from_folder": "Change serialization and record data representations are used for plan output/checksums; base serialization governs equality/diffing."
+        },
+        {
+          "direction": "cross-folder dependency",
+          "relationship": "`octodns/record` value parsing/rendering underpins higher-level provider/source integration",
+          "evidence_from_folder": "Multiple record types parse provider RDATA text into structured value dicts; those structured objects are what other layers compare to desired config and render for providers."
+        },
+        {
+          "direction": "cross-folder dependency",
+          "relationship": "Dynamic/geo routing support in record values affects update generation",
+          "evidence_from_folder": "Dynamic mixins validate/serialize and emit changes when dynamic payload differs; this couples record-level diffing with sync planning decisions."
+        }
+      ],
+      "recommendations": [
+        "Preserve the exact registry/construction expectations of `Record.register_type` and the selection logic in `Record.new()`; record-type naming and uniqueness constraints impact instantiation across the whole system.",
+        "When altering serialization/copy/equality paths (`Record._data`, `Record.data`, value equality tuples), maintain deterministic output and ensure special `_octodns` metadata continues to be handled exactly as existing consumers expect.",
+        "Treat templating as a per-value-type contract: validate/bypass behavior and which fields are formatted must remain consistent with current implementations to avoid persistent diffs or invalid provider output.",
+        "Keep shared target validation semantics intact (`validate_target_fqdn` rules for IDNA normalization, trailing dots, null targets, and templating bypass) and ensure any callers pass the correct `_type` and `key` identifiers.",
+        "Maintain record/value parsing/rendering correctness for escape/chunking (TXT/SPF via chunked helpers) and for tokenization edge cases (e.g., CAA/LEX-like parsing constraints), since these affect provider RDATA compatibility and diffing stability.",
+        "When modifying `Change` and related serialization schema, ensure plan/sync consumers and checksum logic continue to receive the expected fields and stable representations."
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    "octodns/processor": {
+      "description": "The octodns/processor folder contains the pluggable processing components that run during octoDNS\u2019s zone-to-plan and plan/sync lifecycle. These processors mutate desired/target zone record sets, validate constraints (TTL/SPF), generate derived records (e.g., ARPA PTR, ACME ownership handling), and filter computed plan changes based on ownership/metadata conventions. Because processors can both transform and selectively suppress plan changes, correctness depends on shared assumptions about record mutability, lenient behavior, and consistent handling of record value types (including trailing-dot normalization and templating).",
+      "key_behaviors": [
+        "Executes in multiple pipeline phases (at least source-zone, target-zone, source+target, and plan-processing hooks) with no-op defaults provided by a shared base class",
+        "Mutates Zone record collections in-place by replacing records or removing/adding records, using record copy/replace semantics expected by the rest of octoDNS",
+        "Enforces configuration-driven policies by validating records and raising processor-specific exceptions that block planning/sync when violations occur",
+        "Generates synthetic/derived DNS records (PTR for reverse mappings; ownership TXT; meta TXT; ACME challenge handling) that influence plan computation and change filtering"
+      ],
+      "insights": [
+        {
+          "category": "Cross-cutting: lenient mode",
+          "title": "Lenient behavior must be preserved consistently across processors",
+          "problem": "Multiple processors either skip validation when records are lenient or propagate lenient settings when recreating records. Some processors referenced internal/private record state (e.g., _octodns) or did not pass lenient through templated/copied records, risking incorrect strictness or unexpected failures.",
+          "root_cause": "Inconsistent access to lenient state and inconsistent use of lenient propagation when processors create/replace records.",
+          "solution": "When editing or integrating processors, ensure lenient checks use the stable, intended interface and that any processor creating new records (templating/trailing dots/meta/ownership) passes the correct lenient context so validation and plan strictness remain consistent."
+        },
+        {
+          "category": "Cross-cutting: record value type integrity",
+          "title": "Processor mutations must preserve RR value concrete classes",
+          "problem": "Trailing-dot normalization previously coerced RR value types back to plain strings, breaking downstream code that expects specialized value objects (e.g., ALIAS/CNAME/DNAME representations with methods).",
+          "root_cause": "Value-field normalization that reconstructs values without preserving the original value class/structure.",
+          "solution": "Edits must respect that some processors rely on value objects retaining their concrete types; ensure any transformations preserve or re-wrap using the original value types/classes as expected by other processors/providers."
+        },
+        {
+          "category": "Correctness: plan suppression and filtering",
+          "title": "Processors selectively suppress or filter plan changes based on sentinel/identity conventions",
+          "problem": "MetaProcessor suppresses specific single-change plans; OwnershipProcessor filters plan changes to only records considered owned (plus specific exceptions like meta). ACME managing logic tags and treats ACME TXT records specially, removing unrelated ACME-like TXT records.",
+          "root_cause": "Processors implement identity heuristics (sentinel tags, record ownership markers, meta record keys) that directly shape which changes survive into the plan and sync stages.",
+          "solution": "When modifying these processors or plan-change handling, maintain the existing conventions for identifying owned/meta/sentinel/tagged records; otherwise plan contents can change unexpectedly."
+        },
+        {
+          "category": "Robustness: null/empty value handling in filters",
+          "title": "Value-based filter processors must handle None/empty record values safely",
+          "problem": "Value allow/reject filters can crash when record.value is None because they assume the presence of a value and attempt to access .rdata_text on it.",
+          "root_cause": "Missing defensive handling for records whose value field is None/empty for the targeted record types.",
+          "solution": "Ensure any edits to filter/match logic handle None-valued records according to the pipeline\u2019s expectations (either treat as non-match, skip, or explicitly validate), without throwing attribute errors."
+        },
+        {
+          "category": "Performance/cost: DNS lookup recursion in SPF validation",
+          "title": "SPF DNS lookup counting and include: recursion can amplify work",
+          "problem": "SPF validation counts DNS lookup cost per mechanism and recursively resolves include: domains via DNS TXT queries, potentially producing substantial network work and complexity.",
+          "root_cause": "Recursive DNS resolution without clear caching/limits in the processor behavior.",
+          "solution": "Any changes should respect existing counting semantics (RFC-aligned 10 lookup cap logic and recursive include effects) and avoid altering cost-calculation meaning."
+        },
+        {
+          "category": "Configuration validation and exception safety",
+          "title": "TTL constraint processors must validate configuration relationships",
+          "problem": "TtlClampProcessor clamps to min/max; restriction processors enforce allowed sets/ranges. Misconfiguration (e.g., min_ttl > max_ttl) can create inverted behavior or incorrect blocking.",
+          "root_cause": "Insufficient validation or reliance on implicit behavior of inverted ranges.",
+          "solution": "Edits should preserve or strengthen configuration validation and exception types/messages so pipeline callers can reliably interpret failures."
+        },
+        {
+          "category": "Zone-specific derived generation: ARPA and wildcard behavior",
+          "title": "Auto ARPA generation depends on zone suffix matching and wildcard handling",
+          "problem": "AutoArpa generates PTR candidates only when ARPA keys match the reverse zone name suffix, and it historically ignored wildcard A/AAAA records by default (with an optional wildcard_replacement).",
+          "root_cause": "Eligibility rules combine record-name patterns, IP expansion, wildcard replacement, and ARPA zone suffix constraints.",
+          "solution": "Maintain these eligibility/suffix/wildcard conventions so reverse zones get consistent PTR records without leaking into unrelated reverse namespaces."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "octodns/processor/base.py",
+          "why": "Defines the processor API, lifecycle hook methods, and shared exception/lenient semantics that all other processors depend on."
+        },
+        {
+          "path": "octodns/processor/ownership.py",
+          "why": "Implements ownership TXT injection and plan change filtering, which directly controls what sync/apply will affect."
+        },
+        {
+          "path": "octodns/processor/meta.py",
+          "why": "Creates/updates the special meta TXT record and can suppress specific plan changes, impacting plan determinism."
+        },
+        {
+          "path": "octodns/processor/acme.py",
+          "why": "Handles ACME DNS-01 TXT challenge management via tagging/sentinel logic and cleanup of ACME-like records."
+        },
+        {
+          "path": "octodns/processor/arpa.py",
+          "why": "Generates reverse PTR records from desired A/AAAA inputs; correctness depends on ARPA name computation and eligibility constraints."
+        }
+      ],
+      "construct_relationships": [
+        "All processors in this folder extend BaseProcessor and implement one or more lifecycle hooks (e.g., process_source_zone, process_source_and_target_zones, process_plan) following the base class\u2019s no-op defaults contract",
+        "Templating processor modifies desired zone records by rendering values via value.template(params) when present, then replaces records in the desired zone so downstream processors/plan computation see rendered values",
+        "EnsureTrailingDots mutates desired zone records by replacing specific RR fields/values with trailing-dot-normalized equivalents while preserving the original value types expected by later logic",
+        "OwnershipProcessor adds synthetic ownership TXT records during source-zone processing and later filters plan changes in process_plan based on ownership identification across desired and existing records",
+        "MetaProcessor adds/updates a special meta TXT record during source+target processing and then may suppress plan changes if the only change is the meta record update deemed up-to-date by key-set matching",
+        "Filter processors remove records from zone.records in-place (source vs target semantics governed by include_target) based on matchers for type/name/value/network/NS rules"
+      ],
+      "notable_relationships": [
+        "Upstream dependency: processors assume Zone/Record APIs that support record iteration, copying, lenient flags, and replace semantics when adding/updating records (used across ownership/meta/acme/templating/trailing_dots).",
+        "Plan/sync dependency: processors that modify plan changes (OwnershipProcessor, MetaProcessor) rely on the structure of the computed plan/change objects produced elsewhere in octoDNS.",
+        "External dependency: SPF processor performs DNS TXT lookups (including recursive include: resolution), coupling processor behavior to network/DNS resolver semantics."
+      ],
+      "recommendations": [
+        "Preserve processor lifecycle hook signatures and phase behavior expectations (source-zone vs target-zone vs plan) to avoid changing which transformations/filters apply when.",
+        "When editing processors that create or replace records (templating, trailing dots, meta, ownership, acme), ensure lenient mode and record identity semantics are carried forward so downstream validations and plan comparisons remain consistent.",
+        "Maintain correctness of record value type handling for RR-specific structured values; avoid coercing specialized value objects into plain strings when normalizing fields.",
+        "Do not change the identity conventions used for sentinel/meta/ownership/ACME tagging unless you also adjust corresponding plan filtering/suppression logic and any consumers\u2019 assumptions.",
+        "For SPF and ARPA processors, keep eligibility rules and counting/name-derivation semantics intact, since these determine which derived records or exceptions appear in plans."
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    "octodns/provider": {
+      "description": "The octodns/provider subtree defines the provider abstraction and the planning primitives that sit between configured providers (as both sources and targets) and the sync plan output. It matters because nearly all sync behavior flows through BaseProvider\u2019s populate/desired/existing processing pipeline and through Plan\u2019s safety checks and rendering. Changes here have cross-cutting impact on processors, record normalization, lenient/strict behavior, and the shape of plan output emitted to CLI and other consumers.",
+      "key_behaviors": [
+        "Provider planning lifecycle: build an existing Zone from the provider backend, copy desired state, normalize both sides, then compute record diffs into a change list",
+        "Provider-specific normalization hooks for desired and existing zones that can add/remove/transform records before diffing",
+        "Two-phase processor pipeline that first prepares the target zone, then processes cross-source/target interactions before changes are computed",
+        "Plan computation that enforces deterministic output ordering and applies safety thresholds (including precedence rules) before allowing risky operations",
+        "Plan rendering to multiple output formats (logger/json/markdown/html) including meta payload propagation",
+        "Provider-to-file I/O for YAML zones when used as a target, including discovery of zone inputs and record serialization semantics",
+        "Capability signalling for supported record behaviors (via SUPPORTS_* flags and registered record types) to allow capability-aware planning"
+      ],
+      "insights": [
+        {
+          "category": "Compatibility & Flag Propagation",
+          "title": "Lenient mode threading across existing-zone processing and processor hooks",
+          "problem": "Lenient handling was not consistently propagated into the provider\u2019s existing-zone processing flow, and processor hooks may not accept a lenient kwarg, risking runtime failures or inconsistent behavior.",
+          "root_cause": "Multiple call sites/overrides: BaseProvider\u2019s _process_existing_zone path and processor hook invocation paths do not share a single consistent lenient contract across provider versions.",
+          "solution": "Ensure lenient behavior is applied uniformly across both desired and existing normalization and that any lenient kwarg to processors/providers is guarded for backwards compatibility when hook signatures differ."
+        },
+        {
+          "category": "Behavioral Diagnostics & Feature Flags",
+          "title": "Root NS record warning/diagnostic toggling",
+          "problem": "Root NS support diagnostics can require a user-controlled toggle, since providers may warn (and potentially remove records) when root NS records are missing or unsupported.",
+          "root_cause": "Plan and/or provider logic introduces Root NS related behavior as a cross-cutting concern, but users needed an explicit way to disable such diagnostics/warnings.",
+          "solution": "Treat root NS warnings as a configurable behavior controlled via a dedicated toggle (e.g., root_ns_warnings) and ensure it is consistently applied in both planning and any provider normalization that could remove or alter root NS records."
+        },
+        {
+          "category": "Safety Constraints & Output Determinism",
+          "title": "Plan safety thresholds and Root NS change detection semantics",
+          "problem": "Apply safety depends on computed counts/percentages of change types, with precedence rules across provided defaults and zone-specific settings; additionally, plans raise when any change targets the zone root NS record.",
+          "root_cause": "Safety evaluation is centralized in Plan and relies on specific change-class naming and deterministic sorting of changes prior to counting/validation.",
+          "solution": "When editing plan logic, preserve change-class mapping and ordering assumptions, and maintain consistent Root NS change detection criteria (name '' / root NS target) so validations remain predictable."
+        },
+        {
+          "category": "File Output Routing & API Stability",
+          "title": "Plan output file handle parameterization",
+          "problem": "Plan output classes require support for per-output files while still allowing default behavior to write to a provided file handle; earlier refactors required parameter naming/routing changes.",
+          "root_cause": "Plan output plumbing likely supports both file handles and output filename variants, with different renderer implementations needing a consistent contract.",
+          "solution": "Preserve the output parameter semantics and routing mechanism expected by all Plan renderer implementations so changes don\u2019t break CLI/automation consumers."
+        },
+        {
+          "category": "Structured Observability for Non-Record Ops",
+          "title": "Plan meta exposure limitations for extensibility",
+          "problem": "Plan output did not expose structured data for non-record operations, limiting provider extensibility and observability beyond record diffs.",
+          "root_cause": "Plan\u2019s data model appears focused on record changes and renders meta but not a structured payload for other operation types.",
+          "solution": "When extending Plan or provider change models, ensure meta and any additional operation descriptors are represented in a way that all renderers can consume without losing information."
+        },
+        {
+          "category": "YAML Provider Input Discovery & Multi-Source Robustness",
+          "title": "ignore_missing_zones requirement for multi-source setups",
+          "problem": "YamlProvider raised an exception when no zone YAML inputs were found for a zone, which is undesirable in multi-source configurations where some directories may not contain the zone.",
+          "root_cause": "populate() discovery logic treats absence of inputs as an error rather than a configurable behavior.",
+          "solution": "Ensure ignore_missing_zones semantics are honored across discovery and populate pathways, especially when a provider is optional as a source."
+        },
+        {
+          "category": "Record Serialization Correctness",
+          "title": "TXT/SPF escaped semicolon unescaping and key reference bug",
+          "problem": "When escaped_semicolons=False, TXT/SPF values still contained escaped semicolons (\\;), leading to incorrect record content; an earlier bug referenced the wrong key (d[''] instead of d['value']).",
+          "root_cause": "Serialization/deserialization logic for TXT/SPF escaping/unescaping likely uses incorrect mapping keys and inconsistent escaping rules across modes.",
+          "solution": "Correctly unescape semicolons for TXT/SPF when escaped_semicolons is disabled and ensure the correct fields are used when transforming record data."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "octodns/provider/base.py",
+          "why": "Defines BaseProvider, the core provider lifecycle and the hooks that normalize desired/existing zones and invoke processors before diffing."
+        },
+        {
+          "path": "octodns/provider/plan.py",
+          "why": "Implements Plan safety validations, change counting/threshold precedence, Root NS detection, and all plan rendering output formats."
+        },
+        {
+          "path": "octodns/provider/yaml.py",
+          "why": "Implements YamlProvider as both a source and optional target, including zone discovery, populate semantics, and TXT/SPF escaping rules."
+        },
+        {
+          "path": "octodns/provider/__init__.py",
+          "why": "Defines provider exception types used by provider implementations to signal generic failures vs capability/support issues."
+        }
+      ],
+      "construct_relationships": [
+        "BaseProvider.plan orchestrates populate() for existing Zone, copies desired Zone, invokes _process_desired_zone/_process_existing_zone normalization, runs processor hooks, then computes diffs via existing.changes(desired, provider) to produce a changes list for Plan",
+        "BaseProvider invokes processor pipeline stages (process_target_zone and process_source_and_target_zones) before final diff computation; these stages affect the final changes list consumed by Plan",
+        "Plan sorts the passed changes list for deterministic output and then derives safety checks from change-class types/counts, including RootNsChange detection for changes targeting the root NS record (name '' / zone root)",
+        "YamlProvider implements populate() and (when acting as target) _apply(plan) in a way consistent with the BaseProvider plan/change model, including record creation semantics and TXT/SPF value escaping/unescaping"
+      ],
+      "notable_relationships": [
+        "Upstream: Providers are used by the manager/sync orchestration layer to produce existing/desired zone diffs and plan objects; any BaseProvider or Plan signature/behavior changes affect the global sync workflow.",
+        "Downstream: Plan renderers likely feed CLI outputs (logger/json/markdown/html) and any consumer expectations about file/handle semantics and meta payload shape must remain consistent.",
+        "Cross-cutting: Processor hooks are invoked from BaseProvider and may have signature variations; Plan and provider normalization behaviors must remain compatible with processor and record model expectations."
+      ],
+      "recommendations": [
+        "Preserve BaseProvider\u2019s contract for how desired/existing Zones are copied, normalized, and diffed into changes, including the ordering/inputs to processors and the semantics of provider hooks.",
+        "When adjusting lenient behavior or validation flows, ensure lenient mode is applied consistently across existing-zone processing and processor/provider hook invocation while maintaining backwards compatibility for hook signatures.",
+        "Maintain Plan\u2019s deterministic change ordering and the mapping between change classes and safety threshold counting logic, as well as Root NS change detection criteria.",
+        "Keep Plan output rendering contracts stable (output destination handling, meta payload rendering) so CLI/automation consumers do not break due to output plumbing changes.",
+        "For YamlProvider, respect ignore_missing_zones behavior in populate/discovery paths and ensure TXT/SPF escaping/unescaping semantics remain correct across both source and target modes."
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    "tests/config": {
+      "description": "tests/config is a collection of YAML fixtures that drive integration-style validation of octoDNS configuration parsing, dynamic behaviors, and safety checks. These files encode edge cases (invalid class/module references, malformed plan outputs, alias cycles, optional None/null handling) that constrain how the manager, loaders, and planning/sync pipelines must interpret configuration. Because these fixtures are consumed by test harness discovery and assertions, their exact structure and naming directly affect what code paths are exercised.",
+      "key_behaviors": [
+        "Validation fails fast on malformed manager.plan_outputs and provider class references (missing fields, missing module qualifiers, non-importable classes).",
+        "Zone resolution must correctly detect alias chains and prevent infinite recursion when alias cycles are present or can be made cyclic by configuration.",
+        "Dry-run semantics propagate per-zone and respect explicit overrides on subzones, even when multiple input/output YAML providers are configured.",
+        "Processor configuration is interpreted as a chain: known processors run and unknown processors trigger error handling without producing unintended side effects.",
+        "Dynamic ARPA generation tolerates empty/absent zone configuration inputs while still recognizing dynamic reverse zones and applying auto-generation rules consistently.",
+        "Dynamic configuration modes require provider capabilities such as list_zones; when unsupported, the dynamic workflow must fail or degrade according to defined expectations.",
+        "Hybrid zone fixtures model deterministic TXT record structures across flat vs split/merged source scenarios, including root-label ('') handling.",
+        "Dynamic routing fixtures expand complex routing policies (pools, geo, weighted, fallback) into provider-specific record outputs in a stable, testable way."
+      ],
+      "insights": [
+        {
+          "category": "Config validation",
+          "title": "Plan output configuration schema enforcement",
+          "problem": "Malformed manager.plan_outputs fixtures intentionally include invalid/missing fields to ensure the CLI/manager rejects bad configuration early.",
+          "root_cause": "Missing required schema attributes or incorrect types for plan output class definitions.",
+          "solution": "Tests depend on strict validation behavior and predictable error surfaces; changes to schema parsing must preserve failure modes and error timing."
+        },
+        {
+          "category": "Dynamic behavior robustness",
+          "title": "Tolerance of empty/blank dynamic reverse zone configs",
+          "problem": "Dynamic ARPA fixtures include intentionally empty YAML zone definitions while still expecting zone recognition and processing.",
+          "root_cause": "Loader logic may assume zone content exists and fail when zone dicts are empty or null-like.",
+          "solution": "Maintain compatibility with empty-zone representations so dynamic workflows can proceed without crashing and still identify the zone keys."
+        },
+        {
+          "category": "Safety / recursion control",
+          "title": "Alias cycle detection in zone resolution",
+          "problem": "Alias chains can be cyclic via configuration; without detection, alias resolution risks infinite recursion.",
+          "root_cause": "Zone alias traversal lacks cycle detection or uses insufficient visited-state tracking.",
+          "solution": "Cycle detection and error/handling semantics are test-asserted; changes to resolution logic must retain deterministic cycle handling."
+        },
+        {
+          "category": "Configuration precedence semantics",
+          "title": "Per-zone always-dry-run overrides",
+          "problem": "Dry-run behavior must respect precedence where one zone forces always-dry-run while a subzone explicitly disables it.",
+          "root_cause": "Precedence/propagation rules for inherited zone settings may be ambiguous or order-dependent.",
+          "solution": "Preserve the exact precedence/override semantics across planning/apply workflows; tests encode expected inherited vs overridden outcomes."
+        },
+        {
+          "category": "Provider capability contracts",
+          "title": "Dynamic config requires zone discovery support",
+          "problem": "A dynamic-config fixture uses a provider that does not support list_zones while defining zones that depend on discovery.",
+          "root_cause": "Dynamic manager mode may not check provider capabilities before relying on list_zones.",
+          "solution": "Keep capability checks and resulting behavior consistent so tests can verify correct failure/degradation when zone listing is unavailable."
+        },
+        {
+          "category": "Null/None parsing robustness",
+          "title": "Optional None values in YAML should not crash initialization",
+          "problem": "Fixtures include empty sections and explicit null values for optional keys to ensure initialization is resilient.",
+          "root_cause": "Config-to-object mapping may mishandle YAML nulls (e.g., expecting dict/list but receiving None).",
+          "solution": "Ensure config parsing preserves stable defaults and avoids attribute errors; maintain behavior with explicit YAML nulls."
+        },
+        {
+          "category": "Hybrid fixture determinism",
+          "title": "Root-label TXT record representation in hybrid configs",
+          "problem": "Hybrid fixtures encode TXT records under both flat and split/merged scenarios, including the special root label ('').",
+          "root_cause": "Serialization/deserialization may treat empty labels or root label differently across formats.",
+          "solution": "Keep root-label handling consistent so deterministic comparisons in tests remain valid."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "tests/config/alias-zone-loop.yaml",
+          "why": "Primary fixture for exercising alias resolution cycle detection and preventing infinite recursion."
+        },
+        {
+          "path": "tests/config/always-dry-run.yaml",
+          "why": "Validates dry-run inheritance and explicit subzone override precedence across planning/apply flows."
+        },
+        {
+          "path": "tests/config/bad-plan-output-config.yaml",
+          "why": "Triggers configuration validation for manager.plan_outputs with invalid schema fields in a plan output class mapping."
+        },
+        {
+          "path": "tests/config/dynamic-arpa-no-normal-source.yaml",
+          "why": "Covers dynamic auto-ARPA population behavior when normal sources are absent, including TTL/replace semantics."
+        },
+        {
+          "path": "tests/config/hybrid/two.test./$two.test.yaml",
+          "why": "Models hybrid configuration for a subdomain with a root-label TXT record, constraining root-label parsing/serialization."
+        }
+      ],
+      "construct_relationships": [
+        "Manager-level config loading (from YAML providers and manager.* fields) must feed into zone resolution logic that handles aliases (including cycle detection) before planning/sync can proceed.",
+        "Plan output configuration (manager.plan_outputs) is validated during startup/initialization and must block execution when malformed, independent of provider/zone correctness.",
+        "Provider class resolution logic consumes fully-qualified class names and module qualifiers from config; failures must surface during configuration validation rather than at runtime.",
+        "Dry-run behavior is computed from per-zone flags (always-dry-run) and propagated into downstream plan/apply decision paths with subzone override precedence.",
+        "Processor configuration is interpreted as part of a pipeline applied to records; unknown processor names must be treated as configuration errors that affect the ability to render a plan."
+      ],
+      "notable_relationships": [
+        "test harnesses likely discover fixtures by path under tests/config and may rely on file naming conventions and directory structure (e.g., tests/config/dynamic-arpa, tests/config/hybrid) to assemble inputs.",
+        "Fixtures describing YAML providers and processors assume alignment with real provider/processor loading mechanisms used in octoDNS; altering configuration schema or loader behavior may break multiple fixtures simultaneously.",
+        "Dynamic ARPA and dynamic routing fixtures imply deeper integrations between manager auto_arpa/dynamic expansion logic and the serialization format expected by YAML dump providers used in tests."
+      ],
+      "recommendations": [
+        "Preserve the structure and key conventions of the YAML fixtures (including empty/blank zone configs and root-label '') because test expectations are sensitive to parsed shapes, not just content.",
+        "When changing config parsing/validation logic, maintain the same failure timing and error surfacing for malformed plan_outputs and provider class references, as these fixtures assert early rejection behavior.",
+        "Ensure any modifications to alias resolution, dry-run precedence, processor pipeline handling, and dynamic config capability checks remain consistent with the edge-case semantics encoded by these fixtures.",
+        "Run the full set of tests that consume these fixtures (especially those covering dynamic ARPA, dynamic routing, hybrid TXT, and alias loop handling) because changes in shared parsing/loader components can cascade."
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    "octodns/cmds": {
+      "description": "The octodns/cmds folder contains the command-layer entry points for the octoDNS CLI. These modules translate user-provided CLI options into calls against the core orchestration layer (Manager), then format outputs and select process exit codes based on results. Because they handle logging setup, concurrency for live DNS queries, and orchestration flags (dry-run vs apply), changes here can affect operator-visible behavior and the determinism of CLI outputs.",
+      "key_behaviors": [
+        "Standardizes CLI argument parsing and immediately configures Python logging (including log routing to stdout/stderr and optional syslog or YAML logging config).",
+        "Loads configured DNS zones and data sources via a central Manager, then performs operations (compare, dump, validate, report, sync) with operator-controlled flags and exit codes.",
+        "For live DNS reporting, executes concurrent resolver queries with bounded concurrency and normalizes failures into stable sentinel outputs for consistent reporting/aggregation.",
+        "For sync operations, orchestrates a plan/apply workflow with default dry-run semantics, optional force/force-like behavior, and optional checksum gating."
+      ],
+      "insights": [
+        {
+          "category": "Logging/CLI UX",
+          "title": "Log-level formatting compatibility impacts operator readability",
+          "problem": "WARNING output formatting was misaligned due to deprecated/renamed log levels (e.g., WARN vs WARNING), producing inconsistent-looking log lines.",
+          "root_cause": "The logging configuration/formatting logic likely mapped CLI flags to different level names than those expected by the configured formatter/handlers.",
+          "solution": "Ensure log level naming and formatter expectations remain consistent across CLI logging setup and any configured YAML logging settings."
+        },
+        {
+          "category": "DNS Record Serialization",
+          "title": "TXT record value quoting/escaping can be unintentionally double-escaped",
+          "problem": "TXT record strings were unnecessarily escaped (double-quoted) because upstream query/serialization produced quotes that JSON handling re-escaped.",
+          "root_cause": "TXT values likely contained surrounding quotes that were preserved through the DNS query output path and then treated again as string content during JSON serialization.",
+          "solution": "Validate end-to-end TXT normalization so that surrounding quotes are stripped or consistently represented before JSON encoding."
+        },
+        {
+          "category": "Concurrency/Determinism",
+          "title": "Async resolver query output ordering affects consistency checks",
+          "problem": "Deterministic sorting removed/changed in the async report path; consistency logic may depend on answer ordering or the chosen representation key.",
+          "root_cause": "Asynchronous query execution and subsequent aggregation can change answer ordering unless answers are explicitly sorted before both display and consistency computation.",
+          "solution": "Keep answer ordering and the consistency keying strategy aligned so that 'same answers' detection is stable regardless of resolver response order."
+        },
+        {
+          "category": "Operator Safety/Integrity",
+          "title": "Sync apply must correspond to computed plan semantics",
+          "problem": "Operators require a mechanism to ensure apply proceeds with the exact plan computed during the dry-run phase; otherwise drift could cause unintended changes.",
+          "root_cause": "Plan computation and apply execution can be separated in time/conditions; without gating (e.g., checksum), apply may not reflect the earlier plan inputs.",
+          "solution": "Treat checksum gating and force/doit semantics as the contract ensuring apply corresponds to the prior computed plan."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "octodns/cmds/args.py",
+          "why": "Defines shared CLI argument parsing and central logging configuration behavior used by other command entry points."
+        },
+        {
+          "path": "octodns/cmds/report.py",
+          "why": "Implements the live DNS reporting command using asyncio concurrency, resolver input normalization, aggregation, and output formatting."
+        },
+        {
+          "path": "octodns/cmds/sync.py",
+          "why": "Orchestrates the plan/apply flow for syncing changes, including default dry-run behavior, force semantics, and checksum gating."
+        },
+        {
+          "path": "octodns/cmds/compare.py",
+          "why": "Computes and prints differences between two configured sources for a zone, including ignore-prefix filtering and exit codes."
+        },
+        {
+          "path": "octodns/cmds/validate.py",
+          "why": "Implements validation that turns logged warnings into process failure (exit code 1) via a custom logging handler."
+        }
+      ],
+      "construct_relationships": [
+        "All command modules depend on shared CLI argument/logging utilities from octodns/cmds/args.py to ensure consistent CLI behavior and logging setup.",
+        "compare/dump/report/validate/sync instantiate and use the core Manager to load zones from configured sources and then perform their respective operations (compare/dump/report/validate/sync).",
+        "validate uses a custom logging handler (FlaggingHandler) to intercept Manager/record validation warnings and convert them into a non-zero exit status.",
+        "report constructs async tasks for record/resolver combinations and aggregates DNS answers into consistency computations used for output generation.",
+        "sync performs a two-phase workflow (compute plan, then optionally apply) and gates apply behavior based on CLI flags (dry-run default, force/doit, optional checksum match)."
+      ],
+      "notable_relationships": [
+        "Upstream dependency: These CLI commands depend on the core orchestration layer (Manager) and its contract for loading configs, validating records, dumping zone data, and producing sync plans.",
+        "Downstream dependency: Output formats (CSV/JSON for report; printed diffs for compare; filesystem output for dump; exit codes for validate/sync) are consumed by operators/scripts and therefore are compatibility-sensitive.",
+        "Cross-cutting concern: Logging configuration and handler behaviors in args.py and validate.py directly influence whether warnings are surfaced and whether processes exit with failure."
+      ],
+      "recommendations": [
+        "When editing any command module, preserve the CLI contract: argument meanings, default behaviors (especially sync dry-run), and exit code semantics expected by automation.",
+        "Maintain logging-level naming and formatting consistency across CLI flags and any YAML-based logging configuration to avoid operator-visible log regressions.",
+        "For report output, ensure DNS answer normalization (including TXT quoting/escaping) and any consistency computation remain stable and deterministic under concurrency.",
+        "For sync, preserve the integrity mechanism (checksum gating and how/when it is checked) so that apply behavior cannot diverge from the computed plan."
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    "octodns/secret": {
+      "description": "The octodns/secret folder defines the abstraction and concrete implementation for resolving sensitive configuration values from external secret sources. It currently centers on an environment-variable based backend that supports a naming convention with optional defaults and best-effort type coercion. This subsystem matters because other octoDNS components rely on it to obtain configuration-time values, and errors or coercion differences can directly affect provider/plan behavior.",
+      "key_behaviors": [
+        "Provides a common secret integration base that standardizes per-instance logging and naming context for secret backends.",
+        "Resolves secret values by name from the host process environment using a fetch(name, source) interface.",
+        "Interprets a special delimiter convention in the requested secret name to support fallback defaults when the env var is missing.",
+        "Performs lightweight type coercion on retrieved (or default) values, converting to int or float when heuristically applicable.",
+        "Raises a secret-specific exception type when resolution fails and no default is available, enabling callers to distinguish secret errors."
+      ],
+      "insights": [
+        {
+          "category": "Configuration semantics",
+          "title": "Default fallback is encoded in the secret name string",
+          "problem": "Callers may request secrets using a single string that embeds both the environment variable name and an optional default value.",
+          "root_cause": "The backend parses requested secret names containing '/' into (env_var_name, default_value).",
+          "solution": "When modifying or consuming this backend, preserve the exact parsing and fallback behavior so missing env vars reliably fall back only when a default is specified."
+        },
+        {
+          "category": "Type coercion compatibility",
+          "title": "Value type depends on heuristics that may differ across call paths",
+          "problem": "Environment secret values can be interpreted as int, float, or string depending on content, and regressions can occur if coercion rules change or are inconsistently applied elsewhere.",
+          "root_cause": "The backend attempts conversion based on string content (notably whether '.' is present), which can lead to inconsistent outcomes across different construction/usage paths.",
+          "solution": "Maintain the coercion heuristics and ensure any changes are consistent with how secret values are expected to be used by manager/provider config assembly."
+        },
+        {
+          "category": "Error handling contract",
+          "title": "Secret resolution failures are represented by a dedicated exception type",
+          "problem": "Secret resolution failures must be distinguishable from unrelated runtime errors so higher-level workflows can react appropriately.",
+          "root_cause": "The subsystem defines and raises a dedicated SecretsException base class (via EnvironSecretsException for env backend failures).",
+          "solution": "Keep exception types and raising conditions stable so callers relying on exception categorization (tests and control flow) continue to work."
+        },
+        {
+          "category": "Logging and observability",
+          "title": "Logs are scoped to backend class and secret name",
+          "problem": "Secret resolution issues need consistent attribution to the relevant backend and secret key.",
+          "root_cause": "BaseSecrets initializes a logger keyed by class name and secret name.",
+          "solution": "Preserve the logger construction inputs and ensure any refactors keep the same logging scope so incident triage remains consistent."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "octodns/secret/environ.py",
+          "why": "Implements the core environment-backed secret resolution logic, including parsing defaults and type coercion."
+        },
+        {
+          "path": "octodns/secret/base.py",
+          "why": "Defines the BaseSecrets class used by secret backends for standardized logging and naming context."
+        },
+        {
+          "path": "octodns/secret/exception.py",
+          "why": "Defines the common SecretsException type that callers and tests use to identify secret subsystem failures."
+        },
+        {
+          "path": "octodns/secret/__init__.py",
+          "why": "Establishes the package boundary; while it contains no logic, import structure may affect how backends are referenced elsewhere."
+        }
+      ],
+      "construct_relationships": [
+        "EnvironSecrets (in environ.py) is the concrete secret backend that relies on the BaseSecrets logging/naming conventions and raises exception types derived from SecretsException (via EnvironSecretsException).",
+        "Callers elsewhere in the project depend on EnvironSecrets.fetch(name, source) to return resolved secret values (string/int/float) or raise a secret-specific exception when resolution fails."
+      ],
+      "notable_relationships": [
+        "Upstream dependency: provider/config/manager construction flows likely call into this secret backend to obtain runtime configuration values before processing plan/changes; incorrect coercion or exception behavior can cascade into provider planning/sync outcomes.",
+        "Downstream dependency: error handling and tests elsewhere likely catch SecretsException (or backend-specific derivatives) to provide user-facing messages or to abort workflows safely."
+      ],
+      "recommendations": [
+        "When editing environ.py, preserve the name parsing convention using '/' (env_var_name/DEFAULT_VALUE) and the exact fallback behavior when the environment variable is missing.",
+        "Maintain the existing type coercion expectations for env/default values (int vs float vs string) to avoid changing the semantic type of configuration inputs consumed by other modules.",
+        "Preserve exception class hierarchy and raising conditions (SecretsException and derived types) so callers that distinguish secret errors continue to function.",
+        "Keep BaseSecrets logger scoping behavior consistent (how logger name is derived from class and secret name) to avoid breaking log correlation or tests that assert log output."
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    "octodns/source": {
+      "description": "The octodns/source package defines the contract and implementations for loading \u201ccurrent\u201d DNS state into octoDNS zones. It matters because all downstream planning/sync logic relies on sources to consistently populate records with correct types, TTL behavior, and capability signaling (e.g., dynamic/geo support). This subtree includes an abstract base interface plus concrete sources for environment-variable TXT injection and legacy TinyDNS import, both of which must conform to the shared populate/support rules.",
+      "key_behaviors": [
+        "Provide a standardized populate workflow for turning backend data (or environment values) into octoDNS zone record sets",
+        "Advertise and enforce source capabilities via required subclass attributes and support checks (including dynamic/geo support flags)",
+        "Ensure record-type compatibility by validating supported record types before populating zones",
+        "Implement deterministic record generation for environment variable sources (single TXT record derived at runtime)",
+        "Parse legacy TinyDNS files by interpreting symbols, aggregating multiple lines into multi-value records, and generating reverse PTR records when applicable"
+      ],
+      "insights": [
+        {
+          "category": "Interface contract",
+          "title": "BaseSource enforces subclass capabilities and populate expectations",
+          "problem": "Inconsistent or incomplete source implementations can break planning assumptions or cause runtime errors when downstream code expects specific attributes/behaviors.",
+          "root_cause": "BaseSource defines required capability attributes and shared logic, and relies on correct subclass definitions for supports/validation behaviors.",
+          "solution": "Edits must preserve BaseSource\u2019s expected interface shape (class attributes and method semantics) so all source implementations continue to be discoverable and compatible with manager/provider orchestration."
+        },
+        {
+          "category": "Capability signaling",
+          "title": "Dynamic/geo support flags must match actual behavior",
+          "problem": "Downstream systems may treat sources as dynamically varying (or geo-aware) when they are not, leading to incorrect change detection or planning results.",
+          "root_cause": "EnvVarSource explicitly disables geo/dynamic support because it always produces a deterministic TXT record derived from a current environment variable at execution time.",
+          "solution": "Any changes to how sources read external inputs or generate records must keep their SUPPORTS_DYNAMIC/geo-related signaling aligned with real determinism and variability."
+        },
+        {
+          "category": "Record mapping and parsing semantics",
+          "title": "TinyDNS import must preserve mapping correctness and multi-value aggregation",
+          "problem": "Incorrect symbol-to-record-type mapping or loss of multi-line aggregation can produce incorrect record sets and therefore incorrect sync plans.",
+          "root_cause": "TinyDnsBaseSource uses a SYMBOL_MAP and parsing logic to translate TinyDNS symbols into octoDNS record types, including special handling for reverse/ARPA and generic ':' rdata parsing via registered types.",
+          "solution": "Changes affecting parsing logic must ensure symbol mapping coverage, aggregation behavior, and reverse-zone PTR generation semantics remain consistent with existing expectations and record registration mechanisms."
+        },
+        {
+          "category": "Operational exceptions and runtime failures",
+          "title": "EnvVarSource must handle missing/malformed environment variables predictably",
+          "problem": "If environment variable retrieval errors are not surfaced consistently, orchestration may fail non-deterministically or produce empty/incorrect zones.",
+          "root_cause": "EnvVarSource defines EnvironmentVariableNotFoundException and reads a specific env var during populate.",
+          "solution": "Edits must preserve exception behavior and how missing variables are reported, since upstream callers may rely on specific failure modes."
+        },
+        {
+          "category": "TTL behavior consistency",
+          "title": "TinyDNS default TTL when unspecified impacts change detection",
+          "problem": "If TTL derivation changes, the plan may show widespread diffs even when record content is unchanged.",
+          "root_cause": "TinyDnsBaseSource applies a default TTL when TinyDNS lines do not specify one.",
+          "solution": "Any modifications around TTL parsing or defaulting must keep resulting TTL values stable and predictable for existing inputs."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "octodns/source/base.py",
+          "why": "Defines BaseSource, the core interface and shared validation/support logic all source implementations must conform to."
+        },
+        {
+          "path": "octodns/source/envvar.py",
+          "why": "Implements EnvVarSource that injects environment-derived TXT records and enforces deterministic-capability semantics."
+        },
+        {
+          "path": "octodns/source/tinydns.py",
+          "why": "Implements TinyDnsFileSource/TinyDnsBaseSource for parsing TinyDNS files, mapping symbols to record types, and generating reverse PTR records."
+        },
+        {
+          "path": "octodns/source/__init__.py",
+          "why": "Package initializer that establishes the octodns.source namespace; may affect imports/discovery patterns for source classes."
+        }
+      ],
+      "construct_relationships": [
+        "BaseSource defines the populate contract that EnvVarSource and TinyDnsFileSource implement to convert backend inputs into zone record structures",
+        "BaseSource.supports and record-type support checks gate whether specific record types may be populated by a source",
+        "EnvVarSource.populate reads environment variables (via an internal helper) and creates/overlays a TXT record in the zone",
+        "TinyDnsBaseSource._process_lines/_process_symbols interpret TinyDNS file lines/symbols, mapping them into octoDNS record types and leveraging Record.registered_types for generic ':' rdata parsing",
+        "TinyDnsBaseSource generates PTR records for reverse (ARPA) zones based on detected zone direction"
+      ],
+      "notable_relationships": [
+        "Downstream planning/sync logic depends on populated zones being internally consistent with octoDNS record type registrations and BaseSource\u2019s declared support/capability flags",
+        "TinyDNS parsing relies on the global/central record-type registry (Record.registered_types) to interpret arbitrary rdata for ':' symbols, creating a coupling between source parsing and record definitions elsewhere in the project",
+        "EnvVarSource behavior and capability signaling couple runtime execution environment to deterministic zone generation, affecting how orchestration perceives source stability across runs"
+      ],
+      "recommendations": [
+        "When modifying BaseSource or its contract, ensure all subclasses in this package still satisfy required capability attributes and do not break support/validation expectations used by upstream orchestration",
+        "Preserve the semantics of capability signaling (especially dynamic/geo support flags) so downstream change detection and plan generation remain correct",
+        "For TinyDNS parsing changes, maintain symbol-to-record-type mapping behavior, multi-value aggregation rules, reverse PTR generation for ARPA, and default TTL behavior",
+        "For EnvVarSource changes, keep exception behavior for missing environment variables stable and ensure TXT generation remains deterministic as assumed by its support flags",
+        "Verify changes remain compatible with the record-type registry expectations used by TinyDnsBaseSource (Record.registered_types) to parse generic rdata correctly"
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    "tests/zones": {
+      "description": "This folder contains DNS zone fixtures used by the test suite to validate parsing, validation, and planning logic around DNS record models. The zones are structured to cover both normal operation (a comprehensive unit.tests zone), minimal delegation-only zones, and multiple classes of invalid input (malformed record content and structurally incomplete zones). These fixtures matter because they define the exact inputs that downstream parsing/validation layers must accept or reject and because they likely encode expectations about normalization of diverse DNS record types.",
+      "key_behaviors": [
+        "Load and parse DNS zone text fixtures into internal zone/record representations",
+        "Validate zone structural completeness and record content, producing errors for invalid fixtures",
+        "Exercise normalization and normalization-dependent planning behavior across many DNS record types",
+        "Ensure the system correctly handles zones with only SOA/NS delegation metadata"
+      ],
+      "insights": [
+        {
+          "category": "Test input modeling",
+          "title": "Comprehensive record-type fixture drives end-to-end coverage",
+          "problem": "A broad set of DNS record types must be correctly parsed and normalized to support consistent downstream plan generation.",
+          "root_cause": "The fixture unit.tests.tst includes many heterogeneous record models (e.g., SRV/TXT/MX/CAA/SVCB/HTTPS/etc.), making the test sensitive to parsing/normalization semantics for each type.",
+          "solution": "When editing fixture files or related parsing/validation code, ensure record-model expectations remain aligned across all listed record types and that failures indicate which model deviated."
+        },
+        {
+          "category": "Validation behavior",
+          "title": "Invalid record content fixture exercises error handling",
+          "problem": "Malformed or inconsistent record definitions must be detected and routed to the correct validation/error paths rather than causing crashes or silent acceptance.",
+          "root_cause": "invalid.records.tst contains many record types with intentionally questionable/malformed content, which creates multiple potential validation failure points.",
+          "solution": "Treat changes to parsing/validation logic as potentially affecting multiple records in the same fixture; test outcomes must remain deterministic and failures must map to intended validation logic."
+        },
+        {
+          "category": "Structural completeness",
+          "title": "Minimal SOA-only zone fixture triggers invalid-zone handling",
+          "problem": "Zones that are syntactically minimal but semantically incomplete should produce a consistent invalid-zone outcome.",
+          "root_cause": "invalid.zone.tst includes SOA but no further records, targeting logic that differentiates structural completeness from general parsing success.",
+          "solution": "Maintain consistent rules for what constitutes a valid zone in the codebase and ensure any validation rule changes keep this fixture\u2019s expected invalid behavior."
+        },
+        {
+          "category": "Delegation-only handling",
+          "title": "Extension/minimal zone fixture ensures SOA/NS-only acceptance",
+          "problem": "The system must accept zones that contain only delegation metadata without expecting additional resource records.",
+          "root_cause": "ext.unit.tests.extension provides only SOA and NS records; downstream logic must not assume the presence of data records for planning.",
+          "solution": "When modifying zone loading or planning, verify that delegation-only zones continue to produce stable and correct internal representations."
+        },
+        {
+          "category": "Reverse DNS data correctness",
+          "title": "RFC1918 reverse zone fixture covers PTR parsing",
+          "problem": "Reverse DNS zones involve PTR-specific parsing and mapping semantics that must be preserved.",
+          "root_cause": "2.0.192.in-addr.arpa includes PTR mappings intended to verify PTR handling across multiple entries.",
+          "solution": "Ensure changes to record parsing/normalization do not alter PTR record handling (e.g., target formatting) in ways that would break planning expectations."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "tests/zones/unit.tests.tst",
+          "why": "Primary comprehensive fixture covering many record types and driving broad end-to-end parsing/normalization/plan assertions."
+        },
+        {
+          "path": "tests/zones/invalid.records.tst",
+          "why": "Targeted negative fixture that exercises validator behavior across multiple malformed/mismatched record types."
+        },
+        {
+          "path": "tests/zones/invalid.zone.tst",
+          "why": "Negative fixture focused on structural invalidity (SOA-only), used to verify invalid-zone detection paths."
+        },
+        {
+          "path": "tests/zones/ext.unit.tests.extension",
+          "why": "Minimal delegation-only zone fixture (SOA/NS only) used to confirm the system accepts zones without data records."
+        },
+        {
+          "path": "tests/zones/2.0.192.in-addr.arpa.",
+          "why": "Reverse DNS PTR-focused fixture that validates correct PTR parsing and handling in reverse zones."
+        }
+      ],
+      "construct_relationships": [
+        "unit.tests.tst supplies heterogeneous resource record sets (multiple DNS RR types) that collectively validate the parsing/normalization contracts used by planning logic",
+        "invalid.records.tst is expected to drive validation failures across multiple RR models, implying shared validation/utilities are used for many record types",
+        "invalid.zone.tst isolates structural validation logic for zones with only SOA, distinct from per-record validation",
+        "ext.unit.tests.extension implies the planning pipeline can operate with zones that contain only delegation metadata (SOA/NS) without relying on data record presence",
+        "2.0.192.in-addr.arpa. focuses on PTR record mapping correctness, likely exercising record-specific formatting rules that planning relies on"
+      ],
+      "notable_relationships": [
+        "These fixtures are downstream inputs to the codebase\u2019s zone loading/parsing and validation/plan generation layers; they likely feed into provider/source abstractions that expect normalized record data structures.",
+        "Negative fixtures (invalid.records.tst and invalid.zone.tst) likely couple to specific exception types, error messages, or error aggregation behaviors asserted by tests elsewhere in the suite."
+      ],
+      "recommendations": [
+        "When changing parsing, normalization, or validation logic that these fixtures exercise, re-run the full test suite that consumes zone fixtures to ensure deterministic outcomes for both positive and negative cases.",
+        "Treat fixture edits as semantic changes: record content/format in these .tst zones may encode exact expectations about normalization, ordering, and canonicalization used by planners.",
+        "Preserve the distinction between structurally invalid zones (SOA-only) and invalid record content (malformed/mismatched RR definitions), as these likely map to different validation pathways and different expected assertions.",
+        "Ensure delegation-only zones (SOA/NS-only) continue to be handled in a way compatible with planning/data-model assumptions, avoiding implicit dependencies on data-record presence.",
+        "For PTR/reverse zone handling, maintain stable PTR target formatting and mapping semantics so reverse DNS fixtures continue to match expected internal representations."
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    "octodns": {
+      "description": "The octodns folder is the core Python package that implements octoDNS\u2019s orchestration, plugin execution, provider planning, and CLI entry points. It matters because it wires together configuration-driven providers, sources, processors, and plan rendering/safety checks into a deterministic sync/report workflow. Changes in this subtree tend to have cross-cutting effects on record normalization, lenient/strict behavior, logging/CLI output, and plan generation.",
+      "key_behaviors": [
+        "Loads YAML configuration and dynamically instantiates providers/processors/plan outputs/secret handlers via import paths",
+        "Normalizes configuration data (including zone identity/IDNA handling and env/secret interpolation) before executing sync/report workflows",
+        "Runs a multi-phase processing pipeline where processors can mutate desired/target zone records and influence which plan changes are retained",
+        "Builds provider plans by populating an existing zone from the provider backend, normalizing desired/existing, then computing record diffs into change objects",
+        "Applies safety validations and renders plan outputs in multiple formats (logger/json/markdown/html) with deterministic ordering",
+        "Implements command-line interfaces that standardize logging behavior and (for report) executes concurrent DNS lookups with consistent aggregation semantics",
+        "Provides centralized DNS name/label IDNA encode/decode utilities used for consistent comparisons and keying"
+      ],
+      "insights": [
+        {
+          "category": "Versioning/External API",
+          "title": "Package version constants must remain compatible for tooling",
+          "problem": "The package initializer exposes version constants that external consumers/CLI tooling may rely on; inconsistencies can break checks or tests.",
+          "root_cause": "Presence of a non-standard constant (`__VERSION__`) alongside `__version__` creates compatibility ambiguity.",
+          "solution": "Maintain backward-compatible version exports and ensure any standardization preserves existing import expectations."
+        },
+        {
+          "category": "CLI & Logging",
+          "title": "Logging semantics and formatting are operator-visible and can affect output consistency",
+          "problem": "CLI commands configure logging (stdout/stderr routing, debug/quiet levels, syslog, optional YAML logging config).",
+          "root_cause": "Deprecated/renamed logging levels and formatting differences (e.g., WARN vs WARNING) can lead to inconsistent or misleading log lines.",
+          "solution": "When editing CLI args/logging behavior, preserve existing level mapping, stream routing, and format expectations for tests and user-facing output."
+        },
+        {
+          "category": "Orchestration/Config Loading",
+          "title": "Backward-compatible lenient kwarg propagation is a compatibility constraint",
+          "problem": "Orchestrator hooks may pass `lenient` into processor/provider/target hooks, but custom plugins may not accept it.",
+          "root_cause": "Processors and providers have varied hook signatures; adding new kwargs can break plugins not expecting them.",
+          "solution": "Retain the existing mechanism that attempts lenient-aware calls with backward-compatible fallback semantics."
+        },
+        {
+          "category": "Determinism & Diff Semantics",
+          "title": "Record/rdata normalization and deterministic ordering affects plan stability",
+          "problem": "Plan output and computed checksums depend on consistent normalization and ordering.",
+          "root_cause": "Some workflows normalize DNS answers or record representations differently across implementations (e.g., report async aggregation vs prior sorting; record value serialization).",
+          "solution": "Ensure edits do not inadvertently change ordering/normalization used by diffing and rendering, which can cause plan/changelog instability."
+        },
+        {
+          "category": "Processor Pipeline Correctness",
+          "title": "Processors mutate zones in-place and may filter/ suppress plan changes",
+          "problem": "Processors both transform record sets and decide which plan changes are meaningful, affecting final sync behavior.",
+          "root_cause": "Pipeline phases (source-zone, target-zone, source+target, plan) allow processors to add/remove/replace records and filter change lists based on internal rules (ownership, meta, acme).",
+          "solution": "When modifying processor hooks or record mutation patterns, preserve invariants expected by other processors and by provider diffing."
+        },
+        {
+          "category": "Lenient Mode Enforcement",
+          "title": "Lenient mode must be honored consistently across providers and processors",
+          "problem": "Validation processors and provider normalization may treat lenient records differently, but not all codepaths may thread lenient consistently.",
+          "root_cause": "Some processors/providers access leniency via internal fields or inconsistent interfaces, leading to behavior divergence.",
+          "solution": "Changes should ensure lenient behavior remains consistent end-to-end (source/existing processing, processor hooks, record validation, and forced copies)."
+        },
+        {
+          "category": "Plan Safety Checks & Rendering Contract",
+          "title": "Plan class enforces risk thresholds and renders structured output",
+          "problem": "Plan generation includes validations (unsafe thresholds, root NS change checks) and outputs in multiple formats; breaking these contracts affects CLI and automation.",
+          "root_cause": "Safety thresholds are computed with zone precedence and depend on change classification and existing-record conditions; rendering expects deterministic, sorted change ordering.",
+          "solution": "Avoid altering change classification, sorting, or threshold computation semantics when editing plan-related modules."
+        },
+        {
+          "category": "Provider Abstraction Compatibility",
+          "title": "Provider planning lifecycle has implicit contracts with processors",
+          "problem": "Providers implement populate/plan/apply workflows and invoke processors in two phases; incorrect integration changes which records diffs consider.",
+          "root_cause": "BaseProvider\u2019s plan() constructs existing/desired zones, runs normalization and processor phases, and then computes changes; lenient propagation and hook kwarg compatibility are implicit requirements.",
+          "solution": "Maintain the provider lifecycle ordering and processor invocation rules so processors see expected zone state."
+        },
+        {
+          "category": "Record Value Type Preservation",
+          "title": "Record value types and trailing-dot handling are tightly coupled",
+          "problem": "Processors that adjust record fields (e.g., trailing dots) must preserve record value classes expected by downstream logic.",
+          "root_cause": "Incorrect coercion (e.g., turning specialized value objects into plain strings) breaks record methods and serialization assumptions.",
+          "solution": "When editing record normalization processors, preserve value object types and field-specific behaviors."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "octodns/manager.py",
+          "why": "Central orchestration for config loading, dynamic plugin instantiation, zone expansion/sub-zone mapping, executor selection, and lifecycle coordination."
+        },
+        {
+          "path": "octodns/provider/base.py",
+          "why": "Defines BaseProvider planning workflow (existing/desired processing, processor hook phases, diff computation) that everything sync/plan depends on."
+        },
+        {
+          "path": "octodns/provider/plan.py",
+          "why": "Implements Plan safety validations and multi-format rendering; determines which planned changes are allowed and how they are presented."
+        },
+        {
+          "path": "octodns/cmds/args.py",
+          "why": "Standardizes CLI argument parsing and logging configuration, affecting operator-visible output and potentially automated parsing."
+        },
+        {
+          "path": "octodns/cmds/report.py",
+          "why": "Asynchronous DNS resolver reporting command that relies on concurrency, answer normalization, and deterministic aggregation semantics."
+        }
+      ],
+      "construct_relationships": [
+        "Manager instantiates configured processors/providers and wires them into provider plan workflows",
+        "BaseProvider.plan() constructs an existing Zone via populate(), prepares desired Zone copy, then invokes processors in multiple phases (target-zone, source+target, plan) before diffing existing vs desired",
+        "Processors (e.g., ownership/meta/ACME/trailing dots/templating) mutate desired zone state before Plan computation and may filter Plan changes afterward",
+        "Plan uses the computed change list from provider diffing; it performs safety checks based on change types/counts and renders through output adapters",
+        "CLI commands use octodns/cmds/args.py for consistent logging setup, then call into Manager/provider functionality for their core operation (sync/report/etc.)",
+        "idna.py provides shared encode/decode helpers used by manager and potentially by zone/record normalization paths for consistent DNS name handling"
+      ],
+      "notable_relationships": [
+        "Cross-folder: octodns/provider depends on octodns/processor for pipeline mutations and on octodns/record for record/value parsing and normalization",
+        "Cross-folder: CLI commands depend on octodns/manager orchestration and indirectly on provider/plan rendering output contracts",
+        "Cross-folder: IDNA utilities are foundational for consistent zone/record identity comparisons used during configuration normalization and planning"
+      ],
+      "recommendations": [
+        "Preserve hook signature compatibility (especially around lenient mode) between Manager/BaseProvider and externally configured processors/targets; co-change only with awareness of plugin signature variance.",
+        "Maintain deterministic behaviors that affect plan output and automation: sorting of change lists, record/answer normalization semantics, and any normalization that changes serialization/checksum inputs.",
+        "When modifying CLI/logging modules, preserve stdout/stderr routing, log level mappings (debug/quiet), and output formatting expectations relied on by operators/tests.",
+        "Respect processor pipeline assumptions: processors mutate zones and may suppress/filter plan changes in later phases; changes must be validated against the expected multi-phase ordering.",
+        "Ensure record value type preservation remains intact when editing normalization processors (e.g., trailing dots) to avoid breaking downstream record methods and diffing/serialization."
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    "script": {
+      "description": "The `script/` folder contains repository maintenance automation related to releases and changelog processing. It acts as a thin tooling layer over project metadata (e.g., version) and documentation inputs (e.g., changelog YAML front-matter) and is likely used in CI/release pipelines. Changes here must preserve assumptions about YAML structure, version sourcing, and ordering so downstream release/tagging and changelog attribution remain consistent.",
+      "key_behaviors": [
+        "Parses changelog entries from YAML documents that include front-matter separated by document markers",
+        "Associates changelog entries with pull requests, either via embedded metadata or derived ordering/association",
+        "Normalizes/sorts changelog entries by semantic version impact (major/minor/patch) to produce deterministic output",
+        "Computes and emits release artifacts/tags using the project\u2019s current version constant"
+      ],
+      "insights": [
+        {
+          "category": "Changelog parsing robustness",
+          "title": "Front-matter and document structure sensitivity",
+          "problem": "Changelog parsing previously used multi-document YAML loading (`safe_load_all`) and positional parsing that could break with `---`-style front-matter layout.",
+          "root_cause": "Parser assumed document boundaries/positions correspond directly to expected fields; front-matter introduces an additional YAML document or delimiter semantics.",
+          "solution": "Use a single-document YAML load strategy and align field extraction with the front-matter structure expected by the changelog authoring format."
+        },
+        {
+          "category": "Semantic version ordering",
+          "title": "Potential major/minor/patch inversion",
+          "problem": "Changelog entries could be sorted incorrectly, leading to major/minor/patch ordering mistakes.",
+          "root_cause": "Sorting logic likely depended on string or insertion order rather than a semantic ordering key derived from the release type/impact.",
+          "solution": "Ensure ordering is derived from a consistent semantic-version-impact precedence so output is deterministic and correct."
+        },
+        {
+          "category": "PR attribution in changelog",
+          "title": "Mismatch between provided PR numbers and parsed association",
+          "problem": "The script could fail to associate a changelog entry with the correct PR when a PR number was provided explicitly in the changelog YAML.",
+          "root_cause": "Association logic did not prioritize or correctly read the explicit PR field in front-matter; it may have relied on implicit mapping/order.",
+          "solution": "If a PR number is explicitly present in the YAML metadata, ensure it is used as the authoritative association source."
+        },
+        {
+          "category": "Release version source",
+          "title": "Version constant compatibility risk",
+          "problem": "Release script reads `__version__` rather than `__VERSION__`, which breaks tag generation if the project only defines the legacy constant.",
+          "root_cause": "Mismatch between script\u2019s expected version attribute name and what the library/module exports.",
+          "solution": "Maintain compatibility of the version constant export in the project so the script can read the intended value when creating release tags/artifacts."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "script/changelog",
+          "why": "Primary entry point for changelog ingestion/normalization, including YAML front-matter parsing, PR attribution, and semantic ordering."
+        },
+        {
+          "path": "script/release",
+          "why": "Primary automation for creating releases/tags, depending on correct reading of the project version constant."
+        }
+      ],
+      "construct_relationships": [
+        "Changelog parsing logic in `script/changelog` depends on the expected YAML front-matter layout and document structure (e.g., `---` delimiters) to extract fields used for ordering and PR association",
+        "Release logic in `script/release` depends on the version value exported by the project (specifically `__version__`) to generate consistent tags/artifacts"
+      ],
+      "notable_relationships": [
+        "Cross-module dependency on the project\u2019s version constant naming convention (`__version__` vs `__VERSION__`), meaning changes in core metadata exports can break release automation",
+        "Cross-artifact dependency on changelog authoring conventions (YAML front-matter fields and PR number presence), meaning formatting or schema changes in changelog inputs can affect parsing outcomes"
+      ],
+      "recommendations": [
+        "When editing `script/changelog`, preserve the YAML parsing semantics around front-matter and document delimiters; ensure field extraction remains consistent with the existing changelog file format",
+        "Preserve deterministic ordering rules for changelog entries to avoid semantic version impact inversion (major/minor/patch precedence)",
+        "Maintain correct PR attribution behavior when a PR number is explicitly present in changelog YAML; avoid regressions where association falls back to implicit/positional mapping",
+        "When editing `script/release`, ensure the script continues to resolve the project version from the correct exported attribute (`__version__`) and does not silently generate incorrect tags"
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    },
+    ".": {
+      "description": "This folder appears to be the repository root for octoDNS, containing both the Sphinx documentation build configuration and the core octoDNS Python package entry points. It also includes several tightly coupled subsystems: CLI argument/logging setup, the central Manager orchestration, provider/plan abstractions, and a multi-stage record-processing pipeline (processors) that mutates desired/target zones. Because these pieces coordinate around record normalization, IDNA handling, lenient/strict semantics, and deterministic plan generation, changes in this area can have broad behavioral impact across sync and report flows.",
+      "key_behaviors": [
+        "Docs builds derive release/version from the installed package and compute a GitHub docs ref, then rewrite intra-repo documentation links inside the resolved doctree.",
+        "CLI commands share a common argument parser that configures logging (stderr/stdout selection, syslog option, debug/quiet log levels, optional YAML logging configuration).",
+        "Manager orchestrates loading YAML config, instantiating plugin classes (providers, processors, plan outputs, secret handlers) via import paths, normalizing configuration (including IDNA/zone handling and env/secret interpolation), and executing multi-zone processing workflows.",
+        "Providers implement a standard plan lifecycle: populate an existing zone, normalize desired/existing zones, run processors in multiple phases with compatibility around hook signatures, compute diffs into a change list, and return a Plan object.",
+        "Processors form a pipeline that mutates desired (and sometimes target/alias) zones, enforcing/transforming record semantics (TTL clamping/restriction, trailing dots, templating, ID ownership, ACME management, ARPA auto PTR generation, SPF/SPF-like validation, and meta record injection) and can influence which plan changes survive.",
+        "Plan rendering and safety checks are centralized: the Plan object sorts changes deterministically, enforces update/delete thresholds and root NS safety rules, and renders outputs (logger/json/markdown/html) with meta payloads.",
+        "A report command performs asynchronous DNS resolver queries for configured records and emits aggregated consistency/cross-resolver results in deterministic output formats."
+      ],
+      "insights": [
+        {
+          "category": "Build/Docs",
+          "title": "Git ref resolution can hard-fail docs builds",
+          "problem": "Docs link rewriting depends on resolving a Git ref; if ref detection fails, builds may fail or silently drift to an incorrect ref.",
+          "root_cause": "Docs configuration executes git probing logic and assumes a resolvable identifier either from READTHEDOCS_GIT_IDENTIFIER or local git state.",
+          "solution": "Ensure ref-detection behavior remains explicit and failure modes are intentional; preserve how doctree link rewriting targets specific `refuri` values."
+        },
+        {
+          "category": "Versioning/API stability",
+          "title": "Two version constants risk divergence",
+          "problem": "Both __version__ and __VERSION__ exist and could be used by different callers/tooling, leading to inconsistent reported versions.",
+          "root_cause": "Non-standard constant naming alongside a standard constant.",
+          "solution": "Maintain backward compatibility if both are referenced; validate CLI `--version` and docs release wiring against the intended source of truth."
+        },
+        {
+          "category": "Logging/CLI output consistency",
+          "title": "Log level semantics and formatting are coupled",
+          "problem": "Deprecated log levels and routing stdout vs stderr can cause inconsistent log line appearance and possibly parsing differences.",
+          "root_cause": "Argument parsing configures root logger level and formatting; WARN vs WARNING affects output consistency.",
+          "solution": "When editing CLI parsing/logging, preserve the mapping from debug/quiet flags to actual logging levels and output streams used by downstream tooling."
+        },
+        {
+          "category": "Processor pipeline correctness",
+          "title": "Lenient/strict mode propagation must be consistent",
+          "problem": "Processors/providers rely on a lenient mode to bypass validation or alter record handling; inconsistent propagation can cause unexpected plan/sync failures or incorrect filtering.",
+          "root_cause": "Multiple layers (Manager, BaseProvider, processors) handle hook signatures and lenient semantics with compatibility fallbacks.",
+          "solution": "Preserve the contract for how lenient is passed into hooks and how record-level leniency is represented/queried (stable interface vs internal `_octodns`)."
+        },
+        {
+          "category": "Backward-compatible hook signatures",
+          "title": "Adding `lenient` kwarg can break custom implementations",
+          "problem": "Not all processor/provider hook methods accept the same kwargs; blindly passing lenient can crash older third-party plugins.",
+          "root_cause": "Compatibility layer attempts to pass lenient while handling those that do not accept it.",
+          "solution": "Maintain the current kwarg-compatibility behavior in BaseProvider/Manager when altering hook invocation patterns."
+        },
+        {
+          "category": "Record normalization invariants",
+          "title": "Trailing dots and value types are coupled",
+          "problem": "Processors that append trailing dots must preserve specialized RR value classes; coercing to plain strings breaks downstream RR methods and planning/apply logic.",
+          "root_cause": "EnsureTrailingDots intentionally preserves value types while normalizing specific fields.",
+          "solution": "When modifying normalization processors, keep guarantees about record value class preservation and targeted field coverage."
+        },
+        {
+          "category": "Serialization edge cases",
+          "title": "TXT/SPF escaping/unescaping affects content correctness",
+          "problem": "Escaped semicolons and quoting of TXT values can become double-escaped or remain incorrectly escaped, producing content mismatches.",
+          "root_cause": "YamlProvider and report/json serialization interact with escaping rules (e.g., \\; and surrounding quotes).",
+          "solution": "Preserve the exact escaping/unescaping rules and their toggles (escaped_semicolons) and ensure transformations do not change semantic payload."
+        },
+        {
+          "category": "Safety/Determinism in planning",
+          "title": "Plan output ordering and safety thresholds are expected deterministic",
+          "problem": "Non-deterministic change ordering or output formatting changes can break users expecting stable diffs; safety checks (root NS change, too much change thresholds) enforce operational policy.",
+          "root_cause": "Plan sorts changes and computes update/delete counts and thresholds with zone precedence.",
+          "solution": "Maintain the deterministic sorting and the counting logic based on change object classes; preserve root NS safety evaluation triggers."
+        },
+        {
+          "category": "Cross-zone/alias behavior",
+          "title": "Processors can run across source/target and alias contexts",
+          "problem": "Some processors use multi-phase hooks (source-only vs source+target), and alias scenarios can cause duplicate synthetic records or missed processing.",
+          "root_cause": "Processors like templating and ownership have to reason about both desired and existing/target copies and how they get generated for alias zones.",
+          "solution": "Preserve how processors participate in process_source_zone vs process_source_and_target_zones and how replace semantics are applied during synthetic record insertion."
+        }
+      ],
+      "key_files": [
+        {
+          "path": "docs/conf.py",
+          "why": "Build-time documentation configuration with dynamic Git ref resolution and doctree link rewriting logic."
+        },
+        {
+          "path": "octodns/manager.py",
+          "why": "Central orchestration for configuration loading, plugin instantiation, processor/provider wiring, and sync/report workflow execution."
+        },
+        {
+          "path": "octodns/cmds/args.py",
+          "why": "Shared CLI argument parser and logging setup that standardizes how all CLI commands configure logging and parse common flags."
+        },
+        {
+          "path": "octodns/provider/base.py",
+          "why": "Provider lifecycle abstraction that runs desired/existing normalization and processors in multiple phases before producing a plan."
+        },
+        {
+          "path": "octodns/provider/plan.py",
+          "why": "Plan representation with safety checks, deterministic sorting, and multiple output renderers (json/markdown/html/logger)."
+        }
+      ],
+      "construct_relationships": [
+        "octodns/cmds/args.py constructs/configures logging that is used by CLI entry points which in turn invoke Manager.",
+        "octodns/manager.py dynamically instantiates providers/processors/plan outputs/secret handlers and coordinates execution across zones/sub-zones.",
+        "octodns/provider/base.py implements the standard plan workflow and delegates record normalization/diffing to processors via BaseProcessor hooks.",
+        "octodns/provider/base.py creates/uses an existing Zone and a copy of desired Zone, then runs processor hooks in distinct phases (target and source+target) before diffing into Plan changes.",
+        "octodns/provider/plan.py consumes the change objects produced by zone diffs (from provider lifecycle) and renders outputs with safety thresholds and root NS checks.",
+        "Processors under octodns/processor/* mutate desired (and sometimes target) zones via BaseProcessor hooks, influencing the resulting diffs that become Plan changes.",
+        "octodns/processor/trailing_dots.py and octodns/processor/templating.py both replace records in desired zones; the correctness of those replacements affects subsequent diff computation and plan rendering.",
+        "octodns/idna.py is used by Manager to normalize configured zones/identities (IDNA label handling and mapping behavior)."
+      ],
+      "notable_relationships": [
+        "Cross-folder dependency: octodns/manager.py depends on provider and processor base APIs (octodns/provider/base.py and octodns/processor/base.py) for hook contracts and execution sequencing.",
+        "Provider plan output classes (PlanLogger/PlanJson/PlanMarkdown/PlanHtml) likely depend on stable metadata computed during sync (including meta record content created by MetaProcessor).",
+        "YamlProvider ties configuration/file-loading semantics to record construction and escaping behaviors that downstream processors and report output assume (e.g., TXT/SPF semicolon escaping).",
+        "CLI commands (e.g., report) rely on Manager for zone loading and on provider abstractions for populating desired/existing state, and use consistent logging configured by octodns/cmds/args.py."
+      ],
+      "recommendations": [
+        "When modifying any hook invocation or parameter passing (especially lenient-related kwargs), preserve backward compatibility for custom processors/providers that may not accept the same keywords.",
+        "Maintain deterministic behavior assumptions: plan changes must remain sorted deterministically, and report outputs must keep consistent ordering/aggregation semantics for cross-resolver comparisons.",
+        "Preserve record normalization invariants enforced by processors (value type preservation when appending trailing dots; correct escaping/unescaping for TXT/SPF and semicolons; IDNA label handling).",
+        "Be cautious about how processors replace records (ownership/meta/templating/trailing dots): replace semantics and multi-phase hook selection influence whether duplicates arise or whether synthetic records are filtered correctly from plans.",
+        "Validate CLI logging behavior end-to-end (stdout/stderr routing, debug/quiet level mapping, syslog option) because log format/levels are used both for human output and potentially automated tooling.",
+        "For docs-related edits, ensure Git ref resolution and doctree link rewriting behavior remains predictable; failure handling should not mask incorrect refs or silently produce broken/inaccurate intra-repo links."
+      ],
+      "tier": "Fast",
+      "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+    }
+  },
+  "metadata": {
+    "generated_at": "2026-04-01T10:16:09Z",
+    "total_folders": 16,
+    "generated_at_commit": "d0036decdbd82561086de0a9c2bce81126a0d7ab"
+  }
+}
