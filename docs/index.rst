@@ -167,6 +167,9 @@ their own repositories and released as independent modules.
    * - `UltraDNS`_
      - `octodns_ultra`_
      -
+   * - `UniFi Network`_
+     - `netshad0w/octodns-unifi`_
+     -
    * - `YamlProvider`_
      - built-in
      - Supports all record types and core functionality
@@ -251,6 +254,8 @@ their own repositories and released as independent modules.
 .. _octodns_transip: https://github.com/octodns/octodns-transip/
 .. _UltraDNS: https://vercara.com/authoritative-dns
 .. _octodns_ultra: https://github.com/octodns/octodns-ultra/
+.. _UniFi Network: https://ui.com/
+.. _netshad0w/octodns-unifi: https://github.com/netshad0w/octodns-unifi
 .. _YamlProvider: /octodns/provider/yaml.py
 .. _kompetenzbolzen/octodns-custom-provider: https://github.com/kompetenzbolzen/octodns-custom-provider
 
