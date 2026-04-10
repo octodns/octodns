@@ -10,6 +10,10 @@ from .rr import RrParseError
 class SshfpValue(EqualityTupleMixin, dict):
     VALID_ALGORITHMS = (1, 2, 3, 4)
     VALID_FINGERPRINT_TYPES = (1, 2)
+    # Expected fingerprint hex-string length per fingerprint_type, from RFC
+    # 4255/6594: type 1 = SHA-1 (160 bits, 40 hex chars), type 2 = SHA-256
+    # (256 bits, 64 hex chars).
+    FINGERPRINT_LENGTHS = {1: 40, 2: 64}
 
     @classmethod
     def parse_rdata_text(self, value):
@@ -44,6 +48,9 @@ class SshfpValue(EqualityTupleMixin, dict):
                 reasons.append('missing algorithm')
             except ValueError:
                 reasons.append(f'invalid algorithm "{value["algorithm"]}"')
+            # Start unset so the length check below can tell the difference
+            # between a known-good fingerprint_type and a missing/invalid one.
+            fingerprint_type = None
             try:
                 fingerprint_type = int(value['fingerprint_type'])
                 if fingerprint_type not in cls.VALID_FINGERPRINT_TYPES:
@@ -58,6 +65,19 @@ class SshfpValue(EqualityTupleMixin, dict):
                 )
             if 'fingerprint' not in value:
                 reasons.append('missing fingerprint')
+            # Only length-check when we have both a known fingerprint_type and
+            # an actual fingerprint; unknown types and missing fingerprints
+            # are already reported above and we don't want to stack a
+            # confusing secondary error on top of them.
+            elif fingerprint_type in cls.FINGERPRINT_LENGTHS:
+                expected = cls.FINGERPRINT_LENGTHS[fingerprint_type]
+                actual = len(value['fingerprint'])
+                if actual != expected:
+                    reasons.append(
+                        f'fingerprint length {actual} does not match '
+                        f'fingerprint_type {fingerprint_type} '
+                        f'(expected {expected})'
+                    )
         return reasons
 
     @classmethod

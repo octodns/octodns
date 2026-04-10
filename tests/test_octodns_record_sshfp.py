@@ -243,7 +243,7 @@ class TestRecordSshfp(TestCase):
                     'ttl': 600,
                     'value': {
                         'algorithm': 'nope',
-                        'fingerprint_type': 2,
+                        'fingerprint_type': 1,
                         'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73',
                     },
                 },
@@ -333,6 +333,71 @@ class TestRecordSshfp(TestCase):
                 },
             )
         self.assertEqual(['missing fingerprint'], ctx.exception.reasons)
+
+        # SHA-1 fingerprint_type with a too-long (64-char) fingerprint
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                '',
+                {
+                    'type': 'SSHFP',
+                    'ttl': 600,
+                    'value': {
+                        'algorithm': 1,
+                        'fingerprint_type': 1,
+                        'fingerprint': 'a' * 64,
+                    },
+                },
+            )
+        self.assertEqual(
+            [
+                'fingerprint length 64 does not match fingerprint_type 1 '
+                '(expected 40)'
+            ],
+            ctx.exception.reasons,
+        )
+
+        # SHA-256 fingerprint_type with a 40-char SHA-1 fingerprint — the
+        # scenario reported in issue #1371
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                '',
+                {
+                    'type': 'SSHFP',
+                    'ttl': 600,
+                    'value': {
+                        'algorithm': 1,
+                        'fingerprint_type': 2,
+                        'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73',
+                    },
+                },
+            )
+        self.assertEqual(
+            [
+                'fingerprint length 40 does not match fingerprint_type 2 '
+                '(expected 64)'
+            ],
+            ctx.exception.reasons,
+        )
+
+        # Valid SHA-256 — happy path, no reasons
+        Record.new(
+            self.zone,
+            '',
+            {
+                'type': 'SSHFP',
+                'ttl': 600,
+                'value': {
+                    'algorithm': 1,
+                    'fingerprint_type': 2,
+                    'fingerprint': (
+                        '1111111111111111111111111111111111111111'
+                        '111111111111111111111111'
+                    ),
+                },
+            },
+        )
 
 
 class TestSshFpValue(TestCase):

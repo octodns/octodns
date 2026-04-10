@@ -185,13 +185,13 @@ class TestTinyDnsFileSource(TestCase):
                     'values': [
                         {
                             'algorithm': 1,
-                            'fingerprint_type': 2,
-                            'fingerprint': '00479b27',
+                            'fingerprint_type': 1,
+                            'fingerprint': '000000000000000000000000000000000047b270',
                         },
                         {
                             'algorithm': 2,
-                            'fingerprint_type': 2,
-                            'fingerprint': '00479a28',
+                            'fingerprint_type': 1,
+                            'fingerprint': '000000000000000000000000000000000047a280',
                         },
                     ],
                 },
