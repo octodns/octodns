@@ -74,8 +74,8 @@ S_b._tcp.example.com:56.57.58.59:target.srv.example.com.:9999
 S_b._tcp.example.com:56.57.58.59:target.srv.example.com.:9999
 
 # arbitrary multi-value non-spec record
-:arbitrary-sshfp.example.com:SSHFP:2 2 00479a28
-:arbitrary-sshfp.example.com:SSHFP:1 2 00479b27:45
+:arbitrary-sshfp.example.com:SSHFP:2 1 000000000000000000000000000000000047a280
+:arbitrary-sshfp.example.com:SSHFP:1 1 000000000000000000000000000000000047b270:45
 # does not make sense to do an A this way, but it'll work
 :arbitrary-a.example.com:a:80.81.82.83
 # this should just be inored b/c the type is unknown

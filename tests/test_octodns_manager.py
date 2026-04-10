@@ -403,7 +403,7 @@ class TestManager(TestCase):
                 'value': {
                     'algorithm': 1,
                     'fingerprint_type': 1,
-                    'fingerprint': 'abcdefg',
+                    'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73',
                 },
             },
         )
