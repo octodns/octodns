@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from pathlib import Path
@@ -10,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
 print(f"SYS.PATH={sys.path}")
 
 from octodns.__init__ import __version__
+from octodns.schema import build_zone_schema
 
 ### sphinx config ###
 
@@ -183,6 +185,28 @@ def _rewrite_repo_local_links(app, doctree, _docname):
             node["refuri"] = f"{source_base}{refuri}"
 
 
+### json schema ###
+# Generate the zone YAML JSON Schema at docs-build time so Read the Docs
+# serves a per-version copy under _static. External consumers (SchemaStore,
+# yaml-language-server modelines, editor `yaml.schemas` config) point at
+# https://octodns.readthedocs.io/en/<version>/_static/octodns.schema.json.
+#
+# The schema is a build artifact — it is regenerated on every build from the
+# currently registered record types, so it can't drift from the code.
+_SCHEMA_FILENAME = "octodns.schema.json"
+
+
+def _write_zone_schema(app):
+    out_dir = Path(app.srcdir) / "_static"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    target = out_dir / _SCHEMA_FILENAME
+    target.write_text(
+        json.dumps(build_zone_schema(), indent=2, sort_keys=True) + "\n"
+    )
+    print(f"wrote {target}")
+
+
 def setup(app):
     app.add_config_value("octodns_source_base_url", _source_base, "env")
     app.connect("doctree-resolved", _rewrite_repo_local_links)
+    app.connect("builder-inited", _write_zone_schema)
