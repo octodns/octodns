@@ -192,18 +192,20 @@ every docs build, so the schema matches the code in that release.
 The schema is intended for editors and CI linters. octoDNS's own validation
 is unchanged — it continues to handle error reporting with source context.
 
-Stable URLs
-...........
+Available versions
+..................
 
 Read the Docs serves a copy of the schema under each version's ``_static``
 directory:
 
-- Latest release (recommended for most users):
-  ``https://octodns.readthedocs.io/en/stable/_static/octodns.schema.json``
-- Development (tracks ``main``):
-  ``https://octodns.readthedocs.io/en/latest/_static/octodns.schema.json``
-- A specific release, e.g. ``v2.0.0``:
-  ``https://octodns.readthedocs.io/en/v2.0.0/_static/octodns.schema.json``
+- `Bundled with this documentation <_static/octodns.schema.json>`_ — always
+  matches the version of octoDNS whose docs you are viewing
+- `Latest release <https://octodns.readthedocs.io/en/stable/_static/octodns.schema.json>`_
+  — recommended for most users; tracks the most recent release
+- `Development <https://octodns.readthedocs.io/en/latest/_static/octodns.schema.json>`_
+  — tracks ``main``
+- A specific release, e.g.
+  `v2.0.0 <https://octodns.readthedocs.io/en/v2.0.0/_static/octodns.schema.json>`_
 
 Opting in with a modeline
 .........................
