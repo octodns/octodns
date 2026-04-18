@@ -24,13 +24,16 @@ class TestSchema(TestCase):
 
     def test_every_registered_type_is_in_enum(self):
         schema = build_zone_schema()
-        enum = set(schema['$defs']['record']['properties']['type']['enum'])
+        type_schema = schema['$defs']['record']['properties']['type']
+        enum = set(type_schema['anyOf'][0]['enum'])
         registered = set(Record.registered_types().keys())
         self.assertEqual(registered, enum)
 
     def test_every_registered_type_has_exactly_one_branch(self):
         schema = build_zone_schema()
-        branches = schema['$defs']['record']['allOf']
+        # last branch is the 3rd-party catch-all (pattern-keyed); per-type
+        # branches are the rest and are const-keyed
+        branches = schema['$defs']['record']['allOf'][:-1]
         types_in_branches = [
             b['if']['properties']['type']['const'] for b in branches
         ]
@@ -815,7 +818,9 @@ class TestSchema(TestCase):
             jsonschema.Draft202012Validator.check_schema(schema)
             self.assertIn(
                 'XXTEST',
-                schema['$defs']['record']['properties']['type']['enum'],
+                schema['$defs']['record']['properties']['type']['anyOf'][0][
+                    'enum'
+                ],
             )
             validator = self._validator()
             validator.validate(
@@ -832,6 +837,44 @@ class TestSchema(TestCase):
             )
         finally:
             del Record._CLASSES['XXTEST']
+
+    def test_valid_third_party_type_short_form(self):
+        # e.g. Route53/ELB — provider not registered at schema-build time
+        validator = self._validator()
+        validator.validate(
+            {
+                'elb': {
+                    'type': 'Route53/ELB',
+                    'ttl': 300,
+                    'value': {'anything': 'goes'},
+                }
+            }
+        )
+
+    def test_valid_third_party_type_dotted_form(self):
+        # e.g. octodns_route53.Route53/EC2
+        self._validator().validate(
+            {
+                'ec2': {
+                    'type': 'octodns_route53.Route53/EC2',
+                    'ttl': 300,
+                    'values': ['arbitrary', 'shape'],
+                }
+            }
+        )
+
+    def test_invalid_third_party_type_missing_slash_rejected(self):
+        # unknown built-in-looking types are still rejected
+        with self.assertRaises(jsonschema.ValidationError):
+            self._validator().validate(
+                {'x': {'type': 'NotARealType', 'ttl': 300, 'value': 'foo'}}
+            )
+
+    def test_invalid_third_party_type_garbage_rejected(self):
+        with self.assertRaises(jsonschema.ValidationError):
+            self._validator().validate(
+                {'x': {'type': 'bad type/with spaces', 'ttl': 300}}
+            )
 
     def test_valid_apex_name(self):
         self._validator().validate(
@@ -877,6 +920,27 @@ class TestSchema(TestCase):
         with self.assertRaises(jsonschema.ValidationError):
             self._validator().validate(
                 {'a.': {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'}}
+            )
+
+    def test_invalid_unknown_top_level_key_rejected(self):
+        # typos or misplaced provider-specific fields should be flagged
+        with self.assertRaises(jsonschema.ValidationError):
+            self._validator().validate(
+                {
+                    'www': {
+                        'type': 'A',
+                        'ttl': 300,
+                        'value': '1.2.3.4',
+                        'foo': 'bar',
+                    }
+                }
+            )
+
+    def test_invalid_misspelled_values_rejected(self):
+        # common typo: "vlaues" instead of "values"
+        with self.assertRaises(jsonschema.ValidationError):
+            self._validator().validate(
+                {'www': {'type': 'A', 'ttl': 300, 'vlaues': ['1.2.3.4']}}
             )
 
     def test_numeric_name_accepted(self):

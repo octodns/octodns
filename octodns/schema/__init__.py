@@ -26,6 +26,14 @@ from ..record.geo import _GeoMixin
 _DEFAULT_VALUE_SCHEMA = True
 
 
+# 3rd-party providers register custom record types with names like
+# `Route53/ELB` or `octodns_route53.Route53/EC2` — an optional dotted module
+# path, a slash, then the type name. These types aren't known when the
+# schema is generated (e.g. SchemaStore publishes a static snapshot), so
+# matching this pattern puts the record in a permissive catch-all branch.
+_THIRD_PARTY_TYPE_PATTERN = r'^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*/[A-Za-z_]\w*$'
+
+
 # Syntactic constraints on record name keys. Mirrors the generic checks in
 # `Record.validate` (octodns/record/base.py) that don't require zone context:
 # no "@", no label longer than 63 chars, no "..", no trailing ".". The fqdn
@@ -108,6 +116,24 @@ def _type_branch(type_name, record_class):
     }
 
 
+def _third_party_branch():
+    # permissive catch-all for 3rd-party types (see _THIRD_PARTY_TYPE_PATTERN)
+    return {
+        'if': {
+            'properties': {'type': {'pattern': _THIRD_PARTY_TYPE_PATTERN}},
+            'required': ['type'],
+        },
+        'then': {
+            'properties': {
+                'value': True,
+                'values': True,
+                'dynamic': True,
+                'geo': True,
+            }
+        },
+    }
+
+
 def _record_def():
     types = sorted(Record.registered_types().keys())
     return {
@@ -116,18 +142,28 @@ def _record_def():
         # ttl intentionally not required — YamlProvider fills in default_ttl
         # for records that omit it
         'properties': {
-            'type': {'type': 'string', 'enum': types},
+            'type': {
+                'type': 'string',
+                # built-in types match the enum; 3rd-party types match the
+                # pattern and land in the permissive catch-all branch below
+                'anyOf': [
+                    {'enum': types},
+                    {'pattern': _THIRD_PARTY_TYPE_PATTERN},
+                ],
+            },
             'ttl': {'type': 'integer', 'minimum': 0},
             'octodns': {'$ref': '#/$defs/octodns_meta'},
         },
-        # tolerate per-type fields (value, values, dynamic, geo, ...) and
-        # provider-specific extras; the type-specific if/then branches add
-        # the real constraints
-        'additionalProperties': True,
+        # reject typos and unknown top-level keys. `unevaluatedProperties`
+        # (unlike `additionalProperties`) sees through the if/then branches
+        # below, so value/values/dynamic/geo still pass when the matching
+        # branch declares them.
+        'unevaluatedProperties': False,
         'allOf': [
             _type_branch(t, c)
             for t, c in sorted(Record.registered_types().items())
-        ],
+        ]
+        + [_third_party_branch()],
     }
 
 
