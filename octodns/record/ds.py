@@ -15,6 +15,30 @@ class DsValue(EqualityTupleMixin, dict):
     log = getLogger('DsValue')
 
     @classmethod
+    def _schema(cls):
+        return {
+            'type': 'object',
+            'anyOf': [
+                {'required': ['key_tag', 'algorithm', 'digest_type', 'digest']},
+                # deprecated legacy form kept valid until 2.0
+                {'required': ['flags', 'protocol', 'algorithm', 'public_key']},
+            ],
+            'properties': {
+                'key_tag': {'type': 'integer', 'minimum': 0, 'maximum': 65535},
+                'algorithm': {'type': 'integer', 'minimum': 0, 'maximum': 255},
+                'digest_type': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 255,
+                },
+                'digest': {'type': 'string'},
+                'flags': {'type': 'integer'},
+                'protocol': {'type': 'integer'},
+                'public_key': {'type': 'string'},
+            },
+        }
+
+    @classmethod
     def parse_rdata_text(cls, value):
         try:
             key_tag, algorithm, digest_type, digest = value.split(' ')

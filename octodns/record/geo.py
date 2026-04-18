@@ -139,6 +139,23 @@ class _GeoMixin(ValuesMixin):
     '''
 
     @classmethod
+    def _schema(cls, value_schema):
+        '''JSON Schema fragment describing the `geo` block.
+
+        Keys are geo codes (continent, continent-country, or
+        continent-country-subdivision); values are lists of record values.
+        '''
+        return {
+            'type': 'object',
+            'propertyNames': {'pattern': r'^[A-Z]{2}(-[A-Z]{2}(-[A-Z]{2})?)?$'},
+            'additionalProperties': {
+                'type': 'array',
+                'items': value_schema,
+                'minItems': 1,
+            },
+        }
+
+    @classmethod
     def validate(cls, name, fqdn, data):
         reasons = super().validate(name, fqdn, data)
         try:

@@ -126,6 +126,71 @@ class _DynamicMixin(object):
     )
 
     @classmethod
+    def _schema(cls, value_schema):
+        '''JSON Schema fragment describing the `dynamic` block.
+
+        Structural constraints that JSON Schema can express cleanly (shape of
+        pools, values, rules, weight/status ranges) are included. Rule
+        ordering, fallback-loop detection, and cross-references between rules
+        and pools are left to octoDNS's own validation.
+        '''
+        return {
+            'type': 'object',
+            'required': ['pools', 'rules'],
+            'properties': {
+                'pools': {
+                    'type': 'object',
+                    'minProperties': 1,
+                    'additionalProperties': {
+                        'type': 'object',
+                        'required': ['values'],
+                        'properties': {
+                            'fallback': {'type': ['string', 'null']},
+                            'values': {
+                                'type': 'array',
+                                'minItems': 1,
+                                'items': {
+                                    'type': 'object',
+                                    'required': ['value'],
+                                    'properties': {
+                                        'value': value_schema,
+                                        'weight': {
+                                            'type': 'integer',
+                                            'minimum': 1,
+                                            'maximum': 100,
+                                        },
+                                        'status': {
+                                            'enum': ['up', 'down', 'obey']
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                'rules': {
+                    'type': 'array',
+                    'minItems': 1,
+                    'items': {
+                        'type': 'object',
+                        'required': ['pool'],
+                        'properties': {
+                            'pool': {'type': 'string'},
+                            'geos': {
+                                'type': 'array',
+                                'items': {'type': 'string'},
+                            },
+                            'subnets': {
+                                'type': 'array',
+                                'items': {'type': 'string'},
+                            },
+                        },
+                    },
+                },
+            },
+        }
+
+    @classmethod
     def _validate_pools(cls, pools):
         reasons = []
         pools_exist = set()

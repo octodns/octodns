@@ -14,6 +14,72 @@ class LocValue(EqualityTupleMixin, dict):
     # https://www.rfc-editor.org/rfc/rfc1876.html
 
     @classmethod
+    def _schema(cls):
+        return {
+            'type': 'object',
+            'required': [
+                'lat_degrees',
+                'lat_minutes',
+                'lat_seconds',
+                'lat_direction',
+                'long_degrees',
+                'long_minutes',
+                'long_seconds',
+                'long_direction',
+                'altitude',
+                'size',
+                'precision_horz',
+                'precision_vert',
+            ],
+            'properties': {
+                'lat_degrees': {'type': 'integer', 'minimum': 0, 'maximum': 90},
+                'lat_minutes': {'type': 'integer', 'minimum': 0, 'maximum': 59},
+                'lat_seconds': {
+                    'type': 'number',
+                    'minimum': 0,
+                    'maximum': 59.999,
+                },
+                'lat_direction': {'enum': ['N', 'S']},
+                'long_degrees': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 180,
+                },
+                'long_minutes': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 59,
+                },
+                'long_seconds': {
+                    'type': 'number',
+                    'minimum': 0,
+                    'maximum': 59.999,
+                },
+                'long_direction': {'enum': ['E', 'W']},
+                'altitude': {
+                    'type': 'number',
+                    'minimum': -100000.00,
+                    'maximum': 42849672.95,
+                },
+                'size': {
+                    'type': 'number',
+                    'minimum': 0,
+                    'maximum': 90000000.00,
+                },
+                'precision_horz': {
+                    'type': 'number',
+                    'minimum': 0,
+                    'maximum': 90000000.00,
+                },
+                'precision_vert': {
+                    'type': 'number',
+                    'minimum': 0,
+                    'maximum': 90000000.00,
+                },
+            },
+        }
+
+    @classmethod
     def parse_rdata_text(cls, value):
         try:
             value = value.replace('m', '')

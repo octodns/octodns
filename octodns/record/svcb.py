@@ -143,6 +143,22 @@ SUPPORTED_PARAMS = {
 class SvcbValue(EqualityTupleMixin, dict):
 
     @classmethod
+    def _schema(cls):
+        return {
+            'type': 'object',
+            'required': ['svcpriority', 'targetname'],
+            'properties': {
+                'svcpriority': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 65535,
+                },
+                'targetname': {'type': 'string'},
+                'svcparams': {'type': 'object', 'additionalProperties': True},
+            },
+        }
+
+    @classmethod
     def parse_rdata_text(cls, value):
         try:
             svcpriority, targetname, *svcparams = value.split(' ')

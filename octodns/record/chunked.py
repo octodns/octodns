@@ -53,6 +53,10 @@ class _ChunkedValue(str):
             return value
 
     @classmethod
+    def _schema(cls):
+        return {'type': 'string'}
+
+    @classmethod
     def validate(cls, data, _type):
         if not data:
             return ['missing value(s)']

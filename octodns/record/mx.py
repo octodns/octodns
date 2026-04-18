@@ -11,6 +11,38 @@ from .target import validate_target_fqdn
 
 class MxValue(EqualityTupleMixin, dict):
     @classmethod
+    def _schema(cls):
+        return {
+            'type': 'object',
+            'properties': {
+                'preference': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 65535,
+                },
+                # legacy alias for preference
+                'priority': {'type': 'integer', 'minimum': 0, 'maximum': 65535},
+                'exchange': {'type': 'string'},
+                # legacy alias for exchange
+                'value': {'type': 'string'},
+            },
+            'allOf': [
+                {
+                    'anyOf': [
+                        {'required': ['preference']},
+                        {'required': ['priority']},
+                    ]
+                },
+                {
+                    'anyOf': [
+                        {'required': ['exchange']},
+                        {'required': ['value']},
+                    ]
+                },
+            ],
+        }
+
+    @classmethod
     def parse_rdata_text(cls, value):
         try:
             preference, exchange = value.split(' ')

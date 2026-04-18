@@ -10,7 +10,7 @@ try:
 except ImportError:
     from distutils.core import find_packages, setup
 
-cmds = ('compare', 'dump', 'report', 'sync', 'validate', 'versions')
+cmds = ('compare', 'dump', 'report', 'schema', 'sync', 'validate', 'versions')
 cmds_dir = join(dirname(__file__), 'octodns', 'cmds')
 console_scripts = {
     'octodns-{name} = octodns.cmds.{name}:main'.format(name=name)
@@ -65,6 +65,7 @@ setup(
             'build>=0.7.0',
             'changelet',
             'isort>=5.11.5',
+            'jsonschema>=4.0.0',
             'proviso',
             'pycountry>=19.8.18',
             'pycountry-convert>=0.7.2',
