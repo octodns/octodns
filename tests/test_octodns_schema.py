@@ -12,6 +12,7 @@ import jsonschema
 
 from octodns.cmds.schema import main as schema_main
 from octodns.record import Record
+from octodns.record.base import ValuesMixin
 from octodns.schema import build_zone_schema
 from octodns.yaml import safe_load
 
@@ -730,6 +731,41 @@ class TestSchema(TestCase):
                 }
             }
         )
+
+    def test_third_party_record_without_schema_falls_back_to_permissive(self):
+        # external packages may register record types whose value classes
+        # don't yet expose `_schema()`; the generated schema must still be
+        # valid and accept those records with any value shape
+        class _ThirdPartyValue(str):
+            pass
+
+        class _ThirdPartyRecord(ValuesMixin, Record):
+            _type = 'XXTEST'
+            _value_type = _ThirdPartyValue
+
+        Record.register_type(_ThirdPartyRecord)
+        try:
+            schema = build_zone_schema()
+            jsonschema.Draft202012Validator.check_schema(schema)
+            self.assertIn(
+                'XXTEST',
+                schema['$defs']['record']['properties']['type']['enum'],
+            )
+            validator = self._validator()
+            validator.validate(
+                {'x': {'type': 'XXTEST', 'ttl': 300, 'values': ['anything']}}
+            )
+            validator.validate(
+                {
+                    'x': {
+                        'type': 'XXTEST',
+                        'ttl': 300,
+                        'values': [{'any': 'shape'}, 42],
+                    }
+                }
+            )
+        finally:
+            del Record._CLASSES['XXTEST']
 
     def test_round_trip_zone_fixtures(self):
         # zone YAML files octoDNS accepts today must also pass the schema
