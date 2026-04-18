@@ -47,7 +47,12 @@ def long_description():
     return buf.getvalue()
 
 
-tests_require = ('pytest>=6.2.5', 'pytest-cov>=3.0.0', 'pytest-network>=0.0.1')
+tests_require = (
+    'jsonschema>=4.0.0',
+    'pytest>=6.2.5',
+    'pytest-cov>=3.0.0',
+    'pytest-network>=0.0.1',
+)
 
 setup(
     author='Ross McFarland',
@@ -65,7 +70,6 @@ setup(
             'build>=0.7.0',
             'changelet',
             'isort>=5.11.5',
-            'jsonschema>=4.0.0',
             'proviso',
             'pycountry>=19.8.18',
             'pycountry-convert>=0.7.2',
