@@ -26,6 +26,28 @@ from ..record.geo import _GeoMixin
 _DEFAULT_VALUE_SCHEMA = True
 
 
+# Syntactic constraints on record name keys. Mirrors the generic checks in
+# `Record.validate` (octodns/record/base.py) that don't require zone context:
+# no "@", no label longer than 63 chars, no "..", no trailing ".". The fqdn
+# length check (253) needs the zone name and stays imperative-only.
+#
+# Guarded by `if type: string` because YAML loaders may hand us non-string
+# keys (e.g. numeric labels in reverse zones parse as ints); octoDNS itself
+# stringifies names before imperative validation, so the schema stays out of
+# the way for non-string keys.
+_NAME_SCHEMA = {
+    'if': {'type': 'string'},
+    'then': {
+        'allOf': [
+            {'not': {'const': '@'}},
+            {'not': {'pattern': r'\.\.'}},
+            {'not': {'pattern': r'\.$'}},
+            {'not': {'pattern': r'[^.]{64}'}},
+        ]
+    },
+}
+
+
 _OCTODNS_META = {
     'type': 'object',
     # providers (in external packages) can add their own fields
@@ -119,6 +141,7 @@ def build_zone_schema():
             'to a record or list of records.'
         ),
         'type': 'object',
+        'propertyNames': _NAME_SCHEMA,
         'additionalProperties': {
             'oneOf': [
                 {'$ref': '#/$defs/record'},

@@ -833,6 +833,72 @@ class TestSchema(TestCase):
         finally:
             del Record._CLASSES['XXTEST']
 
+    def test_valid_apex_name(self):
+        self._validator().validate(
+            {'': {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'}}
+        )
+
+    def test_valid_wildcard_name(self):
+        validator = self._validator()
+        validator.validate({'*': {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'}})
+        validator.validate(
+            {'*.sub': {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'}}
+        )
+
+    def test_valid_underscored_srv_name(self):
+        self._validator().validate(
+            {
+                '_srv._tcp': {
+                    'type': 'SRV',
+                    'ttl': 300,
+                    'value': {
+                        'priority': 10,
+                        'weight': 20,
+                        'port': 443,
+                        'target': 'foo.example.com.',
+                    },
+                }
+            }
+        )
+
+    def test_invalid_at_name_rejected(self):
+        with self.assertRaises(jsonschema.ValidationError):
+            self._validator().validate(
+                {'@': {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'}}
+            )
+
+    def test_invalid_double_dot_name_rejected(self):
+        with self.assertRaises(jsonschema.ValidationError):
+            self._validator().validate(
+                {'a..b': {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'}}
+            )
+
+    def test_invalid_trailing_dot_name_rejected(self):
+        with self.assertRaises(jsonschema.ValidationError):
+            self._validator().validate(
+                {'a.': {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'}}
+            )
+
+    def test_numeric_name_accepted(self):
+        # YAML parses unquoted numeric keys as ints (e.g. reverse-zone labels);
+        # octoDNS stringifies them internally, so the schema should tolerate
+        # non-string keys rather than fighting the YAML loader.
+        self._validator().validate(
+            {2: {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'}}
+        )
+
+    def test_invalid_long_label_name_rejected(self):
+        validator = self._validator()
+        # 63-char label passes
+        validator.validate(
+            {'a' * 63: {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'}}
+        )
+        # 64-char label fails
+        with self.assertRaises(jsonschema.ValidationError):
+            validator.validate(
+                {'a' * 64: {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'}}
+            )
+
     def test_round_trip_zone_fixtures(self):
         # zone YAML files octoDNS accepts today must also pass the schema
         validator = self._validator()
