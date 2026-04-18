@@ -9,6 +9,7 @@ coverage.json
 coverage.xml
 dist/
 docs/_build/
+docs/_static/octodns.schema.json
 docs/api/cmds/
 docs/api/helpers/
 docs/api/processors/

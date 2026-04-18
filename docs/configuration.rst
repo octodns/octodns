@@ -181,3 +181,64 @@ Automatic PTR generation
 octoDNS supports automatically generating PTR records from the ``A``/``AAAA``
 records it manages. For more information see the :doc:`auto_arpa`
 documentation.
+
+JSON Schema for zone YAML files
+-------------------------------
+
+octoDNS publishes a JSON Schema (Draft 2020-12) describing its zone YAML
+file format. It is generated from the currently registered record types on
+every docs build, so the schema matches the code in that release.
+
+The schema is intended for editors and CI linters. octoDNS's own validation
+is unchanged — it continues to handle error reporting with source context.
+
+Stable URLs
+...........
+
+Read the Docs serves a copy of the schema under each version's ``_static``
+directory:
+
+- Latest release (recommended for most users):
+  ``https://octodns.readthedocs.io/en/stable/_static/octodns.schema.json``
+- Development (tracks ``main``):
+  ``https://octodns.readthedocs.io/en/latest/_static/octodns.schema.json``
+- A specific release, e.g. ``v2.0.0``:
+  ``https://octodns.readthedocs.io/en/v2.0.0/_static/octodns.schema.json``
+
+Opting in with a modeline
+.........................
+
+The `yaml-language-server`_ (used by the ``redhat.vscode-yaml`` extension and
+other editors) honors a modeline at the top of a YAML file:
+
+.. code-block:: yaml
+
+   # yaml-language-server: $schema=https://octodns.readthedocs.io/en/stable/_static/octodns.schema.json
+   ---
+   www:
+     type: A
+     ttl: 300
+     value: 1.2.3.4
+
+Editor configuration
+....................
+
+In VS Code (or any editor that uses ``yaml-language-server``) you can instead
+associate the schema with a file pattern via ``yaml.schemas``::
+
+  "yaml.schemas": {
+    "https://octodns.readthedocs.io/en/stable/_static/octodns.schema.json": [
+      "zones/*.yaml"
+    ]
+  }
+
+Generating locally
+..................
+
+The ``octodns-schema`` CLI prints or writes the same schema:
+
+.. code-block:: sh
+
+   octodns-schema --output octodns.schema.json
+
+.. _yaml-language-server: https://github.com/redhat-developer/yaml-language-server
