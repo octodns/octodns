@@ -9,6 +9,32 @@ from .rr import RrParseError
 
 class TlsaValue(EqualityTupleMixin, dict):
     @classmethod
+    def _schema(cls):
+        return {
+            'type': 'object',
+            'required': [
+                'certificate_usage',
+                'selector',
+                'matching_type',
+                'certificate_association_data',
+            ],
+            'properties': {
+                'certificate_usage': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 3,
+                },
+                'selector': {'type': 'integer', 'minimum': 0, 'maximum': 1},
+                'matching_type': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 2,
+                },
+                'certificate_association_data': {'type': 'string'},
+            },
+        }
+
+    @classmethod
     def parse_rdata_text(self, value):
         try:
             (

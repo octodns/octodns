@@ -10,7 +10,7 @@ try:
 except ImportError:
     from distutils.core import find_packages, setup
 
-cmds = ('compare', 'dump', 'report', 'sync', 'validate', 'versions')
+cmds = ('compare', 'dump', 'report', 'schema', 'sync', 'validate', 'versions')
 cmds_dir = join(dirname(__file__), 'octodns', 'cmds')
 console_scripts = {
     'octodns-{name} = octodns.cmds.{name}:main'.format(name=name)
@@ -47,7 +47,12 @@ def long_description():
     return buf.getvalue()
 
 
-tests_require = ('pytest>=6.2.5', 'pytest-cov>=3.0.0', 'pytest-network>=0.0.1')
+tests_require = (
+    'jsonschema>=4.0.0',
+    'pytest>=6.2.5',
+    'pytest-cov>=3.0.0',
+    'pytest-network>=0.0.1',
+)
 
 setup(
     author='Ross McFarland',

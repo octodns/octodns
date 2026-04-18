@@ -13,6 +13,10 @@ class OpenpgpkeyValue(str):
     '''
 
     @classmethod
+    def _schema(cls):
+        return {'type': 'string'}
+
+    @classmethod
     def parse_rdata_text(cls, value):
         # Strip whitespace that may appear in zone files (base64 data may be
         # split across lines)

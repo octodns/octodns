@@ -11,6 +11,32 @@ class NaptrValue(EqualityTupleMixin, dict):
     VALID_FLAGS = ('S', 'A', 'U', 'P', 's', 'a', 'u', 'p')
 
     @classmethod
+    def _schema(cls):
+        return {
+            'type': 'object',
+            'required': [
+                'order',
+                'preference',
+                'flags',
+                'service',
+                'regexp',
+                'replacement',
+            ],
+            'properties': {
+                'order': {'type': 'integer', 'minimum': 0, 'maximum': 65535},
+                'preference': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 65535,
+                },
+                'flags': {'enum': list(cls.VALID_FLAGS)},
+                'service': {'type': 'string'},
+                'regexp': {'type': 'string'},
+                'replacement': {'type': 'string'},
+            },
+        }
+
+    @classmethod
     def parse_rdata_text(cls, value):
         try:
             order, preference, flags, service, regexp, replacement = (

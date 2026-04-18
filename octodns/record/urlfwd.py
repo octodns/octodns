@@ -13,6 +13,20 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     VALID_QUERY = (0, 1)
 
     @classmethod
+    def _schema(cls):
+        return {
+            'type': 'object',
+            'required': ['path', 'target', 'code', 'masking', 'query'],
+            'properties': {
+                'path': {'type': 'string'},
+                'target': {'type': 'string'},
+                'code': {'type': 'integer', 'enum': list(cls.VALID_CODES)},
+                'masking': {'type': 'integer', 'enum': list(cls.VALID_MASKS)},
+                'query': {'type': 'integer', 'enum': list(cls.VALID_QUERY)},
+            },
+        }
+
+    @classmethod
     def parse_rdata_text(self, value):
         try:
             path, target, code, masking, query = value.split(' ')

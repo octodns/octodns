@@ -37,6 +37,10 @@ class _TargetValue(str):
         return value
 
     @classmethod
+    def _schema(cls):
+        return {'type': 'string'}
+
+    @classmethod
     def validate(cls, data, _type):
         return validate_target_fqdn(data, _type)
 
@@ -66,6 +70,10 @@ class _TargetsValue(str):
     @classmethod
     def parse_rdata_text(cls, value):
         return value
+
+    @classmethod
+    def _schema(cls):
+        return {'type': 'string'}
 
     @classmethod
     def validate(cls, data, _type):

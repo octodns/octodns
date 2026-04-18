@@ -9,6 +9,10 @@ class _IpValue(str):
         return value
 
     @classmethod
+    def _schema(cls):
+        return {'type': 'string', 'format': cls._address_name.lower()}
+
+    @classmethod
     def validate(cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)

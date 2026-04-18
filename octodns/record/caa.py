@@ -11,6 +11,18 @@ class CaaValue(EqualityTupleMixin, dict):
     # https://tools.ietf.org/html/rfc6844#page-5
 
     @classmethod
+    def _schema(cls):
+        return {
+            'type': 'object',
+            'required': ['tag', 'value'],
+            'properties': {
+                'flags': {'type': 'integer', 'minimum': 0, 'maximum': 255},
+                'tag': {'type': 'string'},
+                'value': {'type': 'string'},
+            },
+        }
+
+    @classmethod
     def parse_rdata_text(cls, value):
         try:
             # value may contain whitepsace

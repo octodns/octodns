@@ -13,6 +13,19 @@ from .target import validate_target_fqdn
 
 class SrvValue(EqualityTupleMixin, dict):
     @classmethod
+    def _schema(cls):
+        return {
+            'type': 'object',
+            'required': ['priority', 'weight', 'port', 'target'],
+            'properties': {
+                'priority': {'type': 'integer', 'minimum': 0, 'maximum': 65535},
+                'weight': {'type': 'integer', 'minimum': 0, 'maximum': 65535},
+                'port': {'type': 'integer', 'minimum': 0, 'maximum': 65535},
+                'target': {'type': 'string'},
+            },
+        }
+
+    @classmethod
     def parse_rdata_text(self, value):
         try:
             priority, weight, port, target = value.split(' ')

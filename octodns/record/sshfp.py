@@ -16,6 +16,20 @@ class SshfpValue(EqualityTupleMixin, dict):
     FINGERPRINT_LENGTHS = {1: 40, 2: 64}
 
     @classmethod
+    def _schema(cls):
+        return {
+            'type': 'object',
+            'required': ['algorithm', 'fingerprint_type', 'fingerprint'],
+            'properties': {
+                'algorithm': {'enum': list(cls.VALID_ALGORITHMS)},
+                'fingerprint_type': {'enum': list(cls.VALID_FINGERPRINT_TYPES)},
+                # fingerprint length-matches-type is enforced by octoDNS at
+                # load time, not expressible cleanly in JSON Schema
+                'fingerprint': {'type': 'string'},
+            },
+        }
+
+    @classmethod
     def parse_rdata_text(self, value):
         try:
             algorithm, fingerprint_type, fingerprint = value.split(' ')
