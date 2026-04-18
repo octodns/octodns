@@ -619,6 +619,72 @@ class TestSchema(TestCase):
                 }
             )
 
+    def test_valid_uri_record(self):
+        self._validator().validate(
+            {
+                '_uri._tcp': {
+                    'type': 'URI',
+                    'ttl': 300,
+                    'values': [
+                        {
+                            'priority': 10,
+                            'weight': 20,
+                            'target': 'https://example.com/',
+                        }
+                    ],
+                }
+            }
+        )
+
+    def test_invalid_uri_missing_target_rejected(self):
+        with self.assertRaises(jsonschema.ValidationError):
+            self._validator().validate(
+                {
+                    '_uri._tcp': {
+                        'type': 'URI',
+                        'ttl': 300,
+                        'values': [{'priority': 10, 'weight': 20}],
+                    }
+                }
+            )
+
+    def test_invalid_uri_priority_out_of_range_rejected(self):
+        with self.assertRaises(jsonschema.ValidationError):
+            self._validator().validate(
+                {
+                    '_uri._tcp': {
+                        'type': 'URI',
+                        'ttl': 300,
+                        'values': [
+                            {
+                                'priority': 99999,
+                                'weight': 20,
+                                'target': 'https://example.com/',
+                            }
+                        ],
+                    }
+                }
+            )
+
+    def test_invalid_dynamic_rule_bad_geo_code_rejected(self):
+        with self.assertRaises(jsonschema.ValidationError):
+            self._validator().validate(
+                {
+                    'a': {
+                        'type': 'A',
+                        'ttl': 300,
+                        'values': ['1.1.1.1'],
+                        'dynamic': {
+                            'pools': {'p': {'values': [{'value': '1.1.1.1'}]}},
+                            'rules': [
+                                # lowercase — invalid geo code syntax
+                                {'geos': ['na-us'], 'pool': 'p'}
+                            ],
+                        },
+                    }
+                }
+            )
+
     def test_valid_svcb_record(self):
         self._validator().validate(
             {

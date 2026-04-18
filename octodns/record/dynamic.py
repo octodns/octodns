@@ -178,7 +178,10 @@ class _DynamicMixin(object):
                             'pool': {'type': 'string'},
                             'geos': {
                                 'type': 'array',
-                                'items': {'type': 'string'},
+                                'items': {
+                                    'type': 'string',
+                                    'pattern': r'^[A-Z]{2}(-[A-Z]{2}(-[A-Z]{2})?)?$',
+                                },
                             },
                             'subnets': {
                                 'type': 'array',
