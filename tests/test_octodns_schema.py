@@ -879,6 +879,27 @@ class TestSchema(TestCase):
                 {'a.': {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'}}
             )
 
+    def test_invalid_unknown_top_level_key_rejected(self):
+        # typos or misplaced provider-specific fields should be flagged
+        with self.assertRaises(jsonschema.ValidationError):
+            self._validator().validate(
+                {
+                    'www': {
+                        'type': 'A',
+                        'ttl': 300,
+                        'value': '1.2.3.4',
+                        'foo': 'bar',
+                    }
+                }
+            )
+
+    def test_invalid_misspelled_values_rejected(self):
+        # common typo: "vlaues" instead of "values"
+        with self.assertRaises(jsonschema.ValidationError):
+            self._validator().validate(
+                {'www': {'type': 'A', 'ttl': 300, 'vlaues': ['1.2.3.4']}}
+            )
+
     def test_numeric_name_accepted(self):
         # YAML parses unquoted numeric keys as ints (e.g. reverse-zone labels);
         # octoDNS stringifies them internally, so the schema should tolerate

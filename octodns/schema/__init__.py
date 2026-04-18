@@ -120,10 +120,11 @@ def _record_def():
             'ttl': {'type': 'integer', 'minimum': 0},
             'octodns': {'$ref': '#/$defs/octodns_meta'},
         },
-        # tolerate per-type fields (value, values, dynamic, geo, ...) and
-        # provider-specific extras; the type-specific if/then branches add
-        # the real constraints
-        'additionalProperties': True,
+        # reject typos and unknown top-level keys. `unevaluatedProperties`
+        # (unlike `additionalProperties`) sees through the if/then branches
+        # below, so value/values/dynamic/geo still pass when the matching
+        # branch declares them.
+        'unevaluatedProperties': False,
         'allOf': [
             _type_branch(t, c)
             for t, c in sorted(Record.registered_types().items())
