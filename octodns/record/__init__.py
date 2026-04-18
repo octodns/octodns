@@ -28,6 +28,7 @@ from .sshfp import SshfpRecord, SshfpValue
 from .svcb import SvcbRecord, SvcbValue
 from .tlsa import TlsaRecord, TlsaValue
 from .txt import TxtRecord, TxtValue
+from .uri import UriRecord, UriValue
 from .urlfwd import UrlfwdRecord, UrlfwdValue
 
 # quell warnings
@@ -82,6 +83,8 @@ TlsaValue
 TxtRecord
 TxtValue
 Update
+UriRecord
+UriValue
 UrlfwdRecord
 UrlfwdValue
 ValidationError
