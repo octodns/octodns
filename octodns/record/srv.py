@@ -19,9 +19,11 @@ class SrvNameValidator(RecordValidator):
     ``_http._tcp``), or is a wildcard.
     '''
 
+    _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
+
     @classmethod
     def validate(cls, record_cls, name, fqdn, data):
-        if not record_cls._name_re.match(name):
+        if not cls._name_re.match(name):
             return ['invalid name for SRV record']
         return []
 
@@ -190,7 +192,6 @@ class SrvRecord(ValuesMixin, Record):
     )
     _type = 'SRV'
     _value_type = SrvValue
-    _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
 
     VALIDATORS = [SrvNameValidator]
 

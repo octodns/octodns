@@ -11,7 +11,10 @@ class RecordValidator:
     describing any validation failures. An empty list indicates the record is
     valid. ``record_cls`` is the concrete Record subclass being validated and
     gives validators access to class-level attributes (``_type``,
-    ``_value_type``, etc.) when needed.
+    ``_value_type``, etc.) when needed. Attributes consulted only by a
+    validator should live on the validator itself; ``record_cls`` is only
+    the right home for state that's shared across the record and its
+    validators.
     '''
 
     @classmethod
@@ -22,11 +25,13 @@ class RecordValidator:
         Parameters
         ----------
         record_cls : type
-            The concrete ``Record`` subclass being validated. Validators that
-            need access to class-level attributes (e.g. ``_type``,
-            ``_value_type``, ``_name_re``) should read them from
+            The concrete ``Record`` subclass being validated. Validators
+            that need access to record class-level attributes (e.g.
+            ``_type``, ``_value_type``) should read them from
             ``record_cls`` rather than ``cls``, since ``cls`` is the
-            validator class itself.
+            validator class itself. Attributes consulted only by a
+            validator should live on the validator, not on
+            ``record_cls``.
         name : str
             The record's name relative to its zone (``''`` for the zone
             root). Already ``idna_encode``'d.
@@ -62,6 +67,9 @@ class ValueValidator:
     Subclasses override ``validate`` to return a list of reason strings
     describing any validation failures. An empty list indicates the value is
     valid. ``value_cls`` is the concrete value class being validated.
+    Attributes consulted only by a validator should live on the validator
+    itself; ``value_cls`` is only the right home for state that's shared
+    across the value class and its validators.
     '''
 
     @classmethod
@@ -73,10 +81,12 @@ class ValueValidator:
         ----------
         value_cls : type
             The concrete value class being validated (e.g. ``MxValue``,
-            ``_Ipv4Value``). Validators that need access to class-level
-            attributes (e.g. ``VALID_ALGORITHMS``, ``_address_type``,
-            regex patterns) should read them from ``value_cls`` rather
-            than ``cls``, since ``cls`` is the validator class itself.
+            ``_Ipv4Value``). Validators that need access to value
+            class-level attributes (e.g. ``VALID_ALGORITHMS``,
+            ``_address_type``) should read them from ``value_cls``
+            rather than ``cls``, since ``cls`` is the validator class
+            itself. Attributes consulted only by a validator should
+            live on the validator, not on ``value_cls``.
         data : list | tuple | str | dict
             The rdata to validate. For multi-value record types this is a
             list/tuple of value dicts or strings; for single-value types

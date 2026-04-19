@@ -14,6 +14,9 @@ class ChunkedValueValidator(ValueValidator):
     ASCII-only, with no unescaped or double-escaped ``;`` characters.
     '''
 
+    _unescaped_semicolon_re = re.compile(r'\w;')
+    _double_escaped_semicolon_re = re.compile(r'\\\\;')
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         if not data:
@@ -22,9 +25,9 @@ class ChunkedValueValidator(ValueValidator):
             data = (data,)
         reasons = []
         for value in data:
-            if value_cls._unescaped_semicolon_re.search(value):
+            if cls._unescaped_semicolon_re.search(value):
                 reasons.append(f'unescaped ; in "{value}"')
-            if value_cls._double_escaped_semicolon_re.search(value):
+            if cls._double_escaped_semicolon_re.search(value):
                 reasons.append(f'double escaped ; in "{value}"')
             try:
                 value.encode('ascii')
@@ -68,9 +71,6 @@ class _ChunkedValuesMixin(ValuesMixin):
 
 
 class _ChunkedValue(str):
-    _unescaped_semicolon_re = re.compile(r'\w;')
-    _double_escaped_semicolon_re = re.compile(r'\\\\;')
-
     VALIDATORS = [ChunkedValueValidator]
 
     @classmethod

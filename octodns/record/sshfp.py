@@ -16,6 +16,11 @@ class SshfpValueValidator(ValueValidator):
     SHA-256 = 64).
     '''
 
+    # Expected fingerprint hex-string length per fingerprint_type, from RFC
+    # 4255/6594: type 1 = SHA-1 (160 bits, 40 hex chars), type 2 = SHA-256
+    # (256 bits, 64 hex chars).
+    FINGERPRINT_LENGTHS = {1: 40, 2: 64}
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         reasons = []
@@ -49,8 +54,8 @@ class SshfpValueValidator(ValueValidator):
             # an actual fingerprint; unknown types and missing fingerprints
             # are already reported above and we don't want to stack a
             # confusing secondary error on top of them.
-            elif fingerprint_type in value_cls.FINGERPRINT_LENGTHS:
-                expected = value_cls.FINGERPRINT_LENGTHS[fingerprint_type]
+            elif fingerprint_type in cls.FINGERPRINT_LENGTHS:
+                expected = cls.FINGERPRINT_LENGTHS[fingerprint_type]
                 actual = len(value['fingerprint'])
                 if actual != expected:
                     reasons.append(
@@ -64,10 +69,6 @@ class SshfpValueValidator(ValueValidator):
 class SshfpValue(EqualityTupleMixin, dict):
     VALID_ALGORITHMS = (1, 2, 3, 4)
     VALID_FINGERPRINT_TYPES = (1, 2)
-    # Expected fingerprint hex-string length per fingerprint_type, from RFC
-    # 4255/6594: type 1 = SHA-1 (160 bits, 40 hex chars), type 2 = SHA-256
-    # (256 bits, 64 hex chars).
-    FINGERPRINT_LENGTHS = {1: 40, 2: 64}
 
     VALIDATORS = [SshfpValueValidator]
 

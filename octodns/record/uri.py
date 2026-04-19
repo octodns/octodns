@@ -18,9 +18,11 @@ class UriNameValidator(RecordValidator):
     wildcard.
     '''
 
+    _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
+
     @classmethod
     def validate(cls, record_cls, name, fqdn, data):
-        if not record_cls._name_re.match(name):
+        if not cls._name_re.match(name):
             return ['invalid name for URI record']
         return []
 
@@ -167,7 +169,6 @@ class UriRecord(ValuesMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc7553',)
     _type = 'URI'
     _value_type = UriValue
-    _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
 
     VALIDATORS = [UriNameValidator]
 
