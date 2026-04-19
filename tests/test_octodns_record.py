@@ -22,7 +22,13 @@ from octodns.record import (
     ValidationError,
     ValuesMixin,
 )
-from octodns.record.base import unquote
+from octodns.record.base import (
+    HealthcheckValidator,
+    NameValidator,
+    TtlValidator,
+    unquote,
+)
+from octodns.record.validator import RecordValidator, ValueValidator
 from octodns.yaml import ContextDict
 from octodns.zone import Zone
 
@@ -929,3 +935,70 @@ class TestRecordValidation(TestCase):
             method = getattr(value_type, attr)
             self.assertTrue(method, f'{_type}, {cls} has {attr}')
             # this one is a @property so not callable
+
+
+class TestValidators(TestCase):
+    def test_record_validator_base(self):
+        self.assertEqual([], RecordValidator.validate('', 'unit.tests.', {}))
+
+    def test_value_validator_base(self):
+        self.assertEqual([], ValueValidator.validate(None, 'A'))
+
+    def test_name_validator(self):
+        self.assertEqual(
+            [], NameValidator.validate('www', 'www.unit.tests.', {})
+        )
+        self.assertEqual(
+            ['invalid name "@", use "" instead'],
+            NameValidator.validate('@', '@.unit.tests.', {}),
+        )
+        long_name = '.'.join(['a' * 60] * 5)
+        long_fqdn = f'{long_name}.unit.tests.'
+        reasons = NameValidator.validate(long_name, long_fqdn, {})
+        self.assertTrue(
+            any('too long at' in r and 'max is 253' in r for r in reasons)
+        )
+        long_label = 'x' * 64
+        reasons = NameValidator.validate(
+            long_label, f'{long_label}.unit.tests.', {}
+        )
+        self.assertTrue(
+            any('invalid label' in r and 'max is 63' in r for r in reasons)
+        )
+        self.assertEqual(
+            ['invalid name, double `.` in "foo..bar.unit.tests."'],
+            NameValidator.validate('foo..bar', 'foo..bar.unit.tests.', {}),
+        )
+
+    def test_ttl_validator(self):
+        self.assertEqual(
+            [], TtlValidator.validate('', 'unit.tests.', {'ttl': 42})
+        )
+        self.assertEqual(
+            ['missing ttl'], TtlValidator.validate('', 'unit.tests.', {})
+        )
+        self.assertEqual(
+            ['invalid ttl'],
+            TtlValidator.validate('', 'unit.tests.', {'ttl': -1}),
+        )
+
+    def test_healthcheck_validator(self):
+        self.assertEqual(
+            [], HealthcheckValidator.validate('', 'unit.tests.', {})
+        )
+        self.assertEqual(
+            [],
+            HealthcheckValidator.validate(
+                '',
+                'unit.tests.',
+                {'octodns': {'healthcheck': {'protocol': 'HTTPS'}}},
+            ),
+        )
+        self.assertEqual(
+            ['invalid healthcheck protocol'],
+            HealthcheckValidator.validate(
+                '',
+                'unit.tests.',
+                {'octodns': {'healthcheck': {'protocol': 'BOGUS'}}},
+            ),
+        )

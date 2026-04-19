@@ -12,12 +12,70 @@ from ..equality import EqualityTupleMixin
 from ..idna import IdnaError, idna_decode, idna_encode
 from .change import Update
 from .exception import RecordException, ValidationError
+from .validator import RecordValidator
 
 
 def unquote(s):
     if s and s[0] in ('"', "'"):
         return s[1:-1]
     return s
+
+
+class NameValidator(RecordValidator):
+    @classmethod
+    def validate(cls, name, fqdn, data):
+        reasons = []
+        if name == '@':
+            reasons.append('invalid name "@", use "" instead')
+        n = len(fqdn)
+        if n > 253:
+            reasons.append(
+                f'invalid fqdn, "{idna_decode(fqdn)}" is too long at {n} '
+                'chars, max is 253'
+            )
+        for label in name.split('.'):
+            n = len(label)
+            if n > 63:
+                reasons.append(
+                    f'invalid label, "{label}" is too long at {n}'
+                    ' chars, max is 63'
+                )
+        # in the case of endswith there's an implicit second . from the Zone
+        if '..' in name or name.endswith('.'):
+            reasons.append(f'invalid name, double `.` in "{idna_decode(fqdn)}"')
+        # TODO: look at the idna lib for a lot more potential validations...
+        return reasons
+
+
+class TtlValidator(RecordValidator):
+    @classmethod
+    def validate(cls, name, fqdn, data):
+        reasons = []
+        try:
+            ttl = int(data['ttl'])
+            if ttl < 0:
+                reasons.append('invalid ttl')
+        except KeyError:
+            reasons.append('missing ttl')
+        return reasons
+
+
+class HealthcheckValidator(RecordValidator):
+    @classmethod
+    def validate(cls, name, fqdn, data):
+        reasons = []
+        try:
+            if data['octodns']['healthcheck']['protocol'] not in (
+                'HTTP',
+                'HTTPS',
+                'ICMP',
+                'TCP',
+                'UDP',
+            ):
+                reasons.append('invalid healthcheck protocol')
+        except KeyError:
+            pass
+        return reasons
 
 
 class Record(EqualityTupleMixin):
@@ -92,45 +150,13 @@ class Record(EqualityTupleMixin):
                 raise ValidationError(fqdn, reasons, context)
         return _class(zone, name, data, source=source, context=context)
 
+    VALIDATORS = [NameValidator, TtlValidator, HealthcheckValidator]
+
     @classmethod
     def validate(cls, name, fqdn, data):
         reasons = []
-        if name == '@':
-            reasons.append('invalid name "@", use "" instead')
-        n = len(fqdn)
-        if n > 253:
-            reasons.append(
-                f'invalid fqdn, "{idna_decode(fqdn)}" is too long at {n} '
-                'chars, max is 253'
-            )
-        for label in name.split('.'):
-            n = len(label)
-            if n > 63:
-                reasons.append(
-                    f'invalid label, "{label}" is too long at {n}'
-                    ' chars, max is 63'
-                )
-        # in the case of endswith there's an implicit second . from the Zone
-        if '..' in name or name.endswith('.'):
-            reasons.append(f'invalid name, double `.` in "{idna_decode(fqdn)}"')
-        # TODO: look at the idna lib for a lot more potential validations...
-        try:
-            ttl = int(data['ttl'])
-            if ttl < 0:
-                reasons.append('invalid ttl')
-        except KeyError:
-            reasons.append('missing ttl')
-        try:
-            if data['octodns']['healthcheck']['protocol'] not in (
-                'HTTP',
-                'HTTPS',
-                'ICMP',
-                'TCP',
-                'UDP',
-            ):
-                reasons.append('invalid healthcheck protocol')
-        except KeyError:
-            pass
+        for validator in Record.VALIDATORS:
+            reasons.extend(validator.validate(name, fqdn, data))
         return reasons
 
     @classmethod
