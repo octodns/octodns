@@ -114,6 +114,11 @@ class CaaValue(EqualityTupleMixin, dict):
 
 
 class CaaRecord(ValuesMixin, Record):
+    REFERENCES = (
+        'https://datatracker.ietf.org/doc/html/rfc8657',
+        'https://datatracker.ietf.org/doc/html/rfc8659',
+        'https://datatracker.ietf.org/doc/html/rfc9495',
+    )
     _type = 'CAA'
     _value_type = CaaValue
 

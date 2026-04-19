@@ -420,6 +420,7 @@ class LocValue(EqualityTupleMixin, dict):
 
 
 class LocRecord(ValuesMixin, Record):
+    REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc1876',)
     _type = 'LOC'
     _value_type = LocValue
 

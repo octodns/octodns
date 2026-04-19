@@ -187,6 +187,12 @@ class TlsaValue(EqualityTupleMixin, dict):
 
 
 class TlsaRecord(ValuesMixin, Record):
+    REFERENCES = (
+        'https://datatracker.ietf.org/doc/html/rfc6698',
+        'https://datatracker.ietf.org/doc/html/rfc7671',
+        'https://datatracker.ietf.org/doc/html/rfc7672',
+        'https://datatracker.ietf.org/doc/html/rfc7673',
+    )
     _type = 'TLSA'
     _value_type = TlsaValue
 

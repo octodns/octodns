@@ -19,6 +19,7 @@ Ipv6Address = Ipv6Value
 
 
 class AaaaRecord(_DynamicMixin, _GeoMixin, Record):
+    REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc3596',)
     _type = 'AAAA'
     _value_type = Ipv6Address
 

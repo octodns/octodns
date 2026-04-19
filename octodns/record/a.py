@@ -19,6 +19,7 @@ Ipv4Address = Ipv4Value
 
 
 class ARecord(_DynamicMixin, _GeoMixin, Record):
+    REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc1035',)
     _type = 'A'
     _value_type = Ipv4Value
 

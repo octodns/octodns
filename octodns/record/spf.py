@@ -8,6 +8,7 @@ from .chunked import _ChunkedValue, _ChunkedValuesMixin
 
 
 class SpfRecord(_ChunkedValuesMixin, Record):
+    REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc7208',)
     _type = 'SPF'
     _value_type = _ChunkedValue
 

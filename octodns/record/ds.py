@@ -205,6 +205,15 @@ class DsValue(EqualityTupleMixin, dict):
 
 
 class DsRecord(ValuesMixin, Record):
+    REFERENCES = (
+        'https://datatracker.ietf.org/doc/html/rfc4034',
+        'https://datatracker.ietf.org/doc/html/rfc4035',
+        'https://datatracker.ietf.org/doc/html/rfc4509',
+        'https://datatracker.ietf.org/doc/html/rfc6605',
+        'https://datatracker.ietf.org/doc/html/rfc6840',
+        'https://datatracker.ietf.org/doc/html/rfc8080',
+        'https://datatracker.ietf.org/doc/html/rfc8624',
+    )
     _type = 'DS'
     _value_type = DsValue
 
