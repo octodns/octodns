@@ -12,6 +12,13 @@ from .validator import ValueValidator
 
 
 class DsValueValidator(ValueValidator):
+    '''
+    Validates DS rdata. Supports both the current field names
+    (``key_tag``, ``algorithm``, ``digest_type``, ``digest``) and the
+    deprecated legacy field names (``flags``, ``protocol``,
+    ``algorithm``, ``public_key``), which will be removed in 2.0.
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         if not isinstance(data, (list, tuple)):

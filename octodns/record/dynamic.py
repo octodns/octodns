@@ -13,6 +13,13 @@ from .validator import RecordValidator
 
 
 class DynamicValidator(RecordValidator):
+    '''
+    Validates the ``dynamic`` block of a dynamic record: the pools
+    structure (fallback chains, value types, status flags), the rules
+    list (geo/subnet targeting and pool references), and that no pools
+    are defined but unused.
+    '''
+
     @classmethod
     def validate(cls, record_cls, name, fqdn, data):
         reasons = []

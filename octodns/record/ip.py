@@ -7,6 +7,12 @@ from .validator import ValueValidator
 
 
 class IpValueValidator(ValueValidator):
+    '''
+    Validates IP address values: rejects empty/missing values and
+    defers to the value class's ``_address_type`` (``IPv4Address`` or
+    ``IPv6Address``) to parse each value.
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         if not isinstance(data, (list, tuple)):

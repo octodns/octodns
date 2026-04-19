@@ -9,6 +9,12 @@ from .validator import ValueValidator
 
 
 class UrlfwdValueValidator(ValueValidator):
+    '''
+    Validates URLFWD rdata: ``code`` is a valid HTTP redirect code,
+    ``masking`` and ``query`` are in the recognized enum sets, and
+    ``path`` and ``target`` are present.
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         reasons = []

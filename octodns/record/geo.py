@@ -133,6 +133,12 @@ class GeoValue(EqualityTupleMixin):
 
 
 class GeoValidator(RecordValidator):
+    '''
+    Validates the deprecated ``geo`` block of a record: each key is a
+    valid continent/country/subdivision code and each list of values
+    passes the record's value-type validation.
+    '''
+
     @classmethod
     def validate(cls, record_cls, name, fqdn, data):
         reasons = []

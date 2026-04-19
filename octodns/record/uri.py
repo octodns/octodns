@@ -12,6 +12,12 @@ from .validator import RecordValidator, ValueValidator
 
 
 class UriNameValidator(RecordValidator):
+    '''
+    Validates that a URI record's name matches the
+    ``_service._protocol`` pattern required by RFC 7553, or is a
+    wildcard.
+    '''
+
     @classmethod
     def validate(cls, record_cls, name, fqdn, data):
         if not record_cls._name_re.match(name):
@@ -20,6 +26,11 @@ class UriNameValidator(RecordValidator):
 
 
 class UriValueValidator(ValueValidator):
+    '''
+    Validates URI rdata: priority and weight are present and
+    integer-parsable, and target is non-empty.
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         reasons = []

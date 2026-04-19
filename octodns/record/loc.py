@@ -9,6 +9,14 @@ from .validator import ValueValidator
 
 
 class LocValueValidator(ValueValidator):
+    '''
+    Validates LOC rdata per RFC 1876: latitude/longitude degrees and
+    minutes are integers in their respective ranges, the seconds,
+    altitude, size, and precision fields are floats in range, and the
+    ``lat_direction`` (N/S) and ``long_direction`` (E/W) are valid
+    cardinal directions.
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         int_keys = [

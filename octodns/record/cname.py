@@ -13,6 +13,11 @@ class CnameValue(_TargetValue):
 
 
 class CnameRootValidator(RecordValidator):
+    '''
+    Rejects CNAME records at the zone root, which are prohibited by
+    RFC 1034/2181.
+    '''
+
     @classmethod
     def validate(cls, record_cls, name, fqdn, data):
         if name == '':

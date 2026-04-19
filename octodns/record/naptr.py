@@ -9,6 +9,12 @@ from .validator import ValueValidator
 
 
 class NaptrValueValidator(ValueValidator):
+    '''
+    Validates NAPTR rdata: ``order`` and ``preference`` are
+    integer-parsable, ``flags`` is one of the RFC 3403 values, and
+    ``service``, ``regexp``, and ``replacement`` are all present.
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         reasons = []

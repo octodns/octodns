@@ -9,6 +9,13 @@ from .validator import ValueValidator
 
 
 class SshfpValueValidator(ValueValidator):
+    '''
+    Validates SSHFP rdata: ``algorithm`` and ``fingerprint_type`` are
+    from the recognized sets in RFC 4255/6594, and the ``fingerprint``
+    hex string's length matches the fingerprint type (SHA-1 = 40,
+    SHA-256 = 64).
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         reasons = []

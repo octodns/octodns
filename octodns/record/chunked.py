@@ -9,6 +9,11 @@ from .validator import ValueValidator
 
 
 class ChunkedValueValidator(ValueValidator):
+    '''
+    Validates values for TXT/SPF-style chunked strings: present,
+    ASCII-only, with no unescaped or double-escaped ``;`` characters.
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         if not data:

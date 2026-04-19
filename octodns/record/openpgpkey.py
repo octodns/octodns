@@ -7,6 +7,11 @@ from .validator import ValueValidator
 
 
 class OpenpgpkeyValueValidator(ValueValidator):
+    '''
+    Validates OPENPGPKEY values: at least one non-empty base64-encoded
+    OpenPGP key must be provided.
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         if not data or all(not d for d in data):

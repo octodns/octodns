@@ -33,12 +33,20 @@ def validate_target_fqdn(target, _type, key='value'):
 
 
 class TargetValueValidator(ValueValidator):
+    '''
+    Validates a single-value target FQDN (CNAME, ALIAS, DNAME, PTR).
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         return validate_target_fqdn(data, _type)
 
 
 class TargetsValueValidator(ValueValidator):
+    '''
+    Validates a list of target FQDNs (NS). Rejects empty lists.
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         if not data:

@@ -22,6 +22,12 @@ def unquote(s):
 
 
 class NameValidator(RecordValidator):
+    '''
+    Validates record name and FQDN shape: rejects the legacy ``@`` alias,
+    enforces the 253-char total FQDN length and 63-char per-label length
+    limits from RFC 1035, and flags empty/double-dot labels.
+    '''
+
     @classmethod
     def validate(cls, record_cls, name, fqdn, data):
         reasons = []
@@ -48,6 +54,11 @@ class NameValidator(RecordValidator):
 
 
 class TtlValidator(RecordValidator):
+    '''
+    Validates that the record has a ttl and that it is a non-negative
+    integer.
+    '''
+
     @classmethod
     def validate(cls, record_cls, name, fqdn, data):
         reasons = []
@@ -61,6 +72,11 @@ class TtlValidator(RecordValidator):
 
 
 class HealthcheckValidator(RecordValidator):
+    '''
+    Validates the optional ``octodns.healthcheck.protocol`` setting, if
+    present, is one of the supported protocols.
+    '''
+
     @classmethod
     def validate(cls, record_cls, name, fqdn, data):
         reasons = []

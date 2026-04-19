@@ -9,6 +9,11 @@ from .validator import ValueValidator
 
 
 class CaaValueValidator(ValueValidator):
+    '''
+    Validates CAA rdata: ``flags`` is an integer in [0, 255], and
+    ``tag`` and ``value`` are present.
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         reasons = []

@@ -12,6 +12,11 @@ class AliasValue(_TargetValue):
 
 
 class AliasRootValidator(RecordValidator):
+    '''
+    Restricts ALIAS records to the zone root — the non-standard ALIAS
+    type only has meaning at the apex.
+    '''
+
     @classmethod
     def validate(cls, record_cls, name, fqdn, data):
         if name != '':

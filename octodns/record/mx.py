@@ -11,6 +11,12 @@ from .validator import ValueValidator
 
 
 class MxValueValidator(ValueValidator):
+    '''
+    Validates MX rdata: an integer-parsable ``preference`` (or legacy
+    ``priority`` alias) and a valid ``exchange`` FQDN (or legacy
+    ``value`` alias).
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         reasons = []

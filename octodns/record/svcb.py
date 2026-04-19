@@ -142,6 +142,14 @@ SUPPORTED_PARAMS = {
 
 
 class SvcbValueValidator(ValueValidator):
+    '''
+    Validates SVCB/HTTPS rdata per RFC 9460: ``svcpriority`` in
+    [0, 65535], ``targetname`` is a valid FQDN, and each SvcParam is
+    either a recognized key (validated by its per-key helper) or a
+    properly-formed ``keyNNN`` number. Also rejects SvcParams on
+    AliasMode (``svcpriority`` == 0) records.
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         reasons = []

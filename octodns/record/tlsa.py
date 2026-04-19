@@ -9,6 +9,12 @@ from .validator import ValueValidator
 
 
 class TlsaValueValidator(ValueValidator):
+    '''
+    Validates TLSA rdata: ``certificate_usage`` in [0, 3],
+    ``selector`` in [0, 1], ``matching_type`` in [0, 2], and
+    ``certificate_association_data`` is present.
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         reasons = []

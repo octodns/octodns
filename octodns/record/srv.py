@@ -13,6 +13,12 @@ from .validator import RecordValidator, ValueValidator
 
 
 class SrvNameValidator(RecordValidator):
+    '''
+    Validates that an SRV record's name matches the
+    ``_service._protocol`` pattern required by RFC 2782 (e.g.
+    ``_http._tcp``), or is a wildcard.
+    '''
+
     @classmethod
     def validate(cls, record_cls, name, fqdn, data):
         if not record_cls._name_re.match(name):
@@ -21,6 +27,11 @@ class SrvNameValidator(RecordValidator):
 
 
 class SrvValueValidator(ValueValidator):
+    '''
+    Validates SRV rdata: priority, weight, and port are present and
+    integer-parsable, and target is a valid FQDN.
+    '''
+
     @classmethod
     def validate(cls, value_cls, data, _type):
         reasons = []
