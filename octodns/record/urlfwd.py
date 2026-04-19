@@ -167,6 +167,7 @@ class UrlfwdValue(EqualityTupleMixin, dict):
 
 
 class UrlfwdRecord(ValuesMixin, Record):
+    REFERENCES = ()
     _type = 'URLFWD'
     _value_type = UrlfwdValue
 

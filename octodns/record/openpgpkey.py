@@ -43,6 +43,7 @@ class OpenpgpkeyValue(str):
 
 
 class OpenpgpkeyRecord(ValuesMixin, Record):
+    REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc7929',)
     _type = 'OPENPGPKEY'
     _value_type = OpenpgpkeyValue
 

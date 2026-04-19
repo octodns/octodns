@@ -11,6 +11,7 @@ class PtrValue(_TargetsValue):
 
 
 class PtrRecord(ValuesMixin, Record):
+    REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc1035',)
     _type = 'PTR'
     _value_type = PtrValue
 

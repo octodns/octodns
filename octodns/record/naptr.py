@@ -205,6 +205,13 @@ class NaptrValue(EqualityTupleMixin, dict):
 
 
 class NaptrRecord(ValuesMixin, Record):
+    REFERENCES = (
+        'https://datatracker.ietf.org/doc/html/rfc3401',
+        'https://datatracker.ietf.org/doc/html/rfc3402',
+        'https://datatracker.ietf.org/doc/html/rfc3403',
+        'https://datatracker.ietf.org/doc/html/rfc3404',
+        'https://datatracker.ietf.org/doc/html/rfc3405',
+    )
     _type = 'NAPTR'
     _value_type = NaptrValue
 

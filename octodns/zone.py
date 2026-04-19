@@ -144,6 +144,13 @@ class Zone(object):
 
     log = getLogger('Zone')
 
+    REFERENCES = (
+        'https://datatracker.ietf.org/doc/html/rfc1034',
+        'https://datatracker.ietf.org/doc/html/rfc1035',
+        'https://datatracker.ietf.org/doc/html/rfc2181',
+        'https://datatracker.ietf.org/doc/html/rfc4592',
+    )
+
     def __init__(
         self,
         name,

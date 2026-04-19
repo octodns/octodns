@@ -132,8 +132,8 @@ class UriValue(EqualityTupleMixin, dict):
         return f"'{self.priority} {self.weight} \"{self.target}\"'"
 
 
-# https://datatracker.ietf.org/doc/html/rfc7553
 class UriRecord(ValuesMixin, Record):
+    REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc7553',)
     _type = 'URI'
     _value_type = UriValue
     _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')

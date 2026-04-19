@@ -153,6 +153,10 @@ class SrvValue(EqualityTupleMixin, dict):
 
 
 class SrvRecord(ValuesMixin, Record):
+    REFERENCES = (
+        'https://datatracker.ietf.org/doc/html/rfc2782',
+        'https://datatracker.ietf.org/doc/html/rfc6335',
+    )
     _type = 'SRV'
     _value_type = SrvValue
     _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')

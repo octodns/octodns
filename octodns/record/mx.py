@@ -137,6 +137,11 @@ class MxValue(EqualityTupleMixin, dict):
 
 
 class MxRecord(ValuesMixin, Record):
+    REFERENCES = (
+        'https://datatracker.ietf.org/doc/html/rfc1035',
+        'https://datatracker.ietf.org/doc/html/rfc5321',
+        'https://datatracker.ietf.org/doc/html/rfc7505',
+    )
     _type = 'MX'
     _value_type = MxValue
 

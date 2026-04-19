@@ -12,6 +12,7 @@ class DnameValue(_TargetValue):
 
 
 class DnameRecord(_DynamicMixin, ValueMixin, Record):
+    REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc6672',)
     _type = 'DNAME'
     _value_type = DnameValue
 

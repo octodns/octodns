@@ -320,6 +320,11 @@ class SvcbValue(EqualityTupleMixin, dict):
 
 
 class SvcbRecord(ValuesMixin, Record):
+    REFERENCES = (
+        'https://datatracker.ietf.org/doc/html/rfc9460',
+        'https://datatracker.ietf.org/doc/html/rfc9461',
+        'https://datatracker.ietf.org/doc/html/rfc9462',
+    )
     _type = 'SVCB'
     _value_type = SvcbValue
 

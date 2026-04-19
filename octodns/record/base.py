@@ -23,6 +23,14 @@ def unquote(s):
 class Record(EqualityTupleMixin):
     log = getLogger('Record')
 
+    REFERENCES = (
+        'https://datatracker.ietf.org/doc/html/rfc1035',
+        'https://datatracker.ietf.org/doc/html/rfc1123',
+        'https://datatracker.ietf.org/doc/html/rfc2181',
+        'https://datatracker.ietf.org/doc/html/rfc4592',
+        'https://datatracker.ietf.org/doc/html/rfc5890',
+    )
+
     _CLASSES = {}
 
     @classmethod

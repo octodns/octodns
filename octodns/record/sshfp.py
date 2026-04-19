@@ -157,6 +157,12 @@ class SshfpValue(EqualityTupleMixin, dict):
 
 
 class SshfpRecord(ValuesMixin, Record):
+    REFERENCES = (
+        'https://datatracker.ietf.org/doc/html/rfc4255',
+        'https://datatracker.ietf.org/doc/html/rfc6594',
+        'https://datatracker.ietf.org/doc/html/rfc7479',
+        'https://datatracker.ietf.org/doc/html/rfc8709',
+    )
     _type = 'SSHFP'
     _value_type = SshfpValue
 
