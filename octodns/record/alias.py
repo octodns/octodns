@@ -4,10 +4,19 @@
 
 from .base import Record, ValueMixin
 from .target import _TargetValue
+from .validator import RecordValidator
 
 
 class AliasValue(_TargetValue):
     pass
+
+
+class AliasRootValidator(RecordValidator):
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
+        if name != '':
+            return ['non-root ALIAS not allowed']
+        return []
 
 
 class AliasRecord(ValueMixin, Record):
@@ -15,11 +24,13 @@ class AliasRecord(ValueMixin, Record):
     _type = 'ALIAS'
     _value_type = AliasValue
 
+    VALIDATORS = [AliasRootValidator]
+
     @classmethod
     def validate(cls, name, fqdn, data):
         reasons = []
-        if name != '':
-            reasons.append('non-root ALIAS not allowed')
+        for validator in AliasRecord.VALIDATORS:
+            reasons.extend(validator.validate(cls, name, fqdn, data))
         reasons.extend(super().validate(name, fqdn, data))
         return reasons
 

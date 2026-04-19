@@ -22,12 +22,18 @@ from octodns.record import (
     ValidationError,
     ValuesMixin,
 )
+from octodns.record.alias import AliasRootValidator
 from octodns.record.base import (
     HealthcheckValidator,
     NameValidator,
     TtlValidator,
     unquote,
 )
+from octodns.record.cname import CnameRootValidator
+from octodns.record.dynamic import DynamicValidator
+from octodns.record.geo import GeoValidator
+from octodns.record.srv import SrvNameValidator, SrvRecord
+from octodns.record.uri import UriNameValidator, UriRecord
 from octodns.record.validator import RecordValidator, ValueValidator
 from octodns.yaml import ContextDict
 from octodns.zone import Zone
@@ -939,56 +945,62 @@ class TestRecordValidation(TestCase):
 
 class TestValidators(TestCase):
     def test_record_validator_base(self):
-        self.assertEqual([], RecordValidator.validate('', 'unit.tests.', {}))
+        self.assertEqual(
+            [], RecordValidator.validate(ARecord, '', 'unit.tests.', {})
+        )
 
     def test_value_validator_base(self):
-        self.assertEqual([], ValueValidator.validate(None, 'A'))
+        self.assertEqual([], ValueValidator.validate(None, None, 'A'))
 
     def test_name_validator(self):
         self.assertEqual(
-            [], NameValidator.validate('www', 'www.unit.tests.', {})
+            [], NameValidator.validate(ARecord, 'www', 'www.unit.tests.', {})
         )
         self.assertEqual(
             ['invalid name "@", use "" instead'],
-            NameValidator.validate('@', '@.unit.tests.', {}),
+            NameValidator.validate(ARecord, '@', '@.unit.tests.', {}),
         )
         long_name = '.'.join(['a' * 60] * 5)
         long_fqdn = f'{long_name}.unit.tests.'
-        reasons = NameValidator.validate(long_name, long_fqdn, {})
+        reasons = NameValidator.validate(ARecord, long_name, long_fqdn, {})
         self.assertTrue(
             any('too long at' in r and 'max is 253' in r for r in reasons)
         )
         long_label = 'x' * 64
         reasons = NameValidator.validate(
-            long_label, f'{long_label}.unit.tests.', {}
+            ARecord, long_label, f'{long_label}.unit.tests.', {}
         )
         self.assertTrue(
             any('invalid label' in r and 'max is 63' in r for r in reasons)
         )
         self.assertEqual(
             ['invalid name, double `.` in "foo..bar.unit.tests."'],
-            NameValidator.validate('foo..bar', 'foo..bar.unit.tests.', {}),
+            NameValidator.validate(
+                ARecord, 'foo..bar', 'foo..bar.unit.tests.', {}
+            ),
         )
 
     def test_ttl_validator(self):
         self.assertEqual(
-            [], TtlValidator.validate('', 'unit.tests.', {'ttl': 42})
+            [], TtlValidator.validate(ARecord, '', 'unit.tests.', {'ttl': 42})
         )
         self.assertEqual(
-            ['missing ttl'], TtlValidator.validate('', 'unit.tests.', {})
+            ['missing ttl'],
+            TtlValidator.validate(ARecord, '', 'unit.tests.', {}),
         )
         self.assertEqual(
             ['invalid ttl'],
-            TtlValidator.validate('', 'unit.tests.', {'ttl': -1}),
+            TtlValidator.validate(ARecord, '', 'unit.tests.', {'ttl': -1}),
         )
 
     def test_healthcheck_validator(self):
         self.assertEqual(
-            [], HealthcheckValidator.validate('', 'unit.tests.', {})
+            [], HealthcheckValidator.validate(ARecord, '', 'unit.tests.', {})
         )
         self.assertEqual(
             [],
             HealthcheckValidator.validate(
+                ARecord,
                 '',
                 'unit.tests.',
                 {'octodns': {'healthcheck': {'protocol': 'HTTPS'}}},
@@ -997,8 +1009,78 @@ class TestValidators(TestCase):
         self.assertEqual(
             ['invalid healthcheck protocol'],
             HealthcheckValidator.validate(
+                ARecord,
                 '',
                 'unit.tests.',
                 {'octodns': {'healthcheck': {'protocol': 'BOGUS'}}},
             ),
+        )
+
+    def test_dynamic_validator(self):
+        # no `dynamic` key -> no reasons
+        self.assertEqual(
+            [], DynamicValidator.validate(ARecord, '', 'unit.tests.', {})
+        )
+        # `dynamic` and `geo` co-present triggers a reason
+        reasons = DynamicValidator.validate(
+            ARecord, '', 'unit.tests.', {'dynamic': {}, 'geo': {}}
+        )
+        self.assertIn('"dynamic" record with "geo" content', reasons)
+
+    def test_geo_validator(self):
+        # no `geo` key -> no reasons
+        self.assertEqual(
+            [], GeoValidator.validate(ARecord, '', 'unit.tests.', {})
+        )
+        # invalid geo code surfaces a reason
+        reasons = GeoValidator.validate(
+            ARecord, '', 'unit.tests.', {'geo': {'X': ['1.2.3.4']}}
+        )
+        self.assertIn('invalid geo "X"', reasons)
+
+    def test_srv_name_validator(self):
+        self.assertEqual(
+            [],
+            SrvNameValidator.validate(
+                SrvRecord, '_sip._tcp', '_sip._tcp.unit.tests.', {}
+            ),
+        )
+        self.assertEqual(
+            ['invalid name for SRV record'],
+            SrvNameValidator.validate(SrvRecord, 'bad', 'bad.unit.tests.', {}),
+        )
+
+    def test_cname_root_validator(self):
+        self.assertEqual(
+            [],
+            CnameRootValidator.validate(
+                CnameRecord, 'www', 'www.unit.tests.', {}
+            ),
+        )
+        self.assertEqual(
+            ['root CNAME not allowed'],
+            CnameRootValidator.validate(CnameRecord, '', 'unit.tests.', {}),
+        )
+
+    def test_alias_root_validator(self):
+        self.assertEqual(
+            [], AliasRootValidator.validate(AliasRecord, '', 'unit.tests.', {})
+        )
+        self.assertEqual(
+            ['non-root ALIAS not allowed'],
+            AliasRootValidator.validate(
+                AliasRecord, 'www', 'www.unit.tests.', {}
+            ),
+        )
+
+    def test_uri_name_validator(self):
+        self.assertEqual(
+            [],
+            UriNameValidator.validate(
+                UriRecord, '_sip._tcp', '_sip._tcp.unit.tests.', {}
+            ),
+        )
+        self.assertEqual(
+            ['invalid name for URI record'],
+            UriNameValidator.validate(UriRecord, 'bad', 'bad.unit.tests.', {}),
         )

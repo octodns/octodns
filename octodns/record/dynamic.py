@@ -9,6 +9,43 @@ from logging import getLogger
 from .change import Update
 from .geo import GeoCodes
 from .subnet import Subnets
+from .validator import RecordValidator
+
+
+class DynamicValidator(RecordValidator):
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
+        reasons = []
+
+        if 'dynamic' not in data:
+            return reasons
+        elif 'geo' in data:
+            reasons.append('"dynamic" record with "geo" content')
+
+        try:
+            pools = data['dynamic']['pools']
+        except KeyError:
+            pools = {}
+
+        pool_reasons, pools_exist, pools_seen_as_fallback = (
+            record_cls._validate_pools(pools)
+        )
+        reasons.extend(pool_reasons)
+
+        try:
+            rules = data['dynamic']['rules']
+        except KeyError:
+            rules = []
+
+        rule_reasons, pools_seen = record_cls._validate_rules(pools, rules)
+        reasons.extend(rule_reasons)
+
+        unused = pools_exist - pools_seen - pools_seen_as_fallback
+        if unused:
+            unused = '", "'.join(sorted(unused))
+            reasons.append(f'unused pools: "{unused}"')
+
+        return reasons
 
 
 class _DynamicPool(object):
@@ -414,38 +451,13 @@ class _DynamicMixin(object):
 
         return reasons, pools_seen
 
+    VALIDATORS = [DynamicValidator]
+
     @classmethod
     def validate(cls, name, fqdn, data):
         reasons = super().validate(name, fqdn, data)
-
-        if 'dynamic' not in data:
-            return reasons
-        elif 'geo' in data:
-            reasons.append('"dynamic" record with "geo" content')
-
-        try:
-            pools = data['dynamic']['pools']
-        except KeyError:
-            pools = {}
-
-        pool_reasons, pools_exist, pools_seen_as_fallback = cls._validate_pools(
-            pools
-        )
-        reasons.extend(pool_reasons)
-
-        try:
-            rules = data['dynamic']['rules']
-        except KeyError:
-            rules = []
-
-        rule_reasons, pools_seen = cls._validate_rules(pools, rules)
-        reasons.extend(rule_reasons)
-
-        unused = pools_exist - pools_seen - pools_seen_as_fallback
-        if unused:
-            unused = '", "'.join(sorted(unused))
-            reasons.append(f'unused pools: "{unused}"')
-
+        for validator in _DynamicMixin.VALIDATORS:
+            reasons.extend(validator.validate(cls, name, fqdn, data))
         return reasons
 
     def __init__(self, zone, name, data, *args, **kwargs):

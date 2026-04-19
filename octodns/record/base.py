@@ -23,7 +23,7 @@ def unquote(s):
 
 class NameValidator(RecordValidator):
     @classmethod
-    def validate(cls, name, fqdn, data):
+    def validate(cls, record_cls, name, fqdn, data):
         reasons = []
         if name == '@':
             reasons.append('invalid name "@", use "" instead')
@@ -49,7 +49,7 @@ class NameValidator(RecordValidator):
 
 class TtlValidator(RecordValidator):
     @classmethod
-    def validate(cls, name, fqdn, data):
+    def validate(cls, record_cls, name, fqdn, data):
         reasons = []
         try:
             ttl = int(data['ttl'])
@@ -62,7 +62,7 @@ class TtlValidator(RecordValidator):
 
 class HealthcheckValidator(RecordValidator):
     @classmethod
-    def validate(cls, name, fqdn, data):
+    def validate(cls, record_cls, name, fqdn, data):
         reasons = []
         try:
             if data['octodns']['healthcheck']['protocol'] not in (
@@ -156,7 +156,7 @@ class Record(EqualityTupleMixin):
     def validate(cls, name, fqdn, data):
         reasons = []
         for validator in Record.VALIDATORS:
-            reasons.extend(validator.validate(name, fqdn, data))
+            reasons.extend(validator.validate(cls, name, fqdn, data))
         return reasons
 
     @classmethod

@@ -9,6 +9,15 @@ from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 from .target import validate_target_fqdn
+from .validator import RecordValidator
+
+
+class SrvNameValidator(RecordValidator):
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
+        if not record_cls._name_re.match(name):
+            return ['invalid name for SRV record']
+        return []
 
 
 class SrvValue(EqualityTupleMixin, dict):
@@ -161,11 +170,13 @@ class SrvRecord(ValuesMixin, Record):
     _value_type = SrvValue
     _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
 
+    VALIDATORS = [SrvNameValidator]
+
     @classmethod
     def validate(cls, name, fqdn, data):
         reasons = []
-        if not cls._name_re.match(name):
-            reasons.append('invalid name for SRV record')
+        for validator in SrvRecord.VALIDATORS:
+            reasons.extend(validator.validate(cls, name, fqdn, data))
         reasons.extend(super().validate(name, fqdn, data))
         return reasons
 

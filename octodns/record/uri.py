@@ -8,6 +8,15 @@ from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
+from .validator import RecordValidator
+
+
+class UriNameValidator(RecordValidator):
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
+        if not record_cls._name_re.match(name):
+            return ['invalid name for URI record']
+        return []
 
 
 class UriValue(EqualityTupleMixin, dict):
@@ -138,11 +147,13 @@ class UriRecord(ValuesMixin, Record):
     _value_type = UriValue
     _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
 
+    VALIDATORS = [UriNameValidator]
+
     @classmethod
     def validate(cls, name, fqdn, data):
         reasons = []
-        if not cls._name_re.match(name):
-            reasons.append('invalid name for URI record')
+        for validator in UriRecord.VALIDATORS:
+            reasons.extend(validator.validate(cls, name, fqdn, data))
         reasons.extend(super().validate(name, fqdn, data))
         return reasons
 

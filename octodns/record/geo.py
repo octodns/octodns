@@ -10,6 +10,7 @@ from ..equality import EqualityTupleMixin
 from .base import ValuesMixin
 from .change import Update
 from .geo_data import geo_data
+from .validator import RecordValidator
 
 
 class GeoCodes(object):
@@ -131,6 +132,26 @@ class GeoValue(EqualityTupleMixin):
         )
 
 
+class GeoValidator(RecordValidator):
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
+        reasons = []
+        try:
+            geo = dict(data['geo'])
+            deprecated(
+                '`geo` records are DEPRECATED. `dynamic` records should be used instead. Will be removed in 2.0',
+                stacklevel=99,
+            )
+            for code, values in geo.items():
+                reasons.extend(GeoValue._validate_geo(code))
+                reasons.extend(
+                    record_cls._value_type.validate(values, record_cls._type)
+                )
+        except KeyError:
+            pass
+        return reasons
+
+
 class _GeoMixin(ValuesMixin):
     '''
     Adds GeoDNS support to a record.
@@ -155,20 +176,13 @@ class _GeoMixin(ValuesMixin):
             },
         }
 
+    VALIDATORS = [GeoValidator]
+
     @classmethod
     def validate(cls, name, fqdn, data):
         reasons = super().validate(name, fqdn, data)
-        try:
-            geo = dict(data['geo'])
-            deprecated(
-                '`geo` records are DEPRECATED. `dynamic` records should be used instead. Will be removed in 2.0',
-                stacklevel=99,
-            )
-            for code, values in geo.items():
-                reasons.extend(GeoValue._validate_geo(code))
-                reasons.extend(cls._value_type.validate(values, cls._type))
-        except KeyError:
-            pass
+        for validator in _GeoMixin.VALIDATORS:
+            reasons.extend(validator.validate(cls, name, fqdn, data))
         return reasons
 
     def __init__(self, zone, name, data, *args, **kwargs):
