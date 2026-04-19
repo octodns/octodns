@@ -5,6 +5,7 @@
 from fqdn import FQDN
 
 from ..idna import idna_encode
+from .validator import ValueValidator
 
 
 def validate_target_fqdn(target, _type, key='value'):
@@ -31,7 +32,28 @@ def validate_target_fqdn(target, _type, key='value'):
     return reasons
 
 
+class TargetValueValidator(ValueValidator):
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        return validate_target_fqdn(data, _type)
+
+
+class TargetsValueValidator(ValueValidator):
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        if not data:
+            return ['missing value(s)']
+
+        reasons = []
+        for value in data:
+            reasons += validate_target_fqdn(value, _type)
+
+        return reasons
+
+
 class _TargetValue(str):
+    VALIDATORS = [TargetValueValidator]
+
     @classmethod
     def parse_rdata_text(self, value):
         return value
@@ -42,7 +64,10 @@ class _TargetValue(str):
 
     @classmethod
     def validate(cls, data, _type):
-        return validate_target_fqdn(data, _type)
+        reasons = []
+        for validator in _TargetValue.VALIDATORS:
+            reasons.extend(validator.validate(cls, data, _type))
+        return reasons
 
     @classmethod
     def process(cls, value):
@@ -67,6 +92,8 @@ class _TargetValue(str):
 #
 # much like _TargetValue, but geared towards multiple values
 class _TargetsValue(str):
+    VALIDATORS = [TargetsValueValidator]
+
     @classmethod
     def parse_rdata_text(cls, value):
         return value
@@ -77,13 +104,9 @@ class _TargetsValue(str):
 
     @classmethod
     def validate(cls, data, _type):
-        if not data:
-            return ['missing value(s)']
-
         reasons = []
-        for value in data:
-            reasons += validate_target_fqdn(value, _type)
-
+        for validator in _TargetsValue.VALIDATORS:
+            reasons.extend(validator.validate(cls, data, _type))
         return reasons
 
     @classmethod

@@ -5,10 +5,45 @@
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
+from .validator import ValueValidator
+
+
+class NaptrValueValidator(ValueValidator):
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            try:
+                int(value['order'])
+            except KeyError:
+                reasons.append('missing order')
+            except ValueError:
+                reasons.append(f'invalid order "{value["order"]}"')
+            try:
+                int(value['preference'])
+            except KeyError:
+                reasons.append('missing preference')
+            except ValueError:
+                reasons.append(f'invalid preference "{value["preference"]}"')
+            try:
+                flags = value['flags']
+                if flags not in value_cls.VALID_FLAGS:
+                    reasons.append(f'unrecognized flags "{flags}"')
+            except KeyError:
+                reasons.append('missing flags')
+
+            # TODO: validate these... they're non-trivial
+            for k in ('service', 'regexp', 'replacement'):
+                if k not in value:
+                    reasons.append(f'missing {k}')
+
+        return reasons
 
 
 class NaptrValue(EqualityTupleMixin, dict):
     VALID_FLAGS = ('S', 'A', 'U', 'P', 's', 'a', 'u', 'p')
+
+    VALIDATORS = [NaptrValueValidator]
 
     @classmethod
     def _schema(cls):
@@ -65,31 +100,8 @@ class NaptrValue(EqualityTupleMixin, dict):
     @classmethod
     def validate(cls, data, _type):
         reasons = []
-        for value in data:
-            try:
-                int(value['order'])
-            except KeyError:
-                reasons.append('missing order')
-            except ValueError:
-                reasons.append(f'invalid order "{value["order"]}"')
-            try:
-                int(value['preference'])
-            except KeyError:
-                reasons.append('missing preference')
-            except ValueError:
-                reasons.append(f'invalid preference "{value["preference"]}"')
-            try:
-                flags = value['flags']
-                if flags not in cls.VALID_FLAGS:
-                    reasons.append(f'unrecognized flags "{flags}"')
-            except KeyError:
-                reasons.append('missing flags')
-
-            # TODO: validate these... they're non-trivial
-            for k in ('service', 'regexp', 'replacement'):
-                if k not in value:
-                    reasons.append(f'missing {k}')
-
+        for validator in NaptrValue.VALIDATORS:
+            reasons.extend(validator.validate(cls, data, _type))
         return reasons
 
     @classmethod

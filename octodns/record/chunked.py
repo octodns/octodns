@@ -5,6 +5,27 @@
 import re
 
 from .base import ValuesMixin
+from .validator import ValueValidator
+
+
+class ChunkedValueValidator(ValueValidator):
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        if not data:
+            return ['missing value(s)']
+        elif not isinstance(data, (list, tuple)):
+            data = (data,)
+        reasons = []
+        for value in data:
+            if value_cls._unescaped_semicolon_re.search(value):
+                reasons.append(f'unescaped ; in "{value}"')
+            if value_cls._double_escaped_semicolon_re.search(value):
+                reasons.append(f'double escaped ; in "{value}"')
+            try:
+                value.encode('ascii')
+            except UnicodeEncodeError:
+                reasons.append(f'non ASCII character in "{value}"')
+        return reasons
 
 
 class _ChunkedValuesMixin(ValuesMixin):
@@ -45,6 +66,8 @@ class _ChunkedValue(str):
     _unescaped_semicolon_re = re.compile(r'\w;')
     _double_escaped_semicolon_re = re.compile(r'\\\\;')
 
+    VALIDATORS = [ChunkedValueValidator]
+
     @classmethod
     def parse_rdata_text(cls, value):
         try:
@@ -58,20 +81,9 @@ class _ChunkedValue(str):
 
     @classmethod
     def validate(cls, data, _type):
-        if not data:
-            return ['missing value(s)']
-        elif not isinstance(data, (list, tuple)):
-            data = (data,)
         reasons = []
-        for value in data:
-            if cls._unescaped_semicolon_re.search(value):
-                reasons.append(f'unescaped ; in "{value}"')
-            if cls._double_escaped_semicolon_re.search(value):
-                reasons.append(f'double escaped ; in "{value}"')
-            try:
-                value.encode('ascii')
-            except UnicodeEncodeError:
-                reasons.append(f'non ASCII character in "{value}"')
+        for validator in _ChunkedValue.VALIDATORS:
+            reasons.extend(validator.validate(cls, data, _type))
         return reasons
 
     @classmethod

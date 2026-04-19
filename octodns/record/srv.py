@@ -9,7 +9,7 @@ from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 from .target import validate_target_fqdn
-from .validator import RecordValidator
+from .validator import RecordValidator, ValueValidator
 
 
 class SrvNameValidator(RecordValidator):
@@ -20,7 +20,41 @@ class SrvNameValidator(RecordValidator):
         return []
 
 
+class SrvValueValidator(ValueValidator):
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            # TODO: validate algorithm and fingerprint_type values
+            try:
+                int(value['priority'])
+            except KeyError:
+                reasons.append('missing priority')
+            except ValueError:
+                reasons.append(f'invalid priority "{value["priority"]}"')
+            try:
+                int(value['weight'])
+            except KeyError:
+                reasons.append('missing weight')
+            except ValueError:
+                reasons.append(f'invalid weight "{value["weight"]}"')
+            try:
+                int(value['port'])
+            except KeyError:
+                reasons.append('missing port')
+            except ValueError:
+                reasons.append(f'invalid port "{value["port"]}"')
+            try:
+                target = value['target']
+                reasons += validate_target_fqdn(target, _type, 'target')
+            except KeyError:
+                reasons.append('missing target')
+        return reasons
+
+
 class SrvValue(EqualityTupleMixin, dict):
+    VALIDATORS = [SrvValueValidator]
+
     @classmethod
     def _schema(cls):
         return {
@@ -63,31 +97,8 @@ class SrvValue(EqualityTupleMixin, dict):
     @classmethod
     def validate(cls, data, _type):
         reasons = []
-        for value in data:
-            # TODO: validate algorithm and fingerprint_type values
-            try:
-                int(value['priority'])
-            except KeyError:
-                reasons.append('missing priority')
-            except ValueError:
-                reasons.append(f'invalid priority "{value["priority"]}"')
-            try:
-                int(value['weight'])
-            except KeyError:
-                reasons.append('missing weight')
-            except ValueError:
-                reasons.append(f'invalid weight "{value["weight"]}"')
-            try:
-                int(value['port'])
-            except KeyError:
-                reasons.append('missing port')
-            except ValueError:
-                reasons.append(f'invalid port "{value["port"]}"')
-            try:
-                target = value['target']
-                reasons += validate_target_fqdn(target, _type, 'target')
-            except KeyError:
-                reasons.append('missing target')
+        for validator in SrvValue.VALIDATORS:
+            reasons.extend(validator.validate(cls, data, _type))
         return reasons
 
     @classmethod

@@ -13,6 +13,7 @@ from .base import Record, ValuesMixin, unquote
 from .chunked import _ChunkedValue
 from .rr import RrParseError
 from .target import validate_target_fqdn
+from .validator import ValueValidator
 
 SUPPORTED_PARAMS = {}
 
@@ -140,7 +141,59 @@ SUPPORTED_PARAMS = {
 }
 
 
+class SvcbValueValidator(ValueValidator):
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            svcpriority = -1
+            if 'svcpriority' not in value:
+                reasons.append('missing svcpriority')
+            else:
+                try:
+                    svcpriority = int(value.get('svcpriority', 0))
+                    if svcpriority < 0 or svcpriority > 65535:
+                        reasons.append(f'invalid priority ' f'"{svcpriority}"')
+                except ValueError:
+                    reasons.append(f'invalid priority "{value["svcpriority"]}"')
+
+            reasons += validate_target_fqdn(
+                value.get('targetname'), _type, 'targetname'
+            )
+
+            if 'svcparams' in value:
+                svcparams = value.get('svcparams', dict())
+                if svcpriority == 0 and len(svcparams) != 0:
+                    reasons.append('svcparams set on AliasMode SVCB record')
+                for svcparamkey, svcparamvalue in svcparams.items():
+                    # XXX: Should we test for keys existing when set in 'mandatory'?
+                    if svcparamkey.startswith('key'):
+                        reasons += validate_svckey_number(svcparamkey)
+                        continue
+                    if (
+                        svcparamkey not in SUPPORTED_PARAMS.keys()
+                        and not svcparamkey.startswith('key')
+                    ):
+                        reasons.append(f'Unknown SvcParam {svcparamkey}')
+                        continue
+                    if SUPPORTED_PARAMS[svcparamkey].get('has_arg', True):
+                        reasons += SUPPORTED_PARAMS[svcparamkey]['validate'](
+                            svcparamvalue
+                        )
+                    if (
+                        not SUPPORTED_PARAMS[svcparamkey].get('has_arg', True)
+                        and svcparamvalue is not None
+                    ):
+                        reasons.append(
+                            f'SvcParam {svcparamkey} has value when it should not'
+                        )
+
+        return reasons
+
+
 class SvcbValue(EqualityTupleMixin, dict):
+
+    VALIDATORS = [SvcbValueValidator]
 
     @classmethod
     def _schema(cls):
@@ -196,49 +249,8 @@ class SvcbValue(EqualityTupleMixin, dict):
     @classmethod
     def validate(cls, data, _type):
         reasons = []
-        for value in data:
-            svcpriority = -1
-            if 'svcpriority' not in value:
-                reasons.append('missing svcpriority')
-            else:
-                try:
-                    svcpriority = int(value.get('svcpriority', 0))
-                    if svcpriority < 0 or svcpriority > 65535:
-                        reasons.append(f'invalid priority ' f'"{svcpriority}"')
-                except ValueError:
-                    reasons.append(f'invalid priority "{value["svcpriority"]}"')
-
-            reasons += validate_target_fqdn(
-                value.get('targetname'), _type, 'targetname'
-            )
-
-            if 'svcparams' in value:
-                svcparams = value.get('svcparams', dict())
-                if svcpriority == 0 and len(svcparams) != 0:
-                    reasons.append('svcparams set on AliasMode SVCB record')
-                for svcparamkey, svcparamvalue in svcparams.items():
-                    # XXX: Should we test for keys existing when set in 'mandatory'?
-                    if svcparamkey.startswith('key'):
-                        reasons += validate_svckey_number(svcparamkey)
-                        continue
-                    if (
-                        svcparamkey not in SUPPORTED_PARAMS.keys()
-                        and not svcparamkey.startswith('key')
-                    ):
-                        reasons.append(f'Unknown SvcParam {svcparamkey}')
-                        continue
-                    if SUPPORTED_PARAMS[svcparamkey].get('has_arg', True):
-                        reasons += SUPPORTED_PARAMS[svcparamkey]['validate'](
-                            svcparamvalue
-                        )
-                    if (
-                        not SUPPORTED_PARAMS[svcparamkey].get('has_arg', True)
-                        and svcparamvalue is not None
-                    ):
-                        reasons.append(
-                            f'SvcParam {svcparamkey} has value when it should not'
-                        )
-
+        for validator in SvcbValue.VALIDATORS:
+            reasons.extend(validator.validate(cls, data, _type))
         return reasons
 
     @classmethod

@@ -3,6 +3,15 @@
 #
 
 from .base import Record, ValuesMixin
+from .validator import ValueValidator
+
+
+class OpenpgpkeyValueValidator(ValueValidator):
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        if not data or all(not d for d in data):
+            return ['missing value(s)']
+        return []
 
 
 class OpenpgpkeyValue(str):
@@ -11,6 +20,8 @@ class OpenpgpkeyValue(str):
 
     RFC 7929 - DANE Bindings for OpenPGP
     '''
+
+    VALIDATORS = [OpenpgpkeyValueValidator]
 
     @classmethod
     def _schema(cls):
@@ -24,9 +35,10 @@ class OpenpgpkeyValue(str):
 
     @classmethod
     def validate(cls, data, _type):
-        if not data or all(not d for d in data):
-            return ['missing value(s)']
-        return []
+        reasons = []
+        for validator in OpenpgpkeyValue.VALIDATORS:
+            reasons.extend(validator.validate(cls, data, _type))
+        return reasons
 
     @classmethod
     def process(cls, values):

@@ -8,7 +8,7 @@ from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
-from .validator import RecordValidator
+from .validator import RecordValidator, ValueValidator
 
 
 class UriNameValidator(RecordValidator):
@@ -19,7 +19,41 @@ class UriNameValidator(RecordValidator):
         return []
 
 
+class UriValueValidator(ValueValidator):
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            # TODO: validate algorithm and fingerprint_type values
+            try:
+                int(value['priority'])
+            except KeyError:
+                reasons.append('missing priority')
+            except ValueError:
+                reasons.append(f'invalid priority "{value["priority"]}"')
+            try:
+                int(value['weight'])
+            except KeyError:
+                reasons.append('missing weight')
+            except ValueError:
+                reasons.append(f'invalid weight "{value["weight"]}"')
+            try:
+                target = value['target']
+                if not target:
+                    reasons.append('missing target')
+                    continue
+                # actual validation of the target is non-trivial and specific
+                # to the details of the schema etc. rfc3986 has support for
+                # validation, but we don't currently require the module and
+                # this seems too esoteric a use case to add it
+            except KeyError:
+                reasons.append('missing target')
+        return reasons
+
+
 class UriValue(EqualityTupleMixin, dict):
+    VALIDATORS = [UriValueValidator]
+
     @classmethod
     def _schema(cls):
         return {
@@ -52,31 +86,8 @@ class UriValue(EqualityTupleMixin, dict):
     @classmethod
     def validate(cls, data, _type):
         reasons = []
-        for value in data:
-            # TODO: validate algorithm and fingerprint_type values
-            try:
-                int(value['priority'])
-            except KeyError:
-                reasons.append('missing priority')
-            except ValueError:
-                reasons.append(f'invalid priority "{value["priority"]}"')
-            try:
-                int(value['weight'])
-            except KeyError:
-                reasons.append('missing weight')
-            except ValueError:
-                reasons.append(f'invalid weight "{value["weight"]}"')
-            try:
-                target = value['target']
-                if not target:
-                    reasons.append('missing target')
-                    continue
-                # actual validation of the target is non-trivial and specific
-                # to the details of the schema etc. rfc3986 has support for
-                # validation, but we don't currently require the module and
-                # this seems too esoteric a use case to add it
-            except KeyError:
-                reasons.append('missing target')
+        for validator in UriValue.VALIDATORS:
+            reasons.extend(validator.validate(cls, data, _type))
         return reasons
 
     @classmethod

@@ -5,6 +5,98 @@
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
+from .validator import ValueValidator
+
+
+class LocValueValidator(ValueValidator):
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        int_keys = [
+            'lat_degrees',
+            'lat_minutes',
+            'long_degrees',
+            'long_minutes',
+        ]
+
+        float_keys = [
+            'lat_seconds',
+            'long_seconds',
+            'altitude',
+            'size',
+            'precision_horz',
+            'precision_vert',
+        ]
+
+        direction_keys = ['lat_direction', 'long_direction']
+
+        reasons = []
+        for value in data:
+            for key in int_keys:
+                try:
+                    int(value[key])
+                    if (
+                        (
+                            key == 'lat_degrees'
+                            and not 0 <= int(value[key]) <= 90
+                        )
+                        or (
+                            key == 'long_degrees'
+                            and not 0 <= int(value[key]) <= 180
+                        )
+                        or (
+                            key in ['lat_minutes', 'long_minutes']
+                            and not 0 <= int(value[key]) <= 59
+                        )
+                    ):
+                        reasons.append(
+                            f'invalid value for {key} ' f'"{value[key]}"'
+                        )
+                except KeyError:
+                    reasons.append(f'missing {key}')
+                except ValueError:
+                    reasons.append(f'invalid {key} "{value[key]}"')
+
+            for key in float_keys:
+                try:
+                    float(value[key])
+                    if (
+                        (
+                            key in ['lat_seconds', 'long_seconds']
+                            and not 0 <= float(value[key]) <= 59.999
+                        )
+                        or (
+                            key == 'altitude'
+                            and not -100000.00
+                            <= float(value[key])
+                            <= 42849672.95
+                        )
+                        or (
+                            key in ['size', 'precision_horz', 'precision_vert']
+                            and not 0 <= float(value[key]) <= 90000000.00
+                        )
+                    ):
+                        reasons.append(
+                            f'invalid value for {key} ' f'"{value[key]}"'
+                        )
+                except KeyError:
+                    reasons.append(f'missing {key}')
+                except ValueError:
+                    reasons.append(f'invalid {key} "{value[key]}"')
+
+            for key in direction_keys:
+                try:
+                    str(value[key])
+                    if key == 'lat_direction' and value[key] not in ['N', 'S']:
+                        reasons.append(
+                            f'invalid direction for {key} ' f'"{value[key]}"'
+                        )
+                    if key == 'long_direction' and value[key] not in ['E', 'W']:
+                        reasons.append(
+                            f'invalid direction for {key} ' f'"{value[key]}"'
+                        )
+                except KeyError:
+                    reasons.append(f'missing {key}')
+        return reasons
 
 
 class LocValue(EqualityTupleMixin, dict):
@@ -12,6 +104,8 @@ class LocValue(EqualityTupleMixin, dict):
     # of how the type was impelemented. Would be nice to rework things to match
     # while maintaining backwards compatibility.
     # https://www.rfc-editor.org/rfc/rfc1876.html
+
+    VALIDATORS = [LocValueValidator]
 
     @classmethod
     def _schema(cls):
@@ -158,91 +252,9 @@ class LocValue(EqualityTupleMixin, dict):
 
     @classmethod
     def validate(cls, data, _type):
-        int_keys = [
-            'lat_degrees',
-            'lat_minutes',
-            'long_degrees',
-            'long_minutes',
-        ]
-
-        float_keys = [
-            'lat_seconds',
-            'long_seconds',
-            'altitude',
-            'size',
-            'precision_horz',
-            'precision_vert',
-        ]
-
-        direction_keys = ['lat_direction', 'long_direction']
-
         reasons = []
-        for value in data:
-            for key in int_keys:
-                try:
-                    int(value[key])
-                    if (
-                        (
-                            key == 'lat_degrees'
-                            and not 0 <= int(value[key]) <= 90
-                        )
-                        or (
-                            key == 'long_degrees'
-                            and not 0 <= int(value[key]) <= 180
-                        )
-                        or (
-                            key in ['lat_minutes', 'long_minutes']
-                            and not 0 <= int(value[key]) <= 59
-                        )
-                    ):
-                        reasons.append(
-                            f'invalid value for {key} ' f'"{value[key]}"'
-                        )
-                except KeyError:
-                    reasons.append(f'missing {key}')
-                except ValueError:
-                    reasons.append(f'invalid {key} "{value[key]}"')
-
-            for key in float_keys:
-                try:
-                    float(value[key])
-                    if (
-                        (
-                            key in ['lat_seconds', 'long_seconds']
-                            and not 0 <= float(value[key]) <= 59.999
-                        )
-                        or (
-                            key == 'altitude'
-                            and not -100000.00
-                            <= float(value[key])
-                            <= 42849672.95
-                        )
-                        or (
-                            key in ['size', 'precision_horz', 'precision_vert']
-                            and not 0 <= float(value[key]) <= 90000000.00
-                        )
-                    ):
-                        reasons.append(
-                            f'invalid value for {key} ' f'"{value[key]}"'
-                        )
-                except KeyError:
-                    reasons.append(f'missing {key}')
-                except ValueError:
-                    reasons.append(f'invalid {key} "{value[key]}"')
-
-            for key in direction_keys:
-                try:
-                    str(value[key])
-                    if key == 'lat_direction' and value[key] not in ['N', 'S']:
-                        reasons.append(
-                            f'invalid direction for {key} ' f'"{value[key]}"'
-                        )
-                    if key == 'long_direction' and value[key] not in ['E', 'W']:
-                        reasons.append(
-                            f'invalid direction for {key} ' f'"{value[key]}"'
-                        )
-                except KeyError:
-                    reasons.append(f'missing {key}')
+        for validator in LocValue.VALIDATORS:
+            reasons.extend(validator.validate(cls, data, _type))
         return reasons
 
     @classmethod

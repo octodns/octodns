@@ -3,17 +3,12 @@
 #
 
 
-class _IpValue(str):
-    @classmethod
-    def parse_rdata_text(cls, value):
-        return value
+from .validator import ValueValidator
 
-    @classmethod
-    def _schema(cls):
-        return {'type': 'string', 'format': cls._address_name.lower()}
 
+class IpValueValidator(ValueValidator):
     @classmethod
-    def validate(cls, data, _type):
+    def validate(cls, value_cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         if len(data) == 0:
@@ -26,10 +21,29 @@ class _IpValue(str):
                 reasons.append('missing value(s)')
             else:
                 try:
-                    cls._address_type(str(value))
+                    value_cls._address_type(str(value))
                 except Exception:
-                    addr_name = cls._address_name
+                    addr_name = value_cls._address_name
                     reasons.append(f'invalid {addr_name} address "{value}"')
+        return reasons
+
+
+class _IpValue(str):
+    VALIDATORS = [IpValueValidator]
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        return value
+
+    @classmethod
+    def _schema(cls):
+        return {'type': 'string', 'format': cls._address_name.lower()}
+
+    @classmethod
+    def validate(cls, data, _type):
+        reasons = []
+        for validator in _IpValue.VALIDATORS:
+            reasons.extend(validator.validate(cls, data, _type))
         return reasons
 
     @classmethod

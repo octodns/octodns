@@ -5,6 +5,26 @@
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
+from .validator import ValueValidator
+
+
+class CaaValueValidator(ValueValidator):
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            try:
+                flags = int(value.get('flags', 0))
+                if flags < 0 or flags > 255:
+                    reasons.append(f'invalid flags "{flags}"')
+            except ValueError:
+                reasons.append(f'invalid flags "{value["flags"]}"')
+
+            if 'tag' not in value:
+                reasons.append('missing tag')
+            if 'value' not in value:
+                reasons.append('missing value')
+        return reasons
 
 
 class CaaValue(EqualityTupleMixin, dict):
@@ -37,21 +57,13 @@ class CaaValue(EqualityTupleMixin, dict):
         value = unquote(value)
         return {'flags': flags, 'tag': tag, 'value': value}
 
+    VALIDATORS = [CaaValueValidator]
+
     @classmethod
     def validate(cls, data, _type):
         reasons = []
-        for value in data:
-            try:
-                flags = int(value.get('flags', 0))
-                if flags < 0 or flags > 255:
-                    reasons.append(f'invalid flags "{flags}"')
-            except ValueError:
-                reasons.append(f'invalid flags "{value["flags"]}"')
-
-            if 'tag' not in value:
-                reasons.append('missing tag')
-            if 'value' not in value:
-                reasons.append('missing value')
+        for validator in CaaValue.VALIDATORS:
+            reasons.extend(validator.validate(cls, data, _type))
         return reasons
 
     @classmethod
