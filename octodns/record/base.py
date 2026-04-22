@@ -97,6 +97,16 @@ class HealthcheckValidator(RecordValidator):
 class Record(EqualityTupleMixin):
     log = getLogger('Record')
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if 'validate' in cls.__dict__:
+            deprecated(
+                f'`{cls.__name__}.validate` override is DEPRECATED. '
+                'Declare validators via the `VALIDATORS` class attribute '
+                'instead. Will be removed in 2.0',
+                stacklevel=3,
+            )
+
     REFERENCES = (
         'https://datatracker.ietf.org/doc/html/rfc1035',
         'https://datatracker.ietf.org/doc/html/rfc1123',
@@ -372,6 +382,12 @@ def _process_value_validators(value_type, values, _type):
     # longer define validate; their VALIDATORS run via the MRO walk below.
     legacy = getattr(value_type, 'validate', None)
     if legacy is not None:
+        deprecated(
+            f'`{value_type.__name__}.validate` classmethod is DEPRECATED. '
+            'Declare validators via the `VALIDATORS` class attribute '
+            'instead. Will be removed in 2.0',
+            stacklevel=3,
+        )
         reasons.extend(legacy(values, _type))
     for klass in reversed(value_type.__mro__):
         for validator in klass.__dict__.get('VALIDATORS', ()):

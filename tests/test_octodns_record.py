@@ -2,6 +2,7 @@
 #
 #
 
+import warnings
 from unittest import TestCase
 
 from octodns.idna import idna_encode
@@ -1134,3 +1135,44 @@ class TestValidators(TestCase):
         self.assertEqual(
             [], _process_value_validators(StatefulValueType, ['allowed'], 'TXT')
         )
+
+    def test_legacy_record_validate_deprecation(self):
+        # 3rd-party records that still override Record.validate get a
+        # DeprecationWarning at class-definition time, telling them to
+        # migrate to declaring VALIDATORS before 2.0.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+
+            class LegacyRecord(ARecord):
+                @classmethod
+                def validate(cls, name, fqdn, data):
+                    return []
+
+        matched = [
+            w
+            for w in caught
+            if issubclass(w.category, DeprecationWarning)
+            and 'LegacyRecord.validate' in str(w.message)
+        ]
+        self.assertTrue(matched)
+
+    def test_legacy_value_validate_deprecation(self):
+        # 3rd-party value classes that still define a `validate` classmethod
+        # are invoked for back-compat but emit a DeprecationWarning so they
+        # know to migrate to declaring VALIDATORS before 2.0.
+        class LegacyValueType(str):
+            @classmethod
+            def validate(cls, data, _type):
+                return ['legacy reason']
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            reasons = _process_value_validators(LegacyValueType, ['x'], 'TXT')
+        self.assertEqual(['legacy reason'], reasons)
+        matched = [
+            w
+            for w in caught
+            if issubclass(w.category, DeprecationWarning)
+            and 'LegacyValueType.validate' in str(w.message)
+        ]
+        self.assertTrue(matched)
