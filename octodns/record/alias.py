@@ -31,13 +31,5 @@ class AliasRecord(ValueMixin, Record):
 
     VALIDATORS = [AliasRootValidator]
 
-    @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = []
-        for validator in AliasRecord.VALIDATORS:
-            reasons.extend(validator.validate(cls, name, fqdn, data))
-        reasons.extend(super().validate(name, fqdn, data))
-        return reasons
-
 
 Record.register_type(AliasRecord)

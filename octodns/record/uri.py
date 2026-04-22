@@ -97,13 +97,6 @@ class UriValue(EqualityTupleMixin, dict):
         return {'priority': priority, 'weight': weight, 'target': target}
 
     @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        for validator in UriValue.VALIDATORS:
-            reasons.extend(validator.validate(cls, data, _type))
-        return reasons
-
-    @classmethod
     def process(cls, values):
         return [cls(v) for v in values]
 
@@ -171,14 +164,6 @@ class UriRecord(ValuesMixin, Record):
     _value_type = UriValue
 
     VALIDATORS = [UriNameValidator]
-
-    @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = []
-        for validator in UriRecord.VALIDATORS:
-            reasons.extend(validator.validate(cls, name, fqdn, data))
-        reasons.extend(super().validate(name, fqdn, data))
-        return reasons
 
 
 Record.register_type(UriRecord)

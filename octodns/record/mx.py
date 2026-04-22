@@ -88,13 +88,6 @@ class MxValue(EqualityTupleMixin, dict):
     VALIDATORS = [MxValueValidator]
 
     @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        for validator in MxValue.VALIDATORS:
-            reasons.extend(validator.validate(cls, data, _type))
-        return reasons
-
-    @classmethod
     def process(cls, values):
         return [cls(v) for v in values]
 

@@ -108,13 +108,6 @@ class SrvValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        for validator in SrvValue.VALIDATORS:
-            reasons.extend(validator.validate(cls, data, _type))
-        return reasons
-
-    @classmethod
     def process(cls, values):
         return [cls(v) for v in values]
 
@@ -194,14 +187,6 @@ class SrvRecord(ValuesMixin, Record):
     _value_type = SrvValue
 
     VALIDATORS = [SrvNameValidator]
-
-    @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = []
-        for validator in SrvRecord.VALIDATORS:
-            reasons.extend(validator.validate(cls, name, fqdn, data))
-        reasons.extend(super().validate(name, fqdn, data))
-        return reasons
 
 
 Record.register_type(SrvRecord)

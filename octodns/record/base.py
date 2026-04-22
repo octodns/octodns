@@ -169,11 +169,18 @@ class Record(EqualityTupleMixin):
     VALIDATORS = [NameValidator, TtlValidator, HealthcheckValidator]
 
     @classmethod
-    def validate(cls, name, fqdn, data):
+    def _process_validators(cls, name, fqdn, data):
         reasons = []
-        for validator in Record.VALIDATORS:
-            reasons.extend(validator.validate(cls, name, fqdn, data))
+        # root→leaf so base validators run first, matching the
+        # super().validate() ordering this replaces
+        for klass in reversed(cls.__mro__):
+            for validator in klass.__dict__.get('VALIDATORS', ()):
+                reasons.extend(validator.validate(cls, name, fqdn, data))
         return reasons
+
+    @classmethod
+    def validate(cls, name, fqdn, data):
+        return cls._process_validators(name, fqdn, data)
 
     @classmethod
     def from_rrs(cls, zone, rrs, lenient=False, source=None):
@@ -358,17 +365,40 @@ class Record(EqualityTupleMixin):
         raise NotImplementedError('Abstract base class, __repr__ required')
 
 
-class ValuesMixin(object):
-    @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = super().validate(name, fqdn, data)
+def _process_value_validators(value_type, values, _type):
+    reasons = []
+    # Back-compat: 3rd-party value classes may still override validate()
+    # directly rather than declaring VALIDATORS. In-repo value classes no
+    # longer define validate; their VALIDATORS run via the MRO walk below.
+    legacy = getattr(value_type, 'validate', None)
+    if legacy is not None:
+        reasons.extend(legacy(values, _type))
+    for klass in reversed(value_type.__mro__):
+        for validator in klass.__dict__.get('VALIDATORS', ()):
+            reasons.extend(validator.validate(value_type, values, _type))
+    return reasons
 
+
+class ValuesTypeValidator(RecordValidator):
+    '''
+    Bridges a record's ``_value_type`` into the record-level validation
+    pipeline: pulls ``values``/``value`` from ``data``, coerces to a list,
+    and runs the value type's validators (both the legacy ``validate``
+    classmethod on the value class, for 3rd-party back-compat, and any
+    ``VALIDATORS`` declared along the value type's MRO).
+    '''
+
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
         values = data.get('values', data.get('value', []))
         values = values if isinstance(values, (list, tuple)) else [values]
+        return _process_value_validators(
+            record_cls._value_type, values, record_cls._type
+        )
 
-        reasons.extend(cls._value_type.validate(values, cls._type))
 
-        return reasons
+class ValuesMixin(object):
+    VALIDATORS = [ValuesTypeValidator]
 
     @classmethod
     def data_from_rrs(cls, rrs):
@@ -427,14 +457,22 @@ class ValuesMixin(object):
         return f"<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, ['{values}']{octodns}>"
 
 
-class ValueMixin(object):
+class ValueTypeValidator(RecordValidator):
+    '''
+    Single-value variant of ``ValuesTypeValidator`` for records that use
+    ``ValueMixin``: passes ``data['value']`` (or ``None``) through to the
+    value type's validators.
+    '''
+
     @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = super().validate(name, fqdn, data)
-        reasons.extend(
-            cls._value_type.validate(data.get('value', None), cls._type)
+    def validate(cls, record_cls, name, fqdn, data):
+        return _process_value_validators(
+            record_cls._value_type, data.get('value', None), record_cls._type
         )
-        return reasons
+
+
+class ValueMixin(object):
+    VALIDATORS = [ValueTypeValidator]
 
     @classmethod
     def data_from_rrs(cls, rrs):

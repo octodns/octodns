@@ -46,13 +46,6 @@ class _IpValue(str):
         return {'type': 'string', 'format': cls._address_name.lower()}
 
     @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        for validator in _IpValue.VALIDATORS:
-            reasons.extend(validator.validate(cls, data, _type))
-        return reasons
-
-    @classmethod
     def process(cls, values):
         # Translating None into '' so that the list will be sortable in
         # python3, get everything to str first

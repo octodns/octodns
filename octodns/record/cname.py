@@ -32,13 +32,5 @@ class CnameRecord(_DynamicMixin, ValueMixin, Record):
 
     VALIDATORS = [CnameRootValidator]
 
-    @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = []
-        for validator in CnameRecord.VALIDATORS:
-            reasons.extend(validator.validate(cls, name, fqdn, data))
-        reasons.extend(super().validate(name, fqdn, data))
-        return reasons
-
 
 Record.register_type(CnameRecord)

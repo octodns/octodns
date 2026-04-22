@@ -65,13 +65,6 @@ class CaaValue(EqualityTupleMixin, dict):
     VALIDATORS = [CaaValueValidator]
 
     @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        for validator in CaaValue.VALIDATORS:
-            reasons.extend(validator.validate(cls, data, _type))
-        return reasons
-
-    @classmethod
     def process(cls, values):
         return [cls(v) for v in values]
 

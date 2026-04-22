@@ -85,13 +85,6 @@ class _ChunkedValue(str):
         return {'type': 'string'}
 
     @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        for validator in _ChunkedValue.VALIDATORS:
-            reasons.extend(validator.validate(cls, data, _type))
-        return reasons
-
-    @classmethod
     def process(cls, values):
         ret = []
         for v in values:

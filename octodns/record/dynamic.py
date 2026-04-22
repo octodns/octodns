@@ -6,6 +6,7 @@ import re
 from collections import defaultdict
 from logging import getLogger
 
+from .base import _process_value_validators
 from .change import Update
 from .geo import GeoCodes
 from .subnet import Subnets
@@ -290,7 +291,9 @@ class _DynamicMixin(object):
                     try:
                         value = value['value']
                         reasons.extend(
-                            cls._value_type.validate(value, cls._type)
+                            _process_value_validators(
+                                cls._value_type, value, cls._type
+                            )
                         )
                     except KeyError:
                         reasons.append(
@@ -459,13 +462,6 @@ class _DynamicMixin(object):
         return reasons, pools_seen
 
     VALIDATORS = [DynamicValidator]
-
-    @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = super().validate(name, fqdn, data)
-        for validator in _DynamicMixin.VALIDATORS:
-            reasons.extend(validator.validate(cls, name, fqdn, data))
-        return reasons
 
     def __init__(self, zone, name, data, *args, **kwargs):
         super().__init__(zone, name, data, *args, **kwargs)

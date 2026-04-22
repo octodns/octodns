@@ -4,6 +4,7 @@
 
 from unittest import TestCase
 
+from octodns.record.base import _process_value_validators
 from octodns.record.ds import DsRecord, DsValue
 from octodns.record.rr import RrParseError
 from octodns.zone import Zone
@@ -135,11 +136,13 @@ class TestRecordDs(TestCase):
             'digest': '99148c81',
         }
         self.assertEqual(data, DsValue.parse_rdata_text('0 1 2 99148c81'))
-        self.assertEqual([], DsValue.validate(data, 'DS'))
+        self.assertEqual([], _process_value_validators(DsValue, data, 'DS'))
 
         # missing key_tag
         data = {'algorithm': 1, 'digest_type': 2, 'digest': '99148c81'}
-        self.assertEqual(['missing key_tag'], DsValue.validate(data, 'DS'))
+        self.assertEqual(
+            ['missing key_tag'], _process_value_validators(DsValue, data, 'DS')
+        )
         # invalid key_tag
         data = {
             'key_tag': 'a',
@@ -147,11 +150,17 @@ class TestRecordDs(TestCase):
             'digest_type': 2,
             'digest': '99148c81',
         }
-        self.assertEqual(['invalid key_tag "a"'], DsValue.validate(data, 'DS'))
+        self.assertEqual(
+            ['invalid key_tag "a"'],
+            _process_value_validators(DsValue, data, 'DS'),
+        )
 
         # missing algorithm
         data = {'key_tag': 1, 'digest_type': 2, 'digest': '99148c81'}
-        self.assertEqual(['missing algorithm'], DsValue.validate(data, 'DS'))
+        self.assertEqual(
+            ['missing algorithm'],
+            _process_value_validators(DsValue, data, 'DS'),
+        )
         # invalid algorithm
         data = {
             'key_tag': 1,
@@ -160,12 +169,16 @@ class TestRecordDs(TestCase):
             'digest': '99148c81',
         }
         self.assertEqual(
-            ['invalid algorithm "a"'], DsValue.validate(data, 'DS')
+            ['invalid algorithm "a"'],
+            _process_value_validators(DsValue, data, 'DS'),
         )
 
         # missing digest_type
         data = {'key_tag': 1, 'algorithm': 2, 'digest': '99148c81'}
-        self.assertEqual(['missing digest_type'], DsValue.validate(data, 'DS'))
+        self.assertEqual(
+            ['missing digest_type'],
+            _process_value_validators(DsValue, data, 'DS'),
+        )
         # invalid digest_type
         data = {
             'key_tag': 1,
@@ -174,34 +187,51 @@ class TestRecordDs(TestCase):
             'digest': '99148c81',
         }
         self.assertEqual(
-            ['invalid digest_type "a"'], DsValue.validate(data, 'DS')
+            ['invalid digest_type "a"'],
+            _process_value_validators(DsValue, data, 'DS'),
         )
 
         # missing public_key (list)
         data = {'key_tag': 1, 'algorithm': 2, 'digest_type': 3}
-        self.assertEqual(['missing digest'], DsValue.validate([data], 'DS'))
+        self.assertEqual(
+            ['missing digest'], _process_value_validators(DsValue, [data], 'DS')
+        )
 
         # do validations again with old field style
 
         # missing flags (list)
         data = {'protocol': 2, 'algorithm': 3, 'public_key': '99148c81'}
-        self.assertEqual(['missing flags'], DsValue.validate([data], 'DS'))
+        self.assertEqual(
+            ['missing flags'], _process_value_validators(DsValue, [data], 'DS')
+        )
 
         # missing protocol (list)
         data = {'flags': 1, 'algorithm': 3, 'public_key': '99148c81'}
-        self.assertEqual(['missing protocol'], DsValue.validate([data], 'DS'))
+        self.assertEqual(
+            ['missing protocol'],
+            _process_value_validators(DsValue, [data], 'DS'),
+        )
 
         # missing algorithm (list)
         data = {'flags': 1, 'protocol': 2, 'public_key': '99148c81'}
-        self.assertEqual(['missing algorithm'], DsValue.validate([data], 'DS'))
+        self.assertEqual(
+            ['missing algorithm'],
+            _process_value_validators(DsValue, [data], 'DS'),
+        )
 
         # missing public_key (list)
         data = {'flags': 1, 'algorithm': 3, 'protocol': 2}
-        self.assertEqual(['missing public_key'], DsValue.validate([data], 'DS'))
+        self.assertEqual(
+            ['missing public_key'],
+            _process_value_validators(DsValue, [data], 'DS'),
+        )
 
         # missing public_key (list)
         data = {'flags': 1, 'algorithm': 3, 'protocol': 2, 'digest': '99148c81'}
-        self.assertEqual(['missing public_key'], DsValue.validate([data], 'DS'))
+        self.assertEqual(
+            ['missing public_key'],
+            _process_value_validators(DsValue, [data], 'DS'),
+        )
 
         # invalid flags, protocol and algorithm
         data = {
@@ -216,7 +246,7 @@ class TestRecordDs(TestCase):
                 'invalid protocol "a"',
                 'invalid algorithm "a"',
             ],
-            DsValue.validate(data, 'DS'),
+            _process_value_validators(DsValue, data, 'DS'),
         )
 
         zone = Zone('unit.tests.', [])

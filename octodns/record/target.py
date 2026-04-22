@@ -71,13 +71,6 @@ class _TargetValue(str):
         return {'type': 'string'}
 
     @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        for validator in _TargetValue.VALIDATORS:
-            reasons.extend(validator.validate(cls, data, _type))
-        return reasons
-
-    @classmethod
     def process(cls, value):
         if value:
             return cls(value)
@@ -109,13 +102,6 @@ class _TargetsValue(str):
     @classmethod
     def _schema(cls):
         return {'type': 'string'}
-
-    @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        for validator in _TargetsValue.VALIDATORS:
-            reasons.extend(validator.validate(cls, data, _type))
-        return reasons
 
     @classmethod
     def process(cls, values):

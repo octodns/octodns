@@ -27,6 +27,7 @@ from octodns.record.base import (
     HealthcheckValidator,
     NameValidator,
     TtlValidator,
+    _process_value_validators,
     unquote,
 )
 from octodns.record.cname import CnameRootValidator
@@ -1083,4 +1084,53 @@ class TestValidators(TestCase):
         self.assertEqual(
             ['invalid name for URI record'],
             UriNameValidator.validate(UriRecord, 'bad', 'bad.unit.tests.', {}),
+        )
+
+    def test_instance_record_validator(self):
+        # VALIDATORS entries may be instances with state (e.g. ctor args),
+        # not just classes. Bound-method dispatch passes self in place of cls.
+        class StatefulNameValidator:
+            def __init__(self, forbidden_prefix):
+                self.forbidden_prefix = forbidden_prefix
+
+            def validate(self, record_cls, name, fqdn, data):
+                if name.startswith(self.forbidden_prefix):
+                    return [f'name starts with "{self.forbidden_prefix}"']
+                return []
+
+        class StatefulRecord(ARecord):
+            VALIDATORS = [StatefulNameValidator('bad-')]
+
+        data = {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        self.assertIn(
+            'name starts with "bad-"',
+            StatefulRecord.validate('bad-name', 'bad-name.unit.tests.', data),
+        )
+        self.assertEqual(
+            [], StatefulRecord.validate('ok', 'ok.unit.tests.', data)
+        )
+
+    def test_instance_value_validator(self):
+        # Same idea for value-level validators — an instance with state
+        # attached to a value class's VALIDATORS works via bound-method
+        # dispatch through the MRO walk in _process_value_validators.
+        class StatefulValueValidator:
+            def __init__(self, forbidden):
+                self.forbidden = forbidden
+
+            def validate(self, value_cls, data, _type):
+                data = data if isinstance(data, (list, tuple)) else [data]
+                if any(v == self.forbidden for v in data):
+                    return [f'forbidden value "{self.forbidden}"']
+                return []
+
+        class StatefulValueType(str):
+            VALIDATORS = [StatefulValueValidator('blocked')]
+
+        self.assertIn(
+            'forbidden value "blocked"',
+            _process_value_validators(StatefulValueType, ['blocked'], 'TXT'),
+        )
+        self.assertEqual(
+            [], _process_value_validators(StatefulValueType, ['allowed'], 'TXT')
         )

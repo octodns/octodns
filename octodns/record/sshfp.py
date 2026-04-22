@@ -108,13 +108,6 @@ class SshfpValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        for validator in SshfpValue.VALIDATORS:
-            reasons.extend(validator.validate(cls, data, _type))
-        return reasons
-
-    @classmethod
     def process(cls, values):
         return [cls(v) for v in values]
 

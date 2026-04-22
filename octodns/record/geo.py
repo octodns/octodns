@@ -7,7 +7,7 @@ from logging import getLogger
 
 from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
-from .base import ValuesMixin
+from .base import ValuesMixin, _process_value_validators
 from .change import Update
 from .geo_data import geo_data
 from .validator import RecordValidator
@@ -151,7 +151,9 @@ class GeoValidator(RecordValidator):
             for code, values in geo.items():
                 reasons.extend(GeoValue._validate_geo(code))
                 reasons.extend(
-                    record_cls._value_type.validate(values, record_cls._type)
+                    _process_value_validators(
+                        record_cls._value_type, values, record_cls._type
+                    )
                 )
         except KeyError:
             pass
@@ -183,13 +185,6 @@ class _GeoMixin(ValuesMixin):
         }
 
     VALIDATORS = [GeoValidator]
-
-    @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = super().validate(name, fqdn, data)
-        for validator in _GeoMixin.VALIDATORS:
-            reasons.extend(validator.validate(cls, name, fqdn, data))
-        return reasons
 
     def __init__(self, zone, name, data, *args, **kwargs):
         super().__init__(zone, name, data, *args, **kwargs)

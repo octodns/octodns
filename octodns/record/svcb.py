@@ -9,7 +9,7 @@ from ipaddress import AddressValueError, IPv4Address, IPv6Address
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import Record, ValuesMixin, unquote
+from .base import Record, ValuesMixin, _process_value_validators, unquote
 from .chunked import _ChunkedValue
 from .rr import RrParseError
 from .target import validate_target_fqdn
@@ -40,7 +40,7 @@ def validate_svcparam_alpn(svcparamvalue):
     if len(reasons) != 0:
         return reasons
     for alpn in svcparamvalue:
-        reasons += _ChunkedValue.validate(alpn, 'SVCB')
+        reasons += _process_value_validators(_ChunkedValue, alpn, 'SVCB')
     return reasons
 
 
@@ -253,13 +253,6 @@ class SvcbValue(EqualityTupleMixin, dict):
             'targetname': targetname,
             'svcparams': params,
         }
-
-    @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        for validator in SvcbValue.VALIDATORS:
-            reasons.extend(validator.validate(cls, data, _type))
-        return reasons
 
     @classmethod
     def process(cls, values):
