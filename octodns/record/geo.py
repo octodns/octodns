@@ -7,9 +7,10 @@ from logging import getLogger
 
 from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
-from .base import ValuesMixin
+from .base import ValuesMixin, _process_value_validators
 from .change import Update
 from .geo_data import geo_data
+from .validator import RecordValidator
 
 
 class GeoCodes(object):
@@ -131,6 +132,34 @@ class GeoValue(EqualityTupleMixin):
         )
 
 
+class GeoValidator(RecordValidator):
+    '''
+    Validates the deprecated ``geo`` block of a record: each key is a
+    valid continent/country/subdivision code and each list of values
+    passes the record's value-type validation.
+    '''
+
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
+        reasons = []
+        try:
+            geo = dict(data['geo'])
+            deprecated(
+                '`geo` records are DEPRECATED. `dynamic` records should be used instead. Will be removed in 2.0',
+                stacklevel=99,
+            )
+            for code, values in geo.items():
+                reasons.extend(GeoValue._validate_geo(code))
+                reasons.extend(
+                    _process_value_validators(
+                        record_cls._value_type, values, record_cls._type
+                    )
+                )
+        except KeyError:
+            pass
+        return reasons
+
+
 class _GeoMixin(ValuesMixin):
     '''
     Adds GeoDNS support to a record.
@@ -155,21 +184,7 @@ class _GeoMixin(ValuesMixin):
             },
         }
 
-    @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = super().validate(name, fqdn, data)
-        try:
-            geo = dict(data['geo'])
-            deprecated(
-                '`geo` records are DEPRECATED. `dynamic` records should be used instead. Will be removed in 2.0',
-                stacklevel=99,
-            )
-            for code, values in geo.items():
-                reasons.extend(GeoValue._validate_geo(code))
-                reasons.extend(cls._value_type.validate(values, cls._type))
-        except KeyError:
-            pass
-        return reasons
+    VALIDATORS = [GeoValidator]
 
     def __init__(self, zone, name, data, *args, **kwargs):
         super().__init__(zone, name, data, *args, **kwargs)

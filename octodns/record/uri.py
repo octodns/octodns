@@ -8,9 +8,65 @@ from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
+from .validator import RecordValidator, ValueValidator
+
+
+class UriNameValidator(RecordValidator):
+    '''
+    Validates that a URI record's name matches the
+    ``_service._protocol`` pattern required by RFC 7553, or is a
+    wildcard.
+    '''
+
+    _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
+
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
+        if not cls._name_re.match(name):
+            return ['invalid name for URI record']
+        return []
+
+
+class UriValueValidator(ValueValidator):
+    '''
+    Validates URI rdata: priority and weight are present and
+    integer-parsable, and target is non-empty.
+    '''
+
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            # TODO: validate algorithm and fingerprint_type values
+            try:
+                int(value['priority'])
+            except KeyError:
+                reasons.append('missing priority')
+            except ValueError:
+                reasons.append(f'invalid priority "{value["priority"]}"')
+            try:
+                int(value['weight'])
+            except KeyError:
+                reasons.append('missing weight')
+            except ValueError:
+                reasons.append(f'invalid weight "{value["weight"]}"')
+            try:
+                target = value['target']
+                if not target:
+                    reasons.append('missing target')
+                    continue
+                # actual validation of the target is non-trivial and specific
+                # to the details of the schema etc. rfc3986 has support for
+                # validation, but we don't currently require the module and
+                # this seems too esoteric a use case to add it
+            except KeyError:
+                reasons.append('missing target')
+        return reasons
 
 
 class UriValue(EqualityTupleMixin, dict):
+    VALIDATORS = [UriValueValidator]
+
     @classmethod
     def _schema(cls):
         return {
@@ -39,36 +95,6 @@ class UriValue(EqualityTupleMixin, dict):
             pass
         target = unquote(target)
         return {'priority': priority, 'weight': weight, 'target': target}
-
-    @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        for value in data:
-            # TODO: validate algorithm and fingerprint_type values
-            try:
-                int(value['priority'])
-            except KeyError:
-                reasons.append('missing priority')
-            except ValueError:
-                reasons.append(f'invalid priority "{value["priority"]}"')
-            try:
-                int(value['weight'])
-            except KeyError:
-                reasons.append('missing weight')
-            except ValueError:
-                reasons.append(f'invalid weight "{value["weight"]}"')
-            try:
-                target = value['target']
-                if not target:
-                    reasons.append('missing target')
-                    continue
-                # actual validation of the target is non-trivial and specific
-                # to the details of the schema etc. rfc3986 has support for
-                # validation, but we don't currently require the module and
-                # this seems too esoteric a use case to add it
-            except KeyError:
-                reasons.append('missing target')
-        return reasons
 
     @classmethod
     def process(cls, values):
@@ -136,15 +162,8 @@ class UriRecord(ValuesMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc7553',)
     _type = 'URI'
     _value_type = UriValue
-    _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
 
-    @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = []
-        if not cls._name_re.match(name):
-            reasons.append('invalid name for URI record')
-        reasons.extend(super().validate(name, fqdn, data))
-        return reasons
+    VALIDATORS = [UriNameValidator]
 
 
 Record.register_type(UriRecord)

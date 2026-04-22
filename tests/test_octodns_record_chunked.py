@@ -4,6 +4,7 @@
 
 from unittest import TestCase
 
+from octodns.record.base import _process_value_validators
 from octodns.record.chunked import _ChunkedValue, _ChunkedValuesMixin
 from octodns.record.spf import SpfRecord
 from octodns.record.txt import TxtValue
@@ -44,35 +45,40 @@ class TestChunkedValue(TestCase):
     def test_validate(self):
         # valid stuff
         for data in ('a', 'ab', 'abcdefg', 'abc def', 'abc\\; def'):
-            self.assertFalse(_ChunkedValue.validate(data, 'TXT'))
-            self.assertFalse(_ChunkedValue.validate([data], 'TXT'))
+            self.assertFalse(
+                _process_value_validators(_ChunkedValue, data, 'TXT')
+            )
+            self.assertFalse(
+                _process_value_validators(_ChunkedValue, [data], 'TXT')
+            )
 
         # missing
         for data in (None, []):
             self.assertEqual(
-                ['missing value(s)'], _ChunkedValue.validate(data, 'TXT')
+                ['missing value(s)'],
+                _process_value_validators(_ChunkedValue, data, 'TXT'),
             )
 
         # unescaped ;
         self.assertEqual(
             ['unescaped ; in "hello; world"'],
-            _ChunkedValue.validate('hello; world', 'TXT'),
+            _process_value_validators(_ChunkedValue, 'hello; world', 'TXT'),
         )
 
         # double escaped ;
         self.assertEqual(
             ['double escaped ; in "hello\\\\; world"'],
-            _ChunkedValue.validate('hello\\\\; world', 'TXT'),
+            _process_value_validators(_ChunkedValue, 'hello\\\\; world', 'TXT'),
         )
 
         # non-asci
         self.assertEqual(
             ['non ASCII character in "v=spf1 –all"'],
-            _ChunkedValue.validate('v=spf1 –all', 'TXT'),
+            _process_value_validators(_ChunkedValue, 'v=spf1 –all', 'TXT'),
         )
         self.assertEqual(
             ['non ASCII character in "Déjà vu"'],
-            _ChunkedValue.validate('Déjà vu', 'TXT'),
+            _process_value_validators(_ChunkedValue, 'Déjà vu', 'TXT'),
         )
 
     zone = Zone('unit.tests.', [])

@@ -3,6 +3,20 @@
 #
 
 from .base import Record, ValuesMixin
+from .validator import ValueValidator
+
+
+class OpenpgpkeyValueValidator(ValueValidator):
+    '''
+    Validates OPENPGPKEY values: at least one non-empty base64-encoded
+    OpenPGP key must be provided.
+    '''
+
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        if not data or all(not d for d in data):
+            return ['missing value(s)']
+        return []
 
 
 class OpenpgpkeyValue(str):
@@ -11,6 +25,8 @@ class OpenpgpkeyValue(str):
 
     RFC 7929 - DANE Bindings for OpenPGP
     '''
+
+    VALIDATORS = [OpenpgpkeyValueValidator]
 
     @classmethod
     def _schema(cls):
@@ -21,12 +37,6 @@ class OpenpgpkeyValue(str):
         # Strip whitespace that may appear in zone files (base64 data may be
         # split across lines)
         return value.replace(' ', '')
-
-    @classmethod
-    def validate(cls, data, _type):
-        if not data or all(not d for d in data):
-            return ['missing value(s)']
-        return []
 
     @classmethod
     def process(cls, values):

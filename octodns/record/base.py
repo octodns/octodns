@@ -12,6 +12,7 @@ from ..equality import EqualityTupleMixin
 from ..idna import IdnaError, idna_decode, idna_encode
 from .change import Update
 from .exception import RecordException, ValidationError
+from .validator import RecordValidator
 
 
 def unquote(s):
@@ -20,8 +21,91 @@ def unquote(s):
     return s
 
 
+class NameValidator(RecordValidator):
+    '''
+    Validates record name and FQDN shape: rejects the legacy ``@`` alias,
+    enforces the 253-char total FQDN length and 63-char per-label length
+    limits from RFC 1035, and flags empty/double-dot labels.
+    '''
+
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
+        reasons = []
+        if name == '@':
+            reasons.append('invalid name "@", use "" instead')
+        n = len(fqdn)
+        if n > 253:
+            reasons.append(
+                f'invalid fqdn, "{idna_decode(fqdn)}" is too long at {n} '
+                'chars, max is 253'
+            )
+        for label in name.split('.'):
+            n = len(label)
+            if n > 63:
+                reasons.append(
+                    f'invalid label, "{label}" is too long at {n}'
+                    ' chars, max is 63'
+                )
+        # in the case of endswith there's an implicit second . from the Zone
+        if '..' in name or name.endswith('.'):
+            reasons.append(f'invalid name, double `.` in "{idna_decode(fqdn)}"')
+        # TODO: look at the idna lib for a lot more potential validations...
+        return reasons
+
+
+class TtlValidator(RecordValidator):
+    '''
+    Validates that the record has a ttl and that it is a non-negative
+    integer.
+    '''
+
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
+        reasons = []
+        try:
+            ttl = int(data['ttl'])
+            if ttl < 0:
+                reasons.append('invalid ttl')
+        except KeyError:
+            reasons.append('missing ttl')
+        return reasons
+
+
+class HealthcheckValidator(RecordValidator):
+    '''
+    Validates the optional ``octodns.healthcheck.protocol`` setting, if
+    present, is one of the supported protocols.
+    '''
+
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
+        reasons = []
+        try:
+            if data['octodns']['healthcheck']['protocol'] not in (
+                'HTTP',
+                'HTTPS',
+                'ICMP',
+                'TCP',
+                'UDP',
+            ):
+                reasons.append('invalid healthcheck protocol')
+        except KeyError:
+            pass
+        return reasons
+
+
 class Record(EqualityTupleMixin):
     log = getLogger('Record')
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if 'validate' in cls.__dict__:
+            deprecated(
+                f'`{cls.__name__}.validate` override is DEPRECATED. '
+                'Declare validators via the `VALIDATORS` class attribute '
+                'instead. Will be removed in 2.0',
+                stacklevel=3,
+            )
 
     REFERENCES = (
         'https://datatracker.ietf.org/doc/html/rfc1035',
@@ -92,46 +176,21 @@ class Record(EqualityTupleMixin):
                 raise ValidationError(fqdn, reasons, context)
         return _class(zone, name, data, source=source, context=context)
 
+    VALIDATORS = [NameValidator, TtlValidator, HealthcheckValidator]
+
+    @classmethod
+    def _process_validators(cls, name, fqdn, data):
+        reasons = []
+        # root→leaf so base validators run first, matching the
+        # super().validate() ordering this replaces
+        for klass in reversed(cls.__mro__):
+            for validator in klass.__dict__.get('VALIDATORS', ()):
+                reasons.extend(validator.validate(cls, name, fqdn, data))
+        return reasons
+
     @classmethod
     def validate(cls, name, fqdn, data):
-        reasons = []
-        if name == '@':
-            reasons.append('invalid name "@", use "" instead')
-        n = len(fqdn)
-        if n > 253:
-            reasons.append(
-                f'invalid fqdn, "{idna_decode(fqdn)}" is too long at {n} '
-                'chars, max is 253'
-            )
-        for label in name.split('.'):
-            n = len(label)
-            if n > 63:
-                reasons.append(
-                    f'invalid label, "{label}" is too long at {n}'
-                    ' chars, max is 63'
-                )
-        # in the case of endswith there's an implicit second . from the Zone
-        if '..' in name or name.endswith('.'):
-            reasons.append(f'invalid name, double `.` in "{idna_decode(fqdn)}"')
-        # TODO: look at the idna lib for a lot more potential validations...
-        try:
-            ttl = int(data['ttl'])
-            if ttl < 0:
-                reasons.append('invalid ttl')
-        except KeyError:
-            reasons.append('missing ttl')
-        try:
-            if data['octodns']['healthcheck']['protocol'] not in (
-                'HTTP',
-                'HTTPS',
-                'ICMP',
-                'TCP',
-                'UDP',
-            ):
-                reasons.append('invalid healthcheck protocol')
-        except KeyError:
-            pass
-        return reasons
+        return cls._process_validators(name, fqdn, data)
 
     @classmethod
     def from_rrs(cls, zone, rrs, lenient=False, source=None):
@@ -316,17 +375,46 @@ class Record(EqualityTupleMixin):
         raise NotImplementedError('Abstract base class, __repr__ required')
 
 
-class ValuesMixin(object):
-    @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = super().validate(name, fqdn, data)
+def _process_value_validators(value_type, values, _type):
+    reasons = []
+    # Back-compat: 3rd-party value classes may still override validate()
+    # directly rather than declaring VALIDATORS. In-repo value classes no
+    # longer define validate; their VALIDATORS run via the MRO walk below.
+    legacy = getattr(value_type, 'validate', None)
+    if legacy is not None:
+        deprecated(
+            f'`{value_type.__name__}.validate` classmethod is DEPRECATED. '
+            'Declare validators via the `VALIDATORS` class attribute '
+            'instead. Will be removed in 2.0',
+            stacklevel=3,
+        )
+        reasons.extend(legacy(values, _type))
+    for klass in reversed(value_type.__mro__):
+        for validator in klass.__dict__.get('VALIDATORS', ()):
+            reasons.extend(validator.validate(value_type, values, _type))
+    return reasons
 
+
+class ValuesTypeValidator(RecordValidator):
+    '''
+    Bridges a record's ``_value_type`` into the record-level validation
+    pipeline: pulls ``values``/``value`` from ``data``, coerces to a list,
+    and runs the value type's validators (both the legacy ``validate``
+    classmethod on the value class, for 3rd-party back-compat, and any
+    ``VALIDATORS`` declared along the value type's MRO).
+    '''
+
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
         values = data.get('values', data.get('value', []))
         values = values if isinstance(values, (list, tuple)) else [values]
+        return _process_value_validators(
+            record_cls._value_type, values, record_cls._type
+        )
 
-        reasons.extend(cls._value_type.validate(values, cls._type))
 
-        return reasons
+class ValuesMixin(object):
+    VALIDATORS = [ValuesTypeValidator]
 
     @classmethod
     def data_from_rrs(cls, rrs):
@@ -385,14 +473,22 @@ class ValuesMixin(object):
         return f"<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, ['{values}']{octodns}>"
 
 
-class ValueMixin(object):
+class ValueTypeValidator(RecordValidator):
+    '''
+    Single-value variant of ``ValuesTypeValidator`` for records that use
+    ``ValueMixin``: passes ``data['value']`` (or ``None``) through to the
+    value type's validators.
+    '''
+
     @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = super().validate(name, fqdn, data)
-        reasons.extend(
-            cls._value_type.validate(data.get('value', None), cls._type)
+    def validate(cls, record_cls, name, fqdn, data):
+        return _process_value_validators(
+            record_cls._value_type, data.get('value', None), record_cls._type
         )
-        return reasons
+
+
+class ValueMixin(object):
+    VALIDATORS = [ValueTypeValidator]
 
     @classmethod
     def data_from_rrs(cls, rrs):

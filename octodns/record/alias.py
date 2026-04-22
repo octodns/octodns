@@ -4,10 +4,24 @@
 
 from .base import Record, ValueMixin
 from .target import _TargetValue
+from .validator import RecordValidator
 
 
 class AliasValue(_TargetValue):
     pass
+
+
+class AliasRootValidator(RecordValidator):
+    '''
+    Restricts ALIAS records to the zone root — the non-standard ALIAS
+    type only has meaning at the apex.
+    '''
+
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
+        if name != '':
+            return ['non-root ALIAS not allowed']
+        return []
 
 
 class AliasRecord(ValueMixin, Record):
@@ -15,13 +29,7 @@ class AliasRecord(ValueMixin, Record):
     _type = 'ALIAS'
     _value_type = AliasValue
 
-    @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = []
-        if name != '':
-            reasons.append('non-root ALIAS not allowed')
-        reasons.extend(super().validate(name, fqdn, data))
-        return reasons
+    VALIDATORS = [AliasRootValidator]
 
 
 Record.register_type(AliasRecord)

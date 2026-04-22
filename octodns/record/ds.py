@@ -8,63 +8,19 @@ from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin
 from .rr import RrParseError
+from .validator import ValueValidator
 
 
-class DsValue(EqualityTupleMixin, dict):
-    # https://www.rfc-editor.org/rfc/rfc4034.html#section-5.1
-    log = getLogger('DsValue')
-
-    @classmethod
-    def _schema(cls):
-        return {
-            'type': 'object',
-            'anyOf': [
-                {'required': ['key_tag', 'algorithm', 'digest_type', 'digest']},
-                # deprecated legacy form kept valid until 2.0
-                {'required': ['flags', 'protocol', 'algorithm', 'public_key']},
-            ],
-            'properties': {
-                'key_tag': {'type': 'integer', 'minimum': 0, 'maximum': 65535},
-                'algorithm': {'type': 'integer', 'minimum': 0, 'maximum': 255},
-                'digest_type': {
-                    'type': 'integer',
-                    'minimum': 0,
-                    'maximum': 255,
-                },
-                'digest': {'type': 'string'},
-                'flags': {'type': 'integer'},
-                'protocol': {'type': 'integer'},
-                'public_key': {'type': 'string'},
-            },
-        }
+class DsValueValidator(ValueValidator):
+    '''
+    Validates DS rdata. Supports both the current field names
+    (``key_tag``, ``algorithm``, ``digest_type``, ``digest``) and the
+    deprecated legacy field names (``flags``, ``protocol``,
+    ``algorithm``, ``public_key``), which will be removed in 2.0.
+    '''
 
     @classmethod
-    def parse_rdata_text(cls, value):
-        try:
-            key_tag, algorithm, digest_type, digest = value.split(' ')
-        except ValueError:
-            raise RrParseError()
-        try:
-            key_tag = int(key_tag)
-        except ValueError:
-            pass
-        try:
-            algorithm = int(algorithm)
-        except ValueError:
-            pass
-        try:
-            digest_type = int(digest_type)
-        except ValueError:
-            pass
-        return {
-            'key_tag': key_tag,
-            'algorithm': algorithm,
-            'digest_type': digest_type,
-            'digest': digest,
-        }
-
-    @classmethod
-    def validate(cls, data, _type):
+    def validate(cls, value_cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         reasons = []
@@ -122,6 +78,62 @@ class DsValue(EqualityTupleMixin, dict):
                 if 'digest' not in value:
                     reasons.append('missing digest')
         return reasons
+
+
+class DsValue(EqualityTupleMixin, dict):
+    # https://www.rfc-editor.org/rfc/rfc4034.html#section-5.1
+    log = getLogger('DsValue')
+
+    VALIDATORS = [DsValueValidator]
+
+    @classmethod
+    def _schema(cls):
+        return {
+            'type': 'object',
+            'anyOf': [
+                {'required': ['key_tag', 'algorithm', 'digest_type', 'digest']},
+                # deprecated legacy form kept valid until 2.0
+                {'required': ['flags', 'protocol', 'algorithm', 'public_key']},
+            ],
+            'properties': {
+                'key_tag': {'type': 'integer', 'minimum': 0, 'maximum': 65535},
+                'algorithm': {'type': 'integer', 'minimum': 0, 'maximum': 255},
+                'digest_type': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 255,
+                },
+                'digest': {'type': 'string'},
+                'flags': {'type': 'integer'},
+                'protocol': {'type': 'integer'},
+                'public_key': {'type': 'string'},
+            },
+        }
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        try:
+            key_tag, algorithm, digest_type, digest = value.split(' ')
+        except ValueError:
+            raise RrParseError()
+        try:
+            key_tag = int(key_tag)
+        except ValueError:
+            pass
+        try:
+            algorithm = int(algorithm)
+        except ValueError:
+            pass
+        try:
+            digest_type = int(digest_type)
+        except ValueError:
+            pass
+        return {
+            'key_tag': key_tag,
+            'algorithm': algorithm,
+            'digest_type': digest_type,
+            'digest': digest,
+        }
 
     @classmethod
     def process(cls, values):

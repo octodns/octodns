@@ -2,6 +2,7 @@
 #
 #
 
+import warnings
 from unittest import TestCase
 
 from octodns.idna import idna_encode
@@ -22,7 +23,20 @@ from octodns.record import (
     ValidationError,
     ValuesMixin,
 )
-from octodns.record.base import unquote
+from octodns.record.alias import AliasRootValidator
+from octodns.record.base import (
+    HealthcheckValidator,
+    NameValidator,
+    TtlValidator,
+    _process_value_validators,
+    unquote,
+)
+from octodns.record.cname import CnameRootValidator
+from octodns.record.dynamic import DynamicValidator
+from octodns.record.geo import GeoValidator
+from octodns.record.srv import SrvNameValidator, SrvRecord
+from octodns.record.uri import UriNameValidator, UriRecord
+from octodns.record.validator import RecordValidator, ValueValidator
 from octodns.yaml import ContextDict
 from octodns.zone import Zone
 
@@ -929,3 +943,236 @@ class TestRecordValidation(TestCase):
             method = getattr(value_type, attr)
             self.assertTrue(method, f'{_type}, {cls} has {attr}')
             # this one is a @property so not callable
+
+
+class TestValidators(TestCase):
+    def test_record_validator_base(self):
+        self.assertEqual(
+            [], RecordValidator.validate(ARecord, '', 'unit.tests.', {})
+        )
+
+    def test_value_validator_base(self):
+        self.assertEqual([], ValueValidator.validate(None, None, 'A'))
+
+    def test_name_validator(self):
+        self.assertEqual(
+            [], NameValidator.validate(ARecord, 'www', 'www.unit.tests.', {})
+        )
+        self.assertEqual(
+            ['invalid name "@", use "" instead'],
+            NameValidator.validate(ARecord, '@', '@.unit.tests.', {}),
+        )
+        long_name = '.'.join(['a' * 60] * 5)
+        long_fqdn = f'{long_name}.unit.tests.'
+        reasons = NameValidator.validate(ARecord, long_name, long_fqdn, {})
+        self.assertTrue(
+            any('too long at' in r and 'max is 253' in r for r in reasons)
+        )
+        long_label = 'x' * 64
+        reasons = NameValidator.validate(
+            ARecord, long_label, f'{long_label}.unit.tests.', {}
+        )
+        self.assertTrue(
+            any('invalid label' in r and 'max is 63' in r for r in reasons)
+        )
+        self.assertEqual(
+            ['invalid name, double `.` in "foo..bar.unit.tests."'],
+            NameValidator.validate(
+                ARecord, 'foo..bar', 'foo..bar.unit.tests.', {}
+            ),
+        )
+
+    def test_ttl_validator(self):
+        self.assertEqual(
+            [], TtlValidator.validate(ARecord, '', 'unit.tests.', {'ttl': 42})
+        )
+        self.assertEqual(
+            ['missing ttl'],
+            TtlValidator.validate(ARecord, '', 'unit.tests.', {}),
+        )
+        self.assertEqual(
+            ['invalid ttl'],
+            TtlValidator.validate(ARecord, '', 'unit.tests.', {'ttl': -1}),
+        )
+
+    def test_healthcheck_validator(self):
+        self.assertEqual(
+            [], HealthcheckValidator.validate(ARecord, '', 'unit.tests.', {})
+        )
+        self.assertEqual(
+            [],
+            HealthcheckValidator.validate(
+                ARecord,
+                '',
+                'unit.tests.',
+                {'octodns': {'healthcheck': {'protocol': 'HTTPS'}}},
+            ),
+        )
+        self.assertEqual(
+            ['invalid healthcheck protocol'],
+            HealthcheckValidator.validate(
+                ARecord,
+                '',
+                'unit.tests.',
+                {'octodns': {'healthcheck': {'protocol': 'BOGUS'}}},
+            ),
+        )
+
+    def test_dynamic_validator(self):
+        # no `dynamic` key -> no reasons
+        self.assertEqual(
+            [], DynamicValidator.validate(ARecord, '', 'unit.tests.', {})
+        )
+        # `dynamic` and `geo` co-present triggers a reason
+        reasons = DynamicValidator.validate(
+            ARecord, '', 'unit.tests.', {'dynamic': {}, 'geo': {}}
+        )
+        self.assertIn('"dynamic" record with "geo" content', reasons)
+
+    def test_geo_validator(self):
+        # no `geo` key -> no reasons
+        self.assertEqual(
+            [], GeoValidator.validate(ARecord, '', 'unit.tests.', {})
+        )
+        # invalid geo code surfaces a reason
+        reasons = GeoValidator.validate(
+            ARecord, '', 'unit.tests.', {'geo': {'X': ['1.2.3.4']}}
+        )
+        self.assertIn('invalid geo "X"', reasons)
+
+    def test_srv_name_validator(self):
+        self.assertEqual(
+            [],
+            SrvNameValidator.validate(
+                SrvRecord, '_sip._tcp', '_sip._tcp.unit.tests.', {}
+            ),
+        )
+        self.assertEqual(
+            ['invalid name for SRV record'],
+            SrvNameValidator.validate(SrvRecord, 'bad', 'bad.unit.tests.', {}),
+        )
+
+    def test_cname_root_validator(self):
+        self.assertEqual(
+            [],
+            CnameRootValidator.validate(
+                CnameRecord, 'www', 'www.unit.tests.', {}
+            ),
+        )
+        self.assertEqual(
+            ['root CNAME not allowed'],
+            CnameRootValidator.validate(CnameRecord, '', 'unit.tests.', {}),
+        )
+
+    def test_alias_root_validator(self):
+        self.assertEqual(
+            [], AliasRootValidator.validate(AliasRecord, '', 'unit.tests.', {})
+        )
+        self.assertEqual(
+            ['non-root ALIAS not allowed'],
+            AliasRootValidator.validate(
+                AliasRecord, 'www', 'www.unit.tests.', {}
+            ),
+        )
+
+    def test_uri_name_validator(self):
+        self.assertEqual(
+            [],
+            UriNameValidator.validate(
+                UriRecord, '_sip._tcp', '_sip._tcp.unit.tests.', {}
+            ),
+        )
+        self.assertEqual(
+            ['invalid name for URI record'],
+            UriNameValidator.validate(UriRecord, 'bad', 'bad.unit.tests.', {}),
+        )
+
+    def test_instance_record_validator(self):
+        # VALIDATORS entries may be instances with state (e.g. ctor args),
+        # not just classes. Bound-method dispatch passes self in place of cls.
+        class StatefulNameValidator:
+            def __init__(self, forbidden_prefix):
+                self.forbidden_prefix = forbidden_prefix
+
+            def validate(self, record_cls, name, fqdn, data):
+                if name.startswith(self.forbidden_prefix):
+                    return [f'name starts with "{self.forbidden_prefix}"']
+                return []
+
+        class StatefulRecord(ARecord):
+            VALIDATORS = [StatefulNameValidator('bad-')]
+
+        data = {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
+        self.assertIn(
+            'name starts with "bad-"',
+            StatefulRecord.validate('bad-name', 'bad-name.unit.tests.', data),
+        )
+        self.assertEqual(
+            [], StatefulRecord.validate('ok', 'ok.unit.tests.', data)
+        )
+
+    def test_instance_value_validator(self):
+        # Same idea for value-level validators — an instance with state
+        # attached to a value class's VALIDATORS works via bound-method
+        # dispatch through the MRO walk in _process_value_validators.
+        class StatefulValueValidator:
+            def __init__(self, forbidden):
+                self.forbidden = forbidden
+
+            def validate(self, value_cls, data, _type):
+                data = data if isinstance(data, (list, tuple)) else [data]
+                if any(v == self.forbidden for v in data):
+                    return [f'forbidden value "{self.forbidden}"']
+                return []
+
+        class StatefulValueType(str):
+            VALIDATORS = [StatefulValueValidator('blocked')]
+
+        self.assertIn(
+            'forbidden value "blocked"',
+            _process_value_validators(StatefulValueType, ['blocked'], 'TXT'),
+        )
+        self.assertEqual(
+            [], _process_value_validators(StatefulValueType, ['allowed'], 'TXT')
+        )
+
+    def test_legacy_record_validate_deprecation(self):
+        # 3rd-party records that still override Record.validate get a
+        # DeprecationWarning at class-definition time, telling them to
+        # migrate to declaring VALIDATORS before 2.0.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+
+            class LegacyRecord(ARecord):
+                @classmethod
+                def validate(cls, name, fqdn, data):
+                    return []
+
+        matched = [
+            w
+            for w in caught
+            if issubclass(w.category, DeprecationWarning)
+            and 'LegacyRecord.validate' in str(w.message)
+        ]
+        self.assertTrue(matched)
+
+    def test_legacy_value_validate_deprecation(self):
+        # 3rd-party value classes that still define a `validate` classmethod
+        # are invoked for back-compat but emit a DeprecationWarning so they
+        # know to migrate to declaring VALIDATORS before 2.0.
+        class LegacyValueType(str):
+            @classmethod
+            def validate(cls, data, _type):
+                return ['legacy reason']
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            reasons = _process_value_validators(LegacyValueType, ['x'], 'TXT')
+        self.assertEqual(['legacy reason'], reasons)
+        matched = [
+            w
+            for w in caught
+            if issubclass(w.category, DeprecationWarning)
+            and 'LegacyValueType.validate' in str(w.message)
+        ]
+        self.assertTrue(matched)

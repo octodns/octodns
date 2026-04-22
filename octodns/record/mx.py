@@ -7,6 +7,36 @@ from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 from .target import validate_target_fqdn
+from .validator import ValueValidator
+
+
+class MxValueValidator(ValueValidator):
+    '''
+    Validates MX rdata: an integer-parsable ``preference`` (or legacy
+    ``priority`` alias) and a valid ``exchange`` FQDN (or legacy
+    ``value`` alias).
+    '''
+
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            try:
+                try:
+                    int(value['preference'])
+                except KeyError:
+                    int(value['priority'])
+            except KeyError:
+                reasons.append('missing preference')
+            except ValueError:
+                reasons.append(f'invalid preference "{value["preference"]}"')
+            exchange = None
+            try:
+                exchange = value.get('exchange') or value['value']
+                reasons += validate_target_fqdn(exchange, _type, 'exchange')
+            except KeyError:
+                reasons.append('missing exchange')
+        return reasons
 
 
 class MxValue(EqualityTupleMixin, dict):
@@ -55,26 +85,7 @@ class MxValue(EqualityTupleMixin, dict):
         exchange = unquote(exchange)
         return {'preference': preference, 'exchange': exchange}
 
-    @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        for value in data:
-            try:
-                try:
-                    int(value['preference'])
-                except KeyError:
-                    int(value['priority'])
-            except KeyError:
-                reasons.append('missing preference')
-            except ValueError:
-                reasons.append(f'invalid preference "{value["preference"]}"')
-            exchange = None
-            try:
-                exchange = value.get('exchange') or value['value']
-                reasons += validate_target_fqdn(exchange, _type, 'exchange')
-            except KeyError:
-                reasons.append('missing exchange')
-        return reasons
+    VALIDATORS = [MxValueValidator]
 
     @classmethod
     def process(cls, values):

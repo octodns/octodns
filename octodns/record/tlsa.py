@@ -5,9 +5,62 @@
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
+from .validator import ValueValidator
+
+
+class TlsaValueValidator(ValueValidator):
+    '''
+    Validates TLSA rdata: ``certificate_usage`` in [0, 3],
+    ``selector`` in [0, 1], ``matching_type`` in [0, 2], and
+    ``certificate_association_data`` is present.
+    '''
+
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            try:
+                certificate_usage = int(value.get('certificate_usage', 0))
+                if certificate_usage < 0 or certificate_usage > 3:
+                    reasons.append(
+                        f'invalid certificate_usage ' f'"{certificate_usage}"'
+                    )
+            except ValueError:
+                reasons.append(
+                    f'invalid certificate_usage '
+                    f'"{value["certificate_usage"]}"'
+                )
+
+            try:
+                selector = int(value.get('selector', 0))
+                if selector < 0 or selector > 1:
+                    reasons.append(f'invalid selector "{selector}"')
+            except ValueError:
+                reasons.append(f'invalid selector "{value["selector"]}"')
+
+            try:
+                matching_type = int(value.get('matching_type', 0))
+                if matching_type < 0 or matching_type > 2:
+                    reasons.append(f'invalid matching_type "{matching_type}"')
+            except ValueError:
+                reasons.append(
+                    f'invalid matching_type ' f'"{value["matching_type"]}"'
+                )
+
+            if 'certificate_usage' not in value:
+                reasons.append('missing certificate_usage')
+            if 'selector' not in value:
+                reasons.append('missing selector')
+            if 'matching_type' not in value:
+                reasons.append('missing matching_type')
+            if 'certificate_association_data' not in value:
+                reasons.append('missing certificate_association_data')
+        return reasons
 
 
 class TlsaValue(EqualityTupleMixin, dict):
+    VALIDATORS = [TlsaValueValidator]
+
     @classmethod
     def _schema(cls):
         return {
@@ -64,48 +117,6 @@ class TlsaValue(EqualityTupleMixin, dict):
             'matching_type': matching_type,
             'certificate_association_data': certificate_association_data,
         }
-
-    @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        for value in data:
-            try:
-                certificate_usage = int(value.get('certificate_usage', 0))
-                if certificate_usage < 0 or certificate_usage > 3:
-                    reasons.append(
-                        f'invalid certificate_usage ' f'"{certificate_usage}"'
-                    )
-            except ValueError:
-                reasons.append(
-                    f'invalid certificate_usage '
-                    f'"{value["certificate_usage"]}"'
-                )
-
-            try:
-                selector = int(value.get('selector', 0))
-                if selector < 0 or selector > 1:
-                    reasons.append(f'invalid selector "{selector}"')
-            except ValueError:
-                reasons.append(f'invalid selector "{value["selector"]}"')
-
-            try:
-                matching_type = int(value.get('matching_type', 0))
-                if matching_type < 0 or matching_type > 2:
-                    reasons.append(f'invalid matching_type "{matching_type}"')
-            except ValueError:
-                reasons.append(
-                    f'invalid matching_type ' f'"{value["matching_type"]}"'
-                )
-
-            if 'certificate_usage' not in value:
-                reasons.append('missing certificate_usage')
-            if 'selector' not in value:
-                reasons.append('missing selector')
-            if 'matching_type' not in value:
-                reasons.append('missing matching_type')
-            if 'certificate_association_data' not in value:
-                reasons.append('missing certificate_association_data')
-        return reasons
 
     @classmethod
     def process(cls, values):

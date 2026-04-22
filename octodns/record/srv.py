@@ -9,9 +9,65 @@ from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 from .target import validate_target_fqdn
+from .validator import RecordValidator, ValueValidator
+
+
+class SrvNameValidator(RecordValidator):
+    '''
+    Validates that an SRV record's name matches the
+    ``_service._protocol`` pattern required by RFC 2782 (e.g.
+    ``_http._tcp``), or is a wildcard.
+    '''
+
+    _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
+
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
+        if not cls._name_re.match(name):
+            return ['invalid name for SRV record']
+        return []
+
+
+class SrvValueValidator(ValueValidator):
+    '''
+    Validates SRV rdata: priority, weight, and port are present and
+    integer-parsable, and target is a valid FQDN.
+    '''
+
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            # TODO: validate algorithm and fingerprint_type values
+            try:
+                int(value['priority'])
+            except KeyError:
+                reasons.append('missing priority')
+            except ValueError:
+                reasons.append(f'invalid priority "{value["priority"]}"')
+            try:
+                int(value['weight'])
+            except KeyError:
+                reasons.append('missing weight')
+            except ValueError:
+                reasons.append(f'invalid weight "{value["weight"]}"')
+            try:
+                int(value['port'])
+            except KeyError:
+                reasons.append('missing port')
+            except ValueError:
+                reasons.append(f'invalid port "{value["port"]}"')
+            try:
+                target = value['target']
+                reasons += validate_target_fqdn(target, _type, 'target')
+            except KeyError:
+                reasons.append('missing target')
+        return reasons
 
 
 class SrvValue(EqualityTupleMixin, dict):
+    VALIDATORS = [SrvValueValidator]
+
     @classmethod
     def _schema(cls):
         return {
@@ -50,36 +106,6 @@ class SrvValue(EqualityTupleMixin, dict):
             'port': port,
             'target': target,
         }
-
-    @classmethod
-    def validate(cls, data, _type):
-        reasons = []
-        for value in data:
-            # TODO: validate algorithm and fingerprint_type values
-            try:
-                int(value['priority'])
-            except KeyError:
-                reasons.append('missing priority')
-            except ValueError:
-                reasons.append(f'invalid priority "{value["priority"]}"')
-            try:
-                int(value['weight'])
-            except KeyError:
-                reasons.append('missing weight')
-            except ValueError:
-                reasons.append(f'invalid weight "{value["weight"]}"')
-            try:
-                int(value['port'])
-            except KeyError:
-                reasons.append('missing port')
-            except ValueError:
-                reasons.append(f'invalid port "{value["port"]}"')
-            try:
-                target = value['target']
-                reasons += validate_target_fqdn(target, _type, 'target')
-            except KeyError:
-                reasons.append('missing target')
-        return reasons
 
     @classmethod
     def process(cls, values):
@@ -159,15 +185,8 @@ class SrvRecord(ValuesMixin, Record):
     )
     _type = 'SRV'
     _value_type = SrvValue
-    _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
 
-    @classmethod
-    def validate(cls, name, fqdn, data):
-        reasons = []
-        if not cls._name_re.match(name):
-            reasons.append('invalid name for SRV record')
-        reasons.extend(super().validate(name, fqdn, data))
-        return reasons
+    VALIDATORS = [SrvNameValidator]
 
 
 Record.register_type(SrvRecord)
