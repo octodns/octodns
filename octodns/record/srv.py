@@ -21,9 +21,8 @@ class SrvNameValidator(RecordValidator):
 
     _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
 
-    @classmethod
-    def validate(cls, record_cls, name, fqdn, data):
-        if not cls._name_re.match(name):
+    def validate(self, record_cls, name, fqdn, data):
+        if not self._name_re.match(name):
             return ['invalid name for SRV record']
         return []
 
@@ -34,8 +33,7 @@ class SrvValueValidator(ValueValidator):
     integer-parsable, and target is a valid FQDN.
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         reasons = []
         for value in data:
             # TODO: validate algorithm and fingerprint_type values
@@ -66,7 +64,7 @@ class SrvValueValidator(ValueValidator):
 
 
 class SrvValue(EqualityTupleMixin, dict):
-    VALIDATORS = [SrvValueValidator]
+    VALIDATORS = [SrvValueValidator('srv-value')]
 
     @classmethod
     def _schema(cls):
@@ -186,7 +184,7 @@ class SrvRecord(ValuesMixin, Record):
     _type = 'SRV'
     _value_type = SrvValue
 
-    VALIDATORS = [SrvNameValidator]
+    VALIDATORS = [SrvNameValidator('srv-name')]
 
 
 Record.register_type(SrvRecord)

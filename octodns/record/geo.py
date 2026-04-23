@@ -139,8 +139,7 @@ class GeoValidator(RecordValidator):
     passes the record's value-type validation.
     '''
 
-    @classmethod
-    def validate(cls, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data):
         reasons = []
         try:
             geo = dict(data['geo'])
@@ -184,7 +183,7 @@ class _GeoMixin(ValuesMixin):
             },
         }
 
-    VALIDATORS = [GeoValidator]
+    VALIDATORS = [GeoValidator('geo')]
 
     def __init__(self, zone, name, data, *args, **kwargs):
         super().__init__(zone, name, data, *args, **kwargs)

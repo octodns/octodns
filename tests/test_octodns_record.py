@@ -948,28 +948,33 @@ class TestRecordValidation(TestCase):
 class TestValidators(TestCase):
     def test_record_validator_base(self):
         self.assertEqual(
-            [], RecordValidator.validate(ARecord, '', 'unit.tests.', {})
+            [], RecordValidator('test').validate(ARecord, '', 'unit.tests.', {})
         )
 
     def test_value_validator_base(self):
-        self.assertEqual([], ValueValidator.validate(None, None, 'A'))
+        self.assertEqual([], ValueValidator('test').validate(None, None, 'A'))
 
     def test_name_validator(self):
         self.assertEqual(
-            [], NameValidator.validate(ARecord, 'www', 'www.unit.tests.', {})
+            [],
+            NameValidator('name').validate(
+                ARecord, 'www', 'www.unit.tests.', {}
+            ),
         )
         self.assertEqual(
             ['invalid name "@", use "" instead'],
-            NameValidator.validate(ARecord, '@', '@.unit.tests.', {}),
+            NameValidator('name').validate(ARecord, '@', '@.unit.tests.', {}),
         )
         long_name = '.'.join(['a' * 60] * 5)
         long_fqdn = f'{long_name}.unit.tests.'
-        reasons = NameValidator.validate(ARecord, long_name, long_fqdn, {})
+        reasons = NameValidator('name').validate(
+            ARecord, long_name, long_fqdn, {}
+        )
         self.assertTrue(
             any('too long at' in r and 'max is 253' in r for r in reasons)
         )
         long_label = 'x' * 64
-        reasons = NameValidator.validate(
+        reasons = NameValidator('name').validate(
             ARecord, long_label, f'{long_label}.unit.tests.', {}
         )
         self.assertTrue(
@@ -977,31 +982,39 @@ class TestValidators(TestCase):
         )
         self.assertEqual(
             ['invalid name, double `.` in "foo..bar.unit.tests."'],
-            NameValidator.validate(
+            NameValidator('name').validate(
                 ARecord, 'foo..bar', 'foo..bar.unit.tests.', {}
             ),
         )
 
     def test_ttl_validator(self):
         self.assertEqual(
-            [], TtlValidator.validate(ARecord, '', 'unit.tests.', {'ttl': 42})
+            [],
+            TtlValidator('ttl').validate(
+                ARecord, '', 'unit.tests.', {'ttl': 42}
+            ),
         )
         self.assertEqual(
             ['missing ttl'],
-            TtlValidator.validate(ARecord, '', 'unit.tests.', {}),
+            TtlValidator('ttl').validate(ARecord, '', 'unit.tests.', {}),
         )
         self.assertEqual(
             ['invalid ttl'],
-            TtlValidator.validate(ARecord, '', 'unit.tests.', {'ttl': -1}),
+            TtlValidator('ttl').validate(
+                ARecord, '', 'unit.tests.', {'ttl': -1}
+            ),
         )
 
     def test_healthcheck_validator(self):
         self.assertEqual(
-            [], HealthcheckValidator.validate(ARecord, '', 'unit.tests.', {})
+            [],
+            HealthcheckValidator('healthcheck').validate(
+                ARecord, '', 'unit.tests.', {}
+            ),
         )
         self.assertEqual(
             [],
-            HealthcheckValidator.validate(
+            HealthcheckValidator('healthcheck').validate(
                 ARecord,
                 '',
                 'unit.tests.',
@@ -1010,7 +1023,7 @@ class TestValidators(TestCase):
         )
         self.assertEqual(
             ['invalid healthcheck protocol'],
-            HealthcheckValidator.validate(
+            HealthcheckValidator('healthcheck').validate(
                 ARecord,
                 '',
                 'unit.tests.',
@@ -1021,10 +1034,13 @@ class TestValidators(TestCase):
     def test_dynamic_validator(self):
         # no `dynamic` key -> no reasons
         self.assertEqual(
-            [], DynamicValidator.validate(ARecord, '', 'unit.tests.', {})
+            [],
+            DynamicValidator('dynamic').validate(
+                ARecord, '', 'unit.tests.', {}
+            ),
         )
         # `dynamic` and `geo` co-present triggers a reason
-        reasons = DynamicValidator.validate(
+        reasons = DynamicValidator('dynamic').validate(
             ARecord, '', 'unit.tests.', {'dynamic': {}, 'geo': {}}
         )
         self.assertIn('"dynamic" record with "geo" content', reasons)
@@ -1032,10 +1048,10 @@ class TestValidators(TestCase):
     def test_geo_validator(self):
         # no `geo` key -> no reasons
         self.assertEqual(
-            [], GeoValidator.validate(ARecord, '', 'unit.tests.', {})
+            [], GeoValidator('geo').validate(ARecord, '', 'unit.tests.', {})
         )
         # invalid geo code surfaces a reason
-        reasons = GeoValidator.validate(
+        reasons = GeoValidator('geo').validate(
             ARecord, '', 'unit.tests.', {'geo': {'X': ['1.2.3.4']}}
         )
         self.assertIn('invalid geo "X"', reasons)
@@ -1043,34 +1059,41 @@ class TestValidators(TestCase):
     def test_srv_name_validator(self):
         self.assertEqual(
             [],
-            SrvNameValidator.validate(
+            SrvNameValidator('srv-name').validate(
                 SrvRecord, '_sip._tcp', '_sip._tcp.unit.tests.', {}
             ),
         )
         self.assertEqual(
             ['invalid name for SRV record'],
-            SrvNameValidator.validate(SrvRecord, 'bad', 'bad.unit.tests.', {}),
+            SrvNameValidator('srv-name').validate(
+                SrvRecord, 'bad', 'bad.unit.tests.', {}
+            ),
         )
 
     def test_cname_root_validator(self):
         self.assertEqual(
             [],
-            CnameRootValidator.validate(
+            CnameRootValidator('cname-root').validate(
                 CnameRecord, 'www', 'www.unit.tests.', {}
             ),
         )
         self.assertEqual(
             ['root CNAME not allowed'],
-            CnameRootValidator.validate(CnameRecord, '', 'unit.tests.', {}),
+            CnameRootValidator('cname-root').validate(
+                CnameRecord, '', 'unit.tests.', {}
+            ),
         )
 
     def test_alias_root_validator(self):
         self.assertEqual(
-            [], AliasRootValidator.validate(AliasRecord, '', 'unit.tests.', {})
+            [],
+            AliasRootValidator('alias-root').validate(
+                AliasRecord, '', 'unit.tests.', {}
+            ),
         )
         self.assertEqual(
             ['non-root ALIAS not allowed'],
-            AliasRootValidator.validate(
+            AliasRootValidator('alias-root').validate(
                 AliasRecord, 'www', 'www.unit.tests.', {}
             ),
         )
@@ -1078,13 +1101,15 @@ class TestValidators(TestCase):
     def test_uri_name_validator(self):
         self.assertEqual(
             [],
-            UriNameValidator.validate(
+            UriNameValidator('uri-name').validate(
                 UriRecord, '_sip._tcp', '_sip._tcp.unit.tests.', {}
             ),
         )
         self.assertEqual(
             ['invalid name for URI record'],
-            UriNameValidator.validate(UriRecord, 'bad', 'bad.unit.tests.', {}),
+            UriNameValidator('uri-name').validate(
+                UriRecord, 'bad', 'bad.unit.tests.', {}
+            ),
         )
 
     def test_instance_record_validator(self):
@@ -1176,3 +1201,81 @@ class TestValidators(TestCase):
             and 'LegacyValueType.validate' in str(w.message)
         ]
         self.assertTrue(matched)
+
+    def test_validator_requires_id(self):
+        # Base classes: id is required and must be non-empty.
+        with self.assertRaises(ValueError):
+            RecordValidator('')
+        with self.assertRaises(ValueError):
+            RecordValidator(None)
+        with self.assertRaises(TypeError):
+            RecordValidator()
+        with self.assertRaises(ValueError):
+            ValueValidator('')
+        with self.assertRaises(ValueError):
+            ValueValidator(None)
+        with self.assertRaises(TypeError):
+            ValueValidator()
+        # Concrete subclasses inherit the same requirement.
+        with self.assertRaises(ValueError):
+            NameValidator('')
+        with self.assertRaises(ValueError):
+            NameValidator(None)
+        # A provided id is stored on the instance.
+        self.assertEqual('custom', NameValidator('custom').id)
+
+    def test_builtin_validator_ids_are_nonempty_and_unique(self):
+        # Walk every registered record type's MRO, collecting validator
+        # instances from each class's VALIDATORS list. Same for each
+        # value class. Every instance must carry a non-empty id, and
+        # within a single (layer, type) scope ids must be unique.
+        seen = set()
+        for _type, record_cls in Record.registered_types().items():
+            ids_for_type = []
+            for klass in record_cls.__mro__:
+                for v in klass.__dict__.get('VALIDATORS', ()):
+                    self.assertTrue(
+                        getattr(v, 'id', None),
+                        f'{v.__class__.__name__} missing id',
+                    )
+                    ids_for_type.append(v.id)
+                    seen.add(v.id)
+            self.assertEqual(
+                len(ids_for_type),
+                len(set(ids_for_type)),
+                f'duplicate record validator ids for {_type}: {ids_for_type}',
+            )
+
+            value_type = getattr(record_cls, '_value_type', None)
+            if value_type is None:
+                continue
+            ids_for_value = []
+            for klass in value_type.__mro__:
+                for v in klass.__dict__.get('VALIDATORS', ()):
+                    self.assertTrue(
+                        getattr(v, 'id', None),
+                        f'{v.__class__.__name__} missing id',
+                    )
+                    ids_for_value.append(v.id)
+                    seen.add(v.id)
+            self.assertEqual(
+                len(ids_for_value),
+                len(set(ids_for_value)),
+                f'duplicate value validator ids for {_type}: {ids_for_value}',
+            )
+
+        # A handful of well-known ids should be present across all walks.
+        for expected in (
+            'name',
+            'ttl',
+            'healthcheck',
+            '_values-type',
+            '_value-type',
+            'cname-root',
+            'alias-root',
+            'mx-value',
+            'ip-value',
+            'target-value',
+            'targets-value',
+        ):
+            self.assertIn(expected, seen)

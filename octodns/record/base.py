@@ -28,8 +28,7 @@ class NameValidator(RecordValidator):
     limits from RFC 1035, and flags empty/double-dot labels.
     '''
 
-    @classmethod
-    def validate(cls, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data):
         reasons = []
         if name == '@':
             reasons.append('invalid name "@", use "" instead')
@@ -59,8 +58,7 @@ class TtlValidator(RecordValidator):
     integer.
     '''
 
-    @classmethod
-    def validate(cls, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data):
         reasons = []
         try:
             ttl = int(data['ttl'])
@@ -77,8 +75,7 @@ class HealthcheckValidator(RecordValidator):
     present, is one of the supported protocols.
     '''
 
-    @classmethod
-    def validate(cls, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data):
         reasons = []
         try:
             if data['octodns']['healthcheck']['protocol'] not in (
@@ -176,7 +173,11 @@ class Record(EqualityTupleMixin):
                 raise ValidationError(fqdn, reasons, context)
         return _class(zone, name, data, source=source, context=context)
 
-    VALIDATORS = [NameValidator, TtlValidator, HealthcheckValidator]
+    VALIDATORS = [
+        NameValidator('name'),
+        TtlValidator('ttl'),
+        HealthcheckValidator('healthcheck'),
+    ]
 
     @classmethod
     def _process_validators(cls, name, fqdn, data):
@@ -404,8 +405,7 @@ class ValuesTypeValidator(RecordValidator):
     ``VALIDATORS`` declared along the value type's MRO).
     '''
 
-    @classmethod
-    def validate(cls, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data):
         values = data.get('values', data.get('value', []))
         values = values if isinstance(values, (list, tuple)) else [values]
         return _process_value_validators(
@@ -414,7 +414,7 @@ class ValuesTypeValidator(RecordValidator):
 
 
 class ValuesMixin(object):
-    VALIDATORS = [ValuesTypeValidator]
+    VALIDATORS = [ValuesTypeValidator('_values-type')]
 
     @classmethod
     def data_from_rrs(cls, rrs):
@@ -480,15 +480,14 @@ class ValueTypeValidator(RecordValidator):
     value type's validators.
     '''
 
-    @classmethod
-    def validate(cls, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data):
         return _process_value_validators(
             record_cls._value_type, data.get('value', None), record_cls._type
         )
 
 
 class ValueMixin(object):
-    VALIDATORS = [ValueTypeValidator]
+    VALIDATORS = [ValueTypeValidator('_value-type')]
 
     @classmethod
     def data_from_rrs(cls, rrs):

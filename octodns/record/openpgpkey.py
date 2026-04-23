@@ -12,8 +12,7 @@ class OpenpgpkeyValueValidator(ValueValidator):
     OpenPGP key must be provided.
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         if not data or all(not d for d in data):
             return ['missing value(s)']
         return []
@@ -26,7 +25,7 @@ class OpenpgpkeyValue(str):
     RFC 7929 - DANE Bindings for OpenPGP
     '''
 
-    VALIDATORS = [OpenpgpkeyValueValidator]
+    VALIDATORS = [OpenpgpkeyValueValidator('openpgpkey-value')]
 
     @classmethod
     def _schema(cls):

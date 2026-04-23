@@ -37,8 +37,7 @@ class TargetValueValidator(ValueValidator):
     Validates a single-value target FQDN (CNAME, ALIAS, DNAME, PTR).
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         return validate_target_fqdn(data, _type)
 
 
@@ -47,8 +46,7 @@ class TargetsValueValidator(ValueValidator):
     Validates a list of target FQDNs (NS). Rejects empty lists.
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         if not data:
             return ['missing value(s)']
 
@@ -60,7 +58,7 @@ class TargetsValueValidator(ValueValidator):
 
 
 class _TargetValue(str):
-    VALIDATORS = [TargetValueValidator]
+    VALIDATORS = [TargetValueValidator('target-value')]
 
     @classmethod
     def parse_rdata_text(self, value):
@@ -93,7 +91,7 @@ class _TargetValue(str):
 #
 # much like _TargetValue, but geared towards multiple values
 class _TargetsValue(str):
-    VALIDATORS = [TargetsValueValidator]
+    VALIDATORS = [TargetsValueValidator('targets-value')]
 
     @classmethod
     def parse_rdata_text(cls, value):

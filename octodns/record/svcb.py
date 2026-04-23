@@ -150,8 +150,7 @@ class SvcbValueValidator(ValueValidator):
     AliasMode (``svcpriority`` == 0) records.
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         reasons = []
         for value in data:
             svcpriority = -1
@@ -201,7 +200,7 @@ class SvcbValueValidator(ValueValidator):
 
 class SvcbValue(EqualityTupleMixin, dict):
 
-    VALIDATORS = [SvcbValueValidator]
+    VALIDATORS = [SvcbValueValidator('svcb-value')]
 
     @classmethod
     def _schema(cls):
