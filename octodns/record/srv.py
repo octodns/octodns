@@ -65,6 +65,103 @@ class SrvValueValidator(ValueValidator):
         return reasons
 
 
+class SrvStrictNameValidator(RecordValidator):
+    '''
+    Stricter SRV name validator per RFC 2782 and RFC 6335 §5.1.
+
+    Requires the first two labels of the record name to be
+    ``_service._proto`` (``*._proto`` is still accepted for wildcards).
+    Both the service and proto label bodies (after the leading ``_``)
+    must conform to the RFC 6335 §5.1 service name syntax: 1-15
+    characters, starting with a letter, ending with a letter or digit,
+    containing only letters, digits, and hyphens, and with no
+    consecutive hyphens.
+
+    Not enabled by default; opt in by appending to
+    ``SrvRecord.VALIDATORS``.
+    '''
+
+    _max_len = 15
+
+    @classmethod
+    def _is_valid_service_name(cls, body):
+        if not body or len(body) > cls._max_len:
+            return False
+        if not body[0].isalpha():
+            return False
+        if not body[-1].isalnum():
+            return False
+        if '--' in body:
+            return False
+        return all(c.isalnum() or c == '-' for c in body)
+
+    @classmethod
+    def validate(cls, record_cls, name, fqdn, data):
+        labels = name.split('.') if name else []
+        if len(labels) < 2:
+            return ['SRV name must have at least two labels (_service._proto)']
+
+        reasons = []
+        service, proto = labels[0], labels[1]
+        if service != '*' and not (
+            service.startswith('_') and cls._is_valid_service_name(service[1:])
+        ):
+            reasons.append(f'invalid SRV service label "{service}"')
+        if not (
+            proto.startswith('_') and cls._is_valid_service_name(proto[1:])
+        ):
+            reasons.append(f'invalid SRV proto label "{proto}"')
+        return reasons
+
+
+class SrvStrictValueValidator(ValueValidator):
+    '''
+    Stricter SRV rdata validator per RFC 2782.
+
+    - ``priority``, ``weight``, and ``port`` must each be in the
+      0-65535 range.
+    - When ``target`` is ``"."``, ``priority``, ``weight``, and
+      ``port`` must all be ``0`` (RFC 2782 "service not available"
+      convention).
+    - When ``target`` is not ``"."``, ``port`` must be greater than
+      0 (port 0 is IANA-reserved).
+
+    Assumes the base ``SrvValueValidator`` has already caught missing
+    or non-integer fields; entries that fail those checks are skipped
+    here to avoid duplicated reasons. Not enabled by default; opt in
+    by appending to ``SrvValue.VALIDATORS``.
+    '''
+
+    @classmethod
+    def _as_int(cls, value, field):
+        try:
+            return int(value[field])
+        except (KeyError, ValueError, TypeError):
+            return None
+
+    @classmethod
+    def validate(cls, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            fields = {
+                name: cls._as_int(value, name)
+                for name in ('priority', 'weight', 'port')
+            }
+            for name, v in fields.items():
+                if v is not None and not 0 <= v <= 65535:
+                    reasons.append(f'{name} "{v}" out of range 0-65535')
+            target = value.get('target')
+            if target == '.':
+                for name, v in fields.items():
+                    if v is not None and v != 0:
+                        reasons.append(f'{name} must be 0 when target is "."')
+            elif target and fields['port'] == 0:
+                reasons.append(
+                    'port 0 is reserved; must be > 0 when target is not "."'
+                )
+        return reasons
+
+
 class SrvValue(EqualityTupleMixin, dict):
     VALIDATORS = [SrvValueValidator]
 
