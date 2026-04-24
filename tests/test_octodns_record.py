@@ -3,6 +3,7 @@
 #
 
 import warnings
+from contextlib import contextmanager
 from unittest import TestCase
 
 from octodns.idna import idna_encode
@@ -39,6 +40,19 @@ from octodns.record.uri import UriNameValidator, UriRecord
 from octodns.record.validator import RecordValidator, ValueValidator
 from octodns.yaml import ContextDict
 from octodns.zone import Zone
+
+
+@contextmanager
+def validators_snapshot():
+    record_snap = {k: list(v) for k, v in Record._RECORD_VALIDATORS.items()}
+    value_snap = {k: list(v) for k, v in Record._VALUE_VALIDATORS.items()}
+    try:
+        yield
+    finally:
+        Record._RECORD_VALIDATORS.clear()
+        Record._RECORD_VALIDATORS.update(record_snap)
+        Record._VALUE_VALIDATORS.clear()
+        Record._VALUE_VALIDATORS.update(value_snap)
 
 
 class TestRecord(TestCase):
@@ -1113,53 +1127,95 @@ class TestValidators(TestCase):
         )
 
     def test_instance_record_validator(self):
-        # VALIDATORS entries may be instances with state (e.g. ctor args),
-        # not just classes. Bound-method dispatch passes self in place of cls.
-        class StatefulNameValidator:
-            def __init__(self, forbidden_prefix):
-                self.forbidden_prefix = forbidden_prefix
+        # Validators registered via register_validator() get called during
+        # record validation. Instances can carry per-instance state.
+        class ForbidBadPrefix(RecordValidator):
+            def __init__(self, prefix):
+                super().__init__(id='test-forbid-bad-prefix')
+                self.prefix = prefix
 
             def validate(self, record_cls, name, fqdn, data):
-                if name.startswith(self.forbidden_prefix):
-                    return [f'name starts with "{self.forbidden_prefix}"']
+                if name.startswith(self.prefix):
+                    return [f'name starts with "{self.prefix}"']
                 return []
-
-        class StatefulRecord(ARecord):
-            VALIDATORS = [StatefulNameValidator('bad-')]
 
         data = {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
-        self.assertIn(
-            'name starts with "bad-"',
-            StatefulRecord.validate('bad-name', 'bad-name.unit.tests.', data),
-        )
-        self.assertEqual(
-            [], StatefulRecord.validate('ok', 'ok.unit.tests.', data)
-        )
+        with validators_snapshot():
+            Record.register_validator(ForbidBadPrefix('bad-'), types=['A'])
+            self.assertIn(
+                'name starts with "bad-"',
+                ARecord.validate('bad-name', 'bad-name.unit.tests.', data),
+            )
+            self.assertEqual([], ARecord.validate('ok', 'ok.unit.tests.', data))
 
     def test_instance_value_validator(self):
-        # Same idea for value-level validators — an instance with state
-        # attached to a value class's VALIDATORS works via bound-method
-        # dispatch through the MRO walk in _process_value_validators.
-        class StatefulValueValidator:
-            def __init__(self, forbidden):
-                self.forbidden = forbidden
+        # Value validators registered via register_validator() fire during
+        # value validation. Instances can carry per-instance state.
+        class ForbidWord(ValueValidator):
+            def __init__(self, word):
+                super().__init__(id='test-forbid-word')
+                self.word = word
 
             def validate(self, value_cls, data, _type):
-                data = data if isinstance(data, (list, tuple)) else [data]
-                if any(v == self.forbidden for v in data):
-                    return [f'forbidden value "{self.forbidden}"']
+                if not isinstance(data, (list, tuple)):
+                    data = [data]
+                if any(v == self.word for v in data):
+                    return [f'forbidden value "{self.word}"']
                 return []
 
-        class StatefulValueType(str):
-            VALIDATORS = [StatefulValueValidator('blocked')]
+        with validators_snapshot():
+            Record.register_validator(ForbidWord('blocked'), types=['TXT'])
+            self.assertIn(
+                'forbidden value "blocked"',
+                _process_value_validators(str, ['blocked'], 'TXT'),
+            )
+            self.assertEqual(
+                [], _process_value_validators(str, ['allowed'], 'TXT')
+            )
 
+    def test_register_validator_errors(self):
+        # Must be a RecordValidator or ValueValidator instance.
+        with self.assertRaises(RecordException) as ctx:
+            Record.register_validator(object())
         self.assertIn(
-            'forbidden value "blocked"',
-            _process_value_validators(StatefulValueType, ['blocked'], 'TXT'),
+            'must be a RecordValidator or ValueValidator', str(ctx.exception)
         )
-        self.assertEqual(
-            [], _process_value_validators(StatefulValueType, ['allowed'], 'TXT')
-        )
+
+        # Duplicate id within the same bucket is rejected.
+        v = RecordValidator('dup-test')
+        with validators_snapshot():
+            Record.register_validator(v, types=['A'])
+            with self.assertRaises(RecordException) as ctx:
+                Record.register_validator(v, types=['A'])
+            self.assertIn('"dup-test" already registered', str(ctx.exception))
+
+    def test_unregister_validator(self):
+        # Unregistering a bridge validator (_-prefixed id) is refused.
+        with self.assertRaises(RecordException) as ctx:
+            Record.unregister_validator('_values-type')
+        self.assertIn('Cannot unregister bridge validator', str(ctx.exception))
+
+        # Unregistering by types= removes only from those buckets.
+        v = RecordValidator('my-test')
+        with validators_snapshot():
+            Record.register_validator(v, types=['A', 'AAAA'])
+            Record.unregister_validator('my-test', types=['A'])
+            registry = Record.registered_validators()['record']
+            self.assertNotIn(v, registry.get('A', []))
+            self.assertIn(v, registry.get('AAAA', []))
+
+        # Unregistering without types removes from every bucket.
+        v2 = RecordValidator('my-test2')
+        with validators_snapshot():
+            Record.register_validator(v2, types=['A', 'AAAA'])
+            Record.unregister_validator('my-test2')
+            registry = Record.registered_validators()['record']
+            self.assertNotIn(v2, registry.get('A', []))
+            self.assertNotIn(v2, registry.get('AAAA', []))
+
+        # Unregistering from a type with no bucket registered is a no-op.
+        with validators_snapshot():
+            Record.unregister_validator('nonexistent-id', types=['FAKETYPE'])
 
     def test_legacy_record_validate_deprecation(self):
         # 3rd-party records that still override Record.validate get a
@@ -1225,46 +1281,27 @@ class TestValidators(TestCase):
         self.assertEqual('custom', NameValidator('custom').id)
 
     def test_builtin_validator_ids_are_nonempty_and_unique(self):
-        # Walk every registered record type's MRO, collecting validator
-        # instances from each class's VALIDATORS list. Same for each
-        # value class. Every instance must carry a non-empty id, and
-        # within a single (layer, type) scope ids must be unique.
+        # Every registered validator must have a non-empty id. Ids within
+        # each registry bucket must be unique (enforced by register_validator,
+        # but verified here). Well-known ids must be present somewhere.
+        registry = Record.registered_validators()
         seen = set()
-        for _type, record_cls in Record.registered_types().items():
-            ids_for_type = []
-            for klass in record_cls.__mro__:
-                for v in klass.__dict__.get('VALIDATORS', ()):
+        for layer_name, layer in registry.items():
+            for bucket_key, validators in layer.items():
+                ids = []
+                for v in validators:
                     self.assertTrue(
                         getattr(v, 'id', None),
                         f'{v.__class__.__name__} missing id',
                     )
-                    ids_for_type.append(v.id)
+                    ids.append(v.id)
                     seen.add(v.id)
-            self.assertEqual(
-                len(ids_for_type),
-                len(set(ids_for_type)),
-                f'duplicate record validator ids for {_type}: {ids_for_type}',
-            )
+                self.assertEqual(
+                    len(ids),
+                    len(set(ids)),
+                    f'duplicate {layer_name} validator ids for "{bucket_key}": {ids}',
+                )
 
-            value_type = getattr(record_cls, '_value_type', None)
-            if value_type is None:
-                continue
-            ids_for_value = []
-            for klass in value_type.__mro__:
-                for v in klass.__dict__.get('VALIDATORS', ()):
-                    self.assertTrue(
-                        getattr(v, 'id', None),
-                        f'{v.__class__.__name__} missing id',
-                    )
-                    ids_for_value.append(v.id)
-                    seen.add(v.id)
-            self.assertEqual(
-                len(ids_for_value),
-                len(set(ids_for_value)),
-                f'duplicate value validator ids for {_type}: {ids_for_value}',
-            )
-
-        # A handful of well-known ids should be present across all walks.
         for expected in (
             'name',
             'ttl',

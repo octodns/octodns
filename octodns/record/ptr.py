@@ -3,7 +3,7 @@
 #
 
 from .base import Record, ValuesMixin
-from .target import _TargetsValue
+from .target import TargetsValueValidator, _TargetsValue
 
 
 class PtrValue(_TargetsValue):
@@ -23,3 +23,4 @@ class PtrRecord(ValuesMixin, Record):
 
 
 Record.register_type(PtrRecord)
+Record.register_validator(TargetsValueValidator('targets-value'), types=['PTR'])

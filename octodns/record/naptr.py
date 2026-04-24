@@ -48,8 +48,6 @@ class NaptrValueValidator(ValueValidator):
 class NaptrValue(EqualityTupleMixin, dict):
     VALID_FLAGS = ('S', 'A', 'U', 'P', 's', 'a', 'u', 'p')
 
-    VALIDATORS = [NaptrValueValidator('naptr-value')]
-
     @classmethod
     def _schema(cls):
         return {
@@ -227,3 +225,4 @@ class NaptrRecord(ValuesMixin, Record):
 
 
 Record.register_type(NaptrRecord)
+Record.register_validator(NaptrValueValidator('naptr-value'), types=['NAPTR'])

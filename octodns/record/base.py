@@ -12,7 +12,7 @@ from ..equality import EqualityTupleMixin
 from ..idna import IdnaError, idna_decode, idna_encode
 from .change import Update
 from .exception import RecordException, ValidationError
-from .validator import RecordValidator
+from .validator import RecordValidator, ValueValidator
 
 
 def unquote(s):
@@ -91,6 +91,46 @@ class HealthcheckValidator(RecordValidator):
         return reasons
 
 
+class ValueTypeValidator(RecordValidator):
+    '''
+    Single-value variant of ``ValuesTypeValidator`` for records that use
+    ``ValueMixin``: passes ``data['value']`` (or ``None``) through to the
+    value type's validators.
+    '''
+
+    def __init__(self):
+        super().__init__(id='_value-type')
+
+    def validate(self, record_cls, name, fqdn, data):
+        return _process_value_validators(
+            record_cls._value_type, data.get('value', None), record_cls._type
+        )
+
+
+class ValuesTypeValidator(RecordValidator):
+    '''
+    Bridges a record's ``_value_type`` into the record-level validation
+    pipeline: pulls ``values``/``value`` from ``data``, coerces to a list,
+    and runs the value type's validators (both the legacy ``validate``
+    classmethod on the value class, for 3rd-party back-compat, and any
+    ``VALIDATORS`` declared along the value type's MRO).
+    '''
+
+    def __init__(self):
+        super().__init__(id='_values-type')
+
+    def validate(self, record_cls, name, fqdn, data):
+        values = data.get('values', data.get('value', []))
+        values = values if isinstance(values, (list, tuple)) else [values]
+        return _process_value_validators(
+            record_cls._value_type, values, record_cls._type
+        )
+
+
+_values_type_validator = ValuesTypeValidator()
+_value_type_validator = ValueTypeValidator()
+
+
 class Record(EqualityTupleMixin):
     log = getLogger('Record')
 
@@ -113,6 +153,8 @@ class Record(EqualityTupleMixin):
     )
 
     _CLASSES = {}
+    _RECORD_VALIDATORS = {}
+    _VALUE_VALIDATORS = {}
 
     @classmethod
     def register_type(cls, _class, _type=None):
@@ -125,10 +167,60 @@ class Record(EqualityTupleMixin):
             msg = f'Type "{_type}" already registered by {module}.{name}'
             raise RecordException(msg)
         cls._CLASSES[_type] = _class
+        # we'll auto-register values/value type validators
+        if issubclass(_class, ValuesMixin):
+            cls.register_validator(ValuesTypeValidator(), types=[_type])
+        else:
+            cls.register_validator(ValueTypeValidator(), types=[_type])
 
     @classmethod
     def registered_types(cls):
         return cls._CLASSES
+
+    @classmethod
+    def register_validator(cls, validator, types=None):
+        if isinstance(validator, RecordValidator):
+            registry = cls._RECORD_VALIDATORS
+        elif isinstance(validator, ValueValidator):
+            registry = cls._VALUE_VALIDATORS
+        else:
+            raise RecordException(
+                f'{validator.__class__.__name__} must be a RecordValidator or ValueValidator instance'
+            )
+        keys = ('*',) if types is None else types
+        for key in keys:
+            bucket = registry.setdefault(key, [])
+            for existing in bucket:
+                if existing.id == validator.id:
+                    raise RecordException(
+                        f'Validator id "{validator.id}" already registered for "{key}"'
+                    )
+            bucket.append(validator)
+
+    @classmethod
+    def unregister_validator(cls, validator_id, types=None):
+        if validator_id.startswith('_'):
+            raise RecordException(
+                f'Cannot unregister bridge validator "{validator_id}"'
+            )
+        if types is None:
+            for registry in (cls._RECORD_VALIDATORS, cls._VALUE_VALIDATORS):
+                for bucket in registry.values():
+                    bucket[:] = [v for v in bucket if v.id != validator_id]
+        else:
+            for key in types:
+                for registry in (cls._RECORD_VALIDATORS, cls._VALUE_VALIDATORS):
+                    if key in registry:
+                        registry[key][:] = [
+                            v for v in registry[key] if v.id != validator_id
+                        ]
+
+    @classmethod
+    def registered_validators(cls):
+        return {
+            'record': {k: list(v) for k, v in cls._RECORD_VALIDATORS.items()},
+            'value': {k: list(v) for k, v in cls._VALUE_VALIDATORS.items()},
+        }
 
     @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
@@ -173,19 +265,11 @@ class Record(EqualityTupleMixin):
                 raise ValidationError(fqdn, reasons, context)
         return _class(zone, name, data, source=source, context=context)
 
-    VALIDATORS = [
-        NameValidator('name'),
-        TtlValidator('ttl'),
-        HealthcheckValidator('healthcheck'),
-    ]
-
     @classmethod
     def _process_validators(cls, name, fqdn, data):
         reasons = []
-        # root→leaf so base validators run first, matching the
-        # super().validate() ordering this replaces
-        for klass in reversed(cls.__mro__):
-            for validator in klass.__dict__.get('VALIDATORS', ()):
+        for key in ('*', cls._type):
+            for validator in cls._RECORD_VALIDATORS.get(key, ()):
                 reasons.extend(validator.validate(cls, name, fqdn, data))
         return reasons
 
@@ -379,43 +463,22 @@ class Record(EqualityTupleMixin):
 def _process_value_validators(value_type, values, _type):
     reasons = []
     # Back-compat: 3rd-party value classes may still override validate()
-    # directly rather than declaring VALIDATORS. In-repo value classes no
-    # longer define validate; their VALIDATORS run via the MRO walk below.
+    # directly rather than using the registry.
     legacy = getattr(value_type, 'validate', None)
     if legacy is not None:
         deprecated(
             f'`{value_type.__name__}.validate` classmethod is DEPRECATED. '
-            'Declare validators via the `VALIDATORS` class attribute '
-            'instead. Will be removed in 2.0',
+            'Use Record.register_validator instead. Will be removed in 2.0',
             stacklevel=3,
         )
         reasons.extend(legacy(values, _type))
-    for klass in reversed(value_type.__mro__):
-        for validator in klass.__dict__.get('VALIDATORS', ()):
+    for key in ('*', _type):
+        for validator in Record._VALUE_VALIDATORS.get(key, ()):
             reasons.extend(validator.validate(value_type, values, _type))
     return reasons
 
 
-class ValuesTypeValidator(RecordValidator):
-    '''
-    Bridges a record's ``_value_type`` into the record-level validation
-    pipeline: pulls ``values``/``value`` from ``data``, coerces to a list,
-    and runs the value type's validators (both the legacy ``validate``
-    classmethod on the value class, for 3rd-party back-compat, and any
-    ``VALIDATORS`` declared along the value type's MRO).
-    '''
-
-    def validate(self, record_cls, name, fqdn, data):
-        values = data.get('values', data.get('value', []))
-        values = values if isinstance(values, (list, tuple)) else [values]
-        return _process_value_validators(
-            record_cls._value_type, values, record_cls._type
-        )
-
-
 class ValuesMixin(object):
-    VALIDATORS = [ValuesTypeValidator('_values-type')]
-
     @classmethod
     def data_from_rrs(cls, rrs):
         # type and TTL come from the first rr
@@ -473,22 +536,7 @@ class ValuesMixin(object):
         return f"<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, ['{values}']{octodns}>"
 
 
-class ValueTypeValidator(RecordValidator):
-    '''
-    Single-value variant of ``ValuesTypeValidator`` for records that use
-    ``ValueMixin``: passes ``data['value']`` (or ``None``) through to the
-    value type's validators.
-    '''
-
-    def validate(self, record_cls, name, fqdn, data):
-        return _process_value_validators(
-            record_cls._value_type, data.get('value', None), record_cls._type
-        )
-
-
 class ValueMixin(object):
-    VALIDATORS = [ValueTypeValidator('_value-type')]
-
     @classmethod
     def data_from_rrs(cls, rrs):
         # single value, so single rr only...
@@ -523,3 +571,8 @@ class ValueMixin(object):
         if self.octodns:
             octodns = f', {self.octodns}'
         return f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, {self.value}{octodns}>'
+
+
+Record.register_validator(NameValidator('name'))
+Record.register_validator(TtlValidator('ttl'))
+Record.register_validator(HealthcheckValidator('healthcheck'))

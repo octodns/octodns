@@ -9,13 +9,15 @@ from ipaddress import AddressValueError, IPv4Address, IPv6Address
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import Record, ValuesMixin, _process_value_validators, unquote
-from .chunked import _ChunkedValue
+from .base import Record, ValuesMixin, unquote
+from .chunked import ChunkedValueValidator, _ChunkedValue
 from .rr import RrParseError
 from .target import validate_target_fqdn
 from .validator import ValueValidator
 
 SUPPORTED_PARAMS = {}
+
+_chunked_validator = ChunkedValueValidator('chunked-value')
 
 
 def validate_svcparam_port(svcparamvalue):
@@ -39,9 +41,7 @@ def validate_svcparam_alpn(svcparamvalue):
     reasons = validate_list('alpn', svcparamvalue)
     if len(reasons) != 0:
         return reasons
-    for alpn in svcparamvalue:
-        reasons += _process_value_validators(_ChunkedValue, alpn, 'SVCB')
-    return reasons
+    return _chunked_validator.validate(_ChunkedValue, svcparamvalue, 'SVCB')
 
 
 def validate_svcparam_iphint(ip_version, svcparamvalue):
@@ -199,9 +199,6 @@ class SvcbValueValidator(ValueValidator):
 
 
 class SvcbValue(EqualityTupleMixin, dict):
-
-    VALIDATORS = [SvcbValueValidator('svcb-value')]
-
     @classmethod
     def _schema(cls):
         return {
@@ -342,3 +339,4 @@ class SvcbRecord(ValuesMixin, Record):
 
 
 Record.register_type(SvcbRecord)
+Record.register_validator(SvcbValueValidator('svcb-value'), types=['SVCB'])

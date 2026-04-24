@@ -58,8 +58,6 @@ class TargetsValueValidator(ValueValidator):
 
 
 class _TargetValue(str):
-    VALIDATORS = [TargetValueValidator('target-value')]
-
     @classmethod
     def parse_rdata_text(self, value):
         return value
@@ -91,8 +89,6 @@ class _TargetValue(str):
 #
 # much like _TargetValue, but geared towards multiple values
 class _TargetsValue(str):
-    VALIDATORS = [TargetsValueValidator('targets-value')]
-
     @classmethod
     def parse_rdata_text(cls, value):
         return value

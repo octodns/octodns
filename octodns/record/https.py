@@ -4,7 +4,7 @@
 #
 
 from .base import Record, ValuesMixin
-from .svcb import SvcbValue
+from .svcb import SvcbValue, SvcbValueValidator
 
 
 class HttpsValue(SvcbValue):
@@ -22,3 +22,4 @@ class HttpsRecord(ValuesMixin, Record):
 
 
 Record.register_type(HttpsRecord)
+Record.register_validator(SvcbValueValidator('svcb-value'), types=['HTTPS'])

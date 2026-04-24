@@ -3,8 +3,8 @@
 #
 
 from .base import Record, ValueMixin
-from .dynamic import _DynamicMixin
-from .target import _TargetValue
+from .dynamic import DynamicValidator, _DynamicMixin
+from .target import TargetValueValidator, _TargetValue
 
 
 class DnameValue(_TargetValue):
@@ -18,3 +18,5 @@ class DnameRecord(_DynamicMixin, ValueMixin, Record):
 
 
 Record.register_type(DnameRecord)
+Record.register_validator(DynamicValidator('dynamic'), types=['DNAME'])
+Record.register_validator(TargetValueValidator('target-value'), types=['DNAME'])

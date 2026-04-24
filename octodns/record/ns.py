@@ -3,7 +3,7 @@
 #
 
 from .base import Record, ValuesMixin
-from .target import _TargetsValue
+from .target import TargetsValueValidator, _TargetsValue
 
 
 class NsValue(_TargetsValue):
@@ -17,3 +17,4 @@ class NsRecord(ValuesMixin, Record):
 
 
 Record.register_type(NsRecord)
+Record.register_validator(TargetsValueValidator('targets-value'), types=['NS'])

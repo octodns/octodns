@@ -25,8 +25,6 @@ class OpenpgpkeyValue(str):
     RFC 7929 - DANE Bindings for OpenPGP
     '''
 
-    VALIDATORS = [OpenpgpkeyValueValidator('openpgpkey-value')]
-
     @classmethod
     def _schema(cls):
         return {'type': 'string'}
@@ -58,3 +56,6 @@ class OpenpgpkeyRecord(ValuesMixin, Record):
 
 
 Record.register_type(OpenpgpkeyRecord)
+Record.register_validator(
+    OpenpgpkeyValueValidator('openpgpkey-value'), types=['OPENPGPKEY']
+)

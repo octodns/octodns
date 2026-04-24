@@ -34,8 +34,6 @@ class IpValueValidator(ValueValidator):
 
 
 class _IpValue(str):
-    VALIDATORS = [IpValueValidator('ip-value')]
-
     @classmethod
     def parse_rdata_text(cls, value):
         return value

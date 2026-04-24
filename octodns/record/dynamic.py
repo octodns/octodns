@@ -460,8 +460,6 @@ class _DynamicMixin(object):
 
         return reasons, pools_seen
 
-    VALIDATORS = [DynamicValidator('dynamic')]
-
     def __init__(self, zone, name, data, *args, **kwargs):
         super().__init__(zone, name, data, *args, **kwargs)
 

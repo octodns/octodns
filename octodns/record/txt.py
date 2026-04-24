@@ -3,7 +3,7 @@
 #
 
 from .base import Record
-from .chunked import _ChunkedValue, _ChunkedValuesMixin
+from .chunked import ChunkedValueValidator, _ChunkedValue, _ChunkedValuesMixin
 
 
 class TxtValue(_ChunkedValue):
@@ -21,3 +21,4 @@ class TxtRecord(_ChunkedValuesMixin, Record):
 
 
 Record.register_type(TxtRecord)
+Record.register_validator(ChunkedValueValidator('chunked-value'), types=['TXT'])

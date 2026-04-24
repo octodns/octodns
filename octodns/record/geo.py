@@ -183,8 +183,6 @@ class _GeoMixin(ValuesMixin):
             },
         }
 
-    VALIDATORS = [GeoValidator('geo')]
-
     def __init__(self, zone, name, data, *args, **kwargs):
         super().__init__(zone, name, data, *args, **kwargs)
         try:

@@ -61,8 +61,6 @@ class CaaValue(EqualityTupleMixin, dict):
         value = unquote(value)
         return {'flags': flags, 'tag': tag, 'value': value}
 
-    VALIDATORS = [CaaValueValidator('caa-value')]
-
     @classmethod
     def process(cls, values):
         return [cls(v) for v in values]
@@ -133,3 +131,4 @@ class CaaRecord(ValuesMixin, Record):
 
 
 Record.register_type(CaaRecord)
+Record.register_validator(CaaValueValidator('caa-value'), types=['CAA'])

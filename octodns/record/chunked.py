@@ -70,8 +70,6 @@ class _ChunkedValuesMixin(ValuesMixin):
 
 
 class _ChunkedValue(str):
-    VALIDATORS = [ChunkedValueValidator('chunked-value')]
-
     @classmethod
     def parse_rdata_text(cls, value):
         try:

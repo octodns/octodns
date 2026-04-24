@@ -84,8 +84,6 @@ class MxValue(EqualityTupleMixin, dict):
         exchange = unquote(exchange)
         return {'preference': preference, 'exchange': exchange}
 
-    VALIDATORS = [MxValueValidator('mx-value')]
-
     @classmethod
     def process(cls, values):
         return [cls(v) for v in values]
@@ -157,3 +155,4 @@ class MxRecord(ValuesMixin, Record):
 
 
 Record.register_type(MxRecord)
+Record.register_validator(MxValueValidator('mx-value'), types=['MX'])

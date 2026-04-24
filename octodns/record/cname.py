@@ -3,8 +3,8 @@
 #
 
 from .base import Record, ValueMixin
-from .dynamic import _DynamicMixin
-from .target import _TargetValue
+from .dynamic import DynamicValidator, _DynamicMixin
+from .target import TargetValueValidator, _TargetValue
 from .validator import RecordValidator
 
 
@@ -29,7 +29,8 @@ class CnameRecord(_DynamicMixin, ValueMixin, Record):
     _type = 'CNAME'
     _value_type = CnameValue
 
-    VALIDATORS = [CnameRootValidator('cname-root')]
-
 
 Record.register_type(CnameRecord)
+Record.register_validator(CnameRootValidator('cname-root'), types=['CNAME'])
+Record.register_validator(DynamicValidator('dynamic'), types=['CNAME'])
+Record.register_validator(TargetValueValidator('target-value'), types=['CNAME'])
