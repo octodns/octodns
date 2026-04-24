@@ -154,43 +154,61 @@ Built-in validator ids
 
 Each built-in validator has a stable short id:
 
-+---------------------+------------------------------------------+
-| id                  | description                              |
-+=====================+==========================================+
-| ``name``            | Record name format                       |
-+---------------------+------------------------------------------+
-| ``ttl``             | TTL range (positive integer)             |
-+---------------------+------------------------------------------+
-| ``healthcheck``     | Octodns healthcheck config fields        |
-+---------------------+------------------------------------------+
-| ``cname-root``      | CNAME must not be at zone root           |
-+---------------------+------------------------------------------+
-| ``alias-root``      | ALIAS must not be at zone root           |
-+---------------------+------------------------------------------+
-| ``srv-name``        | SRV name format                          |
-+---------------------+------------------------------------------+
-| ``uri-name``        | URI name format                          |
-+---------------------+------------------------------------------+
-| ``geo``             | Geo routing config                       |
-+---------------------+------------------------------------------+
-| ``dynamic``         | Dynamic routing config                   |
-+---------------------+------------------------------------------+
-| ``ip-value``        | A / AAAA value format                    |
-+---------------------+------------------------------------------+
-| ``caa-value``       | CAA rdata format                         |
-+---------------------+------------------------------------------+
-| ``mx-value``        | MX rdata format                          |
-+---------------------+------------------------------------------+
-| ``target-value``    | CNAME/ALIAS/DNAME/PTR target format      |
-+---------------------+------------------------------------------+
-| ``targets-value``   | NS targets format                        |
-+---------------------+------------------------------------------+
-| ``sshfp-value``     | SSHFP algorithm/fingerprint format       |
-+---------------------+------------------------------------------+
-| ``srv-value``       | SRV rdata format                         |
-+---------------------+------------------------------------------+
-| ``chunked-value``   | TXT/SPF chunk size                       |
-+---------------------+------------------------------------------+
++----------------------+------------------------------------------+
+| id                   | description                              |
++======================+==========================================+
+| ``name``             | Record name format                       |
++----------------------+------------------------------------------+
+| ``ttl``              | TTL range (positive integer)             |
++----------------------+------------------------------------------+
+| ``healthcheck``      | Octodns healthcheck config fields        |
++----------------------+------------------------------------------+
+| ``cname-root``       | CNAME must not be at zone root           |
++----------------------+------------------------------------------+
+| ``alias-root``       | ALIAS must not be at zone root           |
++----------------------+------------------------------------------+
+| ``srv-name``         | SRV name format                          |
++----------------------+------------------------------------------+
+| ``uri-name``         | URI name format                          |
++----------------------+------------------------------------------+
+| ``geo``              | Geo routing config                       |
++----------------------+------------------------------------------+
+| ``dynamic``          | Dynamic routing config                   |
++----------------------+------------------------------------------+
+| ``ip-value``         | A / AAAA value format                    |
++----------------------+------------------------------------------+
+| ``caa-value``        | CAA rdata format                         |
++----------------------+------------------------------------------+
+| ``mx-value``         | MX rdata format                          |
++----------------------+------------------------------------------+
+| ``target-value``     | CNAME/ALIAS/DNAME/PTR target format      |
++----------------------+------------------------------------------+
+| ``targets-value``    | NS targets format                        |
++----------------------+------------------------------------------+
+| ``sshfp-value``      | SSHFP algorithm/fingerprint format       |
++----------------------+------------------------------------------+
+| ``srv-value``        | SRV rdata format                         |
++----------------------+------------------------------------------+
+| ``uri-value``        | URI rdata format                         |
++----------------------+------------------------------------------+
+| ``naptr-value``      | NAPTR rdata format                       |
++----------------------+------------------------------------------+
+| ``loc-value``        | LOC rdata format                         |
++----------------------+------------------------------------------+
+| ``ds-value``         | DS rdata format                          |
++----------------------+------------------------------------------+
+| ``tlsa-value``       | TLSA rdata format                        |
++----------------------+------------------------------------------+
+| ``openpgpkey-value`` | OPENPGPKEY rdata format                  |
++----------------------+------------------------------------------+
+| ``urlfwd-value``     | URLFWD rdata format                      |
++----------------------+------------------------------------------+
+| ``svcb-value``       | SVCB rdata format                        |
++----------------------+------------------------------------------+
+| ``https-value``      | HTTPS rdata format                       |
++----------------------+------------------------------------------+
+| ``chunked-value``    | TXT/SPF chunk size                       |
++----------------------+------------------------------------------+
 
 Ids prefixed with ``_`` (e.g. ``_values-type``) are internal bridge validators
 that cannot be disabled.
@@ -241,7 +259,38 @@ Attaching validators programmatically
 ......................................
 
 Third-party modules (providers, processors, plugins) can register validators at
-import time without any config entry::
+import time without any config entry. There are two paths depending on whether
+the validator belongs to a ``Record`` subclass / value class or stands on its
+own.
+
+For a custom ``Record`` subclass (or a custom value class), declare a
+``VALIDATORS`` class attribute. ``Record.register_type`` walks the new
+class's MRO collecting every ``VALIDATORS`` list it finds, plus
+``_value_type.VALIDATORS`` if defined, and registers each one against the
+new type::
+
+  from octodns.record import Record, ValuesMixin
+  from octodns.record.validator import RecordValidator, ValueValidator
+
+  class FooValueValidator(ValueValidator):
+      def validate(self, value_cls, data, _type): ...
+
+  class FooValue(str):
+      VALIDATORS = [FooValueValidator('foo-value')]
+      ...
+
+  class NoPublicFooValidator(RecordValidator):
+      def validate(self, record_cls, name, fqdn, data): ...
+
+  class FooRecord(ValuesMixin, Record):
+      _type = 'FOO'
+      _value_type = FooValue
+      VALIDATORS = [NoPublicFooValidator('no-public-foo')]
+
+  Record.register_type(FooRecord)
+
+To attach a validator to an already-registered record type, call
+``Record.register_validator`` directly::
 
   from octodns.record import Record
   from octodns.record.validator import RecordValidator
