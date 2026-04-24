@@ -1,0 +1,9 @@
+validators:
+  my-validator:
+    class: helpers.TestRecordValidator
+manager:
+  validators:
+    '*':
+      - nonexistent-validator
+providers: {}
+zones: {}

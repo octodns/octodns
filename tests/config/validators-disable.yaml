@@ -1,0 +1,6 @@
+manager:
+  disable_validators:
+    '*':
+      - healthcheck
+providers: {}
+zones: {}

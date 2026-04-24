@@ -1,0 +1,9 @@
+validators:
+  my-value-validator:
+    class: helpers.TestValueValidator
+manager:
+  validators:
+    TXT:
+      - my-value-validator
+providers: {}
+zones: {}

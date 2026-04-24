@@ -2,6 +2,7 @@
 #
 #
 
+from contextlib import contextmanager
 from logging import getLogger
 from shutil import rmtree
 from tempfile import mkdtemp
@@ -9,7 +10,22 @@ from tempfile import mkdtemp
 from octodns.processor.base import BaseProcessor
 from octodns.provider.base import BaseProvider
 from octodns.provider.yaml import YamlProvider
+from octodns.record import Record
+from octodns.record.validator import RecordValidator, ValueValidator
 from octodns.secret.base import BaseSecrets
+
+
+@contextmanager
+def validators_snapshot():
+    record_snap = {k: list(v) for k, v in Record._RECORD_VALIDATORS.items()}
+    value_snap = {k: list(v) for k, v in Record._VALUE_VALIDATORS.items()}
+    try:
+        yield
+    finally:
+        Record._RECORD_VALIDATORS.clear()
+        Record._RECORD_VALIDATORS.update(record_snap)
+        Record._VALUE_VALIDATORS.clear()
+        Record._VALUE_VALIDATORS.update(value_snap)
 
 
 class SimpleSource(object):
@@ -135,6 +151,30 @@ class CountingProcessor(BaseProcessor):
     def process_source_zone(self, zone, sources, lenient=False):
         self.count += len(zone.records)
         return zone
+
+
+class TestRecordValidator(RecordValidator):
+    def __init__(self, id, min_ttl=None):
+        super().__init__(id)
+        self.min_ttl = min_ttl
+
+    def validate(self, record_cls, name, fqdn, data):
+        if self.min_ttl and data.get('ttl', 0) < self.min_ttl:
+            return [f'ttl must be at least {self.min_ttl}']
+        return []
+
+
+class TestValueValidator(ValueValidator):
+    def __init__(self, id):
+        super().__init__(id)
+
+    def validate(self, value_cls, data, _type):
+        return []
+
+
+class NotAValidator:
+    def __init__(self, id):
+        self.id = id
 
 
 class DummySecrets(BaseSecrets):

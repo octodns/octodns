@@ -3,8 +3,9 @@
 #
 
 import warnings
-from contextlib import contextmanager
 from unittest import TestCase
+
+from helpers import validators_snapshot
 
 from octodns.idna import idna_encode
 from octodns.record import (
@@ -40,19 +41,6 @@ from octodns.record.uri import UriNameValidator, UriRecord
 from octodns.record.validator import RecordValidator, ValueValidator
 from octodns.yaml import ContextDict
 from octodns.zone import Zone
-
-
-@contextmanager
-def validators_snapshot():
-    record_snap = {k: list(v) for k, v in Record._RECORD_VALIDATORS.items()}
-    value_snap = {k: list(v) for k, v in Record._VALUE_VALIDATORS.items()}
-    try:
-        yield
-    finally:
-        Record._RECORD_VALIDATORS.clear()
-        Record._RECORD_VALIDATORS.update(record_snap)
-        Record._VALUE_VALIDATORS.clear()
-        Record._VALUE_VALIDATORS.update(value_snap)
 
 
 class TestRecord(TestCase):
