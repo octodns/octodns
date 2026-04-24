@@ -4,7 +4,7 @@
 
 from ..deprecation import deprecated
 from .base import Record
-from .chunked import ChunkedValueValidator, _ChunkedValue, _ChunkedValuesMixin
+from .chunked import _ChunkedValue, _ChunkedValuesMixin
 
 
 class SpfRecord(_ChunkedValuesMixin, Record):
@@ -21,4 +21,4 @@ class SpfRecord(_ChunkedValuesMixin, Record):
 
 
 Record.register_type(SpfRecord)
-Record.register_validator(ChunkedValueValidator('chunked-value'), types=['SPF'])
+Record.register_validator(_ChunkedValuesMixin.VALIDATOR, types=['SPF'])

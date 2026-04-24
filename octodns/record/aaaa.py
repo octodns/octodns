@@ -5,9 +5,9 @@
 from ipaddress import IPv6Address as _IPv6Address
 
 from .base import Record
-from .dynamic import DynamicValidator, _DynamicMixin
-from .geo import GeoValidator, _GeoMixin
-from .ip import IpValueValidator, _IpValue
+from .dynamic import _DynamicMixin
+from .geo import _GeoMixin
+from .ip import _IpValue
 
 
 class Ipv6Value(_IpValue):
@@ -25,6 +25,6 @@ class AaaaRecord(_DynamicMixin, _GeoMixin, Record):
 
 
 Record.register_type(AaaaRecord)
-Record.register_validator(GeoValidator('geo'), types=['AAAA'])
-Record.register_validator(DynamicValidator('dynamic'), types=['AAAA'])
-Record.register_validator(IpValueValidator('ip-value'), types=['AAAA'])
+Record.register_validator(_GeoMixin.VALIDATOR, types=['AAAA'])
+Record.register_validator(_DynamicMixin.VALIDATOR, types=['AAAA'])
+Record.register_validator(Ipv6Value.VALIDATOR, types=['AAAA'])

@@ -166,6 +166,8 @@ class _GeoMixin(ValuesMixin):
     Must be included before `Record`.
     '''
 
+    VALIDATOR = GeoValidator('geo')
+
     @classmethod
     def _schema(cls, value_schema):
         '''JSON Schema fragment describing the `geo` block.

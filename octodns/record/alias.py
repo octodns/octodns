@@ -3,7 +3,7 @@
 #
 
 from .base import Record, ValueMixin
-from .target import TargetValueValidator, _TargetValue
+from .target import _TargetValue
 from .validator import RecordValidator
 
 
@@ -31,4 +31,4 @@ class AliasRecord(ValueMixin, Record):
 
 Record.register_type(AliasRecord)
 Record.register_validator(AliasRootValidator('alias-root'), types=['ALIAS'])
-Record.register_validator(TargetValueValidator('target-value'), types=['ALIAS'])
+Record.register_validator(_TargetValue.VALIDATOR, types=['ALIAS'])
