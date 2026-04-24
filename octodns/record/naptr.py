@@ -222,7 +222,7 @@ class NaptrRecord(ValuesMixin, Record):
     )
     _type = 'NAPTR'
     _value_type = NaptrValue
+    VALIDATORS = [NaptrValueValidator('naptr-value')]
 
 
 Record.register_type(NaptrRecord)
-Record.register_validator(NaptrValueValidator('naptr-value'), types=['NAPTR'])

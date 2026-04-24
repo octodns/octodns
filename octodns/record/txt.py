@@ -21,4 +21,3 @@ class TxtRecord(_ChunkedValuesMixin, Record):
 
 
 Record.register_type(TxtRecord)
-Record.register_validator(_ChunkedValuesMixin.VALIDATOR, types=['TXT'])

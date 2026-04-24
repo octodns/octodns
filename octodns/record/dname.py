@@ -18,5 +18,3 @@ class DnameRecord(_DynamicMixin, ValueMixin, Record):
 
 
 Record.register_type(DnameRecord)
-Record.register_validator(_DynamicMixin.VALIDATOR, types=['DNAME'])
-Record.register_validator(_TargetValue.VALIDATOR, types=['DNAME'])

@@ -28,9 +28,7 @@ class CnameRecord(_DynamicMixin, ValueMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc1035',)
     _type = 'CNAME'
     _value_type = CnameValue
+    VALIDATORS = [CnameRootValidator('cname-root')]
 
 
 Record.register_type(CnameRecord)
-Record.register_validator(CnameRootValidator('cname-root'), types=['CNAME'])
-Record.register_validator(_DynamicMixin.VALIDATOR, types=['CNAME'])
-Record.register_validator(_TargetValue.VALIDATOR, types=['CNAME'])

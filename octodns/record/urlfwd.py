@@ -178,9 +178,7 @@ class UrlfwdRecord(ValuesMixin, Record):
     REFERENCES = ()
     _type = 'URLFWD'
     _value_type = UrlfwdValue
+    VALIDATORS = [UrlfwdValueValidator('urlfwd-value')]
 
 
 Record.register_type(UrlfwdRecord)
-Record.register_validator(
-    UrlfwdValueValidator('urlfwd-value'), types=['URLFWD']
-)

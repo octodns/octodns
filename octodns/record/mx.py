@@ -152,7 +152,7 @@ class MxRecord(ValuesMixin, Record):
     )
     _type = 'MX'
     _value_type = MxValue
+    VALIDATORS = [MxValueValidator('mx-value')]
 
 
 Record.register_type(MxRecord)
-Record.register_validator(MxValueValidator('mx-value'), types=['MX'])

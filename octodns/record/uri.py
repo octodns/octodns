@@ -158,8 +158,7 @@ class UriRecord(ValuesMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc7553',)
     _type = 'URI'
     _value_type = UriValue
+    VALIDATORS = [UriNameValidator('uri-name'), UriValueValidator('uri-value')]
 
 
 Record.register_type(UriRecord)
-Record.register_validator(UriNameValidator('uri-name'), types=['URI'])
-Record.register_validator(UriValueValidator('uri-value'), types=['URI'])

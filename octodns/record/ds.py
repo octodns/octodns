@@ -225,7 +225,7 @@ class DsRecord(ValuesMixin, Record):
     )
     _type = 'DS'
     _value_type = DsValue
+    VALIDATORS = [DsValueValidator('ds-value')]
 
 
 Record.register_type(DsRecord)
-Record.register_validator(DsValueValidator('ds-value'), types=['DS'])

@@ -25,6 +25,3 @@ class ARecord(_DynamicMixin, _GeoMixin, Record):
 
 
 Record.register_type(ARecord)
-Record.register_validator(_GeoMixin.VALIDATOR, types=['A'])
-Record.register_validator(_DynamicMixin.VALIDATOR, types=['A'])
-Record.register_validator(Ipv4Value.VALIDATOR, types=['A'])

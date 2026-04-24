@@ -181,8 +181,7 @@ class SrvRecord(ValuesMixin, Record):
     )
     _type = 'SRV'
     _value_type = SrvValue
+    VALIDATORS = [SrvNameValidator('srv-name'), SrvValueValidator('srv-value')]
 
 
 Record.register_type(SrvRecord)
-Record.register_validator(SrvNameValidator('srv-name'), types=['SRV'])
-Record.register_validator(SrvValueValidator('srv-value'), types=['SRV'])

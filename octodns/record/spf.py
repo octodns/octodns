@@ -21,4 +21,3 @@ class SpfRecord(_ChunkedValuesMixin, Record):
 
 
 Record.register_type(SpfRecord)
-Record.register_validator(_ChunkedValuesMixin.VALIDATOR, types=['SPF'])

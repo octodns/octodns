@@ -17,4 +17,3 @@ class NsRecord(ValuesMixin, Record):
 
 
 Record.register_type(NsRecord)
-Record.register_validator(_TargetsValue.VALIDATOR, types=['NS'])

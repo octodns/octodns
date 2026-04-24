@@ -203,7 +203,7 @@ class TlsaRecord(ValuesMixin, Record):
     )
     _type = 'TLSA'
     _value_type = TlsaValue
+    VALIDATORS = [TlsaValueValidator('tlsa-value')]
 
 
 Record.register_type(TlsaRecord)
-Record.register_validator(TlsaValueValidator('tlsa-value'), types=['TLSA'])

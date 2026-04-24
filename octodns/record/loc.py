@@ -433,7 +433,7 @@ class LocRecord(ValuesMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc1876',)
     _type = 'LOC'
     _value_type = LocValue
+    VALIDATORS = [LocValueValidator('loc-value')]
 
 
 Record.register_type(LocRecord)
-Record.register_validator(LocValueValidator('loc-value'), types=['LOC'])

@@ -36,7 +36,7 @@ class ChunkedValueValidator(ValueValidator):
 
 
 class _ChunkedValuesMixin(ValuesMixin):
-    VALIDATOR = ChunkedValueValidator('chunked-value')
+    VALIDATORS = [ChunkedValueValidator('chunked-value')]
 
     CHUNK_SIZE = 255
 

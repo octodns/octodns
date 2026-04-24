@@ -25,6 +25,3 @@ class AaaaRecord(_DynamicMixin, _GeoMixin, Record):
 
 
 Record.register_type(AaaaRecord)
-Record.register_validator(_GeoMixin.VALIDATOR, types=['AAAA'])
-Record.register_validator(_DynamicMixin.VALIDATOR, types=['AAAA'])
-Record.register_validator(Ipv6Value.VALIDATOR, types=['AAAA'])

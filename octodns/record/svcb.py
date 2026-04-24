@@ -39,7 +39,7 @@ def validate_svcparam_alpn(svcparamvalue):
     reasons = validate_list('alpn', svcparamvalue)
     if len(reasons) != 0:
         return reasons
-    return _ChunkedValuesMixin.VALIDATOR.validate(
+    return _ChunkedValuesMixin.VALIDATORS[0].validate(
         _ChunkedValue, svcparamvalue, 'SVCB'
     )
 
@@ -336,7 +336,7 @@ class SvcbRecord(ValuesMixin, Record):
     )
     _type = 'SVCB'
     _value_type = SvcbValue
+    VALIDATORS = [SvcbValueValidator('svcb-value')]
 
 
 Record.register_type(SvcbRecord)
-Record.register_validator(SvcbValueValidator('svcb-value'), types=['SVCB'])

@@ -23,4 +23,3 @@ class PtrRecord(ValuesMixin, Record):
 
 
 Record.register_type(PtrRecord)
-Record.register_validator(_TargetsValue.VALIDATOR, types=['PTR'])

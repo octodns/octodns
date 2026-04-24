@@ -175,7 +175,7 @@ class SshfpRecord(ValuesMixin, Record):
     )
     _type = 'SSHFP'
     _value_type = SshfpValue
+    VALIDATORS = [SshfpValueValidator('sshfp-value')]
 
 
 Record.register_type(SshfpRecord)
-Record.register_validator(SshfpValueValidator('sshfp-value'), types=['SSHFP'])

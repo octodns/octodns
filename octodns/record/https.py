@@ -19,7 +19,7 @@ class HttpsRecord(ValuesMixin, Record):
     )
     _type = 'HTTPS'
     _value_type = HttpsValue
+    VALIDATORS = [SvcbValueValidator('https-value')]
 
 
 Record.register_type(HttpsRecord)
-Record.register_validator(SvcbValueValidator('https-value'), types=['HTTPS'])

@@ -27,8 +27,7 @@ class AliasRecord(ValueMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/draft-ietf-dnsop-aname/',)
     _type = 'ALIAS'
     _value_type = AliasValue
+    VALIDATORS = [AliasRootValidator('alias-root')]
 
 
 Record.register_type(AliasRecord)
-Record.register_validator(AliasRootValidator('alias-root'), types=['ALIAS'])
-Record.register_validator(_TargetValue.VALIDATOR, types=['ALIAS'])

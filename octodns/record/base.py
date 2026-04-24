@@ -153,8 +153,8 @@ class Record(EqualityTupleMixin):
     )
 
     _CLASSES = {}
-    _RECORD_VALIDATORS = {}
-    _VALUE_VALIDATORS = {}
+    _RECORD_VALIDATORS = defaultdict(set)
+    _VALUE_VALIDATORS = defaultdict(set)
 
     @classmethod
     def register_type(cls, _class, _type=None):
@@ -167,11 +167,19 @@ class Record(EqualityTupleMixin):
             msg = f'Type "{_type}" already registered by {module}.{name}'
             raise RecordException(msg)
         cls._CLASSES[_type] = _class
-        # we'll auto-register values/value type validators
+        # Register the bridge validator for values/values
         if issubclass(_class, ValuesMixin):
             cls.register_validator(ValuesTypeValidator(), types=[_type])
         else:
             cls.register_validator(ValueTypeValidator(), types=[_type])
+        # Walk the MRO to find VALIDATORS at any level
+        for klass in _class.__mro__:
+            for validator in klass.__dict__.get('VALIDATORS', ()):
+                cls.register_validator(validator, types=[_type])
+        # invlude value validators
+        vt = getattr(_class, '_value_type', None)
+        for validator in getattr(vt, 'VALIDATORS', ()):
+            cls.register_validator(validator, types=[_type])
 
     @classmethod
     def registered_types(cls):

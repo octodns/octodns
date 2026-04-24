@@ -53,9 +53,7 @@ class OpenpgpkeyRecord(ValuesMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc7929',)
     _type = 'OPENPGPKEY'
     _value_type = OpenpgpkeyValue
+    VALIDATORS = [OpenpgpkeyValueValidator('openpgpkey-value')]
 
 
 Record.register_type(OpenpgpkeyRecord)
-Record.register_validator(
-    OpenpgpkeyValueValidator('openpgpkey-value'), types=['OPENPGPKEY']
-)

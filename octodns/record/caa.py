@@ -128,7 +128,7 @@ class CaaRecord(ValuesMixin, Record):
     )
     _type = 'CAA'
     _value_type = CaaValue
+    VALIDATORS = [CaaValueValidator('caa-value')]
 
 
 Record.register_type(CaaRecord)
-Record.register_validator(CaaValueValidator('caa-value'), types=['CAA'])
