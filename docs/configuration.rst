@@ -135,9 +135,126 @@ with a ``.``, label length restrictions, and invalid geo codes on ``dynamic``
 records. When in lenient mode octoDNS will log validation problems at
 ``WARNING`` and try and continue with the configuration or source data as it
 exists. See Lenience_ for more information on the concept and how it can be
-configured.
+configured. For more targeted control — selectively disabling specific checks
+or adding custom validation rules — see `Validators`_ below.
 
 .. _Lenience: records.rst#lenience
+
+Validators
+----------
+
+octoDNS ships with a suite of built-in validators that check records for
+correctness (valid TTLs, well-formed values, healthcheck protocol names, etc.)
+before any changes are applied. The validator system supports three operations:
+adding custom validators, disabling built-in validators, and attaching
+validators programmatically from third-party code.
+
+Built-in validator ids
+......................
+
+Each built-in validator has a stable short id:
+
++---------------------+------------------------------------------+
+| id                  | description                              |
++=====================+==========================================+
+| ``name``            | Record name format                       |
++---------------------+------------------------------------------+
+| ``ttl``             | TTL range (positive integer)             |
++---------------------+------------------------------------------+
+| ``healthcheck``     | Octodns healthcheck config fields        |
++---------------------+------------------------------------------+
+| ``cname-root``      | CNAME must not be at zone root           |
++---------------------+------------------------------------------+
+| ``alias-root``      | ALIAS must not be at zone root           |
++---------------------+------------------------------------------+
+| ``srv-name``        | SRV name format                          |
++---------------------+------------------------------------------+
+| ``uri-name``        | URI name format                          |
++---------------------+------------------------------------------+
+| ``geo``             | Geo routing config                       |
++---------------------+------------------------------------------+
+| ``dynamic``         | Dynamic routing config                   |
++---------------------+------------------------------------------+
+| ``ip-value``        | A / AAAA value format                    |
++---------------------+------------------------------------------+
+| ``caa-value``       | CAA rdata format                         |
++---------------------+------------------------------------------+
+| ``mx-value``        | MX rdata format                          |
++---------------------+------------------------------------------+
+| ``target-value``    | CNAME/ALIAS/DNAME/PTR target format      |
++---------------------+------------------------------------------+
+| ``targets-value``   | NS targets format                        |
++---------------------+------------------------------------------+
+| ``sshfp-value``     | SSHFP algorithm/fingerprint format       |
++---------------------+------------------------------------------+
+| ``srv-value``       | SRV rdata format                         |
++---------------------+------------------------------------------+
+| ``chunked-value``   | TXT/SPF chunk size                       |
++---------------------+------------------------------------------+
+
+Ids prefixed with ``_`` (e.g. ``_values-type``) are internal bridge validators
+that cannot be disabled.
+
+Adding validators via config
+............................
+
+Custom validators are declared in a top-level ``validators:`` section (parallel
+to ``providers:`` and ``processors:``) and then wired into specific record types
+— or all types — under ``manager:``::
+
+  validators:
+    my-ttl-floor:
+      class: mymodule.MinTtlValidator
+      min_ttl: 300
+
+  manager:
+    validators:
+      '*':
+        - my-ttl-floor
+
+The ``class`` key specifies the dotted import path of a
+:py:class:`~octodns.record.validator.RecordValidator` or
+:py:class:`~octodns.record.validator.ValueValidator` subclass. All other keys
+under the validator name are passed as keyword arguments to ``__init__`` after
+the mandatory ``id`` (config key) argument. Targeting ``'*'`` means the
+validator runs for every record type; targeting a record type string (e.g.
+``'MX'``) restricts it to that type.
+
+Disabling built-in validators
+.............................
+
+Individual built-in validators can be turned off under
+``manager.disable_validators``::
+
+  manager:
+    disable_validators:
+      '*':
+        - healthcheck
+      MX:
+        - mx-value
+
+``'*'`` removes the validator from every record type; a type string removes it
+only for that type. Bridge validators (``_``-prefixed ids) cannot be disabled
+and will raise a config error if listed here.
+
+Attaching validators programmatically
+......................................
+
+Third-party modules (providers, processors, plugins) can register validators at
+import time without any config entry::
+
+  from octodns.record import Record
+  from octodns.record.validator import RecordValidator
+
+  class NoPublicMxValidator(RecordValidator):
+      id = 'no-public-mx'
+
+      def validate(self, record_cls, name, fqdn, data): ...
+
+  Record.register_validator(NoPublicMxValidator(), types=['MX'])
+
+``types=None`` (the default) registers for all record types. As long as the
+module is imported before octoDNS plans any changes the validator will run.
 
 ``strict_supports``
 -------------------

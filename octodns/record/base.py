@@ -113,7 +113,7 @@ class ValuesTypeValidator(RecordValidator):
     pipeline: pulls ``values``/``value`` from ``data``, coerces to a list,
     and runs the value type's validators (both the legacy ``validate``
     classmethod on the value class, for 3rd-party back-compat, and any
-    ``VALIDATORS`` declared along the value type's MRO).
+    validators registered for the record type in ``Record._VALUE_VALIDATORS``).
     '''
 
     def __init__(self):
@@ -139,8 +139,8 @@ class Record(EqualityTupleMixin):
         if 'validate' in cls.__dict__:
             deprecated(
                 f'`{cls.__name__}.validate` override is DEPRECATED. '
-                'Declare validators via the `VALIDATORS` class attribute '
-                'instead. Will be removed in 2.0',
+                'Use `Record.register_validator` instead. '
+                'Will be removed in 2.0',
                 stacklevel=3,
             )
 
