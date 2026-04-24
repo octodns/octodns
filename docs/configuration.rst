@@ -247,11 +247,9 @@ import time without any config entry::
   from octodns.record.validator import RecordValidator
 
   class NoPublicMxValidator(RecordValidator):
-      id = 'no-public-mx'
-
       def validate(self, record_cls, name, fqdn, data): ...
 
-  Record.register_validator(NoPublicMxValidator(), types=['MX'])
+  Record.register_validator(NoPublicMxValidator('no-public-mx'), types=['MX'])
 
 ``types=None`` (the default) registers for all record types. As long as the
 module is imported before octoDNS plans any changes the validator will run.
