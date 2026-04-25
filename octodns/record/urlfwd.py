@@ -53,6 +53,8 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     VALID_MASKS = (0, 1, 2)
     VALID_QUERY = (0, 1)
 
+    VALIDATORS = [UrlfwdValueValidator('urlfwd-value')]
+
     @classmethod
     def _schema(cls):
         return {
@@ -178,7 +180,6 @@ class UrlfwdRecord(ValuesMixin, Record):
     REFERENCES = ()
     _type = 'URLFWD'
     _value_type = UrlfwdValue
-    VALIDATORS = [UrlfwdValueValidator('urlfwd-value')]
 
 
 Record.register_type(UrlfwdRecord)

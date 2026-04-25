@@ -34,6 +34,8 @@ class CaaValueValidator(ValueValidator):
 class CaaValue(EqualityTupleMixin, dict):
     # https://tools.ietf.org/html/rfc6844#page-5
 
+    VALIDATORS = [CaaValueValidator('caa-value')]
+
     @classmethod
     def _schema(cls):
         return {
@@ -128,7 +130,6 @@ class CaaRecord(ValuesMixin, Record):
     )
     _type = 'CAA'
     _value_type = CaaValue
-    VALIDATORS = [CaaValueValidator('caa-value')]
 
 
 Record.register_type(CaaRecord)

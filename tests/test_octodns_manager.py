@@ -237,6 +237,20 @@ class TestManager(TestCase):
             )
             self.assertFalse(any(v.id == 'mx-value' for v in mx_validators))
 
+    def test_validators_disable_unknown(self):
+        # Disabling an id that isn't registered anywhere should warn but not
+        # raise — typos in disable_validators are user-visible without
+        # breaking the run.
+        with validators_snapshot():
+            with self.assertLogs('Manager', level='WARNING') as logs:
+                Manager(get_config_filename('validators-disable-unknown.yaml'))
+            self.assertTrue(
+                any(
+                    'this-id-does-not-exist' in msg and 'no validator' in msg
+                    for msg in logs.output
+                )
+            )
+
     def test_source_only_as_a_target(self):
         with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('provider-problems.yaml')).sync(

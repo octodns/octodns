@@ -39,6 +39,8 @@ class MxValueValidator(ValueValidator):
 
 
 class MxValue(EqualityTupleMixin, dict):
+    VALIDATORS = [MxValueValidator('mx-value')]
+
     @classmethod
     def _schema(cls):
         return {
@@ -152,7 +154,6 @@ class MxRecord(ValuesMixin, Record):
     )
     _type = 'MX'
     _value_type = MxValue
-    VALIDATORS = [MxValueValidator('mx-value')]
 
 
 Record.register_type(MxRecord)

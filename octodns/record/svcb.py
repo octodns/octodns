@@ -10,7 +10,7 @@ from ipaddress import AddressValueError, IPv4Address, IPv6Address
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
-from .chunked import _ChunkedValue, _ChunkedValuesMixin
+from .chunked import _ChunkedValue, chunked_value_validator
 from .rr import RrParseError
 from .target import validate_target_fqdn
 from .validator import ValueValidator
@@ -39,7 +39,7 @@ def validate_svcparam_alpn(svcparamvalue):
     reasons = validate_list('alpn', svcparamvalue)
     if len(reasons) != 0:
         return reasons
-    return _ChunkedValuesMixin.VALIDATORS[0].validate(
+    return chunked_value_validator.validate(
         _ChunkedValue, svcparamvalue, 'SVCB'
     )
 
@@ -198,7 +198,7 @@ class SvcbValueValidator(ValueValidator):
         return reasons
 
 
-class SvcbValue(EqualityTupleMixin, dict):
+class _SvcbValueBase(EqualityTupleMixin, dict):
     @classmethod
     def _schema(cls):
         return {
@@ -328,6 +328,10 @@ class SvcbValue(EqualityTupleMixin, dict):
         return f"'{self.rdata_text}'"
 
 
+class SvcbValue(_SvcbValueBase):
+    VALIDATORS = [SvcbValueValidator('svcb-value')]
+
+
 class SvcbRecord(ValuesMixin, Record):
     REFERENCES = (
         'https://datatracker.ietf.org/doc/html/rfc9460',
@@ -336,7 +340,6 @@ class SvcbRecord(ValuesMixin, Record):
     )
     _type = 'SVCB'
     _value_type = SvcbValue
-    VALIDATORS = [SvcbValueValidator('svcb-value')]
 
 
 Record.register_type(SvcbRecord)

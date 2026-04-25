@@ -112,6 +112,8 @@ class LocValue(EqualityTupleMixin, dict):
     # while maintaining backwards compatibility.
     # https://www.rfc-editor.org/rfc/rfc1876.html
 
+    VALIDATORS = [LocValueValidator('loc-value')]
+
     @classmethod
     def _schema(cls):
         return {
@@ -433,7 +435,6 @@ class LocRecord(ValuesMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc1876',)
     _type = 'LOC'
     _value_type = LocValue
-    VALIDATORS = [LocValueValidator('loc-value')]
 
 
 Record.register_type(LocRecord)

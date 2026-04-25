@@ -152,8 +152,8 @@ class Manager(object):
         self.processors = self._config_processors(processors_config)
 
         validators_config = self.config.get('validators') or {}
-        self._named_validators = self._config_validators(validators_config)
-        self._configure_validators(manager_config)
+        named_validators = self._config_validators(validators_config)
+        self._configure_validators(manager_config, named_validators)
 
         if self.auto_arpa:
             self.log.info(
@@ -367,7 +367,7 @@ class Manager(object):
             )
         return validators
 
-    def _configure_validators(self, manager_config):
+    def _configure_validators(self, manager_config, named_validators):
         # Reads `manager.validators` and `manager.disable_validators` from the
         # manager config section and drives Record.register_validator /
         # Record.unregister_validator accordingly. Validators named here must
@@ -377,7 +377,7 @@ class Manager(object):
             types = None if record_type == '*' else [record_type]
             for name in names:
                 try:
-                    validator = self._named_validators[name]
+                    validator = named_validators[name]
                 except KeyError:
                     raise ManagerException(
                         f'Unknown validator "{name}" in manager.validators["{record_type}"]'
@@ -385,7 +385,7 @@ class Manager(object):
                 try:
                     Record.register_validator(validator, types=types)
                 except RecordException as e:
-                    raise ManagerException(str(e))
+                    raise ManagerException(str(e)) from e
 
         disable_config = manager_config.get('disable_validators') or {}
         for record_type, ids in disable_config.items():
@@ -395,7 +395,14 @@ class Manager(object):
                     raise ManagerException(
                         f'Cannot disable bridge validator "{validator_id}"'
                     )
-                Record.unregister_validator(validator_id, types=types)
+                removed = Record.unregister_validator(validator_id, types=types)
+                if removed == 0:
+                    self.log.warning(
+                        'disable_validators: no validator with id "%s" '
+                        'registered for "%s"',
+                        validator_id,
+                        record_type,
+                    )
 
     def _config_plan_outputs(self, plan_outputs_config):
         plan_outputs = {}

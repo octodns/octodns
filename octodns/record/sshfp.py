@@ -69,6 +69,8 @@ class SshfpValue(EqualityTupleMixin, dict):
     VALID_ALGORITHMS = (1, 2, 3, 4)
     VALID_FINGERPRINT_TYPES = (1, 2)
 
+    VALIDATORS = [SshfpValueValidator('sshfp-value')]
+
     @classmethod
     def _schema(cls):
         return {
@@ -175,7 +177,6 @@ class SshfpRecord(ValuesMixin, Record):
     )
     _type = 'SSHFP'
     _value_type = SshfpValue
-    VALIDATORS = [SshfpValueValidator('sshfp-value')]
 
 
 Record.register_type(SshfpRecord)

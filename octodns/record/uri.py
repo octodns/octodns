@@ -63,6 +63,8 @@ class UriValueValidator(ValueValidator):
 
 
 class UriValue(EqualityTupleMixin, dict):
+    VALIDATORS = [UriValueValidator('uri-value')]
+
     @classmethod
     def _schema(cls):
         return {
@@ -158,7 +160,7 @@ class UriRecord(ValuesMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc7553',)
     _type = 'URI'
     _value_type = UriValue
-    VALIDATORS = [UriNameValidator('uri-name'), UriValueValidator('uri-value')]
+    VALIDATORS = [UriNameValidator('uri-name')]
 
 
 Record.register_type(UriRecord)

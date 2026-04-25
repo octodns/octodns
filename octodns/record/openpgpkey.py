@@ -25,6 +25,8 @@ class OpenpgpkeyValue(str):
     RFC 7929 - DANE Bindings for OpenPGP
     '''
 
+    VALIDATORS = [OpenpgpkeyValueValidator('openpgpkey-value')]
+
     @classmethod
     def _schema(cls):
         return {'type': 'string'}
@@ -53,7 +55,6 @@ class OpenpgpkeyRecord(ValuesMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc7929',)
     _type = 'OPENPGPKEY'
     _value_type = OpenpgpkeyValue
-    VALIDATORS = [OpenpgpkeyValueValidator('openpgpkey-value')]
 
 
 Record.register_type(OpenpgpkeyRecord)

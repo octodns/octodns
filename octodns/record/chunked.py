@@ -35,9 +35,10 @@ class ChunkedValueValidator(ValueValidator):
         return reasons
 
 
-class _ChunkedValuesMixin(ValuesMixin):
-    VALIDATORS = [ChunkedValueValidator('chunked-value')]
+chunked_value_validator = ChunkedValueValidator('chunked-value')
 
+
+class _ChunkedValuesMixin(ValuesMixin):
     CHUNK_SIZE = 255
 
     def chunked_value(self, value):
@@ -72,6 +73,8 @@ class _ChunkedValuesMixin(ValuesMixin):
 
 
 class _ChunkedValue(str):
+    VALIDATORS = [chunked_value_validator]
+
     @classmethod
     def parse_rdata_text(cls, value):
         try:

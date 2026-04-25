@@ -58,6 +58,8 @@ class TlsaValueValidator(ValueValidator):
 
 
 class TlsaValue(EqualityTupleMixin, dict):
+    VALIDATORS = [TlsaValueValidator('tlsa-value')]
+
     @classmethod
     def _schema(cls):
         return {
@@ -203,7 +205,6 @@ class TlsaRecord(ValuesMixin, Record):
     )
     _type = 'TLSA'
     _value_type = TlsaValue
-    VALIDATORS = [TlsaValueValidator('tlsa-value')]
 
 
 Record.register_type(TlsaRecord)

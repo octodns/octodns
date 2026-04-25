@@ -1203,7 +1203,36 @@ class TestValidators(TestCase):
 
         # Unregistering from a type with no bucket registered is a no-op.
         with validators_snapshot():
-            Record.unregister_validator('nonexistent-id', types=['FAKETYPE'])
+            self.assertEqual(
+                0,
+                Record.unregister_validator(
+                    'nonexistent-id', types=['FAKETYPE']
+                ),
+            )
+
+        # The return value reports how many buckets the id was removed from.
+        v3 = RecordValidator('counted-test')
+        with validators_snapshot():
+            Record.register_validator(v3, types=['A', 'AAAA'])
+            self.assertEqual(
+                1, Record.unregister_validator('counted-test', types=['A'])
+            )
+            self.assertEqual(
+                1, Record.unregister_validator('counted-test', types=['AAAA'])
+            )
+            self.assertEqual(
+                0,
+                Record.unregister_validator(
+                    'counted-test', types=['A', 'AAAA']
+                ),
+            )
+
+        # Without types= it counts every bucket the id appeared in.
+        v4 = RecordValidator('counted-global')
+        with validators_snapshot():
+            Record.register_validator(v4, types=['A', 'AAAA', 'TXT'])
+            self.assertEqual(3, Record.unregister_validator('counted-global'))
+            self.assertEqual(0, Record.unregister_validator('counted-global'))
 
     def test_legacy_record_validate_deprecation(self):
         # 3rd-party records that still override Record.validate get a

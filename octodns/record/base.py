@@ -127,10 +127,6 @@ class ValuesTypeValidator(RecordValidator):
         )
 
 
-_values_type_validator = ValuesTypeValidator()
-_value_type_validator = ValueTypeValidator()
-
-
 class Record(EqualityTupleMixin):
     log = getLogger('Record')
 
@@ -171,7 +167,9 @@ class Record(EqualityTupleMixin):
         for klass in _class.__mro__:
             for validator in klass.__dict__.get('VALIDATORS', ()):
                 cls.register_validator(validator, types=[_type])
-        # include value validators
+        # include value validators; rely on normal Python attribute
+        # resolution so a value subclass can override its parent's
+        # VALIDATORS rather than registering both
         vt = getattr(_class, '_value_type', None)
         for validator in getattr(vt, 'VALIDATORS', ()):
             cls.register_validator(validator, types=[_type])
@@ -205,15 +203,21 @@ class Record(EqualityTupleMixin):
             raise RecordException(
                 f'Cannot unregister bridge validator "{validator_id}"'
             )
+        removed = 0
         if types is None:
             for registry in (cls._RECORD_VALIDATORS, cls._VALUE_VALIDATORS):
                 for bucket in registry.values():
-                    bucket.pop(validator_id, None)
+                    if bucket.pop(validator_id, None) is not None:
+                        removed += 1
         else:
             for key in types:
                 for registry in (cls._RECORD_VALIDATORS, cls._VALUE_VALIDATORS):
-                    if key in registry:
-                        registry[key].pop(validator_id, None)
+                    if (
+                        key in registry
+                        and registry[key].pop(validator_id, None) is not None
+                    ):
+                        removed += 1
+        return removed
 
     @classmethod
     def registered_validators(cls):

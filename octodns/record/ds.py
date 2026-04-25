@@ -83,6 +83,8 @@ class DsValue(EqualityTupleMixin, dict):
     # https://www.rfc-editor.org/rfc/rfc4034.html#section-5.1
     log = getLogger('DsValue')
 
+    VALIDATORS = [DsValueValidator('ds-value')]
+
     @classmethod
     def _schema(cls):
         return {
@@ -225,7 +227,6 @@ class DsRecord(ValuesMixin, Record):
     )
     _type = 'DS'
     _value_type = DsValue
-    VALIDATORS = [DsValueValidator('ds-value')]
 
 
 Record.register_type(DsRecord)
