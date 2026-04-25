@@ -19,8 +19,7 @@ class DsValueValidator(ValueValidator):
     ``algorithm``, ``public_key``), which will be removed in 2.0.
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         reasons = []
@@ -84,7 +83,7 @@ class DsValue(EqualityTupleMixin, dict):
     # https://www.rfc-editor.org/rfc/rfc4034.html#section-5.1
     log = getLogger('DsValue')
 
-    VALIDATORS = [DsValueValidator]
+    VALIDATORS = [DsValueValidator('ds-value')]
 
     @classmethod
     def _schema(cls):

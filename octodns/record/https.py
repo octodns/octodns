@@ -4,11 +4,11 @@
 #
 
 from .base import Record, ValuesMixin
-from .svcb import SvcbValue
+from .svcb import SvcbValueValidator, _SvcbValueBase
 
 
-class HttpsValue(SvcbValue):
-    pass
+class HttpsValue(_SvcbValueBase):
+    VALIDATORS = [SvcbValueValidator('https-value')]
 
 
 class HttpsRecord(ValuesMixin, Record):

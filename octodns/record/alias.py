@@ -17,8 +17,7 @@ class AliasRootValidator(RecordValidator):
     type only has meaning at the apex.
     '''
 
-    @classmethod
-    def validate(cls, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data):
         if name != '':
             return ['non-root ALIAS not allowed']
         return []
@@ -28,8 +27,7 @@ class AliasRecord(ValueMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/draft-ietf-dnsop-aname/',)
     _type = 'ALIAS'
     _value_type = AliasValue
-
-    VALIDATORS = [AliasRootValidator]
+    VALIDATORS = [AliasRootValidator('alias-root')]
 
 
 Record.register_type(AliasRecord)

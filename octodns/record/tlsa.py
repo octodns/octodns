@@ -15,8 +15,7 @@ class TlsaValueValidator(ValueValidator):
     ``certificate_association_data`` is present.
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         reasons = []
         for value in data:
             try:
@@ -59,7 +58,7 @@ class TlsaValueValidator(ValueValidator):
 
 
 class TlsaValue(EqualityTupleMixin, dict):
-    VALIDATORS = [TlsaValueValidator]
+    VALIDATORS = [TlsaValueValidator('tlsa-value')]
 
     @classmethod
     def _schema(cls):

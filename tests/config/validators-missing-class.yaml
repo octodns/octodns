@@ -1,0 +1,4 @@
+validators:
+  my-validator: {}
+providers: {}
+zones: {}

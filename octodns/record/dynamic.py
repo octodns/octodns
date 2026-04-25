@@ -21,8 +21,7 @@ class DynamicValidator(RecordValidator):
     are defined but unused.
     '''
 
-    @classmethod
-    def validate(cls, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data):
         reasons = []
 
         if 'dynamic' not in data:
@@ -165,6 +164,8 @@ class _Dynamic(object):
 
 
 class _DynamicMixin(object):
+    VALIDATORS = [DynamicValidator('dynamic')]
+
     geo_re = re.compile(
         r'^(?P<continent_code>\w\w)(-(?P<country_code>\w\w)'
         r'(-(?P<subdivision_code>\w\w))?)?$'
@@ -460,8 +461,6 @@ class _DynamicMixin(object):
                 )
 
         return reasons, pools_seen
-
-    VALIDATORS = [DynamicValidator]
 
     def __init__(self, zone, name, data, *args, **kwargs):
         super().__init__(zone, name, data, *args, **kwargs)

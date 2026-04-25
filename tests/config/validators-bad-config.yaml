@@ -1,0 +1,6 @@
+validators:
+  my-validator:
+    class: helpers.TestRecordValidator
+    unexpected_kwarg: true
+providers: {}
+zones: {}

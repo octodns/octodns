@@ -20,9 +20,8 @@ class UriNameValidator(RecordValidator):
 
     _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
 
-    @classmethod
-    def validate(cls, record_cls, name, fqdn, data):
-        if not cls._name_re.match(name):
+    def validate(self, record_cls, name, fqdn, data):
+        if not self._name_re.match(name):
             return ['invalid name for URI record']
         return []
 
@@ -33,8 +32,7 @@ class UriValueValidator(ValueValidator):
     integer-parsable, and target is non-empty.
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         reasons = []
         for value in data:
             # TODO: validate algorithm and fingerprint_type values
@@ -65,7 +63,7 @@ class UriValueValidator(ValueValidator):
 
 
 class UriValue(EqualityTupleMixin, dict):
-    VALIDATORS = [UriValueValidator]
+    VALIDATORS = [UriValueValidator('uri-value')]
 
     @classmethod
     def _schema(cls):
@@ -162,8 +160,7 @@ class UriRecord(ValuesMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc7553',)
     _type = 'URI'
     _value_type = UriValue
-
-    VALIDATORS = [UriNameValidator]
+    VALIDATORS = [UriNameValidator('uri-name')]
 
 
 Record.register_type(UriRecord)
