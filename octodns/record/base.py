@@ -139,7 +139,7 @@ class Record(EqualityTupleMixin):
         if 'validate' in cls.__dict__:
             deprecated(
                 f'`{cls.__name__}.validate` override is DEPRECATED. '
-                'Use `Record.register_validator` instead. '
+                'Add a RecordValidator to `VALIDATORS` instead. '
                 'Will be removed in 2.0',
                 stacklevel=3,
             )
@@ -153,8 +153,8 @@ class Record(EqualityTupleMixin):
     )
 
     _CLASSES = {}
-    _RECORD_VALIDATORS = defaultdict(set)
-    _VALUE_VALIDATORS = defaultdict(set)
+    _RECORD_VALIDATORS = defaultdict(dict)
+    _VALUE_VALIDATORS = defaultdict(dict)
 
     @classmethod
     def register_type(cls, _class, _type=None):
@@ -167,16 +167,11 @@ class Record(EqualityTupleMixin):
             msg = f'Type "{_type}" already registered by {module}.{name}'
             raise RecordException(msg)
         cls._CLASSES[_type] = _class
-        # Register the bridge validator for values/values
-        if issubclass(_class, ValuesMixin):
-            cls.register_validator(ValuesTypeValidator(), types=[_type])
-        else:
-            cls.register_validator(ValueTypeValidator(), types=[_type])
         # Walk the MRO to find VALIDATORS at any level
         for klass in _class.__mro__:
             for validator in klass.__dict__.get('VALIDATORS', ()):
                 cls.register_validator(validator, types=[_type])
-        # invlude value validators
+        # include value validators
         vt = getattr(_class, '_value_type', None)
         for validator in getattr(vt, 'VALIDATORS', ()):
             cls.register_validator(validator, types=[_type])
@@ -197,13 +192,12 @@ class Record(EqualityTupleMixin):
             )
         keys = ('*',) if types is None else types
         for key in keys:
-            bucket = registry.setdefault(key, [])
-            for existing in bucket:
-                if existing.id == validator.id:
-                    raise RecordException(
-                        f'Validator id "{validator.id}" already registered for "{key}"'
-                    )
-            bucket.append(validator)
+            bucket = registry[key]
+            if validator.id in bucket:
+                raise RecordException(
+                    f'Validator id "{validator.id}" already registered for "{key}"'
+                )
+            bucket[validator.id] = validator
 
     @classmethod
     def unregister_validator(cls, validator_id, types=None):
@@ -214,20 +208,22 @@ class Record(EqualityTupleMixin):
         if types is None:
             for registry in (cls._RECORD_VALIDATORS, cls._VALUE_VALIDATORS):
                 for bucket in registry.values():
-                    bucket[:] = [v for v in bucket if v.id != validator_id]
+                    bucket.pop(validator_id, None)
         else:
             for key in types:
                 for registry in (cls._RECORD_VALIDATORS, cls._VALUE_VALIDATORS):
                     if key in registry:
-                        registry[key][:] = [
-                            v for v in registry[key] if v.id != validator_id
-                        ]
+                        registry[key].pop(validator_id, None)
 
     @classmethod
     def registered_validators(cls):
         return {
-            'record': {k: list(v) for k, v in cls._RECORD_VALIDATORS.items()},
-            'value': {k: list(v) for k, v in cls._VALUE_VALIDATORS.items()},
+            'record': {
+                k: list(v.values()) for k, v in cls._RECORD_VALIDATORS.items()
+            },
+            'value': {
+                k: list(v.values()) for k, v in cls._VALUE_VALIDATORS.items()
+            },
         }
 
     @classmethod
@@ -277,7 +273,7 @@ class Record(EqualityTupleMixin):
     def _process_validators(cls, name, fqdn, data):
         reasons = []
         for key in ('*', cls._type):
-            for validator in cls._RECORD_VALIDATORS.get(key, ()):
+            for validator in cls._RECORD_VALIDATORS.get(key, {}).values():
                 reasons.extend(validator.validate(cls, name, fqdn, data))
         return reasons
 
@@ -476,17 +472,19 @@ def _process_value_validators(value_type, values, _type):
     if legacy is not None:
         deprecated(
             f'`{value_type.__name__}.validate` classmethod is DEPRECATED. '
-            'Use Record.register_validator instead. Will be removed in 2.0',
+            'Add a ValueValidator to `VALIDATORS` instead. Will be removed in 2.0',
             stacklevel=3,
         )
         reasons.extend(legacy(values, _type))
     for key in ('*', _type):
-        for validator in Record._VALUE_VALIDATORS.get(key, ()):
+        for validator in Record._VALUE_VALIDATORS.get(key, {}).values():
             reasons.extend(validator.validate(value_type, values, _type))
     return reasons
 
 
 class ValuesMixin(object):
+    VALIDATORS = [ValuesTypeValidator()]
+
     @classmethod
     def data_from_rrs(cls, rrs):
         # type and TTL come from the first rr
@@ -545,6 +543,8 @@ class ValuesMixin(object):
 
 
 class ValueMixin(object):
+    VALIDATORS = [ValueTypeValidator()]
+
     @classmethod
     def data_from_rrs(cls, rrs):
         # single value, so single rr only...

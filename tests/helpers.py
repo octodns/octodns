@@ -17,8 +17,8 @@ from octodns.secret.base import BaseSecrets
 
 @contextmanager
 def validators_snapshot():
-    record_snap = {k: list(v) for k, v in Record._RECORD_VALIDATORS.items()}
-    value_snap = {k: list(v) for k, v in Record._VALUE_VALIDATORS.items()}
+    record_snap = {k: dict(v) for k, v in Record._RECORD_VALIDATORS.items()}
+    value_snap = {k: dict(v) for k, v in Record._VALUE_VALIDATORS.items()}
     try:
         yield
     finally:
