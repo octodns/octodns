@@ -173,6 +173,82 @@ class SubzoneOverlapFilterTest(TestCase):
         zone = Zone('10.in-addr.arpa.', ['1'])
         self.assertIs(zone, flt.process_source_zone(zone, sources=[]))
 
+    def test_keeps_record_marked_lenient(self):
+        # See https://github.com/octodns/octodns/issues/1362 -- a glue
+        # record like ns.sub.domain.tld. legitimately belongs in the
+        # parent zone file even though it sits under a delegated
+        # sub-zone. The operator opts it in via record-level lenient
+        # (octodns: { lenient: true }) and the filter must respect that.
+        flt = SubzoneOverlapFilter('test')
+
+        zone = Zone('domain.tld.', ['sub'])
+        delegation = Record.new(
+            zone,
+            'sub',
+            {'type': 'NS', 'ttl': 3600, 'value': 'ns.sub.domain.tld.'},
+        )
+        zone.add_record(delegation)
+        glue = Record.new(
+            zone,
+            'ns.sub',
+            {
+                'type': 'A',
+                'ttl': 3600,
+                'value': '10.1.1.1',
+                'octodns': {'lenient': True},
+            },
+            lenient=True,
+        )
+        zone.add_record(glue, lenient=True)
+        # An over-fetched record (no record-level lenient) under the
+        # same sub-zone -- this one should still be stripped.
+        bad = Record.new(
+            zone,
+            'host.sub',
+            {'type': 'A', 'ttl': 60, 'value': '10.1.1.99'},
+            lenient=True,
+        )
+        zone.add_record(bad, lenient=True)
+
+        flt.process_source_zone(zone, sources=[])
+
+        kept = sorted((r._type, r.fqdn) for r in zone.records)
+        self.assertEqual(
+            [('A', 'ns.sub.domain.tld.'), ('NS', 'sub.domain.tld.')], kept
+        )
+
+    def test_keeps_ds_at_sub_zone_boundary(self):
+        # Zone.add_record allows NS *and* DS at the exact sub-zone
+        # boundary (zone.py:363). Zone.owns only special-cases NS, so
+        # the filter must add the DS exception explicitly to avoid
+        # being stricter than add_record.
+        flt = SubzoneOverlapFilter('test')
+
+        zone = Zone('domain.tld.', ['sub'])
+        ds = Record.new(
+            zone,
+            'sub',
+            {
+                'type': 'DS',
+                'ttl': 3600,
+                'value': {
+                    'key_tag': 12345,
+                    'algorithm': 8,
+                    'digest_type': 2,
+                    'digest': (
+                        '0123456789abcdef0123456789abcdef'
+                        '0123456789abcdef0123456789abcdef'
+                    ),
+                },
+            },
+        )
+        zone.add_record(ds)
+
+        flt.process_source_zone(zone, sources=[])
+
+        kept = sorted((r._type, r.fqdn) for r in zone.records)
+        self.assertEqual([('DS', 'sub.domain.tld.')], kept)
+
     def test_no_records_to_remove_skips_log(self):
         # When the parent has sub_zones but no overlapping records, the
         # info log is skipped. Exercises the `if removed:` false branch.
