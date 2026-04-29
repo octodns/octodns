@@ -11,10 +11,10 @@ from octodns.record import Record
 from octodns.record.exception import ValidationError
 from octodns.record.rr import RrParseError
 from octodns.record.srv import (
+    SrvNameRfcValidator,
     SrvRecord,
-    SrvStrictNameValidator,
-    SrvStrictValueValidator,
     SrvValue,
+    SrvValueRfcValidator,
 )
 from octodns.zone import Zone
 
@@ -484,14 +484,17 @@ class TestSrvValue(TestCase):
         self.assertIsNot(value, got)
         self.assertEqual('has_42_placeholder', got.target)
 
-    def test_strict_name_validator_not_in_defaults(self):
-        # confirm the strict validators are opt-in and not on the record/value
-        # classes by default
-        self.assertNotIn(SrvStrictNameValidator, SrvRecord.VALIDATORS)
-        self.assertNotIn(SrvStrictValueValidator, SrvValue.VALIDATORS)
+    def test_rfc_validators_not_in_defaults(self):
+        # confirm the RFC validators are opt-in and not registered for SRV
+        # by default
+        registered = Record.registered_validators()
+        srv_record_ids = set(v.id for v in registered['record'].get('SRV', []))
+        srv_value_ids = set(v.id for v in registered['value'].get('SRV', []))
+        self.assertNotIn('srv-name-rfc', srv_record_ids)
+        self.assertNotIn('srv-value-rfc', srv_value_ids)
 
-    def test_strict_name_validator(self):
-        validate = SrvStrictNameValidator.validate
+    def test_name_rfc_validator(self):
+        validate = SrvNameRfcValidator('srv-name-rfc').validate
 
         # valid names
         for name in (
@@ -578,8 +581,8 @@ class TestSrvValue(TestCase):
             reasons,
         )
 
-    def test_strict_value_validator(self):
-        validate = SrvStrictValueValidator.validate
+    def test_value_rfc_validator(self):
+        validate = SrvValueRfcValidator('srv-value-rfc').validate
 
         # valid values, including null-target convention
         good = [
@@ -665,12 +668,16 @@ class TestSrvValue(TestCase):
             ),
         )
 
-    def test_strict_validators_opt_in(self):
-        # wire both strict validators onto the classes so we exercise them
+    def test_rfc_validators_opt_in(self):
+        # wire both RFC validators onto the SRV registry so we exercise them
         # end-to-end through Record.new, then clean up.
         zone = Zone('unit.tests.', [])
-        SrvRecord.VALIDATORS = SrvRecord.VALIDATORS + [SrvStrictNameValidator]
-        SrvValue.VALIDATORS = SrvValue.VALIDATORS + [SrvStrictValueValidator]
+        Record.register_validator(
+            SrvNameRfcValidator('srv-name-rfc'), types=['SRV']
+        )
+        Record.register_validator(
+            SrvValueRfcValidator('srv-value-rfc'), types=['SRV']
+        )
         try:
             with self.assertRaises(ValidationError) as ctx:
                 Record.new(
@@ -695,7 +702,7 @@ class TestSrvValue(TestCase):
                 ctx.exception.reasons,
             )
 
-            # valid record with strict validators enabled passes
+            # valid record with RFC validators enabled passes
             Record.new(
                 zone,
                 '_sip._tcp',
@@ -711,16 +718,8 @@ class TestSrvValue(TestCase):
                 },
             )
         finally:
-            SrvRecord.VALIDATORS = [
-                v
-                for v in SrvRecord.VALIDATORS
-                if v is not SrvStrictNameValidator
-            ]
-            SrvValue.VALIDATORS = [
-                v
-                for v in SrvValue.VALIDATORS
-                if v is not SrvStrictValueValidator
-            ]
+            Record.unregister_validator('srv-name-rfc', types=['SRV'])
+            Record.unregister_validator('srv-value-rfc', types=['SRV'])
 
     def test_template_validation(self):
         templ = Templating('test')

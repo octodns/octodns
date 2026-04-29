@@ -63,9 +63,9 @@ class SrvValueValidator(ValueValidator):
         return reasons
 
 
-class SrvStrictNameValidator(RecordValidator):
+class SrvNameRfcValidator(RecordValidator):
     '''
-    Stricter SRV name validator per RFC 2782 and RFC 6335 §5.1.
+    Strict SRV name validator per RFC 2782 and RFC 6335 §5.1.
 
     Requires the first two labels of the record name to be
     ``_service._proto`` (``*._proto`` is still accepted for wildcards).
@@ -75,8 +75,17 @@ class SrvStrictNameValidator(RecordValidator):
     containing only letters, digits, and hyphens, and with no
     consecutive hyphens.
 
-    Not enabled by default; opt in by appending to
-    ``SrvRecord.VALIDATORS``.
+    Not enabled by default; opt in via the top-level ``validators:``
+    config section and reference under ``manager.validators``::
+
+      validators:
+        srv-name-rfc:
+          class: octodns.record.srv.SrvNameRfcValidator
+
+      manager:
+        validators:
+          SRV:
+            - srv-name-rfc
     '''
 
     _max_len = 15
@@ -93,8 +102,7 @@ class SrvStrictNameValidator(RecordValidator):
             return False
         return all(c.isalnum() or c == '-' for c in body)
 
-    @classmethod
-    def validate(cls, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data):
         labels = name.split('.') if name else []
         if len(labels) < 2:
             return ['SRV name must have at least two labels (_service._proto)']
@@ -102,19 +110,19 @@ class SrvStrictNameValidator(RecordValidator):
         reasons = []
         service, proto = labels[0], labels[1]
         if service != '*' and not (
-            service.startswith('_') and cls._is_valid_service_name(service[1:])
+            service.startswith('_') and self._is_valid_service_name(service[1:])
         ):
             reasons.append(f'invalid SRV service label "{service}"')
         if not (
-            proto.startswith('_') and cls._is_valid_service_name(proto[1:])
+            proto.startswith('_') and self._is_valid_service_name(proto[1:])
         ):
             reasons.append(f'invalid SRV proto label "{proto}"')
         return reasons
 
 
-class SrvStrictValueValidator(ValueValidator):
+class SrvValueRfcValidator(ValueValidator):
     '''
-    Stricter SRV rdata validator per RFC 2782.
+    Strict SRV rdata validator per RFC 2782.
 
     - ``priority``, ``weight``, and ``port`` must each be in the
       0-65535 range.
@@ -127,22 +135,31 @@ class SrvStrictValueValidator(ValueValidator):
     Assumes the base ``SrvValueValidator`` has already caught missing
     or non-integer fields; entries that fail those checks are skipped
     here to avoid duplicated reasons. Not enabled by default; opt in
-    by appending to ``SrvValue.VALIDATORS``.
+    via the top-level ``validators:`` config section and reference
+    under ``manager.validators``::
+
+      validators:
+        srv-value-rfc:
+          class: octodns.record.srv.SrvValueRfcValidator
+
+      manager:
+        validators:
+          SRV:
+            - srv-value-rfc
     '''
 
-    @classmethod
-    def _as_int(cls, value, field):
+    @staticmethod
+    def _as_int(value, field):
         try:
             return int(value[field])
         except (KeyError, ValueError, TypeError):
             return None
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         reasons = []
         for value in data:
             fields = {
-                name: cls._as_int(value, name)
+                name: self._as_int(value, name)
                 for name in ('priority', 'weight', 'port')
             }
             for name, v in fields.items():

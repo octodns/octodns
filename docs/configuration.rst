@@ -213,6 +213,51 @@ Each built-in validator has a stable short id:
 Ids prefixed with ``_`` (e.g. ``_values-type``) are internal bridge validators
 that cannot be disabled.
 
+Validator naming convention
+...........................
+
+Validators are split into two flavors based on what they enforce:
+
+* ``RfcValidator`` / ids ending in ``-rfc`` — enforce requirements that come
+  directly from an RFC. Reasons reference specific RFC numbers.
+* ``BpValidator`` / ids ending in ``-bp`` — enforce best-practice
+  recommendations that aren't strictly required by an RFC (e.g. trailing
+  ``.`` on hostnames).
+
+Both follow the same config and registration paths described below; the
+naming just makes the source of each rule explicit so you can opt in or
+out with intent.
+
+Opt-in RFC validators
+.....................
+
+Some stricter validators ship in the box but are not enabled by default,
+typically because turning them on would break existing zones that don't
+strictly conform. They follow the ``RfcValidator`` / ``-rfc`` naming
+convention and are wired up the same way as any custom validator:
+
++--------------------+-----------------------------------------------------+
+| id                 | description                                         |
++====================+=====================================================+
+| ``srv-name-rfc``   | SRV name strict per RFC 2782 + RFC 6335 §5.1        |
++--------------------+-----------------------------------------------------+
+| ``srv-value-rfc``  | SRV rdata strict per RFC 2782 (range, null target)  |
++--------------------+-----------------------------------------------------+
+
+Example::
+
+  validators:
+    srv-name-rfc:
+      class: octodns.record.srv.SrvNameRfcValidator
+    srv-value-rfc:
+      class: octodns.record.srv.SrvValueRfcValidator
+
+  manager:
+    validators:
+      SRV:
+        - srv-name-rfc
+        - srv-value-rfc
+
 Adding validators via config
 ............................
 
