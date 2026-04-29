@@ -1289,8 +1289,6 @@ class Manager(object):
             sub_zones = self.configured_sub_zones(zone_name)
             update_pcent_threshold = zone.get("update_pcent_threshold", None)
             delete_pcent_threshold = zone.get("delete_pcent_threshold", None)
-            ignore_subzone_adds = zone.get("ignore_subzone_adds", False)
-            print(f"\n\n\n{ignore_subzone_adds}\n\n\n")
             return Zone(
                 idna_encode(zone_name),
                 sub_zones,
