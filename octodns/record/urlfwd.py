@@ -15,8 +15,7 @@ class UrlfwdValueValidator(ValueValidator):
     ``path`` and ``target`` are present.
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         reasons = []
         for value in data:
             try:
@@ -54,7 +53,7 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     VALID_MASKS = (0, 1, 2)
     VALID_QUERY = (0, 1)
 
-    VALIDATORS = [UrlfwdValueValidator]
+    VALIDATORS = [UrlfwdValueValidator('urlfwd-value')]
 
     @classmethod
     def _schema(cls):

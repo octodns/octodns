@@ -9,8 +9,8 @@ from ipaddress import AddressValueError, IPv4Address, IPv6Address
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import Record, ValuesMixin, _process_value_validators, unquote
-from .chunked import _ChunkedValue
+from .base import Record, ValuesMixin, unquote
+from .chunked import _ChunkedValue, chunked_value_validator
 from .rr import RrParseError
 from .target import validate_target_fqdn
 from .validator import ValueValidator
@@ -39,9 +39,9 @@ def validate_svcparam_alpn(svcparamvalue):
     reasons = validate_list('alpn', svcparamvalue)
     if len(reasons) != 0:
         return reasons
-    for alpn in svcparamvalue:
-        reasons += _process_value_validators(_ChunkedValue, alpn, 'SVCB')
-    return reasons
+    return chunked_value_validator.validate(
+        _ChunkedValue, svcparamvalue, 'SVCB'
+    )
 
 
 def validate_svcparam_iphint(ip_version, svcparamvalue):
@@ -150,8 +150,7 @@ class SvcbValueValidator(ValueValidator):
     AliasMode (``svcpriority`` == 0) records.
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         reasons = []
         for value in data:
             svcpriority = -1
@@ -199,10 +198,7 @@ class SvcbValueValidator(ValueValidator):
         return reasons
 
 
-class SvcbValue(EqualityTupleMixin, dict):
-
-    VALIDATORS = [SvcbValueValidator]
-
+class _SvcbValueBase(EqualityTupleMixin, dict):
     @classmethod
     def _schema(cls):
         return {
@@ -330,6 +326,10 @@ class SvcbValue(EqualityTupleMixin, dict):
 
     def __repr__(self):
         return f"'{self.rdata_text}'"
+
+
+class SvcbValue(_SvcbValueBase):
+    VALIDATORS = [SvcbValueValidator('svcb-value')]
 
 
 class SvcbRecord(ValuesMixin, Record):

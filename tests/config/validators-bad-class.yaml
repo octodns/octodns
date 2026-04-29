@@ -1,0 +1,5 @@
+validators:
+  my-validator:
+    class: foo.bar.DoesntExist
+providers: {}
+zones: {}

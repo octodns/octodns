@@ -14,8 +14,7 @@ class CaaValueValidator(ValueValidator):
     ``tag`` and ``value`` are present.
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         reasons = []
         for value in data:
             try:
@@ -34,6 +33,8 @@ class CaaValueValidator(ValueValidator):
 
 class CaaValue(EqualityTupleMixin, dict):
     # https://tools.ietf.org/html/rfc6844#page-5
+
+    VALIDATORS = [CaaValueValidator('caa-value')]
 
     @classmethod
     def _schema(cls):
@@ -61,8 +62,6 @@ class CaaValue(EqualityTupleMixin, dict):
         tag = unquote(tag)
         value = unquote(value)
         return {'flags': flags, 'tag': tag, 'value': value}
-
-    VALIDATORS = [CaaValueValidator]
 
     @classmethod
     def process(cls, values):

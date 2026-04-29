@@ -15,8 +15,7 @@ class NaptrValueValidator(ValueValidator):
     ``service``, ``regexp``, and ``replacement`` are all present.
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         reasons = []
         for value in data:
             try:
@@ -49,7 +48,7 @@ class NaptrValueValidator(ValueValidator):
 class NaptrValue(EqualityTupleMixin, dict):
     VALID_FLAGS = ('S', 'A', 'U', 'P', 's', 'a', 'u', 'p')
 
-    VALIDATORS = [NaptrValueValidator]
+    VALIDATORS = [NaptrValueValidator('naptr-value')]
 
     @classmethod
     def _schema(cls):

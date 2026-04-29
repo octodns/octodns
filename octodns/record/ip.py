@@ -13,8 +13,7 @@ class IpValueValidator(ValueValidator):
     ``IPv6Address``) to parse each value.
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         if len(data) == 0:
@@ -35,7 +34,7 @@ class IpValueValidator(ValueValidator):
 
 
 class _IpValue(str):
-    VALIDATORS = [IpValueValidator]
+    VALIDATORS = [IpValueValidator('ip-value')]
 
     @classmethod
     def parse_rdata_text(cls, value):

@@ -1,0 +1,10 @@
+validators:
+  my-test-validator:
+    class: helpers.TestRecordValidator
+    min_ttl: 300
+manager:
+  validators:
+    '*':
+      - my-test-validator
+providers: {}
+zones: {}

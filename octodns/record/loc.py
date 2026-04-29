@@ -17,8 +17,7 @@ class LocValueValidator(ValueValidator):
     cardinal directions.
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         int_keys = [
             'lat_degrees',
             'lat_minutes',
@@ -113,7 +112,7 @@ class LocValue(EqualityTupleMixin, dict):
     # while maintaining backwards compatibility.
     # https://www.rfc-editor.org/rfc/rfc1876.html
 
-    VALIDATORS = [LocValueValidator]
+    VALIDATORS = [LocValueValidator('loc-value')]
 
     @classmethod
     def _schema(cls):

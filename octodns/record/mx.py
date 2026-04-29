@@ -17,8 +17,7 @@ class MxValueValidator(ValueValidator):
     ``value`` alias).
     '''
 
-    @classmethod
-    def validate(cls, value_cls, data, _type):
+    def validate(self, value_cls, data, _type):
         reasons = []
         for value in data:
             try:
@@ -40,6 +39,8 @@ class MxValueValidator(ValueValidator):
 
 
 class MxValue(EqualityTupleMixin, dict):
+    VALIDATORS = [MxValueValidator('mx-value')]
+
     @classmethod
     def _schema(cls):
         return {
@@ -84,8 +85,6 @@ class MxValue(EqualityTupleMixin, dict):
             pass
         exchange = unquote(exchange)
         return {'preference': preference, 'exchange': exchange}
-
-    VALIDATORS = [MxValueValidator]
 
     @classmethod
     def process(cls, values):
