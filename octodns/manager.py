@@ -346,6 +346,9 @@ class Manager(object):
             _class, module, version = self._get_named_class(
                 'validator', _class, context
             )
+            types = validator_config.pop('types', None)
+            if isinstance(types, str):
+                types = [types]
             kwargs = self._build_kwargs(validator_config)
             try:
                 instance = _class(validator_name, **kwargs)
@@ -358,11 +361,8 @@ class Manager(object):
                 raise ManagerException(
                     f'Validator {validator_name} ({_class.__name__}) must extend RecordValidator or ValueValidator'
                 )
-            # User-defined validators are activated only by explicit
-            # manager.validators entries, never by set membership.
-            instance.sets = set()
             try:
-                Record.register_validator(instance)
+                Record.register_validator(instance, types=types)
             except RecordException as e:
                 raise ManagerException(str(e)) from e
             self.log.info(

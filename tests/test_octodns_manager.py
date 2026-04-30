@@ -170,22 +170,6 @@ class TestManager(TestCase):
             Manager(get_config_filename('validators-id-collision.yaml'))
         self.assertIn('already registered', str(ctx.exception))
 
-    def test_validators_add(self):
-        with validators_snapshot():
-            Manager(get_config_filename('validators-add.yaml'))
-            mx_validators = Record.registered_validators()['record'].get(
-                'MX', []
-            )
-            self.assertTrue(
-                any(v.id == 'my-test-validator' for v in mx_validators)
-            )
-            global_validators = Record.registered_validators()['record'].get(
-                '*', []
-            )
-            self.assertFalse(
-                any(v.id == 'my-test-validator' for v in global_validators)
-            )
-
     def test_validators_add_global(self):
         with validators_snapshot():
             Manager(get_config_filename('validators-add-global.yaml'))
@@ -312,11 +296,39 @@ class TestManager(TestCase):
                 Manager(get_config_filename('validators-enabled-sets.yaml'))
             self.assertTrue(any('enabling sets' in msg for msg in logs.output))
 
+    def test_validators_add_types(self):
+        # types in validators: config scopes registration without manager.validators.
+        with validators_snapshot():
+            Manager(get_config_filename('validators-add.yaml'))
+            mx_validators = Record.registered_validators()['record'].get(
+                'MX', []
+            )
+            self.assertTrue(
+                any(v.id == 'my-test-validator' for v in mx_validators)
+            )
+            global_validators = Record.registered_validators()['record'].get(
+                '*', []
+            )
+            self.assertFalse(
+                any(v.id == 'my-test-validator' for v in global_validators)
+            )
+
+    def test_validators_add_types_string(self):
+        # types: MX as a bare string is normalized to a list.
+        with validators_snapshot():
+            Manager(get_config_filename('validators-add-types-string.yaml'))
+            mx_validators = Record.registered_validators()['record'].get(
+                'MX', []
+            )
+            self.assertTrue(
+                any(v.id == 'my-test-validator' for v in mx_validators)
+            )
+
     def test_validators_add_logging(self):
         # Manager logs each explicitly enabled validator at INFO.
         with validators_snapshot():
             with self.assertLogs('Manager', level='INFO') as logs:
-                Manager(get_config_filename('validators-add.yaml'))
+                Manager(get_config_filename('validators-add-global.yaml'))
             self.assertTrue(
                 any(
                     'enabled validator' in msg and 'my-test-validator' in msg

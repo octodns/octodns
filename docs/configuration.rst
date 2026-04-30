@@ -245,31 +245,28 @@ Adding validators via config
 ............................
 
 Custom validators are declared in a top-level ``validators:`` section (parallel
-to ``providers:`` and ``processors:``) and then wired into specific record types
-— or all types — under ``manager.validators``::
+to ``providers:`` and ``processors:``)::
 
   validators:
     my-ttl-floor:
       class: mymodule.MinTtlValidator
       min_ttl: 300
-
-  manager:
-    validators:
-      '*':
-        - my-ttl-floor
+      types:
+        - MX
 
 The ``class`` key specifies the dotted import path of a
 :py:class:`~octodns.record.validator.RecordValidator` or
-:py:class:`~octodns.record.validator.ValueValidator` subclass. All other keys
-under the validator name are passed as keyword arguments to ``__init__`` after
-the mandatory ``id`` (config key) argument. Targeting ``'*'`` means the
-validator runs for every record type; targeting a record type string (e.g.
-``'MX'``) restricts it to that type.
+:py:class:`~octodns.record.validator.ValueValidator` subclass. The optional
+``types`` key restricts the validator to those record types; omitting it
+registers the validator for all types (``'*'``). All other keys are passed as
+keyword arguments to ``__init__`` after the mandatory ``id`` (config key)
+argument — including ``sets`` if set-based activation is desired.
 
-Validators declared under ``validators:`` are activated only by explicit
-``manager.validators`` entries — they are not activated by ``manager.enabled``
-set membership regardless of their ``sets`` value. This gives precise control
-over which types a custom validator runs for.
+Config-declared validators follow the same activation rules as built-in
+validators: a validator with ``sets=None`` (the default) is always active; one
+with an explicit ``sets`` value is activated when any of its sets appears in
+``manager.enabled``. ``manager.validators`` can still be used to activate a
+validator for additional record types beyond those listed under ``types``.
 
 Disabling built-in validators
 .............................
