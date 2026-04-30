@@ -366,7 +366,7 @@ to pull host data from gPanel_ and a similar provider that sources information
 about our network gear to create both ``A`` & ``PTR`` records for their
 interfaces. Things that might make good OSS sources might include an
 ``ElbSource`` that pulls information about `AWS Elastic Load Balancers`_ and
-dynamically creates ``CNAME``s for them, or ``Ec2Source`` that pulls instance
+dynamically creates ``CNAME``\s for them, or ``Ec2Source`` that pulls instance
 information so that records can be created for hosts similar to how our
 ``GPanelProvider`` works.
 
