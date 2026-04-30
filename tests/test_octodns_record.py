@@ -1302,6 +1302,34 @@ class TestValidators(TestCase):
             ]
             self.assertTrue(any(v.sets is None for v in all_active))
 
+    def test_lazy_validator_init(self):
+        # If validation is invoked before validators are configured, the legacy
+        # set should be auto-enabled with a warning rather than silently running
+        # no validators.
+        zone = Zone('unit.tests.', [])
+        with validators_snapshot():
+            Record._validators_configured = False
+            Record._RECORD_VALIDATORS.clear()
+            Record._VALUE_VALIDATORS.clear()
+            with self.assertLogs('Record', level='WARNING') as logs:
+                Record.new(
+                    zone, 'lazy', {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
+                )
+            self.assertTrue(
+                any(
+                    'automatically enabling legacy set' in msg
+                    for msg in logs.output
+                )
+            )
+            self.assertTrue(Record._validators_configured)
+            active = Record.registered_validators()['record']
+            self.assertTrue(any(v.id == 'name' for v in active.get('*', [])))
+            # The warning fires only once — subsequent validation calls are silent.
+            with self.assertNoLogs('Record', level='WARNING'):
+                Record.new(
+                    zone, 'lazy2', {'ttl': 300, 'type': 'A', 'value': '1.2.3.5'}
+                )
+
     def test_enable_validator(self):
         # enable_validator activates a single available validator by id.
         v = RecordValidator('ev-single', sets={'rfc'})

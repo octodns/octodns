@@ -160,6 +160,11 @@ class Record(EqualityTupleMixin):
     # regardless of which sets are enabled.
     _RECORD_VALIDATORS = defaultdict(dict)
     _VALUE_VALIDATORS = defaultdict(dict)
+    # Set to True by enable_validators so that the lazy-init guard in
+    # _process_validators / _process_value_validators can tell the difference
+    # between "no one has configured validators yet" and "validators were
+    # explicitly cleared (e.g. enabled: [])".
+    _validators_configured = False
 
     @classmethod
     def register_type(cls, _class, _type=None):
@@ -213,6 +218,7 @@ class Record(EqualityTupleMixin):
         are included in any of the values in `sets`.
         '''
 
+        Record._validators_configured = True
         cls._reset_active_validators()
 
         sets = set(sets)
@@ -353,6 +359,11 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def _process_validators(cls, name, fqdn, data):
+        if not Record._validators_configured:
+            Record.log.warning(
+                '_process_validators: no validators configured, automatically enabling legacy set'
+            )
+            Record.enable_validators({'legacy'})
         reasons = []
         for key in ('*', cls._type):
             for validator in cls._RECORD_VALIDATORS.get(key, {}).values():
