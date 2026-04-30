@@ -149,6 +149,15 @@ class Record(EqualityTupleMixin):
     )
 
     _CLASSES = {}
+    # Available: registered but not yet active. Populated by register_validator
+    # at module import time (via VALIDATORS lists and explicit calls). Manager
+    # selects which validators to activate based on manager.enabled config.
+    _AVAILABLE_RECORD_VALIDATORS = defaultdict(dict)
+    _AVAILABLE_VALUE_VALIDATORS = defaultdict(dict)
+    # Active: validators that run during record validation. Populated by
+    # enable_validators / enable_validator; cleared/rebuilt by Manager on each
+    # run. Validators with sets=None are always included by enable_validators
+    # regardless of which sets are enabled.
     _RECORD_VALIDATORS = defaultdict(dict)
     _VALUE_VALIDATORS = defaultdict(dict)
 
@@ -181,9 +190,9 @@ class Record(EqualityTupleMixin):
     @classmethod
     def register_validator(cls, validator, types=None):
         if isinstance(validator, RecordValidator):
-            registry = cls._RECORD_VALIDATORS
+            registry = cls._AVAILABLE_RECORD_VALIDATORS
         elif isinstance(validator, ValueValidator):
-            registry = cls._VALUE_VALIDATORS
+            registry = cls._AVAILABLE_VALUE_VALIDATORS
         else:
             raise RecordException(
                 f'{validator.__class__.__name__} must be a RecordValidator or ValueValidator instance'
@@ -198,10 +207,60 @@ class Record(EqualityTupleMixin):
             bucket[validator.id] = validator
 
     @classmethod
-    def unregister_validator(cls, validator_id, types=None):
+    def enable_validators(cls, sets):
+        '''
+        Clear current validators and activate all available validators that
+        are included in any of the values in `sets`.
+        '''
+
+        cls._reset_active_validators()
+
+        sets = set(sets)
+
+        for available, active in (
+            (cls._AVAILABLE_RECORD_VALIDATORS, cls._RECORD_VALIDATORS),
+            (cls._AVAILABLE_VALUE_VALIDATORS, cls._VALUE_VALIDATORS),
+        ):
+            for _type, validators in available.items():
+                for validator in validators.values():
+                    if validator.sets is None or sets & validator.sets:
+                        active[_type][validator.id] = validator
+
+    @classmethod
+    def enable_validator(cls, id, types=None):
+        '''
+        Activate a single available validator by id. Searches all available
+        type buckets; raises RecordException when not found.
+        '''
+        validator = None
+        for available in (
+            cls._AVAILABLE_RECORD_VALIDATORS,
+            cls._AVAILABLE_VALUE_VALIDATORS,
+        ):
+            for bucket in available.values():
+                if id in bucket:
+                    validator = bucket[id]
+                    break
+            if validator is not None:
+                break
+        if validator is None:
+            raise RecordException(f'Unknown validator id "{id}"')
+        active = (
+            cls._RECORD_VALIDATORS
+            if isinstance(validator, RecordValidator)
+            else cls._VALUE_VALIDATORS
+        )
+        keys = ('*',) if types is None else types
+        for key in keys:
+            active[key][id] = validator
+
+    @classmethod
+    def disable_validator(cls, validator_id, types=None):
+        '''Remove a validator from the active registry. Bridge (_-prefixed)
+        validators cannot be disabled.'''
         if validator_id.startswith('_'):
             raise RecordException(
-                f'Cannot unregister bridge validator "{validator_id}"'
+                f'Cannot disable bridge validator "{validator_id}"'
             )
         removed = 0
         if types is None:
@@ -220,6 +279,12 @@ class Record(EqualityTupleMixin):
         return removed
 
     @classmethod
+    def _reset_active_validators(cls):
+        '''Clear the active registry; enable_validators will repopulate it.'''
+        cls._RECORD_VALIDATORS.clear()
+        cls._VALUE_VALIDATORS.clear()
+
+    @classmethod
     def registered_validators(cls):
         return {
             'record': {
@@ -227,6 +292,19 @@ class Record(EqualityTupleMixin):
             },
             'value': {
                 k: list(v.values()) for k, v in cls._VALUE_VALIDATORS.items()
+            },
+        }
+
+    @classmethod
+    def available_validators(cls):
+        return {
+            'record': {
+                k: list(v.values())
+                for k, v in cls._AVAILABLE_RECORD_VALIDATORS.items()
+            },
+            'value': {
+                k: list(v.values())
+                for k, v in cls._AVAILABLE_VALUE_VALIDATORS.items()
             },
         }
 
@@ -585,6 +663,6 @@ class ValueMixin(object):
         return f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, {self.value}{octodns}>'
 
 
-Record.register_validator(NameValidator('name'))
-Record.register_validator(TtlValidator('ttl'))
-Record.register_validator(HealthcheckValidator('healthcheck'))
+Record.register_validator(NameValidator('name', sets={'legacy'}))
+Record.register_validator(TtlValidator('ttl', sets={'legacy'}))
+Record.register_validator(HealthcheckValidator('healthcheck', sets={'legacy'}))

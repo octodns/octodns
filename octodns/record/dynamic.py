@@ -164,7 +164,7 @@ class _Dynamic(object):
 
 
 class _DynamicMixin(object):
-    VALIDATORS = [DynamicValidator('dynamic')]
+    VALIDATORS = [DynamicValidator('dynamic', sets={'legacy'})]
 
     geo_re = re.compile(
         r'^(?P<continent_code>\w\w)(-(?P<country_code>\w\w)'

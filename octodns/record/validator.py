@@ -26,17 +26,22 @@ class RecordValidator:
     run.
     '''
 
-    def __init__(self, id):
+    def __init__(self, id, sets=None):
         '''
         :param id: Non-empty identifier for this validator instance. Used
                    to look up the validator in the registry and to
-                   reference it in config (for disabling, etc.).
+                   reference it in config (for enabling/disabling, etc.).
+        :param sets: Iterable of set names this validator belongs to, or
+                     ``None`` (the default) to always activate regardless of
+                     ``manager.enabled``. Pass an explicit set such as
+                     ``sets={'legacy'}`` to opt into set-based filtering.
         '''
         if not id:
             raise ValueError(
                 f'{self.__class__.__name__} requires a non-empty id'
             )
         self.id = id
+        self.sets = set(sets) if sets is not None else None
 
     def validate(self, record_cls, name, fqdn, data):
         '''
@@ -98,17 +103,22 @@ class ValueValidator:
     framework-internal bridge validators that must always run.
     '''
 
-    def __init__(self, id):
+    def __init__(self, id, sets=None):
         '''
         :param id: Non-empty identifier for this validator instance. Used
                    to look up the validator in the registry and to
-                   reference it in config (for disabling, etc.).
+                   reference it in config (for enabling/disabling, etc.).
+        :param sets: Iterable of set names this validator belongs to, or
+                     ``None`` (the default) to always activate regardless of
+                     ``manager.enabled``. Pass an explicit set such as
+                     ``sets={'legacy'}`` to opt into set-based filtering.
         '''
         if not id:
             raise ValueError(
                 f'{self.__class__.__name__} requires a non-empty id'
             )
         self.id = id
+        self.sets = set(sets) if sets is not None else None
 
     def validate(self, value_cls, data, _type):
         '''

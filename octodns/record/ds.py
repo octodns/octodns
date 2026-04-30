@@ -83,7 +83,7 @@ class DsValue(EqualityTupleMixin, dict):
     # https://www.rfc-editor.org/rfc/rfc4034.html#section-5.1
     log = getLogger('DsValue')
 
-    VALIDATORS = [DsValueValidator('ds-value')]
+    VALIDATORS = [DsValueValidator('ds-value', sets={'legacy'})]
 
     @classmethod
     def _schema(cls):

@@ -28,7 +28,7 @@ class CnameRecord(_DynamicMixin, ValueMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc1035',)
     _type = 'CNAME'
     _value_type = CnameValue
-    VALIDATORS = [CnameRootValidator('cname-root')]
+    VALIDATORS = [CnameRootValidator('cname-root', sets={'legacy'})]
 
 
 Record.register_type(CnameRecord)

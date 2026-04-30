@@ -69,7 +69,7 @@ class SshfpValue(EqualityTupleMixin, dict):
     VALID_ALGORITHMS = (1, 2, 3, 4)
     VALID_FINGERPRINT_TYPES = (1, 2)
 
-    VALIDATORS = [SshfpValueValidator('sshfp-value')]
+    VALIDATORS = [SshfpValueValidator('sshfp-value', sets={'legacy'})]
 
     @classmethod
     def _schema(cls):

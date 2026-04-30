@@ -34,7 +34,7 @@ class CaaValueValidator(ValueValidator):
 class CaaValue(EqualityTupleMixin, dict):
     # https://tools.ietf.org/html/rfc6844#page-5
 
-    VALIDATORS = [CaaValueValidator('caa-value')]
+    VALIDATORS = [CaaValueValidator('caa-value', sets={'legacy'})]
 
     @classmethod
     def _schema(cls):

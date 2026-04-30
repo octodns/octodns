@@ -1115,8 +1115,9 @@ class TestValidators(TestCase):
         )
 
     def test_instance_record_validator(self):
-        # Validators registered via register_validator() get called during
-        # record validation. Instances can carry per-instance state.
+        # Validators registered via register_validator() and then enabled via
+        # enable_validator() get called during record validation. Instances can
+        # carry per-instance state.
         class ForbidBadPrefix(RecordValidator):
             def __init__(self, prefix):
                 super().__init__(id='test-forbid-bad-prefix')
@@ -1130,6 +1131,7 @@ class TestValidators(TestCase):
         data = {'ttl': 30, 'type': 'A', 'value': '1.2.3.4'}
         with validators_snapshot():
             Record.register_validator(ForbidBadPrefix('bad-'), types=['A'])
+            Record.enable_validator('test-forbid-bad-prefix', types=['A'])
             self.assertIn(
                 'name starts with "bad-"',
                 ARecord.validate('bad-name', 'bad-name.unit.tests.', data),
@@ -1137,8 +1139,9 @@ class TestValidators(TestCase):
             self.assertEqual([], ARecord.validate('ok', 'ok.unit.tests.', data))
 
     def test_instance_value_validator(self):
-        # Value validators registered via register_validator() fire during
-        # value validation. Instances can carry per-instance state.
+        # Value validators registered via register_validator() and then enabled
+        # via enable_validator() fire during value validation. Instances can
+        # carry per-instance state.
         class ForbidWord(ValueValidator):
             def __init__(self, word):
                 super().__init__(id='test-forbid-word')
@@ -1153,6 +1156,7 @@ class TestValidators(TestCase):
 
         with validators_snapshot():
             Record.register_validator(ForbidWord('blocked'), types=['TXT'])
+            Record.enable_validator('test-forbid-word', types=['TXT'])
             self.assertIn(
                 'forbidden value "blocked"',
                 _process_value_validators(str, ['blocked'], 'TXT'),
@@ -1177,62 +1181,158 @@ class TestValidators(TestCase):
                 Record.register_validator(v, types=['A'])
             self.assertIn('"dup-test" already registered', str(ctx.exception))
 
-    def test_unregister_validator(self):
-        # Unregistering a bridge validator (_-prefixed id) is refused.
+    def test_disable_validator(self):
+        # Disabling a bridge validator (_-prefixed id) is refused.
         with self.assertRaises(RecordException) as ctx:
-            Record.unregister_validator('_values-type')
-        self.assertIn('Cannot unregister bridge validator', str(ctx.exception))
+            Record.disable_validator('_values-type')
+        self.assertIn('Cannot disable bridge validator', str(ctx.exception))
 
-        # Unregistering by types= removes only from those buckets.
+        # Disabling by types= removes only from those active buckets.
         v = RecordValidator('my-test')
         with validators_snapshot():
             Record.register_validator(v, types=['A', 'AAAA'])
-            Record.unregister_validator('my-test', types=['A'])
+            Record.enable_validator('my-test', types=['A', 'AAAA'])
+            Record.disable_validator('my-test', types=['A'])
             registry = Record.registered_validators()['record']
             self.assertNotIn(v, registry.get('A', []))
             self.assertIn(v, registry.get('AAAA', []))
 
-        # Unregistering without types removes from every bucket.
+        # Disabling without types removes from every active bucket.
         v2 = RecordValidator('my-test2')
         with validators_snapshot():
             Record.register_validator(v2, types=['A', 'AAAA'])
-            Record.unregister_validator('my-test2')
+            Record.enable_validator('my-test2', types=['A', 'AAAA'])
+            Record.disable_validator('my-test2')
             registry = Record.registered_validators()['record']
             self.assertNotIn(v2, registry.get('A', []))
             self.assertNotIn(v2, registry.get('AAAA', []))
 
-        # Unregistering from a type with no bucket registered is a no-op.
+        # Disabling from a type with no active bucket is a no-op.
         with validators_snapshot():
             self.assertEqual(
                 0,
-                Record.unregister_validator(
-                    'nonexistent-id', types=['FAKETYPE']
-                ),
+                Record.disable_validator('nonexistent-id', types=['FAKETYPE']),
             )
 
-        # The return value reports how many buckets the id was removed from.
+        # The return value reports how many active buckets the id was removed from.
         v3 = RecordValidator('counted-test')
         with validators_snapshot():
             Record.register_validator(v3, types=['A', 'AAAA'])
+            Record.enable_validator('counted-test', types=['A', 'AAAA'])
             self.assertEqual(
-                1, Record.unregister_validator('counted-test', types=['A'])
+                1, Record.disable_validator('counted-test', types=['A'])
             )
             self.assertEqual(
-                1, Record.unregister_validator('counted-test', types=['AAAA'])
+                1, Record.disable_validator('counted-test', types=['AAAA'])
             )
             self.assertEqual(
-                0,
-                Record.unregister_validator(
-                    'counted-test', types=['A', 'AAAA']
-                ),
+                0, Record.disable_validator('counted-test', types=['A', 'AAAA'])
             )
 
-        # Without types= it counts every bucket the id appeared in.
+        # Without types= it counts every active bucket the id appeared in.
         v4 = RecordValidator('counted-global')
         with validators_snapshot():
             Record.register_validator(v4, types=['A', 'AAAA', 'TXT'])
-            self.assertEqual(3, Record.unregister_validator('counted-global'))
-            self.assertEqual(0, Record.unregister_validator('counted-global'))
+            Record.enable_validator(
+                'counted-global', types=['A', 'AAAA', 'TXT']
+            )
+            self.assertEqual(3, Record.disable_validator('counted-global'))
+            self.assertEqual(0, Record.disable_validator('counted-global'))
+
+    def test_validator_sets_attribute(self):
+        # Default sets value is None — always active regardless of enabled sets.
+        v = RecordValidator('test-default-sets')
+        self.assertIsNone(v.sets)
+
+        # Can be overridden with any iterable.
+        v2 = RecordValidator('test-custom-sets', sets=('rfc', 'best-practice'))
+        self.assertEqual({'rfc', 'best-practice'}, v2.sets)
+
+        # Empty sets is valid (never activated via set membership).
+        v3 = RecordValidator('test-empty-sets', sets=())
+        self.assertEqual(set(), v3.sets)
+
+        # Same applies to ValueValidator.
+        vv = ValueValidator('test-value-sets')
+        self.assertIsNone(vv.sets)
+
+    def test_enable_validators(self):
+        # enable_validators resets active and activates available validators
+        # that belong to any of the given sets.
+        v_legacy = RecordValidator('ev-legacy', sets={'legacy'})
+        v_rfc = RecordValidator('ev-rfc', sets={'rfc'})
+        with validators_snapshot():
+            Record.register_validator(v_legacy, types=['A'])
+            Record.register_validator(v_rfc, types=['A'])
+            # Nothing active for A yet (besides whatever was already there).
+            a_active = Record.registered_validators()['record'].get('A', [])
+            self.assertFalse(any(v.id == 'ev-legacy' for v in a_active))
+            self.assertFalse(any(v.id == 'ev-rfc' for v in a_active))
+
+            # Enabling one set activates only matching validators.
+            Record.enable_validators(('legacy',))
+            a_active = Record.registered_validators()['record'].get('A', [])
+            self.assertTrue(any(v.id == 'ev-legacy' for v in a_active))
+            self.assertFalse(any(v.id == 'ev-rfc' for v in a_active))
+
+            # Enabling a different set resets — previous set is no longer active.
+            Record.enable_validators(('rfc',))
+            a_active = Record.registered_validators()['record'].get('A', [])
+            self.assertFalse(any(v.id == 'ev-legacy' for v in a_active))
+            self.assertTrue(any(v.id == 'ev-rfc' for v in a_active))
+
+            # Enabling multiple sets at once activates all matching validators.
+            Record.enable_validators(('legacy', 'rfc'))
+            a_active = Record.registered_validators()['record'].get('A', [])
+            self.assertTrue(any(v.id == 'ev-legacy' for v in a_active))
+            self.assertTrue(any(v.id == 'ev-rfc' for v in a_active))
+
+            # An empty set activates only validators with sets=None (bridges,
+            # and any 3rd-party validator that omitted sets).
+            Record.enable_validators(())
+            global_active = Record.registered_validators()['record'].get(
+                '*', []
+            )
+            self.assertFalse(any(v.id == 'name' for v in global_active))
+            # Validators with sets=None are always present regardless of enabled sets.
+            all_active = [
+                v
+                for bucket in Record._RECORD_VALIDATORS.values()
+                for v in bucket.values()
+            ]
+            self.assertTrue(any(v.sets is None for v in all_active))
+
+    def test_enable_validator(self):
+        # enable_validator activates a single available validator by id.
+        v = RecordValidator('ev-single', sets={'rfc'})
+        with validators_snapshot():
+            Record.register_validator(v, types=['MX'])
+            Record.enable_validators([])
+
+            # Not yet active.
+            mx_active = Record.registered_validators()['record'].get('MX', [])
+            self.assertFalse(any(v.id == 'ev-single' for v in mx_active))
+
+            # Activate for a specific type.
+            Record.enable_validator('ev-single', types=['MX'])
+            mx_active = Record.registered_validators()['record'].get('MX', [])
+            self.assertTrue(any(v.id == 'ev-single' for v in mx_active))
+
+        # Unknown id raises RecordException.
+        with self.assertRaises(RecordException) as ctx:
+            Record.enable_validator('does-not-exist')
+        self.assertIn('Unknown validator id', str(ctx.exception))
+
+    def test_available_validators(self):
+        # available_validators returns the available (not yet active) registry.
+        v = RecordValidator('avail-test', sets={'rfc'})
+        with validators_snapshot():
+            Record.register_validator(v, types=['TXT'])
+            avail = Record.available_validators()
+            self.assertIn(v, avail['record'].get('TXT', []))
+            # Not in active yet.
+            active = Record.registered_validators()
+            self.assertNotIn(v, active['record'].get('TXT', []))
 
     def test_legacy_record_validate_deprecation(self):
         # 3rd-party records that still override Record.validate get a

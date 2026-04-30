@@ -145,14 +145,42 @@ Validators
 
 octoDNS ships with a suite of built-in validators that check records for
 correctness (valid TTLs, well-formed values, healthcheck protocol names, etc.)
-before any changes are applied. The validator system supports three operations:
-adding custom validators, disabling built-in validators, and attaching
-validators programmatically from third-party code.
+before any changes are applied. The validator system supports: enabling
+validator sets, adding custom validators, disabling individual validators,
+and registering validators programmatically from third-party code.
+
+Validator sets and ``manager.enabled``
+.......................................
+
+Validators belong to named *sets*. ``manager.enabled`` controls which sets
+are active for a run (default: ``['legacy']``)::
+
+  manager:
+    enabled:
+      - legacy
+
+All built-in validators belong to the ``legacy`` set. Omitting
+``manager.enabled`` is equivalent to ``enabled: [legacy]`` and preserves the
+original octoDNS behaviour.
+
+Additional opt-in sets can be enabled alongside ``legacy``::
+
+  manager:
+    enabled:
+      - legacy
+      - rfc
+
+A validator can belong to multiple sets; it becomes active when any of its
+sets is listed in ``manager.enabled``.
+
+Setting ``enabled: []`` activates only validators whose ``sets`` is ``None``
+(see `Attaching validators programmatically`_ below).
 
 Built-in validator ids
 ......................
 
-Each built-in validator has a stable short id:
+Each built-in validator has a stable short id. All belong to the ``legacy``
+set and can be disabled individually with ``manager.disable_validators``.
 
 +----------------------+------------------------------------------+
 | id                   | description                              |
@@ -211,14 +239,14 @@ Each built-in validator has a stable short id:
 +----------------------+------------------------------------------+
 
 Ids prefixed with ``_`` (e.g. ``_values-type``) are internal bridge validators
-that cannot be disabled.
+with ``sets=None`` — they are always active and cannot be disabled.
 
 Adding validators via config
 ............................
 
 Custom validators are declared in a top-level ``validators:`` section (parallel
 to ``providers:`` and ``processors:``) and then wired into specific record types
-— or all types — under ``manager:``::
+— or all types — under ``manager.validators``::
 
   validators:
     my-ttl-floor:
@@ -237,6 +265,11 @@ under the validator name are passed as keyword arguments to ``__init__`` after
 the mandatory ``id`` (config key) argument. Targeting ``'*'`` means the
 validator runs for every record type; targeting a record type string (e.g.
 ``'MX'``) restricts it to that type.
+
+Validators declared under ``validators:`` are activated only by explicit
+``manager.validators`` entries — they are not activated by ``manager.enabled``
+set membership regardless of their ``sets`` value. This gives precise control
+over which types a custom validator runs for.
 
 Disabling built-in validators
 .............................
@@ -300,8 +333,22 @@ To attach a validator to an already-registered record type, call
 
   Record.register_validator(NoPublicMxValidator('no-public-mx'), types=['MX'])
 
-``types=None`` (the default) registers for all record types. As long as the
-module is imported before octoDNS plans any changes the validator will run.
+``types=None`` (the default) registers for all record types.
+
+**Set membership and activation.** A validator's ``sets`` attribute controls
+when it becomes active. The default is ``sets=None``, which means the
+validator is always activated regardless of ``manager.enabled`` — the right
+choice for most third-party validators that should always run. To opt a
+validator into set-based filtering, pass an explicit ``sets`` at construction
+time::
+
+  Record.register_validator(
+      StrictMxValidator('strict-mx', sets={'rfc'}), types=['MX']
+  )
+
+That validator is then only active when ``manager.enabled`` includes ``'rfc'``.
+As long as the module is imported before Manager initialises, the validator
+will be in the available registry and activated appropriately.
 
 ``strict_supports``
 -------------------

@@ -251,6 +251,52 @@ class TestManager(TestCase):
                 )
             )
 
+    def test_validators_enabled_default(self):
+        # Without manager.enabled, legacy validators are active.
+        with validators_snapshot():
+            Manager(get_config_filename('validators-disable.yaml'))
+            global_validators = Record.registered_validators()['record'].get(
+                '*', []
+            )
+            self.assertTrue(any(v.id == 'name' for v in global_validators))
+            self.assertTrue(any(v.id == 'ttl' for v in global_validators))
+
+    def test_validators_enabled_sets(self):
+        # manager.enabled can include multiple set names; validators
+        # belonging to any of those sets become active.
+        with validators_snapshot():
+            # Register a validator in a custom set so enable_validators picks it up
+            from octodns.record.validator import RecordValidator as RV
+
+            class TestSetValidator(RV):
+                def __init__(self):
+                    super().__init__('test-set-member', sets={'test-set'})
+
+            v = TestSetValidator()
+            Record.register_validator(v, types=['A'])
+            Manager(get_config_filename('validators-enabled-sets.yaml'))
+            a_validators = Record.registered_validators()['record'].get('A', [])
+            self.assertTrue(
+                any(v.id == 'test-set-member' for v in a_validators)
+            )
+            # legacy validators are still active too
+            global_validators = Record.registered_validators()['record'].get(
+                '*', []
+            )
+            self.assertTrue(any(v.id == 'name' for v in global_validators))
+
+    def test_validators_enabled_empty(self):
+        # manager.enabled: [] removes all non-bridge validators from active.
+        with validators_snapshot():
+            Manager(get_config_filename('validators-enabled-empty.yaml'))
+            active = Record.registered_validators()
+            for type_validators in active['record'].values():
+                for v in type_validators:
+                    self.assertTrue(
+                        v.id.startswith('_'),
+                        f'Non-bridge validator {v.id!r} still active',
+                    )
+
     def test_source_only_as_a_target(self):
         with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('provider-problems.yaml')).sync(
