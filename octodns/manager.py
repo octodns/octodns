@@ -378,6 +378,12 @@ class Manager(object):
         # manager.disable_validators (explicit removes).
 
         enabled = manager_config.get('enabled', ('legacy',))
+        if isinstance(enabled, str):
+            raise ManagerException(
+                'manager.enabled must be a list of set names, not a string; '
+                f'use [{enabled!r}] to enable a single set'
+            )
+        self.log.info('_configure_validators: enabling sets %s', list(enabled))
         Record.enable_validators(enabled)
 
         add_config = manager_config.get('validators') or {}
@@ -390,6 +396,11 @@ class Manager(object):
                     raise ManagerException(
                         f'Unknown validator "{name}" in manager.validators["{record_type}"]'
                     )
+                self.log.info(
+                    '_configure_validators: enabled validator "%s" for "%s"',
+                    name,
+                    record_type,
+                )
 
         disable_config = manager_config.get('disable_validators') or {}
         for record_type, ids in disable_config.items():
@@ -403,8 +414,14 @@ class Manager(object):
                     raise ManagerException(str(e)) from e
                 if removed == 0:
                     self.log.warning(
-                        'disable_validators: no validator with id "%s" '
+                        '_configure_validators: no validator with id "%s" '
                         'registered for "%s"',
+                        validator_id,
+                        record_type,
+                    )
+                else:
+                    self.log.info(
+                        '_configure_validators: disabled validator "%s" for "%s"',
                         validator_id,
                         record_type,
                     )

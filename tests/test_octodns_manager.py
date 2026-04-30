@@ -297,6 +297,45 @@ class TestManager(TestCase):
                         f'Non-bridge validator {v.id!r} still active',
                     )
 
+    def test_validators_enabled_string(self):
+        # A bare string for manager.enabled must raise a clear error rather
+        # than silently iterating its characters as set members.
+        with validators_snapshot():
+            with self.assertRaises(ManagerException) as ctx:
+                Manager(get_config_filename('validators-enabled-string.yaml'))
+            self.assertIn('must be a list', str(ctx.exception))
+
+    def test_validators_enabled_logging(self):
+        # Manager logs enabled sets at INFO.
+        with validators_snapshot():
+            with self.assertLogs('Manager', level='INFO') as logs:
+                Manager(get_config_filename('validators-enabled-sets.yaml'))
+            self.assertTrue(any('enabling sets' in msg for msg in logs.output))
+
+    def test_validators_add_logging(self):
+        # Manager logs each explicitly enabled validator at INFO.
+        with validators_snapshot():
+            with self.assertLogs('Manager', level='INFO') as logs:
+                Manager(get_config_filename('validators-add.yaml'))
+            self.assertTrue(
+                any(
+                    'enabled validator' in msg and 'my-test-validator' in msg
+                    for msg in logs.output
+                )
+            )
+
+    def test_validators_disable_logging(self):
+        # Manager logs each successfully disabled validator at INFO.
+        with validators_snapshot():
+            with self.assertLogs('Manager', level='INFO') as logs:
+                Manager(get_config_filename('validators-disable.yaml'))
+            self.assertTrue(
+                any(
+                    'disabled validator' in msg and 'healthcheck' in msg
+                    for msg in logs.output
+                )
+            )
+
     def test_source_only_as_a_target(self):
         with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('provider-problems.yaml')).sync(
