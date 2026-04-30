@@ -12,7 +12,7 @@ from ..equality import EqualityTupleMixin
 from ..idna import IdnaError, idna_decode, idna_encode
 from .change import Update
 from .exception import RecordException, ValidationError
-from .validator import RecordValidator, ValueValidator
+from .validator import RecordValidator, ValidatorRegistry
 
 
 def unquote(s):
@@ -149,22 +149,7 @@ class Record(EqualityTupleMixin):
     )
 
     _CLASSES = {}
-    # Available: registered but not yet active. Populated by register_validator
-    # at module import time (via VALIDATORS lists and explicit calls). Manager
-    # selects which validators to activate based on manager.enabled config.
-    _AVAILABLE_RECORD_VALIDATORS = defaultdict(dict)
-    _AVAILABLE_VALUE_VALIDATORS = defaultdict(dict)
-    # Active: validators that run during record validation. Populated by
-    # enable_validators / enable_validator; cleared/rebuilt by Manager on each
-    # run. Validators with sets=None are always included by enable_validators
-    # regardless of which sets are enabled.
-    _RECORD_VALIDATORS = defaultdict(dict)
-    _VALUE_VALIDATORS = defaultdict(dict)
-    # Set to True by enable_validators so that the lazy-init guard in
-    # _process_validators / _process_value_validators can tell the difference
-    # between "no one has configured validators yet" and "validators were
-    # explicitly cleared (e.g. enabled: [])".
-    _validators_configured = False
+    validators = ValidatorRegistry()
 
     @classmethod
     def register_type(cls, _class, _type=None):
@@ -194,125 +179,27 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def register_validator(cls, validator, types=None):
-        if isinstance(validator, RecordValidator):
-            registry = cls._AVAILABLE_RECORD_VALIDATORS
-        elif isinstance(validator, ValueValidator):
-            registry = cls._AVAILABLE_VALUE_VALIDATORS
-        else:
-            raise RecordException(
-                f'{validator.__class__.__name__} must be a RecordValidator or ValueValidator instance'
-            )
-        keys = ('*',) if types is None else types
-        for key in keys:
-            bucket = registry[key]
-            if validator.id in bucket:
-                raise RecordException(
-                    f'Validator id "{validator.id}" already registered for "{key}"'
-                )
-            bucket[validator.id] = validator
+        cls.validators.register(validator, types=types)
 
     @classmethod
     def enable_validators(cls, sets):
-        '''
-        Clear current validators and activate all available validators that
-        are included in any of the values in `sets`.
-        '''
-
-        Record._validators_configured = True
-        cls._reset_active_validators()
-
-        sets = set(sets)
-
-        for available, active in (
-            (cls._AVAILABLE_RECORD_VALIDATORS, cls._RECORD_VALIDATORS),
-            (cls._AVAILABLE_VALUE_VALIDATORS, cls._VALUE_VALIDATORS),
-        ):
-            for _type, validators in available.items():
-                for validator in validators.values():
-                    if validator.sets is None or sets & validator.sets:
-                        active[_type][validator.id] = validator
+        cls.validators.enable_sets(sets)
 
     @classmethod
     def enable_validator(cls, id, types=None):
-        '''
-        Activate a single available validator by id. Searches all available
-        type buckets; raises RecordException when not found.
-        '''
-        validator = None
-        for available in (
-            cls._AVAILABLE_RECORD_VALIDATORS,
-            cls._AVAILABLE_VALUE_VALIDATORS,
-        ):
-            for bucket in available.values():
-                if id in bucket:
-                    validator = bucket[id]
-                    break
-            if validator is not None:
-                break
-        if validator is None:
-            raise RecordException(f'Unknown validator id "{id}"')
-        active = (
-            cls._RECORD_VALIDATORS
-            if isinstance(validator, RecordValidator)
-            else cls._VALUE_VALIDATORS
-        )
-        keys = ('*',) if types is None else types
-        for key in keys:
-            active[key][id] = validator
+        cls.validators.enable(id, types=types)
 
     @classmethod
     def disable_validator(cls, validator_id, types=None):
-        '''Remove a validator from the active registry. Bridge (_-prefixed)
-        validators cannot be disabled.'''
-        if validator_id.startswith('_'):
-            raise RecordException(
-                f'Cannot disable bridge validator "{validator_id}"'
-            )
-        removed = 0
-        if types is None:
-            for registry in (cls._RECORD_VALIDATORS, cls._VALUE_VALIDATORS):
-                for bucket in registry.values():
-                    if bucket.pop(validator_id, None) is not None:
-                        removed += 1
-        else:
-            for key in types:
-                for registry in (cls._RECORD_VALIDATORS, cls._VALUE_VALIDATORS):
-                    if (
-                        key in registry
-                        and registry[key].pop(validator_id, None) is not None
-                    ):
-                        removed += 1
-        return removed
-
-    @classmethod
-    def _reset_active_validators(cls):
-        '''Clear the active registry; enable_validators will repopulate it.'''
-        cls._RECORD_VALIDATORS.clear()
-        cls._VALUE_VALIDATORS.clear()
+        return cls.validators.disable(validator_id, types=types)
 
     @classmethod
     def registered_validators(cls):
-        return {
-            'record': {
-                k: list(v.values()) for k, v in cls._RECORD_VALIDATORS.items()
-            },
-            'value': {
-                k: list(v.values()) for k, v in cls._VALUE_VALIDATORS.items()
-            },
-        }
+        return cls.validators.registered()
 
     @classmethod
     def available_validators(cls):
-        return {
-            'record': {
-                k: list(v.values())
-                for k, v in cls._AVAILABLE_RECORD_VALIDATORS.items()
-            },
-            'value': {
-                k: list(v.values())
-                for k, v in cls._AVAILABLE_VALUE_VALIDATORS.items()
-            },
-        }
+        return cls.validators.available()
 
     @classmethod
     def new(cls, zone, name, data, source=None, lenient=False):
@@ -359,16 +246,7 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def _process_validators(cls, name, fqdn, data):
-        if not Record._validators_configured:
-            Record.log.warning(
-                '_process_validators: no validators configured, automatically enabling legacy set'
-            )
-            Record.enable_validators({'legacy'})
-        reasons = []
-        for key in ('*', cls._type):
-            for validator in cls._RECORD_VALIDATORS.get(key, {}).values():
-                reasons.extend(validator.validate(cls, name, fqdn, data))
-        return reasons
+        return cls.validators.process_record(cls, name, fqdn, data)
 
     @classmethod
     def validate(cls, name, fqdn, data):
@@ -558,21 +436,7 @@ class Record(EqualityTupleMixin):
 
 
 def _process_value_validators(value_type, values, _type):
-    reasons = []
-    # Back-compat: 3rd-party value classes may still override validate()
-    # directly rather than using the registry.
-    legacy = getattr(value_type, 'validate', None)
-    if legacy is not None:
-        deprecated(
-            f'`{value_type.__name__}.validate` classmethod is DEPRECATED. '
-            'Add a ValueValidator to `VALIDATORS` instead. Will be removed in 2.0',
-            stacklevel=3,
-        )
-        reasons.extend(legacy(values, _type))
-    for key in ('*', _type):
-        for validator in Record._VALUE_VALIDATORS.get(key, {}).values():
-            reasons.extend(validator.validate(value_type, values, _type))
-    return reasons
+    return Record.validators.process_values(value_type, values, _type)
 
 
 class ValuesMixin(object):
