@@ -146,14 +146,14 @@ class DsValue(EqualityTupleMixin, dict):
                 'key_tag': int(value['flags']),
                 'algorithm': int(value['protocol']),
                 'digest_type': int(value['algorithm']),
-                'digest': value['public_key'],
+                'digest': str(value['public_key']).lower(),
             }
         else:
             init = {
                 'key_tag': int(value['key_tag']),
                 'algorithm': int(value['algorithm']),
                 'digest_type': int(value['digest_type']),
-                'digest': value['digest'],
+                'digest': str(value['digest']).lower(),
             }
         super().__init__(init)
 
