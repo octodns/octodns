@@ -115,7 +115,7 @@ class SshfpValue(EqualityTupleMixin, dict):
             {
                 'algorithm': int(value['algorithm']),
                 'fingerprint_type': int(value['fingerprint_type']),
-                'fingerprint': value['fingerprint'],
+                'fingerprint': str(value['fingerprint']).lower(),
             }
         )
 

@@ -399,6 +399,45 @@ class TestRecordSshfp(TestCase):
             },
         )
 
+    def test_fingerprint_case_insensitive(self):
+        target = SimpleProvider()
+
+        # uppercase input is normalized to lowercase
+        upper = Record.new(
+            self.zone,
+            '',
+            {
+                'type': 'SSHFP',
+                'ttl': 600,
+                'value': {
+                    'algorithm': 1,
+                    'fingerprint_type': 1,
+                    'fingerprint': 'BF6B6825D2977C511A475BBEFB88AAD54A92AC73',
+                },
+            },
+        )
+        self.assertEqual(
+            'bf6b6825d2977c511a475bbefb88aad54a92ac73',
+            upper.values[0].fingerprint,
+        )
+
+        # same value in lowercase — no change detected
+        lower = Record.new(
+            self.zone,
+            '',
+            {
+                'type': 'SSHFP',
+                'ttl': 600,
+                'value': {
+                    'algorithm': 1,
+                    'fingerprint_type': 1,
+                    'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73',
+                },
+            },
+        )
+        self.assertFalse(upper.changes(lower, target))
+        self.assertFalse(lower.changes(upper, target))
+
 
 class TestSshFpValue(TestCase):
 
