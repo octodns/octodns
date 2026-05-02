@@ -20,18 +20,10 @@ class SubzoneOverlapFilter(BaseProcessor):
     parent and the child zone files.
 
     This processor restores the strict behaviour after populate by
-    removing records that fall under a configured sub-zone. It mirrors
-    Zone.add_record's own rules:
-
-    - NS and DS records at the exact sub-zone boundary are preserved
-      (they are the legitimate delegation glue and must stay in the
-      parent).
-    - Records explicitly marked with record-level lenient (e.g.
-      ``octodns: { lenient: true }`` in a YAML config) are preserved.
-      This covers the operator-opt-in case in
-      https://github.com/octodns/octodns/issues/1362 -- glue records
-      like ``ns.sub.domain.tld.`` that genuinely belong in the parent
-      zone file even though they sit under a delegated sub-zone.
+    removing any record that the zone does not own per Zone.owns. NS
+    records at the exact sub-zone boundary are preserved automatically
+    because Zone.owns reports them as owned (they are the delegation
+    glue and must stay in the parent).
 
     The processor takes no configuration; it relies entirely on the
     sub_zones the manager already populates on each Zone from the
@@ -63,23 +55,11 @@ class SubzoneOverlapFilter(BaseProcessor):
         self.log = getLogger(f'SubzoneOverlapFilter[{name}]')
 
     def process_source_zone(self, desired, sources, lenient=False):
-        sub_zones = desired.sub_zones
-        if not sub_zones:
+        if not desired.sub_zones:
             return desired
-        sub_suffixes = tuple(f'.{s}' for s in sub_zones)
         removed = 0
         for record in list(desired.records):
-            # Operator-opt-in: a record marked lenient is one the user
-            # explicitly asked to keep here (e.g. delegation glue).
-            if record.lenient:
-                continue
-            name = record.name
-            # NS and DS at the exact sub-zone boundary are the legitimate
-            # delegation glue. Mirror Zone.add_record's allowance (Zone.owns
-            # only special-cases NS, hence the explicit check for DS).
-            if name in sub_zones and record._type in ('NS', 'DS'):
-                continue
-            if name in sub_zones or name.endswith(sub_suffixes):
+            if not desired.owns(record._type, record.fqdn):
                 desired.remove_record(record)
                 removed += 1
         if removed:
