@@ -157,6 +157,7 @@ class Zone(object):
         sub_zones,
         update_pcent_threshold=None,
         delete_pcent_threshold=None,
+        ignore_subzone_adds=False,
     ):
         '''
         Initialize a DNS zone.
@@ -174,6 +175,14 @@ class Zone(object):
         :param delete_pcent_threshold: Override for maximum delete percentage
                                        threshold. If None, uses provider default.
         :type delete_pcent_threshold: float or None
+        :param ignore_subzone_adds: If True, silently drop records that belong
+                                    under a configured sub-zone instead of
+                                    raising. Useful when a source returns
+                                    records that overlap a configured
+                                    sub-zone. Records explicitly marked
+                                    ``lenient=True`` keep their existing
+                                    warn-and-add behavior.
+        :type ignore_subzone_adds: bool
 
         :raises InvalidNameError: If the zone name is invalid (missing trailing
                                   dot, contains double dots, or has whitespace).
@@ -214,6 +223,7 @@ class Zone(object):
 
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
+        self.ignore_subzone_adds = ignore_subzone_adds
 
         # Copy-on-write semantics support, when `not None` this property will
         # point to a location with records for this `Zone`. Once `hydrated`
@@ -372,6 +382,9 @@ class Zone(object):
                 msg = f'Record {record.fqdn} is a managed sub-zone and not of type NS or DS'
                 if lenient or new_lenient:
                     self.log.warning(msg)
+                elif self.ignore_subzone_adds:
+                    self.log.debug(f'{msg}, ignore.')
+                    return
                 else:
                     raise SubzoneRecordException(msg, record)
         else:
@@ -383,6 +396,9 @@ class Zone(object):
                     msg = f'Record {record.fqdn} is under a managed subzone'
                     if lenient or new_lenient:
                         self.log.warning(msg)
+                    elif self.ignore_subzone_adds:
+                        self.log.debug(f'{msg}, ignore.')
+                        return
                     else:
                         raise SubzoneRecordException(msg, record)
 
