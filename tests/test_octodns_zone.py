@@ -474,17 +474,19 @@ class TestZone(TestCase):
         self.assertFalse(zone.ignore_subzone_adds)
 
         # non-NS/DS at exact sub-zone boundary is silently dropped
-        zone = Zone('unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True)
+        zone = Zone(
+            'unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True
+        )
         record = Record.new(
-            zone,
-            'sub',
-            {'ttl': 3600, 'type': 'A', 'values': ['1.2.3.4']},
+            zone, 'sub', {'ttl': 3600, 'type': 'A', 'values': ['1.2.3.4']}
         )
         zone.add_record(record)
         self.assertEqual(set(), zone.records)
 
         # record under a hierarchical sub-zone is silently dropped
-        zone = Zone('unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True)
+        zone = Zone(
+            'unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True
+        )
         record = Record.new(
             zone,
             'foo.bar.sub',
@@ -494,7 +496,9 @@ class TestZone(TestCase):
         self.assertEqual(set(), zone.records)
 
         # NS at the boundary still added
-        zone = Zone('unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True)
+        zone = Zone(
+            'unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True
+        )
         record = Record.new(
             zone,
             'sub',
@@ -504,7 +508,9 @@ class TestZone(TestCase):
         self.assertEqual(set([record]), zone.records)
 
         # DS at the boundary still added
-        zone = Zone('unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True)
+        zone = Zone(
+            'unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True
+        )
         record = Record.new(
             zone,
             'sub',
@@ -517,7 +523,7 @@ class TestZone(TestCase):
                         'algorithm': 5,
                         'digest_type': 1,
                         'digest': '2BB183AF5F22588179A53B0A 98631FAD1A292118',
-                    },
+                    }
                 ],
             },
         )
@@ -526,7 +532,9 @@ class TestZone(TestCase):
 
         # record-level lenient still wins over ignore_subzone_adds: the
         # record is warn-and-added rather than silently dropped
-        zone = Zone('unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True)
+        zone = Zone(
+            'unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True
+        )
         record = Record.new(
             zone,
             'ns.sub',
@@ -541,7 +549,9 @@ class TestZone(TestCase):
         self.assertEqual(set([record]), zone.records)
 
         # call-level lenient also still wins
-        zone = Zone('unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True)
+        zone = Zone(
+            'unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True
+        )
         record = Record.new(
             zone,
             'foo.bar.sub',
@@ -553,9 +563,7 @@ class TestZone(TestCase):
         # records that don't fall in a sub-zone are unaffected
         zone = Zone('unit.tests.', set(['sub']), ignore_subzone_adds=True)
         record = Record.new(
-            zone,
-            'www',
-            {'ttl': 3600, 'type': 'A', 'values': ['1.2.3.4']},
+            zone, 'www', {'ttl': 3600, 'type': 'A', 'values': ['1.2.3.4']}
         )
         zone.add_record(record)
         self.assertEqual(set([record]), zone.records)
