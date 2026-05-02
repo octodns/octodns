@@ -290,6 +290,57 @@ class TestRecordDs(TestCase):
         self.assertEqual('1 2 3 99148c44', a.values[1].rdata_text)
         self.assertEqual('1 2 3 99148c44', a.values[1].__repr__())
 
+    def test_digest_case_insensitive(self):
+        zone = Zone('unit.tests.', [])
+
+        # uppercase input is normalized to lowercase
+        upper = DsRecord(
+            zone,
+            'ds',
+            {
+                'ttl': 30,
+                'value': {
+                    'key_tag': 1,
+                    'algorithm': 2,
+                    'digest_type': 3,
+                    'digest': 'ABCDEF1234567890',
+                },
+            },
+        )
+        self.assertEqual('abcdef1234567890', upper.values[0].digest)
+
+        # same value in lowercase normalizes identically
+        lower = DsRecord(
+            zone,
+            'ds',
+            {
+                'ttl': 30,
+                'value': {
+                    'key_tag': 1,
+                    'algorithm': 2,
+                    'digest_type': 3,
+                    'digest': 'abcdef1234567890',
+                },
+            },
+        )
+        self.assertEqual(upper.values[0].digest, lower.values[0].digest)
+
+        # legacy field names also normalize
+        legacy = DsRecord(
+            zone,
+            'ds',
+            {
+                'ttl': 30,
+                'value': {
+                    'flags': 1,
+                    'protocol': 2,
+                    'algorithm': 3,
+                    'public_key': 'ABCDEF1234567890',
+                },
+            },
+        )
+        self.assertEqual('abcdef1234567890', legacy.values[0].digest)
+
 
 class TestDsValue(TestCase):
 
