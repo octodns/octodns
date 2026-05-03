@@ -152,8 +152,8 @@ class Manager(object):
         self.processors = self._config_processors(processors_config)
 
         validators_config = self.config.get('validators') or {}
-        named_validators = self._config_validators(validators_config)
-        self._configure_validators(manager_config, named_validators)
+        self._config_validators(validators_config)
+        self._configure_validators(manager_config)
 
         if self.auto_arpa:
             self.log.info(
@@ -330,10 +330,10 @@ class Manager(object):
         return processors
 
     def _config_validators(self, validators_config):
-        # Parses the top-level `validators:` config section into a name-keyed
-        # dict of instantiated RecordValidator/ValueValidator instances. These
-        # are not yet registered; _configure_validators does the registration.
-        validators = {}
+        # Parses the top-level `validators:` config section, instantiates each
+        # validator, and registers it into the available registry via
+        # Record.register_validator. _configure_validators then decides which
+        # to activate based on manager.enabled and manager.validators.
         for validator_name, validator_config in validators_config.items():
             context = getattr(validator_config, 'context', '')
             try:
@@ -346,6 +346,9 @@ class Manager(object):
             _class, module, version = self._get_named_class(
                 'validator', _class, context
             )
+            types = validator_config.pop('types', None)
+            if isinstance(types, str):
+                types = [types]
             kwargs = self._build_kwargs(validator_config)
             try:
                 instance = _class(validator_name, **kwargs)
@@ -358,48 +361,67 @@ class Manager(object):
                 raise ManagerException(
                     f'Validator {validator_name} ({_class.__name__}) must extend RecordValidator or ValueValidator'
                 )
-            validators[validator_name] = instance
+            try:
+                Record.register_validator(instance, types=types)
+            except RecordException as e:
+                raise ManagerException(str(e)) from e
             self.log.info(
                 '__init__: validator=%s (%s %s)',
                 validator_name,
                 module,
                 version,
             )
-        return validators
 
-    def _configure_validators(self, manager_config, named_validators):
-        # Reads `manager.validators` and `manager.disable_validators` from the
-        # manager config section and drives Record.register_validator /
-        # Record.unregister_validator accordingly. Validators named here must
-        # have been instantiated by _config_validators first.
+    def _configure_validators(self, manager_config):
+        # Builds the active validator registry based on
+        # manager.enabled (set names), manager.validators (explicit adds), and
+        # manager.disable_validators (explicit removes).
+
+        enabled = manager_config.get('enabled', ('legacy',))
+        if isinstance(enabled, str):
+            raise ManagerException(
+                'manager.enabled must be a list of set names, not a string; '
+                f'use [{enabled!r}] to enable a single set'
+            )
+        self.log.info('_configure_validators: enabling sets %s', list(enabled))
+        Record.enable_validators(enabled)
+
         add_config = manager_config.get('validators') or {}
         for record_type, names in add_config.items():
             types = None if record_type == '*' else [record_type]
             for name in names:
                 try:
-                    validator = named_validators[name]
-                except KeyError:
+                    Record.enable_validator(name, types=types)
+                except RecordException:
                     raise ManagerException(
                         f'Unknown validator "{name}" in manager.validators["{record_type}"]'
                     )
-                try:
-                    Record.register_validator(validator, types=types)
-                except RecordException as e:
-                    raise ManagerException(str(e)) from e
+                self.log.info(
+                    '_configure_validators: enabled validator "%s" for "%s"',
+                    name,
+                    record_type,
+                )
 
         disable_config = manager_config.get('disable_validators') or {}
         for record_type, ids in disable_config.items():
             types = None if record_type == '*' else [record_type]
             for validator_id in ids:
-                if validator_id.startswith('_'):
-                    raise ManagerException(
-                        f'Cannot disable bridge validator "{validator_id}"'
+                try:
+                    removed = Record.disable_validator(
+                        validator_id, types=types
                     )
-                removed = Record.unregister_validator(validator_id, types=types)
+                except RecordException as e:
+                    raise ManagerException(str(e)) from e
                 if removed == 0:
                     self.log.warning(
-                        'disable_validators: no validator with id "%s" '
+                        '_configure_validators: no validator with id "%s" '
                         'registered for "%s"',
+                        validator_id,
+                        record_type,
+                    )
+                else:
+                    self.log.info(
+                        '_configure_validators: disabled validator "%s" for "%s"',
                         validator_id,
                         record_type,
                     )

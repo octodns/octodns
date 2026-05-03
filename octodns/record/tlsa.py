@@ -58,7 +58,7 @@ class TlsaValueValidator(ValueValidator):
 
 
 class TlsaValue(EqualityTupleMixin, dict):
-    VALIDATORS = [TlsaValueValidator('tlsa-value')]
+    VALIDATORS = [TlsaValueValidator('tlsa-value', sets={'legacy'})]
 
     @classmethod
     def _schema(cls):

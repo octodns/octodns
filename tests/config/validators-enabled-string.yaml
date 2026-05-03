@@ -1,0 +1,4 @@
+manager:
+  enabled: legacy
+providers: {}
+zones: {}
