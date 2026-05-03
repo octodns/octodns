@@ -96,18 +96,6 @@ class TestRecordAlias(TestCase):
             ['ALIAS value "__." is not a valid FQDN'], ctx.exception.reasons
         )
 
-        # missing trailing .
-        with self.assertRaises(ValidationError) as ctx:
-            Record.new(
-                self.zone,
-                '',
-                {'type': 'ALIAS', 'ttl': 600, 'value': 'foo.bar.com'},
-            )
-        self.assertEqual(
-            ['ALIAS value "foo.bar.com" missing trailing .'],
-            ctx.exception.reasons,
-        )
-
     def test_template_validation(self):
         templ = Templating('test')
 
@@ -131,16 +119,54 @@ class TestRecordAlias(TestCase):
             {
                 'type': 'ALIAS',
                 'ttl': 600,
-                # Value is missing trailing dot
+                # Value is missing trailing dot — no error without best-practice
                 'value': '{zone_name}example.com',
             },
             lenient=False,
         )
         zone.add_record(alias, replace=True)
+        templ.process_source_and_target_zones(zone, None, None)
 
-        with self.assertRaises(ValidationError) as ctx:
-            templ.process_source_and_target_zones(zone, None, None)
-        self.assertEqual(
-            ['ALIAS value "unit.tests.example.com" missing trailing .'],
-            ctx.exception.reasons,
-        )
+    def test_best_practice_validator(self):
+        zone = Zone('unit.tests.', [])
+        Record.enable_validators(['legacy'])
+        Record.enable_validator('target-value-best-practice', types=['ALIAS'])
+        try:
+            # missing trailing dot is caught
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    '',
+                    {'type': 'ALIAS', 'ttl': 600, 'value': 'foo.bar.com'},
+                )
+            self.assertEqual(
+                ['ALIAS value "foo.bar.com" missing trailing .'],
+                ctx.exception.reasons,
+            )
+            # trailing dot caught after template substitution
+            templ = Templating('test')
+            alias = Record.new(
+                zone,
+                '',
+                {
+                    'type': 'ALIAS',
+                    'ttl': 600,
+                    'value': '{zone_name}example.com',
+                },
+                lenient=False,
+            )
+            zone.add_record(alias, replace=True)
+            with self.assertRaises(ValidationError) as ctx:
+                templ.process_source_and_target_zones(zone, None, None)
+            self.assertEqual(
+                ['ALIAS value "unit.tests.example.com" missing trailing .'],
+                ctx.exception.reasons,
+            )
+            # valid passes
+            Record.new(
+                zone, '', {'type': 'ALIAS', 'ttl': 600, 'value': 'foo.bar.com.'}
+            )
+        finally:
+            Record.disable_validator(
+                'target-value-best-practice', types=['ALIAS']
+            )

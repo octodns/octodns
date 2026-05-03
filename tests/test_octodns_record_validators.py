@@ -510,5 +510,7 @@ class TestValidatorRegistry(TestCase):
             'ip-value-rfc',
             'target-value-rfc',
             'targets-value-rfc',
+            'target-value-best-practice',
+            'targets-value-best-practice',
         ):
             self.assertIn(expected, seen)

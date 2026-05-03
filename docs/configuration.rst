@@ -161,17 +161,25 @@ are active for a run (default: ``['legacy']``)::
 
 Omitting ``manager.enabled`` is equivalent to ``enabled: [legacy]`` and
 preserves the original octoDNS behaviour. The ``legacy`` set will remain
-the default until a future release when ``strict`` takes over as the default.
+the default until a future release when ``strict`` and ``best-practice``
+take over as the defaults.
 
-To migrate to stricter validation, replace ``legacy`` with ``strict``::
+To migrate to stricter validation, replace ``legacy`` with ``strict`` and
+add ``best-practice``::
 
   manager:
     enabled:
       - strict
+      - best-practice
 
 The ``strict`` set contains stricter validators that supersede their
 ``legacy`` counterparts — use one or the other, not both, to avoid redundant
 checks.
+
+The ``best-practice`` set contains validators that enforce DNS best-practice
+recommendations (rather than RFC requirements) and is independent of
+``strict``/``legacy``. The recommended configuration is to enable both
+``strict`` and ``best-practice`` together.
 
 A validator can belong to multiple sets; it becomes active when any of its
 sets is listed in ``manager.enabled``.
@@ -297,7 +305,26 @@ To opt into all strict validators at once::
     enabled:
       - strict
 
-In a future release ``strict`` will become the default set.
+Validators active in ``best-practice`` only:
+
++-------------------------------+--------------------------------------------------+
+| id                            | description                                      |
++===============================+==================================================+
+| ``target-value-best-practice``| CNAME/ALIAS/DNAME target must end with ``"."``   |
+|                               | (absolute name prevents resolver search-domain   |
+|                               | append)                                          |
++-------------------------------+--------------------------------------------------+
+| ``targets-value-best-practice``| NS/PTR targets must each end with ``"."``       |
++-------------------------------+--------------------------------------------------+
+
+The recommended configuration is to enable both sets::
+
+  manager:
+    enabled:
+      - strict
+      - best-practice
+
+In a future release ``strict`` and ``best-practice`` will become the default sets.
 
 Adding validators via config
 ............................
