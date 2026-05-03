@@ -62,8 +62,45 @@ class UriValueValidator(ValueValidator):
         return reasons
 
 
+class UriValueRfcValidator(ValueValidator):
+    '''
+    Strict URI rdata validator per RFC 7553 §4.
+
+    - ``priority`` must be an integer in [0, 65535] (uint16).
+    - ``weight`` must be an integer in [0, 65535] (uint16).
+
+    Enabled as part of the ``strict`` validator set::
+
+      manager:
+        enabled:
+          - strict
+    '''
+
+    def validate(self, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            for field in ('priority', 'weight'):
+                if field not in value:
+                    reasons.append(f'missing {field}')
+                else:
+                    try:
+                        int_val = int(value[field])
+                        if not 0 <= int_val <= 65535:
+                            reasons.append(
+                                f'invalid {field} "{int_val}"; must be 0-65535'
+                            )
+                    except (ValueError, TypeError):
+                        reasons.append(f'invalid {field} "{value[field]}"')
+            if 'target' not in value:
+                reasons.append('missing target')
+        return reasons
+
+
 class UriValue(EqualityTupleMixin, dict):
-    VALIDATORS = [UriValueValidator('uri-value', sets={'legacy'})]
+    VALIDATORS = [
+        UriValueValidator('uri-value', sets={'legacy'}),
+        UriValueRfcValidator('uri-value-rfc', sets={'strict'}),
+    ]
 
     @classmethod
     def _schema(cls):
@@ -156,11 +193,64 @@ class UriValue(EqualityTupleMixin, dict):
         return f"'{self.priority} {self.weight} \"{self.target}\"'"
 
 
+class UriNameRfcValidator(RecordValidator):
+    '''
+    Strict URI name validator per RFC 7553 §3 and RFC 6335 §5.1.
+
+    Requires the first two labels of the record name to be
+    ``_service._proto`` (``*._proto`` is still accepted for wildcards).
+    Both label bodies (after the leading ``_``) must conform to the
+    RFC 6335 §5.1 service name syntax: 1-15 characters, starting with a
+    letter, ending with a letter or digit, containing only letters,
+    digits, and hyphens, and with no consecutive hyphens.
+
+    Enabled as part of the ``strict`` validator set::
+
+      manager:
+        enabled:
+          - strict
+    '''
+
+    _max_len = 15
+
+    @classmethod
+    def _is_valid_service_name(cls, body):
+        if not body or len(body) > cls._max_len:
+            return False
+        if not body[0].isalpha():
+            return False
+        if not body[-1].isalnum():
+            return False
+        if '--' in body:
+            return False
+        return all(c.isalnum() or c == '-' for c in body)
+
+    def validate(self, record_cls, name, fqdn, data):
+        labels = name.split('.') if name else []
+        if len(labels) < 2:
+            return ['URI name must have at least two labels (_service._proto)']
+
+        reasons = []
+        service, proto = labels[0], labels[1]
+        if service != '*' and not (
+            service.startswith('_') and self._is_valid_service_name(service[1:])
+        ):
+            reasons.append(f'invalid URI service label "{service}"')
+        if not (
+            proto.startswith('_') and self._is_valid_service_name(proto[1:])
+        ):
+            reasons.append(f'invalid URI proto label "{proto}"')
+        return reasons
+
+
 class UriRecord(ValuesMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc7553',)
     _type = 'URI'
     _value_type = UriValue
-    VALIDATORS = [UriNameValidator('uri-name', sets={'legacy'})]
+    VALIDATORS = [
+        UriNameValidator('uri-name', sets={'legacy'}),
+        UriNameRfcValidator('uri-name-rfc', sets={'strict'}),
+    ]
 
 
 Record.register_type(UriRecord)

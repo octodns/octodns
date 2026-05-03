@@ -161,16 +161,25 @@ are active for a run (default: ``['legacy']``)::
 
 Omitting ``manager.enabled`` is equivalent to ``enabled: [legacy]`` and
 preserves the original octoDNS behaviour. The ``legacy`` set will remain
-the default until a future release when ``rfc`` takes over as the default.
+the default until a future release when ``strict`` and ``best-practice``
+take over as the defaults.
 
-To migrate to stricter RFC validation, replace ``legacy`` with ``rfc``::
+To migrate to stricter validation, replace ``legacy`` with ``strict`` and
+add ``best-practice``::
 
   manager:
     enabled:
-      - rfc
+      - strict
+      - best-practice
 
-The ``rfc`` set contains stricter validators that supersede their ``legacy``
-counterparts — use one or the other, not both, to avoid redundant checks.
+The ``strict`` set contains stricter validators that supersede their
+``legacy`` counterparts — use one or the other, not both, to avoid redundant
+checks.
+
+The ``best-practice`` set contains validators that enforce DNS best-practice
+recommendations (rather than RFC requirements) and is independent of
+``strict``/``legacy``. The recommended configuration is to enable both
+``strict`` and ``best-practice`` together.
 
 A validator can belong to multiple sets; it becomes active when any of its
 sets is listed in ``manager.enabled``.
@@ -181,39 +190,58 @@ Setting ``enabled: []`` activates only validators whose ``sets`` is ``None``
 Built-in validator ids
 ......................
 
-Each built-in validator has a stable short id. All belong to the ``legacy``
-set and can be disabled individually with ``manager.disable_validators``.
+Validators with ids ending in ``-rfc`` enforce requirements derived directly
+from an RFC. Ids prefixed with ``_`` (e.g. ``_values-type``) are internal
+bridge validators with ``sets=None`` — always active and cannot be disabled.
+
+Validators active in both ``legacy`` and ``strict``:
+
++------------------------+------------------------------------------+
+| id                     | description                              |
++========================+==========================================+
+| ``name-rfc``           | Record name format (RFC 1035/2181)       |
++------------------------+------------------------------------------+
+| ``ttl-rfc``            | TTL range (positive integer)             |
++------------------------+------------------------------------------+
+| ``healthcheck``        | octoDNS healthcheck config fields        |
++------------------------+------------------------------------------+
+| ``cname-root-rfc``     | CNAME must not be at zone root           |
++------------------------+------------------------------------------+
+| ``alias-root``         | ALIAS must not be at zone root           |
++------------------------+------------------------------------------+
+| ``ip-value-rfc``       | A / AAAA value format                    |
++------------------------+------------------------------------------+
+| ``target-value-rfc``   | CNAME/ALIAS/DNAME/PTR target format      |
++------------------------+------------------------------------------+
+| ``targets-value-rfc``  | NS targets format                        |
++------------------------+------------------------------------------+
+| ``loc-value-rfc``      | LOC rdata format (RFC 1876)              |
++------------------------+------------------------------------------+
+| ``chunked-value-rfc``  | TXT/SPF chunk encoding                   |
++------------------------+------------------------------------------+
+| ``svcb-value-rfc``     | SVCB rdata format (RFC 9460)             |
++------------------------+------------------------------------------+
+| ``https-value-rfc``    | HTTPS rdata format (RFC 9460)            |
++------------------------+------------------------------------------+
+| ``openpgpkey-value-rfc``| OPENPGPKEY rdata format (RFC 7929)      |
++------------------------+------------------------------------------+
+
+Validators active in ``legacy`` only (will be superseded in ``strict``):
 
 +----------------------+------------------------------------------+
 | id                   | description                              |
 +======================+==========================================+
-| ``name``             | Record name format                       |
+| ``geo``              | Geo routing config                       |
 +----------------------+------------------------------------------+
-| ``ttl``              | TTL range (positive integer)             |
-+----------------------+------------------------------------------+
-| ``healthcheck``      | Octodns healthcheck config fields        |
-+----------------------+------------------------------------------+
-| ``cname-root``       | CNAME must not be at zone root           |
-+----------------------+------------------------------------------+
-| ``alias-root``       | ALIAS must not be at zone root           |
+| ``dynamic``          | Dynamic routing config                   |
 +----------------------+------------------------------------------+
 | ``srv-name``         | SRV name format                          |
 +----------------------+------------------------------------------+
 | ``uri-name``         | URI name format                          |
 +----------------------+------------------------------------------+
-| ``geo``              | Geo routing config                       |
-+----------------------+------------------------------------------+
-| ``dynamic``          | Dynamic routing config                   |
-+----------------------+------------------------------------------+
-| ``ip-value``         | A / AAAA value format                    |
-+----------------------+------------------------------------------+
 | ``caa-value``        | CAA rdata format                         |
 +----------------------+------------------------------------------+
 | ``mx-value``         | MX rdata format                          |
-+----------------------+------------------------------------------+
-| ``target-value``     | CNAME/ALIAS/DNAME/PTR target format      |
-+----------------------+------------------------------------------+
-| ``targets-value``    | NS targets format                        |
 +----------------------+------------------------------------------+
 | ``sshfp-value``      | SSHFP algorithm/fingerprint format       |
 +----------------------+------------------------------------------+
@@ -223,48 +251,14 @@ set and can be disabled individually with ``manager.disable_validators``.
 +----------------------+------------------------------------------+
 | ``naptr-value``      | NAPTR rdata format                       |
 +----------------------+------------------------------------------+
-| ``loc-value``        | LOC rdata format                         |
-+----------------------+------------------------------------------+
 | ``ds-value``         | DS rdata format                          |
 +----------------------+------------------------------------------+
 | ``tlsa-value``       | TLSA rdata format                        |
 +----------------------+------------------------------------------+
-| ``openpgpkey-value`` | OPENPGPKEY rdata format                  |
-+----------------------+------------------------------------------+
 | ``urlfwd-value``     | URLFWD rdata format                      |
 +----------------------+------------------------------------------+
-| ``svcb-value``       | SVCB rdata format                        |
-+----------------------+------------------------------------------+
-| ``https-value``      | HTTPS rdata format                       |
-+----------------------+------------------------------------------+
-| ``chunked-value``    | TXT/SPF chunk size                       |
-+----------------------+------------------------------------------+
 
-Ids prefixed with ``_`` (e.g. ``_values-type``) are internal bridge validators
-with ``sets=None`` — they are always active and cannot be disabled.
-
-Validator naming convention
-...........................
-
-Validators are split into two flavors based on what they enforce:
-
-* ``RfcValidator`` / ids ending in ``-rfc`` — enforce requirements that come
-  directly from an RFC. Reasons reference specific RFC numbers.
-* ``BpValidator`` / ids ending in ``-bp`` — enforce best-practice
-  recommendations that aren't strictly required by an RFC (e.g. trailing
-  ``.`` on hostnames).
-
-Both follow the same config and registration paths described below; the
-naming just makes the source of each rule explicit so you can opt in or
-out with intent.
-
-Opt-in RFC validators
-.....................
-
-The ``rfc`` set contains stricter validators that replace the corresponding
-``legacy`` validators. They are not enabled by default because enabling them
-on an existing zone may surface records that don't strictly conform to their
-RFCs. The current ``rfc`` validators are:
+Validators active in ``strict`` only (stricter replacements):
 
 +--------------------+-------------------------------------------------------+
 | id                 | description                                           |
@@ -275,14 +269,62 @@ RFCs. The current ``rfc`` validators are:
 | ``srv-value-rfc``  | SRV rdata strict per RFC 2782 (range, null target);   |
 |                    | replaces ``srv-value``                                |
 +--------------------+-------------------------------------------------------+
+| ``uri-name-rfc``   | URI name strict per RFC 7553 + RFC 6335 §5.1;         |
+|                    | replaces ``uri-name``                                 |
++--------------------+-------------------------------------------------------+
+| ``mx-value-rfc``   | MX preference in [0, 65535]; null MX rules per        |
+|                    | RFC 7505; replaces ``mx-value``                       |
++--------------------+-------------------------------------------------------+
+| ``caa-value-rfc``  | CAA flags restricted to 0/128 (RFC 8659 §4.1);        |
+|                    | tag must match ``[a-zA-Z0-9]+``; replaces             |
+|                    | ``caa-value``                                         |
++--------------------+-------------------------------------------------------+
+| ``tlsa-value-rfc`` | TLSA fields uint8 [0, 255]; certificate_association   |
+|                    | _data must be hex; SHA-256/SHA-512 length enforced    |
+|                    | (RFC 6698); replaces ``tlsa-value``                   |
++--------------------+-------------------------------------------------------+
+| ``ds-value-rfc``   | DS key_tag uint16, algorithm/digest_type uint8;       |
+|                    | digest must be hex; SHA-1/SHA-256/SHA-384 length      |
+|                    | enforced (RFC 4034/4509/6605); replaces ``ds-value``  |
++--------------------+-------------------------------------------------------+
+| ``naptr-value-rfc``| NAPTR order/preference uint16; flags S/A/U/P only;    |
+|                    | replacement must be FQDN or "." (RFC 3403);           |
+|                    | replaces ``naptr-value``                              |
++--------------------+-------------------------------------------------------+
+| ``sshfp-value-rfc``| SSHFP algorithm/fingerprint_type uint8 [0, 255];      |
+|                    | fingerprint must be hex; SHA-1/SHA-256 length         |
+|                    | enforced (RFC 4255/6594); replaces ``sshfp-value``    |
++--------------------+-------------------------------------------------------+
+| ``uri-value-rfc``  | URI priority/weight uint16 [0, 65535] (RFC 7553 §4);  |
+|                    | replaces ``uri-value``                                |
++--------------------+-------------------------------------------------------+
 
-To opt in, set ``manager.enabled`` to ``rfc`` instead of ``legacy``::
+To opt into all strict validators at once::
 
   manager:
     enabled:
-      - rfc
+      - strict
 
-In a future release ``rfc`` will become the default set.
+Validators active in ``best-practice`` only:
+
++-------------------------------+--------------------------------------------------+
+| id                            | description                                      |
++===============================+==================================================+
+| ``target-value-best-practice``| CNAME/ALIAS/DNAME target must end with ``"."``   |
+|                               | (absolute name prevents resolver search-domain   |
+|                               | append)                                          |
++-------------------------------+--------------------------------------------------+
+| ``targets-value-best-practice``| NS/PTR targets must each end with ``"."``       |
++-------------------------------+--------------------------------------------------+
+
+The recommended configuration is to enable both sets::
+
+  manager:
+    enabled:
+      - strict
+      - best-practice
+
+In a future release ``strict`` and ``best-practice`` will become the default sets.
 
 Adding validators via config
 ............................

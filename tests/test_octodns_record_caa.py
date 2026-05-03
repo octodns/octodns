@@ -7,7 +7,7 @@ from unittest import TestCase
 from helpers import SimpleProvider
 
 from octodns.record import Record
-from octodns.record.caa import CaaRecord, CaaValue
+from octodns.record.caa import CaaRecord, CaaValue, CaaValueRfcValidator
 from octodns.record.exception import ValidationError
 from octodns.record.rr import RrParseError
 from octodns.zone import Zone
@@ -285,6 +285,157 @@ class TestRecordCaa(TestCase):
                 {'type': 'CAA', 'ttl': 600, 'value': {'tag': 'iodef'}},
             )
         self.assertEqual(['missing value'], ctx.exception.reasons)
+
+    def test_rfc_value_validator_not_in_defaults(self):
+        registered = Record.registered_validators()
+        caa_value_ids = set(v.id for v in registered['value'].get('CAA', []))
+        self.assertNotIn('caa-value-rfc', caa_value_ids)
+
+    def test_value_rfc_validator(self):
+        validate = CaaValueRfcValidator('caa-value-rfc').validate
+
+        # valid: flags 0
+        self.assertEqual(
+            [],
+            validate(
+                CaaValue,
+                [{'flags': 0, 'tag': 'issue', 'value': 'ca.example.net'}],
+                'CAA',
+            ),
+        )
+        # valid: flags 128
+        self.assertEqual(
+            [],
+            validate(
+                CaaValue,
+                [
+                    {
+                        'flags': 128,
+                        'tag': 'iodef',
+                        'value': 'mailto:security@example.com',
+                    }
+                ],
+                'CAA',
+            ),
+        )
+        # valid: alphanumeric tag
+        self.assertEqual(
+            [],
+            validate(
+                CaaValue,
+                [{'flags': 0, 'tag': 'issuewild', 'value': 'ca.example.net'}],
+                'CAA',
+            ),
+        )
+
+        # invalid flags (not 0 or 128)
+        self.assertEqual(
+            ['flags "1" is not valid; must be 0 or 128'],
+            validate(
+                CaaValue,
+                [{'flags': 1, 'tag': 'issue', 'value': 'ca.example.net'}],
+                'CAA',
+            ),
+        )
+        self.assertEqual(
+            ['flags "255" is not valid; must be 0 or 128'],
+            validate(
+                CaaValue,
+                [{'flags': 255, 'tag': 'issue', 'value': 'ca.example.net'}],
+                'CAA',
+            ),
+        )
+
+        # invalid flags (not parseable)
+        self.assertEqual(
+            ['invalid flags "nope"'],
+            validate(
+                CaaValue,
+                [{'flags': 'nope', 'tag': 'issue', 'value': 'ca.example.net'}],
+                'CAA',
+            ),
+        )
+
+        # missing tag
+        self.assertEqual(
+            ['missing tag'],
+            validate(
+                CaaValue, [{'flags': 0, 'value': 'ca.example.net'}], 'CAA'
+            ),
+        )
+
+        # invalid tag (contains hyphen)
+        self.assertEqual(
+            ['invalid tag "is-sue"'],
+            validate(
+                CaaValue,
+                [{'flags': 0, 'tag': 'is-sue', 'value': 'ca.example.net'}],
+                'CAA',
+            ),
+        )
+
+        # missing value
+        self.assertEqual(
+            ['missing value'],
+            validate(CaaValue, [{'flags': 0, 'tag': 'issue'}], 'CAA'),
+        )
+
+    def test_rfc_value_validator_opt_in(self):
+        zone = Zone('unit.tests.', [])
+        Record.enable_validators(['legacy'])
+        Record.enable_validator('caa-value-rfc', types=['CAA'])
+        try:
+            # invalid flags
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    '',
+                    {
+                        'type': 'CAA',
+                        'ttl': 600,
+                        'value': {
+                            'flags': 64,
+                            'tag': 'issue',
+                            'value': 'ca.example.net',
+                        },
+                    },
+                )
+            self.assertEqual(
+                ['flags "64" is not valid; must be 0 or 128'],
+                ctx.exception.reasons,
+            )
+            # invalid tag
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    '',
+                    {
+                        'type': 'CAA',
+                        'ttl': 600,
+                        'value': {
+                            'flags': 0,
+                            'tag': 'is-sue',
+                            'value': 'ca.example.net',
+                        },
+                    },
+                )
+            self.assertEqual(['invalid tag "is-sue"'], ctx.exception.reasons)
+            # valid passes
+            Record.new(
+                zone,
+                '',
+                {
+                    'type': 'CAA',
+                    'ttl': 600,
+                    'value': {
+                        'flags': 128,
+                        'tag': 'iodef',
+                        'value': 'mailto:security@example.com',
+                    },
+                },
+            )
+        finally:
+            Record.disable_validator('caa-value-rfc', types=['CAA'])
 
 
 class TestCaaValue(TestCase):

@@ -243,8 +243,8 @@ class TestManager(TestCase):
             global_validators = Record.registered_validators()['record'].get(
                 '*', []
             )
-            self.assertTrue(any(v.id == 'name' for v in global_validators))
-            self.assertTrue(any(v.id == 'ttl' for v in global_validators))
+            self.assertTrue(any(v.id == 'name-rfc' for v in global_validators))
+            self.assertTrue(any(v.id == 'ttl-rfc' for v in global_validators))
 
     def test_validators_enabled_sets(self):
         # manager.enabled can include multiple set names; validators
@@ -266,7 +266,7 @@ class TestManager(TestCase):
             global_validators = Record.registered_validators()['record'].get(
                 '*', []
             )
-            self.assertTrue(any(v.id == 'name' for v in global_validators))
+            self.assertTrue(any(v.id == 'name-rfc' for v in global_validators))
 
     def test_validators_enabled_empty(self):
         # manager.enabled: [] removes all non-bridge validators from active.

@@ -329,7 +329,9 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
 
 
 class SvcbValue(_SvcbValueBase):
-    VALIDATORS = [SvcbValueValidator('svcb-value', sets={'legacy'})]
+    VALIDATORS = [
+        SvcbValueValidator('svcb-value-rfc', sets={'legacy', 'strict'})
+    ]
 
 
 class SvcbRecord(ValuesMixin, Record):

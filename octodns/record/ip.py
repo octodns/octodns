@@ -34,7 +34,7 @@ class IpValueValidator(ValueValidator):
 
 
 class _IpValue(str):
-    VALIDATORS = [IpValueValidator('ip-value', sets={'legacy'})]
+    VALIDATORS = [IpValueValidator('ip-value-rfc', sets={'legacy', 'strict'})]
 
     @classmethod
     def parse_rdata_text(cls, value):

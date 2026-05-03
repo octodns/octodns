@@ -2,6 +2,8 @@
 #
 #
 
+import re
+
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
@@ -57,8 +59,69 @@ class TlsaValueValidator(ValueValidator):
         return reasons
 
 
+class TlsaValueRfcValidator(ValueValidator):
+    '''
+    Strict TLSA rdata validator per RFC 6698.
+
+    - ``certificate_usage``, ``selector``, and ``matching_type`` must each be
+      integers in [0, 255] (uint8 fields).
+    - ``certificate_association_data`` must be a valid hexadecimal string.
+    - When ``matching_type`` is 1 (SHA-256), the data must be exactly 64 hex
+      characters (32 bytes).
+    - When ``matching_type`` is 2 (SHA-512), the data must be exactly 128 hex
+      characters (64 bytes).
+
+    Enabled as part of the ``strict`` validator set::
+
+      manager:
+        enabled:
+          - strict
+    '''
+
+    _hex_re = re.compile(r'^[0-9a-fA-F]+$')
+    _matching_type_lengths = {1: 64, 2: 128}
+
+    def validate(self, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            matching_type = None
+            for field in ('certificate_usage', 'selector', 'matching_type'):
+                if field not in value:
+                    reasons.append(f'missing {field}')
+                else:
+                    try:
+                        int_val = int(value[field])
+                        if not 0 <= int_val <= 255:
+                            reasons.append(
+                                f'invalid {field} "{int_val}"; must be 0-255'
+                            )
+                        elif field == 'matching_type':
+                            matching_type = int_val
+                    except (ValueError, TypeError):
+                        reasons.append(f'invalid {field} "{value[field]}"')
+
+            if 'certificate_association_data' not in value:
+                reasons.append('missing certificate_association_data')
+            else:
+                cad = value['certificate_association_data']
+                if not cad or not self._hex_re.match(str(cad)):
+                    reasons.append(
+                        f'invalid certificate_association_data "{cad}"; must be hex'
+                    )
+                elif matching_type in self._matching_type_lengths:
+                    expected = self._matching_type_lengths[matching_type]
+                    if len(str(cad)) != expected:
+                        reasons.append(
+                            f'certificate_association_data must be {expected} hex characters for matching_type {matching_type}'
+                        )
+        return reasons
+
+
 class TlsaValue(EqualityTupleMixin, dict):
-    VALIDATORS = [TlsaValueValidator('tlsa-value', sets={'legacy'})]
+    VALIDATORS = [
+        TlsaValueValidator('tlsa-value', sets={'legacy'}),
+        TlsaValueRfcValidator('tlsa-value-rfc', sets={'strict'}),
+    ]
 
     @classmethod
     def _schema(cls):

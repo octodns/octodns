@@ -9,7 +9,7 @@ from helpers import SimpleProvider
 from octodns.record.base import Record
 from octodns.record.exception import ValidationError
 from octodns.record.rr import RrParseError
-from octodns.record.sshfp import SshfpRecord, SshfpValue
+from octodns.record.sshfp import SshfpRecord, SshfpValue, SshfpValueRfcValidator
 from octodns.zone import Zone
 
 
@@ -398,6 +398,232 @@ class TestRecordSshfp(TestCase):
                 },
             },
         )
+
+    def test_rfc_value_validator_not_in_defaults(self):
+        registered = Record.registered_validators()
+        sshfp_value_ids = set(
+            v.id for v in registered['value'].get('SSHFP', [])
+        )
+        self.assertNotIn('sshfp-value-rfc', sshfp_value_ids)
+
+    def test_value_rfc_validator(self):
+        validate = SshfpValueRfcValidator('sshfp-value-rfc').validate
+
+        sha1_fp = 'bf6b6825d2977c511a475bbefb88aad54a92ac73'
+        sha256_fp = (
+            'a87f1b687ac0e57d2a081a2f282672334d90ed316d2b818ca9580ea384d92401'
+        )
+
+        # valid: SHA-1
+        self.assertEqual(
+            [],
+            validate(
+                SshfpValue,
+                [
+                    {
+                        'algorithm': 1,
+                        'fingerprint_type': 1,
+                        'fingerprint': sha1_fp,
+                    }
+                ],
+                'SSHFP',
+            ),
+        )
+
+        # valid: SHA-256
+        self.assertEqual(
+            [],
+            validate(
+                SshfpValue,
+                [
+                    {
+                        'algorithm': 2,
+                        'fingerprint_type': 2,
+                        'fingerprint': sha256_fp,
+                    }
+                ],
+                'SSHFP',
+            ),
+        )
+
+        # valid: unknown fingerprint_type — no length check applied
+        self.assertEqual(
+            [],
+            validate(
+                SshfpValue,
+                [
+                    {
+                        'algorithm': 4,
+                        'fingerprint_type': 3,
+                        'fingerprint': sha1_fp,
+                    }
+                ],
+                'SSHFP',
+            ),
+        )
+
+        # algorithm out of range
+        self.assertEqual(
+            ['invalid algorithm "256"; must be 0-255'],
+            validate(
+                SshfpValue,
+                [
+                    {
+                        'algorithm': 256,
+                        'fingerprint_type': 1,
+                        'fingerprint': sha1_fp,
+                    }
+                ],
+                'SSHFP',
+            ),
+        )
+
+        # fingerprint_type out of range
+        self.assertEqual(
+            ['invalid fingerprint_type "300"; must be 0-255'],
+            validate(
+                SshfpValue,
+                [
+                    {
+                        'algorithm': 1,
+                        'fingerprint_type': 300,
+                        'fingerprint': sha1_fp,
+                    }
+                ],
+                'SSHFP',
+            ),
+        )
+
+        # algorithm non-integer
+        self.assertEqual(
+            ['invalid algorithm "nope"'],
+            validate(
+                SshfpValue,
+                [
+                    {
+                        'algorithm': 'nope',
+                        'fingerprint_type': 1,
+                        'fingerprint': sha1_fp,
+                    }
+                ],
+                'SSHFP',
+            ),
+        )
+
+        # fingerprint_type non-integer
+        self.assertEqual(
+            ['invalid fingerprint_type "bad"'],
+            validate(
+                SshfpValue,
+                [
+                    {
+                        'algorithm': 1,
+                        'fingerprint_type': 'bad',
+                        'fingerprint': sha1_fp,
+                    }
+                ],
+                'SSHFP',
+            ),
+        )
+
+        # fingerprint not hex
+        self.assertEqual(
+            ['invalid fingerprint "notahex!!"; must be hex'],
+            validate(
+                SshfpValue,
+                [
+                    {
+                        'algorithm': 1,
+                        'fingerprint_type': 1,
+                        'fingerprint': 'notahex!!',
+                    }
+                ],
+                'SSHFP',
+            ),
+        )
+
+        # SHA-1 fingerprint wrong length (too short)
+        self.assertEqual(
+            ['fingerprint must be 40 hex characters for fingerprint_type 1'],
+            validate(
+                SshfpValue,
+                [
+                    {
+                        'algorithm': 1,
+                        'fingerprint_type': 1,
+                        'fingerprint': sha256_fp,
+                    }
+                ],
+                'SSHFP',
+            ),
+        )
+
+        # SHA-256 fingerprint wrong length (too short)
+        self.assertEqual(
+            ['fingerprint must be 64 hex characters for fingerprint_type 2'],
+            validate(
+                SshfpValue,
+                [
+                    {
+                        'algorithm': 2,
+                        'fingerprint_type': 2,
+                        'fingerprint': sha1_fp,
+                    }
+                ],
+                'SSHFP',
+            ),
+        )
+
+        # missing all fields
+        self.assertEqual(
+            [
+                'missing algorithm',
+                'missing fingerprint_type',
+                'missing fingerprint',
+            ],
+            validate(SshfpValue, [{}], 'SSHFP'),
+        )
+
+    def test_rfc_value_validator_opt_in(self):
+        zone = Zone('unit.tests.', [])
+        Record.enable_validators(['legacy'])
+        Record.enable_validator('sshfp-value-rfc', types=['SSHFP'])
+        try:
+            # right length for SHA-1 but non-hex chars — only RFC validator catches
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    '',
+                    {
+                        'type': 'SSHFP',
+                        'ttl': 600,
+                        'value': {
+                            'algorithm': 1,
+                            'fingerprint_type': 1,
+                            'fingerprint': 'z' * 40,
+                        },
+                    },
+                )
+            self.assertEqual(
+                [f'invalid fingerprint "{"z" * 40}"; must be hex'],
+                ctx.exception.reasons,
+            )
+            # valid: SHA-1 passes
+            Record.new(
+                zone,
+                '',
+                {
+                    'type': 'SSHFP',
+                    'ttl': 600,
+                    'value': {
+                        'algorithm': 1,
+                        'fingerprint_type': 1,
+                        'fingerprint': 'bf6b6825d2977c511a475bbefb88aad54a92ac73',
+                    },
+                },
+            )
+        finally:
+            Record.disable_validator('sshfp-value-rfc', types=['SSHFP'])
 
     def test_fingerprint_case_insensitive(self):
         target = SimpleProvider()

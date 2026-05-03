@@ -499,16 +499,18 @@ class TestValidatorRegistry(TestCase):
                 )
 
         for expected in (
-            'name',
-            'ttl',
+            'name-rfc',
+            'ttl-rfc',
             'healthcheck',
             '_values-type',
             '_value-type',
-            'cname-root',
+            'cname-root-rfc',
             'alias-root',
             'mx-value',
-            'ip-value',
-            'target-value',
-            'targets-value',
+            'ip-value-rfc',
+            'target-value-rfc',
+            'targets-value-rfc',
+            'target-value-best-practice',
+            'targets-value-best-practice',
         ):
             self.assertIn(expected, seen)

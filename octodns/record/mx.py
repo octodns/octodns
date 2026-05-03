@@ -38,8 +38,57 @@ class MxValueValidator(ValueValidator):
         return reasons
 
 
+class MxValueRfcValidator(ValueValidator):
+    '''
+    Strict MX rdata validator per RFC 5321 and RFC 7505.
+
+    - ``preference`` must be in [0, 65535].
+    - When ``exchange`` is ``"."``, ``preference`` must be 0 (null MX
+      per RFC 7505 §3).
+    - When ``exchange`` is not ``"."``, it must be a valid FQDN.
+
+    Enabled as part of the ``strict`` validator set::
+
+      manager:
+        enabled:
+          - strict
+    '''
+
+    def validate(self, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            preference = None
+            if 'preference' in value or 'priority' in value:
+                raw = value.get('preference', value.get('priority'))
+                try:
+                    preference = int(raw)
+                    if not 0 <= preference <= 65535:
+                        reasons.append(
+                            f'preference "{preference}" out of range 0-65535'
+                        )
+                except (ValueError, TypeError):
+                    reasons.append(f'invalid preference "{raw}"')
+            else:
+                reasons.append('missing preference')
+
+            exchange = value.get('exchange') or value.get('value')
+            if not exchange:
+                reasons.append('missing exchange')
+            elif exchange == '.':
+                if preference is not None and preference != 0:
+                    reasons.append(
+                        'preference must be 0 for null MX (exchange ".")'
+                    )
+            else:
+                reasons += validate_target_fqdn(exchange, _type, 'exchange')
+        return reasons
+
+
 class MxValue(EqualityTupleMixin, dict):
-    VALIDATORS = [MxValueValidator('mx-value', sets={'legacy'})]
+    VALIDATORS = [
+        MxValueValidator('mx-value', sets={'legacy'}),
+        MxValueRfcValidator('mx-value-rfc', sets={'strict'}),
+    ]
 
     @classmethod
     def _schema(cls):

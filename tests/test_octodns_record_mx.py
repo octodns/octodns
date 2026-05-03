@@ -9,7 +9,7 @@ from helpers import SimpleProvider
 from octodns.processor.templating import Templating
 from octodns.record import Record
 from octodns.record.exception import ValidationError
-from octodns.record.mx import MxRecord, MxValue
+from octodns.record.mx import MxRecord, MxValue, MxValueRfcValidator
 from octodns.record.rr import RrParseError
 from octodns.zone import Zone
 
@@ -331,3 +331,139 @@ class TestMxValue(TestCase):
             ['MX exchange "unit.tests.example.com" missing trailing .'],
             ctx.exception.reasons,
         )
+
+    def test_rfc_value_validator_not_in_defaults(self):
+        registered = Record.registered_validators()
+        mx_value_ids = set(v.id for v in registered['value'].get('MX', []))
+        self.assertNotIn('mx-value-rfc', mx_value_ids)
+
+    def test_value_rfc_validator(self):
+        validate = MxValueRfcValidator('mx-value-rfc').validate
+
+        # valid records
+        self.assertEqual(
+            [],
+            validate(
+                MxValue, [{'preference': 0, 'exchange': 'mx.unit.tests.'}], 'MX'
+            ),
+        )
+        self.assertEqual(
+            [],
+            validate(
+                MxValue,
+                [{'preference': 65535, 'exchange': 'mx.unit.tests.'}],
+                'MX',
+            ),
+        )
+        # null MX: exchange "." with preference 0
+        self.assertEqual(
+            [], validate(MxValue, [{'preference': 0, 'exchange': '.'}], 'MX')
+        )
+        # legacy priority/value aliases are accepted
+        self.assertEqual(
+            [],
+            validate(
+                MxValue, [{'priority': 10, 'value': 'mx.unit.tests.'}], 'MX'
+            ),
+        )
+
+        # preference out of range
+        self.assertEqual(
+            ['preference "65536" out of range 0-65535'],
+            validate(
+                MxValue,
+                [{'preference': 65536, 'exchange': 'mx.unit.tests.'}],
+                'MX',
+            ),
+        )
+        self.assertEqual(
+            ['preference "-1" out of range 0-65535'],
+            validate(
+                MxValue,
+                [{'preference': -1, 'exchange': 'mx.unit.tests.'}],
+                'MX',
+            ),
+        )
+
+        # null MX requires preference 0
+        self.assertEqual(
+            ['preference must be 0 for null MX (exchange ".")'],
+            validate(MxValue, [{'preference': 10, 'exchange': '.'}], 'MX'),
+        )
+
+        # missing preference
+        self.assertEqual(
+            ['missing preference'],
+            validate(MxValue, [{'exchange': 'mx.unit.tests.'}], 'MX'),
+        )
+        # invalid preference
+        self.assertEqual(
+            ['invalid preference "nope"'],
+            validate(
+                MxValue,
+                [{'preference': 'nope', 'exchange': 'mx.unit.tests.'}],
+                'MX',
+            ),
+        )
+        # missing exchange
+        self.assertEqual(
+            ['missing exchange'], validate(MxValue, [{'preference': 10}], 'MX')
+        )
+        # exchange missing trailing dot
+        self.assertEqual(
+            ['MX exchange "mx.unit.tests" missing trailing .'],
+            validate(
+                MxValue, [{'preference': 10, 'exchange': 'mx.unit.tests'}], 'MX'
+            ),
+        )
+
+    def test_rfc_value_validator_opt_in(self):
+        zone = Zone('unit.tests.', [])
+        Record.enable_validators(['legacy'])
+        Record.enable_validator('mx-value-rfc', types=['MX'])
+        try:
+            # preference out of range
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    'test',
+                    {
+                        'type': 'MX',
+                        'ttl': 600,
+                        'value': {
+                            'preference': 70000,
+                            'exchange': 'mx.unit.tests.',
+                        },
+                    },
+                )
+            self.assertEqual(
+                ['preference "70000" out of range 0-65535'],
+                ctx.exception.reasons,
+            )
+            # null MX with non-zero preference
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    'test',
+                    {
+                        'type': 'MX',
+                        'ttl': 600,
+                        'value': {'preference': 10, 'exchange': '.'},
+                    },
+                )
+            self.assertEqual(
+                ['preference must be 0 for null MX (exchange ".")'],
+                ctx.exception.reasons,
+            )
+            # valid null MX passes
+            Record.new(
+                zone,
+                'test',
+                {
+                    'type': 'MX',
+                    'ttl': 600,
+                    'value': {'preference': 0, 'exchange': '.'},
+                },
+            )
+        finally:
+            Record.disable_validator('mx-value-rfc', types=['MX'])
