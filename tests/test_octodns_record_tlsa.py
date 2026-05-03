@@ -9,7 +9,7 @@ from helpers import SimpleProvider
 from octodns.record import Record
 from octodns.record.exception import ValidationError
 from octodns.record.rr import RrParseError
-from octodns.record.tlsa import TlsaRecord, TlsaValue
+from octodns.record.tlsa import TlsaRecord, TlsaValue, TlsaValueRfcValidator
 from octodns.zone import Zone
 
 
@@ -467,6 +467,247 @@ class TestRecordTlsa(TestCase):
         )
         self.assertFalse(upper.changes(lower, target))
         self.assertFalse(lower.changes(upper, target))
+
+    def test_rfc_value_validator_not_in_defaults(self):
+        registered = Record.registered_validators()
+        tlsa_value_ids = set(v.id for v in registered['value'].get('TLSA', []))
+        self.assertNotIn('tlsa-value-rfc', tlsa_value_ids)
+
+    def test_value_rfc_validator(self):
+        validate = TlsaValueRfcValidator('tlsa-value-rfc').validate
+
+        sha256 = 'a' * 64
+        sha512 = 'b' * 128
+
+        # valid: matching_type 0, any hex data
+        self.assertEqual(
+            [],
+            validate(
+                TlsaValue,
+                [
+                    {
+                        'certificate_usage': 3,
+                        'selector': 1,
+                        'matching_type': 0,
+                        'certificate_association_data': 'deadbeef',
+                    }
+                ],
+                'TLSA',
+            ),
+        )
+        # valid: matching_type 1, 64 hex chars
+        self.assertEqual(
+            [],
+            validate(
+                TlsaValue,
+                [
+                    {
+                        'certificate_usage': 1,
+                        'selector': 0,
+                        'matching_type': 1,
+                        'certificate_association_data': sha256,
+                    }
+                ],
+                'TLSA',
+            ),
+        )
+        # valid: matching_type 2, 128 hex chars
+        self.assertEqual(
+            [],
+            validate(
+                TlsaValue,
+                [
+                    {
+                        'certificate_usage': 0,
+                        'selector': 1,
+                        'matching_type': 2,
+                        'certificate_association_data': sha512,
+                    }
+                ],
+                'TLSA',
+            ),
+        )
+
+        # invalid certificate_usage (out of uint8 range)
+        self.assertEqual(
+            ['invalid certificate_usage "256"; must be 0-255'],
+            validate(
+                TlsaValue,
+                [
+                    {
+                        'certificate_usage': 256,
+                        'selector': 0,
+                        'matching_type': 0,
+                        'certificate_association_data': 'deadbeef',
+                    }
+                ],
+                'TLSA',
+            ),
+        )
+
+        # invalid selector (non-integer)
+        self.assertEqual(
+            ['invalid selector "bad"'],
+            validate(
+                TlsaValue,
+                [
+                    {
+                        'certificate_usage': 0,
+                        'selector': 'bad',
+                        'matching_type': 0,
+                        'certificate_association_data': 'deadbeef',
+                    }
+                ],
+                'TLSA',
+            ),
+        )
+
+        # invalid matching_type (out of range)
+        self.assertEqual(
+            ['invalid matching_type "300"; must be 0-255'],
+            validate(
+                TlsaValue,
+                [
+                    {
+                        'certificate_usage': 0,
+                        'selector': 0,
+                        'matching_type': 300,
+                        'certificate_association_data': 'deadbeef',
+                    }
+                ],
+                'TLSA',
+            ),
+        )
+
+        # invalid certificate_association_data (not hex)
+        self.assertEqual(
+            ['invalid certificate_association_data "notahex"; must be hex'],
+            validate(
+                TlsaValue,
+                [
+                    {
+                        'certificate_usage': 0,
+                        'selector': 0,
+                        'matching_type': 0,
+                        'certificate_association_data': 'notahex',
+                    }
+                ],
+                'TLSA',
+            ),
+        )
+
+        # matching_type 1 with wrong length
+        self.assertEqual(
+            [
+                'certificate_association_data must be 64 hex characters for matching_type 1'
+            ],
+            validate(
+                TlsaValue,
+                [
+                    {
+                        'certificate_usage': 0,
+                        'selector': 0,
+                        'matching_type': 1,
+                        'certificate_association_data': 'deadbeef',
+                    }
+                ],
+                'TLSA',
+            ),
+        )
+
+        # matching_type 2 with wrong length
+        self.assertEqual(
+            [
+                'certificate_association_data must be 128 hex characters for matching_type 2'
+            ],
+            validate(
+                TlsaValue,
+                [
+                    {
+                        'certificate_usage': 0,
+                        'selector': 0,
+                        'matching_type': 2,
+                        'certificate_association_data': sha256,
+                    }
+                ],
+                'TLSA',
+            ),
+        )
+
+        # missing fields
+        self.assertEqual(
+            [
+                'missing certificate_usage',
+                'missing selector',
+                'missing matching_type',
+                'missing certificate_association_data',
+            ],
+            validate(TlsaValue, [{}], 'TLSA'),
+        )
+
+    def test_rfc_value_validator_opt_in(self):
+        zone = Zone('unit.tests.', [])
+        Record.enable_validators(['legacy'])
+        Record.enable_validator('tlsa-value-rfc', types=['TLSA'])
+        sha256 = 'a' * 64
+        try:
+            # non-hex certificate_association_data
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    '',
+                    {
+                        'type': 'TLSA',
+                        'ttl': 600,
+                        'value': {
+                            'certificate_usage': 3,
+                            'selector': 1,
+                            'matching_type': 1,
+                            'certificate_association_data': 'notahex',
+                        },
+                    },
+                )
+            self.assertIn(
+                'invalid certificate_association_data "notahex"; must be hex',
+                ctx.exception.reasons,
+            )
+            # wrong length for SHA-256
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    '',
+                    {
+                        'type': 'TLSA',
+                        'ttl': 600,
+                        'value': {
+                            'certificate_usage': 3,
+                            'selector': 1,
+                            'matching_type': 1,
+                            'certificate_association_data': 'deadbeef',
+                        },
+                    },
+                )
+            self.assertIn(
+                'certificate_association_data must be 64 hex characters for matching_type 1',
+                ctx.exception.reasons,
+            )
+            # valid passes
+            Record.new(
+                zone,
+                '',
+                {
+                    'type': 'TLSA',
+                    'ttl': 600,
+                    'value': {
+                        'certificate_usage': 3,
+                        'selector': 1,
+                        'matching_type': 1,
+                        'certificate_association_data': sha256,
+                    },
+                },
+            )
+        finally:
+            Record.disable_validator('tlsa-value-rfc', types=['TLSA'])
 
 
 class TestTlsaValue(TestCase):

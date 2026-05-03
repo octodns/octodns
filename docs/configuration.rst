@@ -271,6 +271,10 @@ Validators active in ``strict`` only (stricter replacements):
 |                    | tag must match ``[a-zA-Z0-9]+``; replaces             |
 |                    | ``caa-value``                                         |
 +--------------------+-------------------------------------------------------+
+| ``tlsa-value-rfc`` | TLSA fields uint8 [0, 255]; certificate_association   |
+|                    | _data must be hex; SHA-256/SHA-512 length enforced    |
+|                    | (RFC 6698); replaces ``tlsa-value``                   |
++--------------------+-------------------------------------------------------+
 
 To opt into all strict validators at once::
 
