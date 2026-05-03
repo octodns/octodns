@@ -261,6 +261,9 @@ Validators active in ``strict`` only (stricter replacements):
 | ``srv-value-rfc``  | SRV rdata strict per RFC 2782 (range, null target);   |
 |                    | replaces ``srv-value``                                |
 +--------------------+-------------------------------------------------------+
+| ``uri-name-rfc``   | URI name strict per RFC 7553 + RFC 6335 §5.1;         |
+|                    | replaces ``uri-name``                                 |
++--------------------+-------------------------------------------------------+
 
 To opt into all strict validators at once::
 
