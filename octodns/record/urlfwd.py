@@ -53,7 +53,7 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     VALID_MASKS = (0, 1, 2)
     VALID_QUERY = (0, 1)
 
-    VALIDATORS = [UrlfwdValueValidator('urlfwd-value')]
+    VALIDATORS = [UrlfwdValueValidator('urlfwd-value', sets={'legacy'})]
 
     @classmethod
     def _schema(cls):

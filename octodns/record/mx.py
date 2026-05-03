@@ -39,7 +39,7 @@ class MxValueValidator(ValueValidator):
 
 
 class MxValue(EqualityTupleMixin, dict):
-    VALIDATORS = [MxValueValidator('mx-value')]
+    VALIDATORS = [MxValueValidator('mx-value', sets={'legacy'})]
 
     @classmethod
     def _schema(cls):

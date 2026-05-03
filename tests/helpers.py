@@ -17,15 +17,24 @@ from octodns.secret.base import BaseSecrets
 
 @contextmanager
 def validators_snapshot():
-    record_snap = {k: dict(v) for k, v in Record._RECORD_VALIDATORS.items()}
-    value_snap = {k: dict(v) for k, v in Record._VALUE_VALIDATORS.items()}
+    reg = Record.validators
+    configured_snap = reg.configured
+    active_record_snap = {k: dict(v) for k, v in reg.active_record.items()}
+    active_value_snap = {k: dict(v) for k, v in reg.active_value.items()}
+    avail_record_snap = {k: dict(v) for k, v in reg.available_record.items()}
+    avail_value_snap = {k: dict(v) for k, v in reg.available_value.items()}
     try:
         yield
     finally:
-        Record._RECORD_VALIDATORS.clear()
-        Record._RECORD_VALIDATORS.update(record_snap)
-        Record._VALUE_VALIDATORS.clear()
-        Record._VALUE_VALIDATORS.update(value_snap)
+        reg.configured = configured_snap
+        reg.active_record.clear()
+        reg.active_record.update(active_record_snap)
+        reg.active_value.clear()
+        reg.active_value.update(active_value_snap)
+        reg.available_record.clear()
+        reg.available_record.update(avail_record_snap)
+        reg.available_value.clear()
+        reg.available_value.update(avail_value_snap)
 
 
 class SimpleSource(object):
@@ -154,8 +163,8 @@ class CountingProcessor(BaseProcessor):
 
 
 class TestRecordValidator(RecordValidator):
-    def __init__(self, id, min_ttl=None):
-        super().__init__(id)
+    def __init__(self, id, min_ttl=None, **kwargs):
+        super().__init__(id, **kwargs)
         self.min_ttl = min_ttl
 
     def validate(self, record_cls, name, fqdn, data):
@@ -165,8 +174,8 @@ class TestRecordValidator(RecordValidator):
 
 
 class TestValueValidator(ValueValidator):
-    def __init__(self, id):
-        super().__init__(id)
+    def __init__(self, id, **kwargs):
+        super().__init__(id, **kwargs)
 
     def validate(self, value_cls, data, _type):
         return []

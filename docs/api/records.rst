@@ -36,3 +36,4 @@ Records
    octodns.record.txt
    octodns.record.uri
    octodns.record.urlfwd
+   octodns.record.validator

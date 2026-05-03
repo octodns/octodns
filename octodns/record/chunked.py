@@ -35,7 +35,9 @@ class ChunkedValueValidator(ValueValidator):
         return reasons
 
 
-chunked_value_validator = ChunkedValueValidator('chunked-value')
+chunked_value_validator = ChunkedValueValidator(
+    'chunked-value', sets={'legacy'}
+)
 
 
 class _ChunkedValuesMixin(ValuesMixin):

@@ -112,7 +112,7 @@ class LocValue(EqualityTupleMixin, dict):
     # while maintaining backwards compatibility.
     # https://www.rfc-editor.org/rfc/rfc1876.html
 
-    VALIDATORS = [LocValueValidator('loc-value')]
+    VALIDATORS = [LocValueValidator('loc-value', sets={'legacy'})]
 
     @classmethod
     def _schema(cls):

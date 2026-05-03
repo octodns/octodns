@@ -1,0 +1,6 @@
+manager:
+  enabled:
+    - legacy
+    - test-set
+providers: {}
+zones: {}

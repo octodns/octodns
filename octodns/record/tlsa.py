@@ -58,7 +58,7 @@ class TlsaValueValidator(ValueValidator):
 
 
 class TlsaValue(EqualityTupleMixin, dict):
-    VALIDATORS = [TlsaValueValidator('tlsa-value')]
+    VALIDATORS = [TlsaValueValidator('tlsa-value', sets={'legacy'})]
 
     @classmethod
     def _schema(cls):
@@ -127,12 +127,11 @@ class TlsaValue(EqualityTupleMixin, dict):
                 'certificate_usage': int(value.get('certificate_usage', 0)),
                 'selector': int(value.get('selector', 0)),
                 'matching_type': int(value.get('matching_type', 0)),
-                # force it to a string, in case the hex has only numerical
-                # values and it was converted to an int at some point
-                # TODO: this needed on any others?
+                # force to str (hex-only values may be coerced to int) and
+                # normalize to lowercase for case-insensitive comparison
                 'certificate_association_data': str(
                     value['certificate_association_data']
-                ),
+                ).lower(),
             }
         )
 
@@ -190,10 +189,7 @@ class TlsaValue(EqualityTupleMixin, dict):
         )
 
     def __repr__(self):
-        return (
-            f"'{self.certificate_usage} {self.selector} '"
-            f"'{self.matching_type} {self.certificate_association_data}'"
-        )
+        return f"'{self.certificate_usage} {self.selector} {self.matching_type} {self.certificate_association_data}'"
 
 
 class TlsaRecord(ValuesMixin, Record):

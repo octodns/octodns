@@ -1,0 +1,27 @@
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+    supports_root_ns: False
+zones:
+  unit.tests.:
+    ignore_subzone_adds: true
+    sources:
+      - in
+    targets:
+      - dump
+
+  subzone.unit.tests.:
+    sources:
+      - in
+    targets:
+      - dump
+
+  defaultignore.tests.:
+    sources:
+      - in
+    targets:
+      - dump

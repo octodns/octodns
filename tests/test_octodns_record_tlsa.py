@@ -430,6 +430,44 @@ class TestRecordTlsa(TestCase):
                 ctx.exception.reasons,
             )
 
+    def test_certificate_association_data_case_insensitive(self):
+        target = SimpleProvider()
+
+        # uppercase input is normalized to lowercase
+        upper = TlsaRecord(
+            self.zone,
+            'a',
+            {
+                'ttl': 30,
+                'value': {
+                    'certificate_usage': 3,
+                    'selector': 1,
+                    'matching_type': 1,
+                    'certificate_association_data': 'ABCDEF1234567890',
+                },
+            },
+        )
+        self.assertEqual(
+            'abcdef1234567890', upper.values[0].certificate_association_data
+        )
+
+        # same value in lowercase — no change detected
+        lower = TlsaRecord(
+            self.zone,
+            'a',
+            {
+                'ttl': 30,
+                'value': {
+                    'certificate_usage': 3,
+                    'selector': 1,
+                    'matching_type': 1,
+                    'certificate_association_data': 'abcdef1234567890',
+                },
+            },
+        )
+        self.assertFalse(upper.changes(lower, target))
+        self.assertFalse(lower.changes(upper, target))
+
 
 class TestTlsaValue(TestCase):
 
@@ -456,5 +494,5 @@ class TestTlsaValue(TestCase):
         got = value.template({'needle': 42})
         self.assertIsNot(value, got)
         self.assertEqual(
-            'ABAB42ABABABABABABAB', got.certificate_association_data
+            'abab42ababababababab', got.certificate_association_data
         )
