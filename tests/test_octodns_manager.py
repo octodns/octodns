@@ -1771,6 +1771,25 @@ class TestManager(TestCase):
             self.assertIsNone(zone_with_defaults.update_pcent_threshold)
             self.assertIsNone(zone_with_defaults.delete_pcent_threshold)
 
+    def test_zone_ignore_subzone_adds(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+
+            manager = Manager(
+                get_config_filename('zone-ignore-subzone-adds.yaml')
+            )
+
+            # zone with the flag set picks it up
+            zone = manager.get_zone('unit.tests.')
+            self.assertTrue(zone.ignore_subzone_adds)
+
+            # sibling zones without the flag default to False
+            subzone = manager.get_zone('subzone.unit.tests.')
+            self.assertFalse(subzone.ignore_subzone_adds)
+
+            zone_with_defaults = manager.get_zone('defaultignore.tests.')
+            self.assertFalse(zone_with_defaults.ignore_subzone_adds)
+
     def test_preprocess_zones_original(self):
         # these will be unused
         environ['YAML_TMP_DIR'] = '/tmp'
