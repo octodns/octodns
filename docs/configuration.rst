@@ -267,6 +267,10 @@ Validators active in ``strict`` only (stricter replacements):
 | ``mx-value-rfc``   | MX preference in [0, 65535]; null MX rules per        |
 |                    | RFC 7505; replaces ``mx-value``                       |
 +--------------------+-------------------------------------------------------+
+| ``caa-value-rfc``  | CAA flags restricted to 0/128 (RFC 8659 §4.1);        |
+|                    | tag must match ``[a-zA-Z0-9]+``; replaces             |
+|                    | ``caa-value``                                         |
++--------------------+-------------------------------------------------------+
 
 To opt into all strict validators at once::
 
