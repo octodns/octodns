@@ -264,6 +264,9 @@ Validators active in ``strict`` only (stricter replacements):
 | ``uri-name-rfc``   | URI name strict per RFC 7553 + RFC 6335 §5.1;         |
 |                    | replaces ``uri-name``                                 |
 +--------------------+-------------------------------------------------------+
+| ``mx-value-rfc``   | MX preference in [0, 65535]; null MX rules per        |
+|                    | RFC 7505; replaces ``mx-value``                       |
++--------------------+-------------------------------------------------------+
 
 To opt into all strict validators at once::
 
