@@ -2,6 +2,7 @@
 #
 #
 
+import re
 from logging import getLogger
 
 from ..deprecation import deprecated
@@ -79,11 +80,79 @@ class DsValueValidator(ValueValidator):
         return reasons
 
 
+class DsValueRfcValidator(ValueValidator):
+    '''
+    Strict DS rdata validator per RFC 4034 §5.1, RFC 4509, and RFC 6605.
+
+    - ``key_tag`` must be in [0, 65535] (uint16).
+    - ``algorithm`` must be in [0, 255] (uint8).
+    - ``digest_type`` must be in [0, 255] (uint8).
+    - ``digest`` must be a valid hexadecimal string.
+    - For known digest types, the digest length is enforced:
+      type 1 (SHA-1) = 40 hex chars, type 2 (SHA-256) = 64 hex chars,
+      type 4 (SHA-384) = 96 hex chars.
+
+    The deprecated legacy field names (``flags``, ``protocol``,
+    ``public_key``) are not accepted in strict mode.
+
+    Enabled as part of the ``strict`` validator set::
+
+      manager:
+        enabled:
+          - strict
+    '''
+
+    _hex_re = re.compile(r'^[0-9a-fA-F]+$')
+    _digest_type_lengths = {1: 40, 2: 64, 4: 96}
+
+    def validate(self, value_cls, data, _type):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
+        reasons = []
+        for value in data:
+            digest_type = None
+            for field, max_val in (
+                ('key_tag', 65535),
+                ('algorithm', 255),
+                ('digest_type', 255),
+            ):
+                if field not in value:
+                    reasons.append(f'missing {field}')
+                else:
+                    try:
+                        int_val = int(value[field])
+                        if not 0 <= int_val <= max_val:
+                            reasons.append(
+                                f'invalid {field} "{int_val}"; must be 0-{max_val}'
+                            )
+                        elif field == 'digest_type':
+                            digest_type = int_val
+                    except (ValueError, TypeError):
+                        reasons.append(f'invalid {field} "{value[field]}"')
+
+            if 'digest' not in value:
+                reasons.append('missing digest')
+            else:
+                digest = value['digest']
+                if not digest or not self._hex_re.match(str(digest)):
+                    reasons.append(f'invalid digest "{digest}"; must be hex')
+                elif digest_type in self._digest_type_lengths:
+                    expected = self._digest_type_lengths[digest_type]
+                    if len(str(digest)) != expected:
+                        reasons.append(
+                            f'digest must be {expected} hex characters for digest_type {digest_type}'
+                        )
+        return reasons
+
+
 class DsValue(EqualityTupleMixin, dict):
     # https://www.rfc-editor.org/rfc/rfc4034.html#section-5.1
     log = getLogger('DsValue')
 
-    VALIDATORS = [DsValueValidator('ds-value', sets={'legacy'})]
+    VALIDATORS = [
+        DsValueValidator('ds-value', sets={'legacy'}),
+        DsValueRfcValidator('ds-value-rfc', sets={'strict'}),
+    ]
 
     @classmethod
     def _schema(cls):
