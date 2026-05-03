@@ -10,7 +10,12 @@ from octodns.processor.templating import Templating
 from octodns.record import Record
 from octodns.record.exception import ValidationError
 from octodns.record.rr import RrParseError
-from octodns.record.srv import SrvRecord, SrvValue
+from octodns.record.srv import (
+    SrvNameRfcValidator,
+    SrvRecord,
+    SrvValue,
+    SrvValueRfcValidator,
+)
 from octodns.zone import Zone
 
 
@@ -478,6 +483,239 @@ class TestSrvValue(TestCase):
         got = value.template({'needle': 42})
         self.assertIsNot(value, got)
         self.assertEqual('has_42_placeholder', got.target)
+
+    def test_rfc_validators_not_in_defaults(self):
+        # confirm the RFC validators are opt-in and not registered for SRV
+        # by default
+        registered = Record.registered_validators()
+        srv_record_ids = set(v.id for v in registered['record'].get('SRV', []))
+        srv_value_ids = set(v.id for v in registered['value'].get('SRV', []))
+        self.assertNotIn('srv-name-rfc', srv_record_ids)
+        self.assertNotIn('srv-value-rfc', srv_value_ids)
+
+    def test_name_rfc_validator(self):
+        validate = SrvNameRfcValidator('srv-name-rfc').validate
+
+        # valid names
+        for name in (
+            '_sip._tcp',
+            '_http._tcp',
+            '_xmpp-client._tcp',
+            '_a._tcp',
+            '_sip._tcp.region1',
+            '*._tcp',
+            '_a1._tcp',
+        ):
+            self.assertEqual(
+                [], validate(SrvRecord, name, f'{name}.unit.tests.', {}), name
+            )
+
+        # single-label name
+        self.assertEqual(
+            ['SRV name must have at least two labels (_service._proto)'],
+            validate(SrvRecord, '_sip', '_sip.unit.tests.', {}),
+        )
+        # empty name
+        self.assertEqual(
+            ['SRV name must have at least two labels (_service._proto)'],
+            validate(SrvRecord, '', 'unit.tests.', {}),
+        )
+
+        # service label missing underscore
+        self.assertEqual(
+            ['invalid SRV service label "sip"'],
+            validate(SrvRecord, 'sip._tcp', 'sip._tcp.unit.tests.', {}),
+        )
+        # service label too long (>15 chars after underscore)
+        long_svc = '_' + ('a' * 16)
+        self.assertEqual(
+            [f'invalid SRV service label "{long_svc}"'],
+            validate(
+                SrvRecord, f'{long_svc}._tcp', f'{long_svc}._tcp.u.t.', {}
+            ),
+        )
+        # service label starts with digit
+        self.assertEqual(
+            ['invalid SRV service label "_1sip"'],
+            validate(SrvRecord, '_1sip._tcp', '_1sip._tcp.u.t.', {}),
+        )
+        # service label ends with hyphen
+        self.assertEqual(
+            ['invalid SRV service label "_sip-"'],
+            validate(SrvRecord, '_sip-._tcp', '_sip-._tcp.u.t.', {}),
+        )
+        # service label has consecutive hyphens
+        self.assertEqual(
+            ['invalid SRV service label "_si--p"'],
+            validate(SrvRecord, '_si--p._tcp', '_si--p._tcp.u.t.', {}),
+        )
+        # service label with illegal char
+        self.assertEqual(
+            ['invalid SRV service label "_si$p"'],
+            validate(SrvRecord, '_si$p._tcp', '_si$p._tcp.u.t.', {}),
+        )
+        # empty service body (just underscore)
+        self.assertEqual(
+            ['invalid SRV service label "_"'],
+            validate(SrvRecord, '_._tcp', '_._tcp.u.t.', {}),
+        )
+
+        # proto label missing underscore
+        self.assertEqual(
+            ['invalid SRV proto label "tcp"'],
+            validate(SrvRecord, '_sip.tcp', '_sip.tcp.u.t.', {}),
+        )
+        # proto label invalid body
+        self.assertEqual(
+            ['invalid SRV proto label "_1tcp"'],
+            validate(SrvRecord, '_sip._1tcp', '_sip._1tcp.u.t.', {}),
+        )
+
+        # both service and proto wrong -> two reasons
+        reasons = validate(SrvRecord, 'sip.tcp', 'sip.tcp.u.t.', {})
+        self.assertEqual(
+            [
+                'invalid SRV service label "sip"',
+                'invalid SRV proto label "tcp"',
+            ],
+            reasons,
+        )
+
+    def test_value_rfc_validator(self):
+        validate = SrvValueRfcValidator('srv-value-rfc').validate
+
+        # valid values, including null-target convention
+        good = [
+            {'priority': 10, 'weight': 20, 'port': 443, 'target': 'h.u.t.'},
+            {'priority': 0, 'weight': 0, 'port': 0, 'target': '.'},
+            {'priority': 65535, 'weight': 65535, 'port': 65535, 'target': 'h.'},
+        ]
+        self.assertEqual([], validate(SrvValue, good, 'SRV'))
+
+        # out of range, low
+        self.assertEqual(
+            ['priority "-1" out of range 0-65535'],
+            validate(
+                SrvValue,
+                [{'priority': -1, 'weight': 1, 'port': 80, 'target': 'h.'}],
+                'SRV',
+            ),
+        )
+
+        # out of range, high on all three
+        reasons = validate(
+            SrvValue,
+            [
+                {
+                    'priority': 65536,
+                    'weight': 70000,
+                    'port': 99999,
+                    'target': 'h.',
+                }
+            ],
+            'SRV',
+        )
+        self.assertEqual(
+            [
+                'priority "65536" out of range 0-65535',
+                'weight "70000" out of range 0-65535',
+                'port "99999" out of range 0-65535',
+            ],
+            reasons,
+        )
+
+        # non-zero values with target "." should be flagged
+        reasons = validate(
+            SrvValue,
+            [{'priority': 1, 'weight': 2, 'port': 3, 'target': '.'}],
+            'SRV',
+        )
+        self.assertEqual(
+            [
+                'priority must be 0 when target is "."',
+                'weight must be 0 when target is "."',
+                'port must be 0 when target is "."',
+            ],
+            reasons,
+        )
+
+        # port 0 with non-null target
+        self.assertEqual(
+            ['port 0 is reserved; must be > 0 when target is not "."'],
+            validate(
+                SrvValue,
+                [{'priority': 10, 'weight': 10, 'port': 0, 'target': 'h.'}],
+                'SRV',
+            ),
+        )
+
+        # missing/non-int fields are silently skipped (base validator owns
+        # those reasons)
+        self.assertEqual(
+            [],
+            validate(
+                SrvValue,
+                [
+                    {
+                        'priority': 'nope',
+                        'weight': 10,
+                        'port': 80,
+                        'target': 'h.',
+                    },
+                    {'priority': 10, 'port': 80, 'target': 'h.'},
+                ],
+                'SRV',
+            ),
+        )
+
+    def test_rfc_validators_opt_in(self):
+        # enable the rfc set so we exercise them end-to-end through
+        # Record.new, then clean up.
+        zone = Zone('unit.tests.', [])
+        Record.enable_validator('srv-name-rfc', types=['SRV'])
+        Record.enable_validator('srv-value-rfc', types=['SRV'])
+        try:
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    '_1sip._tcp',
+                    {
+                        'type': 'SRV',
+                        'ttl': 600,
+                        'value': {
+                            'priority': 1,
+                            'weight': 2,
+                            'port': 70000,
+                            'target': 'foo.bar.',
+                        },
+                    },
+                )
+            self.assertEqual(
+                [
+                    'port "70000" out of range 0-65535',
+                    'invalid SRV service label "_1sip"',
+                ],
+                ctx.exception.reasons,
+            )
+
+            # valid record with RFC validators enabled passes
+            Record.new(
+                zone,
+                '_sip._tcp',
+                {
+                    'type': 'SRV',
+                    'ttl': 600,
+                    'value': {
+                        'priority': 0,
+                        'weight': 0,
+                        'port': 0,
+                        'target': '.',
+                    },
+                },
+            )
+        finally:
+            Record.disable_validator('srv-name-rfc', types=['SRV'])
+            Record.disable_validator('srv-value-rfc', types=['SRV'])
 
     def test_template_validation(self):
         templ = Templating('test')

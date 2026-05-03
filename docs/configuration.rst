@@ -159,16 +159,18 @@ are active for a run (default: ``['legacy']``)::
     enabled:
       - legacy
 
-All built-in validators belong to the ``legacy`` set. Omitting
-``manager.enabled`` is equivalent to ``enabled: [legacy]`` and preserves the
-original octoDNS behaviour.
+Omitting ``manager.enabled`` is equivalent to ``enabled: [legacy]`` and
+preserves the original octoDNS behaviour. The ``legacy`` set will remain
+the default until a future release when ``rfc`` takes over as the default.
 
-Additional opt-in sets can be enabled alongside ``legacy``::
+To migrate to stricter RFC validation, replace ``legacy`` with ``rfc``::
 
   manager:
     enabled:
-      - legacy
       - rfc
+
+The ``rfc`` set contains stricter validators that supersede their ``legacy``
+counterparts — use one or the other, not both, to avoid redundant checks.
 
 A validator can belong to multiple sets; it becomes active when any of its
 sets is listed in ``manager.enabled``.
@@ -240,6 +242,47 @@ set and can be disabled individually with ``manager.disable_validators``.
 
 Ids prefixed with ``_`` (e.g. ``_values-type``) are internal bridge validators
 with ``sets=None`` — they are always active and cannot be disabled.
+
+Validator naming convention
+...........................
+
+Validators are split into two flavors based on what they enforce:
+
+* ``RfcValidator`` / ids ending in ``-rfc`` — enforce requirements that come
+  directly from an RFC. Reasons reference specific RFC numbers.
+* ``BpValidator`` / ids ending in ``-bp`` — enforce best-practice
+  recommendations that aren't strictly required by an RFC (e.g. trailing
+  ``.`` on hostnames).
+
+Both follow the same config and registration paths described below; the
+naming just makes the source of each rule explicit so you can opt in or
+out with intent.
+
+Opt-in RFC validators
+.....................
+
+The ``rfc`` set contains stricter validators that replace the corresponding
+``legacy`` validators. They are not enabled by default because enabling them
+on an existing zone may surface records that don't strictly conform to their
+RFCs. The current ``rfc`` validators are:
+
++--------------------+-------------------------------------------------------+
+| id                 | description                                           |
++====================+=======================================================+
+| ``srv-name-rfc``   | SRV name strict per RFC 2782 + RFC 6335 §5.1;         |
+|                    | replaces ``srv-name``                                 |
++--------------------+-------------------------------------------------------+
+| ``srv-value-rfc``  | SRV rdata strict per RFC 2782 (range, null target);   |
+|                    | replaces ``srv-value``                                |
++--------------------+-------------------------------------------------------+
+
+To opt in, set ``manager.enabled`` to ``rfc`` instead of ``legacy``::
+
+  manager:
+    enabled:
+      - rfc
+
+In a future release ``rfc`` will become the default set.
 
 Adding validators via config
 ............................
