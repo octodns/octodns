@@ -1311,11 +1311,13 @@ class Manager(object):
             sub_zones = self.configured_sub_zones(zone_name)
             update_pcent_threshold = zone.get("update_pcent_threshold", None)
             delete_pcent_threshold = zone.get("delete_pcent_threshold", None)
+            ignore_subzone_adds = zone.get("ignore_subzone_adds", False)
             return Zone(
                 idna_encode(zone_name),
                 sub_zones,
                 update_pcent_threshold,
                 delete_pcent_threshold,
+                ignore_subzone_adds=ignore_subzone_adds,
             )
 
         raise ManagerException(f'Unknown zone name {idna_decode(zone_name)}')
