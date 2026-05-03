@@ -275,6 +275,14 @@ Validators active in ``strict`` only (stricter replacements):
 |                    | _data must be hex; SHA-256/SHA-512 length enforced    |
 |                    | (RFC 6698); replaces ``tlsa-value``                   |
 +--------------------+-------------------------------------------------------+
+| ``ds-value-rfc``   | DS key_tag uint16, algorithm/digest_type uint8;       |
+|                    | digest must be hex; SHA-1/SHA-256/SHA-384 length      |
+|                    | enforced (RFC 4034/4509/6605); replaces ``ds-value``  |
++--------------------+-------------------------------------------------------+
+| ``naptr-value-rfc``| NAPTR order/preference uint16; flags S/A/U/P only;    |
+|                    | replacement must be FQDN or "." (RFC 3403);           |
+|                    | replaces ``naptr-value``                              |
++--------------------+-------------------------------------------------------+
 
 To opt into all strict validators at once::
 
