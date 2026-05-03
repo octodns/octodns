@@ -111,9 +111,9 @@ class ValuesTypeValidator(RecordValidator):
     '''
     Bridges a record's ``_value_type`` into the record-level validation
     pipeline: pulls ``values``/``value`` from ``data``, coerces to a list,
-    and runs the value type's validators (both the legacy ``validate``
-    classmethod on the value class, for 3rd-party back-compat, and any
-    validators registered for the record type in ``Record._VALUE_VALIDATORS``).
+    and delegates to ``ValidatorRegistry.process_values``, which handles both
+    the legacy ``validate`` classmethod on the value class (for 3rd-party
+    back-compat) and any active ``ValueValidator`` instances for the type.
     '''
 
     def __init__(self):

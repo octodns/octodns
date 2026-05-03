@@ -30,6 +30,7 @@ from octodns.manager import (
 from octodns.processor.base import BaseProcessor
 from octodns.provider.yaml import YamlProvider
 from octodns.record import Create, Delete, Record, Update
+from octodns.record.validator import RecordValidator
 from octodns.secret.environ import EnvironSecretsException
 from octodns.yaml import safe_load
 from octodns.zone import Zone
@@ -250,9 +251,7 @@ class TestManager(TestCase):
         # belonging to any of those sets become active.
         with validators_snapshot():
             # Register a validator in a custom set so enable_validators picks it up
-            from octodns.record.validator import RecordValidator as RV
-
-            class TestSetValidator(RV):
+            class TestSetValidator(RecordValidator):
                 def __init__(self):
                     super().__init__('test-set-member', sets={'test-set'})
 
