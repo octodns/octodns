@@ -2,6 +2,8 @@
 #
 #
 
+import re
+
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
@@ -65,11 +67,71 @@ class SshfpValueValidator(ValueValidator):
         return reasons
 
 
+class SshfpValueRfcValidator(ValueValidator):
+    '''
+    Strict SSHFP rdata validator per RFC 4255/6594/7479/8709.
+
+    - ``algorithm`` must be an integer in [0, 255].
+    - ``fingerprint_type`` must be an integer in [0, 255].
+    - ``fingerprint`` must be a valid lowercase hex string.
+    - For ``fingerprint_type`` 1 (SHA-1): fingerprint must be 40 hex chars.
+    - For ``fingerprint_type`` 2 (SHA-256): fingerprint must be 64 hex chars.
+
+    Enabled as part of the ``strict`` validator set::
+
+      manager:
+        enabled:
+          - strict
+    '''
+
+    _hex_re = re.compile(r'^[0-9a-fA-F]+$')
+    _fingerprint_type_lengths = {1: 40, 2: 64}
+
+    def validate(self, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            fingerprint_type = None
+            for field, max_val in (
+                ('algorithm', 255),
+                ('fingerprint_type', 255),
+            ):
+                if field not in value:
+                    reasons.append(f'missing {field}')
+                else:
+                    try:
+                        int_val = int(value[field])
+                        if not 0 <= int_val <= max_val:
+                            reasons.append(
+                                f'invalid {field} "{int_val}"; must be 0-{max_val}'
+                            )
+                        elif field == 'fingerprint_type':
+                            fingerprint_type = int_val
+                    except (ValueError, TypeError):
+                        reasons.append(f'invalid {field} "{value[field]}"')
+            if 'fingerprint' not in value:
+                reasons.append('missing fingerprint')
+            else:
+                fp = value['fingerprint']
+                if not fp or not self._hex_re.match(str(fp)):
+                    reasons.append(f'invalid fingerprint "{fp}"; must be hex')
+                elif fingerprint_type in self._fingerprint_type_lengths:
+                    expected = self._fingerprint_type_lengths[fingerprint_type]
+                    if len(str(fp)) != expected:
+                        reasons.append(
+                            f'fingerprint must be {expected} hex characters '
+                            f'for fingerprint_type {fingerprint_type}'
+                        )
+        return reasons
+
+
 class SshfpValue(EqualityTupleMixin, dict):
     VALID_ALGORITHMS = (1, 2, 3, 4)
     VALID_FINGERPRINT_TYPES = (1, 2)
 
-    VALIDATORS = [SshfpValueValidator('sshfp-value', sets={'legacy'})]
+    VALIDATORS = [
+        SshfpValueValidator('sshfp-value', sets={'legacy'}),
+        SshfpValueRfcValidator('sshfp-value-rfc', sets={'strict'}),
+    ]
 
     @classmethod
     def _schema(cls):

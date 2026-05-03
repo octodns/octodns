@@ -283,6 +283,10 @@ Validators active in ``strict`` only (stricter replacements):
 |                    | replacement must be FQDN or "." (RFC 3403);           |
 |                    | replaces ``naptr-value``                              |
 +--------------------+-------------------------------------------------------+
+| ``sshfp-value-rfc``| SSHFP algorithm/fingerprint_type uint8 [0, 255];      |
+|                    | fingerprint must be hex; SHA-1/SHA-256 length         |
+|                    | enforced (RFC 4255/6594); replaces ``sshfp-value``    |
++--------------------+-------------------------------------------------------+
 
 To opt into all strict validators at once::
 
