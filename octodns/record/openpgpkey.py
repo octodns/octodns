@@ -25,7 +25,11 @@ class OpenpgpkeyValue(str):
     RFC 7929 - DANE Bindings for OpenPGP
     '''
 
-    VALIDATORS = [OpenpgpkeyValueValidator('openpgpkey-value', sets={'legacy'})]
+    VALIDATORS = [
+        OpenpgpkeyValueValidator(
+            'openpgpkey-value-rfc', sets={'legacy', 'strict'}
+        )
+    ]
 
     @classmethod
     def _schema(cls):

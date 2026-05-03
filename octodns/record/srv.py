@@ -168,7 +168,7 @@ class SrvValueRfcValidator(ValueValidator):
 class SrvValue(EqualityTupleMixin, dict):
     VALIDATORS = [
         SrvValueValidator('srv-value', sets={'legacy'}),
-        SrvValueRfcValidator('srv-value-rfc', sets={'rfc'}),
+        SrvValueRfcValidator('srv-value-rfc', sets={'strict'}),
     ]
 
     @classmethod
@@ -290,7 +290,7 @@ class SrvRecord(ValuesMixin, Record):
     _value_type = SrvValue
     VALIDATORS = [
         SrvNameValidator('srv-name', sets={'legacy'}),
-        SrvNameRfcValidator('srv-name-rfc', sets={'rfc'}),
+        SrvNameRfcValidator('srv-name-rfc', sets={'strict'}),
     ]
 
 

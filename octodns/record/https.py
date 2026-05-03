@@ -8,7 +8,9 @@ from .svcb import SvcbValueValidator, _SvcbValueBase
 
 
 class HttpsValue(_SvcbValueBase):
-    VALIDATORS = [SvcbValueValidator('https-value', sets={'legacy'})]
+    VALIDATORS = [
+        SvcbValueValidator('https-value-rfc', sets={'legacy', 'strict'})
+    ]
 
 
 class HttpsRecord(ValuesMixin, Record):

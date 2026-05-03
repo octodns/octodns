@@ -36,7 +36,7 @@ class ChunkedValueValidator(ValueValidator):
 
 
 chunked_value_validator = ChunkedValueValidator(
-    'chunked-value', sets={'legacy'}
+    'chunked-value-rfc', sets={'legacy', 'strict'}
 )
 
 

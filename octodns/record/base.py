@@ -538,6 +538,8 @@ class ValueMixin(object):
         return f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, {self.value}{octodns}>'
 
 
-Record.register_validator(NameValidator('name', sets={'legacy'}))
-Record.register_validator(TtlValidator('ttl', sets={'legacy'}))
-Record.register_validator(HealthcheckValidator('healthcheck', sets={'legacy'}))
+Record.register_validator(NameValidator('name-rfc', sets={'legacy', 'strict'}))
+Record.register_validator(TtlValidator('ttl-rfc', sets={'legacy', 'strict'}))
+Record.register_validator(
+    HealthcheckValidator('healthcheck', sets={'legacy', 'strict'})
+)
