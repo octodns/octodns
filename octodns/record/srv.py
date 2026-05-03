@@ -75,17 +75,11 @@ class SrvNameRfcValidator(RecordValidator):
     containing only letters, digits, and hyphens, and with no
     consecutive hyphens.
 
-    Not enabled by default; opt in via the top-level ``validators:``
-    config section and reference under ``manager.validators``::
-
-      validators:
-        srv-name-rfc:
-          class: octodns.record.srv.SrvNameRfcValidator
+    Enabled as part of the ``rfc`` validator set::
 
       manager:
-        validators:
-          SRV:
-            - srv-name-rfc
+        enabled:
+          - rfc
     '''
 
     _max_len = 15
@@ -134,18 +128,12 @@ class SrvValueRfcValidator(ValueValidator):
 
     Assumes the base ``SrvValueValidator`` has already caught missing
     or non-integer fields; entries that fail those checks are skipped
-    here to avoid duplicated reasons. Not enabled by default; opt in
-    via the top-level ``validators:`` config section and reference
-    under ``manager.validators``::
-
-      validators:
-        srv-value-rfc:
-          class: octodns.record.srv.SrvValueRfcValidator
+    here to avoid duplicated reasons. Enabled as part of the ``rfc``
+    validator set::
 
       manager:
-        validators:
-          SRV:
-            - srv-value-rfc
+        enabled:
+          - rfc
     '''
 
     @staticmethod
@@ -178,7 +166,10 @@ class SrvValueRfcValidator(ValueValidator):
 
 
 class SrvValue(EqualityTupleMixin, dict):
-    VALIDATORS = [SrvValueValidator('srv-value', sets={'legacy'})]
+    VALIDATORS = [
+        SrvValueValidator('srv-value', sets={'legacy'}),
+        SrvValueRfcValidator('srv-value-rfc', sets={'rfc'}),
+    ]
 
     @classmethod
     def _schema(cls):
@@ -297,7 +288,10 @@ class SrvRecord(ValuesMixin, Record):
     )
     _type = 'SRV'
     _value_type = SrvValue
-    VALIDATORS = [SrvNameValidator('srv-name', sets={'legacy'})]
+    VALIDATORS = [
+        SrvNameValidator('srv-name', sets={'legacy'}),
+        SrvNameRfcValidator('srv-name-rfc', sets={'rfc'}),
+    ]
 
 
 Record.register_type(SrvRecord)

@@ -669,15 +669,11 @@ class TestSrvValue(TestCase):
         )
 
     def test_rfc_validators_opt_in(self):
-        # wire both RFC validators onto the SRV registry so we exercise them
-        # end-to-end through Record.new, then clean up.
+        # enable the rfc set so we exercise them end-to-end through
+        # Record.new, then clean up.
         zone = Zone('unit.tests.', [])
-        Record.register_validator(
-            SrvNameRfcValidator('srv-name-rfc'), types=['SRV']
-        )
-        Record.register_validator(
-            SrvValueRfcValidator('srv-value-rfc'), types=['SRV']
-        )
+        Record.enable_validator('srv-name-rfc', types=['SRV'])
+        Record.enable_validator('srv-value-rfc', types=['SRV'])
         try:
             with self.assertRaises(ValidationError) as ctx:
                 Record.new(
@@ -718,8 +714,8 @@ class TestSrvValue(TestCase):
                 },
             )
         finally:
-            Record.unregister_validator('srv-name-rfc', types=['SRV'])
-            Record.unregister_validator('srv-value-rfc', types=['SRV'])
+            Record.disable_validator('srv-name-rfc', types=['SRV'])
+            Record.disable_validator('srv-value-rfc', types=['SRV'])
 
     def test_template_validation(self):
         templ = Templating('test')

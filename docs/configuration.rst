@@ -159,16 +159,18 @@ are active for a run (default: ``['legacy']``)::
     enabled:
       - legacy
 
-All built-in validators belong to the ``legacy`` set. Omitting
-``manager.enabled`` is equivalent to ``enabled: [legacy]`` and preserves the
-original octoDNS behaviour.
+Omitting ``manager.enabled`` is equivalent to ``enabled: [legacy]`` and
+preserves the original octoDNS behaviour. The ``legacy`` set will remain
+the default until a future release when ``rfc`` takes over as the default.
 
-Additional opt-in sets can be enabled alongside ``legacy``::
+To migrate to stricter RFC validation, replace ``legacy`` with ``rfc``::
 
   manager:
     enabled:
-      - legacy
       - rfc
+
+The ``rfc`` set contains stricter validators that supersede their ``legacy``
+counterparts — use one or the other, not both, to avoid redundant checks.
 
 A validator can belong to multiple sets; it becomes active when any of its
 sets is listed in ``manager.enabled``.
@@ -259,32 +261,28 @@ out with intent.
 Opt-in RFC validators
 .....................
 
-Some stricter validators ship in the box but are not enabled by default,
-typically because turning them on would break existing zones that don't
-strictly conform. They follow the ``RfcValidator`` / ``-rfc`` naming
-convention and are wired up the same way as any custom validator:
+The ``rfc`` set contains stricter validators that replace the corresponding
+``legacy`` validators. They are not enabled by default because enabling them
+on an existing zone may surface records that don't strictly conform to their
+RFCs. The current ``rfc`` validators are:
 
-+--------------------+-----------------------------------------------------+
-| id                 | description                                         |
-+====================+=====================================================+
-| ``srv-name-rfc``   | SRV name strict per RFC 2782 + RFC 6335 §5.1        |
-+--------------------+-----------------------------------------------------+
-| ``srv-value-rfc``  | SRV rdata strict per RFC 2782 (range, null target)  |
-+--------------------+-----------------------------------------------------+
++--------------------+-------------------------------------------------------+
+| id                 | description                                           |
++====================+=======================================================+
+| ``srv-name-rfc``   | SRV name strict per RFC 2782 + RFC 6335 §5.1;         |
+|                    | replaces ``srv-name``                                 |
++--------------------+-------------------------------------------------------+
+| ``srv-value-rfc``  | SRV rdata strict per RFC 2782 (range, null target);   |
+|                    | replaces ``srv-value``                                |
++--------------------+-------------------------------------------------------+
 
-Example::
-
-  validators:
-    srv-name-rfc:
-      class: octodns.record.srv.SrvNameRfcValidator
-    srv-value-rfc:
-      class: octodns.record.srv.SrvValueRfcValidator
+To opt in, set ``manager.enabled`` to ``rfc`` instead of ``legacy``::
 
   manager:
-    validators:
-      SRV:
-        - srv-name-rfc
-        - srv-value-rfc
+    enabled:
+      - rfc
+
+In a future release ``rfc`` will become the default set.
 
 Adding validators via config
 ............................
