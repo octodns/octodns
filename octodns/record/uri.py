@@ -62,8 +62,45 @@ class UriValueValidator(ValueValidator):
         return reasons
 
 
+class UriValueRfcValidator(ValueValidator):
+    '''
+    Strict URI rdata validator per RFC 7553 §4.
+
+    - ``priority`` must be an integer in [0, 65535] (uint16).
+    - ``weight`` must be an integer in [0, 65535] (uint16).
+
+    Enabled as part of the ``strict`` validator set::
+
+      manager:
+        enabled:
+          - strict
+    '''
+
+    def validate(self, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            for field in ('priority', 'weight'):
+                if field not in value:
+                    reasons.append(f'missing {field}')
+                else:
+                    try:
+                        int_val = int(value[field])
+                        if not 0 <= int_val <= 65535:
+                            reasons.append(
+                                f'invalid {field} "{int_val}"; must be 0-65535'
+                            )
+                    except (ValueError, TypeError):
+                        reasons.append(f'invalid {field} "{value[field]}"')
+            if 'target' not in value:
+                reasons.append('missing target')
+        return reasons
+
+
 class UriValue(EqualityTupleMixin, dict):
-    VALIDATORS = [UriValueValidator('uri-value', sets={'legacy'})]
+    VALIDATORS = [
+        UriValueValidator('uri-value', sets={'legacy'}),
+        UriValueRfcValidator('uri-value-rfc', sets={'strict'}),
+    ]
 
     @classmethod
     def _schema(cls):

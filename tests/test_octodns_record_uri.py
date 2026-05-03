@@ -9,7 +9,12 @@ from helpers import SimpleProvider
 from octodns.record import Record
 from octodns.record.exception import ValidationError
 from octodns.record.rr import RrParseError
-from octodns.record.uri import UriNameRfcValidator, UriRecord, UriValue
+from octodns.record.uri import (
+    UriNameRfcValidator,
+    UriRecord,
+    UriValue,
+    UriValueRfcValidator,
+)
 from octodns.zone import Zone
 
 
@@ -341,6 +346,136 @@ class TestRecordUri(TestCase):
         self.assertEqual(['missing target'], ctx.exception.reasons)
 
         # target must be a valid URI
+
+    def test_rfc_value_validator_not_in_defaults(self):
+        registered = Record.registered_validators()
+        uri_value_ids = set(v.id for v in registered['value'].get('URI', []))
+        self.assertNotIn('uri-value-rfc', uri_value_ids)
+
+    def test_value_rfc_validator(self):
+        validate = UriValueRfcValidator('uri-value-rfc').validate
+
+        # valid
+        self.assertEqual(
+            [],
+            validate(
+                UriValue,
+                [{'priority': 0, 'weight': 65535, 'target': 'http://x.'}],
+                'URI',
+            ),
+        )
+
+        # priority out of range
+        self.assertEqual(
+            ['invalid priority "70000"; must be 0-65535'],
+            validate(
+                UriValue,
+                [{'priority': 70000, 'weight': 2, 'target': 'http://x.'}],
+                'URI',
+            ),
+        )
+
+        # weight out of range
+        self.assertEqual(
+            ['invalid weight "70000"; must be 0-65535'],
+            validate(
+                UriValue,
+                [{'priority': 1, 'weight': 70000, 'target': 'http://x.'}],
+                'URI',
+            ),
+        )
+
+        # priority non-integer
+        self.assertEqual(
+            ['invalid priority "nope"'],
+            validate(
+                UriValue,
+                [{'priority': 'nope', 'weight': 2, 'target': 'http://x.'}],
+                'URI',
+            ),
+        )
+
+        # weight non-integer
+        self.assertEqual(
+            ['invalid weight "nope"'],
+            validate(
+                UriValue,
+                [{'priority': 1, 'weight': 'nope', 'target': 'http://x.'}],
+                'URI',
+            ),
+        )
+
+        # missing target
+        self.assertEqual(
+            ['missing target'],
+            validate(UriValue, [{'priority': 1, 'weight': 2}], 'URI'),
+        )
+
+        # missing all fields
+        self.assertEqual(
+            ['missing priority', 'missing weight', 'missing target'],
+            validate(UriValue, [{}], 'URI'),
+        )
+
+    def test_rfc_value_validator_opt_in(self):
+        zone = Zone('unit.tests.', [])
+        Record.enable_validators(['legacy'])
+        Record.enable_validator('uri-value-rfc', types=['URI'])
+        try:
+            # priority out of range — only RFC validator catches
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    '_uri._tcp',
+                    {
+                        'type': 'URI',
+                        'ttl': 600,
+                        'value': {
+                            'priority': 70000,
+                            'weight': 2,
+                            'target': 'http://x.',
+                        },
+                    },
+                )
+            self.assertEqual(
+                ['invalid priority "70000"; must be 0-65535'],
+                ctx.exception.reasons,
+            )
+            # weight out of range — only RFC validator catches
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    '_uri._tcp',
+                    {
+                        'type': 'URI',
+                        'ttl': 600,
+                        'value': {
+                            'priority': 1,
+                            'weight': 70000,
+                            'target': 'http://x.',
+                        },
+                    },
+                )
+            self.assertEqual(
+                ['invalid weight "70000"; must be 0-65535'],
+                ctx.exception.reasons,
+            )
+            # valid passes
+            Record.new(
+                zone,
+                '_uri._tcp',
+                {
+                    'type': 'URI',
+                    'ttl': 600,
+                    'value': {
+                        'priority': 1,
+                        'weight': 2,
+                        'target': 'http://x.',
+                    },
+                },
+            )
+        finally:
+            Record.disable_validator('uri-value-rfc', types=['URI'])
 
     def test_rfc_name_validator_not_in_defaults(self):
         registered = Record.registered_validators()

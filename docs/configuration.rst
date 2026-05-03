@@ -287,6 +287,9 @@ Validators active in ``strict`` only (stricter replacements):
 |                    | fingerprint must be hex; SHA-1/SHA-256 length         |
 |                    | enforced (RFC 4255/6594); replaces ``sshfp-value``    |
 +--------------------+-------------------------------------------------------+
+| ``uri-value-rfc``  | URI priority/weight uint16 [0, 65535] (RFC 7553 §4);  |
+|                    | replaces ``uri-value``                                |
++--------------------+-------------------------------------------------------+
 
 To opt into all strict validators at once::
 
