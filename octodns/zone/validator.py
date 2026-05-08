@@ -128,6 +128,9 @@ class ApexSpfPresenceZoneValidator(ZoneValidator):
     Checks that the zone apex has at least one TXT record whose value begins
     with ``v=spf1``, indicating an SPF policy is published. Publishing SPF
     records helps prevent email spoofing of the domain.
+
+    For domains that do not send email, it is recommended to publish a
+    restrictive policy: ``v=spf1 -all``.
     '''
 
     def validate(self, zone):
@@ -147,10 +150,175 @@ class ApexSpfPresenceZoneValidator(ZoneValidator):
         ]
 
 
+class ApexDmarcPresenceZoneValidator(ZoneValidator):
+    '''
+    Checks that the zone has a TXT record at the ``_dmarc`` hostname whose value
+    begins with ``v=DMARC1``, indicating a DMARC policy is published. DMARC
+    (Domain-based Message Authentication, Reporting, and Conformance) allows
+    domain owners to specify how receivers should handle emails that fail SPF or
+    DKIM checks.
+
+    Common examples:
+      - Monitoring: ``v=DMARC1; p=none; rua=mailto:dmarc@example.com``
+      - Enforcement: ``v=DMARC1; p=reject; rua=mailto:dmarc@example.com``
+      - No-email domains: ``v=DMARC1; p=reject;``
+
+    Reference: https://datatracker.ietf.org/doc/html/rfc7489
+    '''
+
+    def validate(self, zone):
+        dmarc_txts = zone.get('_dmarc', type='TXT')
+        if not dmarc_txts:
+            return [
+                f'zone "{zone.decoded_name}" has no TXT records at "_dmarc";'
+                ' add a DMARC record (v=DMARC1 ...)'
+            ]
+        for record in dmarc_txts:
+            for value in record.values:
+                if str(value).startswith('v=DMARC1'):
+                    return []
+        return [
+            f'zone "{zone.decoded_name}" has no DMARC TXT record at "_dmarc"'
+            ' (no value starting with "v=DMARC1")'
+        ]
+
+
+class NoCnameLoopZoneValidator(ZoneValidator):
+    '''
+    Checks for circular CNAME or ALIAS chains within the zone. Circular
+    references prevent DNS resolution from ever completing and are prohibited
+    by DNS standards.
+
+    Example of a loop:
+      - ``www.example.com. CNAME lb.example.com.``
+      - ``lb.example.com.  CNAME www.example.com.``
+
+    Reference: https://datatracker.ietf.org/doc/html/rfc1034#section-3.6.2
+    '''
+
+    def validate(self, zone):
+        reasons = []
+        # ALIAS and CNAME both act as redirections that can loop
+        targets = {
+            r.fqdn: str(r.value)
+            for r in zone.records
+            if r._type in ('CNAME', 'ALIAS')
+        }
+
+        overall_visited = set()
+        for start_fqdn in targets:
+            if start_fqdn in overall_visited:
+                continue
+
+            path = []
+            visited = {}  # fqdn -> index in path
+            curr = start_fqdn
+
+            while curr in targets:
+                if curr in visited:
+                    loop_path = ' -> '.join(path[visited[curr] :] + [curr])
+                    reasons.append(f'Loop detected: {loop_path}')
+                    break
+
+                if curr in overall_visited:
+                    # We already explored this path and didn't find a loop
+                    break
+
+                visited[curr] = len(path)
+                path.append(curr)
+                overall_visited.add(curr)
+                curr = targets[curr]
+
+        return reasons
+
+
+class ConsistentTtlAtNameZoneValidator(ZoneValidator):
+    '''
+    Checks that all records at a specific name share the same TTL. Inconsistent
+    TTLs for records at the same name can lead to cache skew.
+
+    For example, if an ``A`` record has a TTL of 300s and an ``AAAA`` record at
+    the same name has a TTL of 3600s, a resolver might cache the ``AAAA`` record
+    long after the ``A`` record has expired (and potentially changed), leading
+    to inconsistent resolution results for dual-stack clients.
+    '''
+
+    def validate(self, zone):
+        reasons = []
+        # zone._records is grouped by name
+        for name, records in zone._records.items():
+            if len(records) > 1:
+                ttls = {r.ttl for r in records}
+                if len(ttls) > 1:
+                    fqdn = (
+                        f'{name}.{zone.decoded_name}'
+                        if name
+                        else zone.decoded_name
+                    )
+                    reasons.append(
+                        f'Inconsistent TTLs at "{fqdn}": found {sorted(ttls)}'
+                    )
+        return reasons
+
+
+class GlueForInZoneNsZoneValidator(ZoneValidator):
+    '''
+    Checks that NS records pointing to targets within the same zone have
+    corresponding A or AAAA "glue" records. Without these address records,
+    resolvers cannot follow the delegation because they would need to resolve
+    the name server's address using the very name servers they are trying to
+    locate.
+
+    Example:
+      - Zone ``example.com.`` has ``NS ns1.example.com.``
+      - This validator ensures an ``A`` or ``AAAA`` record exists for
+        ``ns1.example.com.`` within the ``example.com.`` zone.
+
+    Reference: https://datatracker.ietf.org/doc/html/rfc1033 (Operations)
+    '''
+
+    def validate(self, zone):
+        reasons = []
+        for record in zone.records:
+            if record._type == 'NS':
+                for target in record.values:
+                    # Is target in zone?
+                    if zone.owns('A', target):
+                        # Check if address records exist at this target
+                        hostname = zone.hostname_from_fqdn(target)
+                        # We need at least one A or AAAA
+                        addresses = zone.get(hostname, type='A') | zone.get(
+                            hostname, type='AAAA'
+                        )
+                        if not addresses:
+                            reasons.append(
+                                f'NS record "{record.fqdn}" points to '
+                                f'in-zone target "{target}" without '
+                                'glue records (A/AAAA)'
+                            )
+        return reasons
+
+
 zone_validators = ZoneValidatorRegistry()
 zone_validators.register(
     MultiValueMxZoneValidator('multi-value-mx', sets={'best-practice'})
 )
 zone_validators.register(
     ApexSpfPresenceZoneValidator('apex-spf-presence', sets={'best-practice'})
+)
+zone_validators.register(
+    ApexDmarcPresenceZoneValidator(
+        'apex-dmarc-presence', sets={'best-practice'}
+    )
+)
+zone_validators.register(
+    NoCnameLoopZoneValidator('no-cname-loop', sets={'strict'})
+)
+zone_validators.register(
+    ConsistentTtlAtNameZoneValidator(
+        'consistent-ttl-at-name', sets={'best-practice'}
+    )
+)
+zone_validators.register(
+    GlueForInZoneNsZoneValidator('glue-for-in-zone-ns', sets={'strict'})
 )

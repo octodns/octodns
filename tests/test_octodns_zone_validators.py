@@ -11,8 +11,12 @@ from octodns.record import Record
 from octodns.zone import Zone
 from octodns.zone.exception import ValidationError, ZoneException
 from octodns.zone.validator import (
+    ApexDmarcPresenceZoneValidator,
     ApexSpfPresenceZoneValidator,
+    ConsistentTtlAtNameZoneValidator,
+    GlueForInZoneNsZoneValidator,
     MultiValueMxZoneValidator,
+    NoCnameLoopZoneValidator,
     ZoneValidator,
     ZoneValidatorRegistry,
 )
@@ -404,10 +408,254 @@ class TestBuiltinZoneValidators(TestCase):
         self.assertEqual(1, len(reasons))
         self.assertIn('v=spf1', reasons[0])
 
+    def test_apex_spf_presence_passes_multiple_values(self):
+        zone = _make_zone()
+        txt = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'TXT',
+                'values': ['something', 'v=spf1 include:example.com ~all'],
+            },
+        )
+        zone.add_record(txt)
+        v = ApexSpfPresenceZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_apex_dmarc_presence_passes(self):
+        zone = _make_zone()
+        txt = _add_record(
+            zone,
+            '_dmarc',
+            {'ttl': 300, 'type': 'TXT', 'values': ['v=DMARC1; p=none']},
+        )
+        zone.add_record(txt)
+        v = ApexDmarcPresenceZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_apex_dmarc_presence_fails_no_txt(self):
+        zone = _make_zone()
+        v = ApexDmarcPresenceZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('no TXT records at "_dmarc"', reasons[0])
+
+    def test_apex_dmarc_presence_fails_no_dmarc_value(self):
+        zone = _make_zone()
+        txt = _add_record(
+            zone, '_dmarc', {'ttl': 300, 'type': 'TXT', 'values': ['something']}
+        )
+        zone.add_record(txt)
+        v = ApexDmarcPresenceZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('v=DMARC1', reasons[0])
+
+    def test_no_cname_loop_passes(self):
+        zone = _make_zone()
+        cname = _add_record(
+            zone,
+            'www',
+            {'ttl': 300, 'type': 'CNAME', 'value': 'lb.unit.tests.'},
+        )
+        zone.add_record(cname)
+        v = NoCnameLoopZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_no_cname_loop_fails_direct(self):
+        zone = _make_zone()
+        cname = _add_record(
+            zone,
+            'loop',
+            {'ttl': 300, 'type': 'CNAME', 'value': 'loop.unit.tests.'},
+        )
+        zone.add_record(cname)
+        v = NoCnameLoopZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('Loop detected', reasons[0])
+        self.assertIn('loop.unit.tests. -> loop.unit.tests.', reasons[0])
+
+    def test_no_cname_loop_fails_indirect(self):
+        zone = _make_zone()
+        c1 = _add_record(
+            zone, 'a', {'ttl': 300, 'type': 'CNAME', 'value': 'b.unit.tests.'}
+        )
+        c2 = _add_record(
+            zone, 'b', {'ttl': 300, 'type': 'CNAME', 'value': 'c.unit.tests.'}
+        )
+        c3 = _add_record(
+            zone, 'c', {'ttl': 300, 'type': 'CNAME', 'value': 'a.unit.tests.'}
+        )
+        zone.add_record(c1)
+        zone.add_record(c2)
+        zone.add_record(c3)
+        v = NoCnameLoopZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('Loop detected', reasons[0])
+        self.assertIn('a.unit.tests.', reasons[0])
+        self.assertIn('b.unit.tests.', reasons[0])
+        self.assertIn('c.unit.tests.', reasons[0])
+
+    def test_no_cname_loop_with_alias(self):
+        zone = _make_zone()
+        a1 = _add_record(
+            zone, '', {'ttl': 300, 'type': 'ALIAS', 'value': 'b.unit.tests.'}
+        )
+        c2 = _add_record(
+            zone, 'b', {'ttl': 300, 'type': 'CNAME', 'value': 'unit.tests.'}
+        )
+        zone.add_record(a1)
+        zone.add_record(c2)
+        v = NoCnameLoopZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('Loop detected', reasons[0])
+        self.assertIn('unit.tests.', reasons[0])
+        self.assertIn('b.unit.tests.', reasons[0])
+
+    def test_no_cname_loop_merging_chains(self):
+        # Hits the "if curr in overall_visited: break" path
+        zone = _make_zone()
+        c1 = _add_record(
+            zone, 'x', {'ttl': 300, 'type': 'CNAME', 'value': 'z.unit.tests.'}
+        )
+        c2 = _add_record(
+            zone, 'y', {'ttl': 300, 'type': 'CNAME', 'value': 'z.unit.tests.'}
+        )
+        c3 = _add_record(
+            zone, 'z', {'ttl': 300, 'type': 'CNAME', 'value': 'end.unit.tests.'}
+        )
+        zone.add_record(c1)
+        zone.add_record(c2)
+        zone.add_record(c3)
+        v = NoCnameLoopZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_consistent_ttl_at_name_passes(self):
+        zone = _make_zone()
+        a = _add_record(
+            zone, 'www', {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        aaaa = _add_record(
+            zone, 'www', {'ttl': 300, 'type': 'AAAA', 'value': '::1'}
+        )
+        zone.add_record(a)
+        zone.add_record(aaaa)
+        v = ConsistentTtlAtNameZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_consistent_ttl_at_name_single_record(self):
+        zone = _make_zone()
+        a = _add_record(
+            zone, 'www', {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        zone.add_record(a)
+        v = ConsistentTtlAtNameZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_consistent_ttl_at_name_fails(self):
+        zone = _make_zone()
+        a = _add_record(
+            zone, 'www', {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        aaaa = _add_record(
+            zone, 'www', {'ttl': 600, 'type': 'AAAA', 'value': '::1'}
+        )
+        zone.add_record(a)
+        zone.add_record(aaaa)
+        v = ConsistentTtlAtNameZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('Inconsistent TTLs at "www.unit.tests."', reasons[0])
+        self.assertIn('[300, 600]', reasons[0])
+
+    def test_consistent_ttl_at_name_fails_apex(self):
+        zone = _make_zone()
+        a = _add_record(zone, '', {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'})
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 600,
+                'type': 'MX',
+                'values': [{'preference': 10, 'exchange': 'mail.unit.tests.'}],
+            },
+        )
+        zone.add_record(a)
+        zone.add_record(mx, replace=True)
+        v = ConsistentTtlAtNameZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('Inconsistent TTLs at "unit.tests."', reasons[0])
+
+    def test_glue_for_in_zone_ns_passes_external(self):
+        zone = _make_zone()
+        ns = _add_record(
+            zone,
+            '',
+            {'ttl': 3600, 'type': 'NS', 'values': ['ns1.external.tests.']},
+        )
+        zone.add_record(ns, replace=True)
+        v = GlueForInZoneNsZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_glue_for_in_zone_ns_no_ns_records(self):
+        zone = _make_zone()
+        a = _add_record(
+            zone, 'www', {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        zone.add_record(a)
+        v = GlueForInZoneNsZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_glue_for_in_zone_ns_passes_with_glue(self):
+        zone = _make_zone()
+        ns = _add_record(
+            zone, '', {'ttl': 3600, 'type': 'NS', 'values': ['ns1.unit.tests.']}
+        )
+        a = _add_record(
+            zone, 'ns1', {'ttl': 3600, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        zone.add_record(ns, replace=True)
+        zone.add_record(a)
+        v = GlueForInZoneNsZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_glue_for_in_zone_ns_passes_with_aaaa_glue(self):
+        zone = _make_zone()
+        ns = _add_record(
+            zone, '', {'ttl': 3600, 'type': 'NS', 'values': ['ns1.unit.tests.']}
+        )
+        aaaa = _add_record(
+            zone, 'ns1', {'ttl': 3600, 'type': 'AAAA', 'value': '::1'}
+        )
+        zone.add_record(ns, replace=True)
+        zone.add_record(aaaa)
+        v = GlueForInZoneNsZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_glue_for_in_zone_ns_fails_missing_glue(self):
+        zone = _make_zone()
+        ns = _add_record(
+            zone, '', {'ttl': 3600, 'type': 'NS', 'values': ['ns1.unit.tests.']}
+        )
+        zone.add_record(ns, replace=True)
+        v = GlueForInZoneNsZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('without glue records', reasons[0])
+
     def test_builtin_ids(self):
         ids = [v.id for v in Zone.validators.available_validators()]
         self.assertIn('multi-value-mx', ids)
         self.assertIn('apex-spf-presence', ids)
+        self.assertIn('apex-dmarc-presence', ids)
+        self.assertIn('no-cname-loop', ids)
+        self.assertIn('consistent-ttl-at-name', ids)
+        self.assertIn('glue-for-in-zone-ns', ids)
 
     def test_builtins_in_best_practice_set(self):
         with zone_validators_snapshot():
