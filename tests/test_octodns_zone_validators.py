@@ -1232,6 +1232,15 @@ class TestBuiltinZoneValidators(TestCase):
             active_ids = [v.id for v in Zone.validators.registered()]
             self.assertIn('multi-value-mx', active_ids)
             self.assertIn('apex-spf-presence', active_ids)
+            self.assertIn('apex-ns-presence', active_ids)
+            self.assertNotIn('overlapping-subzone', active_ids)
+
+    def test_builtins_in_strict_set(self):
+        with zone_validators_snapshot():
+            Zone.enable_zone_validators({'strict'})
+            active_ids = [v.id for v in Zone.validators.registered()]
+            self.assertIn('overlapping-subzone', active_ids)
+            self.assertNotIn('apex-ns-presence', active_ids)
 
     def test_builtins_not_in_legacy_set(self):
         with zone_validators_snapshot():

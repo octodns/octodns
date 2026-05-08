@@ -628,15 +628,13 @@ zone_validators.register(
     SrvTargetNotCnameZoneValidator('srv-target-not-cname', sets={'strict'})
 )
 zone_validators.register(
-    ApexNsPresenceZoneValidator('apex-ns-presence', sets={'strict'})
+    ApexNsPresenceZoneValidator('apex-ns-presence', sets={'best-practice'})
 )
 zone_validators.register(
     MultiValueApexNsZoneValidator('multi-value-apex-ns', sets={'best-practice'})
 )
 zone_validators.register(
-    OverlappingSubzoneZoneValidator(
-        'overlapping-subzone', sets={'best-practice'}
-    )
+    OverlappingSubzoneZoneValidator('overlapping-subzone', sets={'strict'})
 )
 zone_validators.register(
     ApexCaaPresenceZoneValidator('apex-caa-presence', sets={'best-practice'})
