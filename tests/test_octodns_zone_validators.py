@@ -11,18 +11,24 @@ from octodns.record import Record
 from octodns.zone import Zone
 from octodns.zone.exception import ValidationError, ZoneException
 from octodns.zone.validator import (
+    ApexCaaPresenceZoneValidator,
     ApexDmarcPresenceZoneValidator,
+    ApexNsPresenceZoneValidator,
     ApexSpfPresenceZoneValidator,
     CnameTargetResolvableInZoneZoneValidator,
     ConsistentTtlAtNameZoneValidator,
     GlueForInZoneNsZoneValidator,
+    MultiValueApexNsZoneValidator,
     MultiValueMxZoneValidator,
     MxTargetNotCnameZoneValidator,
+    MxTargetResolvableInZoneZoneValidator,
     NoCnameLoopZoneValidator,
     NoSelfReferencingTargetZoneValidator,
     NsTargetNotCnameZoneValidator,
+    OverlappingSubzoneZoneValidator,
     SingleSpfZoneValidator,
     SrvTargetNotCnameZoneValidator,
+    SrvTargetResolvableInZoneZoneValidator,
     ZoneValidator,
     ZoneValidatorRegistry,
 )
@@ -1019,6 +1025,186 @@ class TestBuiltinZoneValidators(TestCase):
             reasons[0],
         )
 
+    def test_apex_ns_presence_passes(self):
+        zone = _make_zone()
+        ns = _add_record(
+            zone, '', {'ttl': 3600, 'type': 'NS', 'values': ['ns1.unit.tests.']}
+        )
+        zone.add_record(ns, replace=True)
+        v = ApexNsPresenceZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_apex_ns_presence_fails(self):
+        zone = _make_zone()
+        v = ApexNsPresenceZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('missing NS records at the apex', reasons[0])
+
+    def test_multi_value_apex_ns_passes(self):
+        zone = _make_zone()
+        ns = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 3600,
+                'type': 'NS',
+                'values': ['ns1.unit.tests.', 'ns2.unit.tests.'],
+            },
+        )
+        zone.add_record(ns, replace=True)
+        v = MultiValueApexNsZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_multi_value_apex_ns_fails(self):
+        zone = _make_zone()
+        ns = _add_record(
+            zone, '', {'ttl': 3600, 'type': 'NS', 'values': ['ns1.unit.tests.']}
+        )
+        zone.add_record(ns, replace=True)
+        v = MultiValueApexNsZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('has only 1 NS record', reasons[0])
+
+    def test_multi_value_apex_ns_skips_missing(self):
+        zone = _make_zone()
+        v = MultiValueApexNsZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_overlapping_subzone_passes(self):
+        zone = _make_zone()
+        ns = _add_record(
+            zone, 'sub', {'ttl': 3600, 'type': 'NS', 'values': ['ns1.other.']}
+        )
+        a = _add_record(
+            zone, 'www', {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        zone.add_record(ns)
+        zone.add_record(a)
+        v = OverlappingSubzoneZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_overlapping_subzone_fails(self):
+        zone = _make_zone()
+        ns = _add_record(
+            zone, 'sub', {'ttl': 3600, 'type': 'NS', 'values': ['ns1.other.']}
+        )
+        a = _add_record(
+            zone, 'www.sub', {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        zone.add_record(ns)
+        zone.add_record(a)
+        v = OverlappingSubzoneZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('shadowed by delegation at "sub.unit.tests."', reasons[0])
+
+    def test_apex_caa_presence_passes(self):
+        zone = _make_zone()
+        caa = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'CAA',
+                'values': [
+                    {'flags': 0, 'tag': 'issue', 'value': 'letsencrypt.org'}
+                ],
+            },
+        )
+        zone.add_record(caa)
+        v = ApexCaaPresenceZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_apex_caa_presence_fails(self):
+        zone = _make_zone()
+        v = ApexCaaPresenceZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('has no CAA records at the apex', reasons[0])
+
+    def test_mx_target_resolvable_in_zone_passes(self):
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [{'preference': 10, 'exchange': 'mail.unit.tests.'}],
+            },
+        )
+        a = _add_record(
+            zone, 'mail', {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        zone.add_record(mx, replace=True)
+        zone.add_record(a)
+        v = MxTargetResolvableInZoneZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_mx_target_resolvable_in_zone_fails(self):
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [{'preference': 10, 'exchange': 'mail.unit.tests.'}],
+            },
+        )
+        zone.add_record(mx, replace=True)
+        v = MxTargetResolvableInZoneZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'points to in-zone target "mail.unit.tests." that does not exist',
+            reasons[0],
+        )
+
+    def test_mx_target_resolvable_in_zone_skip_out_of_zone(self):
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [{'preference': 10, 'exchange': 'google.com.'}],
+            },
+        )
+        zone.add_record(mx, replace=True)
+        v = MxTargetResolvableInZoneZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_srv_target_resolvable_in_zone_fails(self):
+        zone = _make_zone()
+        srv = _add_record(
+            zone,
+            '_sip._tcp',
+            {
+                'ttl': 300,
+                'type': 'SRV',
+                'values': [
+                    {
+                        'priority': 10,
+                        'weight': 10,
+                        'port': 5060,
+                        'target': 'sip.unit.tests.',
+                    }
+                ],
+            },
+        )
+        zone.add_record(srv)
+        v = SrvTargetResolvableInZoneZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'points to in-zone target "sip.unit.tests." that does not exist',
+            reasons[0],
+        )
+
     def test_builtin_ids(self):
         ids = [v.id for v in Zone.validators.available_validators()]
         self.assertIn('multi-value-mx', ids)
@@ -1033,6 +1219,12 @@ class TestBuiltinZoneValidators(TestCase):
         self.assertIn('ns-target-not-cname', ids)
         self.assertIn('mx-target-not-cname', ids)
         self.assertIn('srv-target-not-cname', ids)
+        self.assertIn('apex-ns-presence', ids)
+        self.assertIn('multi-value-apex-ns', ids)
+        self.assertIn('overlapping-subzone', ids)
+        self.assertIn('apex-caa-presence', ids)
+        self.assertIn('mx-target-resolvable-in-zone', ids)
+        self.assertIn('srv-target-resolvable-in-zone', ids)
 
     def test_builtins_in_best_practice_set(self):
         with zone_validators_snapshot():

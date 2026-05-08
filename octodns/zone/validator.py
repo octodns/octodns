@@ -449,6 +449,141 @@ class SrvTargetNotCnameZoneValidator(_TargetNotCnameZoneValidator):
     _types = ('SRV',)
 
 
+class ApexNsPresenceZoneValidator(ZoneValidator):
+    '''
+    Checks that the zone apex has at least one ``NS`` record. Root ``NS``
+    records are required for any functional DNS zone.
+
+    Note: Some DNS providers manage the root ``NS`` records automatically and
+    do not allow them to be configured in octoDNS. This validator should only
+    be enabled for zones where the apex ``NS`` records are managed.
+
+    Reference: https://datatracker.ietf.org/doc/html/rfc1034
+    '''
+
+    def validate(self, zone):
+        if not zone.get('', type='NS'):
+            return [
+                f'zone "{zone.decoded_name}" is missing NS records at the apex'
+            ]
+        return []
+
+
+class MultiValueApexNsZoneValidator(ZoneValidator):
+    '''
+    Checks that the zone apex has at least two ``NS`` records. Having multiple
+    name servers is a fundamental best practice for DNS redundancy and
+    availability.
+    '''
+
+    def validate(self, zone):
+        ns_records = zone.get('', type='NS')
+        if ns_records:
+            count = sum(len(r.values) for r in ns_records)
+            if count < 2:
+                return [
+                    f'zone "{zone.decoded_name}" has only {count} NS '
+                    'record at the apex; at least 2 are recommended for '
+                    'redundancy'
+                ]
+        return []
+
+
+class OverlappingSubzoneZoneValidator(ZoneValidator):
+    '''
+    Checks for records that exist "below" a delegation boundary (an ``NS``
+    record) within the same zone. Such records are shadowed by the delegation
+    and will never be reached by DNS resolvers, often indicating a
+    configuration error or stale data.
+
+    Example:
+      - Zone ``example.com.`` has ``NS sub.example.com.``
+      - A record at ``www.sub.example.com.`` within this zone is shadowed.
+    '''
+
+    def validate(self, zone):
+        reasons = []
+        # Find all delegations (NS records not at the apex)
+        delegations = [
+            r.fqdn for r in zone.records if r._type == 'NS' and r.name
+        ]
+
+        for record in zone.records:
+            for delegation in delegations:
+                # Is record.fqdn a subdomain of delegation?
+                if record.fqdn.endswith(f'.{delegation}'):
+                    reasons.append(
+                        f'Record "{record.fqdn}" is shadowed by '
+                        f'delegation at "{delegation}"'
+                    )
+        return reasons
+
+
+class ApexCaaPresenceZoneValidator(ZoneValidator):
+    '''
+    Checks that the zone apex has at least one ``CAA`` record. ``CAA``
+    (Certificate Authority Authorization) records allow domain owners to
+    restrict which Certificate Authorities are allowed to issue certificates for
+    their domain, improving security.
+
+    Reference: https://datatracker.ietf.org/doc/html/rfc8659
+    '''
+
+    def validate(self, zone):
+        if not zone.get('', type='CAA'):
+            return [
+                f'zone "{zone.decoded_name}" has no CAA records at the apex'
+            ]
+        return []
+
+
+class _TargetResolvableInZoneZoneValidator(ZoneValidator):
+    _types = ()
+
+    def validate(self, zone):
+        reasons = []
+        for record in zone.records:
+            if record._type in self._types:
+                targets = []
+                if record._type == 'MX':
+                    targets = [v.exchange for v in record.values]
+                if record._type == 'SRV':
+                    targets = [v.target for v in record.values]
+
+                for target in targets:
+                    if zone.owns('A', target):
+                        hostname = zone.hostname_from_fqdn(target)
+                        if not zone.get(hostname):
+                            reasons.append(
+                                f'{record._type} record "{record.fqdn}" '
+                                f'points to in-zone target "{target}" '
+                                'that does not exist'
+                            )
+        return reasons
+
+
+class MxTargetResolvableInZoneZoneValidator(
+    _TargetResolvableInZoneZoneValidator
+):
+    '''
+    Checks that ``MX`` exchanges pointing to targets within the same zone have
+    corresponding address records.
+    '''
+
+    _types = ('MX',)
+
+
+class SrvTargetResolvableInZoneZoneValidator(
+    _TargetResolvableInZoneZoneValidator
+):
+    '''
+    Checks that ``SRV`` targets pointing to targets within the same zone have
+    corresponding address records.
+    '''
+
+    _types = ('SRV',)
+
+
 zone_validators = ZoneValidatorRegistry()
 zone_validators.register(
     MultiValueMxZoneValidator('multi-value-mx', sets={'best-practice'})
@@ -491,4 +626,28 @@ zone_validators.register(
 )
 zone_validators.register(
     SrvTargetNotCnameZoneValidator('srv-target-not-cname', sets={'strict'})
+)
+zone_validators.register(
+    ApexNsPresenceZoneValidator('apex-ns-presence', sets={'strict'})
+)
+zone_validators.register(
+    MultiValueApexNsZoneValidator('multi-value-apex-ns', sets={'best-practice'})
+)
+zone_validators.register(
+    OverlappingSubzoneZoneValidator(
+        'overlapping-subzone', sets={'best-practice'}
+    )
+)
+zone_validators.register(
+    ApexCaaPresenceZoneValidator('apex-caa-presence', sets={'best-practice'})
+)
+zone_validators.register(
+    MxTargetResolvableInZoneZoneValidator(
+        'mx-target-resolvable-in-zone', sets={'best-practice'}
+    )
+)
+zone_validators.register(
+    SrvTargetResolvableInZoneZoneValidator(
+        'srv-target-resolvable-in-zone', sets={'best-practice'}
+    )
 )
