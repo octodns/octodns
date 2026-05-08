@@ -13,10 +13,16 @@ from octodns.zone.exception import ValidationError, ZoneException
 from octodns.zone.validator import (
     ApexDmarcPresenceZoneValidator,
     ApexSpfPresenceZoneValidator,
+    CnameTargetResolvableInZoneZoneValidator,
     ConsistentTtlAtNameZoneValidator,
     GlueForInZoneNsZoneValidator,
     MultiValueMxZoneValidator,
+    MxTargetNotCnameZoneValidator,
     NoCnameLoopZoneValidator,
+    NoSelfReferencingTargetZoneValidator,
+    NsTargetNotCnameZoneValidator,
+    SingleSpfZoneValidator,
+    SrvTargetNotCnameZoneValidator,
     ZoneValidator,
     ZoneValidatorRegistry,
 )
@@ -648,6 +654,371 @@ class TestBuiltinZoneValidators(TestCase):
         self.assertEqual(1, len(reasons))
         self.assertIn('without glue records', reasons[0])
 
+    def test_single_spf_passes(self):
+        zone = _make_zone()
+        txt = _add_record(
+            zone, '', {'ttl': 300, 'type': 'TXT', 'values': ['v=spf1 -all']}
+        )
+        zone.add_record(txt, replace=True)
+        v = SingleSpfZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_single_spf_fails(self):
+        zone = _make_zone()
+        txt = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'TXT',
+                'values': [
+                    'v=spf1 include:a.com ~all',
+                    'v=spf1 include:b.com ~all',
+                ],
+            },
+        )
+        zone.add_record(txt, replace=True)
+        v = SingleSpfZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('has 2 SPF records', reasons[0])
+
+    def test_single_spf_with_non_spf_txt(self):
+        zone = _make_zone()
+        txt = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'TXT',
+                'values': ['v=spf1 -all', 'something-else'],
+            },
+        )
+        zone.add_record(txt, replace=True)
+        v = SingleSpfZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_no_self_referencing_target_passes(self):
+        zone = _make_zone()
+        cname = _add_record(
+            zone,
+            'www',
+            {'ttl': 300, 'type': 'CNAME', 'value': 'lb.unit.tests.'},
+        )
+        mx = _add_record(
+            zone,
+            'mail',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [{'preference': 10, 'exchange': 'other.unit.tests.'}],
+            },
+        )
+        ns = _add_record(
+            zone,
+            'ns',
+            {'ttl': 300, 'type': 'NS', 'values': ['other.unit.tests.']},
+        )
+        srv = _add_record(
+            zone,
+            '_sip',
+            {
+                'ttl': 300,
+                'type': 'SRV',
+                'values': [
+                    {
+                        'priority': 10,
+                        'weight': 10,
+                        'port': 5060,
+                        'target': 'sip.unit.tests.',
+                    }
+                ],
+            },
+        )
+        zone.add_record(cname)
+        zone.add_record(mx)
+        zone.add_record(ns)
+        zone.add_record(srv)
+        v = NoSelfReferencingTargetZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_no_self_referencing_target_fails(self):
+        zone = _make_zone()
+        cname = _add_record(
+            zone,
+            'www',
+            {'ttl': 300, 'type': 'CNAME', 'value': 'www.unit.tests.'},
+        )
+        alias = _add_record(
+            zone, '', {'ttl': 300, 'type': 'ALIAS', 'value': 'unit.tests.'}
+        )
+        mx = _add_record(
+            zone,
+            'mail',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [{'preference': 10, 'exchange': 'mail.unit.tests.'}],
+            },
+        )
+        ns = _add_record(
+            zone, 'ns', {'ttl': 300, 'type': 'NS', 'values': ['ns.unit.tests.']}
+        )
+        ptr = _add_record(
+            zone, 'ptr', {'ttl': 300, 'type': 'PTR', 'value': 'ptr.unit.tests.'}
+        )
+        srv = _add_record(
+            zone,
+            '_sip._tcp',
+            {
+                'ttl': 300,
+                'type': 'SRV',
+                'values': [
+                    {
+                        'priority': 10,
+                        'weight': 10,
+                        'port': 5060,
+                        'target': '_sip._tcp.unit.tests.',
+                    }
+                ],
+            },
+        )
+        zone.add_record(cname)
+        zone.add_record(alias, replace=True)
+        zone.add_record(mx)
+        zone.add_record(ns)
+        zone.add_record(ptr)
+        zone.add_record(srv)
+        v = NoSelfReferencingTargetZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(6, len(reasons))
+        self.assertIn(
+            'CNAME record "www.unit.tests." points to itself', reasons
+        )
+        self.assertIn('ALIAS record "unit.tests." points to itself', reasons)
+        self.assertIn('MX record "mail.unit.tests." points to itself', reasons)
+        self.assertIn('NS record "ns.unit.tests." points to itself', reasons)
+        self.assertIn('PTR record "ptr.unit.tests." points to itself', reasons)
+        self.assertIn(
+            'SRV record "_sip._tcp.unit.tests." points to itself', reasons
+        )
+
+    def test_cname_target_resolvable_in_zone_passes(self):
+        zone = _make_zone()
+        cname = _add_record(
+            zone,
+            'www',
+            {'ttl': 300, 'type': 'CNAME', 'value': 'lb.unit.tests.'},
+        )
+        a = _add_record(
+            zone, 'lb', {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        zone.add_record(cname)
+        zone.add_record(a)
+        v = CnameTargetResolvableInZoneZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_cname_target_resolvable_in_zone_skip_out_of_zone(self):
+        zone = _make_zone()
+        cname = _add_record(
+            zone, 'www', {'ttl': 300, 'type': 'CNAME', 'value': 'google.com.'}
+        )
+        zone.add_record(cname)
+        v = CnameTargetResolvableInZoneZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_cname_target_resolvable_in_zone_fails(self):
+        zone = _make_zone()
+        cname = _add_record(
+            zone,
+            'www',
+            {'ttl': 300, 'type': 'CNAME', 'value': 'lb.unit.tests.'},
+        )
+        alias = _add_record(
+            zone,
+            'a',
+            {'ttl': 300, 'type': 'ALIAS', 'value': 'missing.unit.tests.'},
+        )
+        zone.add_record(cname)
+        zone.add_record(alias)
+        v = CnameTargetResolvableInZoneZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(2, len(reasons))
+        self.assertIn(
+            'CNAME record "www.unit.tests." points to in-zone target "lb.unit.tests." that does not exist',
+            reasons,
+        )
+        self.assertIn(
+            'ALIAS record "a.unit.tests." points to in-zone target "missing.unit.tests." that does not exist',
+            reasons,
+        )
+
+    def test_target_not_cname_passes(self):
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [{'preference': 10, 'exchange': 'mail.unit.tests.'}],
+            },
+        )
+        a = _add_record(
+            zone, 'mail', {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        zone.add_record(mx, replace=True)
+        zone.add_record(a)
+        v = MxTargetNotCnameZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_target_not_cname_skip_out_of_zone(self):
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [{'preference': 10, 'exchange': 'google.com.'}],
+            },
+        )
+        zone.add_record(mx, replace=True)
+        v = MxTargetNotCnameZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_target_not_cname_skip_no_cname_at_target(self):
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [
+                    {'preference': 10, 'exchange': 'target.unit.tests.'}
+                ],
+            },
+        )
+        # target exists but is not a CNAME (it's an A record)
+        a = _add_record(
+            zone, 'target', {'ttl': 300, 'type': 'A', 'value': '1.2.3.4'}
+        )
+        zone.add_record(mx, replace=True)
+        zone.add_record(a)
+        v = MxTargetNotCnameZoneValidator('test')
+        self.assertEqual([], v.validate(zone))
+
+    def test_target_not_cname_fails(self):
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [
+                    {'preference': 10, 'exchange': 'mail1.unit.tests.'},
+                    {'preference': 20, 'exchange': 'mail2.unit.tests.'},
+                ],
+            },
+        )
+        cname = _add_record(
+            zone,
+            'mail1',
+            {'ttl': 300, 'type': 'CNAME', 'value': 'other.unit.tests.'},
+        )
+        zone.add_record(mx, replace=True)
+        zone.add_record(cname)
+        v = MxTargetNotCnameZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'points to in-zone target "mail1.unit.tests." which is a CNAME',
+            reasons[0],
+        )
+
+    def test_ns_target_not_cname_fails(self):
+        zone = _make_zone()
+        ns = _add_record(
+            zone, '', {'ttl': 3600, 'type': 'NS', 'values': ['ns1.unit.tests.']}
+        )
+        cname = _add_record(
+            zone,
+            'ns1',
+            {'ttl': 300, 'type': 'CNAME', 'value': 'other.unit.tests.'},
+        )
+        zone.add_record(ns, replace=True)
+        zone.add_record(cname)
+        v = NsTargetNotCnameZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'NS record "unit.tests." points to in-zone target "ns1.unit.tests." which is a CNAME',
+            reasons[0],
+        )
+
+    def test_target_not_cname_alias_target_fails(self):
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [
+                    {'preference': 10, 'exchange': 'target.unit.tests.'}
+                ],
+            },
+        )
+        cname = _add_record(
+            zone,
+            'target',
+            {'ttl': 300, 'type': 'CNAME', 'value': 'other.unit.tests.'},
+        )
+        zone.add_record(mx, replace=True)
+        zone.add_record(cname)
+        v = MxTargetNotCnameZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'points to in-zone target "target.unit.tests." which is a CNAME',
+            reasons[0],
+        )
+
+    def test_srv_target_not_cname_fails(self):
+        zone = _make_zone()
+        srv = _add_record(
+            zone,
+            '_sip._tcp',
+            {
+                'ttl': 300,
+                'type': 'SRV',
+                'values': [
+                    {
+                        'priority': 10,
+                        'weight': 10,
+                        'port': 5060,
+                        'target': 'sip.unit.tests.',
+                    }
+                ],
+            },
+        )
+        cname = _add_record(
+            zone,
+            'sip',
+            {'ttl': 300, 'type': 'CNAME', 'value': 'other.unit.tests.'},
+        )
+        zone.add_record(srv)
+        zone.add_record(cname)
+        v = SrvTargetNotCnameZoneValidator('test')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'SRV record "_sip._tcp.unit.tests." points to in-zone target "sip.unit.tests." which is a CNAME',
+            reasons[0],
+        )
+
     def test_builtin_ids(self):
         ids = [v.id for v in Zone.validators.available_validators()]
         self.assertIn('multi-value-mx', ids)
@@ -656,6 +1027,12 @@ class TestBuiltinZoneValidators(TestCase):
         self.assertIn('no-cname-loop', ids)
         self.assertIn('consistent-ttl-at-name', ids)
         self.assertIn('glue-for-in-zone-ns', ids)
+        self.assertIn('single-spf', ids)
+        self.assertIn('no-self-referencing-target', ids)
+        self.assertIn('cname-target-resolvable-in-zone', ids)
+        self.assertIn('ns-target-not-cname', ids)
+        self.assertIn('mx-target-not-cname', ids)
+        self.assertIn('srv-target-not-cname', ids)
 
     def test_builtins_in_best_practice_set(self):
         with zone_validators_snapshot():

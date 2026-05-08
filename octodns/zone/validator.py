@@ -299,6 +299,156 @@ class GlueForInZoneNsZoneValidator(ZoneValidator):
         return reasons
 
 
+class SingleSpfZoneValidator(ZoneValidator):
+    '''
+    Checks that there is at most one SPF record at the zone apex. Multiple SPF
+    records are a configuration error and will cause a "PermError", invalidating
+    all SPF policies for the domain.
+
+    Example:
+      - Hostname ``unit.tests.`` has two ``TXT`` records starting with ``v=spf1``.
+
+    Reference: https://datatracker.ietf.org/doc/html/rfc7208#section-3.2
+    '''
+
+    def validate(self, zone):
+        apex_txts = zone.get('', type='TXT')
+        spf_count = 0
+        for record in apex_txts:
+            for value in record.values:
+                if str(value).startswith('v=spf1'):
+                    spf_count += 1
+
+        if spf_count > 1:
+            return [
+                f'zone "{zone.decoded_name}" has {spf_count} SPF records; '
+                'only one is allowed'
+            ]
+        return []
+
+
+class NoSelfReferencingTargetZoneValidator(ZoneValidator):
+    '''
+    Checks for records that point to their own FQDN as a target. Such
+    configurations are logically circular and can cause resolution failures.
+
+    Applies to: ``ALIAS``, ``CNAME``, ``MX``, ``NS``, ``PTR``, and ``SRV``.
+    '''
+
+    def validate(self, zone):
+        reasons = []
+        for record in zone.records:
+            _type = record._type
+            if _type in ('ALIAS', 'CNAME', 'PTR'):
+                if str(record.value) == record.fqdn:
+                    reasons.append(
+                        f'{_type} record "{record.fqdn}" points to itself'
+                    )
+            if _type == 'MX':
+                for value in record.values:
+                    if value.exchange == record.fqdn:
+                        reasons.append(
+                            f'MX record "{record.fqdn}" points to itself'
+                        )
+            if _type == 'NS':
+                for target in record.values:
+                    if str(target) == record.fqdn:
+                        reasons.append(
+                            f'NS record "{record.fqdn}" points to itself'
+                        )
+            if _type == 'SRV':
+                for value in record.values:
+                    if value.target == record.fqdn:
+                        reasons.append(
+                            f'SRV record "{record.fqdn}" points to itself'
+                        )
+        return reasons
+
+
+class CnameTargetResolvableInZoneZoneValidator(ZoneValidator):
+    '''
+    Checks that ``CNAME`` and ``ALIAS`` records pointing to targets within the
+    same zone have a corresponding record at that target. This helps detect
+    "dangling" references that can occur after refactors or deletions.
+    '''
+
+    def validate(self, zone):
+        reasons = []
+        for record in zone.records:
+            if record._type in ('CNAME', 'ALIAS'):
+                target = str(record.value)
+                if zone.owns('A', target):
+                    hostname = zone.hostname_from_fqdn(target)
+                    if not zone.get(hostname):
+                        reasons.append(
+                            f'{record._type} record "{record.fqdn}" points '
+                            f'to in-zone target "{target}" that does '
+                            'not exist'
+                        )
+        return reasons
+
+
+class _TargetNotCnameZoneValidator(ZoneValidator):
+    _types = ()
+
+    def validate(self, zone):
+        reasons = []
+        for record in zone.records:
+            if record._type in self._types:
+                # We need to collect targets based on record type
+                targets = []
+                if record._type == 'MX':
+                    targets = [v.exchange for v in record.values]
+                if record._type == 'NS':
+                    targets = record.values
+                if record._type == 'SRV':
+                    targets = [v.target for v in record.values]
+
+                for target in targets:
+                    if zone.owns('CNAME', target):
+                        hostname = zone.hostname_from_fqdn(target)
+                        if zone.get(hostname, type='CNAME'):
+                            reasons.append(
+                                f'{record._type} record "{record.fqdn}" '
+                                f'points to in-zone target "{target}" '
+                                'which is a CNAME'
+                            )
+        return reasons
+
+
+class NsTargetNotCnameZoneValidator(_TargetNotCnameZoneValidator):
+    '''
+    Checks that ``NS`` records do not point to a ``CNAME``. This is prohibited
+    by DNS standards and can cause resolution failures.
+
+    Reference: https://datatracker.ietf.org/doc/html/rfc2181#section-10.3
+    '''
+
+    _types = ('NS',)
+
+
+class MxTargetNotCnameZoneValidator(_TargetNotCnameZoneValidator):
+    '''
+    Checks that ``MX`` records do not point to a ``CNAME``. This is prohibited
+    by DNS standards.
+
+    Reference: https://datatracker.ietf.org/doc/html/rfc5321#section-5.1
+    '''
+
+    _types = ('MX',)
+
+
+class SrvTargetNotCnameZoneValidator(_TargetNotCnameZoneValidator):
+    '''
+    Checks that ``SRV`` records do not point to a ``CNAME``. This is prohibited
+    by DNS standards.
+
+    Reference: https://datatracker.ietf.org/doc/html/rfc2782
+    '''
+
+    _types = ('SRV',)
+
+
 zone_validators = ZoneValidatorRegistry()
 zone_validators.register(
     MultiValueMxZoneValidator('multi-value-mx', sets={'best-practice'})
@@ -321,4 +471,24 @@ zone_validators.register(
 )
 zone_validators.register(
     GlueForInZoneNsZoneValidator('glue-for-in-zone-ns', sets={'strict'})
+)
+zone_validators.register(SingleSpfZoneValidator('single-spf', sets={'strict'}))
+zone_validators.register(
+    NoSelfReferencingTargetZoneValidator(
+        'no-self-referencing-target', sets={'strict'}
+    )
+)
+zone_validators.register(
+    CnameTargetResolvableInZoneZoneValidator(
+        'cname-target-resolvable-in-zone', sets={'best-practice'}
+    )
+)
+zone_validators.register(
+    NsTargetNotCnameZoneValidator('ns-target-not-cname', sets={'strict'})
+)
+zone_validators.register(
+    MxTargetNotCnameZoneValidator('mx-target-not-cname', sets={'strict'})
+)
+zone_validators.register(
+    SrvTargetNotCnameZoneValidator('srv-target-not-cname', sets={'strict'})
 )
