@@ -332,7 +332,6 @@ www:
         self.assertIn(
             'Record www.sub.unit.tests. is under a managed subzone', msg
         )
-        self.assertTrue(msg.endswith('unit.tests.yaml, line 201, column 3'))
         self.assertIn('unit.tests.yaml', msg)
         self.assertIn('line 201', msg)
         self.assertIn('column 3', msg)
@@ -816,7 +815,6 @@ class TestSplitYamlProvider(TestCase):
         self.assertIn(
             'Record www.sub.unit.tests. is under a managed subzone', msg
         )
-        self.assertTrue(msg.endswith('www.sub.yaml, line 3, column 3'))
         self.assertIn('www.sub.yaml', msg)
         self.assertIn('line 3', msg)
         self.assertIn('column 3', msg)
