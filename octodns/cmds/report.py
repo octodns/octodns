@@ -107,6 +107,7 @@ def main():
     zone = manager.get_zone(args.zone)
     for source in sources:
         source.populate(zone, lenient=args.lenient)
+    zone.validate(lenient=args.lenient)
 
     servers = args.server
     resolvers = []

@@ -1183,10 +1183,12 @@ class Manager(object):
         za = self.get_zone(zone)
         for source in a:
             source.populate(za)
+        za.validate()
 
         zb = self.get_zone(zone)
         for source in b:
             source.populate(zb)
+        zb.validate()
 
         return zb.changes(za, _AggregateTarget(a + b))
 
