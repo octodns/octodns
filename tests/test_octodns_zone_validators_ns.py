@@ -8,7 +8,7 @@ from octodns.record import Record
 from octodns.zone import Zone
 from octodns.zone.ns import (
     GlueForInZoneNsZoneValidator,
-    MultiValueApexNsZoneValidator,
+    MultiValueNsZoneValidator,
 )
 
 
@@ -73,9 +73,9 @@ class TestGlueForInZoneNsZoneValidator(TestCase):
         self.assertEqual({ns_bad}, reasons[0].records)
 
 
-class TestMultiValueApexNsZoneValidator(TestCase):
-    def test_multi_value_apex_ns(self):
-        v = MultiValueApexNsZoneValidator('test')
+class TestMultiValueNsZoneValidator(TestCase):
+    def test_multi_value_ns(self):
+        v = MultiValueNsZoneValidator('test')
         zone = _make_zone('unit.tests.')
 
         # No NS at apex (not this validator's job to care if it's missing entirely)
@@ -88,6 +88,11 @@ class TestMultiValueApexNsZoneValidator(TestCase):
             {'ttl': 300, 'type': 'NS', 'values': ['ns1.com.', 'ns2.com.']},
         )
         zone.add_record(ns)
+        # Add a non-NS record to cover the branch in validate
+        a = _add_record(
+            zone, 'www', {'ttl': 300, 'type': 'A', 'values': ['1.2.3.4']}
+        )
+        zone.add_record(a)
         self.assertEqual([], v.validate(zone))
 
         # 1 NS value at apex
@@ -99,3 +104,16 @@ class TestMultiValueApexNsZoneValidator(TestCase):
         self.assertEqual(1, len(reasons))
         self.assertIn('at least 2 are recommended', str(reasons[0]))
         self.assertEqual({ns2}, reasons[0].records)
+
+        # 1 NS value for sub-delegation
+        ns_sub = _add_record(
+            zone, 'sub', {'ttl': 300, 'type': 'NS', 'values': ['ns3.com.']}
+        )
+        zone.add_record(ns_sub)
+        reasons = sorted(
+            v.validate(zone), key=lambda r: list(r.records)[0].fqdn
+        )
+        self.assertEqual(2, len(reasons))
+        self.assertIn('sub.unit.tests.', str(reasons[0]))
+        self.assertIn('unit.tests.', str(reasons[1]))
+        self.assertEqual({ns_sub}, reasons[0].records)

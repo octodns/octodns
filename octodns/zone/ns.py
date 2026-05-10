@@ -47,32 +47,31 @@ class GlueForInZoneNsZoneValidator(ZoneValidator):
         return reasons
 
 
-class MultiValueApexNsZoneValidator(ZoneValidator):
+class MultiValueNsZoneValidator(ZoneValidator):
     '''
-    Checks that the zone apex has at least two ``NS`` records. Having multiple
+    Checks that all ``NS`` records have at least two values. Having multiple
     name servers is a fundamental best practice for DNS redundancy and
-    availability.
+    availability, both at the apex and for sub-delegations.
     '''
 
     def validate(self, zone):
-        ns_records = zone.get('', type='NS')
-        if ns_records:
-            count = sum(len(r.values) for r in ns_records)
-            if count < 2:
-                return [
-                    ValidationReason(
-                        f'zone "{zone.decoded_name}" has only {count} NS '
-                        'record at the apex; at least 2 are recommended for '
-                        'redundancy',
-                        list(ns_records),
+        reasons = []
+        for record in zone.records:
+            if record._type == 'NS':
+                if len(record.values) < 2:
+                    reasons.append(
+                        ValidationReason(
+                            f'NS record "{record.fqdn}" has only {len(record.values)} '
+                            'value; at least 2 are recommended for redundancy',
+                            [record],
+                        )
                     )
-                ]
-        return []
+        return reasons
 
 
 Zone.register_zone_validator(
     GlueForInZoneNsZoneValidator('glue-for-in-zone-ns', sets={'strict'})
 )
 Zone.register_zone_validator(
-    MultiValueApexNsZoneValidator('multi-value-apex-ns', sets={'best-practice'})
+    MultiValueNsZoneValidator('multi-value-ns', sets={'best-practice'})
 )
