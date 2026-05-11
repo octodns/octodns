@@ -9,11 +9,13 @@ from .base import (
     SubzoneRecordException,
     Zone,
 )
+from .cname_loops import NoCnameLoopZoneValidator
 from .mail import MailZoneValidator
 
 DuplicateRecordException
 InvalidNameError
 InvalidNodeException
 MailZoneValidator
+NoCnameLoopZoneValidator
 SubzoneRecordException
 Zone
