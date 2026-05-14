@@ -81,6 +81,19 @@ class TestChunkedValue(TestCase):
             _process_value_validators(_ChunkedValue, 'Déjà vu', 'TXT'),
         )
 
+        # None values
+        for data in ([None], [None, None]):
+            self.assertEqual(
+                ['missing value(s)'] * len(data),
+                _process_value_validators(_ChunkedValue, data, 'TXT'),
+            )
+        self.assertEqual(
+            ['missing value(s)', 'missing value(s)'],
+            _process_value_validators(
+                _ChunkedValue, [None, 'foo', None], 'TXT'
+            ),
+        )
+
     zone = Zone('unit.tests.', [])
 
     # some hacks to let us work with smaller sizes

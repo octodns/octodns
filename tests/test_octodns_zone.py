@@ -18,13 +18,8 @@ from octodns.record import (
     Record,
     Update,
 )
-from octodns.zone import (
-    DuplicateRecordException,
-    InvalidNameError,
-    InvalidNodeException,
-    SubzoneRecordException,
-    Zone,
-)
+from octodns.zone import DuplicateRecordException, InvalidNameError, Zone
+from octodns.zone.exception import ValidationError
 
 
 class TestZone(TestCase):
@@ -323,12 +318,15 @@ class TestZone(TestCase):
             {'ttl': 3600, 'type': 'A', 'values': ['1.2.3.4', '2.3.4.5']},
         )
         record.context = 'added context'
-        with self.assertRaises(SubzoneRecordException) as ctx:
-            zone.add_record(record)
+        zone.add_record(record)
+        with self.assertRaises(ValidationError) as ctx:
+            zone.validate()
         self.assertIn('not of type NS', str(ctx.exception))
-        self.assertIn(', added context', str(ctx.exception))
+        self.assertIn('(added context)', str(ctx.exception))
         # Can add it w/lenient
+        zone = Zone('unit.tests.', set(['sub', 'barred']))
         zone.add_record(record, lenient=True)
+        zone.validate(lenient=True)
         self.assertEqual(set([record]), zone.records)
 
         # NS for something below the sub is rejected
@@ -338,11 +336,14 @@ class TestZone(TestCase):
             'foo.sub',
             {'ttl': 3600, 'type': 'NS', 'values': ['1.2.3.4.', '2.3.4.5.']},
         )
-        with self.assertRaises(SubzoneRecordException) as ctx:
-            zone.add_record(record)
+        zone.add_record(record)
+        with self.assertRaises(ValidationError) as ctx:
+            zone.validate()
         self.assertIn('under a managed subzone', str(ctx.exception))
         # Can add it w/lenient
+        zone = Zone('unit.tests.', set(['sub', 'barred']))
         zone.add_record(record, lenient=True)
+        zone.validate(lenient=True)
         self.assertEqual(set([record]), zone.records)
 
         # A for something below the sub is rejected
@@ -352,11 +353,14 @@ class TestZone(TestCase):
             'foo.bar.sub',
             {'ttl': 3600, 'type': 'A', 'values': ['1.2.3.4', '2.3.4.5']},
         )
-        with self.assertRaises(SubzoneRecordException) as ctx:
-            zone.add_record(record)
+        zone.add_record(record)
+        with self.assertRaises(ValidationError) as ctx:
+            zone.validate()
         self.assertIn('under a managed subzone', str(ctx.exception))
         # Can add it w/lenient
+        zone = Zone('unit.tests.', set(['sub', 'barred']))
         zone.add_record(record, lenient=True)
+        zone.validate(lenient=True)
         self.assertEqual(set([record]), zone.records)
 
         # A that happens to end with a string that matches a sub (no .) is OK
@@ -420,11 +424,14 @@ class TestZone(TestCase):
                 ],
             },
         )
-        with self.assertRaises(SubzoneRecordException) as ctx:
-            zone.add_record(record)
+        zone.add_record(record)
+        with self.assertRaises(ValidationError) as ctx:
+            zone.validate()
         self.assertIn('under a managed subzone', str(ctx.exception))
         # Can add it w/lenient
+        zone = Zone('unit.tests.', set(['sub', 'barred']))
         zone.add_record(record, lenient=True)
+        zone.validate(lenient=True)
         self.assertEqual(set([record]), zone.records)
 
         # DS record that happens to end with a string that matches a sub (no .) is OK
@@ -612,25 +619,25 @@ class TestZone(TestCase):
         )
         cname.context = 'has some context'
 
-        # add cname to a
+        # add cname to a, succeeds now
         zone.add_record(a)
-        with self.assertRaises(InvalidNodeException) as ctx:
-            zone.add_record(cname)
-        self.assertIn(', has some context', str(ctx.exception))
-        self.assertEqual(set([a]), zone.records)
-        zone.add_record(cname, lenient=True)
+        zone.add_record(cname)
         self.assertEqual(set([a, cname]), zone.records)
+        # but fails validation
+        with self.assertRaises(ValidationError) as ctx:
+            zone.validate()
+        self.assertIn('(has some context)', str(ctx.exception))
 
-        # add a to cname
+        # add a to cname, succeeds now
         zone = Zone('unit.tests.', [])
         zone.add_record(cname)
-        with self.assertRaises(InvalidNodeException):
-            zone.add_record(a)
-        self.assertEqual(set([cname]), zone.records)
-        zone.add_record(a, lenient=True)
-        self.assertEqual(set([a, cname]), zone.records)
+        zone.add_record(a)
+        self.assertEqual(set([cname, a]), zone.records)
+        # but fails validation
+        with self.assertRaises(ValidationError):
+            zone.validate()
 
-        # add cname to lenient a
+        # add cname to lenient a, succeeds now
         a = Record.new(
             zone,
             'www',
@@ -643,17 +650,21 @@ class TestZone(TestCase):
         )
         zone = Zone('unit.tests.', [])
         zone.add_record(a)
-        with self.assertRaises(InvalidNodeException) as ctx:
-            zone.add_record(cname)
-        self.assertIn(', has some context', str(ctx.exception))
-        self.assertEqual(set([a]), zone.records)
+        zone.add_record(cname)
+        self.assertEqual(set([a, cname]), zone.records)
+        # but fails validation because cname is not lenient
+        with self.assertRaises(ValidationError) as ctx:
+            zone.validate()
+        self.assertIn('(has some context)', str(ctx.exception))
 
-        # add lenient a to cname
+        # add lenient a to cname, succeeds now
         zone = Zone('unit.tests.', [])
         zone.add_record(cname)
-        with self.assertRaises(InvalidNodeException):
-            zone.add_record(a)
-        self.assertEqual(set([cname]), zone.records)
+        zone.add_record(a)
+        self.assertEqual(set([cname, a]), zone.records)
+        # but fails validation because cname is not lenient
+        with self.assertRaises(ValidationError):
+            zone.validate()
 
         # add lenient cname to lenient a
         cname = Record.new(
@@ -670,28 +681,41 @@ class TestZone(TestCase):
         zone.add_record(a)
         zone.add_record(cname)
         self.assertEqual(set([a, cname]), zone.records)
+        # both are lenient so validation passes (no exception raised)
+        zone.validate()
 
         # add lenient a to lenient cname
         zone = Zone('unit.tests.', [])
         zone.add_record(cname)
         zone.add_record(a)
         self.assertEqual(set([a, cname]), zone.records)
+        # both are lenient so validation passes
+        zone.validate()
 
-        # adding something else w/o lenient still errors
+        # adding something else w/o lenient, still fails validation
         zone = Zone('unit.tests.', [])
         zone.add_record(cname)
         zone.add_record(a)
         txt = Record.new(
             zone, 'www', {'ttl': 60, 'type': 'TXT', 'value': 'Hello World'}
         )
-        with self.assertRaises(InvalidNodeException):
-            zone.add_record(txt)
-        self.assertEqual(set([a, cname]), zone.records)
+        zone.add_record(txt)
+        self.assertEqual(set([a, cname, txt]), zone.records)
+        with self.assertRaises(ValidationError):
+            zone.validate()
 
-        # if the 3rd record is lenient it can be added
+        # if the 3rd record is lenient it STILL fails validation because not
+        # ALL are lenient
         zone = Zone('unit.tests.', [])
+        a = Record.new(
+            zone, 'www', {'ttl': 60, 'type': 'A', 'value': '9.9.9.9'}
+        )
+        cname = Record.new(
+            zone, 'www', {'ttl': 60, 'type': 'CNAME', 'value': 'foo.bar.com.'}
+        )
         zone.add_record(cname)
         zone.add_record(a)
+        # non-lenient a and cname are already there
         txt = Record.new(
             zone,
             'www',
@@ -704,6 +728,48 @@ class TestZone(TestCase):
         )
         zone.add_record(txt)
         self.assertEqual(set([a, cname, txt]), zone.records)
+        with self.assertRaises(ValidationError):
+            zone.validate()
+
+        # if all 3 are lenient it passes
+        a.octodns['lenient'] = True
+        cname.octodns['lenient'] = True
+        zone.validate()
+
+    def test_validator_registration_methods(self):
+        # Test class methods that delegate to Zone.validators
+        # These are currently missing coverage in octodns/zone/__init__.py
+
+        # registered_zone_validators
+        self.assertIn(
+            'cname-coexistence',
+            [v.id for v in Zone.registered_zone_validators()],
+        )
+
+        # available_zone_validators
+        self.assertIn(
+            'cname-coexistence',
+            [v.id for v in Zone.available_zone_validators()],
+        )
+
+        # enable_zone_validator / disable_zone_validator
+        Zone.disable_zone_validator('cname-coexistence')
+        self.assertNotIn(
+            'cname-coexistence',
+            [v.id for v in Zone.registered_zone_validators()],
+        )
+        Zone.enable_zone_validator('cname-coexistence')
+        self.assertIn(
+            'cname-coexistence',
+            [v.id for v in Zone.registered_zone_validators()],
+        )
+
+        # enable_zone_validators (sets)
+        Zone.enable_zone_validators(['legacy'])
+        self.assertIn(
+            'cname-coexistence',
+            [v.id for v in Zone.registered_zone_validators()],
+        )
 
     def test_excluded_records(self):
         zone_normal = Zone('unit.tests.', [])

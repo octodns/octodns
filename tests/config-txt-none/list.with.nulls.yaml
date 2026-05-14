@@ -1,0 +1,7 @@
+---
+test:
+  type: TXT
+  values:
+    - null
+    - foo
+    - null
