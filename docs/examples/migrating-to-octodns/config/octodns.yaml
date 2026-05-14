@@ -1,4 +1,12 @@
 ---
+manager:
+  # strict and best-practice will become the defaults in 2.x; enabling them
+  # now lets you catch and fix any issues before upgrading.
+  validators:
+    enabled:
+      - strict
+      - best-practice
+
 providers:
   # See the basic example for descriptions of the basics of this config file,
   # here we'll focus on things related to octodns-dump.

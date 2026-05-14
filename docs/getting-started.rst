@@ -55,6 +55,14 @@ to create an initial setup from an existing provider.
 An example config would look something like::
 
   ---
+  manager:
+    # strict and best-practice will become the defaults in 2.x; enabling them
+    # now lets you catch and fix any issues before upgrading.
+    validators:
+      enabled:
+        - strict
+        - best-practice
+
   providers:
     config:
       class: octodns.provider.yaml.YamlProvider
