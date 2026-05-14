@@ -12,22 +12,34 @@ class MailZoneValidator(ZoneValidator):
     '''
     Comprehensive best-practice validator for mail records (MX, SPF, DMARC).
 
-    Can operate in two modes: 'mail' and 'no-mail'. In 'auto' mode (default), it
-    detects the mode based on the presence of mail-related records (MX anywhere
-    in the zone, SPF at the apex, or DMARC at _dmarc). If no mail-related
-    records are found, it is a no-op. If any are found, it detects the mode
-    based on the presence of non-null MX records at the apex.
+    Can operate in two modes: 'mail' and 'no-mail'. In 'auto' mode (default),
+    it detects the apex mode based on the presence of mail-related records (MX
+    anywhere in the zone, SPF at the apex, or DMARC at _dmarc). If no
+    mail-related records are found, it is a no-op for the apex. If any are
+    found, it detects the mode based on the presence of non-null MX records at
+    the apex.
+
+    Every non-apex sub-domain that has MX records is also validated (redundancy
+    + SPF). In 'auto' mode each sub-domain's mode is detected independently:
+    null MX → 'no-mail', otherwise → 'mail'. In explicit 'mail' or 'no-mail'
+    mode, the configured mode propagates to sub-domains.
 
     'mail' mode enforces:
     - Multiple MX records for redundancy (at apex and throughout the zone).
     - Presence of an SPF record at the apex.
     - SPF record terminates with ~all or -all.
     - Presence of a DMARC record at _dmarc.
+    - Each sub-domain with MX has an SPF record terminating with ~all or -all.
 
     'no-mail' mode enforces:
     - Presence of a single Null MX record (0 .) at the apex.
     - SPF record at the apex is exactly 'v=spf1 -all'.
     - DMARC record at _dmarc has p=reject.
+    - Each sub-domain with MX has a single Null MX (0 .) and strict SPF
+      'v=spf1 -all'.
+
+    DMARC is not required at the sub-domain level because it inherits from the
+    parent zone per RFC 7489 §6.6.3.
     '''
 
     def __init__(self, id, mode='auto', sets=None):
@@ -43,6 +55,21 @@ class MailZoneValidator(ZoneValidator):
             and mx_record.values[0].preference == 0
             and str(mx_record.values[0].exchange) == '.'
         )
+
+    def _extract_spf(self, txt_record, multi_msg):
+        if txt_record is None:
+            return None, None
+        values = [
+            v
+            for v in (i.lower().replace('\\', '') for i in txt_record.values)
+            if v.startswith('v=spf1')
+        ]
+        if not values:
+            return None, None
+        reason = None
+        if len(values) > 1:
+            reason = ValidationReason(reason=multi_msg, records={txt_record})
+        return values[0], reason
 
     def _validate_mail(
         self,
@@ -177,37 +204,20 @@ class MailZoneValidator(ZoneValidator):
 
         return reasons
 
-    def _detect_subzone_mode(self, mx_record):
+    def _detect_subdomain_mode(self, mx_record):
         if self._is_null_mx(mx_record):
             return 'no-mail'
         return 'mail'
 
-    def _validate_subzone(self, zone, mx_record, mode):
+    def _validate_subdomain(self, zone, mx_record, mode):
         reasons = []
-        name = mx_record.name
-        txt_record = zone.get_type(name, 'TXT')
+        txt_record = zone.get_type(mx_record.name, 'TXT')
 
-        spf_values = (
-            [
-                v
-                for v in [
-                    i.lower().replace('\\', '') for i in txt_record.values
-                ]
-                if v.startswith('v=spf1')
-            ]
-            if txt_record
-            else None
+        spf_value, spf_multi = self._extract_spf(
+            txt_record, f'"{mx_record.decoded_fqdn}" has multiple SPF values'
         )
-        spf_value = None
-        if spf_values:
-            if len(spf_values) > 1:
-                reasons.append(
-                    ValidationReason(
-                        reason=f'"{mx_record.decoded_fqdn}" has multiple SPF values',
-                        records={txt_record},
-                    )
-                )
-            spf_value = spf_values[0]
+        if spf_multi:
+            reasons.append(spf_multi)
 
         records = {mx_record}
         if txt_record:
@@ -260,12 +270,16 @@ class MailZoneValidator(ZoneValidator):
 
         mode = self.mode
 
+        non_apex_mx = [
+            r for r in zone.records if r.name != '' and r._type == 'MX'
+        ]
+
         apex_mx_record = zone.get_type('', 'MX')
 
         # MX redundancy (Apex and elsewhere)
-        for record in ([apex_mx_record] if apex_mx_record else []) + [
-            r for r in zone.records if r.name != '' and r._type == 'MX'
-        ]:
+        for record in (
+            [apex_mx_record] if apex_mx_record else []
+        ) + non_apex_mx:
             if self._is_null_mx(record):
                 continue
 
@@ -278,25 +292,11 @@ class MailZoneValidator(ZoneValidator):
                 )
 
         apex_txt = zone.get_type('', 'TXT')
-        apex_spf_value = (
-            [
-                v
-                for v in [i.lower().replace('\\', '') for i in apex_txt.values]
-                if v.startswith('v=spf1')
-            ]
-            # there can only be 0/1
-            if apex_txt
-            else None
+        apex_spf_value, apex_spf_multi = self._extract_spf(
+            apex_txt, f'zone "{zone.decoded_name}" has multiple SPF values'
         )
-        if apex_spf_value:
-            if len(apex_spf_value) > 1:
-                reasons.append(
-                    ValidationReason(
-                        reason=f'zone "{zone.decoded_name}" has multiple SPF values',
-                        records={apex_txt},
-                    )
-                )
-            apex_spf_value = apex_spf_value[0]
+        if apex_spf_multi:
+            reasons.append(apex_spf_multi)
 
         dmarc_txt = zone.get_type('_dmarc', 'TXT')
         dmarc_value = (
@@ -305,7 +305,6 @@ class MailZoneValidator(ZoneValidator):
                 for v in [v.lower().replace('\\', '') for v in dmarc_txt.values]
                 if v.startswith('v=dmarc1')
             ]
-            # there can only be 0/1
             if dmarc_txt
             else None
         )
@@ -377,15 +376,13 @@ class MailZoneValidator(ZoneValidator):
                 )
             )
 
-        for mx_record in [
-            r for r in zone.records if r.name != '' and r._type == 'MX'
-        ]:
+        for mx_record in non_apex_mx:
             sub_mode = (
-                self._detect_subzone_mode(mx_record)
+                self._detect_subdomain_mode(mx_record)
                 if self.mode == 'auto'
                 else self.mode
             )
-            reasons.extend(self._validate_subzone(zone, mx_record, sub_mode))
+            reasons.extend(self._validate_subdomain(zone, mx_record, sub_mode))
 
         return reasons
 

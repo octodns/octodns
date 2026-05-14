@@ -393,6 +393,35 @@ class TestMailZoneValidator(TestCase):
         self.assertEqual(1, len(reasons))
         self.assertIn('terminate with "~all" or "-all"', str(reasons[0]))
 
+        # Non-SPF TXT (TXT exists but no v=spf1 entry)
+        zone = _make_zone()
+        zone.add_record(
+            _add_record(
+                zone,
+                'sub',
+                {
+                    'ttl': 300,
+                    'type': 'MX',
+                    'values': [
+                        {'preference': 10, 'exchange': 'mail1.unit.tests.'},
+                        {'preference': 20, 'exchange': 'mail2.unit.tests.'},
+                    ],
+                },
+            )
+        )
+        zone.add_record(
+            _add_record(
+                zone,
+                'sub',
+                {'ttl': 300, 'type': 'TXT', 'values': ['some-other-txt']},
+            )
+        )
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'handles mail but is missing an SPF TXT record', str(reasons[0])
+        )
+
         # Multiple SPF values
         zone = _make_zone()
         zone.add_record(
