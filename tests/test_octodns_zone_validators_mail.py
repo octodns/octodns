@@ -305,8 +305,7 @@ class TestMailZoneValidator(TestCase):
         reasons = v.validate(zone)
         self.assertIn('missing a Null MX record', str(reasons[0]))
 
-        # Non-apex MX alone does NOT trigger mail mode detection; only the
-        # redundancy check fires, not full mail/no-mail validation.
+        # Non-apex MX triggers redundancy check AND sub-zone SPF validation.
         zone = _make_zone()
         mx = _add_record(
             zone,
@@ -319,14 +318,353 @@ class TestMailZoneValidator(TestCase):
         )
         zone.add_record(mx)
         reasons = v.validate(zone)
-        self.assertEqual(1, len(reasons))
+        self.assertEqual(2, len(reasons))
         self.assertIn(
             'should have at least 2 values for redundancy', str(reasons[0])
+        )
+        self.assertIn(
+            'handles mail but is missing an SPF TXT record', str(reasons[1])
         )
 
         # No-op with no signs
         zone = _make_zone()
         self.assertEqual([], v.validate(zone))
+
+    def test_subzone_mail_success(self):
+        # Use auto mode so apex auto-detection finds no apex signals and skips;
+        # sub-domain with MX+SPF validates clean.
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            'sub',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [
+                    {'preference': 10, 'exchange': 'mail1.unit.tests.'},
+                    {'preference': 20, 'exchange': 'mail2.unit.tests.'},
+                ],
+            },
+        )
+        zone.add_record(mx)
+        spf = _add_record(
+            zone,
+            'sub',
+            {
+                'ttl': 300,
+                'type': 'TXT',
+                'values': ['V=SPF1 include:example.com -ALL'],
+            },
+        )
+        zone.add_record(spf)
+        # No _dmarc.sub record — DMARC is not required at the sub-domain level
+        v = MailZoneValidator('test', mode='auto')
+        self.assertEqual([], v.validate(zone))
+
+    def test_subzone_mail_failures(self):
+        # Use auto mode so apex validation does not interfere
+        v = MailZoneValidator('test', mode='auto')
+
+        # Missing SPF
+        zone = _make_zone()
+        zone.add_record(
+            _add_record(
+                zone,
+                'sub',
+                {
+                    'ttl': 300,
+                    'type': 'MX',
+                    'values': [
+                        {'preference': 10, 'exchange': 'mail1.unit.tests.'},
+                        {'preference': 20, 'exchange': 'mail2.unit.tests.'},
+                    ],
+                },
+            )
+        )
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'handles mail but is missing an SPF TXT record', str(reasons[0])
+        )
+
+        # Bad SPF terminator
+        zone.add_record(
+            _add_record(
+                zone,
+                'sub',
+                {'ttl': 300, 'type': 'TXT', 'values': ['v=spf1 include:a.com']},
+            )
+        )
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('terminate with "~all" or "-all"', str(reasons[0]))
+
+        # Multiple SPF values
+        zone = _make_zone()
+        zone.add_record(
+            _add_record(
+                zone,
+                'sub',
+                {
+                    'ttl': 300,
+                    'type': 'MX',
+                    'values': [
+                        {'preference': 10, 'exchange': 'mail1.unit.tests.'},
+                        {'preference': 20, 'exchange': 'mail2.unit.tests.'},
+                    ],
+                },
+            )
+        )
+        zone.add_record(
+            _add_record(
+                zone,
+                'sub',
+                {
+                    'ttl': 300,
+                    'type': 'TXT',
+                    'values': [
+                        'v=spf1 include:a.com ~all',
+                        'v=spf1 include:b.com -all',
+                    ],
+                },
+            )
+        )
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('has multiple SPF values', str(reasons[0]))
+
+    def test_subzone_no_mail_success(self):
+        # Use auto mode so apex auto-detection finds no apex signals and skips
+        zone = _make_zone()
+        zone.add_record(
+            _add_record(
+                zone,
+                'sub',
+                {
+                    'ttl': 300,
+                    'type': 'MX',
+                    'values': [{'preference': 0, 'exchange': '.'}],
+                },
+            )
+        )
+        zone.add_record(
+            _add_record(
+                zone,
+                'sub',
+                {'ttl': 300, 'type': 'TXT', 'values': ['V=SPF1 -ALL']},
+            )
+        )
+        v = MailZoneValidator('test', mode='auto')
+        # Null MX has a single value by design; redundancy check fires as expected
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'should have at least 2 values for redundancy', str(reasons[0])
+        )
+
+    def test_subzone_no_mail_failures(self):
+        # Use auto mode so apex auto-detection finds no apex signals and skips
+        v = MailZoneValidator('test', mode='auto')
+
+        # Missing strict SPF
+        zone = _make_zone()
+        zone.add_record(
+            _add_record(
+                zone,
+                'sub',
+                {
+                    'ttl': 300,
+                    'type': 'MX',
+                    'values': [{'preference': 0, 'exchange': '.'}],
+                },
+            )
+        )
+        reasons = v.validate(zone)
+        # redundancy + missing strict SPF
+        self.assertEqual(2, len(reasons))
+        self.assertIn(
+            'should have at least 2 values for redundancy', str(reasons[0])
+        )
+        self.assertIn('missing strict SPF TXT record', str(reasons[1]))
+
+        # Wrong SPF value
+        zone.add_record(
+            _add_record(
+                zone,
+                'sub',
+                {
+                    'ttl': 300,
+                    'type': 'TXT',
+                    'values': ['v=spf1 include:a.com ~all'],
+                },
+            )
+        )
+        reasons = v.validate(zone)
+        self.assertEqual(2, len(reasons))
+        self.assertIn(
+            'should have at least 2 values for redundancy', str(reasons[0])
+        )
+        self.assertIn('should have a strict SPF TXT record', str(reasons[1]))
+
+    def test_explicit_mode_propagates_to_subzones(self):
+        # mode='mail': sub-zone with null MX still gets mail-mode SPF check.
+        # Provide a valid apex so only sub-zone errors surface.
+        def _valid_mail_apex(zone):
+            zone.add_record(
+                _add_record(
+                    zone,
+                    '',
+                    {
+                        'ttl': 300,
+                        'type': 'MX',
+                        'values': [
+                            {'preference': 10, 'exchange': 'mx1.unit.tests.'},
+                            {'preference': 20, 'exchange': 'mx2.unit.tests.'},
+                        ],
+                    },
+                )
+            )
+            zone.add_record(
+                _add_record(
+                    zone,
+                    '',
+                    {
+                        'ttl': 300,
+                        'type': 'TXT',
+                        'values': ['v=spf1 include:example.com -all'],
+                    },
+                )
+            )
+            zone.add_record(
+                _add_record(
+                    zone,
+                    '_dmarc',
+                    {
+                        'ttl': 300,
+                        'type': 'TXT',
+                        'values': ['v=DMARC1\\; p=reject\\;'],
+                    },
+                )
+            )
+
+        def _valid_no_mail_apex(zone):
+            zone.add_record(
+                _add_record(
+                    zone,
+                    '',
+                    {
+                        'ttl': 300,
+                        'type': 'MX',
+                        'values': [{'preference': 0, 'exchange': '.'}],
+                    },
+                )
+            )
+            zone.add_record(
+                _add_record(
+                    zone,
+                    '',
+                    {'ttl': 300, 'type': 'TXT', 'values': ['v=spf1 -all']},
+                )
+            )
+            zone.add_record(
+                _add_record(
+                    zone,
+                    '_dmarc',
+                    {
+                        'ttl': 300,
+                        'type': 'TXT',
+                        'values': ['v=DMARC1\\; p=reject\\;'],
+                    },
+                )
+            )
+
+        # mode='mail': sub-zone null MX → mail mode forces SPF check (no null-MX check)
+        zone = _make_zone()
+        _valid_mail_apex(zone)
+        zone.add_record(
+            _add_record(
+                zone,
+                'sub',
+                {
+                    'ttl': 300,
+                    'type': 'MX',
+                    'values': [{'preference': 0, 'exchange': '.'}],
+                },
+            )
+        )
+        v = MailZoneValidator('test', mode='mail')
+        reasons = v.validate(zone)
+        # redundancy fires on sub null MX; mail-mode SPF missing
+        self.assertEqual(2, len(reasons))
+        self.assertIn(
+            'should have at least 2 values for redundancy', str(reasons[0])
+        )
+        self.assertIn(
+            'handles mail but is missing an SPF TXT record', str(reasons[1])
+        )
+
+        # mode='no-mail': sub-zone real MX → null-MX structure check + strict SPF check
+        zone = _make_zone()
+        _valid_no_mail_apex(zone)
+        zone.add_record(
+            _add_record(
+                zone,
+                'sub',
+                {
+                    'ttl': 300,
+                    'type': 'MX',
+                    'values': [
+                        {'preference': 10, 'exchange': 'mail1.unit.tests.'},
+                        {'preference': 20, 'exchange': 'mail2.unit.tests.'},
+                    ],
+                },
+            )
+        )
+        v = MailZoneValidator('test', mode='no-mail')
+        reasons = v.validate(zone)
+        # apex null-MX redundancy + sub null-MX structure failure + sub missing strict SPF
+        self.assertEqual(3, len(reasons))
+        self.assertIn(
+            'should have at least 2 values for redundancy', str(reasons[0])
+        )
+        self.assertIn('should have a single Null MX record', str(reasons[1]))
+        self.assertIn('missing strict SPF TXT record', str(reasons[2]))
+
+        # auto mode: apex no-mail + sub mail coexist cleanly when both are properly configured
+        zone = _make_zone()
+        _valid_no_mail_apex(zone)
+        zone.add_record(
+            _add_record(
+                zone,
+                'sub',
+                {
+                    'ttl': 300,
+                    'type': 'MX',
+                    'values': [
+                        {'preference': 10, 'exchange': 'mail1.unit.tests.'},
+                        {'preference': 20, 'exchange': 'mail2.unit.tests.'},
+                    ],
+                },
+            )
+        )
+        zone.add_record(
+            _add_record(
+                zone,
+                'sub',
+                {
+                    'ttl': 300,
+                    'type': 'TXT',
+                    'values': ['v=spf1 include:mail.example.com -all'],
+                },
+            )
+        )
+        v = MailZoneValidator('test', mode='auto')
+        # only the apex null-MX redundancy warning fires
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'should have at least 2 values for redundancy', str(reasons[0])
+        )
 
     def test_builtin_registration(self):
         ids = [v.id for v in Zone.validators.available_validators()]

@@ -174,6 +174,92 @@ class MailZoneValidator(ZoneValidator):
 
         return reasons
 
+    def _detect_subzone_mode(self, mx_record):
+        if (
+            len(mx_record.values) == 1
+            and mx_record.values[0].preference == 0
+            and str(mx_record.values[0].exchange) == '.'
+        ):
+            return 'no-mail'
+        return 'mail'
+
+    def _validate_subzone(self, zone, mx_record, mode):
+        reasons = []
+        name = mx_record.name
+        txt_record = zone.get_type(name, 'TXT')
+
+        spf_values = (
+            [
+                v
+                for v in [
+                    i.lower().replace('\\', '') for i in txt_record.values
+                ]
+                if v.startswith('v=spf1')
+            ]
+            if txt_record
+            else None
+        )
+        spf_value = None
+        if spf_values:
+            if len(spf_values) > 1:
+                reasons.append(
+                    ValidationReason(
+                        reason=f'"{mx_record.decoded_fqdn}" has multiple SPF values',
+                        records={txt_record},
+                    )
+                )
+            spf_value = spf_values[0]
+
+        records = {mx_record}
+        if txt_record:
+            records.add(txt_record)
+
+        if mode == 'mail':
+            if not spf_value:
+                reasons.append(
+                    ValidationReason(
+                        f'"{mx_record.decoded_fqdn}" handles mail but is missing an SPF TXT record',
+                        records,
+                    )
+                )
+            elif not (
+                spf_value.endswith(' -all') or spf_value.endswith(' ~all')
+            ):
+                reasons.append(
+                    ValidationReason(
+                        f'SPF record at "{mx_record.decoded_fqdn}" should terminate with "~all" or "-all"',
+                        {txt_record},
+                    )
+                )
+        else:
+            if not (
+                len(mx_record.values) == 1
+                and mx_record.values[0].preference == 0
+                and str(mx_record.values[0].exchange) == '.'
+            ):
+                reasons.append(
+                    ValidationReason(
+                        f'"{mx_record.decoded_fqdn}" disables mail and should have a single Null MX record (0 .)',
+                        {mx_record},
+                    )
+                )
+            if spf_value is None:
+                reasons.append(
+                    ValidationReason(
+                        f'"{mx_record.decoded_fqdn}" disables mail but is missing strict SPF TXT record "v=spf1 -all"',
+                        records,
+                    )
+                )
+            elif spf_value != 'v=spf1 -all':
+                reasons.append(
+                    ValidationReason(
+                        f'"{mx_record.decoded_fqdn}" disables mail and should have a strict SPF TXT record "v=spf1 -all"',
+                        {txt_record},
+                    )
+                )
+
+        return reasons
+
     def validate(self, zone):
         reasons = []
 
@@ -291,6 +377,16 @@ class MailZoneValidator(ZoneValidator):
                     dmarc_value=dmarc_value,
                 )
             )
+
+        for mx_record in [
+            r for r in zone.records if r.name != '' and r._type == 'MX'
+        ]:
+            sub_mode = (
+                self._detect_subzone_mode(mx_record)
+                if self.mode == 'auto'
+                else self.mode
+            )
+            reasons.extend(self._validate_subzone(zone, mx_record, sub_mode))
 
         return reasons
 
