@@ -131,6 +131,9 @@ their own repositories and released as independent modules.
    * - `Lexicon`_
      - `dns-lexicon/dns-lexicon`_
      -
+   * - `MikroTik`_
+     - `octodns_mikrotik`_
+     -
    * - `Mythic Beasts DNS`_
      - `octodns_mythicbeasts`_
      -
@@ -230,6 +233,8 @@ their own repositories and released as independent modules.
 .. _octodns_infomaniak: https://github.com/M0NsTeRRR/octodns-infomaniak
 .. _Lexicon: https://dns-lexicon.github.io/dns-lexicon/#
 .. _dns-lexicon/dns-lexicon: https://github.com/dns-lexicon/dns-lexicon
+.. _MikroTik: https://mikrotik.com/
+.. _octodns_mikrotik: https://github.com/M0NsTeRRR/octodns-mikrotik
 .. _Mythic Beasts DNS: https://www.mythic-beasts.com/support/hosting/dns
 .. _octodns_mythicbeasts: https://github.com/octodns/octodns-mythicbeasts/
 .. _NetBox-DNS Plugin: https://github.com/peteeckel/netbox-plugin-dns

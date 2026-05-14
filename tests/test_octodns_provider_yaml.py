@@ -16,7 +16,8 @@ from octodns.provider import ProviderException
 from octodns.provider.yaml import SplitYamlProvider, YamlProvider
 from octodns.record import Create, NsValue, Record, ValuesMixin
 from octodns.record.exception import ValidationError
-from octodns.zone import SubzoneRecordException, Zone
+from octodns.zone import Zone
+from octodns.zone.exception import ValidationError as ZoneValidationError
 
 
 def touch(filename):
@@ -324,15 +325,16 @@ www:
 
         # If we add `sub` as a sub-zone we'll reject `www.sub`
         zone = Zone('unit.tests.', ['sub'])
-        with self.assertRaises(SubzoneRecordException) as ctx:
-            source.populate(zone)
+        source.populate(zone)
+        with self.assertRaises(ZoneValidationError) as ctx:
+            zone.validate()
         msg = str(ctx.exception)
-        self.assertTrue(
-            msg.startswith(
-                'Record www.sub.unit.tests. is under a managed subzone'
-            )
+        self.assertIn(
+            'Record www.sub.unit.tests. is under a managed subzone', msg
         )
-        self.assertTrue(msg.endswith('unit.tests.yaml, line 201, column 3'))
+        self.assertIn('unit.tests.yaml', msg)
+        self.assertIn('line 201', msg)
+        self.assertIn('column 3', msg)
 
     def test_SUPPORTS(self):
         source = YamlProvider('test', join(dirname(__file__), 'config'))
@@ -577,6 +579,35 @@ www:
             )
             self.assertIn('- ;', content)
 
+    def test_txt_none_values(self):
+        config_dir = join(dirname(__file__), 'config-txt-none')
+        for escaped_semicolons in (True, False):
+            source = YamlProvider(
+                'test', config_dir, escaped_semicolons=escaped_semicolons
+            )
+
+            # scalar value: null
+            scalar = Zone('scalar.null.', [])
+            with self.assertRaises(ValidationError) as ctx:
+                source.populate(scalar)
+            self.assertEqual(['missing value(s)'], ctx.exception.reasons)
+
+            # values list containing nulls alongside a valid string
+            mixed = Zone('list.with.nulls.', [])
+            with self.assertRaises(ValidationError) as ctx:
+                source.populate(mixed)
+            self.assertEqual(
+                ['missing value(s)', 'missing value(s)'], ctx.exception.reasons
+            )
+
+            # values list that is entirely null
+            all_null = Zone('all.null.', [])
+            with self.assertRaises(ValidationError) as ctx:
+                source.populate(all_null)
+            self.assertEqual(
+                ['missing value(s)', 'missing value(s)'], ctx.exception.reasons
+            )
+
 
 class TestSplitYamlProvider(TestCase):
     def test_list_all_yaml_files(self):
@@ -806,15 +837,16 @@ class TestSplitYamlProvider(TestCase):
 
         # If we add `sub` as a sub-zone we'll reject `www.sub`
         zone = Zone('unit.tests.', ['sub'])
-        with self.assertRaises(SubzoneRecordException) as ctx:
-            source.populate(zone)
+        source.populate(zone)
+        with self.assertRaises(ZoneValidationError) as ctx:
+            zone.validate()
         msg = str(ctx.exception)
-        self.assertTrue(
-            msg.startswith(
-                'Record www.sub.unit.tests. is under a managed subzone'
-            )
+        self.assertIn(
+            'Record www.sub.unit.tests. is under a managed subzone', msg
         )
-        self.assertTrue(msg.endswith('www.sub.yaml, line 3, column 3'))
+        self.assertIn('www.sub.yaml', msg)
+        self.assertIn('line 3', msg)
+        self.assertIn('column 3', msg)
 
     def test_copy(self):
         # going to put some sentinal values in here to ensure, these aren't

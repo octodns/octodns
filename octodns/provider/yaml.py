@@ -351,11 +351,16 @@ class YamlProvider(BaseProvider):
                             'SPF',
                             'TXT',
                         ):
-                            if 'value' in d:
+                            if 'value' in d and d['value'] is not None:
                                 d['value'] = d['value'].replace(';', '\\;')
                             if 'values' in d:
                                 d['values'] = [
-                                    v.replace(';', '\\;') for v in d['values']
+                                    (
+                                        v.replace(';', '\\;')
+                                        if v is not None
+                                        else v
+                                    )
+                                    for v in d['values']
                                 ]
                         if 'ttl' not in d:
                             d['ttl'] = self.default_ttl

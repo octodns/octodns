@@ -250,7 +250,7 @@ class EnsureTrailingDotsTest(TestCase):
         etd = EnsureTrailingDots('test')
 
         zone = Zone('unit.tests.', ['sub'])
-        # A CNAME record under a managed sub-zone would fail add_record
+        # A CNAME record under a managed sub-zone would fail validation
         # without lenient
         record = Record.new(
             zone,
@@ -260,7 +260,7 @@ class EnsureTrailingDotsTest(TestCase):
         )
         zone.add_record(record, lenient=True)
 
-        # Without lenient, this would raise SubzoneRecordException
+        # Without lenient, this would fail validation
         got = etd.process_source_zone(zone, None, lenient=True)
         self.assertEqual('relative.target.', _find(got, 'sub').value)
 
