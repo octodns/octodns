@@ -139,8 +139,17 @@ with a ``.``, label length restrictions, and invalid geo codes on ``dynamic``
 records. When in lenient mode octoDNS will log validation problems at
 ``WARNING`` and try and continue with the configuration or source data as it
 exists. See Lenience_ for more information on the concept and how it can be
-configured. For more targeted control — selectively disabling specific checks
-or adding custom validation rules — see `Validators`_ below.
+configured.
+
+Use ``lenient`` when you want *all* validation errors for a specific record or
+zone converted to warnings — for example when importing legacy data that isn't
+fully compliant and you want to manage it as-is while you clean it up
+incrementally.
+
+Use ``disable_validators`` (see `Disabling built-in validators`_ below) when
+you want to permanently skip a *specific check* across all records of a given
+type — for example if a validator conflicts with your provider's requirements or
+your organisation's conventions.
 
 .. _Lenience: records.rst#lenience
 
@@ -386,6 +395,11 @@ validator for additional record types beyond those listed under ``types``.
 
 Disabling built-in validators
 .............................
+
+Use this when you want to permanently skip a *specific check* across all
+records of a given type. If you instead want to suppress all validation errors
+for a particular record or zone while keeping every check active, use
+``lenient`` (see `lenient`_ above).
 
 Individual built-in validators can be turned off under
 ``manager.validators.record.disable_validators``::
