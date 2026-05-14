@@ -37,6 +37,13 @@ class MailZoneValidator(ZoneValidator):
             raise ValueError(f'Unknown mode "{mode}"')
         self.mode = mode
 
+    def _is_null_mx(self, mx_record):
+        return (
+            len(mx_record.values) == 1
+            and mx_record.values[0].preference == 0
+            and str(mx_record.values[0].exchange) == '.'
+        )
+
     def _validate_mail(
         self,
         zone,
@@ -128,11 +135,7 @@ class MailZoneValidator(ZoneValidator):
                     records,
                 )
             )
-        elif (
-            len(apex_mx_record.values) != 1
-            or apex_mx_record.values[0].preference != 0
-            or str(apex_mx_record.values[0].exchange) != '.'
-        ):
+        elif not self._is_null_mx(apex_mx_record):
             reasons.append(
                 ValidationReason(
                     f'zone "{zone.decoded_name}" disables mail and should have a single Null MX record (0 .)',
@@ -175,11 +178,7 @@ class MailZoneValidator(ZoneValidator):
         return reasons
 
     def _detect_subzone_mode(self, mx_record):
-        if (
-            len(mx_record.values) == 1
-            and mx_record.values[0].preference == 0
-            and str(mx_record.values[0].exchange) == '.'
-        ):
+        if self._is_null_mx(mx_record):
             return 'no-mail'
         return 'mail'
 
@@ -232,11 +231,7 @@ class MailZoneValidator(ZoneValidator):
                     )
                 )
         else:
-            if not (
-                len(mx_record.values) == 1
-                and mx_record.values[0].preference == 0
-                and str(mx_record.values[0].exchange) == '.'
-            ):
+            if not self._is_null_mx(mx_record):
                 reasons.append(
                     ValidationReason(
                         f'"{mx_record.decoded_fqdn}" disables mail and should have a single Null MX record (0 .)',
@@ -271,6 +266,9 @@ class MailZoneValidator(ZoneValidator):
         for record in ([apex_mx_record] if apex_mx_record else []) + [
             r for r in zone.records if r.name != '' and r._type == 'MX'
         ]:
+            if self._is_null_mx(record):
+                continue
+
             if len(record.values) < 2:
                 reasons.append(
                     ValidationReason(
@@ -333,26 +331,27 @@ class MailZoneValidator(ZoneValidator):
                 )
                 if apex_spf_value and apex_spf_value == 'v=spf1 -all':
                     self.log.debug(
-                        'validate: zone=%s, apex_spf_value indicates no-mail'
+                        'validate: zone=%s, apex_spf_value indicates no-mail',
+                        zone.decoded_name,
                     )
                     mode = 'no-mail'
                 elif dmarc_value and dmarc_value == 'v=dmarc1; p=reject;':
                     self.log.debug(
-                        'validate: zone=%s, dmarc_value indicates no-mail'
+                        'validate: zone=%s, dmarc_value indicates no-mail',
+                        zone.decoded_name,
                     )
                     mode = 'no-mail'
-                elif (
-                    apex_mx_record
-                    and len(apex_mx_record.values) == 1
-                    and apex_mx_record.values[0].preference == 0
-                    and apex_mx_record.values[0].exchange == '.'
-                ):
+                elif apex_mx_record and self._is_null_mx(apex_mx_record):
                     self.log.debug(
-                        'validate: zone=%s, apex_mx_record indicates'
+                        'validate: zone=%s, apex_mx_record indicates no-mail',
+                        zone.decoded_name,
                     )
                     mode = 'no-mail'
                 else:
-                    self.log.debug('validate: zone=%s, assuming mail handling')
+                    self.log.debug(
+                        'validate: zone=%s, assuming mail handling',
+                        zone.decoded_name,
+                    )
                     mode = 'mail'
 
         if mode == 'mail':

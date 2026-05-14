@@ -193,13 +193,8 @@ class TestMailZoneValidator(TestCase):
         zone.add_record(dmarc)
 
         v = MailZoneValidator('test', mode='no-mail')
-        # The Null MX has exactly 1 value by design, which always triggers the
-        # MX redundancy check; no-mail-specific validations all pass.
-        reasons = v.validate(zone)
-        self.assertEqual(1, len(reasons))
-        self.assertIn(
-            'should have at least 2 values for redundancy', str(reasons[0])
-        )
+        # All validations pass
+        self.assertEqual([], v.validate(zone))
 
     def test_no_mail_mode_failures(self):
         zone = _make_zone()
@@ -267,7 +262,7 @@ class TestMailZoneValidator(TestCase):
         reasons = v.validate(zone)
         self.assertIn('should have at least 2 values', str(reasons[0]))
 
-        # Auto-detects 'no-mail' via Null MX; redundancy check fires first
+        # Auto-detects 'no-mail' via Null MX
         zone = _make_zone()
         mx = _add_record(
             zone,
@@ -280,10 +275,9 @@ class TestMailZoneValidator(TestCase):
         )
         zone.add_record(mx)
         reasons = v.validate(zone)
-        self.assertIn(
-            'should have at least 2 values for redundancy', str(reasons[0])
-        )
-        self.assertIn('missing strict SPF TXT record', str(reasons[1]))
+        self.assertEqual(2, len(reasons))
+        self.assertIn('missing strict SPF TXT record', str(reasons[0]))
+        self.assertIn('missing strict DMARC TXT record', str(reasons[1]))
 
         # Auto-detects 'no-mail' via strict SPF
         zone = _make_zone()
@@ -455,12 +449,8 @@ class TestMailZoneValidator(TestCase):
             )
         )
         v = MailZoneValidator('test', mode='auto')
-        # Null MX has a single value by design; redundancy check fires as expected
-        reasons = v.validate(zone)
-        self.assertEqual(1, len(reasons))
-        self.assertIn(
-            'should have at least 2 values for redundancy', str(reasons[0])
-        )
+        # All validations pass
+        self.assertEqual([], v.validate(zone))
 
     def test_subzone_no_mail_failures(self):
         # Use auto mode so apex auto-detection finds no apex signals and skips
@@ -480,12 +470,9 @@ class TestMailZoneValidator(TestCase):
             )
         )
         reasons = v.validate(zone)
-        # redundancy + missing strict SPF
-        self.assertEqual(2, len(reasons))
-        self.assertIn(
-            'should have at least 2 values for redundancy', str(reasons[0])
-        )
-        self.assertIn('missing strict SPF TXT record', str(reasons[1]))
+        # missing strict SPF
+        self.assertEqual(1, len(reasons))
+        self.assertIn('missing strict SPF TXT record', str(reasons[0]))
 
         # Wrong SPF value
         zone.add_record(
@@ -500,11 +487,8 @@ class TestMailZoneValidator(TestCase):
             )
         )
         reasons = v.validate(zone)
-        self.assertEqual(2, len(reasons))
-        self.assertIn(
-            'should have at least 2 values for redundancy', str(reasons[0])
-        )
-        self.assertIn('should have a strict SPF TXT record', str(reasons[1]))
+        self.assertEqual(1, len(reasons))
+        self.assertIn('should have a strict SPF TXT record', str(reasons[0]))
 
     def test_explicit_mode_propagates_to_subzones(self):
         # mode='mail': sub-zone with null MX still gets mail-mode SPF check.
@@ -594,13 +578,10 @@ class TestMailZoneValidator(TestCase):
         )
         v = MailZoneValidator('test', mode='mail')
         reasons = v.validate(zone)
-        # redundancy fires on sub null MX; mail-mode SPF missing
-        self.assertEqual(2, len(reasons))
+        # mail-mode SPF missing (null MX is skipped by redundancy check)
+        self.assertEqual(1, len(reasons))
         self.assertIn(
-            'should have at least 2 values for redundancy', str(reasons[0])
-        )
-        self.assertIn(
-            'handles mail but is missing an SPF TXT record', str(reasons[1])
+            'handles mail but is missing an SPF TXT record', str(reasons[0])
         )
 
         # mode='no-mail': sub-zone real MX → null-MX structure check + strict SPF check
@@ -622,13 +603,10 @@ class TestMailZoneValidator(TestCase):
         )
         v = MailZoneValidator('test', mode='no-mail')
         reasons = v.validate(zone)
-        # apex null-MX redundancy + sub null-MX structure failure + sub missing strict SPF
-        self.assertEqual(3, len(reasons))
-        self.assertIn(
-            'should have at least 2 values for redundancy', str(reasons[0])
-        )
-        self.assertIn('should have a single Null MX record', str(reasons[1]))
-        self.assertIn('missing strict SPF TXT record', str(reasons[2]))
+        # sub null-MX structure failure + sub missing strict SPF (apex null-MX redundancy is gone)
+        self.assertEqual(2, len(reasons))
+        self.assertIn('should have a single Null MX record', str(reasons[0]))
+        self.assertIn('missing strict SPF TXT record', str(reasons[1]))
 
         # auto mode: apex no-mail + sub mail coexist cleanly when both are properly configured
         zone = _make_zone()
@@ -659,12 +637,8 @@ class TestMailZoneValidator(TestCase):
             )
         )
         v = MailZoneValidator('test', mode='auto')
-        # only the apex null-MX redundancy warning fires
-        reasons = v.validate(zone)
-        self.assertEqual(1, len(reasons))
-        self.assertIn(
-            'should have at least 2 values for redundancy', str(reasons[0])
-        )
+        # All validations pass (apex null-MX redundancy warning is gone)
+        self.assertEqual([], v.validate(zone))
 
     def test_builtin_registration(self):
         ids = [v.id for v in Zone.validators.available_validators()]
