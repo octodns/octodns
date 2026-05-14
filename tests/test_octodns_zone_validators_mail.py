@@ -82,7 +82,7 @@ class TestMailZoneValidator(TestCase):
         self.assertIn('missing an SPF TXT record', str(reasons[1]))
         self.assertIn('missing a DMARC TXT record', str(reasons[2]))
 
-        # Multiple SPF (Early return)
+        # Multiple SPF — no longer short-circuits; other errors are also reported
         spf = _add_record(
             zone,
             '',
@@ -97,8 +97,10 @@ class TestMailZoneValidator(TestCase):
         )
         zone.add_record(spf)
         reasons = v.validate(zone)
-        self.assertEqual(1, len(reasons))
+        self.assertEqual(3, len(reasons))
         self.assertIn('has multiple SPF values', str(reasons[0]))
+        self.assertIn('missing MX records at the apex', str(reasons[1]))
+        self.assertIn('missing a DMARC TXT record', str(reasons[2]))
 
         # Clear SPF and test Multiple DMARC (Early return)
         zone = _make_zone()
@@ -191,7 +193,13 @@ class TestMailZoneValidator(TestCase):
         zone.add_record(dmarc)
 
         v = MailZoneValidator('test', mode='no-mail')
-        self.assertEqual([], v.validate(zone))
+        # The Null MX has exactly 1 value by design, which always triggers the
+        # MX redundancy check; no-mail-specific validations all pass.
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'should have at least 2 values for redundancy', str(reasons[0])
+        )
 
     def test_no_mail_mode_failures(self):
         zone = _make_zone()
@@ -233,10 +241,13 @@ class TestMailZoneValidator(TestCase):
         zone.add_record(dmarc)
 
         reasons = v.validate(zone)
-        self.assertEqual(3, len(reasons))
-        self.assertIn('should have a single Null MX record', str(reasons[0]))
-        self.assertIn('should have a single strict SPF', str(reasons[1]))
-        self.assertIn('should have a DMARC TXT record with', str(reasons[2]))
+        self.assertEqual(4, len(reasons))
+        self.assertIn(
+            'should have at least 2 values for redundancy', str(reasons[0])
+        )
+        self.assertIn('should have a single Null MX record', str(reasons[1]))
+        self.assertIn('should have a single strict SPF', str(reasons[2]))
+        self.assertIn('should have a DMARC TXT record with', str(reasons[3]))
 
     def test_auto_mode(self):
         v = MailZoneValidator('test', mode='auto')
@@ -256,7 +267,7 @@ class TestMailZoneValidator(TestCase):
         reasons = v.validate(zone)
         self.assertIn('should have at least 2 values', str(reasons[0]))
 
-        # Auto-detects 'no-mail' via Null MX
+        # Auto-detects 'no-mail' via Null MX; redundancy check fires first
         zone = _make_zone()
         mx = _add_record(
             zone,
@@ -269,7 +280,10 @@ class TestMailZoneValidator(TestCase):
         )
         zone.add_record(mx)
         reasons = v.validate(zone)
-        self.assertIn('missing strict SPF TXT record', str(reasons[0]))
+        self.assertIn(
+            'should have at least 2 values for redundancy', str(reasons[0])
+        )
+        self.assertIn('missing strict SPF TXT record', str(reasons[1]))
 
         # Auto-detects 'no-mail' via strict SPF
         zone = _make_zone()
@@ -290,6 +304,25 @@ class TestMailZoneValidator(TestCase):
         zone.add_record(dmarc)
         reasons = v.validate(zone)
         self.assertIn('missing a Null MX record', str(reasons[0]))
+
+        # Non-apex MX alone does NOT trigger mail mode detection; only the
+        # redundancy check fires, not full mail/no-mail validation.
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            'sub',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [{'preference': 10, 'exchange': 'mail.unit.tests.'}],
+            },
+        )
+        zone.add_record(mx)
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'should have at least 2 values for redundancy', str(reasons[0])
+        )
 
         # No-op with no signs
         zone = _make_zone()

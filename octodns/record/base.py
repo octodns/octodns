@@ -121,7 +121,11 @@ class ValuesTypeValidator(RecordValidator):
 
     def validate(self, record_cls, name, fqdn, data):
         values = data.get('values', data.get('value', []))
-        values = values if isinstance(values, (list, tuple)) else [values]
+        values = (
+            values
+            if isinstance(values, (list, tuple))
+            else ([] if values is None else [values])
+        )
         return _process_value_validators(
             record_cls._value_type, values, record_cls._type
         )

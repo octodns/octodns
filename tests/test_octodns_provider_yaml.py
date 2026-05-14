@@ -579,6 +579,35 @@ www:
             )
             self.assertIn('- ;', content)
 
+    def test_txt_none_values(self):
+        config_dir = join(dirname(__file__), 'config-txt-none')
+        for escaped_semicolons in (True, False):
+            source = YamlProvider(
+                'test', config_dir, escaped_semicolons=escaped_semicolons
+            )
+
+            # scalar value: null
+            scalar = Zone('scalar.null.', [])
+            with self.assertRaises(ValidationError) as ctx:
+                source.populate(scalar)
+            self.assertEqual(['missing value(s)'], ctx.exception.reasons)
+
+            # values list containing nulls alongside a valid string
+            mixed = Zone('list.with.nulls.', [])
+            with self.assertRaises(ValidationError) as ctx:
+                source.populate(mixed)
+            self.assertEqual(
+                ['missing value(s)', 'missing value(s)'], ctx.exception.reasons
+            )
+
+            # values list that is entirely null
+            all_null = Zone('all.null.', [])
+            with self.assertRaises(ValidationError) as ctx:
+                source.populate(all_null)
+            self.assertEqual(
+                ['missing value(s)', 'missing value(s)'], ctx.exception.reasons
+            )
+
 
 class TestSplitYamlProvider(TestCase):
     def test_list_all_yaml_files(self):
