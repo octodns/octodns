@@ -62,6 +62,10 @@ where zones share config, but not records.::
   manager:
     include_meta: True
     max_workers: 2
+    validators:
+      enabled:
+        - strict
+        - best-practice
 
   providers:
     config:
@@ -135,8 +139,17 @@ with a ``.``, label length restrictions, and invalid geo codes on ``dynamic``
 records. When in lenient mode octoDNS will log validation problems at
 ``WARNING`` and try and continue with the configuration or source data as it
 exists. See Lenience_ for more information on the concept and how it can be
-configured. For more targeted control — selectively disabling specific checks
-or adding custom validation rules — see `Validators`_ below.
+configured.
+
+Use ``lenient`` when you want *all* validation errors for a specific record or
+zone converted to warnings — for example when importing legacy data that isn't
+fully compliant and you want to manage it as-is while you clean it up
+incrementally.
+
+Use ``disable_validators`` (see `Disabling built-in validators`_ below) when
+you want to permanently skip a *specific check* across all records of a given
+type — for example if a validator conflicts with your provider's requirements or
+your organisation's conventions.
 
 .. _Lenience: records.rst#lenience
 
@@ -149,28 +162,29 @@ before any changes are applied. The validator system supports: enabling
 validator sets, adding custom validators, disabling individual validators,
 and registering validators programmatically from third-party code.
 
-Validator sets and ``manager.enabled``
-.......................................
+Validator sets and ``manager.validators.enabled``
+.................................................
 
-Validators belong to named *sets*. ``manager.enabled`` controls which sets
-are active for a run (default: ``['legacy']``)::
-
-  manager:
-    enabled:
-      - legacy
-
-Omitting ``manager.enabled`` is equivalent to ``enabled: [legacy]`` and
-preserves the original octoDNS behaviour. The ``legacy`` set will remain
-the default until a future release when ``strict`` and ``best-practice``
-take over as the defaults.
-
-To migrate to stricter validation, replace ``legacy`` with ``strict`` and
-add ``best-practice``::
+Validators belong to named *sets*. ``manager.validators.enabled`` controls
+which sets are active for a run (default: ``['legacy']``)::
 
   manager:
-    enabled:
-      - strict
-      - best-practice
+    validators:
+      enabled:
+        - legacy
+
+Omitting ``manager.validators.enabled`` is equivalent to
+``enabled: [legacy]`` and preserves the original octoDNS behaviour. The
+``legacy`` set will remain the default until 2.x when ``strict`` and
+``best-practice`` become the defaults.
+
+The recommended configuration is to opt in now::
+
+  manager:
+    validators:
+      enabled:
+        - strict
+        - best-practice
 
 The ``strict`` set contains stricter validators that supersede their
 ``legacy`` counterparts — use one or the other, not both, to avoid redundant
@@ -182,7 +196,7 @@ recommendations (rather than RFC requirements) and is independent of
 ``strict`` and ``best-practice`` together.
 
 A validator can belong to multiple sets; it becomes active when any of its
-sets is listed in ``manager.enabled``.
+sets is listed in ``manager.validators.enabled``.
 
 Setting ``enabled: []`` activates only validators whose ``sets`` is ``None``
 (see `Attaching validators programmatically`_ below).
@@ -302,8 +316,9 @@ Validators active in ``strict`` only (stricter replacements):
 To opt into all strict validators at once::
 
   manager:
-    enabled:
-      - strict
+    validators:
+      enabled:
+        - strict
 
 Validators active in ``best-practice`` only:
 
@@ -344,11 +359,12 @@ Validators active in ``best-practice`` only that check the entire zone:
 The recommended configuration is to enable both sets::
 
   manager:
-    enabled:
-      - strict
-      - best-practice
+    validators:
+      enabled:
+        - strict
+        - best-practice
 
-In a future release ``strict`` and ``best-practice`` will become the default sets.
+In 2.x ``strict`` and ``best-practice`` will become the default sets.
 
 Adding validators via config
 ............................
@@ -380,15 +396,22 @@ validator for additional record types beyond those listed under ``types``.
 Disabling built-in validators
 .............................
 
+Use this when you want to permanently skip a *specific check* across all
+records of a given type. If you instead want to suppress all validation errors
+for a particular record or zone while keeping every check active, use
+``lenient`` (see `lenient`_ above).
+
 Individual built-in validators can be turned off under
-``manager.disable_validators``::
+``manager.validators.record.disable_validators``::
 
   manager:
-    disable_validators:
-      '*':
-        - healthcheck
-      MX:
-        - mx-value
+    validators:
+      record:
+        disable_validators:
+          '*':
+            - healthcheck
+          MX:
+            - mx-value
 
 ``'*'`` removes the validator from every record type; a type string removes it
 only for that type. Bridge validators (``_``-prefixed ids) cannot be disabled
