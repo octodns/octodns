@@ -13,27 +13,6 @@ from .exception import ValidationError
 from .validator import ZoneValidatorRegistry
 
 
-class SubzoneRecordException(Exception):
-    '''
-    Exception raised when a record belongs in a sub-zone but is added to the parent.
-
-    This exception is raised when attempting to add a record to a zone that
-    should actually be managed in a configured sub-zone. Only NS and DS records
-    are allowed at the sub-zone boundary.
-
-    :param record: The record that caused the exception.
-    :type record: octodns.record.base.Record
-    '''
-
-    def __init__(self, msg, record):
-        self.record = record
-
-        if record.context:
-            msg += f', {record.context}'
-
-        super().__init__(msg)
-
-
 class DuplicateRecordException(Exception):
     '''
     Exception raised when attempting to add a duplicate record to a zone.
@@ -65,27 +44,6 @@ class DuplicateRecordException(Exception):
             # only new has context
             msg += f'\n  existing: [UNKNOWN]\n  new:      {new.context}'
         # else no one has context
-
-        super().__init__(msg)
-
-
-class InvalidNodeException(Exception):
-    '''
-    Exception raised when CNAME records coexist with other records at a node.
-
-    Per DNS standards, CNAME records cannot coexist with other record types
-    at the same node. This exception is raised when such an invalid
-    configuration is detected.
-
-    :param record: The record that caused the exception.
-    :type record: octodns.record.base.Record
-    '''
-
-    def __init__(self, msg, record):
-        self.record = record
-
-        if record.context:
-            msg += f', {record.context}'
 
         super().__init__(msg)
 
@@ -133,6 +91,7 @@ class Zone(object):
       zone = Zone('example.com.', [])
       record = Record.new(zone, 'www', {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'})
       zone.add_record(record)
+      zone.validate()
 
       # Create a shallow copy
       copy = zone.copy()
@@ -446,13 +405,8 @@ class Zone(object):
                         data that may not be standards-compliant.
         :type lenient: bool
 
-        :raises SubzoneRecordException: If the record belongs in a configured
-                                        sub-zone (unless it's an NS/DS record
-                                        at the boundary).
         :raises DuplicateRecordException: If a record with the same name and type
                                           already exists and ``replace=False``.
-        :raises InvalidNodeException: If adding the record would create an
-                                      invalid CNAME coexistence situation.
 
         .. important::
            - Automatically hydrates shallow copies on first modification
@@ -465,41 +419,34 @@ class Zone(object):
             self.hydrate()
 
         name = record.name
-        new_lenient = record.lenient
 
-        if name in self.sub_zones:
-            # It's an exact match for a sub-zone
-            if not (record._type == 'NS' or record._type == 'DS'):
-                # and not a NS or DS record, this should be in the sub
-                msg = f'Record {record.fqdn} is a managed sub-zone and not of type NS or DS'
-                if lenient or new_lenient:
-                    self.log.warning(msg)
-                elif self.ignore_subzone_adds:
-                    self.log.debug(f'{msg}, ignore.')
+        if self.ignore_subzone_adds and not record.lenient and not lenient:
+            if name in self.sub_zones:
+                # It's an exact match for a sub-zone
+                if record._type not in ('NS', 'DS'):
+                    # and not a NS or DS record, this should be in the sub
+                    self.log.debug(
+                        'add_record: %s is a managed sub-zone and not of type NS or DS, ignore.',
+                        record.fqdn,
+                    )
                     return
-                else:
-                    raise SubzoneRecordException(msg, record)
-        else:
-            # It's not an exact match so there has to be a `.` before the
-            # sub-zone for it to belong in there
-            for sub_zone in self.sub_zones:
-                if name.endswith(f'.{sub_zone}'):
-                    # this should be in a sub
-                    msg = f'Record {record.fqdn} is under a managed subzone'
-                    if lenient or new_lenient:
-                        self.log.warning(msg)
-                    elif self.ignore_subzone_adds:
-                        self.log.debug(f'{msg}, ignore.')
+            else:
+                # It's not an exact match so there has to be a `.` before the
+                # sub-zone for it to belong in there
+                for sub_zone in self.sub_zones:
+                    if name.endswith(f'.{sub_zone}'):
+                        # this should be in a sub
+                        self.log.debug(
+                            'add_record: %s is under a managed subzone, ignore.',
+                            record.fqdn,
+                        )
                         return
-                    else:
-                        raise SubzoneRecordException(msg, record)
 
         if replace:
             # will remove it if it exists
             self._records[name].discard(record)
 
         node = self._records[name]
-        existing_lenient = all(r.lenient for r in node)
         if record in node:
             # We already have a record at this node of this type
             existing = [c for c in node if c == record][0]
@@ -508,20 +455,6 @@ class Zone(object):
                 existing,
                 record,
             )
-        elif (record._type == 'CNAME' and len(node) > 0) or (
-            'CNAME' in [r._type for r in node]
-        ):
-            # We're adding a CNAME to existing records or adding to an existing CNAME
-            msg = f'Invalid state, CNAME at {record.fqdn} cannot coexist with other records'
-            if (
-                # add was not called with lenience
-                not lenient
-                # existing and new records aren't lenient
-                and not (existing_lenient and new_lenient)
-            ):
-                raise InvalidNodeException(msg, record)
-            else:
-                self.log.warning(msg)
 
         if record._type == 'NS' and record.name == '':
             self._root_ns = record
