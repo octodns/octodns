@@ -669,6 +669,39 @@ class TestMailZoneValidator(TestCase):
         # All validations pass (apex null-MX redundancy warning is gone)
         self.assertEqual([], v.validate(zone))
 
+    def test_null_mx_skips_redundancy_check(self):
+        # Explicitly verify that Null MX records skip the redundancy check.
+        # This is a regression test for the case where we want to ensure
+        # that the 2-value minimum requirement is bypassed for Null MX.
+        zone = _make_zone()
+        # Null MX
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [{'preference': 0, 'exchange': '.'}],
+            },
+        )
+        zone.add_record(mx)
+        # Strict SPF
+        spf = _add_record(
+            zone, '', {'ttl': 300, 'type': 'TXT', 'values': ['v=spf1 -all']}
+        )
+        zone.add_record(spf)
+        # Strict DMARC
+        dmarc = _add_record(
+            zone,
+            '_dmarc',
+            {'ttl': 300, 'type': 'TXT', 'values': ['v=DMARC1; p=reject;']},
+        )
+        zone.add_record(dmarc)
+
+        v = MailZoneValidator('test', mode='no-mail')
+        # All validations pass, specifically no redundancy warning for the single MX value
+        self.assertEqual([], v.validate(zone))
+
     def test_builtin_registration(self):
         ids = [v.id for v in Zone.validators.available_validators()]
         self.assertIn('mail', ids)
