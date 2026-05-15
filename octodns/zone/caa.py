@@ -6,9 +6,9 @@ from .base import Zone
 from .validator import ValidationReason, ZoneValidator
 
 
-class ApexCaaPresenceZoneValidator(ZoneValidator):
+class CaaZoneValidator(ZoneValidator):
     """
-    Comprehensive best-practice validator for CAA records at the zone apex.
+    Comprehensive best-practice validator for CAA records.
 
     Checks:
 
@@ -27,11 +27,38 @@ class ApexCaaPresenceZoneValidator(ZoneValidator):
        suggests including an ``iodef`` tag so CAs can report abnormal or
        unauthorized certificate issuance attempts.
 
+    Can operate in two modes: 'optional' (default) and 'required'. In 'optional'
+    mode, the validator only runs if CAA records are present. In 'required'
+    mode, a CAA record MUST be present at the zone apex.
+
+    Regardless of mode, if CAA records are found (at the apex or at sub-domains)
+    they will be validated against best practices.
+
     Enabled as part of the ``best-practice`` validator set::
 
       manager:
         enabled:
           - best-practice
+
+    Examples:
+
+    Common configuration for Let's Encrypt::
+
+      - flags: 0
+        tag: issue
+        value: letsencrypt.org
+      - flags: 0
+        tag: issuewild
+        value: letsencrypt.org
+      - flags: 0
+        tag: iodef
+        value: mailto:security@example.com
+
+    Configuration for non-issuance (restricting all issuance)::
+
+      - flags: 0
+        tag: issue
+        value: ";"
 
     References:
 
@@ -39,11 +66,17 @@ class ApexCaaPresenceZoneValidator(ZoneValidator):
     - https://datatracker.ietf.org/doc/html/rfc9495
     """
 
+    def __init__(self, id, presence='optional', sets=None):
+        super().__init__(id, sets=sets)
+        if presence not in ('optional', 'required'):
+            raise ValueError(f'Unknown presence "{presence}"')
+        self.presence = presence
+
     def validate(self, zone):
         reasons = []
 
-        apex_records = zone.get('', type='CAA')
-        if not apex_records:
+        apex_caa = zone.get_type('', 'CAA')
+        if not apex_caa and self.presence == 'required':
             reasons.append(
                 ValidationReason(
                     f'zone "{zone.decoded_name}" has no CAA records at the '
@@ -51,55 +84,55 @@ class ApexCaaPresenceZoneValidator(ZoneValidator):
                     set(),
                 )
             )
-            return reasons
 
-        # Collect all tags from all apex CAA record values.
-        tags = set()
-        for record in apex_records:
-            for value in record.values:
-                tags.add(value.tag)
+        # Collect all CAA records in the zone.
+        caa_records = [r for r in zone.records if r._type == 'CAA']
 
-        has_issue = 'issue' in tags
-        has_issuewild = 'issuewild' in tags
-        has_iodef = 'iodef' in tags
+        for record in caa_records:
+            # Collect all tags from all record values.
+            tags = {value.tag for value in record.values}
 
-        # Check 1: must have at least one issuance policy
-        if not has_issue and not has_issuewild:
-            reasons.append(
-                ValidationReason(
-                    f'zone "{zone.decoded_name}" CAA apex has no ``issue`` '
-                    'or ``issuewild`` record; having only ``iodef`` means any '
-                    'CA can issue certificates',
-                    apex_records,
+            has_issue = 'issue' in tags
+            has_issuewild = 'issuewild' in tags
+            has_iodef = 'iodef' in tags
+
+            # Check 1: must have at least one issuance policy
+            if not has_issue and not has_issuewild:
+                reasons.append(
+                    ValidationReason(
+                        f'CAA record "{record.fqdn}" has no ``issue`` '
+                        'or ``issuewild`` tag; having only ``iodef`` means any '
+                        'CA can issue certificates',
+                        [record],
+                    )
                 )
-            )
 
-        # Check 2: if issue exists without issuewild, recommend explicit
-        # wildcard policy
-        if has_issue and not has_issuewild:
-            reasons.append(
-                ValidationReason(
-                    f'zone "{zone.decoded_name}" CAA apex has ``issue`` but '
-                    'no ``issuewild``; consider adding an explicit '
-                    '``issuewild`` to define wildcard certificate policy',
-                    apex_records,
+            # Check 2: if issue exists without issuewild, recommend explicit
+            # wildcard policy
+            if has_issue and not has_issuewild:
+                reasons.append(
+                    ValidationReason(
+                        f'CAA record "{record.fqdn}" has ``issue`` but '
+                        'no ``issuewild``; consider adding an explicit '
+                        '``issuewild`` to define wildcard certificate policy',
+                        [record],
+                    )
                 )
-            )
 
-        # Check 3: recommend iodef for incident reporting
-        if not has_iodef:
-            reasons.append(
-                ValidationReason(
-                    f'zone "{zone.decoded_name}" CAA apex has no ``iodef`` '
-                    'record; consider adding one so CAs can report abnormal or '
-                    'unauthorized issuance',
-                    apex_records,
+            # Check 3: recommend iodef for incident reporting
+            if not has_iodef:
+                reasons.append(
+                    ValidationReason(
+                        f'CAA record "{record.fqdn}" has no ``iodef`` '
+                        'tag; consider adding one so CAs can report abnormal '
+                        'or unauthorized issuance',
+                        [record],
+                    )
                 )
-            )
 
         return reasons
 
 
 Zone.register_zone_validator(
-    ApexCaaPresenceZoneValidator('apex-caa-presence', sets={'best-practice'})
+    CaaZoneValidator('caa-best-practices', sets={'best-practice'})
 )

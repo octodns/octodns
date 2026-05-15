@@ -3,7 +3,7 @@
 #
 
 from .base import DuplicateRecordException, InvalidNameError, Zone
-from .caa import ApexCaaPresenceZoneValidator
+from .caa import CaaZoneValidator
 from .cname import CnameCoexistenceValidator
 from .cname_loops import NoCnameLoopZoneValidator
 from .mail import MailZoneValidator
@@ -14,6 +14,6 @@ DuplicateRecordException
 InvalidNameError
 MailZoneValidator
 NoCnameLoopZoneValidator
-ApexCaaPresenceZoneValidator
+CaaZoneValidator
 SubzoneRecordValidator
 Zone
