@@ -9,6 +9,7 @@ from octodns.zone import Zone
 from octodns.zone.ns import (
     GlueForInZoneNsZoneValidator,
     MultiValueNsZoneValidator,
+    NsTargetNotCnameZoneValidator,
 )
 
 
@@ -117,3 +118,76 @@ class TestMultiValueNsZoneValidator(TestCase):
         self.assertIn('sub.unit.tests.', str(reasons[0]))
         self.assertIn('unit.tests.', str(reasons[1]))
         self.assertEqual({ns_sub}, reasons[0].records)
+
+
+class TestNsTargetNotCnameZoneValidator(TestCase):
+    def test_empty_zone(self):
+        v = NsTargetNotCnameZoneValidator('test')
+        zone = _make_zone()
+        self.assertEqual([], v.validate(zone))
+
+    def test_out_of_zone_target(self):
+        v = NsTargetNotCnameZoneValidator('test')
+        zone = _make_zone()
+        ns = _add_record(
+            zone, '', {'type': 'NS', 'values': ['ns1.other.tests.']}
+        )
+        zone.add_record(ns)
+        self.assertEqual([], v.validate(zone))
+
+    def test_in_zone_target_no_cname(self):
+        v = NsTargetNotCnameZoneValidator('test')
+        zone = _make_zone()
+        ns = _add_record(
+            zone, 'sub', {'type': 'NS', 'values': ['ns1.unit.tests.']}
+        )
+        zone.add_record(ns)
+        a = _add_record(zone, 'ns1', {'type': 'A', 'values': ['1.2.3.4']})
+        zone.add_record(a)
+        self.assertEqual([], v.validate(zone))
+
+    def test_in_zone_target_is_cname(self):
+        v = NsTargetNotCnameZoneValidator('test')
+        zone = _make_zone()
+        ns = _add_record(
+            zone, 'sub', {'type': 'NS', 'values': ['ns1.unit.tests.']}
+        )
+        zone.add_record(ns)
+        cname = _add_record(
+            zone, 'ns1', {'type': 'CNAME', 'value': 'real.unit.tests.'}
+        )
+        zone.add_record(cname)
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('NS record "sub.unit.tests."', str(reasons[0]))
+        self.assertIn('ns1.unit.tests.', str(reasons[0]))
+        self.assertIn('is a CNAME', str(reasons[0]))
+        self.assertEqual({ns}, reasons[0].records)
+
+    def test_multiple_targets_mixed(self):
+        v = NsTargetNotCnameZoneValidator('test')
+        zone = _make_zone()
+        ns = _add_record(
+            zone,
+            'sub',
+            {'type': 'NS', 'values': ['ns1.unit.tests.', 'ns2.unit.tests.']},
+        )
+        zone.add_record(ns)
+        cname = _add_record(
+            zone, 'ns1', {'type': 'CNAME', 'value': 'real.unit.tests.'}
+        )
+        zone.add_record(cname)
+        a = _add_record(zone, 'ns2', {'type': 'A', 'values': ['1.2.3.4']})
+        zone.add_record(a)
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('ns1.unit.tests.', str(reasons[0]))
+
+    def test_builtin_registration(self):
+        ids = [v.id for v in Zone.validators.available_validators()]
+        self.assertIn('ns-target-not-cname', ids)
+
+    def test_builtins_in_strict_set(self):
+        Zone.enable_zone_validators({'strict'})
+        active_ids = [v.id for v in Zone.validators.registered()]
+        self.assertIn('ns-target-not-cname', active_ids)
