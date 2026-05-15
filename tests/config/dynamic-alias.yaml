@@ -1,0 +1,21 @@
+manager:
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+
+zones:
+  subzone.unit.tests.:
+    sources:
+    - in
+    targets:
+    - dump
+
+  '*':
+    alias: subzone.unit.tests.
+    regex: '^unit.tests\.$'
+    targets:
+    - dump

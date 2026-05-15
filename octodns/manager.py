@@ -863,9 +863,26 @@ class Manager(object):
                 continue
 
             # it's dynamic, get a list of zone names from the configured sources
+            dynamic_sources = config.get('sources')
+            if not dynamic_sources:
+                # no sources for this dynamic zone, check if it's an alias
+                alias = config.get('alias')
+                if alias:
+                    # it is an alias, we'll use the sources from the aliased
+                    # zone
+                    try:
+                        dynamic_sources = zones[alias]['sources']
+                    except KeyError:
+                        # this will be caught and handled later in sync, for
+                        # now we'll just move on
+                        pass
+
             found_sources = sources or self._get_sources(
-                name, config, eligible_sources
+                name, {'sources': dynamic_sources}, eligible_sources
             )
+            if not found_sources:
+                continue
+
             self.log.info(
                 '_preprocess_zones: dynamic zone=%s, sources=%s',
                 name,

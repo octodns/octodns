@@ -1889,6 +1889,45 @@ class TestManager(TestCase):
             manager.sync()
         self.assertIn('does not support `list_zones`', str(ctx.exception))
 
+    def test_dynamic_config_alias(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+
+            manager = Manager(get_config_filename('dynamic-alias.yaml'))
+
+            # subzone.unit.tests. has 3 records.
+            # *.alias should find subzone.unit.tests. and create an alias for
+            # it, which should also have 3 records.
+            # Total 6 changes.
+            self.assertEqual(6, manager.sync(dry_run=False))
+
+    def test_dynamic_config_alias_missing_sources(self):
+        manager = Manager(
+            get_config_filename('dynamic-alias-missing-sources.yaml')
+        )
+        # This will raise ManagerException because sources will be None
+        # eventually, hitting the pass in except KeyError and the continue
+        # if not found_sources
+        with self.assertRaises(ManagerException) as ctx:
+            manager.sync()
+        self.assertIn('is missing sources', str(ctx.exception))
+
+    def test_dynamic_config_no_sources_no_alias(self):
+        manager = Manager(
+            get_config_filename('dynamic-no-sources-no-alias.yaml')
+        )
+        with self.assertRaises(ManagerException) as ctx:
+            manager.sync()
+        self.assertIn('is missing sources', str(ctx.exception))
+
+    def test_dynamic_config_eligible_sources_filtering(self):
+        manager = Manager(
+            get_config_filename('dynamic-eligible-sources-filtering.yaml')
+        )
+        # 'other' is not in the dynamic zone's sources, so _get_sources
+        # returns None, hitting the continue
+        manager.sync(eligible_sources=['other'])
+
     def test_build_kwargs(self):
         manager = Manager(get_config_filename('simple.yaml'))
 

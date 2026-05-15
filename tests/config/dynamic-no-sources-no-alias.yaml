@@ -1,0 +1,9 @@
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+zones:
+  "*":
+    # no sources, no alias
+    targets:
+      - in
