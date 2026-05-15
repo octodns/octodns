@@ -387,4 +387,36 @@ class MailZoneValidator(ZoneValidator):
         return reasons
 
 
+class MxTargetNotCnameZoneValidator(ZoneValidator):
+    '''
+    Checks that MX records do not point to exchanges that are CNAMEs within
+    the same zone. Per RFC 2181 §10.3, the MX exchange must be an A/AAAA
+    record, not a CNAME.
+    '''
+
+    def validate(self, zone):
+        reasons = []
+        for record in zone.records:
+            if record._type == 'MX':
+                for value in record.values:
+                    target = value.exchange
+                    if target == '.':
+                        continue
+                    if zone.owns('CNAME', target):
+                        hostname = zone.hostname_from_fqdn(target)
+                        cnames = zone.get(hostname, type='CNAME')
+                        if cnames:
+                            reasons.append(
+                                ValidationReason(
+                                    f'MX record "{record.fqdn}" points to exchange "{target}" which is a CNAME',
+                                    [record],
+                                )
+                            )
+        return reasons
+
+
+Zone.register_zone_validator(
+    MxTargetNotCnameZoneValidator('mx-target-not-cname', sets={'strict'})
+)
+
 Zone.register_zone_validator(MailZoneValidator('mail', sets={'best-practice'}))
