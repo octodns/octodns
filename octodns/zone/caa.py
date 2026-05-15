@@ -14,18 +14,12 @@ class CaaZoneValidator(ZoneValidator):
 
     1. **Presence of ``issue`` or ``issuewild``** — At least one CAA record
        must contain an ``issue`` or ``issuewild`` tag to explicitly authorize
-       which Certificate Authorities may issue certificates. Having only
-       ``iodef`` (incident reporting) without any issuance policy means *any*
-       CA can issue certificates for the domain.
+       which Certificate Authorities may issue certificates.
 
     2. **Explicit wildcard policy** — If an ``issue`` tag is present but no
        ``issuewild`` tag exists, wildcard certificate issuance falls back to
        the ``issue`` policy. This validator recommends adding an explicit
        ``issuewild`` record to make the wildcard-issuance policy clear.
-
-    3. **Incident reporting (``iodef``) recommendation** — Best practice
-       suggests including an ``iodef`` tag so CAs can report abnormal or
-       unauthorized certificate issuance attempts.
 
     Can operate in two modes: 'optional' (default) and 'required'. In 'optional'
     mode, the validator only runs if CAA records are present. In 'required'
@@ -50,9 +44,6 @@ class CaaZoneValidator(ZoneValidator):
       - flags: 0
         tag: issuewild
         value: letsencrypt.org
-      - flags: 0
-        tag: iodef
-        value: mailto:security@example.com
 
     Configuration for non-issuance (restricting all issuance)::
 
@@ -94,7 +85,6 @@ class CaaZoneValidator(ZoneValidator):
 
             has_issue = 'issue' in tags
             has_issuewild = 'issuewild' in tags
-            has_iodef = 'iodef' in tags
 
             # Check 1: must have at least one issuance policy
             if not has_issue and not has_issuewild:
@@ -115,17 +105,6 @@ class CaaZoneValidator(ZoneValidator):
                         f'CAA record "{record.fqdn}" has ``issue`` but '
                         'no ``issuewild``; consider adding an explicit '
                         '``issuewild`` to define wildcard certificate policy',
-                        [record],
-                    )
-                )
-
-            # Check 3: recommend iodef for incident reporting
-            if not has_iodef:
-                reasons.append(
-                    ValidationReason(
-                        f'CAA record "{record.fqdn}" has no ``iodef`` '
-                        'tag; consider adding one so CAs can report abnormal '
-                        'or unauthorized issuance',
                         [record],
                     )
                 )

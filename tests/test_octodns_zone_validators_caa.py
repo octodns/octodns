@@ -91,8 +91,7 @@ class TestCaaZoneValidator(TestCase):
         zone.add_record(caa)
         v = CaaZoneValidator('test')
         reasons = v.validate(zone)
-        self.assertEqual(1, len(reasons))
-        self.assertIn('has no ``iodef`` tag', reasons[0].reason)
+        self.assertEqual([], reasons)
 
     def test_full_compliance_all_pass(self):
         """issue + issuewild + iodef present — fully compliant."""
@@ -122,8 +121,8 @@ class TestCaaZoneValidator(TestCase):
         v = CaaZoneValidator('test')
         self.assertEqual([], v.validate(zone))
 
-    def test_only_issue_recommends_issuewild_and_iodef(self):
-        """Only issue triggers missing-issuewild + missing-iodef."""
+    def test_only_issue_recommends_issuewild(self):
+        """Only issue triggers missing-issuewild."""
         zone = _make_zone()
         caa = _add_record(
             zone,
@@ -141,9 +140,8 @@ class TestCaaZoneValidator(TestCase):
         zone.add_record(caa)
         v = CaaZoneValidator('test')
         reasons = v.validate(zone)
-        self.assertEqual(2, len(reasons))
+        self.assertEqual(1, len(reasons))
         self.assertIn('has ``issue`` but no ``issuewild``', reasons[0].reason)
-        self.assertIn('has no ``iodef`` tag', reasons[1].reason)
 
     def test_subdomain_caa_validation(self):
         """Validates that CAA records on subdomains are also checked."""
@@ -166,15 +164,11 @@ class TestCaaZoneValidator(TestCase):
         zone.add_record(caa)
         v = CaaZoneValidator('test')
         reasons = v.validate(zone)
-        # Should have warnings for missing issuewild and iodef at sub.unit.tests.
-        self.assertEqual(2, len(reasons))
+        # Should have warnings for missing issuewild at sub.unit.tests.
+        self.assertEqual(1, len(reasons))
         self.assertIn(
             'CAA record "sub.unit.tests." has ``issue`` but no ``issuewild``',
             reasons[0].reason,
-        )
-        self.assertIn(
-            'CAA record "sub.unit.tests." has no ``iodef`` tag',
-            reasons[1].reason,
         )
 
     def test_invalid_presence_mode_raises(self):
