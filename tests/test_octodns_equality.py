@@ -8,20 +8,21 @@ from octodns.equality import EqualityTupleMixin
 
 
 class TestEqualityTupleMixin(TestCase):
+    class Simple(EqualityTupleMixin):
+        def __init__(self, a, b, c):
+            self.a = a
+            self.b = b
+            self.c = c
+
+        def _equality_tuple(self):
+            return (self.a, self.b)
+
     def test_basics(self):
-        class Simple(EqualityTupleMixin):
-            def __init__(self, a, b, c):
-                self.a = a
-                self.b = b
-                self.c = c
 
-            def _equality_tuple(self):
-                return (self.a, self.b)
-
-        one = Simple(1, 2, 3)
-        same = Simple(1, 2, 3)
-        matches = Simple(1, 2, 'ignored')
-        doesnt = Simple(2, 3, 4)
+        one = self.Simple(1, 2, 3)
+        same = self.Simple(1, 2, 3)
+        matches = self.Simple(1, 2, 'ignored')
+        doesnt = self.Simple(2, 3, 4)
 
         # equality
         self.assertEqual(one, one)
@@ -59,3 +60,17 @@ class TestEqualityTupleMixin(TestCase):
 
         with self.assertRaises(NotImplementedError):
             MissingMethod() == MissingMethod()
+
+    def test_mismatched(self):
+        class NoEquality:
+            pass
+
+        has = self.Simple(1, 2, 3)
+        doesnt = NoEquality()
+
+        self.assertEqual(has.__eq__(doesnt), NotImplemented)
+        self.assertEqual(has.__ne__(doesnt), NotImplemented)
+        self.assertEqual(has.__lt__(doesnt), NotImplemented)
+        self.assertEqual(has.__le__(doesnt), NotImplemented)
+        self.assertEqual(has.__gt__(doesnt), NotImplemented)
+        self.assertEqual(has.__ge__(doesnt), NotImplemented)

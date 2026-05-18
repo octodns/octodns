@@ -5,7 +5,7 @@
 from unittest import TestCase
 
 from octodns.record import Record
-from octodns.record.change import Create, Delete, Update
+from octodns.record.change import Change, Create, Delete, Update
 from octodns.zone import Zone
 
 
@@ -90,3 +90,22 @@ class TestChanges(TestCase):
             ],
             sorted(changes),
         )
+
+    def test_constructor(self):
+        with self.assertRaises(ValueError) as ctx:
+            Change(None, None)
+        self.assertEqual(
+            'Either existing or new must be provided', str(ctx.exception)
+        )
+
+    def test_equality(self):
+        create = Create(self.record_aaaa_1)
+        delete = Delete(self.record_aaaa_1)
+        other = tuple()
+
+        self.assertEqual(create, create)
+        self.assertNotEqual(create, delete)
+        self.assertFalse(create.__eq__(other))
+
+        # smoke test hash
+        self.assertTrue(hash(create))

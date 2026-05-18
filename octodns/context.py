@@ -2,8 +2,19 @@
 #
 #
 
+from __future__ import annotations
 
-class ContextDict(dict):
+from typing import TYPE_CHECKING, Any, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+
+_K = TypeVar('_K')
+_V = TypeVar('_V')
+
+
+class ContextDict(dict[_K, _V]):
     '''
     This is used by things that call `Record.new` to pass in a `data`
     dictionary that includes some context as to where the data came from to be
@@ -15,6 +26,8 @@ class ContextDict(dict):
     attribute.
     '''
 
-    def __init__(self, *args, context=None, **kwargs):
+    def __init__(
+        self, *args: Mapping[_K, _V] | None, context: Any = None, **kwargs: _V
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.context = context

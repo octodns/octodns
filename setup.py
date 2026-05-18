@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import annotations
 
 from io import StringIO
 from os.path import dirname, join
@@ -18,7 +19,7 @@ console_scripts = {
 }
 
 
-def long_description():
+def long_description() -> str:
     buf = StringIO()
     yaml_block = False
     supported_providers = False
@@ -52,6 +53,7 @@ tests_require = (
     'pytest>=6.2.5',
     'pytest-cov>=3.0.0',
     'pytest-network>=0.0.1',
+    'mypy>=1.0.0',
 )
 
 setup(

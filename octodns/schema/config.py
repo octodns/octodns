@@ -1,7 +1,3 @@
-#
-#
-#
-
 '''
 Build a JSON Schema describing the octoDNS main configuration file.
 
@@ -14,15 +10,26 @@ This schema is intended for external consumers (IDEs, CI lint). octoDNS's own
 validation is unchanged.
 '''
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
 _STRING_ARRAY = {'type': 'array', 'items': {'type': 'string'}}
 _STRING_LIST = {'type': 'array', 'items': {'type': 'string'}, 'minItems': 1}
 _INT_GTE0 = {'type': 'integer', 'minimum': 0}
 _INT_GTE1 = {'type': 'integer', 'minimum': 1}
 
 
-def _class_branch(dotted_class, then_props, required_props=None):
+def _class_branch(
+    dotted_class: str,
+    then_props: Mapping[str, Any],
+    required_props: list[str] | None = None,
+) -> dict[str, Any]:
     '''Build an if/then branch keyed on a specific class value.'''
-    then = {'properties': then_props}
+    then: dict[str, Any] = {'properties': then_props}
     if required_props:
         then['required'] = required_props
     return {
@@ -34,14 +41,17 @@ def _class_branch(dotted_class, then_props, required_props=None):
     }
 
 
-def _pluggable_entry(class_branches, extra_props=None):
+def _pluggable_entry(
+    class_branches: list[dict[str, Any]],
+    extra_props: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     '''
     Schema for a single pluggable entry (any provider/processor/etc. dict).
 
     `class` is required. Known classes get type-checked kwargs via if/then
     branches; unknown classes pass freely (additionalProperties: true).
     '''
-    props = {'class': {'type': 'string'}}
+    props: dict[str, Any] = {'class': {'type': 'string'}}
     if extra_props:
         props.update(extra_props)
     return {
@@ -269,7 +279,7 @@ _AUTO_ARPA_KWARGS = {
 }
 
 
-def _manager_def():
+def _manager_def() -> dict[str, Any]:
     return {
         'type': 'object',
         'additionalProperties': False,
@@ -316,7 +326,7 @@ def _manager_def():
     }
 
 
-def _zone_def():
+def _zone_def() -> dict[str, Any]:
     return {
         'oneOf': [
             {
@@ -342,7 +352,7 @@ def _zone_def():
     }
 
 
-def build_config_schema():
+def build_config_schema() -> dict[str, Any]:
     '''Return a dict describing the JSON Schema for an octoDNS config file.'''
     return {
         '$schema': 'https://json-schema.org/draft/2020-12/schema',

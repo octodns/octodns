@@ -2,6 +2,14 @@
 #
 #
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from octodns.zone import Zone
+
+
 from logging import getLogger
 
 from .exception import ZoneException
@@ -10,12 +18,12 @@ from .exception import ZoneException
 class ZoneValidatorRegistry:
     log = getLogger('Zone')
 
-    def __init__(self):
-        self.available = {}
-        self.active = {}
+    def __init__(self) -> None:
+        self.available: dict[str, ZoneValidator] = {}
+        self.active: dict[str, ZoneValidator] = {}
         self.configured = False
 
-    def register(self, validator):
+    def register(self, validator: ZoneValidator) -> None:
         if not isinstance(validator, ZoneValidator):
             raise ZoneException(
                 f'{validator.__class__.__name__} must be a ZoneValidator instance'
@@ -26,43 +34,43 @@ class ZoneValidatorRegistry:
             )
         self.available[validator.id] = validator
 
-    def enable_sets(self, sets):
+    def enable_sets(self, sets: set[str]) -> None:
         self.configured = True
         self.active.clear()
-        sets = set(sets)
+        sets_set = set(sets)
         for validator in self.available.values():
-            if validator.sets is None or sets & validator.sets:
+            if validator.sets is None or sets_set & validator.sets:
                 self.active[validator.id] = validator
 
-    def enable(self, id):
+    def enable(self, id: str) -> None:
         if id not in self.available:
             raise ZoneException(f'Unknown zone validator id "{id}"')
         self.active[id] = self.available[id]
 
-    def disable(self, validator_id):
+    def disable(self, validator_id: str) -> bool:
         if validator_id.startswith('_'):
             raise ZoneException(
                 f'Cannot disable bridge zone validator "{validator_id}"'
             )
         return self.active.pop(validator_id, None) is not None
 
-    def reset_active(self):
+    def reset_active(self) -> None:
         self.active.clear()
 
-    def registered(self):
+    def registered(self) -> list[ZoneValidator]:
         return list(self.active.values())
 
-    def available_validators(self):
+    def available_validators(self) -> list[ZoneValidator]:
         return list(self.available.values())
 
-    def process_zone(self, zone):
+    def process_zone(self, zone: Zone) -> list[ValidationReason]:
         if not self.configured:
             self.log.warning(
                 'process_zone: no zone validators configured, automatically enabling legacy set'
             )
             self.enable_sets({'legacy'})
 
-        reasons = []
+        reasons: list[ValidationReason] = []
         for validator in self.active.values():
             reasons.extend(validator.validate(zone))
 
@@ -70,24 +78,24 @@ class ZoneValidatorRegistry:
 
 
 class ValidationReason:
-    def __init__(self, reason, records):
+    def __init__(self, reason: str, records: list[Any]) -> None:
         self.reason = reason
-        self.records = set(records)
+        self.records: set[Any] = set(records)
 
     @property
-    def lenient(self):
+    def lenient(self) -> bool:
         return bool(self.records) and all(r.lenient for r in self.records)
 
-    def __str__(self):
+    def __str__(self) -> str:
         msg = self.reason
-        contexts = {
+        contexts: set[str] = {
             r.context for r in self.records if getattr(r, 'context', None)
         }
         if contexts:
             msg += f" ({', '.join(sorted(contexts))})"
         return msg
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.reason
 
 
@@ -108,7 +116,7 @@ class ZoneValidator:
     validators receive their config key as ``id`` automatically.
     '''
 
-    def __init__(self, id, sets=None):
+    def __init__(self, id: str, sets: set[str] | None = None) -> None:
         '''
         :param id: Non-empty identifier for this validator instance.
         :param sets: Iterable of set names, or ``None`` to always activate.
@@ -120,7 +128,7 @@ class ZoneValidator:
         self.id = id
         self.sets = set(sets) if sets is not None else None
 
-    def validate(self, zone):
+    def validate(self, zone: Zone) -> list[ValidationReason]:
         '''
         Validate a fully populated zone.
 

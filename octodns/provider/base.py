@@ -3,6 +3,7 @@
 #
 
 from ..deprecation import deprecated
+from ..processor.base import BaseProcessor
 from ..source.base import BaseSource
 from ..zone import Zone
 from . import SupportsException
@@ -399,7 +400,12 @@ class BaseProvider(BaseSource):
             raise SupportsException(f'{self.id}: {msg}')
         self.log.warning('%s; %s', msg, fallback)
 
-    def plan(self, desired, processors=[], lenient=False):
+    def plan(
+        self,
+        desired: Zone,
+        processors: list[BaseProcessor] | None = None,
+        lenient: bool = False,
+    ) -> Plan | None:
         '''
         Compute a plan of changes needed to sync the desired state to this provider.
 
@@ -458,35 +464,43 @@ class BaseProvider(BaseSource):
             existing, desired, lenient=lenient
         )
 
-        for processor in processors:
-            try:
-                existing = processor.process_target_zone(
-                    existing, target=self, lenient=lenient
-                )
-            except TypeError as e:
-                if "unexpected keyword argument 'lenient'" not in str(e):
-                    raise
-                deprecated(
-                    f'`process_target_zone` method does not support the `lenient` param, fallback is DEPRECATED. Will be removed in 2.0. Class {processor.__class__.__name__}',
-                    stacklevel=99,
-                )
-                existing = processor.process_target_zone(existing, target=self)
+        if processors:
+            for processor in processors:
+                try:
+                    existing = processor.process_target_zone(
+                        existing, target=self, lenient=lenient
+                    )
+                except TypeError as e:
+                    if "unexpected keyword argument 'lenient'" not in str(e):
+                        raise
+                    deprecated(
+                        f'`process_target_zone` method does not support the `lenient` param, fallback is DEPRECATED. Will be removed in 2.0. Class {processor.__class__.__name__}',
+                        stacklevel=99,
+                    )
+                    existing = processor.process_target_zone(
+                        existing, target=self
+                    )
 
-        for processor in processors:
-            try:
-                desired, existing = processor.process_source_and_target_zones(
-                    desired, existing, self, lenient=lenient
-                )
-            except TypeError as e:
-                if "unexpected keyword argument 'lenient'" not in str(e):
-                    raise
-                deprecated(
-                    f'`process_source_and_target_zones` method does not support the `lenient` param, fallback is DEPRECATED. Will be removed in 2.0. Class {processor.__class__.__name__}',
-                    stacklevel=99,
-                )
-                desired, existing = processor.process_source_and_target_zones(
-                    desired, existing, self
-                )
+        if processors:
+            for processor in processors:
+                try:
+                    desired, existing = (
+                        processor.process_source_and_target_zones(
+                            desired, existing, self, lenient=lenient
+                        )
+                    )
+                except TypeError as e:
+                    if "unexpected keyword argument 'lenient'" not in str(e):
+                        raise
+                    deprecated(
+                        f'`process_source_and_target_zones` method does not support the `lenient` param, fallback is DEPRECATED. Will be removed in 2.0. Class {processor.__class__.__name__}',
+                        stacklevel=99,
+                    )
+                    desired, existing = (
+                        processor.process_source_and_target_zones(
+                            desired, existing, self
+                        )
+                    )
 
         # compute the changes at the zone/record level
         changes = existing.changes(desired, self)
