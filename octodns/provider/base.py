@@ -481,7 +481,6 @@ class BaseProvider(BaseSource):
                         existing, target=self
                     )
 
-        if processors:
             for processor in processors:
                 try:
                     desired, existing = (
