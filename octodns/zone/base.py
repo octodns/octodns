@@ -1,14 +1,17 @@
-#
-#
-#
+from __future__ import annotations
 
 import re
 from collections import defaultdict
 from logging import getLogger
+from typing import TYPE_CHECKING
 
 from ..deprecation import deprecated
 from ..idna import idna_decode, idna_encode
 from ..record import Create, Delete
+
+if TYPE_CHECKING:
+    from ..record.base import Record
+
 from .exception import ValidationError
 from .validator import ZoneValidatorRegistry
 
@@ -27,7 +30,7 @@ class DuplicateRecordException(Exception):
     :type new: octodns.record.base.Record
     '''
 
-    def __init__(self, msg, existing, new):
+    def __init__(self, msg: str, existing: Record, new: Record) -> None:
         self.existing = existing
         self.new = new
 
