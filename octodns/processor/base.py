@@ -1,6 +1,10 @@
-#
-#
-#
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from ..provider.base import BaseProvider
+    from ..zone import Zone
 
 
 class ProcessorException(Exception):
@@ -55,7 +59,7 @@ class BaseProcessor(object):
         - :class:`octodns.processor.acme.AcmeMangingProcessor`
     '''
 
-    def __init__(self, name, lenient=False):
+    def __init__(self, name: str, lenient: bool = False) -> None:
         '''
         Initialize the processor.
 
@@ -75,7 +79,9 @@ class BaseProcessor(object):
         self.id = self.name = name
         self.lenient = lenient
 
-    def process_source_zone(self, desired, sources, lenient=False):
+    def process_source_zone(
+        self, desired: Zone, sources: list[BaseProvider], lenient: bool = False
+    ) -> Zone:
         '''
         Process the desired zone after all sources have populated.
 
@@ -113,7 +119,9 @@ class BaseProcessor(object):
         '''
         return desired
 
-    def process_target_zone(self, existing, target, lenient=False):
+    def process_target_zone(
+        self, existing: Zone, target: BaseProvider, lenient: bool = False
+    ) -> Zone:
         '''
         Process the existing zone after the target has populated.
 
@@ -139,7 +147,7 @@ class BaseProcessor(object):
            - Must return ``existing`` which will normally be the ``existing`` param.
            - Must not modify records directly; ``record.copy`` should be called,
              the results of which can be modified, and then ``Zone.add_record``
-             may be used with ``replace=True``.
+             may be used with ``replace=True`` and ``lenient=lenient``.
            - May call ``Zone.remove_record`` to remove records from ``existing``.
            - Implementations should combine ``self.lenient or lenient`` and pass
              the result to any record and zone calls that accept ``lenient`` as
@@ -148,8 +156,12 @@ class BaseProcessor(object):
         return existing
 
     def process_source_and_target_zones(
-        self, desired, existing, target, lenient=False
-    ):
+        self,
+        desired: Zone,
+        existing: Zone,
+        target: BaseProvider,
+        lenient: bool = False,
+    ) -> tuple[Zone, Zone]:
         '''
         Process both desired and existing zones before computing changes.
 
@@ -197,7 +209,13 @@ class BaseProcessor(object):
         '''
         return desired, existing
 
-    def process_plan(self, plan, sources, target, lenient=False):
+    def process_plan(
+        self,
+        plan: Any | None,
+        sources: list[BaseProvider],
+        target: BaseProvider,
+        lenient: bool = False,
+    ) -> Any | None:
         '''
         Process the plan after it has been computed.
 

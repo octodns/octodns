@@ -1,6 +1,4 @@
-#
-#
-#
+from __future__ import annotations
 
 from collections import defaultdict
 from io import StringIO
@@ -8,6 +6,11 @@ from json import dumps
 from logging import DEBUG, ERROR, INFO, WARNING, getLogger
 from pprint import pformat
 from sys import stdout
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from ..record.change import Change
+    from ..zone import Zone
 
 
 class UnsafePlan(Exception):
@@ -15,20 +18,20 @@ class UnsafePlan(Exception):
 
 
 class RootNsChange(UnsafePlan):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__('Root NS record change, force required')
 
 
 class TooMuchChange(UnsafePlan):
     def __init__(
         self,
-        why,
-        update_pcent,
-        update_threshold,
-        change_count,
-        existing_count,
-        name,
-    ):
+        why: str,
+        update_pcent: float,
+        update_threshold: float,
+        change_count: int,
+        existing_count: int,
+        name: str,
+    ) -> None:
         msg = (
             f'[{name}] {why}, {update_pcent:.2f}% is over {update_threshold:.2f}% '
             f'({change_count}/{existing_count}), force required'
@@ -45,14 +48,14 @@ class Plan(object):
 
     def __init__(
         self,
-        existing,
-        desired,
-        changes,
-        exists,
-        update_pcent_threshold=MAX_SAFE_UPDATE_PCENT,
-        delete_pcent_threshold=MAX_SAFE_DELETE_PCENT,
-        meta=None,
-    ):
+        existing: Zone | None,
+        desired: Zone,
+        changes: list[Change],
+        exists: bool,
+        update_pcent_threshold: float = MAX_SAFE_UPDATE_PCENT,
+        delete_pcent_threshold: float = MAX_SAFE_DELETE_PCENT,
+        meta: dict[str, Any] | None = None,
+    ) -> None:
         self.existing = existing
         self.desired = desired
         # Sort changes to ensure we always have a consistent ordering for
@@ -80,10 +83,10 @@ class Plan(object):
         self.log.debug('__init__: %s', self.__repr__())
 
     @property
-    def data(self):
+    def data(self) -> dict[str, Any]:
         return {'changes': [c.data for c in self.changes], 'meta': self.meta}
 
-    def raise_if_unsafe(self):
+    def raise_if_unsafe(self) -> None:
         if (
             self.existing
             and len(self.existing.records) >= self.MIN_EXISTING_RECORDS
@@ -128,7 +131,7 @@ class Plan(object):
         ):
             raise RootNsChange()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         creates = self.change_counts['Create']
         updates = self.change_counts['Update']
         deletes = self.change_counts['Delete']
@@ -141,7 +144,7 @@ class Plan(object):
 
 
 class _PlanOutput(object):
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
 
 
@@ -164,13 +167,13 @@ def _custom_fh(func):
 class _PlanFhOutput(_PlanOutput):
     '''Intermediate class for plan outputs that write to a file handle.'''
 
-    def __init__(self, name, output_filename=None):
+    def __init__(self, name: str, output_filename: str | None = None) -> None:
         super().__init__(name)
         self.output_filename = output_filename
 
 
 class PlanLogger(_PlanOutput):
-    def __init__(self, name, level='info'):
+    def __init__(self, name: str, level: str = 'info') -> None:
         super().__init__(name)
         try:
             self.level = {
@@ -183,7 +186,7 @@ class PlanLogger(_PlanOutput):
         except (AttributeError, KeyError):
             raise Exception(f'Unsupported level: {level}')
 
-    def run(self, log, plans, *args, **kwargs):
+    def run(self, log, plans, *args, **kwargs) -> None:
         hr = '********************************************************************************\n'
         buf = StringIO()
         buf.write('\n')
@@ -224,13 +227,13 @@ class PlanLogger(_PlanOutput):
         else:
             buf.write(hr)
             buf.write('No changes were planned\n')
-        buf.write(hr)
-        buf.write('\n')
+            buf.write(hr)
+            buf.write('\n')
 
         log.log(self.level, buf.getvalue())
 
 
-def _value_stringifier(record, sep):
+def _value_stringifier(record, sep: str) -> str:
     try:
         values = [str(v) for v in record.values]
     except AttributeError:
@@ -242,13 +245,19 @@ def _value_stringifier(record, sep):
 
 
 class PlanJson(_PlanFhOutput):
-    def __init__(self, name, indent=None, sort_keys=True, output_filename=None):
+    def __init__(
+        self,
+        name: str,
+        indent: int | None = None,
+        sort_keys: bool = True,
+        output_filename: str | None = None,
+    ) -> None:
         super().__init__(name, output_filename=output_filename)
         self.indent = indent
         self.sort_keys = sort_keys
 
     @_custom_fh
-    def run(self, plans, fh=stdout, *args, **kwargs):
+    def run(self, plans, fh=stdout, *args, **kwargs) -> None:
         data = defaultdict(dict)
         for target, plan in plans:
             data[target.id][plan.desired.name] = plan.data
@@ -259,7 +268,7 @@ class PlanJson(_PlanFhOutput):
 
 class PlanMarkdown(_PlanFhOutput):
     @_custom_fh
-    def run(self, plans, fh=stdout, *args, **kwargs):
+    def run(self, plans, fh=stdout, *args, **kwargs) -> None:
         if plans:
             current_zone = None
             for target, plan in plans:
@@ -326,7 +335,7 @@ class PlanMarkdown(_PlanFhOutput):
 
 class PlanHtml(_PlanFhOutput):
     @_custom_fh
-    def run(self, plans, fh=stdout, *args, **kwargs):
+    def run(self, plans, fh=stdout, *args, **kwargs) -> None:
         if plans:
             current_zone = None
             for target, plan in plans:
@@ -335,10 +344,9 @@ class PlanHtml(_PlanFhOutput):
                     fh.write('<h2>')
                     fh.write(current_zone)
                     fh.write('</h2>\n')
-
-                fh.write('<h3>')
-                fh.write(target.id)
-                fh.write('''</h3>
+                    fh.write('<h3>')
+                    fh.write(target.id)
+                    fh.write('''</h3>
 <table>
   <tr>
     <th>Operation</th>
