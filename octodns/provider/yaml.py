@@ -170,6 +170,8 @@ and internally (with the custom overrides) with
 #
 #
 
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
 from os import listdir, makedirs
