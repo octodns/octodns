@@ -1,10 +1,9 @@
-#
-#
-#
+from __future__ import annotations
 
 from collections import defaultdict
 from copy import deepcopy
 from logging import getLogger
+from typing import TYPE_CHECKING, Any
 
 from ..context import ContextDict
 from ..deprecation import deprecated
@@ -14,8 +13,13 @@ from .change import Update
 from .exception import RecordException, ValidationError
 from .validator import RecordValidator, ValidatorRegistry
 
+if TYPE_CHECKING:
+    from ..zone import Zone
 
-def unquote(s):
+from .change import Change
+
+
+def unquote(s: str) -> str:
     if s and s[0] in ('"', "'"):
         return s[1:-1]
     return s
@@ -28,7 +32,9 @@ class NameValidator(RecordValidator):
     limits from RFC 1035, and flags empty/double-dot labels.
     '''
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(
+        self, record_cls, name: str, fqdn: str, data: dict[str, Any]
+    ) -> list[str]:
         reasons = []
         if name == '@':
             reasons.append('invalid name "@", use "" instead')
@@ -58,7 +64,9 @@ class TtlValidator(RecordValidator):
     integer.
     '''
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(
+        self, record_cls, name: str, fqdn: str, data: dict[str, Any]
+    ) -> list[str]:
         reasons = []
         try:
             ttl = int(data['ttl'])
@@ -75,7 +83,9 @@ class HealthcheckValidator(RecordValidator):
     present, is one of the supported protocols.
     '''
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(
+        self, record_cls, name: str, fqdn: str, data: dict[str, Any]
+    ) -> list[str]:
         reasons = []
         try:
             if data['octodns']['healthcheck']['protocol'] not in (
@@ -98,10 +108,12 @@ class ValueTypeValidator(RecordValidator):
     value type's validators.
     '''
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(id='_value-type')
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(
+        self, record_cls, name: str, fqdn: str, data: dict[str, Any]
+    ) -> list[str]:
         return _process_value_validators(
             record_cls._value_type, data.get('value', None), record_cls._type
         )
@@ -116,10 +128,12 @@ class ValuesTypeValidator(RecordValidator):
     back-compat) and any active ``ValueValidator`` instances for the type.
     '''
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(id='_values-type')
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(
+        self, record_cls, name: str, fqdn: str, data: dict[str, Any]
+    ) -> list[str]:
         values = data.get('values', data.get('value', []))
         values = (
             values
@@ -134,7 +148,7 @@ class ValuesTypeValidator(RecordValidator):
 class Record(EqualityTupleMixin):
     log = getLogger('Record')
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs) -> None:
         super().__init_subclass__(**kwargs)
         if 'validate' in cls.__dict__:
             deprecated(
@@ -152,11 +166,13 @@ class Record(EqualityTupleMixin):
         'https://datatracker.ietf.org/doc/html/rfc5890',
     )
 
-    _CLASSES = {}
+    _CLASSES: dict[str, type[Record]] = {}
     validators = ValidatorRegistry()
 
     @classmethod
-    def register_type(cls, _class, _type=None):
+    def register_type(
+        cls, _class: type[Record], _type: str | None = None
+    ) -> None:
         if _type is None:
             _type = _class._type
         existing = cls._CLASSES.get(_type)
@@ -178,35 +194,46 @@ class Record(EqualityTupleMixin):
             cls.register_validator(validator, types=[_type])
 
     @classmethod
-    def registered_types(cls):
+    def registered_types(cls) -> dict[str, type[Record]]:
         return cls._CLASSES
 
     @classmethod
-    def register_validator(cls, validator, types=None):
+    def register_validator(
+        cls, validator: RecordValidator, types: list[str] | None = None
+    ) -> None:
         cls.validators.register(validator, types=types)
 
     @classmethod
-    def enable_validators(cls, sets):
+    def enable_validators(cls, sets: list[str]) -> None:
         cls.validators.enable_sets(sets)
 
     @classmethod
-    def enable_validator(cls, id, types=None):
+    def enable_validator(cls, id: str, types: list[str] | None = None) -> None:
         cls.validators.enable(id, types=types)
 
     @classmethod
-    def disable_validator(cls, validator_id, types=None):
+    def disable_validator(
+        cls, validator_id: str, types: list[str] | None = None
+    ) -> str:
         return cls.validators.disable(validator_id, types=types)
 
     @classmethod
-    def registered_validators(cls):
+    def registered_validators(cls) -> dict[str, RecordValidator]:
         return cls.validators.registered()
 
     @classmethod
-    def available_validators(cls):
+    def available_validators(cls) -> dict[str, RecordValidator]:
         return cls.validators.available()
 
     @classmethod
-    def new(cls, zone, name, data, source=None, lenient=False):
+    def new(
+        cls,
+        zone: Zone,
+        name: str,
+        data: dict[str, Any],
+        source: Any = None,
+        lenient: bool = False,
+    ) -> Record:
         reasons = []
         try:
             name = idna_encode(str(name))
@@ -249,15 +276,23 @@ class Record(EqualityTupleMixin):
         return _class(zone, name, data, source=source, context=context)
 
     @classmethod
-    def _process_validators(cls, name, fqdn, data):
+    def _process_validators(
+        cls, name: str, fqdn: str, data: dict[str, Any]
+    ) -> list[str]:
         return cls.validators.process_record(cls, name, fqdn, data)
 
     @classmethod
-    def validate(cls, name, fqdn, data):
+    def validate(cls, name: str, fqdn: str, data: dict[str, Any]) -> list[str]:
         return cls._process_validators(name, fqdn, data)
 
     @classmethod
-    def from_rrs(cls, zone, rrs, lenient=False, source=None):
+    def from_rrs(
+        cls,
+        zone: Zone,
+        rrs: list[Any],
+        lenient: bool = False,
+        source: Any = None,
+    ) -> list[Record]:
         # group records by name & type so that multiple rdatas can be combined
         # into a single record when needed
         grouped = defaultdict(list)
@@ -280,10 +315,17 @@ class Record(EqualityTupleMixin):
         return records
 
     @classmethod
-    def parse_rdata_texts(cls, rdatas):
+    def parse_rdata_texts(cls, rdatas: list[str]) -> list[Any]:
         return [cls._value_type.parse_rdata_text(r) for r in rdatas]
 
-    def __init__(self, zone, name, data, source=None, context=None):
+    def __init__(
+        self,
+        zone: Zone,
+        name: str,
+        data: dict[str, Any],
+        source: Any = None,
+        context: Any = None,
+    ) -> None:
         self.zone = zone
         if name:
             # internally everything is idna
@@ -305,7 +347,7 @@ class Record(EqualityTupleMixin):
         self.octodns = data.get('octodns', {})
 
     @property
-    def _octodns(self):
+    def _octodns(self) -> dict[str, Any]:
         deprecated(
             '`Record._octodns` is DEPRECATED. Use `Record.octodns` instead. Will be removed in 2.0',
             stacklevel=1,
@@ -313,14 +355,14 @@ class Record(EqualityTupleMixin):
         return self.octodns
 
     @_octodns.setter
-    def _octodns(self, val):
+    def _octodns(self, val: dict[str, Any]) -> None:
         deprecated(
             '`Record._octodns` is DEPRECATED. Use `Record.octodns` instead. Will be removed in 2.0',
             stacklevel=1,
         )
         self.octodns = val
 
-    def _data(self):
+    def _data(self) -> dict[str, Any]:
         ret = {'ttl': self.ttl}
         if self.octodns:
             ret['octodns'] = deepcopy(self.octodns)
@@ -329,11 +371,11 @@ class Record(EqualityTupleMixin):
         return ret
 
     @property
-    def data(self):
+    def data(self) -> dict[str, Any]:
         return self._data()
 
     @property
-    def fqdn(self):
+    def fqdn(self) -> str:
         # TODO: these should be calculated and set in __init__ rather than on
         # each use
         if self.name:
@@ -341,24 +383,24 @@ class Record(EqualityTupleMixin):
         return self.zone.name
 
     @property
-    def decoded_fqdn(self):
+    def decoded_fqdn(self) -> str:
         if self.decoded_name:
             return f'{self.decoded_name}.{self.zone.decoded_name}'
         return self.zone.decoded_name
 
     @property
-    def ignored(self):
+    def ignored(self) -> bool:
         return self.octodns.get('ignored', False)
 
     @property
-    def excluded(self):
+    def excluded(self) -> list[str]:
         return self.octodns.get('excluded', [])
 
     @property
-    def included(self):
+    def included(self) -> list[str]:
         return self.octodns.get('included', [])
 
-    def healthcheck_host(self, value=None):
+    def healthcheck_host(self, value: str | None = None) -> str | None:
         healthcheck = self.octodns.get('healthcheck', {})
         protocol = self.healthcheck_protocol
         if protocol not in ('HTTP', 'HTTPS'):
@@ -366,7 +408,7 @@ class Record(EqualityTupleMixin):
         return healthcheck.get('host', self.fqdn[:-1]) or value
 
     @property
-    def healthcheck_path(self):
+    def healthcheck_path(self) -> str | None:
         healthcheck = self.octodns.get('healthcheck', {})
         protocol = self.healthcheck_protocol
         if protocol not in ('HTTP', 'HTTPS'):
@@ -377,14 +419,14 @@ class Record(EqualityTupleMixin):
             return '/_dns'
 
     @property
-    def healthcheck_protocol(self):
+    def healthcheck_protocol(self) -> str:
         try:
             return self.octodns['healthcheck']['protocol']
         except KeyError:
             return 'HTTPS'
 
     @property
-    def healthcheck_port(self):
+    def healthcheck_port(self) -> int | None:
         if self.healthcheck_protocol == 'ICMP':
             return None
         try:
@@ -393,15 +435,22 @@ class Record(EqualityTupleMixin):
             return 443
 
     @property
-    def lenient(self):
+    def lenient(self) -> bool:
         return self.octodns.get('lenient', False)
 
-    def changes(self, other, target):
+    def changes(self, other: Record, target: Any) -> Change | None:
         # We're assuming we have the same name and type if we're being compared
         if self.ttl != other.ttl:
             return Update(self, other)
+        return None
 
-    def copy(self, zone=None, value=None, values=None, lenient=True):
+    def copy(
+        self,
+        zone: Zone | None = None,
+        value: Any = None,
+        values: list[Any] | None = None,
+        lenient: bool = True,
+    ) -> Record:
         # data, via _data(), will preserve context
         data = self.data
         data['type'] = self._type
@@ -428,18 +477,20 @@ class Record(EqualityTupleMixin):
     # equivalent if they have the same name & _type. Values are ignored. This
     # is useful when computing diffs/changes.
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return f'{self.name}:{self._type}'.__hash__()
 
-    def _equality_tuple(self):
+    def _equality_tuple(self) -> tuple[str, str]:
         return (self.name, self._type)
 
-    def __repr__(self):
+    def __repr__(self) -> None:
         # Make sure this is always overridden
         raise NotImplementedError('Abstract base class, __repr__ required')
 
 
-def _process_value_validators(value_type, values, _type):
+def _process_value_validators(
+    value_type: type, values: list[Any], _type: str
+) -> list[str]:
     return Record.validators.process_values(value_type, values, _type)
 
 
@@ -447,26 +498,33 @@ class ValuesMixin(object):
     VALIDATORS = [ValuesTypeValidator()]
 
     @classmethod
-    def data_from_rrs(cls, rrs):
+    def data_from_rrs(cls, rrs: list[Any]) -> dict[str, Any]:
         # type and TTL come from the first rr
         rr = rrs[0]
         # values come from parsing the rdata portion of all rrs
         values = [cls._value_type.parse_rdata_text(rr.rdata) for rr in rrs]
         return {'ttl': rr.ttl, 'type': rr._type, 'values': values}
 
-    def __init__(self, zone, name, data, source=None, context=None):
+    def __init__(
+        self,
+        zone: Zone,
+        name: str,
+        data: dict[str, Any],
+        source: Any = None,
+        context: Any = None,
+    ) -> None:
         super().__init__(zone, name, data, source=source, context=context)
 
         values = data.get('values', data.get('value', []))
         values = values if isinstance(values, (list, tuple)) else [values]
         self.values = sorted(self._value_type.process(values))
 
-    def changes(self, other, target):
+    def changes(self, other: ValuesMixin, target: Any) -> Change | None:
         if self.values != other.values:
             return Update(self, other)
         return super().changes(other, target)
 
-    def _data(self):
+    def _data(self) -> dict[str, Any]:
         ret = super()._data()
         if len(self.values) == 1:
             v = self.values[0]
@@ -482,11 +540,11 @@ class ValuesMixin(object):
         return ret
 
     @property
-    def rr_values(self):
+    def rr_values(self) -> list[Any]:
         return self.values
 
     @property
-    def rrs(self):
+    def rrs(self) -> tuple[str, int, str, list[str]]:
         return (
             self.fqdn,
             self.ttl,
@@ -494,7 +552,7 @@ class ValuesMixin(object):
             [v.rdata_text for v in self.rr_values],
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         values = "', '".join([str(v) for v in self.values])
         klass = self.__class__.__name__
         octodns = ''
@@ -507,7 +565,7 @@ class ValueMixin(object):
     VALIDATORS = [ValueTypeValidator()]
 
     @classmethod
-    def data_from_rrs(cls, rrs):
+    def data_from_rrs(cls, rrs: list[Any]) -> dict[str, Any]:
         # single value, so single rr only...
         rr = rrs[0]
         return {
@@ -516,30 +574,37 @@ class ValueMixin(object):
             'value': cls._value_type.parse_rdata_text(rr.rdata),
         }
 
-    def __init__(self, zone, name, data, source=None, context=None):
+    def __init__(
+        self,
+        zone: Zone,
+        name: str,
+        data: dict[str, Any],
+        source: Any = None,
+        context: Any = None,
+    ) -> None:
         super().__init__(zone, name, data, source=source, context=context)
         self.value = self._value_type.process(data['value'])
 
-    def changes(self, other, target):
+    def changes(self, other: ValueMixin, target: Any) -> Change | None:
         if self.value != other.value:
             return Update(self, other)
         return super().changes(other, target)
 
-    def _data(self):
+    def _data(self) -> dict[str, Any]:
         ret = super()._data()
         ret['value'] = getattr(self.value, 'data', self.value)
         return ret
 
     @property
-    def rrs(self):
+    def rrs(self) -> tuple[str, int, str, list[str]]:
         return self.fqdn, self.ttl, self._type, [self.value.rdata_text]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         klass = self.__class__.__name__
         octodns = ''
         if self.octodns:
             octodns = f', {self.octodns}'
-        return f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, {self.value}{octodns}>'
+        return f"<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, {self.value}{octodns}>"
 
 
 Record.register_validator(NameValidator('name-rfc', sets={'legacy', 'strict'}))
