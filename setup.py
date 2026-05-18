@@ -87,6 +87,7 @@ setup(
             'sphinx_rtd_theme',
         ),
         'test': tests_require,
+        'typing': ('mypy>=1.0.0',),
     },
     install_requires=(
         'PyYaml>=4.2b1',
