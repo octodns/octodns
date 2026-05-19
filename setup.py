@@ -70,6 +70,7 @@ setup(
             'build>=0.7.0',
             'changelet',
             'isort>=5.11.5',
+            'mypy>=1.0.0',
             'proviso',
             'pycountry>=19.8.18',
             'pycountry-convert>=0.7.2',
