@@ -12,11 +12,11 @@ class CnameCoexistenceValidator(ZoneValidator):
     node.
     '''
 
-    def validate(self, zone):
-        reasons = []
+    def validate(self, zone: 'Zone') -> list['ValidationReason']:
+        reasons: list['ValidationReason'] = []
         for node in zone._records.values():
             if len(node) > 1:
-                types = [r._type for r in node]
+                types = [r._type for r in node]  # type: ignore[attr-defined]
                 if 'CNAME' in types:
                     # All records at this node have the same FQDN
                     record = next(iter(node))

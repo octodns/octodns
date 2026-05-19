@@ -2,8 +2,13 @@
 #
 #
 
+from typing import TYPE_CHECKING
+
 from .base import Zone
 from .validator import ValidationReason, ZoneValidator
+
+if TYPE_CHECKING:
+    from octodns.record.base import Record
 
 
 class NoCnameLoopZoneValidator(ZoneValidator):
@@ -15,10 +20,10 @@ class NoCnameLoopZoneValidator(ZoneValidator):
     Reference: https://datatracker.ietf.org/doc/html/rfc1034#section-3.6.2
     '''
 
-    def validate(self, zone):
-        reasons = []
-        targets = {
-            r.fqdn: r for r in zone.records if r._type in ('CNAME', 'ALIAS')
+    def validate(self, zone: 'Zone') -> list['ValidationReason']:
+        reasons: list['ValidationReason'] = []
+        targets: dict[str, 'Record'] = {
+            r.fqdn: r for r in zone.records if r._type in ('CNAME', 'ALIAS')  # type: ignore[attr-defined]
         }
 
         overall_visited = set()
@@ -26,8 +31,8 @@ class NoCnameLoopZoneValidator(ZoneValidator):
             if start_fqdn in overall_visited:
                 continue
 
-            path = []
-            visited = {}  # fqdn -> index in path
+            path: list[str] = []
+            visited: dict[str, int] = {}  # fqdn -> index in path
             curr = start_fqdn
 
             while curr in targets:
@@ -50,7 +55,7 @@ class NoCnameLoopZoneValidator(ZoneValidator):
                 visited[curr] = len(path)
                 path.append(curr)
                 overall_visited.add(curr)
-                curr = str(targets[curr].value)
+                curr = str(targets[curr].value)  # type: ignore[attr-defined]
 
         return reasons
 
