@@ -1,17 +1,21 @@
 #
 #
 #
+#
+
+from __future__ import annotations
 
 import ipaddress
+from typing import Any
 
 
 class Subnets(object):
     @classmethod
-    def validate(cls, subnet, prefix):
+    def validate(cls, subnet: str, prefix: str) -> list[str]:
         '''
         Validates an octoDNS subnet making sure that it is valid
         '''
-        reasons = []
+        reasons: list[str] = []
 
         try:
             cls.parse(subnet)
@@ -21,5 +25,5 @@ class Subnets(object):
         return reasons
 
     @classmethod
-    def parse(cls, subnet):
+    def parse(cls, subnet: str) -> Any:
         return ipaddress.ip_network(subnet)
