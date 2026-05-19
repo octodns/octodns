@@ -4,13 +4,17 @@
 
 import re
 from collections import defaultdict
-from logging import getLogger
+from logging import Logger, getLogger
+from typing import TYPE_CHECKING, ClassVar, Iterable, Optional
 
 from ..deprecation import deprecated
 from ..idna import idna_decode, idna_encode
-from ..record import Create, Delete
+from ..record import Change, Create, Delete
 from .exception import ValidationError
-from .validator import ZoneValidatorRegistry
+from .validator import ZoneValidator, ZoneValidatorRegistry
+
+if TYPE_CHECKING:
+    from octodns.record.base import Record
 
 
 class DuplicateRecordException(Exception):
@@ -27,7 +31,7 @@ class DuplicateRecordException(Exception):
     :type new: octodns.record.base.Record
     '''
 
-    def __init__(self, msg, existing, new):
+    def __init__(self, msg: str, existing: 'Record', new: 'Record') -> None:
         self.existing = existing
         self.new = new
 
@@ -103,10 +107,10 @@ class Zone(object):
         - :class:`octodns.provider.base.BaseProvider`
     '''
 
-    log = getLogger('Zone')
-    validators = ZoneValidatorRegistry()
+    log: Logger = getLogger('Zone')
+    validators: ClassVar[ZoneValidatorRegistry] = ZoneValidatorRegistry()
 
-    REFERENCES = (
+    REFERENCES: tuple[str, ...] = (
         'https://datatracker.ietf.org/doc/html/rfc1034',
         'https://datatracker.ietf.org/doc/html/rfc1035',
         'https://datatracker.ietf.org/doc/html/rfc2181',
@@ -115,12 +119,12 @@ class Zone(object):
 
     def __init__(
         self,
-        name,
-        sub_zones,
-        update_pcent_threshold=None,
-        delete_pcent_threshold=None,
-        ignore_subzone_adds=False,
-        context=None,
+        name: str,
+        sub_zones: list[str],
+        update_pcent_threshold: Optional[float] = None,
+        delete_pcent_threshold: Optional[float] = None,
+        ignore_subzone_adds: bool = False,
+        context: Optional[str] = None,
     ):
         '''
         Initialize a DNS zone.
@@ -180,8 +184,8 @@ class Zone(object):
         # duplicates and detect when CNAMEs co-exist with other records. Also
         # node that we always store things with Record.name which will be idna
         # encoded thus we don't have to deal with idna/utf8 collisions
-        self._records = defaultdict(set)
-        self._root_ns = None
+        self._records: dict[str, set['Record']] = defaultdict(set)
+        self._root_ns: Optional['Record'] = None
         # optional leading . to match empty hostname
         # optional trailing . b/c some sources don't have it on their fqdn
         self._utf8_name_re = re.compile(fr'\.?{idna_decode(name)}?$')
@@ -195,12 +199,12 @@ class Zone(object):
         # Copy-on-write semantics support, when `not None` this property will
         # point to a location with records for this `Zone`. Once `hydrated`
         # this property will be set to None
-        self._origin = None
+        self._origin: Optional['Zone'] = None
 
         self.log.debug('__init__: zone=%s, sub_zones=%s', self, sub_zones)
 
     @property
-    def records(self):
+    def records(self) -> set['Record']:
         '''
         Get all records in this zone.
 
@@ -215,7 +219,7 @@ class Zone(object):
         return set([r for _, node in self._records.items() for r in node])
 
     @property
-    def root_ns(self):
+    def root_ns(self) -> Optional['Record']:
         '''
         Get the root NS record for this zone.
 
@@ -230,30 +234,30 @@ class Zone(object):
         return self._root_ns
 
     @classmethod
-    def register_zone_validator(cls, validator):
+    def register_zone_validator(cls, validator: ZoneValidator) -> None:
         cls.validators.register(validator)
 
     @classmethod
-    def enable_zone_validators(cls, sets):
+    def enable_zone_validators(cls, sets: Iterable[str]) -> None:
         cls.validators.enable_sets(sets)
 
     @classmethod
-    def enable_zone_validator(cls, id):
+    def enable_zone_validator(cls, id: str) -> None:
         cls.validators.enable(id)
 
     @classmethod
-    def disable_zone_validator(cls, validator_id):
+    def disable_zone_validator(cls, validator_id: str) -> bool:
         return cls.validators.disable(validator_id)
 
     @classmethod
-    def registered_zone_validators(cls):
+    def registered_zone_validators(cls) -> list[ZoneValidator]:
         return cls.validators.registered()
 
     @classmethod
-    def available_zone_validators(cls):
+    def available_zone_validators(cls) -> list[ZoneValidator]:
         return cls.validators.available_validators()
 
-    def validate(self, lenient=False):
+    def validate(self, lenient: bool = False) -> None:
         reasons = self.validators.process_zone(self)
         if not reasons:
             return
@@ -278,7 +282,7 @@ class Zone(object):
                 self.decoded_name, reasons_to_raise, context=self.context
             )
 
-    def get(self, name, type=None):
+    def get(self, name: str, type: Optional[str] = None) -> set['Record']:
         '''
         Return records at the given name, optionally filtered by type.
 
@@ -297,7 +301,7 @@ class Zone(object):
             return set(records)
         return {r for r in records if r._type == type}
 
-    def get_type(self, name, type):
+    def get_type(self, name: str, type: str) -> Optional['Record']:
         '''
         Return record of the specified type at the given name.
 
@@ -313,7 +317,7 @@ class Zone(object):
         except StopIteration:
             return None
 
-    def hostname_from_fqdn(self, fqdn):
+    def hostname_from_fqdn(self, fqdn: str) -> str:
         '''
         Extract the hostname portion from a fully qualified domain name.
 
@@ -340,7 +344,7 @@ class Zone(object):
             # it has utf8 chars
             return self._utf8_name_re.sub('', fqdn)
 
-    def owns(self, _type, fqdn):
+    def owns(self, _type: str, fqdn: str) -> bool:
         '''
         Determine if this zone owns a given FQDN for a specific record type.
 
@@ -387,7 +391,9 @@ class Zone(object):
         # otherwise we own it
         return True
 
-    def add_record(self, record, replace=False, lenient=False):
+    def add_record(
+        self, record: 'Record', replace: bool = False, lenient: bool = False
+    ) -> None:
         '''
         Add a DNS record to this zone.
 
@@ -461,7 +467,7 @@ class Zone(object):
 
         node.add(record)
 
-    def remove_record(self, record):
+    def remove_record(self, record: 'Record') -> None:
         '''
         Remove a DNS record from this zone.
 
@@ -486,14 +492,14 @@ class Zone(object):
         self._records[record.name].discard(record)
 
     # TODO: delete this at v2.0.0rc0
-    def _remove_record(self, record):
+    def _remove_record(self, record: 'Record') -> None:
         deprecated(
             '_remove_record has been deprecated, used remove_record instead.  Will be removed in 2.0',
             stacklevel=3,
         )
         return self.remove_record(record)
 
-    def changes(self, desired, target):
+    def changes(self, desired: 'Zone', target) -> list[Change]:
         '''
         Compute the changes needed to transform this zone into the desired state.
 
@@ -631,7 +637,7 @@ class Zone(object):
 
         return changes
 
-    def apply(self, changes):
+    def apply(self, changes: list[Change]) -> None:
         '''
         Apply a list of changes to this zone.
 
@@ -654,7 +660,7 @@ class Zone(object):
             else:
                 self.add_record(change.new, replace=True, lenient=True)
 
-    def hydrate(self):
+    def hydrate(self) -> bool:
         '''
         Convert a shallow copy into a hydrated copy with its own record references.
 
@@ -687,7 +693,7 @@ class Zone(object):
             self.add_record(record, lenient=True)
         return True
 
-    def copy(self):
+    def copy(self) -> 'Zone':
         '''
         Create a shallow copy of this zone using copy-on-write semantics.
 
@@ -728,7 +734,7 @@ class Zone(object):
         copy._origin = self
         return copy
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         '''
         Return a string representation of this zone.
 

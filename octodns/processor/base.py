@@ -2,6 +2,13 @@
 #
 #
 
+from typing import TYPE_CHECKING, Iterable, Optional
+
+if TYPE_CHECKING:
+    from octodns.provider.base import BaseProvider
+    from octodns.provider.plan import Plan
+    from octodns.zone import Zone
+
 
 class ProcessorException(Exception):
     '''
@@ -55,7 +62,7 @@ class BaseProcessor(object):
         - :class:`octodns.processor.acme.AcmeMangingProcessor`
     '''
 
-    def __init__(self, name, lenient=False):
+    def __init__(self, name: str, lenient: bool = False) -> None:
         '''
         Initialize the processor.
 
@@ -75,7 +82,12 @@ class BaseProcessor(object):
         self.id = self.name = name
         self.lenient = lenient
 
-    def process_source_zone(self, desired, sources, lenient=False):
+    def process_source_zone(
+        self,
+        desired: 'Zone',
+        sources: Iterable['BaseProvider'],
+        lenient: bool = False,
+    ) -> 'Zone':
         '''
         Process the desired zone after all sources have populated.
 
@@ -113,7 +125,9 @@ class BaseProcessor(object):
         '''
         return desired
 
-    def process_target_zone(self, existing, target, lenient=False):
+    def process_target_zone(
+        self, existing: 'Zone', target: 'BaseProvider', lenient: bool = False
+    ) -> 'Zone':
         '''
         Process the existing zone after the target has populated.
 
@@ -148,8 +162,12 @@ class BaseProcessor(object):
         return existing
 
     def process_source_and_target_zones(
-        self, desired, existing, target, lenient=False
-    ):
+        self,
+        desired: 'Zone',
+        existing: 'Zone',
+        target: 'BaseProvider',
+        lenient: bool = False,
+    ) -> tuple['Zone', 'Zone']:
         '''
         Process both desired and existing zones before computing changes.
 
@@ -197,7 +215,13 @@ class BaseProcessor(object):
         '''
         return desired, existing
 
-    def process_plan(self, plan, sources, target, lenient=False):
+    def process_plan(
+        self,
+        plan: Optional['Plan'],
+        sources: Iterable['BaseProvider'],
+        target: 'BaseProvider',
+        lenient: bool = False,
+    ) -> Optional['Plan']:
         '''
         Process the plan after it has been computed.
 
