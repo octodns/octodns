@@ -1,28 +1,28 @@
-#
-#
-#
+from __future__ import annotations
 
 from collections import defaultdict
 from ipaddress import ip_address
-from logging import getLogger
+from logging import Logger, getLogger
+from typing import Any, Iterable
 
 from ..record import Record
+from ..zone import Zone
 from .base import BaseProcessor
 
 
 class AutoArpa(BaseProcessor):
     def __init__(
         self,
-        name,
-        ttl=3600,
-        populate_should_replace=False,
-        max_auto_arpa=999,
-        inherit_ttl=False,
-        wildcard_replacement=None,
-        **kwargs,
-    ):
+        name: str,
+        ttl: int = 3600,
+        populate_should_replace: bool = False,
+        max_auto_arpa: int = 999,
+        inherit_ttl: bool = False,
+        wildcard_replacement: str | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(name, **kwargs)
-        self.log = getLogger(f'AutoArpa[{name}]')
+        self.log: Logger = getLogger(f'AutoArpa[{name}]')
         self.log.info(
             '__init__: ttl=%d, populate_should_replace=%s, max_auto_arpa=%d, inherit_ttl=%s, wildcard_replacement=%s',
             ttl,
@@ -36,20 +36,22 @@ class AutoArpa(BaseProcessor):
         self.max_auto_arpa = max_auto_arpa
         self.inherit_ttl = inherit_ttl
         self.wildcard_replacement = wildcard_replacement
-        self._records = defaultdict(list)
+        self._records: dict[str, list[tuple[int, int, str]]] = defaultdict(list)
 
-    def process_source_zone(self, desired, sources, lenient=False):
+    def process_source_zone(
+        self, desired: Zone, sources: Iterable[Any], lenient: bool = False
+    ) -> Zone:
         for record in desired.records:
-            if record._type in ('A', 'AAAA') and (
+            if record._type in ('A', 'AAAA') and (  # type: ignore[attr-defined]
                 record.name != '*' or self.wildcard_replacement is not None
             ):
                 ips = record.values
-                if record.geo:
-                    for geo in record.geo.values():
-                        ips += geo.values
-                if record.dynamic:
-                    for pool in record.dynamic.pools.values():
-                        for value in pool.data['values']:
+                if record.geo:  # type: ignore[attr-defined]
+                    for geo in record.geo.values():  # type: ignore[attr-defined]
+                        ips += geo.values  # type: ignore[attr-defined]
+                if record.dynamic:  # type: ignore[attr-defined]
+                    for pool in record.dynamic.pools.values():  # type: ignore[attr-defined]
+                        for value in pool.data['values']:  # type: ignore[attr-defined]
                             ips.append(value['value'])
 
                 fqdn = record.fqdn
@@ -57,11 +59,11 @@ class AutoArpa(BaseProcessor):
                     fqdn = fqdn.replace('*', self.wildcard_replacement)
                 for ip in ips:
                     ptr = ip_address(ip).reverse_pointer
-                    auto_arpa_priority = record.octodns.get(
+                    auto_arpa_priority = record.octodns.get(  # type: ignore[attr-defined]
                         'auto_arpa_priority', 999
                     )
                     if self.inherit_ttl:
-                        record_ttl = record.ttl
+                        record_ttl = record.ttl  # type: ignore[attr-defined]
                     else:
                         record_ttl = self.ttl
                     self._records[f'{ptr}.'].append(
@@ -70,21 +72,25 @@ class AutoArpa(BaseProcessor):
 
         return desired
 
-    def _order_and_unique_fqdns(self, fqdns, max_auto_arpa):
-        seen = set()
+    def _order_and_unique_fqdns(
+        self, fqdns: list[tuple[int, int, str]], max_auto_arpa: int
+    ) -> list[tuple[int, str]]:
+        seen: set[str] = set()
         # order the fqdns making a copy so we can reset the list below
         ordered = sorted(fqdns)
-        fqdns = []
+        fqdns_out: list[tuple[int, str]] = []
         for _, record_ttl, fqdn in ordered:
             if fqdn in seen:
                 continue
-            fqdns.append((record_ttl, fqdn))
+            fqdns_out.append((record_ttl, fqdn))
             seen.add(fqdn)
             if len(seen) >= max_auto_arpa:
                 break
-        return fqdns
+        return fqdns_out
 
-    def populate(self, zone, target=False, lenient=False):
+    def populate(
+        self, zone: Zone, target: bool = False, lenient: bool = False
+    ) -> None:
         self.log.debug(
             'populate: name=%s, target=%s, lenient=%s',
             zone.name,
@@ -120,5 +126,5 @@ class AutoArpa(BaseProcessor):
             'populate:   found %s records', len(zone.records) - before
         )
 
-    def list_zones(self):
+    def list_zones(self) -> set[str]:
         return set()

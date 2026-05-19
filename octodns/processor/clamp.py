@@ -1,5 +1,9 @@
-from logging import getLogger
+from __future__ import annotations
 
+from logging import Logger, getLogger
+from typing import Any, Iterable
+
+from ..zone import Zone
 from .base import BaseProcessor, ProcessorException
 
 
@@ -32,9 +36,11 @@ class TtlClampProcessor(BaseProcessor):
               - route53
     """
 
-    def __init__(self, id, min_ttl=300, max_ttl=86400, **kwargs):
+    def __init__(
+        self, id: str, min_ttl: int = 300, max_ttl: int = 86400, **kwargs: Any
+    ) -> None:
         super().__init__(id, **kwargs)
-        self.log = getLogger(self.__class__.__name__)
+        self.log: Logger = getLogger(self.__class__.__name__)
         if not min_ttl <= max_ttl:
             raise TTLArgumentException(
                 f'Min TTL {min_ttl} is not lower than max TTL {max_ttl}'
@@ -43,7 +49,9 @@ class TtlClampProcessor(BaseProcessor):
         self.max_ttl = max_ttl
         self.log.info('__init__: min=%ds, max=%ds', self.min_ttl, self.max_ttl)
 
-    def process_source_zone(self, desired, sources, lenient=False):
+    def process_source_zone(
+        self, desired: Zone, sources: Iterable[Any], lenient: bool = False
+    ) -> Zone:
         """
         Process records from source zone(s).
 
@@ -57,14 +65,14 @@ class TtlClampProcessor(BaseProcessor):
         self.log.debug('process_source_zone: desired=%s', desired.name)
 
         for record in desired.records:
-            original_ttl = record.ttl
+            original_ttl = record.ttl  # type: ignore[attr-defined]
             clamped_ttl = max(self.min_ttl, min(self.max_ttl, original_ttl))
 
             if clamped_ttl != original_ttl:
                 self.log.info(
                     'process_source_zone: clamping TTL for %s (%s) %s -> %s',
                     record.fqdn,
-                    record._type,
+                    record._type,  # type: ignore[attr-defined]
                     original_ttl,
                     clamped_ttl,
                 )

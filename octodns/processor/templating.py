@@ -1,13 +1,14 @@
-#
-#
-#
+from __future__ import annotations
 
-from octodns.processor.base import BaseProcessor
+from typing import Any
+
+from ..zone import Zone
+from .base import BaseProcessor
 
 
 class TemplatingError(Exception):
 
-    def __init__(self, record, msg):
+    def __init__(self, record: Any, msg: str) -> None:
         self.record = record
         msg = f'Invalid record "{record.fqdn}", {msg}'
         super().__init__(msg)
@@ -66,14 +67,25 @@ class Templating(BaseProcessor):
     `.format` should work here.
     '''
 
-    def __init__(self, id, *args, trailing_dots=True, context={}, **kwargs):
+    def __init__(
+        self,
+        id: str,
+        *args: Any,
+        trailing_dots: bool = True,
+        context: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(id, *args, **kwargs)
         self.trailing_dots = trailing_dots
-        self.context = context
+        self.context = context or {}
 
     def process_source_and_target_zones(
-        self, desired, existing, provider, lenient=False
-    ):
+        self,
+        desired: Zone,
+        existing: Zone,
+        provider: Any,
+        lenient: bool = False,
+    ) -> tuple[Zone, Zone]:
         lenient = self.lenient or lenient
         zone_name = desired.decoded_name
         zone_decoded_name = desired.decoded_name
@@ -82,7 +94,7 @@ class Templating(BaseProcessor):
             zone_name = zone_name[:-1]
             zone_decoded_name = zone_decoded_name[:-1]
             zone_encoded_name = zone_encoded_name[:-1]
-        zone_params = {
+        zone_params: dict[str, Any] = {
             'zone_name': zone_name,
             'zone_decoded_name': zone_decoded_name,
             'zone_encoded_name': zone_encoded_name,
@@ -96,7 +108,7 @@ class Templating(BaseProcessor):
             },
         }
 
-        def build_params(record):
+        def build_params(record: Any) -> dict[str, Any]:
             record_fqdn = record.decoded_fqdn
             record_decoded_fqdn = record.decoded_fqdn
             record_encoded_fqdn = record.fqdn
@@ -111,13 +123,15 @@ class Templating(BaseProcessor):
                 'record_fqdn': record_fqdn,
                 'record_decoded_fqdn': record_decoded_fqdn,
                 'record_encoded_fqdn': record_encoded_fqdn,
-                'record_type': record._type,
-                'record_ttl': record.ttl,
-                'record_source_id': record.source.id if record.source else None,
+                'record_type': record._type,  # type: ignore[attr-defined]
+                'record_ttl': record.ttl,  # type: ignore[attr-defined]
+                'record_source_id': (
+                    record.source.id if record.source else None  # type: ignore[attr-defined]
+                ),
                 **zone_params,
             }
 
-        def template(value, params, record):
+        def template(value: Any, params: dict[str, Any], record: Any) -> Any:
             try:
                 return value.template(params)
             except KeyError as e:
@@ -129,21 +143,21 @@ class Templating(BaseProcessor):
         for record in desired.records:
             params = build_params(record)
             if hasattr(record, 'values'):
-                if record.values and not hasattr(record.values[0], 'template'):
+                if record.values and not hasattr(record.values[0], 'template'):  # type: ignore[attr-defined]
                     # the (custom) value type does not support templating
                     continue
                 new_values = [
-                    template(v, params, record) for v in record.values
+                    template(v, params, record) for v in record.values  # type: ignore[attr-defined]
                 ]
-                if record.values != new_values:
+                if record.values != new_values:  # type: ignore[attr-defined]
                     new = record.copy(values=new_values, lenient=lenient)
                     desired.add_record(new, replace=True, lenient=lenient)
             else:
-                if not hasattr(record.value, 'template'):
+                if not hasattr(record.value, 'template'):  # type: ignore[attr-defined]
                     # the (custom) value type does not support templating
                     continue
-                new_value = template(record.value, params, record)
-                if record.value != new_value:
+                new_value = template(record.value, params, record)  # type: ignore[attr-defined]
+                if record.value != new_value:  # type: ignore[attr-defined]
                     new = record.copy(value=new_value, lenient=lenient)
                     desired.add_record(new, replace=True, lenient=lenient)
 
