@@ -1,13 +1,20 @@
 #
 #
 #
+#
+
+from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING, Any
 
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 from .validator import ValueValidator
+
+if TYPE_CHECKING:
+    from typing import Iterable
 
 
 class TlsaValueValidator(ValueValidator):
@@ -17,8 +24,10 @@ class TlsaValueValidator(ValueValidator):
     ``certificate_association_data`` is present.
     '''
 
-    def validate(self, value_cls, data, _type):
-        reasons = []
+    def validate(
+        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
+    ) -> list[str]:
+        reasons: list[str] = []
         for value in data:
             try:
                 certificate_usage = int(value.get('certificate_usage', 0))
@@ -79,12 +88,14 @@ class TlsaValueRfcValidator(ValueValidator):
     '''
 
     _hex_re = re.compile(r'^[0-9a-fA-F]+$')
-    _matching_type_lengths = {1: 64, 2: 128}
+    _matching_type_lengths: dict[int, int] = {1: 64, 2: 128}
 
-    def validate(self, value_cls, data, _type):
-        reasons = []
+    def validate(
+        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
+    ) -> list[str]:
+        reasons: list[str] = []
         for value in data:
-            matching_type = None
+            matching_type: int | None = None
             for field in ('certificate_usage', 'selector', 'matching_type'):
                 if field not in value:
                     reasons.append(f'missing {field}')
@@ -134,8 +145,10 @@ class TlsaValueBestPracticeValidator(ValueValidator):
           - best-practice
     '''
 
-    def validate(self, value_cls, data, _type):
-        reasons = []
+    def validate(
+        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
+    ) -> list[str]:
+        reasons: list[str] = []
         for value in data:
             try:
                 matching_type = int(value['matching_type'])
@@ -150,7 +163,7 @@ class TlsaValueBestPracticeValidator(ValueValidator):
 
 
 class TlsaValue(EqualityTupleMixin, dict):
-    VALIDATORS = [
+    VALIDATORS: list[Any] = [
         TlsaValueValidator('tlsa-value', sets={'legacy'}),
         TlsaValueRfcValidator('tlsa-value-rfc', sets={'strict'}),
         TlsaValueBestPracticeValidator(
@@ -159,7 +172,7 @@ class TlsaValue(EqualityTupleMixin, dict):
     ]
 
     @classmethod
-    def _schema(cls):
+    def _schema(cls) -> dict[str, Any]:
         return {
             'type': 'object',
             'required': [
@@ -185,7 +198,7 @@ class TlsaValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def parse_rdata_text(cls, value: str) -> dict[str, Any]:
         try:
             (
                 certificate_usage,
@@ -216,10 +229,10 @@ class TlsaValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def process(cls, values):
+    def process(cls, values: Iterable[dict[str, Any]]) -> list[TlsaValue]:
         return [cls(v) for v in values]
 
-    def __init__(self, value):
+    def __init__(self, value: dict[str, Any]) -> None:
         super().__init__(
             {
                 'certificate_usage': int(value.get('certificate_usage', 0)),
@@ -234,42 +247,42 @@ class TlsaValue(EqualityTupleMixin, dict):
         )
 
     @property
-    def certificate_usage(self):
-        return self['certificate_usage']
+    def certificate_usage(self) -> int:
+        return self['certificate_usage']  # type: ignore[no-any-return]
 
     @certificate_usage.setter
-    def certificate_usage(self, value):
+    def certificate_usage(self, value: int) -> None:
         self['certificate_usage'] = value
 
     @property
-    def selector(self):
-        return self['selector']
+    def selector(self) -> int:
+        return self['selector']  # type: ignore[no-any-return]
 
     @selector.setter
-    def selector(self, value):
+    def selector(self, value: int) -> None:
         self['selector'] = value
 
     @property
-    def matching_type(self):
-        return self['matching_type']
+    def matching_type(self) -> int:
+        return self['matching_type']  # type: ignore[no-any-return]
 
     @matching_type.setter
-    def matching_type(self, value):
+    def matching_type(self, value: int) -> None:
         self['matching_type'] = value
 
     @property
-    def certificate_association_data(self):
-        return self['certificate_association_data']
+    def certificate_association_data(self) -> str:
+        return self['certificate_association_data']  # type: ignore[no-any-return]
 
     @certificate_association_data.setter
-    def certificate_association_data(self, value):
+    def certificate_association_data(self, value: str) -> None:
         self['certificate_association_data'] = value
 
     @property
-    def rdata_text(self):
+    def rdata_text(self) -> str:
         return f'{self.certificate_usage} {self.selector} {self.matching_type} {self.certificate_association_data}'
 
-    def template(self, params):
+    def template(self, params: dict[str, Any]) -> TlsaValue | None:
         if '{' not in self.certificate_association_data:
             return self
         new = self.__class__(self)
@@ -278,7 +291,7 @@ class TlsaValue(EqualityTupleMixin, dict):
         )
         return new
 
-    def _equality_tuple(self):
+    def _equality_tuple(self) -> tuple[int, int, int, str]:
         return (
             self.certificate_usage,
             self.selector,
@@ -286,19 +299,19 @@ class TlsaValue(EqualityTupleMixin, dict):
             self.certificate_association_data,
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"'{self.certificate_usage} {self.selector} {self.matching_type} {self.certificate_association_data}'"
 
 
 class TlsaRecord(ValuesMixin, Record):
-    REFERENCES = (
+    REFERENCES: tuple[str, ...] = (
         'https://datatracker.ietf.org/doc/html/rfc6698',
         'https://datatracker.ietf.org/doc/html/rfc7671',
         'https://datatracker.ietf.org/doc/html/rfc7672',
         'https://datatracker.ietf.org/doc/html/rfc7673',
     )
-    _type = 'TLSA'
-    _value_type = TlsaValue
+    _type = 'TLSA'  # type: ignore[misc]
+    _value_type = TlsaValue  # type: ignore[misc]
 
 
 Record.register_type(TlsaRecord)

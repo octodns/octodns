@@ -1,14 +1,21 @@
 #
 #
 #
+#
+
+from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING, Any
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 from .validator import RecordValidator, ValueValidator
+
+if TYPE_CHECKING:
+    from typing import Iterable
 
 
 class UriNameValidator(RecordValidator):
@@ -20,7 +27,9 @@ class UriNameValidator(RecordValidator):
 
     _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(
+        self, record_cls: Any, name: str, fqdn: str, data: Any
+    ) -> list[str]:
         if not self._name_re.match(name):
             return ['invalid name for URI record']
         return []
@@ -32,10 +41,11 @@ class UriValueValidator(ValueValidator):
     integer-parsable, and target is non-empty.
     '''
 
-    def validate(self, value_cls, data, _type):
-        reasons = []
+    def validate(
+        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
+    ) -> list[str]:
+        reasons: list[str] = []
         for value in data:
-            # TODO: validate algorithm and fingerprint_type values
             try:
                 int(value['priority'])
             except KeyError:
@@ -53,10 +63,6 @@ class UriValueValidator(ValueValidator):
                 if not target:
                     reasons.append('missing target')
                     continue
-                # actual validation of the target is non-trivial and specific
-                # to the details of the schema etc. rfc3986 has support for
-                # validation, but we don't currently require the module and
-                # this seems too esoteric a use case to add it
             except KeyError:
                 reasons.append('missing target')
         return reasons
@@ -76,8 +82,10 @@ class UriValueRfcValidator(ValueValidator):
           - strict
     '''
 
-    def validate(self, value_cls, data, _type):
-        reasons = []
+    def validate(
+        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
+    ) -> list[str]:
+        reasons: list[str] = []
         for value in data:
             for field in ('priority', 'weight'):
                 if field not in value:
@@ -97,13 +105,13 @@ class UriValueRfcValidator(ValueValidator):
 
 
 class UriValue(EqualityTupleMixin, dict):
-    VALIDATORS = [
+    VALIDATORS: list[Any] = [
         UriValueValidator('uri-value', sets={'legacy'}),
         UriValueRfcValidator('uri-value-rfc', sets={'strict'}),
     ]
 
     @classmethod
-    def _schema(cls):
+    def _schema(cls) -> dict[str, Any]:
         return {
             'type': 'object',
             'required': ['priority', 'weight', 'target'],
@@ -115,7 +123,7 @@ class UriValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def parse_rdata_text(cls, value: str) -> dict[str, Any]:
         try:
             priority, weight, target = value.split(' ')
         except ValueError:
@@ -132,10 +140,10 @@ class UriValue(EqualityTupleMixin, dict):
         return {'priority': priority, 'weight': weight, 'target': target}
 
     @classmethod
-    def process(cls, values):
+    def process(cls, values: Iterable[dict[str, Any]]) -> list[UriValue]:
         return [cls(v) for v in values]
 
-    def __init__(self, value):
+    def __init__(self, value: dict[str, Any]) -> None:
         super().__init__(
             {
                 'priority': int(value['priority']),
@@ -145,51 +153,51 @@ class UriValue(EqualityTupleMixin, dict):
         )
 
     @property
-    def priority(self):
-        return self['priority']
+    def priority(self) -> int:
+        return self['priority']  # type: ignore[no-any-return]
 
     @priority.setter
-    def priority(self, value):
+    def priority(self, value: int) -> None:
         self['priority'] = value
 
     @property
-    def weight(self):
-        return self['weight']
+    def weight(self) -> int:
+        return self['weight']  # type: ignore[no-any-return]
 
     @weight.setter
-    def weight(self, value):
+    def weight(self, value: int) -> None:
         self['weight'] = value
 
     @property
-    def target(self):
-        return self['target']
+    def target(self) -> str:
+        return self['target']  # type: ignore[no-any-return]
 
     @target.setter
-    def target(self, value):
+    def target(self, value: str) -> None:
         self['target'] = value
 
     @property
-    def data(self):
-        return self
+    def data(self) -> dict[str, Any]:
+        return self  # type: ignore[return-value]
 
     @property
-    def rdata_text(self):
+    def rdata_text(self) -> str:
         return f'{self.priority} {self.weight} "{self.target}"'
 
-    def template(self, params):
+    def template(self, params: dict[str, Any]) -> UriValue | None:
         if '{' not in self.target:
             return self
         new = self.__class__(self)
         new.target = new.target.format(**params)
         return new
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.__repr__())
 
-    def _equality_tuple(self):
+    def _equality_tuple(self) -> tuple[int, int, str]:
         return (self.priority, self.weight, self.target)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"'{self.priority} {self.weight} \"{self.target}\"'"
 
 
@@ -214,7 +222,7 @@ class UriNameRfcValidator(RecordValidator):
     _max_len = 15
 
     @classmethod
-    def _is_valid_service_name(cls, body):
+    def _is_valid_service_name(cls, body: str) -> bool:
         if not body or len(body) > cls._max_len:
             return False
         if not body[0].isalpha():
@@ -225,12 +233,14 @@ class UriNameRfcValidator(RecordValidator):
             return False
         return all(c.isalnum() or c == '-' for c in body)
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(
+        self, record_cls: Any, name: str, fqdn: str, data: Any
+    ) -> list[str]:
         labels = name.split('.') if name else []
         if len(labels) < 2:
             return ['URI name must have at least two labels (_service._proto)']
 
-        reasons = []
+        reasons: list[str] = []
         service, proto = labels[0], labels[1]
         if service != '*' and not (
             service.startswith('_') and self._is_valid_service_name(service[1:])
@@ -244,10 +254,12 @@ class UriNameRfcValidator(RecordValidator):
 
 
 class UriRecord(ValuesMixin, Record):
-    REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc7553',)
-    _type = 'URI'
-    _value_type = UriValue
-    VALIDATORS = [
+    REFERENCES: tuple[str, ...] = (
+        'https://datatracker.ietf.org/doc/html/rfc7553',
+    )
+    _type = 'URI'  # type: ignore[misc]
+    _value_type = UriValue  # type: ignore[misc]
+    VALIDATORS: list[Any] = [
         UriNameValidator('uri-name', sets={'legacy'}),
         UriNameRfcValidator('uri-name-rfc', sets={'strict'}),
     ]

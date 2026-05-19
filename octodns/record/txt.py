@@ -1,6 +1,9 @@
 #
 #
 #
+#
+
+from __future__ import annotations
 
 from .base import Record
 from .chunked import _ChunkedValue, _ChunkedValuesMixin
@@ -11,13 +14,13 @@ class TxtValue(_ChunkedValue):
 
 
 class TxtRecord(_ChunkedValuesMixin, Record):
-    REFERENCES = (
+    REFERENCES: tuple[str, ...] = (
         'https://datatracker.ietf.org/doc/html/rfc1035',
         'https://datatracker.ietf.org/doc/html/rfc1464',
         'https://datatracker.ietf.org/doc/html/rfc6763',
     )
-    _type = 'TXT'
-    _value_type = TxtValue
+    _type = 'TXT'  # type: ignore[misc]
+    _value_type = TxtValue  # type: ignore[misc]
 
 
 Record.register_type(TxtRecord)

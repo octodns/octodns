@@ -1,13 +1,20 @@
 #
 #
 #
+#
+
+from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING, Any
 
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 from .validator import ValueValidator
+
+if TYPE_CHECKING:
+    from typing import Iterable
 
 
 class SshfpValueValidator(ValueValidator):
@@ -18,13 +25,12 @@ class SshfpValueValidator(ValueValidator):
     SHA-256 = 64).
     '''
 
-    # Expected fingerprint hex-string length per fingerprint_type, from RFC
-    # 4255/6594: type 1 = SHA-1 (160 bits, 40 hex chars), type 2 = SHA-256
-    # (256 bits, 64 hex chars).
-    FINGERPRINT_LENGTHS = {1: 40, 2: 64}
+    FINGERPRINT_LENGTHS: dict[int, int] = {1: 40, 2: 64}
 
-    def validate(self, value_cls, data, _type):
-        reasons = []
+    def validate(
+        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
+    ) -> list[str]:
+        reasons: list[str] = []
         for value in data:
             try:
                 algorithm = int(value['algorithm'])
@@ -34,8 +40,6 @@ class SshfpValueValidator(ValueValidator):
                 reasons.append('missing algorithm')
             except ValueError:
                 reasons.append(f'invalid algorithm "{value["algorithm"]}"')
-            # Start unset so the length check below can tell the difference
-            # between a known-good fingerprint_type and a missing/invalid one.
             fingerprint_type = None
             try:
                 fingerprint_type = int(value['fingerprint_type'])
@@ -51,11 +55,10 @@ class SshfpValueValidator(ValueValidator):
                 )
             if 'fingerprint' not in value:
                 reasons.append('missing fingerprint')
-            # Only length-check when we have both a known fingerprint_type and
-            # an actual fingerprint; unknown types and missing fingerprints
-            # are already reported above and we don't want to stack a
-            # confusing secondary error on top of them.
-            elif fingerprint_type in self.FINGERPRINT_LENGTHS:
+            elif (
+                fingerprint_type is not None
+                and fingerprint_type in self.FINGERPRINT_LENGTHS
+            ):
                 expected = self.FINGERPRINT_LENGTHS[fingerprint_type]
                 actual = len(value['fingerprint'])
                 if actual != expected:
@@ -85,12 +88,14 @@ class SshfpValueRfcValidator(ValueValidator):
     '''
 
     _hex_re = re.compile(r'^[0-9a-fA-F]+$')
-    _fingerprint_type_lengths = {1: 40, 2: 64}
+    _fingerprint_type_lengths: dict[int, int] = {1: 40, 2: 64}
 
-    def validate(self, value_cls, data, _type):
-        reasons = []
+    def validate(
+        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
+    ) -> list[str]:
+        reasons: list[str] = []
         for value in data:
-            fingerprint_type = None
+            fingerprint_type: int | None = None
             for field, max_val in (
                 ('algorithm', 255),
                 ('fingerprint_type', 255),
@@ -114,7 +119,10 @@ class SshfpValueRfcValidator(ValueValidator):
                 fp = value['fingerprint']
                 if not fp or not self._hex_re.match(str(fp)):
                     reasons.append(f'invalid fingerprint "{fp}"; must be hex')
-                elif fingerprint_type in self._fingerprint_type_lengths:
+                elif (
+                    fingerprint_type is not None
+                    and fingerprint_type in self._fingerprint_type_lengths
+                ):
                     expected = self._fingerprint_type_lengths[fingerprint_type]
                     if len(str(fp)) != expected:
                         reasons.append(
@@ -139,8 +147,10 @@ class SshfpValueBestPracticeValidator(ValueValidator):
           - best-practice
     '''
 
-    def validate(self, value_cls, data, _type):
-        reasons = []
+    def validate(
+        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
+    ) -> list[str]:
+        reasons: list[str] = []
         for value in data:
             try:
                 fp_type = int(value['fingerprint_type'])
@@ -158,7 +168,7 @@ class SshfpValue(EqualityTupleMixin, dict):
     VALID_ALGORITHMS = (1, 2, 3, 4)
     VALID_FINGERPRINT_TYPES = (1, 2)
 
-    VALIDATORS = [
+    VALIDATORS: list[Any] = [
         SshfpValueValidator('sshfp-value', sets={'legacy'}),
         SshfpValueRfcValidator('sshfp-value-rfc', sets={'strict'}),
         SshfpValueBestPracticeValidator(
@@ -167,7 +177,7 @@ class SshfpValue(EqualityTupleMixin, dict):
     ]
 
     @classmethod
-    def _schema(cls):
+    def _schema(cls) -> dict[str, Any]:
         return {
             'type': 'object',
             'required': ['algorithm', 'fingerprint_type', 'fingerprint'],
@@ -181,7 +191,7 @@ class SshfpValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def parse_rdata_text(cls, value: str) -> dict[str, Any]:
         try:
             algorithm, fingerprint_type, fingerprint = value.split(' ')
         except ValueError:
@@ -202,10 +212,10 @@ class SshfpValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def process(cls, values):
+    def process(cls, values: Iterable[dict[str, Any]]) -> list[SshfpValue]:
         return [cls(v) for v in values]
 
-    def __init__(self, value):
+    def __init__(self, value: dict[str, Any]) -> None:
         super().__init__(
             {
                 'algorithm': int(value['algorithm']),
@@ -215,63 +225,63 @@ class SshfpValue(EqualityTupleMixin, dict):
         )
 
     @property
-    def algorithm(self):
-        return self['algorithm']
+    def algorithm(self) -> int:
+        return self['algorithm']  # type: ignore[no-any-return]
 
     @algorithm.setter
-    def algorithm(self, value):
+    def algorithm(self, value: int) -> None:
         self['algorithm'] = value
 
     @property
-    def fingerprint_type(self):
-        return self['fingerprint_type']
+    def fingerprint_type(self) -> int:
+        return self['fingerprint_type']  # type: ignore[no-any-return]
 
     @fingerprint_type.setter
-    def fingerprint_type(self, value):
+    def fingerprint_type(self, value: int) -> None:
         self['fingerprint_type'] = value
 
     @property
-    def fingerprint(self):
-        return self['fingerprint']
+    def fingerprint(self) -> str:
+        return self['fingerprint']  # type: ignore[no-any-return]
 
     @fingerprint.setter
-    def fingerprint(self, value):
+    def fingerprint(self, value: str) -> None:
         self['fingerprint'] = value
 
     @property
-    def data(self):
-        return self
+    def data(self) -> dict[str, Any]:
+        return self  # type: ignore[return-value]
 
     @property
-    def rdata_text(self):
+    def rdata_text(self) -> str:
         return f'{self.algorithm} {self.fingerprint_type} {self.fingerprint}'
 
-    def template(self, params):
+    def template(self, params: dict[str, Any]) -> SshfpValue | None:
         if '{' not in self.fingerprint:
             return self
         new = self.__class__(self)
         new.fingerprint = new.fingerprint.format(**params)
         return new
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.__repr__())
 
-    def _equality_tuple(self):
+    def _equality_tuple(self) -> tuple[int, int, str]:
         return (self.algorithm, self.fingerprint_type, self.fingerprint)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"'{self.algorithm} {self.fingerprint_type} {self.fingerprint}'"
 
 
 class SshfpRecord(ValuesMixin, Record):
-    REFERENCES = (
+    REFERENCES: tuple[str, ...] = (
         'https://datatracker.ietf.org/doc/html/rfc4255',
         'https://datatracker.ietf.org/doc/html/rfc6594',
         'https://datatracker.ietf.org/doc/html/rfc7479',
         'https://datatracker.ietf.org/doc/html/rfc8709',
     )
-    _type = 'SSHFP'
-    _value_type = SshfpValue
+    _type = 'SSHFP'  # type: ignore[misc]
+    _value_type = SshfpValue  # type: ignore[misc]
 
 
 Record.register_type(SshfpRecord)
