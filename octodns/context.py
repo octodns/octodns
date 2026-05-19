@@ -15,6 +15,6 @@ class ContextDict(dict):
     attribute.
     '''
 
-    def __init__(self, *args, context=None, **kwargs):
+    def __init__(self, *args, context: str | None = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.context = context

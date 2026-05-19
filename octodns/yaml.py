@@ -3,10 +3,12 @@
 #
 
 from os.path import dirname, join
+from typing import Callable, Iterator
 
 from natsort import natsort_keygen
 from yaml import SafeDumper, SafeLoader, compose, dump, load
 from yaml.constructor import ConstructorError
+from yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
 from yaml.representer import SafeRepresenter
 
 from .context import ContextDict
@@ -18,7 +20,7 @@ _natsort_key = staticmethod(natsort_keygen())
 
 class ContextLoader(SafeLoader):
 
-    def construct_include(self, node):
+    def construct_include(self, node: ScalarNode) -> object:
         mark = self.get_mark()
         directory = dirname(mark.name)
 
@@ -27,7 +29,7 @@ class ContextLoader(SafeLoader):
         with open(filename, 'r') as fh:
             return load(fh, self.__class__)
 
-    def flatten_include(self, node):
+    def flatten_include(self, node: Node) -> Iterator[Node]:
         mark = self.get_mark()
         directory = dirname(mark.name)
 
@@ -36,7 +38,9 @@ class ContextLoader(SafeLoader):
         with open(filename, 'r') as fh:
             yield compose(fh, self.__class__).value
 
-    def construct_mapping(self, node, deep=False):
+    def construct_mapping(
+        self, node: MappingNode, deep: bool = False
+    ) -> ContextDict:
         '''
         Calls our parent and wraps the resulting dict with a ContextDict
         '''
@@ -51,13 +55,17 @@ class ContextLoader(SafeLoader):
     # can (hopefully) require a version of pyyaml with that PR merged.
 
     @classmethod
-    def add_flattener(cls, tag, flattener):
+    def add_flattener(
+        cls,
+        tag: str,
+        flattener: 'Callable[[ContextLoader, Node], Iterator[Node]]',
+    ) -> None:
         if not 'yaml_flatteners' in cls.__dict__:
-            cls.yaml_flatteners = {}
+            cls.yaml_flatteners = {}  # type: ignore[attr-defined]
         cls.yaml_flatteners[tag] = flattener
 
     # this overwrites/ignores the built-in version of the method
-    def flatten_mapping(self, node):  # pragma: no cover
+    def flatten_mapping(self, node: MappingNode) -> None:  # pragma: no cover
         merge = []
         for key_node, value_node in node.value:
             if key_node.tag == 'tag:yaml.org,2002:merge':
@@ -81,7 +89,9 @@ class ContextLoader(SafeLoader):
 
         node.value = merge
 
-    def flatten_yaml_seq(self, node):  # pragma: no cover
+    def flatten_yaml_seq(
+        self, node: SequenceNode
+    ) -> Iterator[Node]:  # pragma: no cover
         submerge = []
         for subnode in node.value:
             # we need to flatten each item in the seq, most likely they'll be mappings,
@@ -101,7 +111,9 @@ class ContextLoader(SafeLoader):
         for value in submerge:
             yield value
 
-    def flatten_yaml_map(self, node):  # pragma: no cover
+    def flatten_yaml_map(
+        self, node: MappingNode
+    ) -> Iterator[list[tuple[Node, Node]]]:  # pragma: no cover
         self.flatten_mapping(node)
         yield node.value
 
@@ -125,7 +137,9 @@ ContextLoader.add_flattener('!include', ContextLoader.flatten_include)
 # here
 class SortEnforcingLoader(ContextLoader):
 
-    def construct_mapping(self, node, deep=False):
+    def construct_mapping(
+        self, node: MappingNode, deep: bool = False
+    ) -> dict[object, object]:
         ret = super().construct_mapping(node, deep)
 
         keys = list(ret.keys())
@@ -156,7 +170,7 @@ NaturalSortEnforcingLoader.add_constructor(
 
 
 class SimpleSortEnforcingLoader(SortEnforcingLoader):
-    KEYGEN = lambda _, s: s
+    KEYGEN = lambda _, s: s  # type: ignore[assignment]
 
 
 SimpleSortEnforcingLoader.add_constructor(
@@ -173,14 +187,16 @@ _loaders = {
 
 class InvalidOrder(Exception):
 
-    def __init__(self, order_mode):
+    def __init__(self, order_mode: str) -> None:
         options = '", "'.join(_loaders.keys())
         super().__init__(
             f'Invalid order_mode, "{order_mode}", options are "{options}"'
         )
 
 
-def safe_load(stream, enforce_order=True, order_mode='natural'):
+def safe_load(
+    stream: object, enforce_order: bool = True, order_mode: str = 'natural'
+) -> object:
     if enforce_order:
         try:
             loader = _loaders[order_mode]
@@ -201,7 +217,7 @@ class SortingDumper(SafeDumper):
     more info
     '''
 
-    def _representer(self, data):
+    def _representer(self, data: dict[object, object]) -> MappingNode:
         data = sorted(data.items(), key=self.KEYGEN)
         return self.represent_mapping(self.DEFAULT_MAPPING_TAG, data)
 
@@ -218,13 +234,15 @@ class NaturalSortingDumper(SortingDumper):
 
 
 class SimpleSortingDumper(SortingDumper):
-    KEYGEN = lambda _, s: s
+    KEYGEN = lambda _, s: s  # type: ignore[assignment]
 
 
 _dumpers = {'natural': NaturalSortingDumper, 'simple': SimpleSortingDumper}
 
 
-def safe_dump(data, fh, order_mode='natural', **options):
+def safe_dump(
+    data: object, fh: object, order_mode: str = 'natural', **options: object
+) -> None:
     kwargs = {
         'canonical': False,
         'indent': 2,
