@@ -2,6 +2,8 @@
 #
 #
 
+from __future__ import annotations
+
 '''
 Build a JSON Schema describing the octoDNS main configuration file.
 
@@ -14,15 +16,28 @@ This schema is intended for external consumers (IDEs, CI lint). octoDNS's own
 validation is unchanged.
 '''
 
-_STRING_ARRAY = {'type': 'array', 'items': {'type': 'string'}}
-_STRING_LIST = {'type': 'array', 'items': {'type': 'string'}, 'minItems': 1}
-_INT_GTE0 = {'type': 'integer', 'minimum': 0}
-_INT_GTE1 = {'type': 'integer', 'minimum': 1}
+from typing import Optional
+
+_STRING_ARRAY: dict[str, object] = {
+    'type': 'array',
+    'items': {'type': 'string'},
+}
+_STRING_LIST: dict[str, object] = {
+    'type': 'array',
+    'items': {'type': 'string'},
+    'minItems': 1,
+}
+_INT_GTE0: dict[str, object] = {'type': 'integer', 'minimum': 0}
+_INT_GTE1: dict[str, object] = {'type': 'integer', 'minimum': 1}
 
 
-def _class_branch(dotted_class, then_props, required_props=None):
+def _class_branch(
+    dotted_class: str,
+    then_props: dict[str, object],
+    required_props: Optional[list[str]] = None,
+) -> dict[str, object]:
     '''Build an if/then branch keyed on a specific class value.'''
-    then = {'properties': then_props}
+    then: dict[str, object] = {'properties': then_props}
     if required_props:
         then['required'] = required_props
     return {
@@ -34,14 +49,17 @@ def _class_branch(dotted_class, then_props, required_props=None):
     }
 
 
-def _pluggable_entry(class_branches, extra_props=None):
+def _pluggable_entry(
+    class_branches: list[dict[str, object]],
+    extra_props: Optional[dict[str, object]] = None,
+) -> dict[str, object]:
     '''
     Schema for a single pluggable entry (any provider/processor/etc. dict).
 
     `class` is required. Known classes get type-checked kwargs via if/then
     branches; unknown classes pass freely (additionalProperties: true).
     '''
-    props = {'class': {'type': 'string'}}
+    props: dict[str, object] = {'class': {'type': 'string'}}
     if extra_props:
         props.update(extra_props)
     return {
@@ -55,7 +73,7 @@ def _pluggable_entry(class_branches, extra_props=None):
 
 # ── Providers / Sources ───────────────────────────────────────────────────────
 
-_PROVIDER_BRANCHES = [
+_PROVIDER_BRANCHES: list[dict[str, object]] = [
     _class_branch(
         'octodns.provider.yaml.YamlProvider',
         {
@@ -96,12 +114,22 @@ _PROVIDER_BRANCHES = [
 
 # ── Processors ────────────────────────────────────────────────────────────────
 
-_INCLUDE_TARGET = {'include_target': {'type': 'boolean'}}
-_ALLOWLIST_PROPS = {'allowlist': _STRING_LIST, **_INCLUDE_TARGET}
-_REJECTLIST_PROPS = {'rejectlist': _STRING_LIST, **_INCLUDE_TARGET}
-_NETWORK_LIST = {'type': 'array', 'items': {'type': 'string'}, 'minItems': 1}
+_INCLUDE_TARGET: dict[str, object] = {'include_target': {'type': 'boolean'}}
+_ALLOWLIST_PROPS: dict[str, object] = {
+    'allowlist': _STRING_LIST,
+    **_INCLUDE_TARGET,
+}
+_REJECTLIST_PROPS: dict[str, object] = {
+    'rejectlist': _STRING_LIST,
+    **_INCLUDE_TARGET,
+}
+_NETWORK_LIST: dict[str, object] = {
+    'type': 'array',
+    'items': {'type': 'string'},
+    'minItems': 1,
+}
 
-_PROCESSOR_BRANCHES = [
+_PROCESSOR_BRANCHES: list[dict[str, object]] = [
     _class_branch('octodns.processor.acme.AcmeManagingProcessor', {}),
     _class_branch(
         'octodns.processor.arpa.AutoArpa',
@@ -217,17 +245,17 @@ _PROCESSOR_BRANCHES = [
 
 # ── Secret handlers ───────────────────────────────────────────────────────────
 
-_SECRET_HANDLER_BRANCHES = [
+_SECRET_HANDLER_BRANCHES: list[dict[str, object]] = [
     _class_branch('octodns.secret.environ.EnvironSecrets', {})
 ]
 
 # ── Plan outputs ──────────────────────────────────────────────────────────────
 
-_OUTPUT_FILENAME = {
+_OUTPUT_FILENAME: dict[str, object] = {
     'output_filename': {'oneOf': [{'type': 'string'}, {'type': 'null'}]}
 }
 
-_PLAN_OUTPUT_BRANCHES = [
+_PLAN_OUTPUT_BRANCHES: list[dict[str, object]] = [
     _class_branch(
         'octodns.provider.plan.PlanLogger',
         {
@@ -251,12 +279,12 @@ _PLAN_OUTPUT_BRANCHES = [
 
 # ── Schema defs ───────────────────────────────────────────────────────────────
 
-_TYPE_TO_NAMES_MAP = {
+_TYPE_TO_NAMES_MAP: dict[str, object] = {
     'type': 'object',
     'additionalProperties': {'type': 'array', 'items': {'type': 'string'}},
 }
 
-_AUTO_ARPA_KWARGS = {
+_AUTO_ARPA_KWARGS: dict[str, object] = {
     'type': 'object',
     'additionalProperties': False,
     'properties': {
@@ -269,7 +297,7 @@ _AUTO_ARPA_KWARGS = {
 }
 
 
-def _manager_def():
+def _manager_def() -> dict[str, object]:
     return {
         'type': 'object',
         'additionalProperties': False,
@@ -316,7 +344,7 @@ def _manager_def():
     }
 
 
-def _zone_def():
+def _zone_def() -> dict[str, object]:
     return {
         'oneOf': [
             {
@@ -342,7 +370,7 @@ def _zone_def():
     }
 
 
-def build_config_schema():
+def build_config_schema() -> dict[str, object]:
     '''Return a dict describing the JSON Schema for an octoDNS config file.'''
     return {
         '$schema': 'https://json-schema.org/draft/2020-12/schema',

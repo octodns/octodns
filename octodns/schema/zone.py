@@ -2,6 +2,8 @@
 #
 #
 
+from __future__ import annotations
+
 '''
 Build a JSON Schema describing octoDNS YAML zone files.
 
@@ -16,14 +18,19 @@ not for octoDNS's own validation, which continues to handle error reporting
 with source context.
 '''
 
+from typing import TYPE_CHECKING, Any
+
 from ..record import Record
 from ..record.base import ValueMixin
 from ..record.dynamic import _DynamicMixin
 from ..record.geo import _GeoMixin
 
+if TYPE_CHECKING:
+    from octodns.record.base import BaseValue
+
 # When a value class doesn't yet expose `_schema`, fall back to permissive.
 # Individual record types will add `_schema` as coverage grows.
-_DEFAULT_VALUE_SCHEMA = True
+_DEFAULT_VALUE_SCHEMA: bool = True
 
 
 # 3rd-party providers register custom record types with names like
@@ -31,7 +38,9 @@ _DEFAULT_VALUE_SCHEMA = True
 # path, a slash, then the type name. These types aren't known when the
 # schema is generated (e.g. SchemaStore publishes a static snapshot), so
 # matching this pattern puts the record in a permissive catch-all branch.
-_THIRD_PARTY_TYPE_PATTERN = r'^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*/[A-Za-z_]\w*$'
+_THIRD_PARTY_TYPE_PATTERN: str = (
+    r'^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*/[A-Za-z_]\w*$'
+)
 
 
 # Syntactic constraints on record name keys. Mirrors the generic checks in
@@ -43,7 +52,7 @@ _THIRD_PARTY_TYPE_PATTERN = r'^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*/[A-Za-z_]\w*$'
 # keys (e.g. numeric labels in reverse zones parse as ints); octoDNS itself
 # stringifies names before imperative validation, so the schema stays out of
 # the way for non-string keys.
-_NAME_SCHEMA = {
+_NAME_SCHEMA: dict[str, Any] = {
     'if': {'type': 'string'},
     'then': {
         'allOf': [
@@ -56,7 +65,7 @@ _NAME_SCHEMA = {
 }
 
 
-_OCTODNS_META = {
+_OCTODNS_META: dict[str, Any] = {
     'type': 'object',
     # providers (in external packages) can add their own fields
     'additionalProperties': True,
@@ -82,31 +91,35 @@ _OCTODNS_META = {
 }
 
 
-def _value_schema(value_type):
+def _value_schema(value_type: type[BaseValue]) -> bool | dict[str, Any]:
     schema_fn = getattr(value_type, '_schema', None)
     if schema_fn is None:
         return _DEFAULT_VALUE_SCHEMA
     return schema_fn()
 
 
-def _value_props(record_class):
-    value_schema = _value_schema(record_class._value_type)
+def _value_props(record_class: type[Record]) -> dict[str, Any]:
+    value_schema_result = _value_schema(record_class._value_type)
     if issubclass(record_class, ValueMixin):
-        props = {'value': value_schema}
+        props: dict[str, Any] = {'value': value_schema_result}
     else:
         # ValuesMixin — accepts either `values` (list) or `value` (single)
         props = {
-            'value': value_schema,
-            'values': {'type': 'array', 'items': value_schema, 'minItems': 1},
+            'value': value_schema_result,
+            'values': {
+                'type': 'array',
+                'items': value_schema_result,
+                'minItems': 1,
+            },
         }
     if issubclass(record_class, _DynamicMixin):
-        props['dynamic'] = _DynamicMixin._schema(value_schema)
+        props['dynamic'] = _DynamicMixin._schema(value_schema_result)  # type: ignore[arg-type]
     if issubclass(record_class, _GeoMixin):
-        props['geo'] = _GeoMixin._schema(value_schema)
+        props['geo'] = _GeoMixin._schema(value_schema_result)  # type: ignore[arg-type]
     return props
 
 
-def _type_branch(type_name, record_class):
+def _type_branch(type_name: str, record_class: type[Record]) -> dict[str, Any]:
     return {
         'if': {
             'properties': {'type': {'const': type_name}},
@@ -116,7 +129,7 @@ def _type_branch(type_name, record_class):
     }
 
 
-def _third_party_branch():
+def _third_party_branch() -> dict[str, Any]:
     # permissive catch-all for 3rd-party types (see _THIRD_PARTY_TYPE_PATTERN)
     return {
         'if': {
@@ -134,7 +147,7 @@ def _third_party_branch():
     }
 
 
-def _record_def():
+def _record_def() -> dict[str, Any]:
     types = sorted(Record.registered_types().keys())
     return {
         'type': 'object',
@@ -167,7 +180,7 @@ def _record_def():
     }
 
 
-def build_zone_schema():
+def build_zone_schema() -> dict[str, Any]:
     '''Return a dict describing the JSON Schema for an octoDNS zone file.'''
     return {
         '$schema': 'https://json-schema.org/draft/2020-12/schema',
