@@ -170,10 +170,13 @@ and internally (with the custom overrides) with
 #
 #
 
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
 from os import listdir, makedirs
 from os.path import isdir, isfile, join
+from typing import TYPE_CHECKING, Generator, Optional
 
 from ..deprecation import deprecated
 from ..record import Record
@@ -181,35 +184,40 @@ from ..yaml import safe_dump, safe_load
 from . import ProviderException
 from .base import BaseProvider
 
+if TYPE_CHECKING:
+    from octodns.zone import Zone
+
+    from .plan import Plan
+
 
 class YamlProvider(BaseProvider):
-    SUPPORTS_GEO = True
-    SUPPORTS_DYNAMIC = True
-    SUPPORTS_POOL_VALUE_STATUS = True
-    SUPPORTS_DYNAMIC_SUBNETS = True
-    SUPPORTS_MULTIVALUE_PTR = True
+    SUPPORTS_GEO: bool = True
+    SUPPORTS_DYNAMIC: bool = True
+    SUPPORTS_POOL_VALUE_STATUS: bool = True
+    SUPPORTS_DYNAMIC_SUBNETS: bool = True
+    SUPPORTS_MULTIVALUE_PTR: bool = True
 
     # Any record name added to this set will be included in the catch-all file,
     # instead of a file matching the record name.
-    CATCHALL_RECORD_NAMES = ('*', '')
+    CATCHALL_RECORD_NAMES: tuple[str, ...] = ('*', '')
 
     def __init__(
         self,
-        id,
-        directory,
-        default_ttl=3600,
-        enforce_order=True,
-        order_mode='natural',
-        populate_should_replace=False,
-        supports_root_ns=True,
-        split_extension=False,
-        split_catchall=True,
-        shared_filename=False,
-        disable_zonefile=False,
-        escaped_semicolons=True,
-        ignore_missing_zones=False,
-        *args,
-        **kwargs,
+        id: str,
+        directory: str,
+        default_ttl: int = 3600,
+        enforce_order: bool = True,
+        order_mode: str = 'natural',
+        populate_should_replace: bool = False,
+        supports_root_ns: bool = True,
+        split_extension: Optional[str | bool] = False,
+        split_catchall: bool = True,
+        shared_filename: Optional[str | bool] = False,
+        disable_zonefile: bool = False,
+        escaped_semicolons: bool = True,
+        ignore_missing_zones: bool = False,
+        *args: object,
+        **kwargs: object,
     ):
         klass = self.__class__.__name__
         self.log = logging.getLogger(f'{klass}[{id}]')
@@ -230,34 +238,34 @@ class YamlProvider(BaseProvider):
             ignore_missing_zones,
         )
         super().__init__(id, *args, **kwargs)
-        self.directory = directory
-        self.default_ttl = default_ttl
-        self.enforce_order = enforce_order
-        self.order_mode = order_mode
-        self.populate_should_replace = populate_should_replace
-        self.supports_root_ns = supports_root_ns
-        self.split_extension = split_extension
-        self.split_catchall = split_catchall
-        self.shared_filename = shared_filename
-        self.disable_zonefile = disable_zonefile
-        self.escaped_semicolons = escaped_semicolons
-        self.ignore_missing_zones = ignore_missing_zones
+        self.directory: str = directory
+        self.default_ttl: int = default_ttl
+        self.enforce_order: bool = enforce_order
+        self.order_mode: str = order_mode
+        self.populate_should_replace: bool = populate_should_replace
+        self.supports_root_ns: bool = supports_root_ns
+        self.split_extension: Optional[str | bool] = split_extension
+        self.split_catchall: bool = split_catchall
+        self.shared_filename: Optional[str | bool] = shared_filename
+        self.disable_zonefile: bool = disable_zonefile
+        self.escaped_semicolons: bool = escaped_semicolons
+        self.ignore_missing_zones: bool = ignore_missing_zones
 
-    def copy(self):
+    def copy(self) -> YamlProvider:
         kwargs = dict(self.__dict__)
         kwargs['id'] = f'{kwargs["id"]}-copy'
         del kwargs['log']
         return YamlProvider(**kwargs)
 
     @property
-    def SUPPORTS(self):
+    def SUPPORTS(self) -> set[str]:
         # The yaml provider supports all record types even those defined by 3rd
         # party modules that we know nothing about, thus we dynamically return
         # the types list that is registered in Record, everything that's know as
         # of the point in time we're asked
         return set(Record.registered_types().keys())
 
-    def supports(self, record):
+    def supports(self, record: Record) -> bool:
         # We're overriding this as a performance tweak, namely to avoid calling
         # the implementation of the SUPPORTS property to create a set from a
         # dict_keys every single time something checked whether we support a
@@ -266,10 +274,10 @@ class YamlProvider(BaseProvider):
         return True
 
     @property
-    def SUPPORTS_ROOT_NS(self):
+    def SUPPORTS_ROOT_NS(self) -> bool:
         return self.supports_root_ns
 
-    def list_zones(self):
+    def list_zones(self) -> list[str]:
         self.log.debug('list_zones:')
         zones = set()
 
@@ -302,11 +310,11 @@ class YamlProvider(BaseProvider):
 
         return sorted(zones)
 
-    def _split_sources(self, zone):
+    def _split_sources(self, zone: Zone) -> Generator[str, None, None]:
         ext = self.split_extension
         utf8 = join(self.directory, f'{zone.decoded_name[:-1]}{ext}')
         idna = join(self.directory, f'{zone.name[:-1]}{ext}')
-        directory = None
+        directory: Optional[str] = None
         if isdir(utf8):
             if utf8 != idna and isdir(idna):
                 raise ProviderException(
@@ -316,13 +324,13 @@ class YamlProvider(BaseProvider):
         elif isdir(idna):
             directory = idna
         else:
-            return []
+            return
 
         for filename in listdir(directory):
             if filename.endswith('.yaml'):
                 yield join(directory, filename)
 
-    def _zone_sources(self, zone):
+    def _zone_sources(self, zone: Zone) -> Optional[str]:
         utf8 = join(self.directory, f'{zone.decoded_name}yaml')
         idna = join(self.directory, f'{zone.name}yaml')
         if isfile(utf8):
@@ -336,7 +344,9 @@ class YamlProvider(BaseProvider):
 
         return None
 
-    def _populate_from_file(self, filename, zone, lenient):
+    def _populate_from_file(
+        self, filename: str, zone: Zone, lenient: bool
+    ) -> None:
         with open(filename, 'r') as fh:
             yaml_data = safe_load(
                 fh, enforce_order=self.enforce_order, order_mode=self.order_mode
@@ -376,7 +386,9 @@ class YamlProvider(BaseProvider):
                 '_populate_from_file: successfully loaded "%s"', filename
             )
 
-    def populate(self, zone, target=False, lenient=False):
+    def populate(
+        self, zone: Zone, target: bool = False, lenient: bool = False
+    ) -> bool:
         self.log.debug(
             'populate: name=%s, target=%s, lenient=%s',
             zone.decoded_name,
@@ -386,7 +398,7 @@ class YamlProvider(BaseProvider):
 
         before = len(zone.records)
 
-        sources = []
+        sources: list[str] = []
 
         split_extension = self.split_extension
         if split_extension:
@@ -417,7 +429,7 @@ class YamlProvider(BaseProvider):
         )
         return exists
 
-    def _apply(self, plan):
+    def _apply(self, plan: Plan) -> None:
         # make a copy of existing we can muck with
         copy = plan.existing.copy()
         changes = plan.changes
@@ -431,7 +443,7 @@ class YamlProvider(BaseProvider):
         # we now have the records we need to write out, order things
         # alphabetically (records sort that way
         records = sorted(copy.records)
-        data = defaultdict(list)
+        data: dict[str, list[dict[str, object]]] = defaultdict(list)
         for record in records:
             d = record.data
             d['type'] = record._type
@@ -466,7 +478,7 @@ class YamlProvider(BaseProvider):
                 self.log.debug('_apply: creating split directory=%s', directory)
                 makedirs(directory)
 
-            catchall = {}
+            catchall: dict[str, object] = {}
             for record, config in data.items():
                 if self.split_catchall and record in self.CATCHALL_RECORD_NAMES:
                     catchall[record] = config
@@ -517,7 +529,14 @@ class SplitYamlProvider(YamlProvider):
     TO BE REMOVED: 2.0
     '''
 
-    def __init__(self, id, directory, *args, extension='.', **kwargs):
+    def __init__(
+        self,
+        id: str,
+        directory: str,
+        *args: object,
+        extension: str = '.',
+        **kwargs: object,
+    ):
         kwargs.update(
             {
                 'split_extension': extension,
