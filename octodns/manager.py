@@ -1,6 +1,4 @@
-#
-#
-#
+from __future__ import annotations
 
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
@@ -10,9 +8,10 @@ from importlib import import_module
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as module_version
 from json import dumps
-from logging import INFO, getLogger
+from logging import INFO, Logger, getLogger
+from re import Pattern
 from re import compile as re_compile
-from sys import stdout
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional
 
 from . import __version__
 from .deprecation import deprecated
@@ -31,46 +30,54 @@ from .zone import Zone
 from .zone.exception import ZoneException
 from .zone.validator import ZoneValidator
 
+if TYPE_CHECKING:
+    from octodns.provider.plan import _PlanOutput as PlanOutput
 
-class _AggregateTarget(object):
-    id = 'aggregate'
 
-    def __init__(self, targets):
-        self.targets = targets
-        self.SUPPORTS = targets[0].SUPPORTS
+class _AggregateTarget:
+    id: str = 'aggregate'
+
+    def __init__(self, targets: list[BaseProvider]) -> None:
+        self.targets: list[BaseProvider] = targets
+        self.SUPPORTS: set[str] = targets[0].SUPPORTS  # type: ignore[attr-defined]
         for target in targets[1:]:
-            self.SUPPORTS = self.SUPPORTS & target.SUPPORTS
+            self.SUPPORTS = self.SUPPORTS & target.SUPPORTS  # type: ignore[attr-defined]
 
-    def supports(self, record):
+    def supports(self, record: Record) -> bool:
         for target in self.targets:
-            if not target.supports(record):
+            if not target.supports(record):  # type: ignore[attr-defined]
                 return False
         return True
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> bool:
         if name.startswith('SUPPORTS_'):
             # special case to handle any current or future SUPPORTS_* by
             # returning whether all providers support the requested
             # functionality.
             for target in self.targets:
-                if not getattr(target, name):
+                if not getattr(target, name):  # type: ignore[attr-defined]
                     return False
             return True
         klass = self.__class__.__name__
         raise AttributeError(f'{klass} object has no attribute {name}')
 
 
-class MakeThreadFuture(object):
-    def __init__(self, func, args, kwargs):
-        self.func = func
-        self.args = args
-        self.kwargs = kwargs
+class MakeThreadFuture:
+    def __init__(
+        self,
+        func: Callable[..., Any],
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+    ) -> None:
+        self.func: Callable[..., Any] = func
+        self.args: tuple[Any, ...] = args
+        self.kwargs: dict[str, Any] = kwargs
 
-    def result(self):
+    def result(self) -> Any:
         return self.func(*self.args, **self.kwargs)
 
 
-class MainThreadExecutor(object):
+class MainThreadExecutor:
     '''
     Dummy executor that runs things on the main thread during the invocation
     of submit, but still returns a future object with the result. This allows
@@ -79,7 +86,9 @@ class MainThreadExecutor(object):
     traditionally written.
     '''
 
-    def submit(self, func, *args, **kwargs):
+    def submit(
+        self, func: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> MakeThreadFuture:
         return MakeThreadFuture(func, args, kwargs)
 
 
@@ -87,73 +96,83 @@ class ManagerException(Exception):
     pass
 
 
-class Manager(object):
-    log = getLogger('Manager')
-    plan_log = getLogger('Plan')
+class Manager:
+    log: Logger = getLogger('Manager')
+    plan_log: Logger = getLogger('Plan')
 
     @classmethod
-    def _plan_keyer(cls, p):
+    def _plan_keyer(cls, p: tuple[Any, Plan]) -> int:
         plan = p[1]
         return len(plan.changes[0].record.zone.name) if plan.changes else 0
 
     def __init__(
         self,
-        config_file,
-        max_workers=None,
-        include_meta=False,
-        auto_arpa=False,
-        enable_checksum=False,
-    ):
+        config_file: str,
+        max_workers: Optional[int] = None,
+        include_meta: bool = False,
+        auto_arpa: bool = False,
+        enable_checksum: bool = False,
+    ) -> None:
         version = self._try_version('octodns', version=__version__)
         self.log.info(
             '__init__: config_file=%s, (octoDNS %s)', config_file, version
         )
 
-        self._configured_sub_zones = None
+        self._configured_sub_zones: Optional[IdnaDict[str, set[str]]] = None
 
         # Read our config file
         with open(config_file, 'r') as fh:
-            self.config = safe_load(fh, enforce_order=False)
+            self.config: dict[str, Any] = safe_load(fh, enforce_order=False)
 
-        zones = self.config['zones']
+        zones: dict[str, Any] = self.config['zones']
         self.config['zones'] = self._config_zones(zones)
 
-        manager_config = self.config.get('manager') or {}
+        manager_config: dict[str, Any] = self.config.get('manager') or {}
         self._executor = self._config_executor(manager_config, max_workers)
-        self.include_meta = self._config_include_meta(
+        self.include_meta: bool = self._config_include_meta(
             manager_config, include_meta
         )
-        self.enable_checksum = self._config_enable_checksum(
+        self.enable_checksum: bool = self._config_enable_checksum(
             manager_config, enable_checksum
         )
 
         # add our hard-coded environ handler first so that other secret
         # providers can pull in env variables w/it
-        self.secret_handlers = {'env': EnvironSecrets('env')}
-        secret_handlers_config = self.config.get('secret_handlers') or {}
+        self.secret_handlers: dict[str, Any] = {'env': EnvironSecrets('env')}
+        secret_handlers_config: dict[str, Any] = (
+            self.config.get('secret_handlers') or {}
+        )
         self.secret_handlers.update(
             self._config_secret_handlers(secret_handlers_config)
         )
 
-        self.auto_arpa = self._config_auto_arpa(manager_config, auto_arpa)
+        self.auto_arpa: bool | dict[str, Any] = self._config_auto_arpa(
+            manager_config, auto_arpa
+        )
 
-        self.global_processors = manager_config.get('processors') or []
+        self.global_processors: list[str] = (
+            manager_config.get('processors') or []
+        )
         self.log.info('__init__: global_processors=%s', self.global_processors)
 
-        self.global_post_processors = (
+        self.global_post_processors: list[str] = (
             manager_config.get('post_processors') or []
         )
         self.log.info(
             '__init__: global_post_processors=%s', self.global_post_processors
         )
 
-        providers_config = self.config['providers']
-        self.providers = self._config_providers(providers_config)
+        providers_config: dict[str, Any] = self.config['providers']
+        self.providers: dict[str, BaseProvider] = self._config_providers(
+            providers_config
+        )
 
-        processors_config = self.config.get('processors') or {}
-        self.processors = self._config_processors(processors_config)
+        processors_config: dict[str, Any] = self.config.get('processors') or {}
+        self.processors: dict[str, Any] = self._config_processors(
+            processors_config
+        )
 
-        validators_config = self.config.get('validators') or {}
+        validators_config: dict[str, Any] = self.config.get('validators') or {}
         self._config_validators(validators_config)
         self._configure_validators(manager_config)
 
@@ -162,11 +181,11 @@ class Manager(object):
                 '__init__: adding auto-arpa to processors and providers, prepending it to global_post_processors list'
             )
             kwargs = self.auto_arpa if isinstance(self.auto_arpa, dict) else {}
-            auto_arpa = AutoArpa('auto-arpa', **kwargs)
-            self.providers[auto_arpa.name] = auto_arpa
-            self.processors[auto_arpa.name] = auto_arpa
+            auto_arpa_processor = AutoArpa('auto-arpa', **kwargs)
+            self.providers[auto_arpa_processor.name] = auto_arpa_processor  # type: ignore[assignment]
+            self.processors[auto_arpa_processor.name] = auto_arpa_processor
             self.global_post_processors = [
-                auto_arpa.name
+                auto_arpa_processor.name
             ] + self.global_post_processors
 
         if self.include_meta:
@@ -182,17 +201,21 @@ class Manager(object):
             self.processors[meta.id] = meta
             self.global_post_processors.append(meta.id)
 
-        plan_outputs_config = manager_config.get('plan_outputs') or {
+        plan_outputs_config: dict[str, Any] = manager_config.get(
+            'plan_outputs'
+        ) or {
             '_logger': {
                 'class': 'octodns.provider.plan.PlanLogger',
                 'level': 'info',
             }
         }
-        self.plan_outputs = self._config_plan_outputs(plan_outputs_config)
+        self.plan_outputs: dict[str, PlanOutput] = self._config_plan_outputs(
+            plan_outputs_config
+        )
 
-    def _config_zones(self, zones):
+    def _config_zones(self, zones: dict[str, Any]) -> IdnaDict[str, Any]:
         # record the set of configured zones we have as they are
-        configured_zones = set([z.lower() for z in zones.keys()])
+        configured_zones: set[str] = set([z.lower() for z in zones.keys()])
         # walk the configured zones
         for name in configured_zones:
             if 'xn--' not in name:
@@ -208,7 +231,9 @@ class Manager(object):
         # convert the zones portion of things into an IdnaDict
         return IdnaDict(zones)
 
-    def _config_executor(self, manager_config, max_workers=None):
+    def _config_executor(
+        self, manager_config: dict[str, Any], max_workers: Optional[int] = None
+    ) -> ThreadPoolExecutor | MainThreadExecutor:
         max_workers = (
             manager_config.get('max_workers') or 1
             if max_workers is None
@@ -219,12 +244,16 @@ class Manager(object):
             return ThreadPoolExecutor(max_workers=max_workers)
         return MainThreadExecutor()
 
-    def _config_include_meta(self, manager_config, include_meta=False):
+    def _config_include_meta(
+        self, manager_config: dict[str, Any], include_meta: bool = False
+    ) -> bool:
         include_meta = include_meta or manager_config.get('include_meta', False)
         self.log.info('_config_include_meta: include_meta=%s', include_meta)
         return include_meta
 
-    def _config_enable_checksum(self, manager_config, enable_checksum=False):
+    def _config_enable_checksum(
+        self, manager_config: dict[str, Any], enable_checksum: bool = False
+    ) -> bool:
         enable_checksum = enable_checksum or manager_config.get(
             'enable_checksum', False
         )
@@ -233,27 +262,31 @@ class Manager(object):
         )
         return enable_checksum
 
-    def _config_auto_arpa(self, manager_config, auto_arpa=False):
+    def _config_auto_arpa(
+        self, manager_config: dict[str, Any], auto_arpa: bool = False
+    ) -> bool | dict[str, Any]:
         auto_arpa = auto_arpa or manager_config.get('auto_arpa', False)
         self.log.info('_config_auto_arpa: auto_arpa=%s', auto_arpa)
         return auto_arpa
 
-    def _config_secret_handlers(self, secret_handlers_config):
+    def _config_secret_handlers(
+        self, secret_handlers_config: dict[str, Any]
+    ) -> dict[str, Any]:
         self.log.debug('_config_secret_handlers: configuring secret_handlers')
-        secret_handlers = {}
+        secret_handlers: dict[str, Any] = {}
         for sh_name, sh_config in secret_handlers_config.items():
             # Get our class and remove it from the secret handler config
             try:
-                _class = sh_config.pop('class')
+                _class = sh_config.pop('class')  # type: ignore[call-overload]
             except KeyError:
                 self.log.exception('Invalid secret handler class')
                 raise ManagerException(
-                    f'Secret Handler {sh_name} is missing class, {sh_config.context}'
+                    f'Secret Handler {sh_name} is missing class, {sh_config.context}'  # type: ignore[attr-defined]
                 )
             _class, module, version = self._get_named_class(
-                'secret handler', _class, sh_config.context
+                'secret handler', _class, sh_config.context  # type: ignore[attr-defined]
             )
-            kwargs = self._build_kwargs(sh_config)
+            kwargs: dict[str, Any] = self._build_kwargs(sh_config)
             try:
                 secret_handlers[sh_name] = _class(sh_name, **kwargs)
                 self.log.info(
@@ -265,27 +298,29 @@ class Manager(object):
             except TypeError:
                 self.log.exception('Invalid secret handler config')
                 raise ManagerException(
-                    f'Incorrect secret handler config for {sh_name}, {sh_config.context}'
+                    f'Incorrect secret handler config for {sh_name}, {sh_config.context}'  # type: ignore[attr-defined]
                 )
 
         return secret_handlers
 
-    def _config_providers(self, providers_config):
+    def _config_providers(
+        self, providers_config: dict[str, Any]
+    ) -> dict[str, BaseProvider]:
         self.log.debug('_config_providers: configuring providers')
-        providers = {}
+        providers: dict[str, BaseProvider] = {}
         for provider_name, provider_config in providers_config.items():
             # Get our class and remove it from the provider_config
             try:
-                _class = provider_config.pop('class')
+                _class = provider_config.pop('class')  # type: ignore[call-overload]
             except KeyError:
                 self.log.exception('Invalid provider class')
                 raise ManagerException(
-                    f'Provider {provider_name} is missing class, {provider_config.context}'
+                    f'Provider {provider_name} is missing class, {provider_config.context}'  # type: ignore[attr-defined]
                 )
             _class, module, version = self._get_named_class(
-                'provider', _class, provider_config.context
+                'provider', _class, provider_config.context  # type: ignore[attr-defined]
             )
-            kwargs = self._build_kwargs(provider_config)
+            kwargs: dict[str, Any] = self._build_kwargs(provider_config)
             try:
                 providers[provider_name] = _class(provider_name, **kwargs)
                 self.log.info(
@@ -297,25 +332,27 @@ class Manager(object):
             except TypeError:
                 self.log.exception('Invalid provider config')
                 raise ManagerException(
-                    f'Incorrect provider config for {provider_name}, {provider_config.context}'
+                    f'Incorrect provider config for {provider_name}, {provider_config.context}'  # type: ignore[attr-defined]
                 )
 
         return providers
 
-    def _config_processors(self, processors_config):
-        processors = {}
+    def _config_processors(
+        self, processors_config: dict[str, Any]
+    ) -> dict[str, Any]:
+        processors: dict[str, Any] = {}
         for processor_name, processor_config in processors_config.items():
             try:
-                _class = processor_config.pop('class')
+                _class = processor_config.pop('class')  # type: ignore[call-overload]
             except KeyError:
                 self.log.exception('Invalid processor class')
                 raise ManagerException(
-                    f'Processor {processor_name} is missing class, {processor_config.context}'
+                    f'Processor {processor_name} is missing class, {processor_config.context}'  # type: ignore[attr-defined]
                 )
             _class, module, version = self._get_named_class(
-                'processor', _class, processor_config.context
+                'processor', _class, processor_config.context  # type: ignore[attr-defined]
             )
-            kwargs = self._build_kwargs(processor_config)
+            kwargs: dict[str, Any] = self._build_kwargs(processor_config)
             try:
                 processors[processor_name] = _class(processor_name, **kwargs)
                 self.log.info(
@@ -327,19 +364,19 @@ class Manager(object):
             except TypeError:
                 self.log.exception('Invalid processor config')
                 raise ManagerException(
-                    f'Incorrect processor config for {processor_name}, {processor_config.context}'
+                    f'Incorrect processor config for {processor_name}, {processor_config.context}'  # type: ignore[attr-defined]
                 )
         return processors
 
-    def _config_validators(self, validators_config):
+    def _config_validators(self, validators_config: dict[str, Any]) -> None:
         # Parses the top-level `validators:` config section, instantiates each
         # validator, and registers it into the available registry via
         # Record.register_validator. _configure_validators then decides which
         # to activate based on manager.enabled and manager.validators.
         for validator_name, validator_config in validators_config.items():
-            context = getattr(validator_config, 'context', '')
+            context = getattr(validator_config, 'context', '')  # type: ignore[attr-defined]
             try:
-                _class = validator_config.pop('class')
+                _class = validator_config.pop('class')  # type: ignore[call-overload]
             except KeyError:
                 self.log.exception('Invalid validator class')
                 raise ManagerException(
@@ -348,10 +385,10 @@ class Manager(object):
             _class, module, version = self._get_named_class(
                 'validator', _class, context
             )
-            types = validator_config.pop('types', None)
+            types: Optional[list[str]] = validator_config.pop('types', None)
             if isinstance(types, str):
                 types = [types]
-            kwargs = self._build_kwargs(validator_config)
+            kwargs: dict[str, Any] = self._build_kwargs(validator_config)
             try:
                 instance = _class(validator_name, **kwargs)
             except TypeError:
@@ -380,24 +417,28 @@ class Manager(object):
                 version,
             )
 
-    def _configure_validators(self, manager_config):
-        validators_config = manager_config.get('validators') or {}
+    def _configure_validators(self, manager_config: dict[str, Any]) -> None:
+        validators_config: dict[str, Any] = (
+            manager_config.get('validators') or {}
+        )
 
-        enabled = validators_config.get('enabled', ('legacy',))
+        enabled: tuple[str, ...] | list[str] = validators_config.get(
+            'enabled', ('legacy',)
+        )
         if isinstance(enabled, str):
             raise ManagerException(
                 'manager.validators.enabled must be a list of set names, not a string; '
                 f'use [{enabled!r}] to enable a single set'
             )
         self.log.info('_configure_validators: enabling sets %s', list(enabled))
-        Record.enable_validators(enabled)
+        Record.enable_validators(enabled)  # type: ignore[arg-type]
         Zone.enable_zone_validators(enabled)
 
         # manager.validators.record.validators is canonical;
         # manager.validators.validators is the deprecated fallback.
-        record_config = validators_config.get('record') or {}
-        has_new = 'validators' in record_config
-        has_old = 'validators' in validators_config
+        record_config: dict[str, Any] = validators_config.get('record') or {}
+        has_new: bool = 'validators' in record_config
+        has_old: bool = 'validators' in validators_config
         if has_new and has_old:
             raise ManagerException(
                 'manager.validators.record.validators and '
@@ -410,16 +451,18 @@ class Manager(object):
                 'manager.validators.record.validators instead. Will be removed in 2.0',
                 stacklevel=4,
             )
-        add_config = record_config.get(
+        add_config: dict[str, Any] = record_config.get(
             'validators', validators_config.get('validators') or {}
         )
-        add_key = (
+        add_key: str = (
             'validators.record.validators'
             if has_new
             else 'validators.validators'
         )
         for record_type, names in add_config.items():
-            types = None if record_type == '*' else [record_type]
+            types: Optional[list[str]] = (
+                None if record_type == '*' else [record_type]
+            )
             for name in names:
                 try:
                     Record.enable_validator(name, types=types)
@@ -435,8 +478,8 @@ class Manager(object):
 
         # manager.validators.record.disable_validators is canonical;
         # manager.validators.disable_validators is the deprecated fallback.
-        has_new_dis = 'disable_validators' in record_config
-        has_old_dis = 'disable_validators' in validators_config
+        has_new_dis: bool = 'disable_validators' in record_config
+        has_old_dis: bool = 'disable_validators' in validators_config
         if has_new_dis and has_old_dis:
             raise ManagerException(
                 'manager.validators.record.disable_validators and '
@@ -449,12 +492,14 @@ class Manager(object):
                 'manager.validators.record.disable_validators instead. Will be removed in 2.0',
                 stacklevel=4,
             )
-        disable_config = record_config.get(
+        disable_config: dict[str, Any] = record_config.get(
             'disable_validators',
             validators_config.get('disable_validators') or {},
         )
         for record_type, ids in disable_config.items():
-            types = None if record_type == '*' else [record_type]
+            types: Optional[list[str]] = (
+                None if record_type == '*' else [record_type]
+            )
             for validator_id in ids:
                 try:
                     removed = Record.disable_validator(
@@ -476,7 +521,7 @@ class Manager(object):
                         record_type,
                     )
 
-        zone_config = validators_config.get('zone') or {}
+        zone_config: dict[str, Any] = validators_config.get('zone') or {}
         for name in zone_config.get('validators') or []:
             try:
                 Zone.enable_zone_validator(name)
@@ -504,12 +549,16 @@ class Manager(object):
                     validator_id,
                 )
 
-    def _config_plan_outputs(self, plan_outputs_config):
-        plan_outputs = {}
+    def _config_plan_outputs(
+        self, plan_outputs_config: dict[str, Any]
+    ) -> dict[str, PlanOutput]:
+        plan_outputs: dict[str, PlanOutput] = {}
         for plan_output_name, plan_output_config in plan_outputs_config.items():
-            context = getattr(plan_output_config, 'context', '')
+            context = getattr(  # type: ignore[attr-defined]
+                plan_output_config, 'context', ''
+            )
             try:
-                _class = plan_output_config.pop('class')
+                _class = plan_output_config.pop('class')  # type: ignore[call-overload]
             except KeyError:
                 self.log.exception('Invalid plan_output class')
                 raise ManagerException(
@@ -518,9 +567,9 @@ class Manager(object):
             _class, module, version = self._get_named_class(
                 'plan_output', _class, context
             )
-            kwargs = self._build_kwargs(plan_output_config)
+            kwargs: dict[str, Any] = self._build_kwargs(plan_output_config)
             try:
-                plan_outputs[plan_output_name] = _class(
+                plan_outputs[plan_output_name] = _class(  # type: ignore[assignment]
                     plan_output_name, **kwargs
                 )
                 # Don't print out version info for the default output
@@ -539,7 +588,12 @@ class Manager(object):
 
         return plan_outputs
 
-    def _try_version(self, module_name, module=None, version=None):
+    def _try_version(
+        self,
+        module_name: str,
+        module: Any = None,
+        version: Optional[str] = None,
+    ) -> Optional[str]:
         try:
             # Always try and use the official lookup first
             return module_version(module_name)
@@ -556,9 +610,9 @@ class Manager(object):
             module, '__version__', getattr(module, '__VERSION__', None)
         )
 
-    def _import_module(self, module_name):
-        current = module_name
-        _next = current.rsplit('.', 1)[0]
+    def _import_module(self, module_name: str) -> tuple[Any, str]:
+        current: str = module_name
+        _next: str = current.rsplit('.', 1)[0]
         module = import_module(current)
         version = self._try_version(current, module=module)
         # If we didn't find a version in the specific module we're importing,
@@ -570,7 +624,9 @@ class Manager(object):
             version = self._try_version(current)
         return module, version or 'n/a'
 
-    def _get_named_class(self, _type, _class, context):
+    def _get_named_class(
+        self, _type: str, _class: str, context: Any
+    ) -> tuple[Any, str, str]:
         try:
             module_name, class_name = _class.rsplit('.', 1)
             module, version = self._import_module(module_name)
@@ -594,9 +650,9 @@ class Manager(object):
                 f'Unknown {_type} class: {_class}, {context}'
             )
 
-    def _build_kwargs(self, source):
+    def _build_kwargs(self, source: dict[str, Any]) -> dict[str, Any]:
         # Build up the arguments we need to pass to the provider
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
         for k, v in source.items():
             if isinstance(v, dict):
                 v = self._build_kwargs(v)
@@ -616,13 +672,13 @@ class Manager(object):
                             k,
                         )
                     else:
-                        v = handler.fetch(name, source)
+                        v = handler.fetch(name, source)  # type: ignore[attr-defined]
 
             kwargs[k] = v
 
         return kwargs
 
-    def configured_sub_zones(self, zone_name):
+    def configured_sub_zones(self, zone_name: str) -> set[str]:
         '''
         Accepts either UTF-8 or IDNA encoded zone name and returns the list of
         any configured sub-zones in IDNA form. E.g. for the following
@@ -640,12 +696,14 @@ class Manager(object):
         if self._configured_sub_zones is None:
             # First time through we compute all the sub-zones
 
-            configured_sub_zones = IdnaDict()
+            configured_sub_zones = IdnaDict[str, set[str]]()
 
             # Get a list of all of our zone names. Sort them from shortest to
             # longest so that parents will always come before their subzones
             zones = sorted(
-                self.config['zones'].keys(), key=lambda z: len(z), reverse=True
+                self.config['zones'].keys(),
+                key=lambda z: len(z),  # type: ignore[arg-type]
+                reverse=True,
             )
             zones = deque(zones)
             # Until we're done processing zones
@@ -654,7 +712,7 @@ class Manager(object):
                 zone = zones.pop()
                 dotted = f'.{zone}'
                 trimmer = len(dotted)
-                subs = set()
+                subs: set[str] = set()
                 # look at all the zone names that come after it
                 for candidate in zones:
                     # If they end with this zone's dotted name, it's a sub
@@ -670,13 +728,13 @@ class Manager(object):
 
     def _populate_and_plan(
         self,
-        zone_name,
-        processors,
-        sources,
-        targets,
-        desired=None,
-        lenient=False,
-    ):
+        zone_name: str,
+        processors: list[Any],
+        sources: list[BaseProvider],
+        targets: list[BaseProvider],
+        desired: Optional[Zone] = None,
+        lenient: bool = False,
+    ) -> tuple[list[tuple[BaseProvider, Plan]], Zone]:
         zone = self.get_zone(zone_name)
         self.log.debug(
             'sync:   populating, zone=%s, lenient=%s',
@@ -693,7 +751,7 @@ class Manager(object):
         else:
             for source in sources:
                 try:
-                    source.populate(zone, lenient=lenient)
+                    source.populate(zone, lenient=lenient)  # type: ignore[arg-type]
                 except TypeError as e:
                     if "unexpected keyword argument 'lenient'" not in str(e):
                         raise
@@ -709,7 +767,7 @@ class Manager(object):
 
         for processor in processors:
             try:
-                zone = processor.process_source_zone(
+                zone = processor.process_source_zone(  # type: ignore[union-attr]
                     zone, sources=sources, lenient=lenient
                 )
             except TypeError as e:
@@ -723,16 +781,20 @@ class Manager(object):
                     'processor %s does not accept lenient param',
                     processor.__class__.__name__,
                 )
-                zone = processor.process_source_zone(zone, sources=sources)
+                zone = processor.process_source_zone(  # type: ignore[union-attr]
+                    zone, sources=sources
+                )
 
         zone.validate(lenient=lenient)
 
         self.log.debug('sync:   planning, zone=%s', zone.decoded_name)
-        plans = []
+        plans: list[tuple[BaseProvider, Plan]] = []
 
         for target in targets:
             try:
-                plan = target.plan(zone, processors=processors, lenient=lenient)
+                plan = target.plan(  # type: ignore[union-attr]
+                    zone, processors=processors, lenient=lenient
+                )
             except TypeError as e:
                 e_str = str(e)
                 if "keyword argument 'lenient'" in e_str:
@@ -745,7 +807,7 @@ class Manager(object):
                         target.__class__.__name__,
                     )
                     try:
-                        plan = target.plan(zone, processors=processors)
+                        plan = target.plan(zone, processors=processors)  # type: ignore[union-attr]
                     except TypeError as e2:
                         if "keyword argument 'processors'" not in str(e2):
                             raise
@@ -757,7 +819,7 @@ class Manager(object):
                             'provider.plan %s does not accept processors param',
                             target.__class__.__name__,
                         )
-                        plan = target.plan(zone)
+                        plan = target.plan(zone)  # type: ignore[union-attr]
                 elif "keyword argument 'processors'" in e_str:
                     deprecated(
                         f'`plan` method does not support the `processors` param, fallback is DEPRECATED. Will be removed in 2.0. Class {target.__class__.__name__}',
@@ -767,13 +829,13 @@ class Manager(object):
                         'provider.plan %s does not accept processors param',
                         target.__class__.__name__,
                     )
-                    plan = target.plan(zone)
+                    plan = target.plan(zone)  # type: ignore[union-attr]
                 else:
                     raise
 
             for processor in processors:
                 try:
-                    plan = processor.process_plan(
+                    plan = processor.process_plan(  # type: ignore[union-attr]
                         plan, sources=sources, target=target, lenient=lenient
                     )
                 except TypeError as e:
@@ -787,7 +849,7 @@ class Manager(object):
                         'processor %s does not accept lenient param',
                         processor.__class__.__name__,
                     )
-                    plan = processor.process_plan(
+                    plan = processor.process_plan(  # type: ignore[union-attr]
                         plan, sources=sources, target=target
                     )
             if plan:
@@ -796,7 +858,12 @@ class Manager(object):
         # Return the zone as it's the desired state
         return plans, zone
 
-    def _get_sources(self, decoded_zone_name, config, eligible_sources):
+    def _get_sources(
+        self,
+        decoded_zone_name: str,
+        config: dict[str, Any],
+        eligible_sources: Optional[Iterable[str]] = None,
+    ) -> list[BaseProvider]:
         try:
             sources = config['sources'] or []
         except KeyError:
@@ -807,7 +874,7 @@ class Manager(object):
         if eligible_sources and not [
             s for s in sources if s in eligible_sources
         ]:
-            return None
+            return []
 
         self.log.info('_get_sources:     sources=%s', sources)
 
@@ -815,20 +882,22 @@ class Manager(object):
             # rather than using a list comprehension, we break this loop
             # out so that the `except` block below can reference the
             # `source`
-            collected = []
+            collected: list[BaseProvider] = []
             for source in sources:
                 collected.append(self.providers[source])
             sources = collected
         except KeyError:
             raise ManagerException(
-                f'Zone {decoded_zone_name}, unknown source: {source}'
+                f'Zone {decoded_zone_name}, unknown source: {source}'  # type: ignore[reportPossiblyUnboundVariable]
             )
 
         return sources
 
-    def _get_processors(self, decoded_zone_name, config):
+    def _get_processors(
+        self, decoded_zone_name: str, config: dict[str, Any]
+    ) -> list[Any]:
         # Build list of processor names
-        processors = (
+        processors: list[str] = (
             self.global_processors
             + (config.get('processors') or [])
             + self.global_post_processors
@@ -836,25 +905,30 @@ class Manager(object):
 
         # Translate processor names to processor objects
         try:
-            collected = []
+            collected: list[Any] = []
             for processor in processors:
                 collected.append(self.processors[processor])
             processors = collected
         except KeyError:
             raise ManagerException(
-                f'Zone {decoded_zone_name}, unknown processor: {processor}'
+                f'Zone {decoded_zone_name}, unknown processor: {processor}'  # type: ignore[reportPossiblyUnboundVariable]
             )
 
         return processors
 
-    def _preprocess_zones(self, zones, eligible_sources=None, sources=None):
+    def _preprocess_zones(
+        self,
+        zones: dict[str, Any],
+        eligible_sources: Optional[Iterable[str]] = None,
+        sources: Optional[list[BaseProvider]] = None,
+    ) -> dict[str, Any]:
         '''
         This may modify the passed in zone object, it should be ignored after
         the call and the zones returned from this function should be used
         instead.
         '''
 
-        source_zones = {}
+        source_zones: dict[str, set[str]] = {}
 
         # list since we'll be modifying zones in the loop
         for name, config in list(zones.items()):
@@ -869,9 +943,9 @@ class Manager(object):
             self.log.info(
                 '_preprocess_zones: dynamic zone=%s, sources=%s',
                 name,
-                list(s.id for s in found_sources),
+                [s.id for s in found_sources],
             )
-            candidates = set()
+            candidates: set[str] = set()
             for source in found_sources:
                 if source.id not in source_zones:
                     if not hasattr(source, 'list_zones'):
@@ -879,7 +953,7 @@ class Manager(object):
                             f'dynamic zone={name} includes a source, {source.id}, that does not support `list_zones`'
                         )
                     # get this source's zones
-                    listed_zones = set(source.list_zones())
+                    listed_zones: set[str] = set(source.list_zones())
                     # cache them
                     source_zones[source.id] = listed_zones
                     self.log.debug(
@@ -895,28 +969,36 @@ class Manager(object):
             )
 
             # remove any zones that are already configured, either explicitly or
-            # from a previous dyanmic config
+            # from a previous dynamic config
             candidates -= set(zones.keys())
 
-            if glob := config.pop('glob', None):
+            glob: Optional[str] = config.pop('glob', None)
+            if glob is not None:
                 self.log.debug(
                     '_preprocess_zones: name=%s, glob=%s', name, glob
                 )
                 candidates = set(fnmatch_filter(candidates, glob))
-            elif regex := config.pop('regex', None):
-                self.log.debug(
-                    '_preprocess_zones: name=%s, regex=%s', name, regex
-                )
-                regex = re_compile(regex)
-                self.log.debug(
-                    '_preprocess_zones: name=%s, compiled=%s', name, regex
-                )
-                candidates = set(z for z in candidates if regex.search(z))
             else:
-                # old-style wildcard that uses everything
-                self.log.debug(
-                    '_preprocess_zones: name=%s, old semantics, catch all', name
-                )
+                regex: Optional[str] = config.pop('regex', None)
+                if regex is not None:
+                    self.log.debug(
+                        '_preprocess_zones: name=%s, regex=%s', name, regex
+                    )
+                    compiled_regex: Pattern = re_compile(regex)
+                    self.log.debug(
+                        '_preprocess_zones: name=%s, compiled=%s',
+                        name,
+                        compiled_regex,
+                    )
+                    candidates = set(
+                        z for z in candidates if compiled_regex.search(z)
+                    )
+                else:
+                    # old-style wildcard that uses everything
+                    self.log.debug(
+                        '_preprocess_zones: name=%s, old semantics, catch all',
+                        name,
+                    )
 
             self.log.debug(
                 '_preprocess_zones: name=%s, matches=%s', name, candidates
@@ -932,21 +1014,27 @@ class Manager(object):
 
     def sync(
         self,
-        eligible_zones=[],
-        eligible_sources=[],
-        eligible_targets=[],
-        dry_run=True,
-        force=False,
-        plan_output_fh=stdout,
-        checksum=None,
-    ):
+        eligible_zones: Iterable[str] = [],
+        eligible_sources: Iterable[str] = [],
+        eligible_targets: Iterable[str] = [],
+        dry_run: bool = True,
+        force: bool = False,
+        plan_output_fh: Optional[Any] = None,
+        checksum: Optional[str] = None,
+    ) -> int:
         self.log.info(
             'sync: eligible_zones=%s, eligible_targets=%s, dry_run=%s, force=%s, plan_output_fh=%s, checksum=%s',
             eligible_zones,
             eligible_targets,
             dry_run,
             force,
-            getattr(plan_output_fh, 'name', plan_output_fh.__class__.__name__),
+            (
+                getattr(
+                    plan_output_fh, 'name', plan_output_fh.__class__.__name__
+                )
+                if plan_output_fh is not None
+                else 'stdout'
+            ),
             checksum,
         )
 
@@ -955,9 +1043,11 @@ class Manager(object):
         zones = self._preprocess_zones(zones, eligible_sources)
 
         if eligible_zones:
-            zones = IdnaDict({n: zones.get(n) for n in eligible_zones})
+            zones = IdnaDict[str, Any](
+                {n: zones.get(n) for n in eligible_zones}
+            )
 
-        includes_arpa = any(e.endswith('arpa.') for e in zones.keys())
+        includes_arpa: bool = any(e.endswith('arpa.') for e in zones.keys())
         if self.auto_arpa and includes_arpa:
             # it's not safe to mess with auto_arpa when we don't have a complete
             # picture of records, so if any filtering is happening while arpa
@@ -975,19 +1065,19 @@ class Manager(object):
                     'eligible_targets is incompatible with auto_arpa'
                 )
 
-        aliased_zones = {}
-        delayed_arpa = []
-        futures = []
+        aliased_zones: dict[str, str] = {}
+        delayed_arpa: list[dict[str, Any]] = []
+        futures: list[MakeThreadFuture] = []
 
         for zone_name, config in zones.items():
             if config is None:
                 raise ManagerException(
                     f'Requested zone "{zone_name}" not found in config'
                 )
-            decoded_zone_name = idna_decode(zone_name)
+            decoded_zone_name: str = idna_decode(zone_name)
             self.log.info('sync:   zone=%s', decoded_zone_name)
             if 'alias' in config:
-                source_zone = config['alias']
+                source_zone: str = config['alias']
 
                 # Check that the source zone is defined.
                 if source_zone not in self.config['zones']:
@@ -1004,9 +1094,9 @@ class Manager(object):
                 aliased_zones[zone_name] = source_zone
                 continue
 
-            lenient = config.get('lenient', False)
+            lenient: bool = config.get('lenient', False)
 
-            sources = self._get_sources(
+            sources: list[BaseProvider] = self._get_sources(
                 decoded_zone_name, config, eligible_sources
             )
 
@@ -1017,7 +1107,9 @@ class Manager(object):
                     f'Zone {decoded_zone_name} is missing targets'
                 )
 
-            processors = self._get_processors(decoded_zone_name, config)
+            processors: list[Any] = self._get_processors(
+                decoded_zone_name, config
+            )
             self.log.info('sync:     processors=%s', [p.id for p in processors])
 
             if not sources:
@@ -1037,7 +1129,7 @@ class Manager(object):
             self.log.info('sync:     targets=%s', targets)
 
             try:
-                trgs = []
+                trgs: list[BaseProvider] = []
                 for target in targets:
                     trg = self.providers[target]
                     if not isinstance(trg, BaseProvider):
@@ -1048,10 +1140,10 @@ class Manager(object):
                 targets = trgs
             except KeyError:
                 raise ManagerException(
-                    f'Zone {decoded_zone_name}, unknown ' f'target: {target}'
+                    f'Zone {decoded_zone_name}, unknown target: {target}'  # type: ignore[reportPossiblyUnboundVariable]
                 )
 
-            kwargs = {
+            kwargs: dict[str, Any] = {
                 'zone_name': zone_name,
                 'processors': processors,
                 'sources': sources,
@@ -1068,8 +1160,8 @@ class Manager(object):
 
         # Wait on all results and unpack/flatten the plans and store the
         # desired states in case we need them below
-        plans = []
-        desired = {}
+        plans: list[tuple[BaseProvider, Plan]] = []
+        desired: dict[str, Zone] = {}
         for future in futures:
             ps, d = future.result()
             desired[d.name] = d
@@ -1102,7 +1194,7 @@ class Manager(object):
 
         # Wait on results and unpack/flatten the plans, ignore the desired here
         # as these are aliased zones
-        plans += [p for f in futures for p in f.result()[0]]
+        plans += [p for f in futures for p in f.result()[0]]  # type: ignore[misc]
 
         if delayed_arpa:
             # if delaying arpa all of the non-arpa zones have been processed now
@@ -1116,7 +1208,7 @@ class Manager(object):
                 for kwargs in delayed_arpa
             ]
             # wait on the results and unpack/flatten the plans
-            plans += [p for f in futures for p in f.result()[0]]
+            plans += [p for f in futures for p in f.result()[0]]  # type: ignore[misc]
 
         # Best effort sort plans children first so that we create/update
         # children zones before parents which should allow us to more safely
@@ -1126,9 +1218,11 @@ class Manager(object):
         plans.sort(key=self._plan_keyer, reverse=True)
 
         for output in self.plan_outputs.values():
-            output.run(plans=plans, log=self.plan_log, fh=plan_output_fh)
+            output.run(  # type: ignore[union-attr]
+                plans=plans, log=self.plan_log, fh=plan_output_fh
+            )
 
-        computed_checksum = None
+        computed_checksum: Optional[str] = None
         if plans and self.enable_checksum:
             data = [p[1].data for p in plans]
             data = dumps(data)
@@ -1146,7 +1240,7 @@ class Manager(object):
 
         if dry_run and not checksum:
             return 0
-        elif computed_checksum and computed_checksum != checksum:
+        elif computed_checksum is not None and computed_checksum != checksum:
             raise ManagerException(
                 f'checksum={checksum} does not match computed={computed_checksum}'
             )
@@ -1166,7 +1260,7 @@ class Manager(object):
         self.log.info('sync:   %d total changes', total_changes)
         return total_changes
 
-    def compare(self, a, b, zone):
+    def compare(self, a: list[str], b: list[str], zone: str) -> list[Any]:
         '''
         Compare zone data between 2 sources.
 
@@ -1182,25 +1276,25 @@ class Manager(object):
 
         za = self.get_zone(zone)
         for source in a:
-            source.populate(za)
+            source.populate(za)  # type: ignore[arg-type]
         za.validate()
 
         zb = self.get_zone(zone)
         for source in b:
-            source.populate(zb)
+            source.populate(zb)  # type: ignore[arg-type]
         zb.validate()
 
-        return zb.changes(za, _AggregateTarget(a + b))
+        return zb.changes(za, _AggregateTarget(a + b))  # type: ignore[arg-type]
 
     def dump(
         self,
-        zone,
-        output_dir,
-        sources,
-        lenient=False,
-        split=False,
-        output_provider=None,
-    ):
+        zone: str,
+        output_dir: str,
+        sources: list[str],
+        lenient: bool = False,
+        split: bool = False,
+        output_provider: Optional[str] = None,
+    ) -> None:
         '''
         Dump zone data from the specified source
         '''
@@ -1220,6 +1314,7 @@ class Manager(object):
         except KeyError as e:
             raise ManagerException(f'Unknown source: {e.args[0]}')
 
+        target: Any
         if output_provider:
             self.log.info(
                 'dump: using specified output_provider=%s', output_provider
@@ -1237,7 +1332,7 @@ class Manager(object):
                     'directory property'
                 )
                 raise ManagerException(msg)
-            if target.directory != output_dir:
+            if target.directory != output_dir:  # type: ignore[attr-defined]
                 # If the requested target doesn't match what's configured in
                 # the chosen provider then we'll need to set it. Before doing
                 # that we make a copy of the provider so that it can remain
@@ -1249,12 +1344,12 @@ class Manager(object):
                         'support copy method'
                     )
                     raise ManagerException(msg)
-                target = target.copy()
+                target = target.copy()  # type: ignore[attr-defined]
                 self.log.info(
                     'dump: setting directory of output_provider copy to %s',
                     output_dir,
                 )
-                target.directory = output_dir
+                target.directory = output_dir  # type: ignore[attr-defined]
         else:
             self.log.info('dump: using custom YamlProvider')
             clz = YamlProvider
@@ -1267,7 +1362,7 @@ class Manager(object):
 
         if '*' in zone:
             # we want to do everything
-            zones = zones.items()
+            zones = list(zones.items())
         else:
             # we want to do a specific zone
             try:
@@ -1281,18 +1376,20 @@ class Manager(object):
             decoded_zone_name = idna_decode(zone_name)
             self.log.info('dump:   zone=%s', decoded_zone_name)
 
-            processors = self._get_processors(decoded_zone_name, config)
+            processors = self._get_processors(
+                decoded_zone_name, config  # type: ignore[arg-type]
+            )
             self.log.info('dump:     processors=%s', [p.id for p in processors])
 
-            zone = self.get_zone(zone_name)
+            zone_obj = self.get_zone(zone_name)
             for source in sources:
-                source.populate(zone, lenient=lenient)
+                source.populate(zone_obj, lenient=lenient)  # type: ignore[arg-type]
 
             # Apply processors
             for processor in processors:
                 try:
-                    zone = processor.process_source_zone(
-                        zone, sources=sources, lenient=lenient
+                    zone_obj = processor.process_source_zone(  # type: ignore[assignment]
+                        zone_obj, sources=sources, lenient=lenient
                     )
                 except TypeError as e:
                     if "unexpected keyword argument 'lenient'" not in str(e):
@@ -1305,16 +1402,18 @@ class Manager(object):
                         'processor %s does not accept lenient param',
                         processor.__class__.__name__,
                     )
-                    zone = processor.process_source_zone(zone, sources=sources)
+                    zone_obj = processor.process_source_zone(  # type: ignore[assignment]
+                        zone_obj, sources=sources
+                    )
 
-            zone.validate(lenient=lenient)
+            zone_obj.validate(lenient=lenient)
 
-            plan = target.plan(zone)
+            plan = target.plan(zone_obj)  # type: ignore[union-attr]
             if plan is None:
-                plan = Plan(zone, zone, [], False)
-            target.apply(plan)
+                plan = Plan(zone_obj, zone_obj, [], False)
+            target.apply(plan)  # type: ignore[union-attr]
 
-    def validate_configs(self, lenient=False):
+    def validate_configs(self, lenient: bool = False) -> None:
         # TODO: this code can probably be shared with stuff in sync
 
         zones = self.config['zones']
@@ -1322,7 +1421,7 @@ class Manager(object):
 
         for zone_name, config in zones.items():
             decoded_zone_name = idna_decode(zone_name)
-            zone = self.get_zone(zone_name)
+            zone_obj = self.get_zone(zone_name)
 
             source_zone = config.get('alias')
             if source_zone:
@@ -1358,21 +1457,21 @@ class Manager(object):
                 # rather than using a list comprehension, we break this
                 # loop out so that the `except` block below can reference
                 # the `source`
-                collected = []
+                collected: list[BaseProvider] = []
                 for source in sources:
                     collected.append(self.providers[source])
                 sources = collected
             except KeyError:
                 raise ManagerException(
-                    f'Zone {decoded_zone_name}, unknown source: ' + source
+                    f'Zone {decoded_zone_name}, unknown source: ' + source  # type: ignore[reportPossiblyUnboundVariable]
                 )
 
             lenient = lenient or config.get('lenient', False)
             for source in sources:
                 if isinstance(source, YamlProvider):
-                    source.populate(zone, lenient=lenient)
+                    source.populate(zone_obj, lenient=lenient)  # type: ignore[arg-type]
 
-            zone.validate(lenient=lenient)
+            zone_obj.validate(lenient=lenient)
 
             # check that processors are in order if any are specified
             processors = config.get('processors') or []
@@ -1383,10 +1482,10 @@ class Manager(object):
             except KeyError:
                 raise ManagerException(
                     f'Zone {decoded_zone_name}, unknown '
-                    f'processor: {processor}'
+                    f'processor: {processor}'  # type: ignore[reportPossiblyUnboundVariable]
                 )
 
-    def get_zone(self, zone_name):
+    def get_zone(self, zone_name: str) -> Zone:
         if not zone_name[-1] == '.':
             raise ManagerException(
                 f'Invalid zone name {idna_decode(zone_name)}, missing ending dot'
@@ -1397,8 +1496,8 @@ class Manager(object):
             sub_zones = self.configured_sub_zones(zone_name)
             update_pcent_threshold = zone.get("update_pcent_threshold", None)
             delete_pcent_threshold = zone.get("delete_pcent_threshold", None)
-            ignore_subzone_adds = zone.get("ignore_subzone_adds", False)
-            context = getattr(zone, 'context', None)
+            ignore_subzone_adds: bool = zone.get("ignore_subzone_adds", False)
+            context = getattr(zone, 'context', None)  # type: ignore[attr-defined]
             return Zone(
                 idna_encode(zone_name),
                 sub_zones,
