@@ -3,6 +3,8 @@
 Octo-DNS Reporter
 '''
 
+from __future__ import annotations
+
 from asyncio import Semaphore, new_event_loop, wait
 from collections import defaultdict
 from csv import QUOTE_NONE, writer
@@ -26,14 +28,16 @@ from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
 
 
-async def async_resolve(record, resolver, timeout, limit):
+async def async_resolve(
+    record: object, resolver: str, timeout: float, limit: Semaphore
+) -> list[object]:
     async with limit:
         r = AsyncResolver(configure=False)
         r.lifetime = timeout
         r.nameservers = [resolver]
 
         try:
-            query = await r.resolve(qname=record.fqdn, rdtype=record._type)
+            query = await r.resolve(qname=record.fqdn, rdtype=record._type)  # type: ignore[attr-defined]
             answer = sorted([str(a) for a in query])
         except (NoAnswer, NoNameservers):
             answer = ['*no answer*']
@@ -47,7 +51,7 @@ async def async_resolve(record, resolver, timeout, limit):
     return [record, resolver, answer]
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser(description=__doc__.split('\n')[1])
 
     parser.add_argument(
@@ -90,9 +94,9 @@ def main():
     parser.add_argument('server', nargs='+', help='DNS resolver to query')
 
     args = parser.parse_args()
-    concurrency = args.concurrency
-    timeout = args.timeout
-    output_format = args.output_format
+    concurrency: int = args.concurrency
+    timeout: float = args.timeout
+    output_format: str = args.output_format
 
     manager = Manager(args.config_file)
 
@@ -110,9 +114,9 @@ def main():
     zone.validate(lenient=args.lenient)
 
     servers = args.server
-    resolvers = []
+    resolvers: list[str] = []
     for server in servers:
-        resolver = None
+        resolver: str | None = None
         is_hostname = False
 
         try:
@@ -159,11 +163,11 @@ def main():
                 )
             )
 
-    queries = defaultdict(dict)
+    queries: defaultdict[object, dict[str, list[str]]] = defaultdict(dict)
     done, _ = loop.run_until_complete(wait(tasks))
     for task in done:
         _record, _resolver, _answer = task.result()
-        queries[_record][_resolver] = _answer
+        queries[_record][_resolver] = _answer  # type: ignore[index]
 
     loop.close()
 
@@ -176,8 +180,8 @@ def main():
         csvout.writerow(csvheader)
 
         for record, answers in sorted(queries.items()):
-            csvrow = [record.decoded_fqdn, record._type, record.ttl]
-            values_check = {}
+            csvrow = [record.decoded_fqdn, record._type, record.ttl]  # type: ignore[attr-defined]
+            values_check: dict[str, bool] = {}
 
             for resolver in resolvers:
                 answer = ' '.join(answers.get(resolver, []))
@@ -188,18 +192,20 @@ def main():
             csvout.writerow(csvrow)
 
     elif output_format == 'json':
-        jsonout = defaultdict(lambda: defaultdict(dict))
+        jsonout: defaultdict[str, defaultdict[str, dict[str, list[str]]]] = (
+            defaultdict(lambda: defaultdict(dict))
+        )
         for record, answers in sorted(queries.items()):
-            values_check = {}
+            values_check: dict[str, bool] = {}
 
             for resolver in resolvers:
                 # Stripping the surrounding quotes of TXT records values to
                 # avoid them being unnecessarily escaped by JSON module.
                 answer = [a.strip('"') for a in answers.get(resolver, [])]
-                jsonout[record.decoded_fqdn][record._type][resolver] = answer
+                jsonout[record.decoded_fqdn][record._type][resolver] = answer  # type: ignore[attr-defined]
                 values_check[' '.join(answer).lower()] = True
 
-            jsonout[record.fqdn][record._type]['consistent'] = bool(
+            jsonout[record.fqdn][record._type]['consistent'] = bool(  # type: ignore[attr-defined]
                 len(values_check) == 1
             )
 

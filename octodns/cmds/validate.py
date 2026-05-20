@@ -3,6 +3,8 @@
 Octo-DNS Validator
 '''
 
+from __future__ import annotations
+
 from logging import WARNING, getLogger
 from sys import exit
 
@@ -13,14 +15,14 @@ from octodns.manager import Manager
 class FlaggingHandler:
     level = WARNING
 
-    def __init__(self):
-        self.flag = False
+    def __init__(self) -> None:
+        self.flag: bool = False
 
-    def handle(self, record):
+    def handle(self, record: object) -> None:
         self.flag = True
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser(description=__doc__.split('\n')[1])
 
     parser.add_argument(
@@ -42,7 +44,7 @@ def main():
     getLogger('Zone').addHandler(flagging)
 
     manager = Manager(args.config_file)
-    manager.validate_configs(lenient=args.all)
+    manager.validate_configs(lenient=args.all)  # type: ignore[attr-defined]
 
     if flagging.flag:
         exit(1)

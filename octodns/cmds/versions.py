@@ -3,11 +3,13 @@
 octoDNS Versions
 '''
 
+from __future__ import annotations
+
 from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser(description=__doc__.split('\n')[1])
 
     parser.add_argument(
