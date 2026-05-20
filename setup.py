@@ -99,6 +99,7 @@ setup(
     long_description=long_description(),
     long_description_content_type='text/markdown',
     name='octodns',
+    package_data={'octodns': ['py.typed']},
     packages=find_packages(),
     python_requires='>=3.9',
     tests_require=tests_require,
