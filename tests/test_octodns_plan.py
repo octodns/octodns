@@ -19,6 +19,7 @@ from octodns.provider.plan import (
     PlanMarkdown,
     RootNsChange,
     TooMuchChange,
+    _PlanOutput,
 )
 from octodns.record import Create, Delete, Record, Update
 from octodns.zone import Zone
@@ -111,6 +112,10 @@ class TestPlanLogger(TestCase):
             'Summary: Creates=2, Updates=1, Deletes=1, Existing=0, Meta=False'
             in out
         )
+
+    def test_abstract_run(self):
+        with self.assertRaises(NotImplementedError):
+            _PlanOutput('abstract').run()
 
 
 class TestPlanHtml(TestCase):

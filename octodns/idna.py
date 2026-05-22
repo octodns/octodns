@@ -75,7 +75,7 @@ class IdnaDict(MutableMapping[KT, VT]):
         del self._data[idna_encode(k)]
 
     def __iter__(self) -> Iterator[KT]:
-        return iter(self._data)  # type: ignore[return-value]
+        return iter(self._data)  # type: ignore[arg-type, return-value]
 
     def __len__(self) -> int:
         return len(self._data)

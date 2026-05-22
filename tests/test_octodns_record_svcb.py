@@ -850,3 +850,45 @@ class TestSrvValue(TestCase):
         zone.add_record(svcb, replace=True)
 
         templ.process_source_and_target_zones(zone, None, None)
+
+    def test_svcb_validator_coverage(self):
+        from octodns.record.svcb import (
+            SvcbValueValidator,
+            validate_svcparam_ech,
+        )
+
+        # 1. Test validate_svcparam_ech with a valid Base64 string to cover the successful return path
+        self.assertEqual([], validate_svcparam_ech('YQ=='))
+
+        # 2. Test SvcbValueValidator.validate with string or dict to cover early exit
+        validator = SvcbValueValidator('svcb-value-rfc')
+        self.assertEqual(
+            [], validator.validate(None, 'not-iterable-list', 'SVCB')
+        )
+        self.assertEqual([], validator.validate(None, {'some': 'dict'}, 'SVCB'))
+
+        # 3. Test SvcbValueValidator.validate with non-dict value in iterable
+        # This will trigger 'if not isinstance(value, dict): continue'
+        self.assertEqual([], validator.validate(None, ['not-a-dict'], 'SVCB'))
+
+        # 4. Test SvcbValueBestPracticeValidator.validate with string or dict to cover early exit
+        bp_validator = SvcbValueBestPracticeValidator(
+            'svcb-value-best-practice'
+        )
+        self.assertEqual(
+            [], bp_validator.validate(None, 'not-iterable-list', 'SVCB')
+        )
+        self.assertEqual(
+            [], bp_validator.validate(None, {'some': 'dict'}, 'SVCB')
+        )
+
+        # 5. Test SvcbValueBestPracticeValidator.validate with non-dict value in iterable
+        # (This was already covered/skipped via isinstance, but good to cover explicitly)
+        self.assertEqual(
+            [], bp_validator.validate(None, ['not-a-dict'], 'SVCB')
+        )
+
+        # 6. Test SvcbValueBestPracticeValidator.validate with non-string targetname
+        self.assertEqual(
+            [], bp_validator.validate(None, [{'targetname': 123}], 'SVCB')
+        )

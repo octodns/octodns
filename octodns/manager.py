@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from fnmatch import filter as fnmatch_filter
 from hashlib import sha256
 from importlib import import_module
@@ -460,12 +460,12 @@ class Manager:
             else 'validators.validators'
         )
         for record_type, names in add_config.items():
-            types: Optional[list[str]] = (
+            add_types: Optional[list[str]] = (
                 None if record_type == '*' else [record_type]
             )
             for name in names:
                 try:
-                    Record.enable_validator(name, types=types)
+                    Record.enable_validator(name, types=add_types)
                 except RecordException:
                     raise ManagerException(
                         f'Unknown validator "{name}" in manager.{add_key}["{record_type}"]'
@@ -497,13 +497,13 @@ class Manager:
             validators_config.get('disable_validators') or {},
         )
         for record_type, ids in disable_config.items():
-            types: Optional[list[str]] = (
+            disable_types: Optional[list[str]] = (
                 None if record_type == '*' else [record_type]
             )
             for validator_id in ids:
                 try:
                     removed = Record.disable_validator(
-                        validator_id, types=types
+                        validator_id, types=disable_types
                     )
                 except RecordException as e:
                     raise ManagerException(str(e)) from e
@@ -700,12 +700,12 @@ class Manager:
 
             # Get a list of all of our zone names. Sort them from shortest to
             # longest so that parents will always come before their subzones
-            zones = sorted(
+            sorted_zones = sorted(
                 self.config['zones'].keys(),
                 key=lambda z: len(z),  # type: ignore[arg-type]
                 reverse=True,
             )
-            zones = deque(zones)
+            zones = deque(sorted_zones)
             # Until we're done processing zones
             while zones:
                 # Grab the one we'lre going to work on now
@@ -1067,7 +1067,7 @@ class Manager:
 
         aliased_zones: dict[str, str] = {}
         delayed_arpa: list[dict[str, Any]] = []
-        futures: list[MakeThreadFuture] = []
+        futures: list[Future[Any] | MakeThreadFuture] = []
 
         for zone_name, config in zones.items():
             if config is None:
@@ -1218,16 +1218,14 @@ class Manager:
         plans.sort(key=self._plan_keyer, reverse=True)
 
         for output in self.plan_outputs.values():
-            output.run(  # type: ignore[union-attr]
-                plans=plans, log=self.plan_log, fh=plan_output_fh
-            )
+            output.run(plans=plans, log=self.plan_log, fh=plan_output_fh)
 
         computed_checksum: Optional[str] = None
         if plans and self.enable_checksum:
             data = [p[1].data for p in plans]
-            data = dumps(data)
+            json_data = dumps(data)
             csum = sha256()
-            csum.update(data.encode('utf-8'))
+            csum.update(json_data.encode('utf-8'))
             computed_checksum = csum.hexdigest()
             checksum_log = getLogger('Checksum')
             checksum_log.setLevel(INFO)
@@ -1249,6 +1247,7 @@ class Manager:
         self.log.debug('sync:   applying')
         zones = self.config['zones']
         for target, plan in plans:
+            assert plan.existing is not None
             zone_name = plan.existing.decoded_name
             if zones[zone_name].get('always-dry-run', False):
                 self.log.info(
@@ -1269,22 +1268,22 @@ class Manager:
         self.log.info('compare: a=%s, b=%s, zone=%s', a, b, zone)
 
         try:
-            a = [self.providers[source] for source in a]
-            b = [self.providers[source] for source in b]
+            providers_a = [self.providers[source] for source in a]
+            providers_b = [self.providers[source] for source in b]
         except KeyError as e:
             raise ManagerException(f'Unknown source: {e.args[0]}')
 
         za = self.get_zone(zone)
-        for source in a:
+        for source in providers_a:
             source.populate(za)  # type: ignore[arg-type]
         za.validate()
 
         zb = self.get_zone(zone)
-        for source in b:
+        for source in providers_b:
             source.populate(zb)  # type: ignore[arg-type]
         zb.validate()
 
-        return zb.changes(za, _AggregateTarget(a + b))  # type: ignore[arg-type]
+        return zb.changes(za, _AggregateTarget(providers_a + providers_b))  # type: ignore[arg-type]
 
     def dump(
         self,
@@ -1310,7 +1309,7 @@ class Manager:
         )
 
         try:
-            sources = [self.providers[s] for s in sources]
+            resolved_sources = [self.providers[s] for s in sources]
         except KeyError as e:
             raise ManagerException(f'Unknown source: {e.args[0]}')
 
@@ -1358,7 +1357,7 @@ class Manager:
             target = clz('dump', output_dir)
 
         zones = self.config['zones']
-        zones = self._preprocess_zones(zones, sources=sources)
+        zones = self._preprocess_zones(zones, sources=resolved_sources)
 
         if '*' in zone:
             # we want to do everything
@@ -1382,7 +1381,7 @@ class Manager:
             self.log.info('dump:     processors=%s', [p.id for p in processors])
 
             zone_obj = self.get_zone(zone_name)
-            for source in sources:
+            for source in resolved_sources:
                 source.populate(zone_obj, lenient=lenient)  # type: ignore[arg-type]
 
             # Apply processors
@@ -1500,7 +1499,7 @@ class Manager:
             context = getattr(zone, 'context', None)  # type: ignore[attr-defined]
             return Zone(
                 idna_encode(zone_name),
-                sub_zones,
+                sorted(sub_zones),
                 update_pcent_threshold,
                 delete_pcent_threshold,
                 ignore_subzone_adds=ignore_subzone_adds,

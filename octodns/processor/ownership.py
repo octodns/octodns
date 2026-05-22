@@ -55,11 +55,11 @@ class OwnershipProcessor(BaseProcessor):
 
         return desired
 
-    def _is_ownership(self, record: Any) -> bool:
-        return (
-            record._type == 'TXT'  # type: ignore[attr-defined]
-            and record.name.startswith(self.txt_name)  # type: ignore[attr-defined]
-            and record.values == self._txt_values  # type: ignore[attr-defined]
+    def _is_ownership(self, record: Record) -> bool:
+        return bool(
+            record._type == 'TXT'
+            and record.name.startswith(self.txt_name)
+            and record.values == self._txt_values
         )
 
     def process_plan(

@@ -7,13 +7,15 @@ from __future__ import annotations
 
 import re
 from logging import getLogger
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generator
 
 from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from .base import ValuesMixin, _process_value_validators
 from .change import Update
 from .geo_data import geo_data
+
+_geo_data: Any = geo_data
 from .validator import RecordValidator
 
 if TYPE_CHECKING:
@@ -39,13 +41,13 @@ class GeoCodes(object):
         n = len(pieces)
         if n > 3:
             reasons.append(f'{prefix}invalid geo code "{code}"')
-        elif n > 0 and pieces[0] not in geo_data:
+        elif n > 0 and pieces[0] not in _geo_data:
             reasons.append(f'{prefix}unknown continent code "{code}"')
-        elif n > 1 and pieces[1] not in geo_data[pieces[0]]:
+        elif n > 1 and pieces[1] not in _geo_data[pieces[0]]:
             reasons.append(f'{prefix}unknown country code "{code}"')
         elif (
             n > 2
-            and pieces[2] not in geo_data[pieces[0]][pieces[1]]['provinces']
+            and pieces[2] not in _geo_data[pieces[0]][pieces[1]]['provinces']
         ):
             reasons.append(f'{prefix}unknown province code "{code}"')
 
@@ -70,7 +72,7 @@ class GeoCodes(object):
 
     @classmethod
     def country_to_code(cls, country: str) -> str | None:
-        for continent, countries in geo_data.items():
+        for continent, countries in _geo_data.items():
             if country in countries:
                 return f'{continent}-{country}'
         cls.log.warning('country_to_code: unrecognized country "%s"', country)
@@ -81,16 +83,16 @@ class GeoCodes(object):
         # We cheat on this one a little since we only support provinces in
         # NA-US, NA-CA
         if (
-            province not in geo_data['NA']['US']['provinces']
-            and province not in geo_data['NA']['CA']['provinces']
+            province not in _geo_data['NA']['US']['provinces']
+            and province not in _geo_data['NA']['CA']['provinces']
         ):
             cls.log.warning(
                 'country_to_code: unrecognized province "%s"', province
             )
             return None
-        if province in geo_data['NA']['US']['provinces']:
+        if province in _geo_data['NA']['US']['provinces']:
             country = 'US'
-        if province in geo_data['NA']['CA']['provinces']:
+        if province in _geo_data['NA']['CA']['provinces']:
             country = 'CA'
         return f'NA-{country}-{province}'
 
@@ -118,7 +120,7 @@ class GeoValue(EqualityTupleMixin):
         self.values = sorted(values)
 
     @property
-    def parents(self) -> list[str]:
+    def parents(self) -> Generator[str, None, None]:
         bits = self.code.split('-')[:-1]
         while bits:
             yield '-'.join(bits)

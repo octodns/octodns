@@ -5,7 +5,7 @@ from itertools import product
 from logging import Logger, getLogger
 from re import Pattern
 from re import compile as re_compile
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from ..record.exception import ValidationError
 from ..zone import Zone
@@ -13,6 +13,10 @@ from .base import BaseProcessor
 
 
 class _FilterProcessor(BaseProcessor):
+    matches: Callable[[Zone, Any], None]
+    doesnt_match: Callable[[Zone, Any], None]
+    _process: Callable[[Zone, Any, bool], Zone]
+
     def __init__(
         self, name: str, include_target: bool = True, **kwargs: Any
     ) -> None:
@@ -22,13 +26,13 @@ class _FilterProcessor(BaseProcessor):
     def process_source_zone(
         self, desired: Zone, sources: Iterable[Any], lenient: bool = False
     ) -> Zone:
-        return self._process(desired, sources, lenient=lenient)
+        return self._process(desired, sources, lenient)
 
     def process_target_zone(
         self, existing: Zone, target: Any, lenient: bool = False
     ) -> Zone:
         if self.include_target:
-            return self._process(existing, target, lenient=lenient)
+            return self._process(existing, target, lenient)
         return existing
 
 
@@ -340,7 +344,7 @@ class ValueRejectlistFilter(_ValueBaseFilter, RejectsMixin):
         super().__init__(name, rejectlist, **kwargs)
 
 
-class _NetworkValueBaseFilter(BaseProcessor):
+class _NetworkValueBaseFilter(_FilterProcessor):
     def __init__(self, name: str, _list: list[str], **kwargs: Any) -> None:
         super().__init__(name, **kwargs)
         self.networks: list[Any] = []

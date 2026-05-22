@@ -258,7 +258,7 @@ class YamlProvider(BaseProvider):
         return YamlProvider(**kwargs)
 
     @property
-    def SUPPORTS(self) -> set[str]:
+    def SUPPORTS(self) -> set[str]:  # type: ignore[override]
         # The yaml provider supports all record types even those defined by 3rd
         # party modules that we know nothing about, thus we dynamically return
         # the types list that is registered in Record, everything that's know as

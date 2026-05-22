@@ -18,15 +18,12 @@ not for octoDNS's own validation, which continues to handle error reporting
 with source context.
 '''
 
-from typing import TYPE_CHECKING, Any
+from typing import Any, cast
 
 from ..record import Record
 from ..record.base import ValueMixin
 from ..record.dynamic import _DynamicMixin
 from ..record.geo import _GeoMixin
-
-if TYPE_CHECKING:
-    from octodns.record.base import BaseValue
 
 # When a value class doesn't yet expose `_schema`, fall back to permissive.
 # Individual record types will add `_schema` as coverage grows.
@@ -91,15 +88,15 @@ _OCTODNS_META: dict[str, Any] = {
 }
 
 
-def _value_schema(value_type: type[BaseValue]) -> bool | dict[str, Any]:
+def _value_schema(value_type: type) -> bool | dict[str, Any]:
     schema_fn = getattr(value_type, '_schema', None)
     if schema_fn is None:
         return _DEFAULT_VALUE_SCHEMA
-    return schema_fn()
+    return cast(bool | dict[str, Any], schema_fn())
 
 
 def _value_props(record_class: type[Record]) -> dict[str, Any]:
-    value_schema_result = _value_schema(record_class._value_type)
+    value_schema_result = _value_schema(getattr(record_class, '_value_type'))
     if issubclass(record_class, ValueMixin):
         props: dict[str, Any] = {'value': value_schema_result}
     else:

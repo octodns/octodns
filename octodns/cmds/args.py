@@ -10,7 +10,7 @@ from logging import DEBUG, INFO, WARNING, Formatter, StreamHandler, getLogger
 from logging.config import dictConfig
 from logging.handlers import SysLogHandler
 from sys import stderr, stdout
-from typing import Optional
+from typing import Any, Optional
 
 from octodns import __version__
 from octodns.yaml import safe_load
@@ -23,10 +23,10 @@ class ArgumentParser(_Base):
     Also manages logging setup.
     '''
 
-    def __init__(self, *args: object, **kwargs: object) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
-    def parse_args(
+    def parse_args(  # type: ignore[override]
         self,
         args: Optional[list[str]] = None,
         namespace: Optional[Namespace] = None,
@@ -103,11 +103,11 @@ class ArgumentParser(_Base):
             )
             syslog_device: str = getattr(args, 'syslog_device', '/dev/log')
             syslog_facility: str = getattr(args, 'syslog_facility', 'local0')
-            handler = SysLogHandler(
+            syslog_handler = SysLogHandler(
                 address=syslog_device, facility=syslog_facility
             )
-            handler.setFormatter(Formatter(fmt=fmt))
-            logger.addHandler(handler)
+            syslog_handler.setFormatter(Formatter(fmt=fmt))
+            logger.addHandler(syslog_handler)
 
         logger.level = default_log_level
         debug: bool = getattr(args, 'debug', False)

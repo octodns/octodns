@@ -13,6 +13,7 @@ from ipaddress import ip_address
 from json import dump
 from logging import getLogger
 from sys import exit
+from typing import Any
 
 from dns.asyncresolver import Resolver as AsyncResolver
 from dns.resolver import (
@@ -26,18 +27,19 @@ from dns.resolver import (
 
 from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
+from octodns.record.base import Record
 
 
 async def async_resolve(
-    record: object, resolver: str, timeout: float, limit: Semaphore
-) -> list[object]:
+    record: Record, resolver: str, timeout: float, limit: Semaphore
+) -> tuple[Record, str, list[str]]:
     async with limit:
         r = AsyncResolver(configure=False)
         r.lifetime = timeout
         r.nameservers = [resolver]
 
         try:
-            query = await r.resolve(qname=record.fqdn, rdtype=record._type)  # type: ignore[attr-defined]
+            query = await r.resolve(qname=record.fqdn, rdtype=record._type)
             answer = sorted([str(a) for a in query])
         except (NoAnswer, NoNameservers):
             answer = ['*no answer*']
@@ -48,7 +50,7 @@ async def async_resolve(
         except LifetimeTimeout:
             answer = ['*timeout*']
 
-    return [record, resolver, answer]
+    return (record, resolver, answer)
 
 
 def main() -> None:
@@ -131,10 +133,11 @@ def main() -> None:
             for rrtype in ['A', 'AAAA']:
                 try:
                     query = resolve(server, rrtype)
-                    resolver = str(query.rrset[0])
-                    is_hostname = True
-                    # Exit on first IP address found.
-                    break
+                    if query.rrset is not None:
+                        resolver = str(query.rrset[0])
+                        is_hostname = True
+                        # Exit on first IP address found.
+                        break
 
                 # NXDOMAIN, NoAnswer, NoNameservers...
                 except Exception:
@@ -163,11 +166,12 @@ def main() -> None:
                 )
             )
 
-    queries: defaultdict[object, dict[str, list[str]]] = defaultdict(dict)
+    queries: defaultdict[Record, dict[str, list[str]]] = defaultdict(dict)
     done, _ = loop.run_until_complete(wait(tasks))
     for task in done:
-        _record, _resolver, _answer = task.result()
-        queries[_record][_resolver] = _answer  # type: ignore[index]
+        res: tuple[Record, str, list[str]] = task.result()
+        _record, _resolver, _answer = res
+        queries[_record][_resolver] = _answer
 
     loop.close()
 
@@ -180,7 +184,7 @@ def main() -> None:
         csvout.writerow(csvheader)
 
         for record, answers in sorted(queries.items()):
-            csvrow = [record.decoded_fqdn, record._type, record.ttl]  # type: ignore[attr-defined]
+            csvrow = [record.decoded_fqdn, record._type, record.ttl]
             values_check: dict[str, bool] = {}
 
             for resolver in resolvers:
@@ -192,21 +196,25 @@ def main() -> None:
             csvout.writerow(csvrow)
 
     elif output_format == 'json':
-        jsonout: defaultdict[str, defaultdict[str, dict[str, list[str]]]] = (
+        jsonout: defaultdict[str, defaultdict[str, dict[str, Any]]] = (
             defaultdict(lambda: defaultdict(dict))
         )
         for record, answers in sorted(queries.items()):
-            values_check: dict[str, bool] = {}
+            values_check_json: dict[str, bool] = {}
 
             for resolver in resolvers:
                 # Stripping the surrounding quotes of TXT records values to
                 # avoid them being unnecessarily escaped by JSON module.
-                answer = [a.strip('"') for a in answers.get(resolver, [])]
-                jsonout[record.decoded_fqdn][record._type][resolver] = answer  # type: ignore[attr-defined]
-                values_check[' '.join(answer).lower()] = True
+                resolver_answers = [
+                    a.strip('"') for a in answers.get(resolver, [])
+                ]
+                jsonout[record.decoded_fqdn][record._type][
+                    resolver
+                ] = resolver_answers
+                values_check_json[' '.join(resolver_answers).lower()] = True
 
-            jsonout[record.fqdn][record._type]['consistent'] = bool(  # type: ignore[attr-defined]
-                len(values_check) == 1
+            jsonout[record.fqdn][record._type]['consistent'] = bool(
+                len(values_check_json) == 1
             )
 
         dump(jsonout, output)

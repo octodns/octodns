@@ -258,24 +258,24 @@ class BaseProvider(BaseSource):
                 record.values = [record.value]
                 desired.add_record(record, replace=True)
 
-        record = desired.root_ns
+        root_ns = desired.root_ns
         if self.SUPPORTS_ROOT_NS:
-            if not record and self.root_ns_warnings:
+            if not root_ns and self.root_ns_warnings:
                 self.log.warning(
                     'root NS record supported, but no record '
                     'is configured for %s',
                     desired.decoded_name,
                 )
         else:
-            if record:
+            if root_ns:
                 # we can't manage root NS records, get rid of it
-                msg = f'root NS record not supported for {record.fqdn}'
+                msg = f'root NS record not supported for {root_ns.fqdn}'
                 fallback = 'ignoring it'
                 if self.strict_supports:
                     raise SupportsException(f'{self.id}: {msg}')
                 if self.root_ns_warnings:
                     self.log.warning('%s; %s', msg, fallback)
-                desired.remove_record(record)
+                desired.remove_record(root_ns)
 
         return desired
 

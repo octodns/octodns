@@ -23,7 +23,7 @@ class PtrRecord(ValuesMixin, Record):
     # multi-value PTR records.
     @property
     def value(self) -> PtrValue:
-        return self.values[0]  # type: ignore[index]
+        return self.values[0]  # type: ignore[index,no-any-return]
 
 
 Record.register_type(PtrRecord)

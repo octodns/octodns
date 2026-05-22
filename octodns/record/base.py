@@ -5,7 +5,15 @@
 from collections import defaultdict
 from copy import deepcopy
 from logging import Logger, getLogger
-from typing import Any, ClassVar, Iterable, Optional, Sequence, Type
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Iterable,
+    Optional,
+    Sequence,
+    Type,
+)
 
 from ..context import ContextDict
 from ..deprecation import deprecated
@@ -13,7 +21,7 @@ from ..equality import EqualityTupleMixin
 from ..idna import IdnaError, idna_decode, idna_encode
 from .change import Update
 from .exception import RecordException, ValidationError
-from .validator import RecordValidator, ValidatorRegistry
+from .validator import RecordValidator, ValidatorRegistry, ValueValidator
 
 
 def unquote(s: str) -> Optional[str]:
@@ -170,8 +178,14 @@ class Record(EqualityTupleMixin):
     log: Logger = getLogger('Record')
 
     _type: ClassVar[str]
+    _value_type: ClassVar[Any]
     values: list[Any]
     value: Any
+    dynamic: Any
+
+    @classmethod
+    def data_from_rrs(cls, rrs: Any) -> dict[str, Any]:
+        raise NotImplementedError()
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -224,7 +238,9 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def register_validator(
-        cls, validator: RecordValidator, types: Optional[Sequence[str]] = None
+        cls,
+        validator: RecordValidator | ValueValidator,
+        types: Optional[Sequence[str]] = None,
     ) -> None:
         cls.validators.register(validator, types=types)
 
@@ -388,26 +404,26 @@ class Record(EqualityTupleMixin):
         # TODO: these should be calculated and set in __init__ rather than on
         # each use
         if self.name:
-            return f'{self.name}.{self.zone.name}'
-        return self.zone.name
+            return f'{self.name}.{self.zone.name}'  # type: ignore[no-any-return]
+        return self.zone.name  # type: ignore[no-any-return]
 
     @property
     def decoded_fqdn(self) -> str:
         if self.decoded_name:
-            return f'{self.decoded_name}.{self.zone.decoded_name}'
-        return self.zone.decoded_name
+            return f'{self.decoded_name}.{self.zone.decoded_name}'  # type: ignore[no-any-return]
+        return self.zone.decoded_name  # type: ignore[no-any-return]
 
     @property
     def ignored(self) -> bool:
-        return self.octodns.get('ignored', False)
+        return self.octodns.get('ignored', False)  # type: ignore[no-any-return]
 
     @property
     def excluded(self) -> list[str]:
-        return self.octodns.get('excluded', [])
+        return self.octodns.get('excluded', [])  # type: ignore[no-any-return]
 
     @property
     def included(self) -> list[str]:
-        return self.octodns.get('included', [])
+        return self.octodns.get('included', [])  # type: ignore[no-any-return]
 
     def healthcheck_host(self, value: Optional[str] = None) -> Optional[str]:
         healthcheck = self.octodns.get('healthcheck', {})
@@ -423,19 +439,19 @@ class Record(EqualityTupleMixin):
         if protocol not in ('HTTP', 'HTTPS'):
             return None
         try:
-            return healthcheck['path']
+            return healthcheck['path']  # type: ignore[no-any-return]
         except KeyError:
             return '/_dns'
 
     @property
     def healthcheck_protocol(self) -> str:
         try:
-            return self.octodns['healthcheck']['protocol']
+            return self.octodns['healthcheck']['protocol']  # type: ignore[no-any-return]
         except KeyError:
             return 'HTTPS'
 
     @property
-    def healthcheck_port(self) -> Optional[int]:
+    def healthcheck_port(self) -> Optional[int]:  # type: ignore[return]
         if self.healthcheck_protocol == 'ICMP':
             return None
         try:
@@ -445,12 +461,13 @@ class Record(EqualityTupleMixin):
 
     @property
     def lenient(self) -> bool:
-        return self.octodns.get('lenient', False)
+        return self.octodns.get('lenient', False)  # type: ignore[no-any-return]
 
     def changes(self, other, target) -> Optional[Update]:
         # We're assuming we have the same name and type if we're being compared
         if self.ttl != other.ttl:
             return Update(self, other)
+        return None
 
     def copy(self, zone=None, value=None, values=None, lenient: bool = True):
         # data, via _data(), will preserve context
@@ -494,7 +511,15 @@ def _process_value_validators(value_type, values, _type: str) -> list[str]:
     return Record.validators.process_values(value_type, values, _type)
 
 
-class ValuesMixin(object):
+if TYPE_CHECKING:
+    _ValuesMixinBase = Record
+else:
+    _ValuesMixinBase = object
+
+
+class ValuesMixin(_ValuesMixinBase):
+    _value_type: ClassVar[Any]
+
     VALIDATORS: list[RecordValidator] = [ValuesTypeValidator()]
 
     @classmethod
@@ -554,7 +579,15 @@ class ValuesMixin(object):
         return f"<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, ['{values}']{octodns}>"
 
 
-class ValueMixin(object):
+if TYPE_CHECKING:
+    _ValueMixinBase = Record
+else:
+    _ValueMixinBase = object
+
+
+class ValueMixin(_ValueMixinBase):
+    _value_type: ClassVar[Any]
+
     VALIDATORS: list[RecordValidator] = [ValueTypeValidator()]
 
     @classmethod

@@ -24,9 +24,7 @@ class TlsaValueValidator(ValueValidator):
     ``certificate_association_data`` is present.
     '''
 
-    def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: Any, data: Any, _type: str) -> list[str]:
         reasons: list[str] = []
         for value in data:
             try:
@@ -90,9 +88,7 @@ class TlsaValueRfcValidator(ValueValidator):
     _hex_re = re.compile(r'^[0-9a-fA-F]+$')
     _matching_type_lengths: dict[int, int] = {1: 64, 2: 128}
 
-    def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: Any, data: Any, _type: str) -> list[str]:
         reasons: list[str] = []
         for value in data:
             matching_type: int | None = None
@@ -145,9 +141,7 @@ class TlsaValueBestPracticeValidator(ValueValidator):
           - best-practice
     '''
 
-    def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: Any, data: Any, _type: str) -> list[str]:
         reasons: list[str] = []
         for value in data:
             try:
@@ -208,24 +202,29 @@ class TlsaValue(EqualityTupleMixin, dict):
             ) = value.split(' ')
         except ValueError:
             raise RrParseError()
+        parsed_certificate_usage: int | str = certificate_usage
         try:
-            certificate_usage = int(certificate_usage)
+            parsed_certificate_usage = int(certificate_usage)
         except ValueError:
             pass
+        parsed_selector: int | str = selector
         try:
-            selector = int(selector)
+            parsed_selector = int(selector)
         except ValueError:
             pass
+        parsed_matching_type: int | str = matching_type
         try:
-            matching_type = int(matching_type)
+            parsed_matching_type = int(matching_type)
         except ValueError:
             pass
-        certificate_association_data = unquote(certificate_association_data)
+        parsed_certificate_association_data: str = unquote(
+            certificate_association_data
+        )  # type: ignore[assignment]
         return {
-            'certificate_usage': certificate_usage,
-            'selector': selector,
-            'matching_type': matching_type,
-            'certificate_association_data': certificate_association_data,
+            'certificate_usage': parsed_certificate_usage,
+            'selector': parsed_selector,
+            'matching_type': parsed_matching_type,
+            'certificate_association_data': parsed_certificate_association_data,
         }
 
     @classmethod

@@ -59,7 +59,7 @@ class ZoneValidatorRegistry:
     def available_validators(self) -> list['ZoneValidator']:
         return list(self.available.values())
 
-    def process_zone(self, zone: 'Zone') -> list[str]:
+    def process_zone(self, zone: 'Zone') -> list[ValidationReason]:
         if not self.configured:
             self.log.warning(
                 'process_zone: no zone validators configured, automatically enabling legacy set'

@@ -8,9 +8,9 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from logging import getLogger
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from .base import _process_value_validators
+from .base import Record, _process_value_validators
 from .change import Update
 from .geo import GeoCodes
 from .subnet import Subnets
@@ -171,7 +171,13 @@ class _Dynamic(object):
         return f'{self.pools}, {self.rules}'
 
 
-class _DynamicMixin(object):
+if TYPE_CHECKING:
+    _DynamicMixinBase = Record
+else:
+    _DynamicMixinBase = object
+
+
+class _DynamicMixin(_DynamicMixinBase):
     VALIDATORS: list[Any] = [
         DynamicValidator('dynamic', sets={'legacy', 'strict'})
     ]
@@ -486,7 +492,7 @@ class _DynamicMixin(object):
     ) -> None:
         super().__init__(zone, name, data, *args, **kwargs)
 
-        self.dynamic: dict[str, Any] = {}
+        self.dynamic: Any = {}
 
         if 'dynamic' not in data:
             return

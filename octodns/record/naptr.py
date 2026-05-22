@@ -274,7 +274,7 @@ class NaptrValue(EqualityTupleMixin, dict):
         new.replacement = new.replacement.format(**params)
         return new
 
-    def __hash__(self):
+    def __hash__(self) -> int:  # type: ignore[override]
         return hash(self.__repr__())
 
     def _equality_tuple(self):

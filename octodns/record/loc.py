@@ -225,19 +225,27 @@ class LocValue(EqualityTupleMixin, dict):
         except ValueError:
             pass
         try:
-            altitude = float(unquote(altitude))
+            uq_alt = unquote(altitude)
+            assert uq_alt is not None
+            altitude = float(uq_alt)
         except ValueError:
             pass
         try:
-            size = float(unquote(size))
+            uq_sz = unquote(size)
+            assert uq_sz is not None
+            size = float(uq_sz)
         except ValueError:
             pass
         try:
-            precision_horz = float(unquote(precision_horz))
+            uq_ph = unquote(precision_horz)
+            assert uq_ph is not None
+            precision_horz = float(uq_ph)
         except ValueError:
             pass
         try:
-            precision_vert = float(unquote(precision_vert))
+            uq_pv = unquote(precision_vert)
+            assert uq_pv is not None
+            precision_vert = float(uq_pv)
         except ValueError:
             pass
         lat_direction = unquote(lat_direction)
@@ -386,7 +394,7 @@ class LocValue(EqualityTupleMixin, dict):
     def template(self, params):
         return self
 
-    def __hash__(self):
+    def __hash__(self) -> int:  # type: ignore[override]
         return hash(
             (
                 self.lat_degrees,

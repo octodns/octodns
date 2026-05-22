@@ -41,9 +41,7 @@ class UriValueValidator(ValueValidator):
     integer-parsable, and target is non-empty.
     '''
 
-    def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: Any, data: Any, _type: str) -> list[str]:
         reasons: list[str] = []
         for value in data:
             try:
@@ -82,9 +80,7 @@ class UriValueRfcValidator(ValueValidator):
           - strict
     '''
 
-    def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: Any, data: Any, _type: str) -> list[str]:
         reasons: list[str] = []
         for value in data:
             for field in ('priority', 'weight'):
@@ -128,16 +124,22 @@ class UriValue(EqualityTupleMixin, dict):
             priority, weight, target = value.split(' ')
         except ValueError:
             raise RrParseError()
+        parsed_priority: int | str = priority
         try:
-            priority = int(priority)
+            parsed_priority = int(priority)
         except ValueError:
             pass
+        parsed_weight: int | str = weight
         try:
-            weight = int(weight)
+            parsed_weight = int(weight)
         except ValueError:
             pass
-        target = unquote(target)
-        return {'priority': priority, 'weight': weight, 'target': target}
+        parsed_target: str = unquote(target)  # type: ignore[assignment]
+        return {
+            'priority': parsed_priority,
+            'weight': parsed_weight,
+            'target': parsed_target,
+        }
 
     @classmethod
     def process(cls, values: Iterable[dict[str, Any]]) -> list[UriValue]:
@@ -191,7 +193,7 @@ class UriValue(EqualityTupleMixin, dict):
         new.target = new.target.format(**params)
         return new
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore[override]
         return hash(self.__repr__())
 
     def _equality_tuple(self) -> tuple[int, int, str]:

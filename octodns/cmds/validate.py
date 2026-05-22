@@ -5,21 +5,23 @@ Octo-DNS Validator
 
 from __future__ import annotations
 
-from logging import WARNING, getLogger
+from logging import WARNING, Handler, getLogger
 from sys import exit
 
 from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
 
 
-class FlaggingHandler:
+class FlaggingHandler(Handler):
     level = WARNING
 
     def __init__(self) -> None:
+        super().__init__()
         self.flag: bool = False
 
-    def handle(self, record: object) -> None:
+    def handle(self, record: object) -> bool:
         self.flag = True
+        return True
 
 
 def main() -> None:
@@ -37,7 +39,7 @@ def main() -> None:
         help='Validate records in lenient mode, printing warnings so that all validation issues are shown',
     )
 
-    args = parser.parse_args(WARNING)
+    args = parser.parse_args(default_log_level=WARNING)
 
     flagging = FlaggingHandler()
     getLogger('Record').addHandler(flagging)

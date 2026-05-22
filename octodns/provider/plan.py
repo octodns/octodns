@@ -71,14 +71,16 @@ class Plan(object):
         self.meta: dict | None = meta
 
         # Zone thresholds take precedence over provider
+        self.update_pcent_threshold: float
         if existing and existing.update_pcent_threshold is not None:
-            self.update_pcent_threshold: float = existing.update_pcent_threshold
+            self.update_pcent_threshold = existing.update_pcent_threshold
         else:
-            self.update_pcent_threshold: float = update_pcent_threshold
+            self.update_pcent_threshold = update_pcent_threshold
+        self.delete_pcent_threshold: float
         if existing and existing.delete_pcent_threshold is not None:
-            self.delete_pcent_threshold: float = existing.delete_pcent_threshold
+            self.delete_pcent_threshold = existing.delete_pcent_threshold
         else:
-            self.delete_pcent_threshold: float = delete_pcent_threshold
+            self.delete_pcent_threshold = delete_pcent_threshold
         change_counts: dict[str, int] = {'Create': 0, 'Delete': 0, 'Update': 0}
         for change in changes:
             change_counts[change.__class__.__name__] += 1
@@ -139,10 +141,7 @@ class Plan(object):
         creates = self.change_counts['Create']
         updates = self.change_counts['Update']
         deletes = self.change_counts['Delete']
-        try:
-            existing = len(self.existing.records)
-        except AttributeError:
-            existing = 0
+        existing = len(self.existing.records) if self.existing else 0
         meta = self.meta is not None
         return f'Creates={creates}, Updates={updates}, Deletes={deletes}, Existing={existing}, Meta={meta}'
 
@@ -150,6 +149,9 @@ class Plan(object):
 class _PlanOutput(object):
     def __init__(self, name: str) -> None:
         self.name: str = name
+
+    def run(self, *args: Any, **kwargs: Any) -> None:
+        raise NotImplementedError()
 
 
 def _custom_fh(func: Any) -> Any:
@@ -274,7 +276,7 @@ class PlanJson(_PlanFhOutput):
         *args: Any,
         **kwargs: Any,
     ) -> None:
-        data = defaultdict(dict)
+        data: dict[str, dict[str, Any]] = defaultdict(dict)
         for target, plan in plans:
             data[target.id][plan.desired.name] = plan.data
 

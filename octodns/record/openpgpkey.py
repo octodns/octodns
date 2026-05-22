@@ -20,9 +20,7 @@ class OpenpgpkeyValueValidator(ValueValidator):
     OpenPGP key must be provided.
     '''
 
-    def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: Any, data: Any, _type: str) -> list[str]:
         if not data or all(not d for d in data):
             return ['missing value(s)']
         return []

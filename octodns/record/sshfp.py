@@ -27,9 +27,7 @@ class SshfpValueValidator(ValueValidator):
 
     FINGERPRINT_LENGTHS: dict[int, int] = {1: 40, 2: 64}
 
-    def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: Any, data: Any, _type: str) -> list[str]:
         reasons: list[str] = []
         for value in data:
             try:
@@ -90,9 +88,7 @@ class SshfpValueRfcValidator(ValueValidator):
     _hex_re = re.compile(r'^[0-9a-fA-F]+$')
     _fingerprint_type_lengths: dict[int, int] = {1: 40, 2: 64}
 
-    def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: Any, data: Any, _type: str) -> list[str]:
         reasons: list[str] = []
         for value in data:
             fingerprint_type: int | None = None
@@ -147,9 +143,7 @@ class SshfpValueBestPracticeValidator(ValueValidator):
           - best-practice
     '''
 
-    def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: Any, data: Any, _type: str) -> list[str]:
         reasons: list[str] = []
         for value in data:
             try:
@@ -196,19 +190,21 @@ class SshfpValue(EqualityTupleMixin, dict):
             algorithm, fingerprint_type, fingerprint = value.split(' ')
         except ValueError:
             raise RrParseError()
+        parsed_algorithm: int | str = algorithm
         try:
-            algorithm = int(algorithm)
+            parsed_algorithm = int(algorithm)
         except ValueError:
             pass
+        parsed_fingerprint_type: int | str = fingerprint_type
         try:
-            fingerprint_type = int(fingerprint_type)
+            parsed_fingerprint_type = int(fingerprint_type)
         except ValueError:
             pass
-        fingerprint = unquote(fingerprint)
+        parsed_fingerprint: str = unquote(fingerprint)  # type: ignore[assignment]
         return {
-            'algorithm': algorithm,
-            'fingerprint_type': fingerprint_type,
-            'fingerprint': fingerprint,
+            'algorithm': parsed_algorithm,
+            'fingerprint_type': parsed_fingerprint_type,
+            'fingerprint': parsed_fingerprint,
         }
 
     @classmethod
@@ -263,7 +259,7 @@ class SshfpValue(EqualityTupleMixin, dict):
         new.fingerprint = new.fingerprint.format(**params)
         return new
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore[override]
         return hash(self.__repr__())
 
     def _equality_tuple(self) -> tuple[int, int, str]:

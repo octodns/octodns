@@ -106,14 +106,16 @@ class AutoArpa(BaseProcessor):
             if arpa.endswith(f'.{zone_name}'):
                 name = arpa[:-n]
                 # Note: this takes a list of (priority, ttl, fqdn) tuples and returns the ordered and uniqified list of fqdns.
-                fqdns = self._order_and_unique_fqdns(fqdns, self.max_auto_arpa)
+                ordered_fqdns = self._order_and_unique_fqdns(
+                    fqdns, self.max_auto_arpa
+                )
                 record = Record.new(
                     zone,
                     name,
                     {
-                        'ttl': fqdns[0][0],
+                        'ttl': ordered_fqdns[0][0],
                         'type': 'PTR',
-                        'values': [fqdn[1] for fqdn in fqdns],
+                        'values': [fqdn[1] for fqdn in ordered_fqdns],
                     },
                     lenient=lenient,
                 )

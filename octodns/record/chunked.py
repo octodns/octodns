@@ -74,8 +74,8 @@ class _ChunkedValuesMixin(ValuesMixin):
             vs.append(value[i : i + c])
             # and can step over if
             i += c
-        vs = '" "'.join(vs)
-        return self._value_type(f'"{vs}"')  # type: ignore[attr-defined]
+        vs_str = '" "'.join(vs)
+        return self._value_type(f'"{vs_str}"')  # type: ignore[attr-defined]
 
     @property
     def chunked_values(self) -> list[Any]:

@@ -183,6 +183,10 @@ class TestRecord(TestCase):
         # make sure there's nothing extra
         self.assertEqual(5, len(records))
 
+    def test_record_data_from_rrs(self):
+        with self.assertRaises(NotImplementedError):
+            Record.data_from_rrs(None)
+
     def test_parse_rdata_texts(self):
         self.assertEqual(['2.3.4.5'], ARecord.parse_rdata_texts(['2.3.4.5']))
         self.assertEqual(

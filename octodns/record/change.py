@@ -8,6 +8,8 @@ from ..equality import EqualityTupleMixin
 
 
 class Change(EqualityTupleMixin):
+    CLASS_ORDERING: int
+
     def __init__(self, existing: Any, new: Any) -> None:
         self.existing = existing
         self.new = new

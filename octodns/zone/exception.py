@@ -2,7 +2,7 @@
 #
 #
 
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 from ..idna import idna_decode
 
@@ -16,7 +16,7 @@ class ValidationError(ZoneException):
     def build_message(
         cls,
         zone_name: str,
-        reasons: Iterable[str],
+        reasons: Iterable[Any],
         context: Optional[str] = None,
     ) -> str:
         reasons_str = '\n  - '.join([str(r) for r in reasons])
@@ -29,7 +29,7 @@ class ValidationError(ZoneException):
     def __init__(
         self,
         zone_name: str,
-        reasons: Iterable[str],
+        reasons: Iterable[Any],
         context: Optional[str] = None,
     ) -> None:
         super().__init__(self.build_message(zone_name, reasons, context))

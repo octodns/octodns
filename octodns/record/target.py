@@ -2,7 +2,7 @@
 #
 #
 
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from fqdn import FQDN
 
@@ -45,9 +45,7 @@ class TargetValueValidator(ValueValidator):
     Validates a single-value target FQDN (CNAME, ALIAS, DNAME, PTR).
     '''
 
-    def validate(
-        self, value_cls: type, data: Optional[str], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: type, data: Any, _type: str) -> list[str]:
         return _check_target_format(data or '', _type)
 
 
@@ -56,9 +54,7 @@ class TargetsValueValidator(ValueValidator):
     Validates a list of target FQDNs (NS). Rejects empty lists.
     '''
 
-    def validate(
-        self, value_cls: type, data: Sequence[Optional[str]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: type, data: Any, _type: str) -> list[str]:
         if not data:
             return ['missing value(s)']
 
@@ -82,9 +78,7 @@ class TargetValueBestPracticeValidator(ValueValidator):
           - best-practice
     '''
 
-    def validate(
-        self, value_cls: type, data: Optional[str], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: type, data: Any, _type: str) -> list[str]:
         return _check_target_trailing_dot(data or '', _type)
 
 
@@ -100,9 +94,7 @@ class TargetsValueBestPracticeValidator(ValueValidator):
           - best-practice
     '''
 
-    def validate(
-        self, value_cls: type, data: Sequence[Optional[str]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: type, data: Any, _type: str) -> list[str]:
         reasons: list[str] = []
         for value in data:
             reasons += _check_target_trailing_dot(value or '', _type)

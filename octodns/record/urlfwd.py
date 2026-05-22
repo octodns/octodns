@@ -23,9 +23,7 @@ class UrlfwdValueValidator(ValueValidator):
     ``path`` and ``target`` are present.
     '''
 
-    def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: Any, data: Any, _type: str) -> list[str]:
         reasons: list[str] = []
         for value in data:
             try:
@@ -87,26 +85,29 @@ class UrlfwdValue(EqualityTupleMixin, dict):
             path, target, code, masking, query = value.split(' ')
         except ValueError:
             raise RrParseError()
+        parsed_code: int | str = code
         try:
-            code = int(code)
+            parsed_code = int(code)
         except ValueError:
             pass
+        parsed_masking: int | str = masking
         try:
-            masking = int(masking)
+            parsed_masking = int(masking)
         except ValueError:
             pass
+        parsed_query: int | str = query
         try:
-            query = int(query)
+            parsed_query = int(query)
         except ValueError:
             pass
-        path = unquote(path)
-        target = unquote(target)
+        parsed_path: str = unquote(path)  # type: ignore[assignment]
+        parsed_target: str = unquote(target)  # type: ignore[assignment]
         return {
-            'path': path,
-            'target': target,
-            'code': code,
-            'masking': masking,
-            'query': query,
+            'path': parsed_path,
+            'target': parsed_target,
+            'code': parsed_code,
+            'masking': parsed_masking,
+            'query': parsed_query,
         }
 
     @classmethod
@@ -179,7 +180,7 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     def _equality_tuple(self) -> tuple[str, str, int, int, int]:
         return (self.path, self.target, self.code, self.masking, self.query)
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore[override]
         return hash(
             (self.path, self.target, self.code, self.masking, self.query)
         )

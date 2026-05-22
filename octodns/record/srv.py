@@ -42,9 +42,7 @@ class SrvValueValidator(ValueValidator):
     integer-parsable, and target is a valid FQDN.
     '''
 
-    def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: Any, data: Any, _type: str) -> list[str]:
         reasons: list[str] = []
         for value in data:
             try:
@@ -155,9 +153,7 @@ class SrvValueRfcValidator(ValueValidator):
         except (KeyError, ValueError, TypeError):
             return None
 
-    def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: Any, data: Any, _type: str) -> list[str]:
         reasons: list[str] = []
         for value in data:
             fields = {
@@ -191,9 +187,7 @@ class SrvValueBestPracticeValidator(ValueValidator):
           - best-practice
     '''
 
-    def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
-    ) -> list[str]:
+    def validate(self, value_cls: Any, data: Any, _type: str) -> list[str]:
         reasons: list[str] = []
         for value in data:
             target = value.get('target')
@@ -230,24 +224,27 @@ class SrvValue(EqualityTupleMixin, dict):
             priority, weight, port, target = value.split(' ')
         except ValueError:
             raise RrParseError()
+        parsed_priority: int | str = priority
         try:
-            priority = int(priority)
+            parsed_priority = int(priority)
         except ValueError:
             pass
+        parsed_weight: int | str = weight
         try:
-            weight = int(weight)
+            parsed_weight = int(weight)
         except ValueError:
             pass
+        parsed_port: int | str = port
         try:
-            port = int(port)
+            parsed_port = int(port)
         except ValueError:
             pass
-        target = unquote(target)
+        parsed_target: str = unquote(target)  # type: ignore[assignment]
         return {
-            'priority': priority,
-            'weight': weight,
-            'port': port,
-            'target': target,
+            'priority': parsed_priority,
+            'weight': parsed_weight,
+            'port': parsed_port,
+            'target': parsed_target,
         }
 
     @classmethod
@@ -311,7 +308,7 @@ class SrvValue(EqualityTupleMixin, dict):
         new.target = new.target.format(**params)
         return new
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore[override]
         return hash(self.__repr__())
 
     def _equality_tuple(self) -> tuple[int, int, int, str]:

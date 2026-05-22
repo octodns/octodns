@@ -53,7 +53,7 @@ class _IpValue(str):
         values = [v if v is not None else '' for v in values]
         # Now round trip all non-'' through the address type and back to a str
         # to normalize the address representation.
-        return [cls(v) if v != '' else '' for v in values]
+        return [cls(v) if v != '' else '' for v in values]  # type: ignore[misc, arg-type]
 
     def __new__(cls, v: str) -> '_IpValue':
         v = str(cls._address_type(v))  # type: ignore[attr-defined]

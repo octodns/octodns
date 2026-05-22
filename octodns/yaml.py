@@ -139,7 +139,7 @@ class SortEnforcingLoader(ContextLoader):
 
     def construct_mapping(
         self, node: MappingNode, deep: bool = False
-    ) -> dict[object, object]:
+    ) -> ContextDict:
         ret = super().construct_mapping(node, deep)
 
         keys = list(ret.keys())
@@ -218,8 +218,8 @@ class SortingDumper(SafeDumper):
     '''
 
     def _representer(self, data: dict[object, object]) -> MappingNode:
-        data = sorted(data.items(), key=self.KEYGEN)
-        return self.represent_mapping(self.DEFAULT_MAPPING_TAG, data)
+        sorted_data = sorted(data.items(), key=self.KEYGEN)
+        return self.represent_mapping(self.DEFAULT_MAPPING_TAG, sorted_data)
 
 
 SortingDumper.add_representer(dict, SortingDumper._representer)

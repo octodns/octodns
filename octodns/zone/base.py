@@ -530,7 +530,7 @@ class Zone(object):
         # match name and _type with it
         desired_records = {r: r for r in desired.records}
 
-        changes = []
+        changes: list[Change] = []
 
         # Find diffs & removes
         for record in self.records:

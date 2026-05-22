@@ -10,7 +10,7 @@ from collections import defaultdict
 from ipaddress import ip_address
 from os import listdir
 from os.path import join
-from typing import TYPE_CHECKING, Callable, Generator, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Generator, Optional, Union
 
 from ..record import Record
 from .base import BaseSource
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from octodns.zone import Zone
 
 
-def _unique(values: list[object]) -> list[object]:
+def _unique(values: list[Any]) -> list[Any]:
     try:
         # this will work if they're simple strings
         return list(set(values))
@@ -42,8 +42,11 @@ class TinyDnsBaseSource(BaseSource):
         super().__init__(id)
         self.default_ttl: int = default_ttl
 
+    def _lines(self) -> list[str]:
+        raise NotImplementedError()  # pragma: no cover
+
     @property
-    def SUPPORTS(self) -> set[str]:
+    def SUPPORTS(self) -> set[str]:  # type: ignore[override]
         # All record types, including those registered by 3rd party modules
         return set(Record.registered_types().keys())
 
@@ -130,7 +133,7 @@ class TinyDnsBaseSource(BaseSource):
             # we only operate on arpa
             return
 
-        names = defaultdict(list)
+        names: defaultdict[str, list[_RecordValue]] = defaultdict(list)
         for line in lines:
             if line[0].endswith('in-addr.arpa') or line[0].endswith(
                 'ip6.arpa.'
@@ -146,8 +149,8 @@ class TinyDnsBaseSource(BaseSource):
                 addr = line[1]
                 if '.' not in addr:
                     addr = u':'.join(textwrap.wrap(line[1], 4))
-                addr = ip_address(addr)
-                name = addr.reverse_pointer
+                ip = ip_address(addr)
+                name = ip.reverse_pointer
 
             if value[-1] != '.':
                 value = f'{value}.'
@@ -185,7 +188,7 @@ class TinyDnsBaseSource(BaseSource):
 
         ttl = self._ttl_for(lines, 3)
 
-        values: list[str] = []
+        values: list[_RecordValue] = []
         for line in lines:
             ns = line[2]
             # if there's a . in the ns we hit a special case and use it as-is
@@ -221,7 +224,7 @@ class TinyDnsBaseSource(BaseSource):
             return
 
         # collect our ip(s)
-        ips = [l[1] for l in lines if l[1] != '0.0.0.0']
+        ips: list[_RecordValue] = [l[1] for l in lines if l[1] != '0.0.0.0']
 
         if not ips:
             # we didn't find any value ips so nothing to do
@@ -246,7 +249,7 @@ class TinyDnsBaseSource(BaseSource):
             return
 
         # collect our ip(s)
-        values = [
+        values: list[_RecordValue] = [
             l[1].encode('latin1').decode('unicode-escape').replace(";", "\\;")
             for l in lines
         ]
@@ -270,7 +273,7 @@ class TinyDnsBaseSource(BaseSource):
             return
 
         # collect our ip(s)
-        ips: list[str] = []
+        ips: list[_RecordValue] = []
         for line in lines:
             # TinyDNS files have the ipv6 address written in full, but with the
             # colons removed. This inserts a colon every 4th character to make
@@ -297,7 +300,7 @@ class TinyDnsBaseSource(BaseSource):
 
         ttl = self._ttl_for(lines, 6)
 
-        values: list[dict[str, object]] = []
+        values: list[_RecordValue] = []
         for line in lines:
             target = line[2]
             # if there's a . in the mx we hit a special case and use it as-is
@@ -402,17 +405,19 @@ class TinyDnsBaseSource(BaseSource):
     def _process_lines(
         self, zone: Zone, lines: list[str]
     ) -> dict[str, dict[str, list[list[str]]]]:
-        data = defaultdict(lambda: defaultdict(list))
+        data: defaultdict[str, defaultdict[str, list[list[str]]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
         for line in lines:
             symbol = line[0]
 
             # Skip type, remove trailing comments, and omit newline
-            line = line[1:].split('#', 1)[0]
+            content = line[1:].split('#', 1)[0]
             # Split on :'s including :: and strip leading/trailing ws
-            line = [p.strip() for p in line.split(':')]
-            data[symbol][line[0]].append(line)
+            parts = [p.strip() for p in content.split(':')]
+            data[symbol][parts[0]].append(parts)
 
-        return data
+        return data  # type: ignore[return-value]
 
     def _process_symbols(
         self,

@@ -1,9 +1,16 @@
-#
-#
-#
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from octodns.record.base import Record
 
 
 class BaseSource(object):
+    log: logging.Logger
+    SUPPORTS: set[str]
+    SUPPORTS_GEO: bool
     '''
     Base class for all octoDNS sources and providers.
 
@@ -134,7 +141,7 @@ class BaseSource(object):
             'Abstract base class, populate method missing'
         )
 
-    def supports(self, record) -> bool:
+    def supports(self, record: Record) -> bool:
         '''
         Check if this source supports the given record type.
 

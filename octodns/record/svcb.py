@@ -95,7 +95,8 @@ def validate_svcparam_ech(svcparamvalue: Any) -> list[str]:
     try:
         b64decode(svcparamvalue, validate=True)
     except binascii_error:
-        return ['ech SvcParam is invalid Base64']  # type: ignore[return-value]
+        return ['ech SvcParam is invalid Base64']
+    return []
 
 
 def validate_svckey_number(paramkey: str) -> list[str]:
@@ -158,10 +159,14 @@ class SvcbValueValidator(ValueValidator):
     '''
 
     def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
+        self, value_cls: Any, data: list | tuple | str | dict, _type: str
     ) -> list[str]:
+        if isinstance(data, (str, dict)):
+            return []
         reasons: list[str] = []
         for value in data:
+            if not isinstance(value, dict):
+                continue
             svcpriority = -1
             if 'svcpriority' not in value:
                 reasons.append('missing svcpriority')
@@ -173,8 +178,11 @@ class SvcbValueValidator(ValueValidator):
                 except ValueError:
                     reasons.append(f'invalid priority "{value["svcpriority"]}"')
 
+            targetname = value.get('targetname')
             reasons += _check_target_format(
-                value.get('targetname'), _type, 'targetname'
+                str(targetname) if targetname is not None else '',
+                _type,
+                'targetname',
             )
 
             if 'svcparams' in value:
@@ -227,14 +235,15 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
     @classmethod
     def parse_rdata_text(cls, value: str) -> dict[str, Any]:
         try:
-            svcpriority, targetname, *svcparams = value.split(' ')
+            svcpriority_str, targetname, *svcparams = value.split(' ')
         except ValueError:
             raise RrParseError()
+        svcpriority: int | str = svcpriority_str
         try:
-            svcpriority = int(svcpriority)
+            svcpriority = int(svcpriority_str)
         except ValueError:
             pass
-        targetname = unquote(targetname)
+        targetname = unquote(targetname) or ''
         params: dict[str, Any] = {}
         for svcparam in svcparams:
             paramkey, *paramvalue = svcparam.split('=')
@@ -318,7 +327,7 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         # TODO: what, if any of the svcparams should be templated
         return new
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore[override]
         return hash(self.__repr__())
 
     def _equality_tuple(self) -> tuple[int, str, frozenset[str]]:
@@ -350,13 +359,18 @@ class SvcbValueBestPracticeValidator(ValueValidator):
     '''
 
     def validate(
-        self, value_cls: Any, data: Iterable[dict[str, Any]], _type: str
+        self, value_cls: Any, data: list | tuple | str | dict, _type: str
     ) -> list[str]:
+        if isinstance(data, (str, dict)):
+            return []
         reasons: list[str] = []
         for value in data:
-            reasons += _check_target_trailing_dot(
-                value.get('targetname'), _type, 'targetname'
-            )
+            if isinstance(value, dict):
+                targetname = value.get('targetname')
+                if isinstance(targetname, str):
+                    reasons += _check_target_trailing_dot(
+                        targetname, _type, 'targetname'
+                    )
         return reasons
 
 

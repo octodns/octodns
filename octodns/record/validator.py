@@ -4,7 +4,7 @@
 
 from collections import defaultdict
 from logging import Logger, getLogger
-from typing import Iterable, Optional, Sequence
+from typing import Any, Iterable, Optional, Sequence
 
 from ..deprecation import deprecated
 from .exception import RecordException
@@ -31,6 +31,7 @@ class ValidatorRegistry:
     def register(
         self, validator, types: Optional[Sequence[str]] = None
     ) -> None:
+        registry: Any
         if isinstance(validator, RecordValidator):
             registry = self.available_record
         elif isinstance(validator, ValueValidator):
@@ -52,17 +53,19 @@ class ValidatorRegistry:
         self.configured = True
         self.reset_active()
         sets = set(sets)
-        for available, active in (
+        available_any: Any
+        active_any: Any
+        for available_any, active_any in (
             (self.available_record, self.active_record),
             (self.available_value, self.active_value),
         ):
-            for _type, validators in available.items():
+            for _type, validators in available_any.items():
                 for validator in validators.values():
                     if validator.sets is None or sets & validator.sets:
-                        active[_type][validator.id] = validator
+                        active_any[_type][validator.id] = validator
 
     def enable(self, id: str, types: Optional[Sequence[str]] = None) -> None:
-        validator: Optional['RecordValidator'] = None
+        validator: Any = None
         for available in (self.available_record, self.available_value):
             for bucket in available.values():
                 if id in bucket:
@@ -108,7 +111,7 @@ class ValidatorRegistry:
         self.active_record.clear()
         self.active_value.clear()
 
-    def registered(self) -> dict[str, dict[str, list['RecordValidator']]]:
+    def registered(self) -> dict[str, dict[str, list[Any]]]:
         return {
             'record': {
                 k: list(v.values()) for k, v in self.active_record.items()
@@ -118,7 +121,7 @@ class ValidatorRegistry:
             },
         }
 
-    def available(self) -> dict[str, dict[str, list['RecordValidator']]]:
+    def available(self) -> dict[str, dict[str, list[Any]]]:
         return {
             'record': {
                 k: list(v.values()) for k, v in self.available_record.items()
