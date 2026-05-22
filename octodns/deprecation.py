@@ -2,11 +2,8 @@
 #
 #
 
-from typing import Callable, TypeVar
 from warnings import warn
 
-T = TypeVar('T', bound=Callable)
 
-
-def deprecated(message: str, stacklevel: int = 2) -> Callable[[T], T]:
+def deprecated(message: str, stacklevel: int = 2) -> None:
     warn(message, DeprecationWarning, stacklevel=stacklevel)
