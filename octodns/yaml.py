@@ -3,7 +3,7 @@
 #
 
 from os.path import dirname, join
-from typing import Callable, Iterator
+from typing import Any, Callable, Iterator
 
 from natsort import natsort_keygen
 from yaml import SafeDumper, SafeLoader, compose, dump, load
@@ -196,7 +196,7 @@ class InvalidOrder(Exception):
 
 def safe_load(
     stream: object, enforce_order: bool = True, order_mode: str = 'natural'
-) -> object:
+) -> Any:
     if enforce_order:
         try:
             loader = _loaders[order_mode]
