@@ -3,6 +3,8 @@
 Octo-DNS Comparator
 '''
 
+from __future__ import annotations
+
 import sys
 from pprint import pprint
 
@@ -10,7 +12,7 @@ from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser(description=__doc__.split('\n')[1])
 
     parser.add_argument(
@@ -45,8 +47,9 @@ def main():
     changes = manager.compare(args.a, args.b, args.zone)
 
     # Filter changes list based on ignore-prefix argument if present
-    if args.ignore_prefix:
-        pattern = args.ignore_prefix
+    ignore_prefix: str | None = getattr(args, 'ignore_prefix', None)
+    if ignore_prefix:
+        pattern = ignore_prefix
         changes = [c for c in changes if not c.record.fqdn.startswith(pattern)]
 
     pprint(changes)

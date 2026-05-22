@@ -1,15 +1,13 @@
-#
-#
-#
+from __future__ import annotations
 
-from logging import getLogger
-from typing import List, Optional
+from logging import Logger, getLogger
+from typing import Any, Iterable, List, Optional
 
 import dns.resolver
 from dns.resolver import Answer
 
-from octodns.record.base import Record
-
+from ..record.base import Record
+from ..zone import Zone
 from .base import BaseProcessor, ProcessorException
 
 
@@ -51,9 +49,9 @@ class SpfDnsLookupProcessor(BaseProcessor):
         value: v=spf1 ptr ~all
     '''
 
-    log = getLogger('SpfDnsLookupProcessor')
+    log: Logger = getLogger('SpfDnsLookupProcessor')
 
-    def __init__(self, name, **kwargs):
+    def __init__(self, name: str, **kwargs: Any) -> None:
         self.log.debug(f"SpfDnsLookupProcessor: {name}")
         super().__init__(name, **kwargs)
 
@@ -80,7 +78,7 @@ class SpfDnsLookupProcessor(BaseProcessor):
         return spf[0]
 
     def _process_answer(self, answer: Answer) -> List[str]:
-        values = []
+        values: list[str] = []
 
         for value in answer:
             text_value = value.to_text()
@@ -129,14 +127,16 @@ class SpfDnsLookupProcessor(BaseProcessor):
 
         return lookups
 
-    def process_source_zone(self, zone, sources, lenient=False):
+    def process_source_zone(
+        self, zone: Zone, sources: Iterable[Any], lenient: bool = False
+    ) -> Zone:
         for record in zone.records:
-            if record._type != 'TXT':
+            if record._type != 'TXT':  # type: ignore[attr-defined]
                 continue
 
-            if record.lenient:
+            if record.lenient:  # type: ignore[attr-defined]
                 continue
 
-            self._check_dns_lookups(record, record.values, 0)
+            self._check_dns_lookups(record, record.values, 0)  # type: ignore[attr-defined]
 
         return zone

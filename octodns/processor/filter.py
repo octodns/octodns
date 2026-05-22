@@ -1,54 +1,67 @@
-#
-#
-#
+from __future__ import annotations
 
 from ipaddress import ip_address, ip_network
 from itertools import product
-from logging import getLogger
+from logging import Logger, getLogger
+from re import Pattern
 from re import compile as re_compile
+from typing import Any, Callable, Iterable
 
 from ..record.exception import ValidationError
+from ..zone import Zone
 from .base import BaseProcessor
 
 
 class _FilterProcessor(BaseProcessor):
-    def __init__(self, name, include_target=True, **kwargs):
+    matches: Callable[[Zone, Any], None]
+    doesnt_match: Callable[[Zone, Any], None]
+    _process: Callable[[Zone, Any, bool], Zone]
+
+    def __init__(
+        self, name: str, include_target: bool = True, **kwargs: Any
+    ) -> None:
         super().__init__(name, **kwargs)
         self.include_target = include_target
 
-    def process_source_zone(self, desired, sources, lenient=False):
-        return self._process(desired, sources, lenient=lenient)
+    def process_source_zone(
+        self, desired: Zone, sources: Iterable[Any], lenient: bool = False
+    ) -> Zone:
+        return self._process(desired, sources, lenient)
 
-    def process_target_zone(self, existing, target, lenient=False):
+    def process_target_zone(
+        self, existing: Zone, target: Any, lenient: bool = False
+    ) -> Zone:
         if self.include_target:
-            return self._process(existing, target, lenient=lenient)
+            return self._process(existing, target, lenient)
         return existing
 
 
 class AllowsMixin:
-    def matches(self, zone, record):
+    def matches(self, zone: Zone, record: Any) -> None:
         pass
 
-    def doesnt_match(self, zone, record):
+    def doesnt_match(self, zone: Zone, record: Any) -> None:
         zone.remove_record(record)
 
 
 class RejectsMixin:
-    def matches(self, zone, record):
+    def matches(self, zone: Zone, record: Any) -> None:
         zone.remove_record(record)
 
-    def doesnt_match(self, zone, record):
+    def doesnt_match(self, zone: Zone, record: Any) -> None:
         pass
 
 
 class _TypeBaseFilter(_FilterProcessor):
-    def __init__(self, name, _list, **kwargs):
+    def __init__(self, name: str, _list: list[str], **kwargs: Any) -> None:
         super().__init__(name, **kwargs)
-        self._list = set(_list)
+        self._list: set[str] = set(_list)
 
-    def _process(self, zone, sources_or_target, lenient=False):
+    def _process(
+        self, zone: Zone, sources_or_target: Any, lenient: bool = False
+    ) -> Zone:
         for record in zone.records:
-            if record._type in self._list:
+            if record._type in self._list:  # type: ignore[attr-defined]
                 self.matches(zone, record)
             else:
                 self.doesnt_match(zone, record)
@@ -82,7 +95,7 @@ class TypeAllowlistFilter(_TypeBaseFilter, AllowsMixin):
             - ns1
     '''
 
-    def __init__(self, name, allowlist, **kwargs):
+    def __init__(self, name: str, allowlist: list[str], **kwargs: Any) -> None:
         super().__init__(name, allowlist, **kwargs)
 
 
@@ -111,26 +124,28 @@ class TypeRejectlistFilter(_TypeBaseFilter, RejectsMixin):
             - route53
     '''
 
-    def __init__(self, name, rejectlist, **kwargs):
+    def __init__(self, name: str, rejectlist: list[str], **kwargs: Any) -> None:
         super().__init__(name, rejectlist, **kwargs)
 
 
 class _NameBaseFilter(_FilterProcessor):
-    def __init__(self, name, _list, **kwargs):
+    def __init__(self, name: str, _list: list[str], **kwargs: Any) -> None:
         super().__init__(name, **kwargs)
-        exact = set()
-        regex = []
+        exact: set[str] = set()
+        regex: list[Pattern[str]] = []
         for pattern in _list:
             if pattern.startswith('/'):
                 regex.append(re_compile(pattern[1:-1]))
             else:
                 exact.add(pattern)
-        self.exact = exact
-        self.regex = regex
+        self.exact: set[str] = exact
+        self.regex: list[Pattern[str]] = regex
 
-    def _process(self, zone, sources_or_target, lenient=False):
+    def _process(
+        self, zone: Zone, sources_or_target: Any, lenient: bool = False
+    ) -> Zone:
         for record in zone.records:
-            name = record.name
+            name = record.name  # type: ignore[attr-defined]
             if name in self.exact:
                 self.matches(zone, record)
                 continue
@@ -175,7 +190,7 @@ class NameAllowlistFilter(_NameBaseFilter, AllowsMixin):
             - route53
     '''
 
-    def __init__(self, name, allowlist, **kwargs):
+    def __init__(self, name: str, allowlist: list[str], **kwargs: Any) -> None:
         super().__init__(name, allowlist, **kwargs)
 
 
@@ -211,30 +226,33 @@ class NameRejectlistFilter(_NameBaseFilter, RejectsMixin):
             - route53
     '''
 
-    def __init__(self, name, rejectlist, **kwargs):
+    def __init__(self, name: str, rejectlist: list[str], **kwargs: Any) -> None:
         super().__init__(name, rejectlist, **kwargs)
 
 
 class _ValueBaseFilter(_FilterProcessor):
-    def __init__(self, name, _list, **kwargs):
+    def __init__(self, name: str, _list: list[str], **kwargs: Any) -> None:
+        self.log: Logger = getLogger(f'ValueBaseFilter[{name}]')
         super().__init__(name, **kwargs)
-        exact = set()
-        regex = []
+        exact: set[str] = set()
+        regex: list[Pattern[str]] = []
         for pattern in _list:
             if pattern.startswith('/'):
                 regex.append(re_compile(pattern[1:-1]))
             else:
                 exact.add(pattern)
-        self.exact = exact
-        self.regex = regex
+        self.exact: set[str] = exact
+        self.regex: list[Pattern[str]] = regex
 
-    def _process(self, zone, sources_or_target, lenient=False):
+    def _process(
+        self, zone: Zone, sources_or_target: Any, lenient: bool = False
+    ) -> Zone:
         for record in zone.records:
-            values = []
+            values: list[str] = []
             if hasattr(record, 'values'):
-                values = [value.rdata_text for value in record.values]
-            elif record.value is not None:
-                values = [record.value.rdata_text]
+                values = [value.rdata_text for value in record.values]  # type: ignore[attr-defined]
+            elif record.value is not None:  # type: ignore[attr-defined]
+                values = [record.value.rdata_text]  # type: ignore[attr-defined]
             else:
                 self.log.warning(
                     'value for %s is NoneType, ignoring', record.fqdn
@@ -284,7 +302,7 @@ class ValueAllowlistFilter(_ValueBaseFilter, AllowsMixin):
             - route53
     '''
 
-    def __init__(self, name, allowlist, **kwargs):
+    def __init__(self, name: str, allowlist: list[str], **kwargs: Any) -> None:
         self.log = getLogger(f'ValueAllowlistFilter[{name}]')
         super().__init__(name, allowlist, **kwargs)
 
@@ -321,27 +339,27 @@ class ValueRejectlistFilter(_ValueBaseFilter, RejectsMixin):
             - route53
     '''
 
-    def __init__(self, name, rejectlist, **kwargs):
+    def __init__(self, name: str, rejectlist: list[str], **kwargs: Any) -> None:
         self.log = getLogger(f'ValueRejectlistFilter[{name}]')
         super().__init__(name, rejectlist, **kwargs)
 
 
-class _NetworkValueBaseFilter(BaseProcessor):
-    def __init__(self, name, _list, **kwargs):
+class _NetworkValueBaseFilter(_FilterProcessor):
+    def __init__(self, name: str, _list: list[str], **kwargs: Any) -> None:
         super().__init__(name, **kwargs)
-        self.networks = []
+        self.networks: list[Any] = []
         for value in _list:
             try:
                 self.networks.append(ip_network(value))
             except ValueError:
                 raise ValueError(f'{value} is not a valid CIDR to use')
 
-    def _process(self, zone, *args, **kwargs):
+    def _process(self, zone: Zone, *args: Any, **kwargs: Any) -> Zone:
         for record in zone.records:
-            if record._type not in ['A', 'AAAA']:
+            if record._type not in ['A', 'AAAA']:  # type: ignore[attr-defined]
                 continue
 
-            ips = [ip_address(value) for value in record.values]
+            ips = [ip_address(value) for value in record.values]  # type: ignore[attr-defined]
             if any(
                 ip in network for ip, network in product(ips, self.networks)
             ):
@@ -351,8 +369,8 @@ class _NetworkValueBaseFilter(BaseProcessor):
 
         return zone
 
-    process_source_zone = _process
-    process_target_zone = _process
+    process_source_zone = _process  # type: ignore[assignment]
+    process_target_zone = _process  # type: ignore[assignment]
 
 
 class NetworkValueAllowlistFilter(_NetworkValueBaseFilter, AllowsMixin):
@@ -379,7 +397,7 @@ class NetworkValueAllowlistFilter(_NetworkValueBaseFilter, AllowsMixin):
             - route53
     '''
 
-    def __init__(self, name, allowlist, **kwargs):
+    def __init__(self, name: str, allowlist: list[str], **kwargs: Any) -> None:
         super().__init__(name, allowlist, **kwargs)
 
 
@@ -407,7 +425,7 @@ class NetworkValueRejectlistFilter(_NetworkValueBaseFilter, RejectsMixin):
             - route53
     '''
 
-    def __init__(self, name, rejectlist, **kwargs):
+    def __init__(self, name: str, rejectlist: list[str], **kwargs: Any) -> None:
         super().__init__(name, rejectlist, **kwargs)
 
 
@@ -430,15 +448,15 @@ class IgnoreRootNsFilter(BaseProcessor):
             - ns1
     '''
 
-    def _process(self, zone, *args, **kwargs):
+    def _process(self, zone: Zone, *args: Any, **kwargs: Any) -> Zone:
         for record in zone.records:
-            if record._type == 'NS' and not record.name:
+            if record._type == 'NS' and not record.name:  # type: ignore[attr-defined]
                 zone.remove_record(record)
 
         return zone
 
-    process_source_zone = _process
-    process_target_zone = _process
+    process_source_zone = _process  # type: ignore[assignment]
+    process_target_zone = _process  # type: ignore[assignment]
 
 
 class ExcludeRootNsChanges(BaseProcessor):
@@ -453,7 +471,11 @@ class ExcludeRootNsChanges(BaseProcessor):
           # If false a warning will be printed and the change will be removed
           # from the plan.
           # (default: true)
-          error: true
+          # error: True
+          # Optional param that can be set to False to leave the target zone
+          # alone, thus allowing deletion of existing records
+          # (default: true)
+          # include_target: True
 
       zones:
         exxampled.com.:
@@ -465,16 +487,22 @@ class ExcludeRootNsChanges(BaseProcessor):
             - ns1
     '''
 
-    def __init__(self, name, error=True, **kwargs):
-        self.log = getLogger(f'ExcludeRootNsChanges[{name}]')
+    def __init__(self, name: str, error: bool = True, **kwargs: Any) -> None:
+        self.log: Logger = getLogger(f'ExcludeRootNsChanges[{name}]')
         super().__init__(name, **kwargs)
         self.error = error
 
-    def process_plan(self, plan, sources, target, lenient=False):
+    def process_plan(
+        self,
+        plan: Any,
+        sources: Iterable[Any],
+        target: Any,
+        lenient: bool = False,
+    ) -> Any:
         if plan:
             for change in list(plan.changes):
                 record = change.record
-                if record._type == 'NS' and record.name == '':
+                if record._type == 'NS' and record.name == '':  # type: ignore[attr-defined]
                     self.log.warning(
                         'root NS changes are disallowed, fqdn=%s', record.fqdn
                     )
@@ -516,15 +544,17 @@ class ZoneNameFilter(_FilterProcessor):
             - azure
     '''
 
-    def __init__(self, name, error=True, **kwargs):
+    def __init__(self, name: str, error: bool = True, **kwargs: Any) -> None:
         super().__init__(name, **kwargs)
         self.error = error
 
-    def _process(self, zone, sources_or_target, lenient=False):
+    def _process(
+        self, zone: Zone, sources_or_target: Any, lenient: bool = False
+    ) -> Zone:
         zone_name_with_dot = zone.name
         zone_name_without_dot = zone_name_with_dot[:-1]
         for record in zone.records:
-            name = record.name
+            name = record.name  # type: ignore[attr-defined]
             if name.endswith(zone_name_with_dot) or name.endswith(
                 zone_name_without_dot
             ):

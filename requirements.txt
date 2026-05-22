@@ -2,18 +2,19 @@
 x-python-version-not-supported; python_version!='3.10' and python_version!='3.11' and python_version!='3.12' and python_version!='3.13' and python_version!='3.14'
 alabaster==1.0.0
 anyio==4.13.0
+ast-serialize==0.5.0
 attrs==26.1.0
 babel==2.18.0
 backports-tarfile==1.2.0; python_version=='3.10' or python_version=='3.11'
-black==26.3.1
-build==1.4.4
-certifi==2026.4.22
+black==26.5.1
+build==1.5.0
+certifi==2026.5.20
 cffi==2.0.0
-changelet==0.6.0
+changelet==0.6.1
 charset-normalizer==3.4.7
-click==8.3.3
-coverage==7.13.5
-cryptography==47.0.0
+click==8.4.1
+coverage==7.14.0
+cryptography==48.0.0
 dnspython==2.8.0
 docutils==0.21.2; python_version=='3.10'
 docutils==0.22.4; python_version=='3.11' or python_version=='3.12' or python_version=='3.13' or python_version=='3.14'
@@ -24,29 +25,31 @@ hishel==1.2.1
 httpcore==1.0.9
 httpx==0.28.1
 id==1.6.1
-idna==3.13
+idna==3.16
 imagesize==2.0.0
 importlib-metadata==9.0.0; python_version=='3.10' or python_version=='3.11'
 iniconfig==2.3.0
 isort==9.0.0a3
 jaraco-classes==3.4.0
 jaraco-context==6.1.2
-jaraco-functools==4.4.0
+jaraco-functools==4.5.0
 jeepney==0.9.0
 jinja2==3.1.6
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
 keyring==25.7.0
+librt==0.11.0
 markdown-it-py==3.0.0; python_version=='3.10'
-markdown-it-py==4.0.0; python_version=='3.11' or python_version=='3.12' or python_version=='3.13' or python_version=='3.14'
+markdown-it-py==4.2.0; python_version=='3.11' or python_version=='3.12' or python_version=='3.13' or python_version=='3.14'
 markupsafe==3.0.3
-mdit-py-plugins==0.5.0
+mdit-py-plugins==0.6.1
 mdurl==0.1.2
-more-itertools==11.0.2
+more-itertools==11.1.0
 msgpack==1.1.2
+mypy==2.1.0
 mypy-extensions==1.1.0
 myst-parser==4.0.1; python_version=='3.10'
-myst-parser==5.0.0; python_version=='3.11' or python_version=='3.12' or python_version=='3.13' or python_version=='3.14'
+myst-parser==5.1.0; python_version=='3.11' or python_version=='3.12' or python_version=='3.13' or python_version=='3.14'
 natsort==8.4.0
 nh3==0.3.5
 packaging==26.2
@@ -70,8 +73,8 @@ pytokens==0.4.1
 pyyaml==6.0.3
 readme-renderer==44.0
 referencing==0.37.0
-repoze-lru==0.7
-requests==2.33.1
+repoze-lru==0.8
+requests==2.34.2
 requests-toolbelt==1.0.0
 resolvelib==1.2.1
 rfc3986==2.0.0
@@ -93,13 +96,13 @@ sphinxcontrib-devhelp==2.0.0
 sphinxcontrib-htmlhelp==2.1.0
 sphinxcontrib-jquery==4.1
 sphinxcontrib-jsmath==1.0.1
-sphinxcontrib-mermaid==2.0.1
+sphinxcontrib-mermaid==2.0.2
 sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-serializinghtml==2.0.0
 tomli==2.4.1; python_version=='3.10'
 twine==6.2.0
 typing-extensions==4.15.0
 unearth==0.18.2
-urllib3==2.6.3
+urllib3==2.7.0
 wheel==0.47.0
-zipp==3.23.1; python_version=='3.10' or python_version=='3.11'
+zipp==4.1.0; python_version=='3.10' or python_version=='3.11'

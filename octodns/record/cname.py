@@ -2,6 +2,8 @@
 #
 #
 
+from typing import ClassVar, Type
+
 from .base import Record, ValueMixin
 from .dynamic import _DynamicMixin
 from .target import _TargetValue
@@ -18,17 +20,21 @@ class CnameRootValidator(RecordValidator):
     RFC 1034/2181.
     '''
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(
+        self, record_cls: Type[Record], name: str, fqdn: str, data: dict
+    ) -> list[str]:
         if name == '':
             return ['root CNAME not allowed']
         return []
 
 
 class CnameRecord(_DynamicMixin, ValueMixin, Record):
-    REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc1035',)
-    _type = 'CNAME'
-    _value_type = CnameValue
-    VALIDATORS = [
+    REFERENCES: tuple[str, ...] = (
+        'https://datatracker.ietf.org/doc/html/rfc1035',
+    )
+    _type: ClassVar[str] = 'CNAME'
+    _value_type: ClassVar[Type[CnameValue]] = CnameValue  # type: ignore[misc]
+    VALIDATORS: list[RecordValidator] = [
         CnameRootValidator('cname-root-rfc', sets={'legacy', 'strict'})
     ]
 

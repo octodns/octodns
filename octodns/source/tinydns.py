@@ -2,18 +2,24 @@
 #
 #
 
+from __future__ import annotations
+
 import logging
 import textwrap
 from collections import defaultdict
 from ipaddress import ip_address
 from os import listdir
 from os.path import join
+from typing import TYPE_CHECKING, Any, Callable, Generator, Optional, Union
 
 from ..record import Record
 from .base import BaseSource
 
+if TYPE_CHECKING:
+    from octodns.zone import Zone
 
-def _unique(values):
+
+def _unique(values: list[Any]) -> list[Any]:
     try:
         # this will work if they're simple strings
         return list(set(values))
@@ -24,20 +30,27 @@ def _unique(values):
     return [dict(s) for s in set(frozenset(v.items()) for v in values)]
 
 
-class TinyDnsBaseSource(BaseSource):
-    SUPPORTS_GEO = False
-    SUPPORTS_DYNAMIC = False
+_RecordValue = Union[str, dict[str, object]]
+_RecordTuple = tuple[str, str, int, list[_RecordValue]]
 
-    def __init__(self, id, default_ttl=3600):
+
+class TinyDnsBaseSource(BaseSource):
+    SUPPORTS_GEO: bool = False
+    SUPPORTS_DYNAMIC: bool = False
+
+    def __init__(self, id: str, default_ttl: int = 3600) -> None:
         super().__init__(id)
-        self.default_ttl = default_ttl
+        self.default_ttl: int = default_ttl
+
+    def _lines(self) -> list[str]:
+        raise NotImplementedError()  # pragma: no cover
 
     @property
-    def SUPPORTS(self):
+    def SUPPORTS(self) -> set[str]:  # type: ignore[override]
         # All record types, including those registered by 3rd party modules
         return set(Record.registered_types().keys())
 
-    def _ttl_for(self, lines, index):
+    def _ttl_for(self, lines: list[list[str]], index: int) -> int:
         # see if we can find a ttl on any of the lines, first one wins
         for line in lines:
             try:
@@ -47,13 +60,15 @@ class TinyDnsBaseSource(BaseSource):
         # and if we don't use the default
         return self.default_ttl
 
-    def _records_for_at(self, zone, name, lines, arpa=False):
+    def _records_for_at(
+        self, zone: Zone, name: str, lines: list[list[str]], arpa: bool = False
+    ) -> Generator[_RecordTuple, None, None]:
         # @fqdn:ip:x:dist:ttl:timestamp:lo
         # MX (and optional A)
 
         if arpa:
             # no arpa
-            return []
+            return
 
         if not zone.owns('MX', name):
             # if name doesn't live under our zone there's nothing for us to do
@@ -61,7 +76,7 @@ class TinyDnsBaseSource(BaseSource):
 
         ttl = self._ttl_for(lines, 4)
 
-        values = []
+        values: list[_RecordValue] = []
         for line in lines:
             mx = line[2]
             # if there's a . in the mx we hit a special case and use it as-is
@@ -86,13 +101,15 @@ class TinyDnsBaseSource(BaseSource):
 
         yield 'MX', name, ttl, values
 
-    def _records_for_C(self, zone, name, lines, arpa=False):
+    def _records_for_C(
+        self, zone: Zone, name: str, lines: list[list[str]], arpa: bool = False
+    ) -> Generator[_RecordTuple, None, None]:
         # Cfqdn:p:ttl:timestamp:lo
         # CNAME
 
         if arpa:
             # no arpa
-            return []
+            return
 
         if not zone.owns('CNAME', name):
             # if name doesn't live under our zone there's nothing for us to do
@@ -106,15 +123,17 @@ class TinyDnsBaseSource(BaseSource):
 
         yield 'CNAME', name, ttl, [value]
 
-    def _records_for_caret(self, zone, name, lines, arpa=False):
+    def _records_for_caret(
+        self, zone: Zone, name: str, lines: list[list[str]], arpa: bool = False
+    ) -> Generator[_RecordTuple, None, None]:
         # ^fqdn:p:ttl:timestamp:lo
         # PTR, line may be a A/AAAA or straight PTR
 
         if not arpa:
             # we only operate on arpa
-            return []
+            return
 
-        names = defaultdict(list)
+        names: defaultdict[str, list[_RecordValue]] = defaultdict(list)
         for line in lines:
             if line[0].endswith('in-addr.arpa') or line[0].endswith(
                 'ip6.arpa.'
@@ -130,8 +149,8 @@ class TinyDnsBaseSource(BaseSource):
                 addr = line[1]
                 if '.' not in addr:
                     addr = u':'.join(textwrap.wrap(line[1], 4))
-                addr = ip_address(addr)
-                name = addr.reverse_pointer
+                ip = ip_address(addr)
+                name = ip.reverse_pointer
 
             if value[-1] != '.':
                 value = f'{value}.'
@@ -143,7 +162,9 @@ class TinyDnsBaseSource(BaseSource):
             if zone.owns('PTR', name):
                 yield 'PTR', name, ttl, values
 
-    def _records_for_equal(self, zone, name, lines, arpa=False):
+    def _records_for_equal(
+        self, zone: Zone, name: str, lines: list[list[str]], arpa: bool = False
+    ) -> Generator[_RecordTuple, None, None]:
         # =fqdn:ip:ttl:timestamp:lo
         # A (arpa False) & PTR (arpa True)
         if arpa:
@@ -151,13 +172,15 @@ class TinyDnsBaseSource(BaseSource):
         else:
             yield from self._records_for_plus(zone, name, lines, arpa)
 
-    def _records_for_dot(self, zone, name, lines, arpa=False):
+    def _records_for_dot(
+        self, zone: Zone, name: str, lines: list[list[str]], arpa: bool = False
+    ) -> Generator[_RecordTuple, None, None]:
         # .fqdn:ip:x:ttl:timestamp:lo
         # NS (and optional A)
 
         if arpa:
             # no arpa
-            return []
+            return
 
         if not zone.owns('NS', name):
             # if name doesn't live under our zone there's nothing for us to do
@@ -165,7 +188,7 @@ class TinyDnsBaseSource(BaseSource):
 
         ttl = self._ttl_for(lines, 3)
 
-        values = []
+        values: list[_RecordValue] = []
         for line in lines:
             ns = line[2]
             # if there's a . in the ns we hit a special case and use it as-is
@@ -186,43 +209,47 @@ class TinyDnsBaseSource(BaseSource):
 
     _records_for_amp = _records_for_dot
 
-    def _records_for_plus(self, zone, name, lines, arpa=False):
+    def _records_for_plus(
+        self, zone: Zone, name: str, lines: list[list[str]], arpa: bool = False
+    ) -> Generator[_RecordTuple, None, None]:
         # +fqdn:ip:ttl:timestamp:lo
         # A
 
         if arpa:
             # no arpa
-            return []
+            return
 
         if not zone.owns('A', name):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
         # collect our ip(s)
-        ips = [l[1] for l in lines if l[1] != '0.0.0.0']
+        ips: list[_RecordValue] = [l[1] for l in lines if l[1] != '0.0.0.0']
 
         if not ips:
             # we didn't find any value ips so nothing to do
-            return []
+            return
 
         ttl = self._ttl_for(lines, 2)
 
         yield 'A', name, ttl, ips
 
-    def _records_for_quote(self, zone, name, lines, arpa=False):
+    def _records_for_quote(
+        self, zone: Zone, name: str, lines: list[list[str]], arpa: bool = False
+    ) -> Generator[_RecordTuple, None, None]:
         # 'fqdn:s:ttl:timestamp:lo
         # TXT
 
         if arpa:
             # no arpa
-            return []
+            return
 
         if not zone.owns('TXT', name):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
         # collect our ip(s)
-        values = [
+        values: list[_RecordValue] = [
             l[1].encode('latin1').decode('unicode-escape').replace(";", "\\;")
             for l in lines
         ]
@@ -231,20 +258,22 @@ class TinyDnsBaseSource(BaseSource):
 
         yield 'TXT', name, ttl, values
 
-    def _records_for_three(self, zone, name, lines, arpa=False):
+    def _records_for_three(
+        self, zone: Zone, name: str, lines: list[list[str]], arpa: bool = False
+    ) -> Generator[_RecordTuple, None, None]:
         # 3fqdn:ip:ttl:timestamp:lo
         # AAAA
 
         if arpa:
             # no arpa
-            return []
+            return
 
         if not zone.owns('AAAA', name):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
         # collect our ip(s)
-        ips = []
+        ips: list[_RecordValue] = []
         for line in lines:
             # TinyDNS files have the ipv6 address written in full, but with the
             # colons removed. This inserts a colon every 4th character to make
@@ -255,13 +284,15 @@ class TinyDnsBaseSource(BaseSource):
 
         yield 'AAAA', name, ttl, ips
 
-    def _records_for_S(self, zone, name, lines, arpa=False):
+    def _records_for_S(
+        self, zone: Zone, name: str, lines: list[list[str]], arpa: bool = False
+    ) -> Generator[_RecordTuple, None, None]:
         # Sfqdn:ip:x:port:priority:weight:ttl:timestamp:lo
         # SRV
 
         if arpa:
             # no arpa
-            return []
+            return
 
         if not zone.owns('SRV', name):
             # if name doesn't live under our zone there's nothing for us to do
@@ -269,7 +300,7 @@ class TinyDnsBaseSource(BaseSource):
 
         ttl = self._ttl_for(lines, 6)
 
-        values = []
+        values: list[_RecordValue] = []
         for line in lines:
             target = line[2]
             # if there's a . in the mx we hit a special case and use it as-is
@@ -311,20 +342,22 @@ class TinyDnsBaseSource(BaseSource):
 
         yield 'SRV', name, ttl, values
 
-    def _records_for_colon(self, zone, name, lines, arpa=False):
+    def _records_for_colon(
+        self, zone: Zone, name: str, lines: list[list[str]], arpa: bool = False
+    ) -> Generator[_RecordTuple, None, None]:
         # :fqdn:n:rdata:ttl:timestamp:lo
         # ANY
 
         if arpa:
             # no arpa
-            return []
+            return
 
         if not zone.owns('SRV', name):
             # if name doesn't live under our zone there's nothing for us to do
             return
 
         # group by lines by the record type
-        types = defaultdict(list)
+        types: dict[str, list[list[str]]] = defaultdict(list)
         for line in lines:
             types[line[1].upper()].append(line)
 
@@ -342,7 +375,9 @@ class TinyDnsBaseSource(BaseSource):
             rdatas = [l[2] for l in lines]
             yield _type, name, ttl, _class.parse_rdata_texts(rdatas)
 
-    def _records_for_six(self, zone, name, lines, arpa=False):
+    def _records_for_six(
+        self, zone: Zone, name: str, lines: list[list[str]], arpa: bool = False
+    ) -> Generator[_RecordTuple, None, None]:
         # 6fqdn:ip:ttl:timestamp:lo
         # AAAA (arpa False) & PTR (arpa True)
         if arpa:
@@ -350,7 +385,9 @@ class TinyDnsBaseSource(BaseSource):
         else:
             yield from self._records_for_three(zone, name, lines, arpa)
 
-    SYMBOL_MAP = {
+    SYMBOL_MAP: dict[
+        str, Callable[..., Generator[_RecordTuple, None, None]]
+    ] = {
         '=': _records_for_equal,  # A
         '^': _records_for_caret,  # PTR
         '.': _records_for_dot,  # NS
@@ -365,22 +402,35 @@ class TinyDnsBaseSource(BaseSource):
         '6': _records_for_six,  # AAAA
     }
 
-    def _process_lines(self, zone, lines):
-        data = defaultdict(lambda: defaultdict(list))
+    def _process_lines(
+        self, zone: Zone, lines: list[str]
+    ) -> dict[str, dict[str, list[list[str]]]]:
+        data: defaultdict[str, defaultdict[str, list[list[str]]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
         for line in lines:
             symbol = line[0]
 
             # Skip type, remove trailing comments, and omit newline
-            line = line[1:].split('#', 1)[0]
+            content = line[1:].split('#', 1)[0]
             # Split on :'s including :: and strip leading/trailing ws
-            line = [p.strip() for p in line.split(':')]
-            data[symbol][line[0]].append(line)
+            parts = [p.strip() for p in content.split(':')]
+            data[symbol][parts[0]].append(parts)
 
-        return data
+        return data  # type: ignore[return-value]
 
-    def _process_symbols(self, zone, symbols, arpa):
-        types = defaultdict(lambda: defaultdict(list))
-        ttls = defaultdict(dict)
+    def _process_symbols(
+        self,
+        zone: Zone,
+        symbols: dict[str, dict[str, list[list[str]]]],
+        arpa: bool,
+    ) -> tuple[
+        dict[str, dict[str, list[_RecordValue]]], dict[str, dict[str, int]]
+    ]:
+        types: dict[str, dict[str, list[_RecordValue]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
+        ttls: dict[str, dict[str, int]] = defaultdict(dict)
         for symbol, names in symbols.items():
             records_for = self.SYMBOL_MAP.get(symbol, None)
             if not records_for:
@@ -404,7 +454,9 @@ class TinyDnsBaseSource(BaseSource):
 
         return types, ttls
 
-    def populate(self, zone, target=False, lenient=False):
+    def populate(
+        self, zone: Zone, target: bool = False, lenient: bool = False
+    ) -> None:
         self.log.debug(
             'populate: name=%s, target=%s, lenient=%s',
             zone.name,
@@ -471,8 +523,10 @@ class TinyDnsFileSource(TinyDnsBaseSource):
     https://docs.bytemark.co.uk/article/tinydns-format/.
     '''
 
-    def __init__(self, id, directory, default_ttl=3600):
-        self.log = logging.getLogger(f'TinyDnsFileSource[{id}]')
+    def __init__(
+        self, id: str, directory: str, default_ttl: int = 3600
+    ) -> None:
+        self.log: logging.Logger = logging.getLogger(f'TinyDnsFileSource[{id}]')
         self.log.debug(
             '__init__: id=%s, directory=%s, default_ttl=%d',
             id,
@@ -480,14 +534,14 @@ class TinyDnsFileSource(TinyDnsBaseSource):
             default_ttl,
         )
         super().__init__(id, default_ttl)
-        self.directory = directory
-        self._cache = None
+        self.directory: str = directory
+        self._cache: Optional[list[str]] = None
 
-    def _lines(self):
+    def _lines(self) -> list[str]:
         if self._cache is None:
             # We unfortunately don't know where to look since tinydns stuff can
             # be defined anywhere so we'll just read all files
-            lines = []
+            lines: list[str] = []
             for filename in listdir(self.directory):
                 if filename[0] == '.':
                     # Ignore hidden files

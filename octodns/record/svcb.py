@@ -3,9 +3,12 @@
 # It also supports the 'ech' SvcParam as defined in draft-ietf-tls-svcb-ech-02
 #
 
+from __future__ import annotations
+
 from base64 import b64decode
 from binascii import Error as binascii_error
 from ipaddress import AddressValueError, IPv4Address, IPv6Address
+from typing import TYPE_CHECKING, Any
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
@@ -15,11 +18,15 @@ from .rr import RrParseError
 from .target import _check_target_format, _check_target_trailing_dot
 from .validator import ValueValidator
 
-SUPPORTED_PARAMS = {}
+if TYPE_CHECKING:
+    from typing import Iterable
 
 
-def validate_svcparam_port(svcparamvalue):
-    reasons = []
+SUPPORTED_PARAMS: dict[str, dict[str, Any]] = {}
+
+
+def validate_svcparam_port(svcparamvalue: Any) -> list[str]:
+    reasons: list[str] = []
     try:
         port = int(svcparamvalue)
         if 0 < port > 65535:
@@ -29,13 +36,13 @@ def validate_svcparam_port(svcparamvalue):
     return reasons
 
 
-def validate_list(svcparamkey, svcparamvalue):
+def validate_list(svcparamkey: str, svcparamvalue: Any) -> list[str]:
     if not isinstance(svcparamvalue, list):
         return [f'{svcparamkey} is not a list']
-    return list()
+    return []
 
 
-def validate_svcparam_alpn(svcparamvalue):
+def validate_svcparam_alpn(svcparamvalue: Any) -> list[str]:
     reasons = validate_list('alpn', svcparamvalue)
     if len(reasons) != 0:
         return reasons
@@ -44,7 +51,7 @@ def validate_svcparam_alpn(svcparamvalue):
     )
 
 
-def validate_svcparam_iphint(ip_version, svcparamvalue):
+def validate_svcparam_iphint(ip_version: int, svcparamvalue: Any) -> list[str]:
     reasons = validate_list(f'ipv{ip_version}hint', svcparamvalue)
     if len(reasons) != 0:
         return reasons
@@ -61,15 +68,15 @@ def validate_svcparam_iphint(ip_version, svcparamvalue):
     return reasons
 
 
-def validate_svcparam_ipv4hint(svcparamvalue):
+def validate_svcparam_ipv4hint(svcparamvalue: Any) -> list[str]:
     return validate_svcparam_iphint(4, svcparamvalue)
 
 
-def validate_svcparam_ipv6hint(svcparamvalue):
+def validate_svcparam_ipv6hint(svcparamvalue: Any) -> list[str]:
     return validate_svcparam_iphint(6, svcparamvalue)
 
 
-def validate_svcparam_mandatory(svcparamvalue):
+def validate_svcparam_mandatory(svcparamvalue: Any) -> list[str]:
     reasons = validate_list('mandatory', svcparamvalue)
     if len(reasons) != 0:
         return reasons
@@ -84,14 +91,15 @@ def validate_svcparam_mandatory(svcparamvalue):
     return reasons
 
 
-def validate_svcparam_ech(svcparamvalue):
+def validate_svcparam_ech(svcparamvalue: Any) -> list[str]:
     try:
         b64decode(svcparamvalue, validate=True)
     except binascii_error:
         return ['ech SvcParam is invalid Base64']
+    return []
 
 
-def validate_svckey_number(paramkey):
+def validate_svckey_number(paramkey: str) -> list[str]:
     try:
         paramkeynum = int(paramkey[3:])
         if 7 < paramkeynum > 65535:
@@ -101,16 +109,16 @@ def validate_svckey_number(paramkey):
     return []
 
 
-def parse_rdata_text_svcparamvalue_list(svcparamvalue):
+def parse_rdata_text_svcparamvalue_list(svcparamvalue: str) -> list[str]:
     if svcparamvalue.startswith('"'):
         svcparamvalue = svcparamvalue[1:-1]
     return svcparamvalue.split(',')
 
 
-def svcparamkeysort(svcparamkey):
+def svcparamkeysort(svcparamkey: str) -> int:
     if svcparamkey.startswith('key'):
         return int(svcparamkey[3:])
-    return SUPPORTED_PARAMS[svcparamkey]['key_num']
+    return SUPPORTED_PARAMS[svcparamkey]['key_num']  # type: ignore[no-any-return]
 
 
 # cc https://datatracker.ietf.org/doc/html/rfc9460#keys
@@ -150,9 +158,15 @@ class SvcbValueValidator(ValueValidator):
     AliasMode (``svcpriority`` == 0) records.
     '''
 
-    def validate(self, value_cls, data, _type):
-        reasons = []
+    def validate(
+        self, value_cls: Any, data: list | tuple | str | dict, _type: str
+    ) -> list[str]:
+        if isinstance(data, (str, dict)):
+            return []
+        reasons: list[str] = []
         for value in data:
+            if not isinstance(value, dict):
+                continue
             svcpriority = -1
             if 'svcpriority' not in value:
                 reasons.append('missing svcpriority')
@@ -164,12 +178,15 @@ class SvcbValueValidator(ValueValidator):
                 except ValueError:
                     reasons.append(f'invalid priority "{value["svcpriority"]}"')
 
+            targetname = value.get('targetname')
             reasons += _check_target_format(
-                value.get('targetname'), _type, 'targetname'
+                str(targetname) if targetname is not None else '',
+                _type,
+                'targetname',
             )
 
             if 'svcparams' in value:
-                svcparams = value.get('svcparams', dict())
+                svcparams = value.get('svcparams', {})
                 if svcpriority == 0 and len(svcparams) != 0:
                     reasons.append('svcparams set on AliasMode SVCB record')
                 for svcparamkey, svcparamvalue in svcparams.items():
@@ -200,7 +217,7 @@ class SvcbValueValidator(ValueValidator):
 
 class _SvcbValueBase(EqualityTupleMixin, dict):
     @classmethod
-    def _schema(cls):
+    def _schema(cls) -> dict[str, Any]:
         return {
             'type': 'object',
             'required': ['svcpriority', 'targetname'],
@@ -216,17 +233,18 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def parse_rdata_text(cls, value: str) -> dict[str, Any]:
         try:
-            svcpriority, targetname, *svcparams = value.split(' ')
+            svcpriority_str, targetname, *svcparams = value.split(' ')
         except ValueError:
             raise RrParseError()
+        svcpriority: int | str = svcpriority_str
         try:
-            svcpriority = int(svcpriority)
+            svcpriority = int(svcpriority_str)
         except ValueError:
             pass
-        targetname = unquote(targetname)
-        params = dict()
+        targetname = unquote(targetname) or ''
+        params: dict[str, Any] = {}
         for svcparam in svcparams:
             paramkey, *paramvalue = svcparam.split('=')
             if paramkey in params.keys():
@@ -251,44 +269,44 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def process(cls, values):
+    def process(cls, values: Iterable[dict[str, Any]]) -> list[_SvcbValueBase]:
         return [cls(v) for v in values]
 
-    def __init__(self, value):
+    def __init__(self, value: dict[str, Any]) -> None:
         super().__init__(
             {
                 'svcpriority': int(value['svcpriority']),
                 'targetname': idna_encode(value['targetname']),
-                'svcparams': value.get('svcparams', dict()),
+                'svcparams': value.get('svcparams', {}),
             }
         )
 
     @property
-    def svcpriority(self):
-        return self['svcpriority']
+    def svcpriority(self) -> int:
+        return self['svcpriority']  # type: ignore[no-any-return]
 
     @svcpriority.setter
-    def svcpriority(self, value):
+    def svcpriority(self, value: int) -> None:
         self['svcpriority'] = value
 
     @property
-    def targetname(self):
-        return self['targetname']
+    def targetname(self) -> str:
+        return self['targetname']  # type: ignore[no-any-return]
 
     @targetname.setter
-    def targetname(self, value):
+    def targetname(self, value: str) -> None:
         self['targetname'] = value
 
     @property
-    def svcparams(self):
-        return self['svcparams']
+    def svcparams(self) -> dict[str, Any]:
+        return self['svcparams']  # type: ignore[no-any-return]
 
     @svcparams.setter
-    def svcparams(self, value):
+    def svcparams(self, value: dict[str, Any]) -> None:
         self['svcparams'] = value
 
     @property
-    def rdata_text(self):
+    def rdata_text(self) -> str:
         params = ''
         sorted_svcparamkeys = sorted(self.svcparams, key=svcparamkeysort)
         for svcparamkey in sorted_svcparamkeys:
@@ -296,12 +314,12 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
             svcparamvalue = self.svcparams.get(svcparamkey, None)
             if svcparamvalue is not None:
                 if isinstance(svcparamvalue, list):
-                    params += f'={",".join(svcparamvalue)}'
+                    params += f'={",".join(svcparamvalue)}'  # type: ignore[arg-type]
                 else:
                     params += f'={svcparamvalue}'
         return f'{self.svcpriority} {self.targetname}{params}'
 
-    def template(self, params):
+    def template(self, params: dict[str, Any]) -> _SvcbValueBase | None:
         if '{' not in self.targetname:
             return self
         new = self.__class__(self)
@@ -309,22 +327,22 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         # TODO: what, if any of the svcparams should be templated
         return new
 
-    def __hash__(self):
+    def __hash__(self) -> int:  # type: ignore[override]
         return hash(self.__repr__())
 
-    def _equality_tuple(self):
+    def _equality_tuple(self) -> tuple[int, str, frozenset[str]]:
         params = set()
         for svcparamkey, svcparamvalue in self.svcparams.items():
             if svcparamvalue is not None:
                 if isinstance(svcparamvalue, list):
-                    params.add(f'{svcparamkey}={",".join(svcparamvalue)}')
+                    params.add(f'{svcparamkey}={",".join(svcparamvalue)}')  # type: ignore[arg-type]
                 else:
                     params.add(f'{svcparamkey}={svcparamvalue}')
             else:
                 params.add(f'{svcparamkey}')
-        return (self.svcpriority, self.targetname, params)
+        return (self.svcpriority, self.targetname, frozenset(params))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"'{self.rdata_text}'"
 
 
@@ -340,17 +358,24 @@ class SvcbValueBestPracticeValidator(ValueValidator):
           - best-practice
     '''
 
-    def validate(self, value_cls, data, _type):
-        reasons = []
+    def validate(
+        self, value_cls: Any, data: list | tuple | str | dict, _type: str
+    ) -> list[str]:
+        if isinstance(data, (str, dict)):
+            return []
+        reasons: list[str] = []
         for value in data:
-            reasons += _check_target_trailing_dot(
-                value.get('targetname'), _type, 'targetname'
-            )
+            if isinstance(value, dict):
+                targetname = value.get('targetname')
+                if isinstance(targetname, str):
+                    reasons += _check_target_trailing_dot(
+                        targetname, _type, 'targetname'
+                    )
         return reasons
 
 
 class SvcbValue(_SvcbValueBase):
-    VALIDATORS = [
+    VALIDATORS: list[Any] = [
         SvcbValueValidator('svcb-value-rfc', sets={'legacy', 'strict'}),
         SvcbValueBestPracticeValidator(
             'svcb-value-best-practice', sets={'best-practice'}
@@ -359,13 +384,13 @@ class SvcbValue(_SvcbValueBase):
 
 
 class SvcbRecord(ValuesMixin, Record):
-    REFERENCES = (
+    REFERENCES: tuple[str, ...] = (
         'https://datatracker.ietf.org/doc/html/rfc9460',
         'https://datatracker.ietf.org/doc/html/rfc9461',
         'https://datatracker.ietf.org/doc/html/rfc9462',
     )
-    _type = 'SVCB'
-    _value_type = SvcbValue
+    _type = 'SVCB'  # type: ignore[misc]
+    _value_type = SvcbValue  # type: ignore[misc]
 
 
 Record.register_type(SvcbRecord)

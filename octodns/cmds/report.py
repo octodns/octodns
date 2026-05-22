@@ -3,6 +3,8 @@
 Octo-DNS Reporter
 '''
 
+from __future__ import annotations
+
 from asyncio import Semaphore, new_event_loop, wait
 from collections import defaultdict
 from csv import QUOTE_NONE, writer
@@ -11,6 +13,7 @@ from ipaddress import ip_address
 from json import dump
 from logging import getLogger
 from sys import exit
+from typing import Any
 
 from dns.asyncresolver import Resolver as AsyncResolver
 from dns.resolver import (
@@ -24,9 +27,12 @@ from dns.resolver import (
 
 from octodns.cmds.args import ArgumentParser
 from octodns.manager import Manager
+from octodns.record.base import Record
 
 
-async def async_resolve(record, resolver, timeout, limit):
+async def async_resolve(
+    record: Record, resolver: str, timeout: float, limit: Semaphore
+) -> tuple[Record, str, list[str]]:
     async with limit:
         r = AsyncResolver(configure=False)
         r.lifetime = timeout
@@ -44,10 +50,10 @@ async def async_resolve(record, resolver, timeout, limit):
         except LifetimeTimeout:
             answer = ['*timeout*']
 
-    return [record, resolver, answer]
+    return (record, resolver, answer)
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser(description=__doc__.split('\n')[1])
 
     parser.add_argument(
@@ -90,9 +96,9 @@ def main():
     parser.add_argument('server', nargs='+', help='DNS resolver to query')
 
     args = parser.parse_args()
-    concurrency = args.concurrency
-    timeout = args.timeout
-    output_format = args.output_format
+    concurrency: int = args.concurrency
+    timeout: float = args.timeout
+    output_format: str = args.output_format
 
     manager = Manager(args.config_file)
 
@@ -110,9 +116,9 @@ def main():
     zone.validate(lenient=args.lenient)
 
     servers = args.server
-    resolvers = []
+    resolvers: list[str] = []
     for server in servers:
-        resolver = None
+        resolver: str | None = None
         is_hostname = False
 
         try:
@@ -127,10 +133,11 @@ def main():
             for rrtype in ['A', 'AAAA']:
                 try:
                     query = resolve(server, rrtype)
-                    resolver = str(query.rrset[0])
-                    is_hostname = True
-                    # Exit on first IP address found.
-                    break
+                    if query.rrset is not None:
+                        resolver = str(query.rrset[0])
+                        is_hostname = True
+                        # Exit on first IP address found.
+                        break
 
                 # NXDOMAIN, NoAnswer, NoNameservers...
                 except Exception:
@@ -159,10 +166,11 @@ def main():
                 )
             )
 
-    queries = defaultdict(dict)
+    queries: defaultdict[Record, dict[str, list[str]]] = defaultdict(dict)
     done, _ = loop.run_until_complete(wait(tasks))
     for task in done:
-        _record, _resolver, _answer = task.result()
+        res: tuple[Record, str, list[str]] = task.result()
+        _record, _resolver, _answer = res
         queries[_record][_resolver] = _answer
 
     loop.close()
@@ -177,7 +185,7 @@ def main():
 
         for record, answers in sorted(queries.items()):
             csvrow = [record.decoded_fqdn, record._type, record.ttl]
-            values_check = {}
+            values_check: dict[str, bool] = {}
 
             for resolver in resolvers:
                 answer = ' '.join(answers.get(resolver, []))
@@ -188,19 +196,25 @@ def main():
             csvout.writerow(csvrow)
 
     elif output_format == 'json':
-        jsonout = defaultdict(lambda: defaultdict(dict))
+        jsonout: defaultdict[str, defaultdict[str, dict[str, Any]]] = (
+            defaultdict(lambda: defaultdict(dict))
+        )
         for record, answers in sorted(queries.items()):
-            values_check = {}
+            values_check_json: dict[str, bool] = {}
 
             for resolver in resolvers:
                 # Stripping the surrounding quotes of TXT records values to
                 # avoid them being unnecessarily escaped by JSON module.
-                answer = [a.strip('"') for a in answers.get(resolver, [])]
-                jsonout[record.decoded_fqdn][record._type][resolver] = answer
-                values_check[' '.join(answer).lower()] = True
+                resolver_answers = [
+                    a.strip('"') for a in answers.get(resolver, [])
+                ]
+                jsonout[record.decoded_fqdn][record._type][
+                    resolver
+                ] = resolver_answers
+                values_check_json[' '.join(resolver_answers).lower()] = True
 
             jsonout[record.fqdn][record._type]['consistent'] = bool(
-                len(values_check) == 1
+                len(values_check_json) == 1
             )
 
         dump(jsonout, output)

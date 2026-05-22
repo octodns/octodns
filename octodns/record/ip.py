@@ -13,12 +13,12 @@ class IpValueValidator(ValueValidator):
     ``IPv6Address``) to parse each value.
     '''
 
-    def validate(self, value_cls, data, _type):
+    def validate(self, value_cls: type, data: object, _type: str) -> list[str]:
         if not isinstance(data, (list, tuple)):
             data = (data,)
         if len(data) == 0:
             return ['missing value(s)']
-        reasons = []
+        reasons: list[str] = []
         for value in data:
             if value == '':
                 reasons.append('empty value')
@@ -26,42 +26,44 @@ class IpValueValidator(ValueValidator):
                 reasons.append('missing value(s)')
             else:
                 try:
-                    value_cls._address_type(str(value))
+                    value_cls._address_type(str(value))  # type: ignore[attr-defined]
                 except Exception:
-                    addr_name = value_cls._address_name
+                    addr_name = value_cls._address_name  # type: ignore[attr-defined]
                     reasons.append(f'invalid {addr_name} address "{value}"')
         return reasons
 
 
 class _IpValue(str):
-    VALIDATORS = [IpValueValidator('ip-value-rfc', sets={'legacy', 'strict'})]
+    VALIDATORS: list[ValueValidator] = [
+        IpValueValidator('ip-value-rfc', sets={'legacy', 'strict'})
+    ]
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def parse_rdata_text(cls, value: str) -> str:
         return value
 
     @classmethod
-    def _schema(cls):
-        return {'type': 'string', 'format': cls._address_name.lower()}
+    def _schema(cls) -> dict[str, object]:
+        return {'type': 'string', 'format': cls._address_name.lower()}  # type: ignore[attr-defined]
 
     @classmethod
-    def process(cls, values):
+    def process(cls, values: list[object]) -> list['_IpValue']:
         # Translating None into '' so that the list will be sortable in
         # python3, get everything to str first
         values = [v if v is not None else '' for v in values]
         # Now round trip all non-'' through the address type and back to a str
         # to normalize the address representation.
-        return [cls(v) if v != '' else '' for v in values]
+        return [cls(v) if v != '' else '' for v in values]  # type: ignore[misc, arg-type]
 
-    def __new__(cls, v):
-        v = str(cls._address_type(v))
-        return super().__new__(cls, v)
+    def __new__(cls, v: str) -> '_IpValue':
+        v = str(cls._address_type(v))  # type: ignore[attr-defined]
+        return super().__new__(cls, v)  # type: ignore[call-arg]
 
     @property
-    def rdata_text(self):
+    def rdata_text(self) -> str:
         return self
 
-    def template(self, params):
+    def template(self, params: dict[str, object]) -> '_IpValue':
         return self
 
 

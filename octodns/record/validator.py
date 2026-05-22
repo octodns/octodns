@@ -3,23 +3,35 @@
 #
 
 from collections import defaultdict
-from logging import getLogger
+from logging import Logger, getLogger
+from typing import Any, Iterable, Optional, Sequence
 
 from ..deprecation import deprecated
 from .exception import RecordException
 
 
 class ValidatorRegistry:
-    log = getLogger('Record')
+    log: Logger = getLogger('Record')
 
-    def __init__(self):
-        self.available_record = defaultdict(dict)
-        self.available_value = defaultdict(dict)
-        self.active_record = defaultdict(dict)
-        self.active_value = defaultdict(dict)
-        self.configured = False
+    def __init__(self) -> None:
+        self.available_record: dict[str, dict[str, 'RecordValidator']] = (
+            defaultdict(dict)
+        )
+        self.available_value: dict[str, dict[str, 'ValueValidator']] = (
+            defaultdict(dict)
+        )
+        self.active_record: dict[str, dict[str, 'RecordValidator']] = (
+            defaultdict(dict)
+        )
+        self.active_value: dict[str, dict[str, 'ValueValidator']] = defaultdict(
+            dict
+        )
+        self.configured: bool = False
 
-    def register(self, validator, types=None):
+    def register(
+        self, validator, types: Optional[Sequence[str]] = None
+    ) -> None:
+        registry: Any
         if isinstance(validator, RecordValidator):
             registry = self.available_record
         elif isinstance(validator, ValueValidator):
@@ -37,21 +49,23 @@ class ValidatorRegistry:
                 )
             bucket[validator.id] = validator
 
-    def enable_sets(self, sets):
+    def enable_sets(self, sets: Iterable[str]) -> None:
         self.configured = True
         self.reset_active()
         sets = set(sets)
-        for available, active in (
+        available_any: Any
+        active_any: Any
+        for available_any, active_any in (
             (self.available_record, self.active_record),
             (self.available_value, self.active_value),
         ):
-            for _type, validators in available.items():
+            for _type, validators in available_any.items():
                 for validator in validators.values():
                     if validator.sets is None or sets & validator.sets:
-                        active[_type][validator.id] = validator
+                        active_any[_type][validator.id] = validator
 
-    def enable(self, id, types=None):
-        validator = None
+    def enable(self, id: str, types: Optional[Sequence[str]] = None) -> None:
+        validator: Any = None
         for available in (self.available_record, self.available_value):
             for bucket in available.values():
                 if id in bucket:
@@ -70,7 +84,9 @@ class ValidatorRegistry:
         for key in keys:
             active[key][id] = validator
 
-    def disable(self, validator_id, types=None):
+    def disable(
+        self, validator_id: str, types: Optional[Sequence[str]] = None
+    ) -> int:
         if validator_id.startswith('_'):
             raise RecordException(
                 f'Cannot disable bridge validator "{validator_id}"'
@@ -91,11 +107,11 @@ class ValidatorRegistry:
                         removed += 1
         return removed
 
-    def reset_active(self):
+    def reset_active(self) -> None:
         self.active_record.clear()
         self.active_value.clear()
 
-    def registered(self):
+    def registered(self) -> dict[str, dict[str, list[Any]]]:
         return {
             'record': {
                 k: list(v.values()) for k, v in self.active_record.items()
@@ -105,7 +121,7 @@ class ValidatorRegistry:
             },
         }
 
-    def available(self):
+    def available(self) -> dict[str, dict[str, list[Any]]]:
         return {
             'record': {
                 k: list(v.values()) for k, v in self.available_record.items()
@@ -115,7 +131,9 @@ class ValidatorRegistry:
             },
         }
 
-    def process_record(self, record_cls, name, fqdn, data):
+    def process_record(
+        self, record_cls, name: str, fqdn: str, data
+    ) -> list[str]:
         if not self.configured:
             self.log.warning(
                 '_process_validators: no validators configured, automatically enabling legacy set'
@@ -127,7 +145,7 @@ class ValidatorRegistry:
                 reasons.extend(validator.validate(record_cls, name, fqdn, data))
         return reasons
 
-    def process_values(self, value_type, values, _type):
+    def process_values(self, value_type, values: list, _type: str) -> list[str]:
         reasons = []
         legacy = getattr(value_type, 'validate', None)
         if legacy is not None:
@@ -166,7 +184,7 @@ class RecordValidator:
     run.
     '''
 
-    def __init__(self, id, sets=None):
+    def __init__(self, id: str, sets: Optional[Iterable[str]] = None) -> None:
         '''
         :param id: Non-empty identifier for this validator instance. Used
                    to look up the validator in the registry and to
@@ -181,9 +199,9 @@ class RecordValidator:
                 f'{self.__class__.__name__} requires a non-empty id'
             )
         self.id = id
-        self.sets = set(sets) if sets is not None else None
+        self.sets: Optional[set[str]] = set(sets) if sets is not None else None
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name: str, fqdn: str, data) -> list[str]:
         '''
         Validate a record's non-value attributes.
 
@@ -243,7 +261,7 @@ class ValueValidator:
     framework-internal bridge validators that must always run.
     '''
 
-    def __init__(self, id, sets=None):
+    def __init__(self, id: str, sets: Optional[Iterable[str]] = None) -> None:
         '''
         :param id: Non-empty identifier for this validator instance. Used
                    to look up the validator in the registry and to
@@ -258,9 +276,11 @@ class ValueValidator:
                 f'{self.__class__.__name__} requires a non-empty id'
             )
         self.id = id
-        self.sets = set(sets) if sets is not None else None
+        self.sets: Optional[set[str]] = set(sets) if sets is not None else None
 
-    def validate(self, value_cls, data, _type):
+    def validate(
+        self, value_cls, data: list | tuple | str | dict, _type: str
+    ) -> list[str]:
         '''
         Validate a record's rdata values.
 

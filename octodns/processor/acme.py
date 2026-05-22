@@ -1,16 +1,16 @@
-#
-#
-#
+from __future__ import annotations
 
 from logging import getLogger
+from typing import Any, Iterable
 
+from ..zone import Zone
 from .base import BaseProcessor
 
 
 class AcmeManagingProcessor(BaseProcessor):
-    log = getLogger('AcmeManagingProcessor')
+    log: Any = getLogger('AcmeManagingProcessor')
 
-    def __init__(self, name, **kwargs):
+    def __init__(self, name: str, **kwargs: Any) -> None:
         '''
         Example configuration::
 
@@ -29,13 +29,18 @@ class AcmeManagingProcessor(BaseProcessor):
         '''
         super().__init__(name, **kwargs)
 
-        self._owned = set()
+        self._owned: set[Any] = set()
 
-    def process_source_zone(self, desired, sources, lenient=False):
+    def process_source_zone(
+        self, desired: Zone, sources: Iterable[Any], lenient: bool = False
+    ) -> Zone:
         lenient = self.lenient or lenient
         for record in desired.records:
-            if record._type == 'TXT' and record.name.startswith(
-                '_acme-challenge'
+            if (
+                record._type == 'TXT'
+                and record.name.startswith(  # type: ignore[attr-defined]
+                    '_acme-challenge'
+                )
             ):
                 # We have a managed acme challenge record (owned by octoDNS) so
                 # we should mark it as such
@@ -48,13 +53,15 @@ class AcmeManagingProcessor(BaseProcessor):
                 desired.add_record(record, replace=True, lenient=lenient)
         return desired
 
-    def process_target_zone(self, existing, target, lenient=False):
+    def process_target_zone(
+        self, existing: Zone, target: Any, lenient: bool = False
+    ) -> Zone:
         for record in existing.records:
             # Uses a startswith rather than == to ignore subdomain challenges,
             # e.g. _acme-challenge.foo.domain.com when managing domain.com
             if (
                 record._type == 'TXT'
-                and record.name.startswith('_acme-challenge')
+                and record.name.startswith('_acme-challenge')  # type: ignore[attr-defined]
                 and '*octoDNS*' not in record.values
                 and record not in self._owned
             ):

@@ -1,12 +1,16 @@
 #
 #
 #
+#
+
+from __future__ import annotations
 
 import re
 from collections import defaultdict
 from logging import getLogger
+from typing import TYPE_CHECKING, Any
 
-from .base import _process_value_validators
+from .base import Record, _process_value_validators
 from .change import Update
 from .geo import GeoCodes
 from .subnet import Subnets
@@ -21,8 +25,10 @@ class DynamicValidator(RecordValidator):
     are defined but unused.
     '''
 
-    def validate(self, record_cls, name, fqdn, data):
-        reasons = []
+    def validate(
+        self, record_cls: Any, name: str, fqdn: str, data: dict[str, Any]
+    ) -> list[str]:
+        reasons: list[str] = []
 
         if 'dynamic' not in data:
             return reasons
@@ -58,7 +64,7 @@ class DynamicValidator(RecordValidator):
 class _DynamicPool(object):
     log = getLogger('_DynamicPool')
 
-    def __init__(self, _id, data, value_type):
+    def __init__(self, _id: str, data: dict[str, Any], value_type: Any) -> None:
         self._id = _id
 
         values = [
@@ -88,26 +94,26 @@ class _DynamicPool(object):
             'values': values,
         }
 
-    def _data(self):
+    def _data(self) -> dict[str, Any]:
         return self.data
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, _DynamicPool):
             return False
         return self.data == other.data
 
-    def __ne__(self, other):
+    def __ne__(self, other: Any) -> bool:
         return not self.__eq__(other)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'{self.data}'
 
 
 class _DynamicRule(object):
-    def __init__(self, i, data):
+    def __init__(self, i: int, data: dict[str, Any]) -> None:
         self.i = i
 
-        self.data = {}
+        self.data: dict[str, Any] = {}
         try:
             self.data['pool'] = data['pool']
         except KeyError:
@@ -121,27 +127,29 @@ class _DynamicRule(object):
         except KeyError:
             pass
 
-    def _data(self):
+    def _data(self) -> dict[str, Any]:
         return self.data
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, _DynamicRule):
             return False
         return self.data == other.data
 
-    def __ne__(self, other):
+    def __ne__(self, other: Any) -> bool:
         return not self.__eq__(other)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'{self.data}'
 
 
 class _Dynamic(object):
-    def __init__(self, pools, rules):
+    def __init__(
+        self, pools: dict[str, _DynamicPool], rules: list[_DynamicRule]
+    ) -> None:
         self.pools = pools
         self.rules = rules
 
-    def _data(self):
+    def _data(self) -> dict[str, Any]:
         pools = {}
         for _id, pool in self.pools.items():
             pools[_id] = pool._data()
@@ -150,21 +158,29 @@ class _Dynamic(object):
             rules.append(rule._data())
         return {'pools': pools, 'rules': rules}
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, _Dynamic):
             return False
         ret = self.pools == other.pools and self.rules == other.rules
         return ret
 
-    def __ne__(self, other):
+    def __ne__(self, other: Any) -> bool:
         return not self.__eq__(other)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'{self.pools}, {self.rules}'
 
 
-class _DynamicMixin(object):
-    VALIDATORS = [DynamicValidator('dynamic', sets={'legacy', 'strict'})]
+if TYPE_CHECKING:
+    _DynamicMixinBase = Record
+else:
+    _DynamicMixinBase = object
+
+
+class _DynamicMixin(_DynamicMixinBase):
+    VALIDATORS: list[Any] = [
+        DynamicValidator('dynamic', sets={'legacy', 'strict'})
+    ]
 
     geo_re = re.compile(
         r'^(?P<continent_code>\w\w)(-(?P<country_code>\w\w)'
@@ -172,7 +188,7 @@ class _DynamicMixin(object):
     )
 
     @classmethod
-    def _schema(cls, value_schema):
+    def _schema(cls, value_schema: Any) -> dict[str, Any]:
         '''JSON Schema fragment describing the `dynamic` block.
 
         Structural constraints that JSON Schema can express cleanly (shape of
@@ -240,8 +256,10 @@ class _DynamicMixin(object):
         }
 
     @classmethod
-    def _validate_pools(cls, pools):
-        reasons = []
+    def _validate_pools(
+        cls, pools: dict[str, Any]
+    ) -> tuple[list[str], set[str], set[str]]:
+        reasons: list[str] = []
         pools_exist = set()
         pools_seen_as_fallback = set()
         if not isinstance(pools, dict):
@@ -293,7 +311,7 @@ class _DynamicMixin(object):
                         value = value['value']
                         reasons.extend(
                             _process_value_validators(
-                                cls._value_type, value, cls._type
+                                cls._value_type, value, cls._type  # type: ignore[attr-defined]
                             )
                         )
                     except KeyError:
@@ -333,12 +351,14 @@ class _DynamicMixin(object):
         return reasons, pools_exist, pools_seen_as_fallback
 
     @classmethod
-    def _validate_rules(cls, pools, rules):
-        reasons = []
+    def _validate_rules(
+        cls, pools: dict[str, Any], rules: list[dict[str, Any]]
+    ) -> tuple[list[str], set[str]]:
+        reasons: list[str] = []
         pools_seen = set()
 
-        subnets_seen = defaultdict(dict)
-        geos_seen = {}
+        subnets_seen: dict[int, dict[Any, int]] = defaultdict(dict)
+        geos_seen: dict[str, int] = {}
 
         if not isinstance(rules, (list, tuple)):
             reasons.append('rules must be a list')
@@ -404,7 +424,7 @@ class _DynamicMixin(object):
                     for subnet in subnets:
                         try:
                             networks.append(Subnets.parse(subnet))
-                        except:
+                        except Exception:
                             # previous loop will log any invalid subnets, here we
                             # process only valid ones and skip invalid ones
                             pass
@@ -413,21 +433,21 @@ class _DynamicMixin(object):
                     # detect rule that have needlessly targeted a more specific
                     # subnet along with a larger subnet that already contains it
                     sorted_networks = sorted(
-                        networks, key=lambda n: (n.version, n)
+                        networks, key=lambda n: (n.version, n)  # type: ignore[union-attr]
                     )
                     for subnet in sorted_networks:
-                        subnets_seen_version = subnets_seen[subnet.version]
+                        subnets_seen_version = subnets_seen[subnet.version]  # type: ignore[union-attr]
                         for seen, where in subnets_seen_version.items():
                             if subnet == seen:
                                 reasons.append(
                                     f'rule {rule_num} targets subnet {subnet} which has previously been seen in rule {where}'
                                 )
-                            elif subnet.subnet_of(seen):
+                            elif subnet.subnet_of(seen):  # type: ignore[union-attr]
                                 reasons.append(
                                     f'rule {rule_num} targets subnet {subnet} which is more specific than the previously seen {seen} in rule {where}'
                                 )
 
-                        subnets_seen_version[subnet] = rule_num
+                        subnets_seen_version[subnet] = rule_num  # type: ignore[union-attr]
 
                 if not isinstance(geos, (list, tuple)):
                     reasons.append(f'rule {rule_num} geos must be a list')
@@ -462,10 +482,17 @@ class _DynamicMixin(object):
 
         return reasons, pools_seen
 
-    def __init__(self, zone, name, data, *args, **kwargs):
+    def __init__(
+        self,
+        zone: Any,
+        name: str,
+        data: dict[str, Any],
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(zone, name, data, *args, **kwargs)
 
-        self.dynamic = {}
+        self.dynamic: Any = {}
 
         if 'dynamic' not in data:
             return
@@ -473,51 +500,51 @@ class _DynamicMixin(object):
         # pools
         try:
             pools = dict(data['dynamic']['pools'])
-        except:
+        except Exception:
             pools = {}
 
         for _id, pool in sorted(pools.items()):
-            pools[_id] = _DynamicPool(_id, pool, self._value_type)
+            pools[_id] = _DynamicPool(_id, pool, self._value_type)  # type: ignore[attr-defined]
 
         # rules
         try:
             rules = list(data['dynamic']['rules'])
-        except:
+        except Exception:
             rules = []
 
-        parsed = []
+        parsed: list[_DynamicRule] = []
         for i, rule in enumerate(rules):
             parsed.append(_DynamicRule(i, rule))
 
         # dynamic
         self.dynamic = _Dynamic(pools, parsed)
 
-    def _data(self):
+    def _data(self) -> dict[str, Any]:
         ret = super()._data()
         if self.dynamic:
             ret['dynamic'] = self.dynamic._data()
         return ret
 
-    def changes(self, other, target):
+    def changes(self, other: Any, target: Any) -> Update | None:
         if target.SUPPORTS_DYNAMIC:
             if self.dynamic != other.dynamic:
                 return Update(self, other)
         return super().changes(other, target)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         # TODO: improve this whole thing, we need multi-line...
         if self.dynamic:
             # TODO: this hack can't going to cut it, as part of said
             # improvements the value types should deal with serializing their
             # value
             try:
-                values = self.values
+                values = self.values  # type: ignore[attr-defined]
             except AttributeError:
-                values = self.value
+                values = self.value  # type: ignore[attr-defined]
 
             klass = self.__class__.__name__
             return (
-                f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, '
+                f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, '  # type: ignore[attr-defined]
                 f'{values}, {self.dynamic}>'
             )
         return super().__repr__()

@@ -11,4 +11,5 @@ source "${SCRIPT_PATH}/common.sh"
     echo "Formatting check failed, run ./script/format" &&
     exit 1
 )
+"${SCRIPT_PATH}/typecheck"
 "${SCRIPT_PATH}/coverage"

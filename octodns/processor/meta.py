@@ -1,25 +1,17 @@
-#
-#
-#
+from __future__ import annotations
 
-from datetime import datetime
-from logging import getLogger
+from datetime import datetime, timezone
+from logging import Logger, getLogger
+from typing import Any
 from uuid import uuid4
 
 from .. import __version__
 from ..record import Record
+from ..zone import Zone
 from .base import BaseProcessor
 
-# TODO: remove once we require python >= 3.11
-try:  # pragma: no cover
-    from datetime import UTC
-except ImportError:  # pragma: no cover
-    from datetime import timedelta, timezone
 
-    UTC = timezone(timedelta())
-
-
-def _keys(values):
+def _keys(values: list[str]) -> set[str]:
     return set(v.split('=', 1)[0] for v in values)
 
 
@@ -67,26 +59,26 @@ class MetaProcessor(BaseProcessor):
     '''
 
     @classmethod
-    def get_time(cls):
-        return datetime.now(UTC).isoformat()
+    def get_time(cls) -> str:
+        return datetime.now(timezone.utc).isoformat()
 
     @classmethod
-    def get_uuid(cls):
+    def get_uuid(cls) -> str:
         return str(uuid4())
 
     def __init__(
         self,
-        id,
-        record_name='meta',
-        include_time=True,
-        include_uuid=False,
-        include_version=False,
-        include_provider=False,
-        include_extra=None,
-        ttl=60,
-        **kwargs,
-    ):
-        self.log = getLogger(f'MetaSource[{id}]')
+        id: str,
+        record_name: str = 'meta',
+        include_time: bool = True,
+        include_uuid: bool = False,
+        include_version: bool = False,
+        include_provider: bool = False,
+        include_extra: dict[str, str] | None = None,
+        ttl: int = 60,
+        **kwargs: Any,
+    ) -> None:
+        self.log: Logger = getLogger(f'MetaSource[{id}]')
         super().__init__(id, **kwargs)
         self.log.info(
             '__init__: record_name=%s, include_time=%s, include_uuid=%s, include_version=%s, include_provider=%s, include_extra=%s, ttl=%d',
@@ -99,19 +91,19 @@ class MetaProcessor(BaseProcessor):
             ttl,
         )
         self.record_name = record_name
-        self.time = self.get_time() if include_time else None
-        self.uuid = self.get_uuid() if include_uuid else None
+        self.time: str | None = self.get_time() if include_time else None
+        self.uuid: str | None = self.get_uuid() if include_uuid else None
         self.include_version = include_version
         self.include_provider = include_provider
-        self.include_extra = (
+        self.include_extra: list[str] = (
             [f'{key}={val}' for key, val in include_extra.items()]
             if include_extra is not None
             else []
         )
         self.ttl = ttl
 
-    def values(self, target_id):
-        ret = []
+    def values(self, target_id: str) -> list[str]:
+        ret: list[str] = []
         if self.include_version:
             ret.append(f'octodns-version={__version__}')
         if self.include_provider:
@@ -125,8 +117,8 @@ class MetaProcessor(BaseProcessor):
         return ret
 
     def process_source_and_target_zones(
-        self, desired, existing, target, lenient=False
-    ):
+        self, desired: Zone, existing: Zone, target: Any, lenient: bool = False
+    ) -> tuple[Zone, Zone]:
         meta = Record.new(
             desired,
             self.record_name,
@@ -138,20 +130,22 @@ class MetaProcessor(BaseProcessor):
         desired.add_record(meta)
         return desired, existing
 
-    def _is_up_to_date_meta(self, change, target_id):
+    def _is_up_to_date_meta(self, change: Any, target_id: str) -> bool:
         # always something so we can see if its type and name
         record = change.record
         # existing state, if there is one
-        existing = getattr(change, 'existing', None)
+        existing: Any = getattr(change, 'existing', None)
         return (
-            record._type == 'TXT'
-            and record.name == self.record_name
+            record._type == 'TXT'  # type: ignore[attr-defined]
+            and record.name == self.record_name  # type: ignore[attr-defined]
             and existing is not None
             # don't care about the values here, just the fields/keys
             and _keys(self.values(target_id)) == _keys(existing.values)
         )
 
-    def process_plan(self, plan, sources, target, lenient=False):
+    def process_plan(
+        self, plan: Any, sources: Any, target: Any, lenient: bool = False
+    ) -> Any:
         if (
             plan
             and len(plan.changes) == 1

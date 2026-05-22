@@ -22,11 +22,11 @@ class GlueForInZoneNsZoneValidator(ZoneValidator):
     Reference: https://datatracker.ietf.org/doc/html/rfc1033 (Operations)
     '''
 
-    def validate(self, zone):
-        reasons = []
+    def validate(self, zone: 'Zone') -> list['ValidationReason']:
+        reasons: list['ValidationReason'] = []
         for record in zone.records:
-            if record._type == 'NS':
-                for target in record.values:
+            if record._type == 'NS':  # type: ignore[attr-defined]
+                for target in record.values:  # type: ignore[attr-defined, union-attr]
                     # Is target in zone?
                     if zone.owns('A', target):
                         # Check if address records exist at this target
@@ -54,14 +54,14 @@ class MultiValueNsZoneValidator(ZoneValidator):
     availability, both at the apex and for sub-delegations.
     '''
 
-    def validate(self, zone):
-        reasons = []
+    def validate(self, zone: 'Zone') -> list['ValidationReason']:
+        reasons: list['ValidationReason'] = []
         for record in zone.records:
-            if record._type == 'NS':
-                if len(record.values) < 2:
+            if record._type == 'NS':  # type: ignore[attr-defined]
+                if len(record.values) < 2:  # type: ignore[attr-defined, operator]
                     reasons.append(
                         ValidationReason(
-                            f'NS record "{record.fqdn}" has only {len(record.values)} '
+                            f'NS record "{record.fqdn}" has only {len(record.values)} '  # type: ignore[attr-defined, arg-type]
                             'value; at least 2 are recommended for redundancy',
                             [record],
                         )

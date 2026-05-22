@@ -3,6 +3,8 @@
 octoDNS JSON Schema generator for zone or config YAML files
 '''
 
+from __future__ import annotations
+
 import json
 import sys
 
@@ -10,7 +12,7 @@ from octodns.cmds.args import ArgumentParser
 from octodns.schema import build_config_schema, build_zone_schema
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser(description=__doc__.split('\n')[1])
 
     parser.add_argument(
@@ -40,8 +42,9 @@ def main():
 
     data = json.dumps(schema, indent=args.indent, sort_keys=True)
 
-    if args.output:
-        with open(args.output, 'w') as fh:
+    output_path: str | None = getattr(args, 'output', None)
+    if output_path:
+        with open(output_path, 'w') as fh:
             fh.write(data)
             fh.write('\n')
     else:

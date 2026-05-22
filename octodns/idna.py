@@ -2,7 +2,8 @@
 #
 #
 
-from collections.abc import MutableMapping
+from collections.abc import Iterator, MutableMapping
+from typing import TypeVar
 
 from idna import IDNAError as _IDNAError
 from idna import decode as _decode
@@ -14,18 +15,18 @@ from idna import encode as _encode
 
 
 class IdnaError(Exception):
-    def __init__(self, idna_error):
+    def __init__(self, idna_error: _IDNAError) -> None:
         super().__init__(str(idna_error))
 
 
-def encode(s):
+def encode(s: str) -> str:
     if s.isascii():
         return s
     # there's non-ascii char we need to try and idna deocde it
     return _encode(s).decode('utf-8')
 
 
-def idna_encode(name):
+def idna_encode(name: str) -> str:
     # based on urllib3's util.url._normalize_host
     # https://github.com/urllib3/urllib3/blob/6e0e96c76fedec21a7189342f59cd39a1d8e7086/src/urllib3/util/url.py#L323-L326
     try:
@@ -37,14 +38,14 @@ def idna_encode(name):
         raise IdnaError(e)
 
 
-def decode(s):
+def decode(s: str) -> str:
     if s.startswith('xn--'):
         # appears to be encoded idna so decode it
         return _decode(s)
     return s
 
 
-def idna_decode(name):
+def idna_decode(name: str) -> str:
     try:
         # similar to idna_encode, process things by label
         return '.'.join(decode(p) for p in name.lower().split('.'))
@@ -52,36 +53,40 @@ def idna_decode(name):
         raise IdnaError(e)
 
 
-class IdnaDict(MutableMapping):
+KT = TypeVar('KT', bound=str)
+VT = TypeVar('VT')
+
+
+class IdnaDict(MutableMapping[KT, VT]):
     '''A dict type that is insensitive to case and utf-8/idna encoded strings'''
 
-    def __init__(self, data=None):
-        self._data = dict()
+    def __init__(self, data: dict[KT, VT] | None = None) -> None:
+        self._data: dict[str, VT] = {}
         if data is not None:
-            self.update(data)
+            self.update(data)  # type: ignore[arg-type]
 
-    def __setitem__(self, k, v):
+    def __setitem__(self, k: KT, v: VT) -> None:
         self._data[idna_encode(k)] = v
 
-    def __getitem__(self, k):
-        return self._data[idna_encode(k)]
+    def __getitem__(self, k: KT) -> VT:
+        return self._data[idna_encode(k)]  # type: ignore[return-value]
 
-    def __delitem__(self, k):
+    def __delitem__(self, k: KT) -> None:
         del self._data[idna_encode(k)]
 
-    def __iter__(self):
-        return iter(self._data)
+    def __iter__(self) -> Iterator[KT]:
+        return iter(self._data)  # type: ignore[arg-type, return-value]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._data)
 
-    def decoded_keys(self):
+    def decoded_keys(self) -> Iterator[str]:
         for key in self.keys():
             yield idna_decode(key)
 
-    def decoded_items(self):
+    def decoded_items(self) -> Iterator[tuple[str, VT]]:
         for key, value in self.items():
             yield (idna_decode(key), value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self._data.__repr__()

@@ -3,6 +3,7 @@
 #
 
 from os import environ
+from typing import Any
 
 from .base import BaseSecrets
 from .exception import SecretsException
@@ -21,7 +22,7 @@ class EnvironSecrets(BaseSecrets):
 
         # expand env variables
         try:
-            v = environ[name]
+            v: Any = environ[name]
         except KeyError:
             if default is not None:
                 v = default

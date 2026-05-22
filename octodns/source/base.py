@@ -1,9 +1,16 @@
-#
-#
-#
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from octodns.record.base import Record
 
 
 class BaseSource(object):
+    log: logging.Logger
+    SUPPORTS: set[str]
+    SUPPORTS_GEO: bool
     '''
     Base class for all octoDNS sources and providers.
 
@@ -51,7 +58,7 @@ class BaseSource(object):
     SUPPORTS_ROOT_NS = False
     SUPPORTS_DYNAMIC_SUBNETS = False
 
-    def __init__(self, id):
+    def __init__(self, id: str) -> None:
         '''
         Initialize the source.
 
@@ -79,7 +86,7 @@ class BaseSource(object):
             )
 
     @property
-    def SUPPORTS_DYNAMIC(self):
+    def SUPPORTS_DYNAMIC(self) -> bool:
         '''
         Indicates whether this source supports dynamic records.
 
@@ -92,7 +99,9 @@ class BaseSource(object):
         '''
         return False
 
-    def populate(self, zone, target=False, lenient=False):
+    def populate(
+        self, zone, target: bool = False, lenient: bool = False
+    ) -> bool | None:
         '''
         Load DNS records from the source into the provided zone.
 
@@ -132,7 +141,7 @@ class BaseSource(object):
             'Abstract base class, populate method missing'
         )
 
-    def supports(self, record):
+    def supports(self, record: Record) -> bool:
         '''
         Check if this source supports the given record type.
 
@@ -144,7 +153,7 @@ class BaseSource(object):
         '''
         return record._type in self.SUPPORTS
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         '''
         Return a string representation of this source.
 

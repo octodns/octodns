@@ -2,12 +2,19 @@
 #
 #
 
+from __future__ import annotations
+
 from collections import defaultdict
 from io import StringIO
 from json import dumps
-from logging import DEBUG, ERROR, INFO, WARNING, getLogger
+from logging import DEBUG, ERROR, INFO, WARNING, Logger, getLogger
 from pprint import pformat
 from sys import stdout
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from octodns.record.base import Record
+    from octodns.zone import Zone
 
 
 class UnsafePlan(Exception):
@@ -15,20 +22,20 @@ class UnsafePlan(Exception):
 
 
 class RootNsChange(UnsafePlan):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__('Root NS record change, force required')
 
 
 class TooMuchChange(UnsafePlan):
     def __init__(
         self,
-        why,
-        update_pcent,
-        update_threshold,
-        change_count,
-        existing_count,
-        name,
-    ):
+        why: str,
+        update_pcent: float,
+        update_threshold: float,
+        change_count: int,
+        existing_count: int,
+        name: str,
+    ) -> None:
         msg = (
             f'[{name}] {why}, {update_pcent:.2f}% is over {update_threshold:.2f}% '
             f'({change_count}/{existing_count}), force required'
@@ -37,53 +44,55 @@ class TooMuchChange(UnsafePlan):
 
 
 class Plan(object):
-    log = getLogger('Plan')
+    log: Logger = getLogger('Plan')
 
-    MAX_SAFE_UPDATE_PCENT = 0.3
-    MAX_SAFE_DELETE_PCENT = 0.3
-    MIN_EXISTING_RECORDS = 10
+    MAX_SAFE_UPDATE_PCENT: float = 0.3
+    MAX_SAFE_DELETE_PCENT: float = 0.3
+    MIN_EXISTING_RECORDS: int = 10
 
     def __init__(
         self,
-        existing,
-        desired,
-        changes,
-        exists,
-        update_pcent_threshold=MAX_SAFE_UPDATE_PCENT,
-        delete_pcent_threshold=MAX_SAFE_DELETE_PCENT,
-        meta=None,
-    ):
-        self.existing = existing
-        self.desired = desired
+        existing: 'Zone | None',
+        desired: 'Zone',
+        changes: list[Any],
+        exists: bool | None,
+        update_pcent_threshold: float = MAX_SAFE_UPDATE_PCENT,
+        delete_pcent_threshold: float = MAX_SAFE_DELETE_PCENT,
+        meta: dict | None = None,
+    ) -> None:
+        self.existing: Zone | None = existing
+        self.desired: 'Zone' = desired
         # Sort changes to ensure we always have a consistent ordering for
         # things that make assumptions about that. Many providers will do their
         # own ordering to ensure things happen in a way that makes sense to
         # them and/or is as safe as possible.
-        self.changes = sorted(changes)
-        self.exists = exists
-        self.meta = meta
+        self.changes: list[Any] = sorted(changes)
+        self.exists: bool | None = exists
+        self.meta: dict | None = meta
 
         # Zone thresholds take precedence over provider
+        self.update_pcent_threshold: float
         if existing and existing.update_pcent_threshold is not None:
             self.update_pcent_threshold = existing.update_pcent_threshold
         else:
             self.update_pcent_threshold = update_pcent_threshold
+        self.delete_pcent_threshold: float
         if existing and existing.delete_pcent_threshold is not None:
             self.delete_pcent_threshold = existing.delete_pcent_threshold
         else:
             self.delete_pcent_threshold = delete_pcent_threshold
-        change_counts = {'Create': 0, 'Delete': 0, 'Update': 0}
+        change_counts: dict[str, int] = {'Create': 0, 'Delete': 0, 'Update': 0}
         for change in changes:
             change_counts[change.__class__.__name__] += 1
-        self.change_counts = change_counts
+        self.change_counts: dict[str, int] = change_counts
 
         self.log.debug('__init__: %s', self.__repr__())
 
     @property
-    def data(self):
+    def data(self) -> dict[str, Any]:
         return {'changes': [c.data for c in self.changes], 'meta': self.meta}
 
-    def raise_if_unsafe(self):
+    def raise_if_unsafe(self) -> None:
         if (
             self.existing
             and len(self.existing.records) >= self.MIN_EXISTING_RECORDS
@@ -128,30 +137,30 @@ class Plan(object):
         ):
             raise RootNsChange()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         creates = self.change_counts['Create']
         updates = self.change_counts['Update']
         deletes = self.change_counts['Delete']
-        try:
-            existing = len(self.existing.records)
-        except AttributeError:
-            existing = 0
+        existing = len(self.existing.records) if self.existing else 0
         meta = self.meta is not None
         return f'Creates={creates}, Updates={updates}, Deletes={deletes}, Existing={existing}, Meta={meta}'
 
 
 class _PlanOutput(object):
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, name: str) -> None:
+        self.name: str = name
+
+    def run(self, *args: Any, **kwargs: Any) -> None:
+        raise NotImplementedError()
 
 
-def _custom_fh(func):
+def _custom_fh(func: Any) -> Any:
     '''
     Decorator that handles output_filename for plan output classes.
     If output_filename is set, opens that file and passes it as fh.
     '''
 
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self: '_PlanFhOutput', *args: Any, **kwargs: Any) -> Any:
         if self.output_filename is not None:
             with open(self.output_filename, 'w') as fh:
                 kwargs['fh'] = fh
@@ -164,16 +173,16 @@ def _custom_fh(func):
 class _PlanFhOutput(_PlanOutput):
     '''Intermediate class for plan outputs that write to a file handle.'''
 
-    def __init__(self, name, output_filename=None):
+    def __init__(self, name: str, output_filename: str | None = None) -> None:
         super().__init__(name)
-        self.output_filename = output_filename
+        self.output_filename: str | None = output_filename
 
 
 class PlanLogger(_PlanOutput):
-    def __init__(self, name, level='info'):
+    def __init__(self, name: str, level: str = 'info') -> None:
         super().__init__(name)
         try:
-            self.level = {
+            self.level: int = {
                 'debug': DEBUG,
                 'info': INFO,
                 'warn': WARNING,
@@ -183,12 +192,18 @@ class PlanLogger(_PlanOutput):
         except (AttributeError, KeyError):
             raise Exception(f'Unsupported level: {level}')
 
-    def run(self, log, plans, *args, **kwargs):
+    def run(
+        self,
+        log: Logger,
+        plans: list[tuple[Any, Plan]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         hr = '********************************************************************************\n'
         buf = StringIO()
         buf.write('\n')
         if plans:
-            current_zone = None
+            current_zone: str | None = None
             for target, plan in plans:
                 if plan.desired.decoded_name != current_zone:
                     current_zone = plan.desired.decoded_name
@@ -230,7 +245,7 @@ class PlanLogger(_PlanOutput):
         log.log(self.level, buf.getvalue())
 
 
-def _value_stringifier(record, sep):
+def _value_stringifier(record: 'Record', sep: str) -> str:
     try:
         values = [str(v) for v in record.values]
     except AttributeError:
@@ -242,14 +257,26 @@ def _value_stringifier(record, sep):
 
 
 class PlanJson(_PlanFhOutput):
-    def __init__(self, name, indent=None, sort_keys=True, output_filename=None):
+    def __init__(
+        self,
+        name: str,
+        indent: int | None = None,
+        sort_keys: bool = True,
+        output_filename: str | None = None,
+    ) -> None:
         super().__init__(name, output_filename=output_filename)
-        self.indent = indent
-        self.sort_keys = sort_keys
+        self.indent: int | None = indent
+        self.sort_keys: bool = sort_keys
 
     @_custom_fh
-    def run(self, plans, fh=stdout, *args, **kwargs):
-        data = defaultdict(dict)
+    def run(
+        self,
+        plans: list[tuple[Any, Plan]],
+        fh: Any = stdout,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        data: dict[str, dict[str, Any]] = defaultdict(dict)
         for target, plan in plans:
             data[target.id][plan.desired.name] = plan.data
 
@@ -259,9 +286,15 @@ class PlanJson(_PlanFhOutput):
 
 class PlanMarkdown(_PlanFhOutput):
     @_custom_fh
-    def run(self, plans, fh=stdout, *args, **kwargs):
+    def run(
+        self,
+        plans: list[tuple[Any, Plan]],
+        fh: Any = stdout,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         if plans:
-            current_zone = None
+            current_zone: str | None = None
             for target, plan in plans:
                 if plan.desired.decoded_name != current_zone:
                     current_zone = plan.desired.decoded_name
@@ -326,9 +359,15 @@ class PlanMarkdown(_PlanFhOutput):
 
 class PlanHtml(_PlanFhOutput):
     @_custom_fh
-    def run(self, plans, fh=stdout, *args, **kwargs):
+    def run(
+        self,
+        plans: list[tuple[Any, Plan]],
+        fh: Any = stdout,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         if plans:
-            current_zone = None
+            current_zone: str | None = None
             for target, plan in plans:
                 if plan.desired.decoded_name != current_zone:
                     current_zone = plan.desired.decoded_name

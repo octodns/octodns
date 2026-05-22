@@ -1,7 +1,8 @@
-#
-#
-#
+from __future__ import annotations
 
+from typing import Any, Iterable
+
+from ..zone import Zone
 from .base import BaseProcessor, ProcessorException
 
 
@@ -52,26 +53,35 @@ class TtlRestrictionFilter(BaseProcessor):
     SEVEN_DAYS = 60 * 60 * 24 * 7
 
     def __init__(
-        self, name, min_ttl=1, max_ttl=SEVEN_DAYS, allowed_ttls=None, **kwargs
-    ):
+        self,
+        name: str,
+        min_ttl: int = 1,
+        max_ttl: int = SEVEN_DAYS,
+        allowed_ttls: list[int] | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(name, **kwargs)
         self.min_ttl = min_ttl
         self.max_ttl = max_ttl
-        self.allowed_ttls = set(allowed_ttls) if allowed_ttls else None
+        self.allowed_ttls: set[int] | None = (
+            set(allowed_ttls) if allowed_ttls else None
+        )
 
-    def process_source_zone(self, zone, sources, lenient=False):
+    def process_source_zone(
+        self, zone: Zone, sources: Iterable[Any], lenient: bool = False
+    ) -> Zone:
         for record in zone.records:
-            if record.lenient:
+            if record.lenient:  # type: ignore[attr-defined]
                 continue
-            if self.allowed_ttls and record.ttl not in self.allowed_ttls:
+            if self.allowed_ttls and record.ttl not in self.allowed_ttls:  # type: ignore[attr-defined]
                 raise RestrictionException(
                     f'{record.fqdn} ttl={record.ttl} not an allowed value, allowed_ttls={self.allowed_ttls}'
                 )
-            elif record.ttl < self.min_ttl:
+            elif record.ttl < self.min_ttl:  # type: ignore[attr-defined]
                 raise RestrictionException(
                     f'{record.fqdn} ttl={record.ttl} too low, min_ttl={self.min_ttl}'
                 )
-            elif record.ttl > self.max_ttl:
+            elif record.ttl > self.max_ttl:  # type: ignore[attr-defined]
                 raise RestrictionException(
                     f'{record.fqdn} ttl={record.ttl} too high, max_ttl={self.max_ttl}'
                 )

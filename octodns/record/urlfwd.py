@@ -1,11 +1,19 @@
 #
 #
 #
+#
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 from .validator import ValueValidator
+
+if TYPE_CHECKING:
+    from typing import Iterable
 
 
 class UrlfwdValueValidator(ValueValidator):
@@ -15,8 +23,8 @@ class UrlfwdValueValidator(ValueValidator):
     ``path`` and ``target`` are present.
     '''
 
-    def validate(self, value_cls, data, _type):
-        reasons = []
+    def validate(self, value_cls: Any, data: Any, _type: str) -> list[str]:
+        reasons: list[str] = []
         for value in data:
             try:
                 code = int(value['code'])
@@ -53,12 +61,12 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     VALID_MASKS = (0, 1, 2)
     VALID_QUERY = (0, 1)
 
-    VALIDATORS = [
+    VALIDATORS: list[Any] = [
         UrlfwdValueValidator('urlfwd-value', sets={'legacy', 'strict'})
     ]
 
     @classmethod
-    def _schema(cls):
+    def _schema(cls) -> dict[str, Any]:
         return {
             'type': 'object',
             'required': ['path', 'target', 'code', 'masking', 'query'],
@@ -72,38 +80,41 @@ class UrlfwdValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def parse_rdata_text(cls, value: str) -> dict[str, Any]:
         try:
             path, target, code, masking, query = value.split(' ')
         except ValueError:
             raise RrParseError()
+        parsed_code: int | str = code
         try:
-            code = int(code)
+            parsed_code = int(code)
         except ValueError:
             pass
+        parsed_masking: int | str = masking
         try:
-            masking = int(masking)
+            parsed_masking = int(masking)
         except ValueError:
             pass
+        parsed_query: int | str = query
         try:
-            query = int(query)
+            parsed_query = int(query)
         except ValueError:
             pass
-        path = unquote(path)
-        target = unquote(target)
+        parsed_path: str = unquote(path)  # type: ignore[assignment]
+        parsed_target: str = unquote(target)  # type: ignore[assignment]
         return {
-            'path': path,
-            'target': target,
-            'code': code,
-            'masking': masking,
-            'query': query,
+            'path': parsed_path,
+            'target': parsed_target,
+            'code': parsed_code,
+            'masking': parsed_masking,
+            'query': parsed_query,
         }
 
     @classmethod
-    def process(cls, values):
+    def process(cls, values: Iterable[dict[str, Any]]) -> list[UrlfwdValue]:
         return [cls(v) for v in values]
 
-    def __init__(self, value):
+    def __init__(self, value: dict[str, Any]) -> None:
         super().__init__(
             {
                 'path': value['path'],
@@ -115,50 +126,50 @@ class UrlfwdValue(EqualityTupleMixin, dict):
         )
 
     @property
-    def path(self):
-        return self['path']
+    def path(self) -> str:
+        return self['path']  # type: ignore[no-any-return]
 
     @path.setter
-    def path(self, value):
+    def path(self, value: str) -> None:
         self['path'] = value
 
     @property
-    def target(self):
-        return self['target']
+    def target(self) -> str:
+        return self['target']  # type: ignore[no-any-return]
 
     @target.setter
-    def target(self, value):
+    def target(self, value: str) -> None:
         self['target'] = value
 
     @property
-    def code(self):
-        return self['code']
+    def code(self) -> int:
+        return self['code']  # type: ignore[no-any-return]
 
     @code.setter
-    def code(self, value):
+    def code(self, value: int) -> None:
         self['code'] = value
 
     @property
-    def masking(self):
-        return self['masking']
+    def masking(self) -> int:
+        return self['masking']  # type: ignore[no-any-return]
 
     @masking.setter
-    def masking(self, value):
+    def masking(self, value: int) -> None:
         self['masking'] = value
 
     @property
-    def query(self):
-        return self['query']
+    def query(self) -> int:
+        return self['query']  # type: ignore[no-any-return]
 
     @query.setter
-    def query(self, value):
+    def query(self, value: int) -> None:
         self['query'] = value
 
     @property
-    def rdata_text(self):
+    def rdata_text(self) -> str:
         return f'"{self.path}" "{self.target}" {self.code} {self.masking} {self.query}'
 
-    def template(self, params):
+    def template(self, params: dict[str, Any]) -> UrlfwdValue | None:
         if '{' not in self.path and '{' not in self.target:
             return self
         new = self.__class__(self)
@@ -166,22 +177,22 @@ class UrlfwdValue(EqualityTupleMixin, dict):
         new.target = new.target.format(**params)
         return new
 
-    def _equality_tuple(self):
+    def _equality_tuple(self) -> tuple[str, str, int, int, int]:
         return (self.path, self.target, self.code, self.masking, self.query)
 
-    def __hash__(self):
+    def __hash__(self) -> int:  # type: ignore[override]
         return hash(
             (self.path, self.target, self.code, self.masking, self.query)
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'"{self.path}" "{self.target}" {self.code} {self.masking} {self.query}'
 
 
 class UrlfwdRecord(ValuesMixin, Record):
-    REFERENCES = ()
-    _type = 'URLFWD'
-    _value_type = UrlfwdValue
+    REFERENCES: tuple[str, ...] = ()
+    _type = 'URLFWD'  # type: ignore[misc]
+    _value_type = UrlfwdValue  # type: ignore[misc]
 
 
 Record.register_type(UrlfwdRecord)

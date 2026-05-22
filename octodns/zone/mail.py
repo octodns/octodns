@@ -2,10 +2,14 @@
 #
 #
 
-from logging import getLogger
+from logging import Logger, getLogger
+from typing import TYPE_CHECKING, Iterable, Optional
 
 from .base import Zone
 from .validator import ValidationReason, ZoneValidator
+
+if TYPE_CHECKING:
+    from octodns.record.base import Record
 
 
 class MailZoneValidator(ZoneValidator):
@@ -42,45 +46,51 @@ class MailZoneValidator(ZoneValidator):
     parent zone per RFC 7489 §6.6.3.
     '''
 
-    def __init__(self, id, mode='auto', sets=None):
+    log: Logger
+
+    def __init__(
+        self, id: str, mode: str = 'auto', sets: Optional[Iterable[str]] = None
+    ) -> None:
         super().__init__(id, sets=sets)
         self.log = getLogger(f'MailZoneValidator[{id}]')
         if mode not in ('auto', 'mail', 'no-mail'):
             raise ValueError(f'Unknown mode "{mode}"')
         self.mode = mode
 
-    def _is_null_mx(self, mx_record):
+    def _is_null_mx(self, mx_record: 'Record') -> bool:
         return (
-            len(mx_record.values) == 1
-            and mx_record.values[0].preference == 0
-            and str(mx_record.values[0].exchange) == '.'
+            len(mx_record.values) == 1  # type: ignore[attr-defined, operator]
+            and mx_record.values[0].preference == 0  # type: ignore[attr-defined, index]
+            and str(mx_record.values[0].exchange) == '.'  # type: ignore[attr-defined, index]
         )
 
-    def _extract_spf(self, txt_record, multi_msg):
+    def _extract_spf(
+        self, txt_record: Optional['Record'], multi_msg: str
+    ) -> tuple[Optional[str], Optional['ValidationReason']]:
         if txt_record is None:
             return None, None
         values = [
             v
-            for v in (i.lower().replace('\\', '') for i in txt_record.values)
+            for v in (i.lower().replace('\\', '') for i in txt_record.values)  # type: ignore[attr-defined]
             if v.startswith('v=spf1')
         ]
         if not values:
             return None, None
         reason = None
         if len(values) > 1:
-            reason = ValidationReason(reason=multi_msg, records={txt_record})
+            reason = ValidationReason(reason=multi_msg, records={txt_record})  # type: ignore[arg-type]
         return values[0], reason
 
     def _validate_mail(
         self,
-        zone,
-        apex_mx_record,
-        apex_txt,
-        apex_spf_value,
-        dmarc_txt,
-        dmarc_value,
-    ):
-        reasons = []
+        zone: 'Zone',
+        apex_mx_record: Optional['Record'],
+        apex_txt: Optional['Record'],
+        apex_spf_value: Optional[str],
+        dmarc_txt: Optional['Record'],
+        dmarc_value: Optional[str],
+    ) -> list['ValidationReason']:
+        reasons: list['ValidationReason'] = []
 
         records = set()
         if apex_mx_record:
@@ -113,7 +123,7 @@ class MailZoneValidator(ZoneValidator):
             reasons.append(
                 ValidationReason(
                     f'SPF record at the apex of "{zone.decoded_name}" should terminate with "~all" or "-all"',
-                    {apex_txt},
+                    {apex_txt},  # type: ignore[arg-type]
                 )
             )
 
@@ -129,7 +139,7 @@ class MailZoneValidator(ZoneValidator):
             reasons.append(
                 ValidationReason(
                     f'DMARC record at _dmarc.{zone.decoded_name} is missing a policy (p=...)',
-                    [dmarc_txt],
+                    [dmarc_txt],  # type: ignore[arg-type,list-item]
                 )
             )
 
@@ -137,14 +147,14 @@ class MailZoneValidator(ZoneValidator):
 
     def _validate_no_mail(
         self,
-        zone,
-        apex_mx_record,
-        apex_txt,
-        apex_spf_value,
-        dmarc_txt,
-        dmarc_value,
-    ):
-        reasons = []
+        zone: 'Zone',
+        apex_mx_record: Optional['Record'],
+        apex_txt: Optional['Record'],
+        apex_spf_value: Optional[str],
+        dmarc_txt: Optional['Record'],
+        dmarc_value: Optional[str],
+    ) -> list['ValidationReason']:
+        reasons: list['ValidationReason'] = []
 
         records = set()
         if apex_mx_record:
@@ -166,7 +176,7 @@ class MailZoneValidator(ZoneValidator):
             reasons.append(
                 ValidationReason(
                     f'zone "{zone.decoded_name}" disables mail and should have a single Null MX record (0 .)',
-                    [apex_mx_record],
+                    [apex_mx_record],  # type: ignore[arg-type]
                 )
             )
 
@@ -182,7 +192,7 @@ class MailZoneValidator(ZoneValidator):
             reasons.append(
                 ValidationReason(
                     f'zone "{zone.decoded_name}" disables mail and should have a single strict SPF TXT record "v=spf1 -all"',
-                    [apex_txt],
+                    [apex_txt],  # type: ignore[arg-type,list-item]
                 )
             )
 
@@ -198,19 +208,21 @@ class MailZoneValidator(ZoneValidator):
             reasons.append(
                 ValidationReason(
                     f'zone "{zone.decoded_name}" disables mail and should have a DMARC TXT record with "v=DMARC1; p=reject;"',
-                    [dmarc_txt],
+                    [dmarc_txt],  # type: ignore[arg-type,list-item]
                 )
             )
 
         return reasons
 
-    def _detect_subdomain_mode(self, mx_record):
+    def _detect_subdomain_mode(self, mx_record: 'Record') -> str:
         if self._is_null_mx(mx_record):
             return 'no-mail'
         return 'mail'
 
-    def _validate_subdomain(self, zone, mx_record, mode):
-        reasons = []
+    def _validate_subdomain(
+        self, zone: 'Zone', mx_record: 'Record', mode: str
+    ) -> list['ValidationReason']:
+        reasons: list['ValidationReason'] = []
         txt_record = zone.get_type(mx_record.name, 'TXT')
 
         spf_value, spf_multi = self._extract_spf(
@@ -237,7 +249,7 @@ class MailZoneValidator(ZoneValidator):
                 reasons.append(
                     ValidationReason(
                         f'SPF record at "{mx_record.decoded_fqdn}" should terminate with "~all" or "-all"',
-                        {txt_record},
+                        {txt_record},  # type: ignore[arg-type]
                     )
                 )
         else:
@@ -245,7 +257,7 @@ class MailZoneValidator(ZoneValidator):
                 reasons.append(
                     ValidationReason(
                         f'"{mx_record.decoded_fqdn}" disables mail and should have a single Null MX record (0 .)',
-                        {mx_record},
+                        {mx_record},  # type: ignore[arg-type]
                     )
                 )
             if spf_value is None:
@@ -259,19 +271,19 @@ class MailZoneValidator(ZoneValidator):
                 reasons.append(
                     ValidationReason(
                         f'"{mx_record.decoded_fqdn}" disables mail and should have a strict SPF TXT record "v=spf1 -all"',
-                        {txt_record},
+                        {txt_record},  # type: ignore[arg-type]
                     )
                 )
 
         return reasons
 
-    def validate(self, zone):
-        reasons = []
+    def validate(self, zone: 'Zone') -> list['ValidationReason']:
+        reasons: list['ValidationReason'] = []
 
         mode = self.mode
 
         non_apex_mx = [
-            r for r in zone.records if r.name != '' and r._type == 'MX'
+            r for r in zone.records if r.name != '' and r._type == 'MX'  # type: ignore[attr-defined]
         ]
 
         apex_mx_record = zone.get_type('', 'MX')
@@ -283,10 +295,10 @@ class MailZoneValidator(ZoneValidator):
             if self._is_null_mx(record):
                 continue
 
-            if len(record.values) < 2:
+            if len(record.values) < 2:  # type: ignore[attr-defined, operator]
                 reasons.append(
                     ValidationReason(
-                        f'MX record "{record.fqdn}" should have at least 2 values for redundancy, found {len(record.values)}',
+                        f'MX record "{record.fqdn}" should have at least 2 values for redundancy, found {len(record.values)}',  # type: ignore[attr-defined, arg-type]
                         [record],
                     )
                 )
@@ -302,7 +314,7 @@ class MailZoneValidator(ZoneValidator):
         dmarc_value = (
             [
                 v
-                for v in [v.lower().replace('\\', '') for v in dmarc_txt.values]
+                for v in [v.lower().replace('\\', '') for v in dmarc_txt.values]  # type: ignore[attr-defined]
                 if v.startswith('v=dmarc1')
             ]
             if dmarc_txt
@@ -313,10 +325,10 @@ class MailZoneValidator(ZoneValidator):
                 reasons.append(
                     ValidationReason(
                         reason=f'zone "{zone.decoded_name}" has multiple DMARC values',
-                        records={dmarc_txt},
+                        records={dmarc_txt},  # type: ignore[arg-type]
                     )
                 )
-            dmarc_value = dmarc_value[0]
+            dmarc_value = dmarc_value[0]  # type: ignore[index]
 
         if mode == 'auto':
             # update mode to main/no-mail based on detection
@@ -361,7 +373,7 @@ class MailZoneValidator(ZoneValidator):
                     apex_txt=apex_txt,
                     apex_spf_value=apex_spf_value,
                     dmarc_txt=dmarc_txt,
-                    dmarc_value=dmarc_value,
+                    dmarc_value=dmarc_value,  # type: ignore[arg-type]
                 )
             )
         elif mode == 'no-mail':
@@ -372,7 +384,7 @@ class MailZoneValidator(ZoneValidator):
                     apex_txt=apex_txt,
                     apex_spf_value=apex_spf_value,
                     dmarc_txt=dmarc_txt,
-                    dmarc_value=dmarc_value,
+                    dmarc_value=dmarc_value,  # type: ignore[arg-type]
                 )
             )
 

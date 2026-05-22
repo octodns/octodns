@@ -2,11 +2,19 @@
 #
 #
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Iterable
+
 from ..deprecation import deprecated
 from ..source.base import BaseSource
-from ..zone import Zone
 from . import SupportsException
 from .plan import Plan
+
+if TYPE_CHECKING:
+    from octodns.processor.base import BaseProcessor
+    from octodns.record.change import Change
+    from octodns.zone import Zone
 
 
 class BaseProvider(BaseSource):
@@ -70,13 +78,13 @@ class BaseProvider(BaseSource):
 
     def __init__(
         self,
-        id,
-        apply_disabled=False,
-        update_pcent_threshold=Plan.MAX_SAFE_UPDATE_PCENT,
-        delete_pcent_threshold=Plan.MAX_SAFE_DELETE_PCENT,
-        strict_supports=True,
-        root_ns_warnings=True,
-    ):
+        id: str,
+        apply_disabled: bool = False,
+        update_pcent_threshold: float = Plan.MAX_SAFE_UPDATE_PCENT,
+        delete_pcent_threshold: float = Plan.MAX_SAFE_DELETE_PCENT,
+        strict_supports: bool = True,
+        root_ns_warnings: bool = True,
+    ) -> None:
         '''
         Initialize the provider.
 
@@ -115,13 +123,13 @@ class BaseProvider(BaseSource):
             strict_supports,
             root_ns_warnings,
         )
-        self.apply_disabled = apply_disabled
-        self.update_pcent_threshold = update_pcent_threshold
-        self.delete_pcent_threshold = delete_pcent_threshold
-        self.strict_supports = strict_supports
-        self.root_ns_warnings = root_ns_warnings
+        self.apply_disabled: bool = apply_disabled
+        self.update_pcent_threshold: float = update_pcent_threshold
+        self.delete_pcent_threshold: float = delete_pcent_threshold
+        self.strict_supports: bool = strict_supports
+        self.root_ns_warnings: bool = root_ns_warnings
 
-    def _process_desired_zone(self, desired):
+    def _process_desired_zone(self, desired: Zone) -> Zone:
         '''
         Process the desired zone before planning.
 
@@ -162,15 +170,15 @@ class BaseProvider(BaseSource):
                 if self.SUPPORTS_DYNAMIC:
                     if not self.SUPPORTS_POOL_VALUE_STATUS:
                         # drop unsupported status flag
-                        unsupported_pools = []
+                        unsupported_pools: list[str] = []
                         for _id, pool in record.dynamic.pools.items():
                             for value in pool.data['values']:
                                 if value['status'] != 'obey':
                                     unsupported_pools.append(_id)
                         if unsupported_pools:
-                            unsupported_pools = ','.join(unsupported_pools)
+                            unsupported_pools_str = ','.join(unsupported_pools)
                             msg = (
-                                f'"status" flag used in pools {unsupported_pools}'
+                                f'"status" flag used in pools {unsupported_pools_str}'
                                 f' in {record.fqdn} is not supported'
                             )
                             fallback = (
@@ -184,14 +192,14 @@ class BaseProvider(BaseSource):
                             desired.add_record(record, replace=True)
 
                     if not self.SUPPORTS_DYNAMIC_SUBNETS:
-                        subnet_rules = []
+                        subnet_rules: list[int] = []
                         for i, rule in enumerate(record.dynamic.rules):
-                            rule = rule.data
-                            if not rule.get('subnets'):
+                            rule_data = rule.data
+                            if not rule_data.get('subnets'):
                                 continue
 
                             msg = f'rule {i + 1} contains unsupported subnet matching in {record.fqdn}'
-                            if rule.get('geos'):
+                            if rule_data.get('geos'):
                                 fallback = 'using geos only'
                                 self.supports_warn_or_except(msg, fallback)
                             else:
@@ -206,15 +214,15 @@ class BaseProvider(BaseSource):
 
                             # drop subnet rules in reverse order so indices don't shift during rule deletion
                             for i in sorted(subnet_rules, reverse=True):
-                                rule = rules[i].data
-                                if rule.get('geos'):
-                                    del rule['subnets']
+                                rule_data = rules[i].data
+                                if rule_data.get('geos'):
+                                    del rule_data['subnets']
                                 else:
                                     del rules[i]
 
                             # drop any pools rendered unused
                             pools = record.dynamic.pools
-                            pools_seen = set()
+                            pools_seen: set[str] = set()
                             for rule in record.dynamic.rules:
                                 pool = rule.data['pool']
                                 while pool:
@@ -250,28 +258,30 @@ class BaseProvider(BaseSource):
                 record.values = [record.value]
                 desired.add_record(record, replace=True)
 
-        record = desired.root_ns
+        root_ns = desired.root_ns
         if self.SUPPORTS_ROOT_NS:
-            if not record and self.root_ns_warnings:
+            if not root_ns and self.root_ns_warnings:
                 self.log.warning(
                     'root NS record supported, but no record '
                     'is configured for %s',
                     desired.decoded_name,
                 )
         else:
-            if record:
+            if root_ns:
                 # we can't manage root NS records, get rid of it
-                msg = f'root NS record not supported for {record.fqdn}'
+                msg = f'root NS record not supported for {root_ns.fqdn}'
                 fallback = 'ignoring it'
                 if self.strict_supports:
                     raise SupportsException(f'{self.id}: {msg}')
                 if self.root_ns_warnings:
                     self.log.warning('%s; %s', msg, fallback)
-                desired.remove_record(record)
+                desired.remove_record(root_ns)
 
         return desired
 
-    def _process_existing_zone(self, existing, desired, lenient=False):
+    def _process_existing_zone(
+        self, existing: Zone, desired: Zone, lenient: bool = False
+    ) -> Zone:
         '''
         Process the existing zone before planning.
 
@@ -321,7 +331,7 @@ class BaseProvider(BaseSource):
 
         return existing
 
-    def _include_change(self, change):
+    def _include_change(self, change: Change) -> bool:
         '''
         Filter out false positive changes.
 
@@ -338,7 +348,9 @@ class BaseProvider(BaseSource):
         '''
         return True
 
-    def _extra_changes(self, existing, desired, changes):
+    def _extra_changes(
+        self, existing: Zone, desired: Zone, changes: list[Change]
+    ) -> list[Change]:
         '''
         Add provider-specific extra changes to the plan.
 
@@ -359,7 +371,9 @@ class BaseProvider(BaseSource):
         '''
         return []
 
-    def _plan_meta(self, existing, desired, changes):
+    def _plan_meta(
+        self, existing: Zone, desired: Zone, changes: list[Change]
+    ) -> dict | None:
         '''
         Indicate provider-specific metadata changes to the zone.
 
@@ -381,7 +395,7 @@ class BaseProvider(BaseSource):
         '''
         return None
 
-    def supports_warn_or_except(self, msg, fallback):
+    def supports_warn_or_except(self, msg: str, fallback: str) -> None:
         '''
         Handle unsupported features based on strict_supports setting.
 
@@ -399,7 +413,12 @@ class BaseProvider(BaseSource):
             raise SupportsException(f'{self.id}: {msg}')
         self.log.warning('%s; %s', msg, fallback)
 
-    def plan(self, desired, processors=[], lenient=False):
+    def plan(
+        self,
+        desired: Zone,
+        processors: Iterable[BaseProcessor] = (),
+        lenient: bool = False,
+    ) -> Plan | None:
         '''
         Compute a plan of changes needed to sync the desired state to this provider.
 
@@ -438,7 +457,9 @@ class BaseProvider(BaseSource):
         '''
         self.log.info('plan: desired=%s', desired.decoded_name)
 
-        existing = Zone(desired.name, desired.sub_zones)
+        from octodns.zone import Zone as ZoneClass
+
+        existing = ZoneClass(desired.name, desired.sub_zones)
         exists = self.populate(existing, target=True, lenient=True)
         if exists is None:
             # If your code gets this warning see Source.populate for more
@@ -528,7 +549,7 @@ class BaseProvider(BaseSource):
         self.log.info('plan:   No changes')
         return None
 
-    def apply(self, plan):
+    def apply(self, plan: Plan) -> int:
         '''
         Apply the planned changes to the provider.
 
@@ -556,7 +577,7 @@ class BaseProvider(BaseSource):
         self._apply(plan)
         return len(plan.changes)
 
-    def _apply(self, plan):
+    def _apply(self, plan: Plan) -> None:
         '''
         Actually submit the changes to the provider's backend.
 
