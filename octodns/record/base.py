@@ -169,6 +169,10 @@ class ValuesTypeValidator(RecordValidator):
 class Record(EqualityTupleMixin):
     log: Logger = getLogger('Record')
 
+    _type: ClassVar[str]
+    values: list[Any]
+    value: Any
+
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         if 'validate' in cls.__dict__:
