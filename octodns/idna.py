@@ -3,6 +3,7 @@
 #
 
 from collections.abc import Iterator, MutableMapping
+from typing import TypeVar
 
 from idna import IDNAError as _IDNAError
 from idna import decode as _decode
@@ -52,25 +53,29 @@ def idna_decode(name: str) -> str:
         raise IdnaError(e)
 
 
-class IdnaDict(MutableMapping):
+KT = TypeVar('KT', bound=str)
+VT = TypeVar('VT')
+
+
+class IdnaDict(MutableMapping[KT, VT]):
     '''A dict type that is insensitive to case and utf-8/idna encoded strings'''
 
-    def __init__(self, data: dict[str, object] | None = None) -> None:
-        self._data: dict[str, object] = {}
+    def __init__(self, data: dict[KT, VT] | None = None) -> None:
+        self._data: dict[str, VT] = {}
         if data is not None:
             self.update(data)  # type: ignore[arg-type]
 
-    def __setitem__(self, k: str, v: object) -> None:
+    def __setitem__(self, k: KT, v: VT) -> None:
         self._data[idna_encode(k)] = v
 
-    def __getitem__(self, k: str) -> object:
-        return self._data[idna_encode(k)]
+    def __getitem__(self, k: KT) -> VT:
+        return self._data[idna_encode(k)]  # type: ignore[return-value]
 
-    def __delitem__(self, k: str) -> None:
+    def __delitem__(self, k: KT) -> None:
         del self._data[idna_encode(k)]
 
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._data)
+    def __iter__(self) -> Iterator[KT]:
+        return iter(self._data)  # type: ignore[return-value]
 
     def __len__(self) -> int:
         return len(self._data)
@@ -79,7 +84,7 @@ class IdnaDict(MutableMapping):
         for key in self.keys():
             yield idna_decode(key)
 
-    def decoded_items(self) -> Iterator[tuple[str, object]]:
+    def decoded_items(self) -> Iterator[tuple[str, VT]]:
         for key, value in self.items():
             yield (idna_decode(key), value)
 
