@@ -176,7 +176,7 @@ import logging
 from collections import defaultdict
 from os import listdir, makedirs
 from os.path import isdir, isfile, join
-from typing import TYPE_CHECKING, Generator, Optional
+from typing import TYPE_CHECKING, Any, Generator, Optional
 
 from ..deprecation import deprecated
 from ..record import Record
@@ -216,8 +216,8 @@ class YamlProvider(BaseProvider):
         disable_zonefile: bool = False,
         escaped_semicolons: bool = True,
         ignore_missing_zones: bool = False,
-        *args: object,
-        **kwargs: object,
+        *args: Any,
+        **kwargs: Any,
     ):
         klass = self.__class__.__name__
         self.log = logging.getLogger(f'{klass}[{id}]')
@@ -274,7 +274,7 @@ class YamlProvider(BaseProvider):
         return True
 
     @property
-    def SUPPORTS_ROOT_NS(self) -> bool:
+    def SUPPORTS_ROOT_NS(self) -> bool:  # type: ignore[override]
         return self.supports_root_ns
 
     def list_zones(self) -> list[str]:
@@ -282,7 +282,7 @@ class YamlProvider(BaseProvider):
         zones = set()
 
         extension = self.split_extension
-        if extension:
+        if isinstance(extension, str):
             # we want to leave the .
             trim = len(extension) - 1
             self.log.debug(
@@ -409,7 +409,7 @@ class YamlProvider(BaseProvider):
             if source:
                 sources.append(source)
 
-        if self.shared_filename:
+        if isinstance(self.shared_filename, str):
             sources.append(join(self.directory, self.shared_filename))
 
         if not sources and not target and not self.ignore_missing_zones:
@@ -431,6 +431,7 @@ class YamlProvider(BaseProvider):
 
     def _apply(self, plan: Plan) -> None:
         # make a copy of existing we can muck with
+        assert plan.existing is not None
         copy = plan.existing.copy()
         changes = plan.changes
         self.log.debug(
@@ -443,7 +444,7 @@ class YamlProvider(BaseProvider):
         # we now have the records we need to write out, order things
         # alphabetically (records sort that way
         records = sorted(copy.records)
-        data: dict[str, list[dict[str, object]]] = defaultdict(list)
+        data: dict[str, Any] = defaultdict(list)
         for record in records:
             d = record.data
             d['type'] = record._type
@@ -479,15 +480,15 @@ class YamlProvider(BaseProvider):
                 makedirs(directory)
 
             catchall: dict[str, object] = {}
-            for record, config in data.items():
-                if self.split_catchall and record in self.CATCHALL_RECORD_NAMES:
-                    catchall[record] = config
+            for name, config in data.items():
+                if self.split_catchall and name in self.CATCHALL_RECORD_NAMES:
+                    catchall[name] = config
                     continue
-                filename = join(directory, f'{record}.yaml')
+                filename = join(directory, f'{name}.yaml')
                 self.log.debug('_apply:   writing filename=%s', filename)
 
                 with open(filename, 'w') as fh:
-                    record_data = {record: config}
+                    record_data = {name: config}
                     safe_dump(record_data, fh, order_mode=self.order_mode)
 
             if catchall:
@@ -533,9 +534,9 @@ class SplitYamlProvider(YamlProvider):
         self,
         id: str,
         directory: str,
-        *args: object,
+        *args: Any,
         extension: str = '.',
-        **kwargs: object,
+        **kwargs: Any,
     ):
         kwargs.update(
             {
