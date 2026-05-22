@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime  # type: ignore[attr-defined]
+from datetime import datetime, timezone
 from logging import Logger, getLogger
 from typing import Any
 from uuid import uuid4
@@ -60,7 +60,7 @@ class MetaProcessor(BaseProcessor):
 
     @classmethod
     def get_time(cls) -> str:
-        return datetime.now(UTC).isoformat()  # type: ignore[arg-type]
+        return datetime.now(timezone.utc).isoformat()
 
     @classmethod
     def get_uuid(cls) -> str:
