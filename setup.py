@@ -101,7 +101,7 @@ setup(
     name='octodns',
     package_data={'octodns': ['py.typed']},
     packages=find_packages(),
-    python_requires='>=3.9',
+    python_requires='>=3.10',
     tests_require=tests_require,
     url='https://github.com/octodns/octodns',
     version=octodns.__version__,
