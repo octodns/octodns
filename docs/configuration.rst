@@ -319,6 +319,10 @@ Validators active in ``strict`` only (stricter replacements):
 +----------------------------+-------------------------------------------------------+
 | ``no-cname-loop``          | CNAME chains within the zone must not loop            |
 +----------------------------+-------------------------------------------------------+
+| ``dname-coexistence``      | DNAME must not coexist with CNAME at any node, or     |
+|                            | with NS at a non-apex node. Also warns about occluded |
+|                            | subordinate records.                                  |
++----------------------------+-------------------------------------------------------+
 | ``mx-target-not-cname``    | MX target must not be a CNAME                         |
 +----------------------------+-------------------------------------------------------+
 | ``ns-target-not-cname``    | NS target must not be a CNAME                         |

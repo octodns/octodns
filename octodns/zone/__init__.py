@@ -7,6 +7,7 @@ from .cname import (
     CnameTargetResolvableInZoneZoneValidator,
     NoCnameLoopZoneValidator,
 )
+from .dname import DnameCoexistenceValidator
 from .mail import MailZoneValidator, MxTargetResolvableInZoneZoneValidator
 from .ns import (
     GlueForInZoneNsZoneValidator,
@@ -22,6 +23,7 @@ from .subzone import SubzoneRecordValidator
 CaaZoneValidator
 CnameCoexistenceValidator
 CnameTargetResolvableInZoneZoneValidator
+DnameCoexistenceValidator
 DuplicateRecordException
 GlueForInZoneNsZoneValidator
 InvalidNameError
