@@ -420,3 +420,34 @@ Zone.register_zone_validator(
 )
 
 Zone.register_zone_validator(MailZoneValidator('mail', sets={'best-practice'}))
+
+
+class MxTargetResolvableInZoneZoneValidator(ZoneValidator):
+    '''
+    Checks that ``MX`` exchanges pointing to targets within the same zone have
+    corresponding address records.
+    '''
+
+    def validate(self, zone):
+        reasons = []
+        for record in zone.records:
+            if record._type == 'MX':
+                for value in record.values:
+                    target = value.exchange
+                    if zone.owns('A', target):
+                        hostname = zone.hostname_from_fqdn(target)
+                        if not zone.get(hostname):
+                            reasons.append(
+                                ValidationReason(
+                                    f'MX record "{record.decoded_fqdn}" points to in-zone target "{target}" that does not exist',
+                                    [record],
+                                )
+                            )
+        return reasons
+
+
+Zone.register_zone_validator(
+    MxTargetResolvableInZoneZoneValidator(
+        'mx-target-resolvable-in-zone', sets={'best-practice'}
+    )
+)

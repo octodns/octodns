@@ -6,7 +6,11 @@ from unittest import TestCase
 
 from octodns.record import Record
 from octodns.zone import Zone
-from octodns.zone.mail import MailZoneValidator, MxTargetNotCnameZoneValidator
+from octodns.zone.mail import (
+    MailZoneValidator,
+    MxTargetNotCnameZoneValidator,
+    MxTargetResolvableInZoneZoneValidator,
+)
 
 
 def _make_zone(name='unit.tests.'):
@@ -815,3 +819,98 @@ class TestMxTargetNotCnameZoneValidator(TestCase):
         Zone.enable_zone_validators({'strict'})
         active_ids = [v.id for v in Zone.validators.registered()]
         self.assertIn('mx-target-not-cname', active_ids)
+
+
+class TestMxTargetResolvableInZoneZoneValidator(TestCase):
+    def test_mx_target_resolvable_in_zone(self):
+        v = MxTargetResolvableInZoneZoneValidator('test')
+        zone = _make_zone('unit.tests.')
+
+        # Out-of-zone target (should pass - not checked)
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [{'preference': 10, 'exchange': 'mail.other.tests.'}],
+            },
+        )
+        zone.add_record(mx)
+        self.assertEqual([], v.validate(zone))
+
+        # In-zone target with A record (should pass) - use replace=True
+        mx_good = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [{'preference': 10, 'exchange': 'mail.unit.tests.'}],
+            },
+        )
+        zone.add_record(mx_good, replace=True)
+        a = _add_record(
+            zone, 'mail', {'ttl': 300, 'type': 'A', 'values': ['1.2.3.4']}
+        )
+        zone.add_record(a)
+        self.assertEqual([], v.validate(zone))
+
+        # In-zone target with AAAA record (should pass) - use replace=True
+        mx_good2 = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [{'preference': 20, 'exchange': 'mail6.unit.tests.'}],
+            },
+        )
+        zone.add_record(mx_good2, replace=True)
+        aaaa = _add_record(
+            zone, 'mail6', {'ttl': 300, 'type': 'AAAA', 'values': ['::1']}
+        )
+        zone.add_record(aaaa)
+        self.assertEqual([], v.validate(zone))
+
+        # In-zone target with missing address record (should fail) - use replace=True
+        mx_bad = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [
+                    {'preference': 30, 'exchange': 'missing.unit.tests.'}
+                ],
+            },
+        )
+        zone.add_record(mx_bad, replace=True)
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('points to in-zone target', str(reasons[0]))
+        self.assertIn('that does not exist', str(reasons[0]))
+        self.assertEqual({mx_bad}, reasons[0].records)
+
+    def test_mx_target_resolvable_multiple_targets(self):
+        v = MxTargetResolvableInZoneZoneValidator('test')
+        zone = _make_zone('unit.tests.')
+
+        # MX record with multiple values both pointing to missing in-zone targets
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'MX',
+                'values': [
+                    {'preference': 10, 'exchange': 'missing1.unit.tests.'},
+                    {'preference': 20, 'exchange': 'missing2.unit.tests.'},
+                ],
+            },
+        )
+        zone.add_record(mx)
+        reasons = v.validate(zone)
+        self.assertEqual(2, len(reasons))
+        records_found = {r for reason in reasons for r in reason.records}
+        self.assertEqual({mx}, records_found)
