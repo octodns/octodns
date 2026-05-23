@@ -6,7 +6,7 @@ from unittest import TestCase
 
 from octodns.record import Record
 from octodns.record.exception import ValidationError
-from octodns.record.spf import SpfRecord
+from octodns.record.spf import SpfRecord, SpfRecordTypeValidator
 from octodns.zone import Zone
 
 
@@ -68,4 +68,13 @@ class TestRecordSpf(TestCase):
         self.assertEqual(
             ['unescaped ; in "this has some; semi-colons\\; in it"'],
             ctx.exception.reasons,
+        )
+
+    def test_spf_validator(self):
+        v = SpfRecordTypeValidator('test')
+        self.assertEqual(
+            [
+                'The SPF record type is DEPRECATED in favor of TXT values and will become an ValidationError in 2.0'
+            ],
+            v.validate(SpfRecord, 'name', 'fqdn', {}),
         )

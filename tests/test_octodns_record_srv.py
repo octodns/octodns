@@ -15,6 +15,7 @@ from octodns.record.srv import (
     SrvRecord,
     SrvValue,
     SrvValueBestPracticeValidator,
+    SrvValueNotIpValidator,
     SrvValueRfcValidator,
 )
 from octodns.zone import Zone
@@ -852,4 +853,44 @@ class TestSrvValue(TestCase):
         self.assertEqual(
             ['SRV target "unit.tests..example.com." is not a valid FQDN'],
             ctx.exception.reasons,
+        )
+
+    def test_not_ip_validator(self):
+        validate = SrvValueNotIpValidator('test').validate
+
+        self.assertEqual(
+            [],
+            validate(
+                SrvValue,
+                [
+                    {
+                        'priority': 10,
+                        'weight': 20,
+                        'port': 30,
+                        'target': 'srv.unit.tests.',
+                    }
+                ],
+                'SRV',
+            ),
+        )
+        self.assertEqual(
+            ['SRV target "1.2.3.4." is an IP address'],
+            validate(
+                SrvValue,
+                [
+                    {
+                        'priority': 10,
+                        'weight': 20,
+                        'port': 30,
+                        'target': '1.2.3.4.',
+                    }
+                ],
+                'SRV',
+            ),
+        )
+        self.assertEqual(
+            [],
+            validate(
+                SrvValue, [{'priority': 10, 'weight': 20, 'port': 30}], 'SRV'
+            ),
         )

@@ -13,6 +13,7 @@ from octodns.record.mx import (
     MxRecord,
     MxValue,
     MxValueBestPracticeValidator,
+    MxValueNotIpValidator,
     MxValueRfcValidator,
 )
 from octodns.record.rr import RrParseError
@@ -526,3 +527,22 @@ class TestMxValue(TestCase):
             )
         finally:
             Record.disable_validator('mx-value-rfc', types=['MX'])
+
+    def test_not_ip_validator(self):
+        validate = MxValueNotIpValidator('test').validate
+
+        self.assertEqual(
+            [],
+            validate(
+                MxValue,
+                [{'preference': 10, 'exchange': 'mx.unit.tests.'}],
+                'MX',
+            ),
+        )
+        self.assertEqual(
+            ['MX exchange "1.2.3.4." is an IP address'],
+            validate(
+                MxValue, [{'preference': 10, 'exchange': '1.2.3.4.'}], 'MX'
+            ),
+        )
+        self.assertEqual([], validate(MxValue, [{'preference': 10}], 'MX'))

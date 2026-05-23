@@ -6,7 +6,11 @@ from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
-from .target import _check_target_format, _check_target_trailing_dot
+from .target import (
+    _check_target_format,
+    _check_target_not_ip,
+    _check_target_trailing_dot,
+)
 from .validator import ValueValidator
 
 
@@ -108,10 +112,27 @@ class MxValueBestPracticeValidator(ValueValidator):
         return reasons
 
 
+class MxValueNotIpValidator(ValueValidator):
+    '''
+    Checks that the MX ``exchange`` field is not an IP address.
+    '''
+
+    def validate(self, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            exchange = value.get('exchange') or value.get('value')
+            if exchange:
+                reasons += _check_target_not_ip(exchange, _type, 'exchange')
+        return reasons
+
+
 class MxValue(EqualityTupleMixin, dict):
     VALIDATORS = [
         MxValueValidator('mx-value', sets={'legacy'}),
         MxValueRfcValidator('mx-value-rfc', sets={'strict'}),
+        MxValueNotIpValidator(
+            'mx-value-not-ip', sets={'strict', 'best-practice'}
+        ),
         MxValueBestPracticeValidator(
             'mx-value-best-practice', sets={'best-practice'}
         ),
