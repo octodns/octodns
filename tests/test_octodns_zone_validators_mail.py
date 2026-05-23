@@ -8,6 +8,7 @@ from octodns.record import Record
 from octodns.zone import Zone
 from octodns.zone.mail import (
     MailZoneValidator,
+    MxTargetNotCnameZoneValidator,
     MxTargetResolvableInZoneZoneValidator,
 )
 
@@ -359,7 +360,7 @@ class TestMailZoneValidator(TestCase):
         self.assertEqual([], v.validate(zone))
 
     def test_subzone_mail_failures(self):
-        # Use auto mode so apex validation does not interfere
+        # Use auto mode so apex auto-detection finds no apex signals and skips
         v = MailZoneValidator('test', mode='auto')
 
         # Missing SPF
@@ -713,6 +714,111 @@ class TestMailZoneValidator(TestCase):
         Zone.enable_zone_validators({'best-practice'})
         active_ids = [v.id for v in Zone.validators.registered()]
         self.assertIn('mail', active_ids)
+
+
+class TestMxTargetNotCnameZoneValidator(TestCase):
+    def test_empty_zone(self):
+        v = MxTargetNotCnameZoneValidator('test')
+        zone = _make_zone()
+        self.assertEqual([], v.validate(zone))
+
+    def test_out_of_zone_exchange(self):
+        v = MxTargetNotCnameZoneValidator('test')
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'type': 'MX',
+                'values': [{'preference': 10, 'exchange': 'mail.other.tests.'}],
+            },
+        )
+        zone.add_record(mx)
+        self.assertEqual([], v.validate(zone))
+
+    def test_in_zone_exchange_no_cname(self):
+        v = MxTargetNotCnameZoneValidator('test')
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'type': 'MX',
+                'values': [{'preference': 10, 'exchange': 'mail.unit.tests.'}],
+            },
+        )
+        zone.add_record(mx)
+        a = _add_record(zone, 'mail', {'type': 'A', 'values': ['1.2.3.4']})
+        zone.add_record(a)
+        self.assertEqual([], v.validate(zone))
+
+    def test_in_zone_exchange_is_cname(self):
+        v = MxTargetNotCnameZoneValidator('test')
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'type': 'MX',
+                'values': [{'preference': 10, 'exchange': 'mail.unit.tests.'}],
+            },
+        )
+        zone.add_record(mx)
+        cname = _add_record(
+            zone, 'mail', {'type': 'CNAME', 'value': 'real.unit.tests.'}
+        )
+        zone.add_record(cname)
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('MX record "unit.tests."', str(reasons[0]))
+        self.assertIn('mail.unit.tests.', str(reasons[0]))
+        self.assertIn('is a CNAME', str(reasons[0]))
+        self.assertEqual({mx}, reasons[0].records)
+
+    def test_null_mx_skipped(self):
+        v = MxTargetNotCnameZoneValidator('test')
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            '',
+            {'type': 'MX', 'values': [{'preference': 0, 'exchange': '.'}]},
+        )
+        zone.add_record(mx)
+        self.assertEqual([], v.validate(zone))
+
+    def test_multiple_exchanges_mixed(self):
+        v = MxTargetNotCnameZoneValidator('test')
+        zone = _make_zone()
+        mx = _add_record(
+            zone,
+            '',
+            {
+                'type': 'MX',
+                'values': [
+                    {'preference': 10, 'exchange': 'mail1.unit.tests.'},
+                    {'preference': 20, 'exchange': 'mail2.unit.tests.'},
+                ],
+            },
+        )
+        zone.add_record(mx)
+        cname = _add_record(
+            zone, 'mail1', {'type': 'CNAME', 'value': 'real.unit.tests.'}
+        )
+        zone.add_record(cname)
+        a = _add_record(zone, 'mail2', {'type': 'A', 'values': ['1.2.3.4']})
+        zone.add_record(a)
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('mail1.unit.tests.', str(reasons[0]))
+
+    def test_builtin_registration(self):
+        ids = [v.id for v in Zone.validators.available_validators()]
+        self.assertIn('mx-target-not-cname', ids)
+
+    def test_builtins_in_strict_set(self):
+        Zone.enable_zone_validators({'strict'})
+        active_ids = [v.id for v in Zone.validators.registered()]
+        self.assertIn('mx-target-not-cname', active_ids)
 
 
 class TestMxTargetResolvableInZoneZoneValidator(TestCase):

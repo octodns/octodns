@@ -38,9 +38,32 @@ class GlueForInZoneNsZoneValidator(ZoneValidator):
                         if not addresses:
                             reasons.append(
                                 ValidationReason(
-                                    f'NS record "{record.fqdn}" points to '
-                                    f'in-zone target "{target}" without '
-                                    'glue records (A/AAAA)',
+                                    f'NS record "{record.fqdn}" points to in-zone target "{target}" without glue records (A/AAAA)',
+                                    [record],
+                                )
+                            )
+        return reasons
+
+
+class NsTargetNotCnameZoneValidator(ZoneValidator):
+    '''
+    Checks that NS records do not point to targets that are CNAMEs within the
+    same zone. A CNAME target for NS is invalid because resolvers need the
+    actual A/AAAA records to follow the delegation.
+    '''
+
+    def validate(self, zone):
+        reasons = []
+        for record in zone.records:
+            if record._type == 'NS':
+                for target in record.values:
+                    if zone.owns('CNAME', target):
+                        hostname = zone.hostname_from_fqdn(target)
+                        cnames = zone.get(hostname, type='CNAME')
+                        if cnames:
+                            reasons.append(
+                                ValidationReason(
+                                    f'NS record "{record.fqdn}" points to target "{target}" which is a CNAME',
                                     [record],
                                 )
                             )
@@ -61,8 +84,7 @@ class MultiValueNsZoneValidator(ZoneValidator):
                 if len(record.values) < 2:
                     reasons.append(
                         ValidationReason(
-                            f'NS record "{record.fqdn}" has only {len(record.values)} '
-                            'value; at least 2 are recommended for redundancy',
+                            f'NS record "{record.fqdn}" has only {len(record.values)} value; at least 2 are recommended for redundancy',
                             [record],
                         )
                     )
@@ -74,4 +96,7 @@ Zone.register_zone_validator(
 )
 Zone.register_zone_validator(
     MultiValueNsZoneValidator('multi-value-ns', sets={'best-practice'})
+)
+Zone.register_zone_validator(
+    NsTargetNotCnameZoneValidator('ns-target-not-cname', sets={'strict'})
 )

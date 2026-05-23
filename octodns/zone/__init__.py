@@ -8,17 +8,29 @@ from .cname import (
     NoCnameLoopZoneValidator,
 )
 from .mail import MailZoneValidator, MxTargetResolvableInZoneZoneValidator
-from .srv import SrvTargetResolvableInZoneZoneValidator
+from .ns import (
+    GlueForInZoneNsZoneValidator,
+    MultiValueNsZoneValidator,
+    NsTargetNotCnameZoneValidator,
+)
+from .srv import (
+    SrvTargetNotCnameZoneValidator,
+    SrvTargetResolvableInZoneZoneValidator,
+)
 from .subzone import SubzoneRecordValidator
 
+CaaZoneValidator
 CnameCoexistenceValidator
+CnameTargetResolvableInZoneZoneValidator
 DuplicateRecordException
+GlueForInZoneNsZoneValidator
 InvalidNameError
 MailZoneValidator
+MultiValueNsZoneValidator
 MxTargetResolvableInZoneZoneValidator
-SrvTargetResolvableInZoneZoneValidator
-CnameTargetResolvableInZoneZoneValidator
 NoCnameLoopZoneValidator
-CaaZoneValidator
+NsTargetNotCnameZoneValidator
+SrvTargetNotCnameZoneValidator
+SrvTargetResolvableInZoneZoneValidator
 SubzoneRecordValidator
 Zone
