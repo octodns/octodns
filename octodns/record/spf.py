@@ -22,11 +22,7 @@ class SpfRecord(_ChunkedValuesMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc7208',)
     _type = 'SPF'
     _value_type = _ChunkedValue
-    VALIDATORS = [
-        SpfRecordTypeValidator(
-            'spf-record-type', sets={'strict', 'best-practice'}
-        )
-    ]
+    VALIDATORS = [SpfRecordTypeValidator('spf-record-type', sets={'strict'})]
 
 
 Record.register_type(SpfRecord)

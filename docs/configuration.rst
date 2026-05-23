@@ -243,6 +243,9 @@ Validators active in both ``legacy`` and ``strict``:
 +------------------------+------------------------------------------+
 | ``urlfwd-value``       | URLFWD rdata format                      |
 +------------------------+------------------------------------------+
+| ``cname-coexistence``  | CNAME and ALIAS cannot coexist with      |
+|                        | other records                            |
++------------------------+------------------------------------------+
 
 Validators active in ``legacy`` only (will be superseded in ``strict``):
 
@@ -274,44 +277,62 @@ Validators active in ``legacy`` only (will be superseded in ``strict``):
 
 Validators active in ``strict`` only (stricter replacements):
 
-+--------------------+-------------------------------------------------------+
-| id                 | description                                           |
-+====================+=======================================================+
-| ``srv-name-rfc``   | SRV name strict per RFC 2782 + RFC 6335 §5.1;         |
-|                    | replaces ``srv-name``                                 |
-+--------------------+-------------------------------------------------------+
-| ``srv-value-rfc``  | SRV rdata strict per RFC 2782 (range, null target);   |
-|                    | replaces ``srv-value``                                |
-+--------------------+-------------------------------------------------------+
-| ``uri-name-rfc``   | URI name strict per RFC 7553 + RFC 6335 §5.1;         |
-|                    | replaces ``uri-name``                                 |
-+--------------------+-------------------------------------------------------+
-| ``mx-value-rfc``   | MX preference in [0, 65535]; null MX rules per        |
-|                    | RFC 7505; replaces ``mx-value``                       |
-+--------------------+-------------------------------------------------------+
-| ``caa-value-rfc``  | CAA flags restricted to 0/128 (RFC 8659 §4.1);        |
-|                    | tag must match ``[a-zA-Z0-9]+``; replaces             |
-|                    | ``caa-value``                                         |
-+--------------------+-------------------------------------------------------+
-| ``tlsa-value-rfc`` | TLSA fields uint8 [0, 255]; certificate_association   |
-|                    | _data must be hex; SHA-256/SHA-512 length enforced    |
-|                    | (RFC 6698); replaces ``tlsa-value``                   |
-+--------------------+-------------------------------------------------------+
-| ``ds-value-rfc``   | DS key_tag uint16, algorithm/digest_type uint8;       |
-|                    | digest must be hex; SHA-1/SHA-256/SHA-384 length      |
-|                    | enforced (RFC 4034/4509/6605); replaces ``ds-value``  |
-+--------------------+-------------------------------------------------------+
-| ``naptr-value-rfc``| NAPTR order/preference uint16; flags S/A/U/P only;    |
-|                    | replacement must be FQDN or "." (RFC 3403);           |
-|                    | replaces ``naptr-value``                              |
-+--------------------+-------------------------------------------------------+
-| ``sshfp-value-rfc``| SSHFP algorithm/fingerprint_type uint8 [0, 255];      |
-|                    | fingerprint must be hex; SHA-1/SHA-256 length         |
-|                    | enforced (RFC 4255/6594); replaces ``sshfp-value``    |
-+--------------------+-------------------------------------------------------+
-| ``uri-value-rfc``  | URI priority/weight uint16 [0, 65535] (RFC 7553 §4);  |
-|                    | replaces ``uri-value``                                |
-+--------------------+-------------------------------------------------------+
++----------------------------+-------------------------------------------------------+
+| id                         | description                                           |
++============================+=======================================================+
+| ``srv-name-rfc``           | SRV name strict per RFC 2782 + RFC 6335 §5.1;         |
+|                            | replaces ``srv-name``                                 |
++----------------------------+-------------------------------------------------------+
+| ``srv-value-rfc``          | SRV rdata strict per RFC 2782 (range, null target);   |
+|                            | replaces ``srv-value``                                |
++----------------------------+-------------------------------------------------------+
+| ``uri-name-rfc``           | URI name strict per RFC 7553 + RFC 6335 §5.1;         |
+|                            | replaces ``uri-name``                                 |
++----------------------------+-------------------------------------------------------+
+| ``mx-value-rfc``           | MX preference in [0, 65535]; null MX rules per        |
+|                            | RFC 7505; replaces ``mx-value``                       |
++----------------------------+-------------------------------------------------------+
+| ``caa-value-rfc``          | CAA flags restricted to 0/128 (RFC 8659 §4.1);        |
+|                            | tag must match ``[a-zA-Z0-9]+``; replaces             |
+|                            | ``caa-value``                                         |
++----------------------------+-------------------------------------------------------+
+| ``tlsa-value-rfc``         | TLSA fields uint8 [0, 255]; certificate_association   |
+|                            | _data must be hex; SHA-256/SHA-512 length enforced    |
+|                            | (RFC 6698); replaces ``tlsa-value``                   |
++----------------------------+-------------------------------------------------------+
+| ``ds-value-rfc``           | DS key_tag uint16, algorithm/digest_type uint8;       |
+|                            | digest must be hex; SHA-1/SHA-256/SHA-384 length      |
+|                            | enforced (RFC 4034/4509/6605); replaces ``ds-value``  |
++----------------------------+-------------------------------------------------------+
+| ``naptr-value-rfc``        | NAPTR order/preference uint16; flags S/A/U/P only;    |
+|                            | replacement must be FQDN or "." (RFC 3403);           |
+|                            | replaces ``naptr-value``                              |
++----------------------------+-------------------------------------------------------+
+| ``sshfp-value-rfc``        | SSHFP algorithm/fingerprint_type uint8 [0, 255];      |
+|                            | fingerprint must be hex; SHA-1/SHA-256 length         |
+|                            | enforced (RFC 4255/6594); replaces ``sshfp-value``    |
++----------------------------+-------------------------------------------------------+
+| ``uri-value-rfc``          | URI priority/weight uint16 [0, 65535] (RFC 7553 §4);  |
+|                            | replaces ``uri-value``                                |
++----------------------------+-------------------------------------------------------+
+| ``root-cname``             | CNAME must not be at the zone apex                    |
++----------------------------+-------------------------------------------------------+
+| ``no-cname-loop``          | CNAME chains within the zone must not loop            |
++----------------------------+-------------------------------------------------------+
+| ``mx-target-not-cname``    | MX target must not be a CNAME                         |
++----------------------------+-------------------------------------------------------+
+| ``ns-target-not-cname``    | NS target must not be a CNAME                         |
++----------------------------+-------------------------------------------------------+
+| ``srv-target-not-cname``   | SRV target must not be a CNAME                        |
++----------------------------+-------------------------------------------------------+
+| ``glue-for-in-zone-ns``    | In-zone NS targets must have A/AAAA glue records      |
++----------------------------+-------------------------------------------------------+
+| ``target-value-not-ip``    | CNAME/ALIAS/DNAME/PTR target must not be an IP        |
++----------------------------+-------------------------------------------------------+
+| ``targets-value-not-ip``   | NS targets must not be an IP                          |
++----------------------------+-------------------------------------------------------+
+| ``spf-record-type``        | SPF record type is deprecated in favor of TXT         |
++----------------------------+-------------------------------------------------------+
 
 To opt into all strict validators at once::
 
@@ -322,26 +343,33 @@ To opt into all strict validators at once::
 
 Validators active in ``best-practice`` only:
 
-+----------------------------------+-----------------------------------------------+
-| id                               | description                                   |
-+==================================+===============================================+
-| ``target-value-best-practice``   | CNAME/ALIAS/DNAME target must end with        |
-|                                  | ``"."`` (absolute name prevents resolver      |
-|                                  | search-domain append)                         |
-+----------------------------------+-----------------------------------------------+
-| ``targets-value-best-practice``  | NS/PTR targets must each end with ``"."``     |
-+----------------------------------+-----------------------------------------------+
-| ``mx-value-best-practice``       | MX ``exchange`` must end with ``"."``         |
-+----------------------------------+-----------------------------------------------+
-| ``srv-value-best-practice``      | SRV ``target`` must end with ``"."``          |
-+----------------------------------+-----------------------------------------------+
-| ``svcb-value-best-practice``     | SVCB ``targetname`` must end with ``"."``     |
-+----------------------------------+-----------------------------------------------+
-| ``https-value-best-practice``    | HTTPS ``targetname`` must end with ``"."``    |
-+----------------------------------+-----------------------------------------------+
-| ``naptr-value-best-practice``    | NAPTR ``replacement`` must end with ``"."``   |
-+----------------------------------+-----------------------------------------------+
-
++---------------------------------------+-----------------------------------------------+
+| id                                    | description                                   |
++=======================================+===============================================+
+| ``target-value-best-practice``        | CNAME/ALIAS/DNAME target must end with        |
+|                                       | ``"."`` (absolute name prevents resolver      |
+|                                       | search-domain append)                         |
++---------------------------------------+-----------------------------------------------+
+| ``targets-value-best-practice``       | NS/PTR targets must each end with ``"."``     |
++---------------------------------------+-----------------------------------------------+
+| ``mx-value-best-practice``            | MX ``exchange`` must end with ``"."``         |
++---------------------------------------+-----------------------------------------------+
+| ``srv-value-best-practice``           | SRV ``target`` must end with ``"."``          |
++---------------------------------------+-----------------------------------------------+
+| ``svcb-value-best-practice``          | SVCB ``targetname`` must end with ``"."``     |
++---------------------------------------+-----------------------------------------------+
+| ``https-value-best-practice``         | HTTPS ``targetname`` must end with ``"."``    |
++---------------------------------------+-----------------------------------------------+
+| ``naptr-value-best-practice``         | NAPTR ``replacement`` must end with ``"."``   |
++---------------------------------------+-----------------------------------------------+
+| ``cname-target-not-cname``            | CNAME target should not point to a CNAME      |
++---------------------------------------+-----------------------------------------------+
+| ``mx-target-resolvable-in-zone``      | In-zone MX targets must be resolvable         |
++---------------------------------------+-----------------------------------------------+
+| ``srv-target-resolvable-in-zone``     | In-zone SRV targets must be resolvable        |
++---------------------------------------+-----------------------------------------------+
+| ``cname-target-resolvable-in-zone``   | In-zone CNAME targets must be resolvable      |
++---------------------------------------+-----------------------------------------------+
 Validators active in ``best-practice`` only that check the entire zone:
 
 +----------------------------------+-----------------------------------------------+
@@ -354,6 +382,11 @@ Validators active in ``best-practice`` only that check the entire zone:
 |                                  | SPF, or DMARC) are found. If any are present  |
 |                                  | it enforces 'mail' or 'no-mail' based on the  |
 |                                  | presence of MX records at the apex.           |
++----------------------------------+-----------------------------------------------+
+| ``caa-best-practices``           | CAA records must have at least one issue or   |
+|                                  | issuewild tag (if any CAA records exist)      |
++----------------------------------+-----------------------------------------------+
+| ``multi-value-ns``               | Zone must have at least two NS records        |
 +----------------------------------+-----------------------------------------------+
 
 The recommended configuration is to enable both sets::

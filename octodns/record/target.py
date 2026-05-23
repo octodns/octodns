@@ -137,9 +137,7 @@ class TargetsValueBestPracticeValidator(ValueValidator):
 class _TargetValue(str):
     VALIDATORS = [
         TargetValueValidator('target-value-rfc', sets={'legacy', 'strict'}),
-        TargetValueNotIpValidator(
-            'target-value-not-ip', sets={'strict', 'best-practice'}
-        ),
+        TargetValueNotIpValidator('target-value-not-ip', sets={'strict'}),
         TargetValueBestPracticeValidator(
             'target-value-best-practice', sets={'best-practice'}
         ),
@@ -178,9 +176,7 @@ class _TargetValue(str):
 class _TargetsValue(str):
     VALIDATORS = [
         TargetsValueValidator('targets-value-rfc', sets={'legacy', 'strict'}),
-        TargetsValueNotIpValidator(
-            'targets-value-not-ip', sets={'strict', 'best-practice'}
-        ),
+        TargetsValueNotIpValidator('targets-value-not-ip', sets={'strict'}),
         TargetsValueBestPracticeValidator(
             'targets-value-best-practice', sets={'best-practice'}
         ),
