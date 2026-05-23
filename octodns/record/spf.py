@@ -2,22 +2,31 @@
 #
 #
 
-from ..deprecation import deprecated
 from .base import Record
 from .chunked import _ChunkedValue, _ChunkedValuesMixin
+from .validator import RecordValidator
+
+
+class SpfRecordTypeValidator(RecordValidator):
+    '''
+    Validates that the deprecated SPF record type is not used.
+    '''
+
+    def validate(self, record_cls, name, fqdn, data):
+        return [
+            'The SPF record type is DEPRECATED in favor of TXT values and will become an ValidationError in 2.0'
+        ]
 
 
 class SpfRecord(_ChunkedValuesMixin, Record):
     REFERENCES = ('https://datatracker.ietf.org/doc/html/rfc7208',)
     _type = 'SPF'
     _value_type = _ChunkedValue
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        deprecated(
-            'The SPF record type is DEPRECATED in favor of TXT values and will become an ValidationError in 2.0',
-            stacklevel=99,
+    VALIDATORS = [
+        SpfRecordTypeValidator(
+            'spf-record-type', sets={'strict', 'best-practice'}
         )
+    ]
 
 
 Record.register_type(SpfRecord)

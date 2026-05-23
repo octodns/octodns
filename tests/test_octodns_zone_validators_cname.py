@@ -8,8 +8,10 @@ from octodns.record import Record
 from octodns.zone import Zone
 from octodns.zone.cname import (
     CnameCoexistenceValidator,
+    CnameTargetNotCnameZoneValidator,
     CnameTargetResolvableInZoneZoneValidator,
     NoCnameLoopZoneValidator,
+    RootCnameZoneValidator,
 )
 
 
@@ -157,6 +159,110 @@ class TestCnameCoexistenceValidator(TestCase):
         reasons = v.validate(zone)
         self.assertEqual(1, len(reasons))
         self.assertTrue(reasons[0].lenient)
+
+    def test_alias_coexistence(self):
+        v = CnameCoexistenceValidator('test')
+        zone = _make_zone()
+
+        # ALIAS and TXT (should pass)
+        alias1 = _add_record(
+            zone, '', {'type': 'ALIAS', 'value': 'target.unit.tests.'}
+        )
+        txt1 = _add_record(zone, '', {'type': 'TXT', 'value': 'some txt'})
+        zone.add_record(alias1)
+        zone.add_record(txt1)
+        self.assertEqual([], v.validate(zone))
+
+        # ALIAS and A (should fail)
+        a2 = _add_record(zone, 'www', {'type': 'A', 'value': '1.2.3.4'})
+        alias2 = _add_record(
+            zone, 'www', {'type': 'ALIAS', 'value': 'target.unit.tests.'}
+        )
+        zone.add_record(a2)
+        zone.add_record(alias2)
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'ALIAS at www.unit.tests. cannot coexist with A or AAAA records',
+            str(reasons[0]),
+        )
+
+        # ALIAS and AAAA (should fail)
+        zone2 = _make_zone()
+        aaaa3 = _add_record(zone2, '', {'type': 'AAAA', 'value': '::1'})
+        alias3 = _add_record(
+            zone2, '', {'type': 'ALIAS', 'value': 'target.unit.tests.'}
+        )
+        zone2.add_record(aaaa3)
+        zone2.add_record(alias3)
+        reasons2 = v.validate(zone2)
+        self.assertEqual(1, len(reasons2))
+        self.assertIn(
+            'ALIAS at unit.tests. cannot coexist with A or AAAA records',
+            str(reasons2[0]),
+        )
+
+
+class TestRootCnameZoneValidator(TestCase):
+    def test_root_cname(self):
+        v = RootCnameZoneValidator('test')
+        zone = _make_zone()
+
+        # No records
+        self.assertEqual([], v.validate(zone))
+
+        # CNAME not at root
+        cname1 = _add_record(
+            zone, 'www', {'type': 'CNAME', 'value': 'target.unit.tests.'}
+        )
+        zone.add_record(cname1)
+        self.assertEqual([], v.validate(zone))
+
+        # CNAME at root
+        cname2 = _add_record(
+            zone, '', {'type': 'CNAME', 'value': 'target.unit.tests.'}
+        )
+        zone.add_record(cname2)
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'CNAME record at zone apex "unit.tests." is not allowed',
+            str(reasons[0]),
+        )
+
+
+class TestCnameTargetNotCnameZoneValidator(TestCase):
+    def test_cname_target_not_cname(self):
+        v = CnameTargetNotCnameZoneValidator('test')
+        zone = _make_zone()
+
+        # Target is A record
+        cname1 = _add_record(
+            zone, 'www', {'type': 'CNAME', 'value': 'target.unit.tests.'}
+        )
+        a1 = _add_record(zone, 'target', {'type': 'A', 'value': '1.2.3.4'})
+        zone.add_record(cname1)
+        zone.add_record(a1)
+        self.assertEqual([], v.validate(zone))
+
+        # Target is out of zone
+        cname2 = _add_record(
+            zone, 'api', {'type': 'CNAME', 'value': 'out.of.zone.'}
+        )
+        zone.add_record(cname2)
+        self.assertEqual([], v.validate(zone))
+
+        # Target is CNAME
+        cname3 = _add_record(
+            zone, 'alias', {'type': 'CNAME', 'value': 'www.unit.tests.'}
+        )
+        zone.add_record(cname3)
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn(
+            'CNAME record "alias.unit.tests." points to target "www.unit.tests." which is also a CNAME',
+            str(reasons[0]),
+        )
 
 
 class TestCnameTargetResolvableInZoneZoneValidator(TestCase):

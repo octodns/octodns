@@ -9,7 +9,7 @@ from .validator import ValidationReason, ZoneValidator
 class CnameCoexistenceValidator(ZoneValidator):
     '''
     Verify that CNAME records do not coexist with other records at the same
-    node.
+    node, and ALIAS records do not coexist with A or AAAA records.
     '''
 
     def validate(self, zone):
@@ -19,10 +19,18 @@ class CnameCoexistenceValidator(ZoneValidator):
                 types = [r._type for r in node]
                 if 'CNAME' in types:
                     # All records at this node have the same FQDN
-                    record = next(iter(node))
+                    record = next(r for r in node if r._type == 'CNAME')
                     reasons.append(
                         ValidationReason(
                             f'Invalid state, CNAME at {record.fqdn} cannot coexist with other records',
+                            node,
+                        )
+                    )
+                elif 'ALIAS' in types and ('A' in types or 'AAAA' in types):
+                    record = next(r for r in node if r._type == 'ALIAS')
+                    reasons.append(
+                        ValidationReason(
+                            f'Invalid state, ALIAS at {record.fqdn} cannot coexist with A or AAAA records',
                             node,
                         )
                     )
@@ -103,6 +111,48 @@ class CnameTargetResolvableInZoneZoneValidator(ZoneValidator):
         return reasons
 
 
+class RootCnameZoneValidator(ZoneValidator):
+    '''
+    Checks that a CNAME record is not present at the zone apex (root).
+    RFC 1912 forbids CNAME records at the root.
+    '''
+
+    def validate(self, zone):
+        reasons = []
+        cname = zone.get_type('', 'CNAME')
+        if cname:
+            reasons.append(
+                ValidationReason(
+                    f'CNAME record at zone apex "{cname.decoded_fqdn}" is not allowed',
+                    [cname],
+                )
+            )
+        return reasons
+
+
+class CnameTargetNotCnameZoneValidator(ZoneValidator):
+    '''
+    Checks that CNAME records do not point to other CNAME records within the same zone.
+    '''
+
+    def validate(self, zone):
+        reasons = []
+        for record in zone.records:
+            if record._type == 'CNAME':
+                target = str(record.value)
+                if zone.owns('CNAME', target):
+                    hostname = zone.hostname_from_fqdn(target)
+                    cnames = zone.get(hostname, type='CNAME')
+                    if cnames:
+                        reasons.append(
+                            ValidationReason(
+                                f'CNAME record "{record.decoded_fqdn}" points to target "{target}" which is also a CNAME',
+                                [record],
+                            )
+                        )
+        return reasons
+
+
 Zone.register_zone_validator(
     CnameCoexistenceValidator('cname-coexistence', sets={'legacy', 'strict'})
 )
@@ -114,5 +164,15 @@ Zone.register_zone_validator(
 Zone.register_zone_validator(
     CnameTargetResolvableInZoneZoneValidator(
         'cname-target-resolvable-in-zone', sets={'best-practice'}
+    )
+)
+
+Zone.register_zone_validator(
+    RootCnameZoneValidator('root-cname', sets={'strict'})
+)
+
+Zone.register_zone_validator(
+    CnameTargetNotCnameZoneValidator(
+        'cname-target-not-cname', sets={'best-practice'}
     )
 )

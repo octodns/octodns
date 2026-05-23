@@ -2,6 +2,8 @@
 #
 #
 
+import ipaddress
+
 from fqdn import FQDN
 
 from ..idna import idna_encode
@@ -18,6 +20,21 @@ def _check_target_format(target, _type, key='value'):
     target = idna_encode(target)
     if not FQDN(str(target), allow_underscores=True).is_valid:
         return [f'{_type} {key} "{target}" is not a valid FQDN']
+    return []
+
+
+def _check_target_not_ip(target, _type, key='value'):
+    if not target or target == '.':
+        return []
+    if '{' in target and '}' in target:
+        return []
+
+    t = target.rstrip('.')
+    try:
+        ipaddress.ip_address(t)
+        return [f'{_type} {key} "{target}" is an IP address']
+    except ValueError:
+        pass
     return []
 
 
@@ -56,6 +73,28 @@ class TargetsValueValidator(ValueValidator):
         for value in data:
             reasons += _check_target_format(value, _type)
 
+        return reasons
+
+
+class TargetValueNotIpValidator(ValueValidator):
+    '''
+    Checks that a single-value target is not an IP address.
+    '''
+
+    def validate(self, value_cls, data, _type):
+        return _check_target_not_ip(data, _type)
+
+
+class TargetsValueNotIpValidator(ValueValidator):
+    '''
+    Checks that each target in a multi-value record is not an IP address.
+    '''
+
+    def validate(self, value_cls, data, _type):
+        reasons = []
+        if data:
+            for value in data:
+                reasons += _check_target_not_ip(value, _type)
         return reasons
 
 
@@ -98,6 +137,9 @@ class TargetsValueBestPracticeValidator(ValueValidator):
 class _TargetValue(str):
     VALIDATORS = [
         TargetValueValidator('target-value-rfc', sets={'legacy', 'strict'}),
+        TargetValueNotIpValidator(
+            'target-value-not-ip', sets={'strict', 'best-practice'}
+        ),
         TargetValueBestPracticeValidator(
             'target-value-best-practice', sets={'best-practice'}
         ),
@@ -136,6 +178,9 @@ class _TargetValue(str):
 class _TargetsValue(str):
     VALIDATORS = [
         TargetsValueValidator('targets-value-rfc', sets={'legacy', 'strict'}),
+        TargetsValueNotIpValidator(
+            'targets-value-not-ip', sets={'strict', 'best-practice'}
+        ),
         TargetsValueBestPracticeValidator(
             'targets-value-best-practice', sets={'best-practice'}
         ),

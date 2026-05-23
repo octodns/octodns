@@ -8,7 +8,11 @@ from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
-from .target import _check_target_format, _check_target_trailing_dot
+from .target import (
+    _check_target_format,
+    _check_target_not_ip,
+    _check_target_trailing_dot,
+)
 from .validator import RecordValidator, ValueValidator
 
 
@@ -186,10 +190,27 @@ class SrvValueBestPracticeValidator(ValueValidator):
         return reasons
 
 
+class SrvValueNotIpValidator(ValueValidator):
+    '''
+    Checks that the SRV ``target`` field is not an IP address.
+    '''
+
+    def validate(self, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            target = value.get('target')
+            if target:
+                reasons += _check_target_not_ip(target, _type, 'target')
+        return reasons
+
+
 class SrvValue(EqualityTupleMixin, dict):
     VALIDATORS = [
         SrvValueValidator('srv-value', sets={'legacy'}),
         SrvValueRfcValidator('srv-value-rfc', sets={'strict'}),
+        SrvValueNotIpValidator(
+            'srv-value-not-ip', sets={'strict', 'best-practice'}
+        ),
         SrvValueBestPracticeValidator(
             'srv-value-best-practice', sets={'best-practice'}
         ),
