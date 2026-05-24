@@ -71,6 +71,21 @@ class MailZoneValidator(ZoneValidator):
             reason = ValidationReason(reason=multi_msg, records={txt_record})
         return values[0], reason
 
+    def _parse_dmarc_tags(self, dmarc_value):
+        if not dmarc_value:
+            return {}
+        tags = {}
+        for part in dmarc_value.split(';'):
+            part = part.strip()
+            if not part:
+                continue
+            if '=' in part:
+                tag, val = part.split('=', 1)
+                tags[tag.strip().lower()] = val.strip().lower()
+            else:
+                tags[part.strip().lower()] = ''
+        return tags
+
     def _validate_mail(
         self,
         zone,
@@ -125,7 +140,7 @@ class MailZoneValidator(ZoneValidator):
                     records,
                 )
             )
-        elif 'p=' not in dmarc_value:
+        elif 'p' not in self._parse_dmarc_tags(dmarc_value):
             reasons.append(
                 ValidationReason(
                     f'DMARC record at _dmarc.{zone.decoded_name} is missing a policy (p=...)',
@@ -194,7 +209,7 @@ class MailZoneValidator(ZoneValidator):
                     records,
                 )
             )
-        elif 'p=reject' not in dmarc_value:
+        elif self._parse_dmarc_tags(dmarc_value).get('p') != 'reject':
             reasons.append(
                 ValidationReason(
                     f'zone "{zone.decoded_name}" disables mail and should have a DMARC TXT record with "v=DMARC1; p=reject;"',
@@ -334,7 +349,11 @@ class MailZoneValidator(ZoneValidator):
                         zone.decoded_name,
                     )
                     mode = 'no-mail'
-                elif dmarc_value and dmarc_value == 'v=dmarc1; p=reject;':
+                elif (
+                    dmarc_value
+                    and self._parse_dmarc_tags(dmarc_value).get('v') == 'dmarc1'
+                    and self._parse_dmarc_tags(dmarc_value).get('p') == 'reject'
+                ):
                     self.log.debug(
                         'validate: zone=%s, dmarc_value indicates no-mail',
                         zone.decoded_name,
