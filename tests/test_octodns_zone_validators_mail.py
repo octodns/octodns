@@ -328,6 +328,92 @@ class TestMailZoneValidator(TestCase):
         zone = _make_zone()
         self.assertEqual([], v.validate(zone))
 
+    def test_dmarc_brittle_fixes(self):
+        # 1. Auto-detects no-mail via various DMARC formats (no spaces, extra spaces, additional tags)
+        formats = [
+            'v=DMARC1\\;p=reject\\;rua=mailto:dmarc@unit.tests',
+            'v=DMARC1\\; p=reject\\; rua=mailto:dmarc@unit.tests',
+            'v=DMARC1\\; p = reject\\;',
+            'v=DMARC1\\;p = reject',
+        ]
+        v_auto = MailZoneValidator('test', mode='auto')
+        for fmt in formats:
+            zone = _make_zone()
+            dmarc = _add_record(
+                zone, '_dmarc', {'ttl': 300, 'type': 'TXT', 'values': [fmt]}
+            )
+            zone.add_record(dmarc)
+            reasons = v_auto.validate(zone)
+            # Should detect no-mail mode, so it complains about missing strict SPF and missing Null MX
+            self.assertEqual(2, len(reasons))
+            self.assertIn('missing a Null MX record', str(reasons[0]))
+            self.assertIn('missing strict SPF TXT record', str(reasons[1]))
+
+        # 2. Validation of policy presence in mail mode with different spaces / tags
+        v_mail = MailZoneValidator('test', mode='mail')
+        for fmt in formats:
+            zone = _make_zone()
+            mx = _add_record(
+                zone,
+                '',
+                {
+                    'ttl': 300,
+                    'type': 'MX',
+                    'values': [
+                        {'preference': 10, 'exchange': 'mail1.unit.tests.'},
+                        {'preference': 20, 'exchange': 'mail2.unit.tests.'},
+                    ],
+                },
+            )
+            zone.add_record(mx)
+            spf = _add_record(
+                zone, '', {'ttl': 300, 'type': 'TXT', 'values': ['v=spf1 -all']}
+            )
+            zone.add_record(spf)
+            dmarc = _add_record(
+                zone, '_dmarc', {'ttl': 300, 'type': 'TXT', 'values': [fmt]}
+            )
+            zone.add_record(dmarc)
+            reasons = v_mail.validate(zone)
+            # Should pass successfully without saying policy is missing
+            self.assertEqual([], reasons)
+
+        # 3. Validation in no-mail mode with different spaces / tags
+        v_nomail = MailZoneValidator('test', mode='no-mail')
+        for fmt in formats:
+            zone = _make_zone()
+            mx = _add_record(
+                zone,
+                '',
+                {
+                    'ttl': 300,
+                    'type': 'MX',
+                    'values': [{'preference': 0, 'exchange': '.'}],
+                },
+            )
+            zone.add_record(mx)
+            spf = _add_record(
+                zone, '', {'ttl': 300, 'type': 'TXT', 'values': ['v=spf1 -all']}
+            )
+            zone.add_record(spf)
+            dmarc = _add_record(
+                zone, '_dmarc', {'ttl': 300, 'type': 'TXT', 'values': [fmt]}
+            )
+            zone.add_record(dmarc)
+            reasons = v_nomail.validate(zone)
+            # Should pass successfully
+            self.assertEqual([], reasons)
+
+        # 4. Helper method direct tests for 100% branch/statement coverage
+        self.assertEqual({}, v_auto._parse_dmarc_tags(None))
+        self.assertEqual({}, v_auto._parse_dmarc_tags(''))
+        self.assertEqual(
+            {'v': 'dmarc1', 'p': 'reject', 'extra_tag_without_equals': ''},
+            v_auto._parse_dmarc_tags(
+                'v=dmarc1; p=reject; extra_tag_without_equals'
+            ),
+        )
+
     def test_subzone_mail_success(self):
         # Use auto mode so apex auto-detection finds no apex signals and skips;
         # sub-domain with MX+SPF validates clean.
