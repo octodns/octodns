@@ -1,3 +1,24 @@
+## 1.18.0 - 2026-05-24
+
+Minor:
+
+* Add ZoneValidator framework for cross-record zone-level validation - [#1396](https://github.com/octodns/octodns/pull/1396)
+  * New checks disabled by default, see docs for opt-in, will be default on in 2.x
+  * Migrate SubzoneRecordException checks to SubzoneRecordValidator - [#1398](https://github.com/octodns/octodns/pull/1398)
+  * MailZoneValidator: MX records, DMARC and SPF TXT values for both mail and no-mail cases per sub-domain - [#1403](https://github.com/octodns/octodns/pull/1403), [#1417](https://github.com/octodns/octodns/pull/1417)
+  * Add zone validators that ensure in-zone targets are resolvable - [#1407](https://github.com/octodns/octodns/pull/1407)
+  * Add NoCnameLoopZoneValidator to detect circular CNAME/ALIAS chains - [#1401](https://github.com/octodns/octodns/pull/1401)
+  * Migrate CNAME coexistence check to CnameCoexistenceValidator - [#1398](https://github.com/octodns/octodns/pull/1398)
+  * Add DNAME coexistence zone validator - [#1415](https://github.com/octodns/octodns/pull/1415)
+  * Add ns-target-not-cname, mx-target-not-cname, and srv-target-not-cname zone validators - [#1409](https://github.com/octodns/octodns/pull/1409)
+  * Add an apex CAA zone validation - [#1405](https://github.com/octodns/octodns/pull/1405)
+  * Implement GlueForInZoneNsZoneValidator and MultiValueApexNsZoneValidator - [#1399](https://github.com/octodns/octodns/pull/1399)
+* Implement additional DNS validators (SPF, CNAME, ALIAS, IPs) - [#1413](https://github.com/octodns/octodns/pull/1413)
+
+Patch:
+
+* Fix RFC-based validators to run only in strict set and sync documentation - [#1414](https://github.com/octodns/octodns/pull/1414)
+* Handle null values in TXT/SPF records gracefully, raising ValidationError instead of TypeError/AttributeError - [#1402](https://github.com/octodns/octodns/pull/1402)
 ## 1.17.0 - 2026-05-06 - Now with more validation
 
 Minor:
