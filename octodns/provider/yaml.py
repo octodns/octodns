@@ -206,11 +206,18 @@ class YamlProvider(BaseProvider):
         split_catchall=True,
         shared_filename=False,
         disable_zonefile=False,
-        escaped_semicolons=True,
+        escaped_semicolons=None,
         ignore_missing_zones=False,
         *args,
         **kwargs,
     ):
+        if escaped_semicolons is None:
+            deprecated(
+                'YamlProvider: escaped_semicolons currently defaults to True, default value is DEPRECATED and will default to False in 2.0. Please explicitly set escaped_semicolons to True or False in your configuration to avoid behavior changes.',
+                stacklevel=2,
+            )
+            escaped_semicolons = True
+
         klass = self.__class__.__name__
         self.log = logging.getLogger(f'{klass}[{id}]')
         self.log.debug(

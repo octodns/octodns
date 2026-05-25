@@ -608,6 +608,56 @@ www:
                 ['missing value(s)', 'missing value(s)'], ctx.exception.reasons
             )
 
+    def test_escaped_semicolons_deprecation(self):
+        import warnings
+
+        # Case 1: escaped_semicolons is not provided, should raise DeprecationWarning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            provider = YamlProvider('test', 'tests/config')
+            self.assertTrue(provider.escaped_semicolons)
+
+        self.assertTrue(
+            any(
+                'escaped_semicolons currently defaults to True, default value is DEPRECATED'
+                in str(warning.message)
+                for warning in w
+                if issubclass(warning.category, DeprecationWarning)
+            )
+        )
+
+        # Case 2: escaped_semicolons=True is explicitly provided, should NOT raise DeprecationWarning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            provider = YamlProvider(
+                'test', 'tests/config', escaped_semicolons=True
+            )
+            self.assertTrue(provider.escaped_semicolons)
+
+        self.assertFalse(
+            any(
+                'escaped_semicolons' in str(warning.message)
+                for warning in w
+                if issubclass(warning.category, DeprecationWarning)
+            )
+        )
+
+        # Case 3: escaped_semicolons=False is explicitly provided, should NOT raise DeprecationWarning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            provider = YamlProvider(
+                'test', 'tests/config', escaped_semicolons=False
+            )
+            self.assertFalse(provider.escaped_semicolons)
+
+        self.assertFalse(
+            any(
+                'escaped_semicolons' in str(warning.message)
+                for warning in w
+                if issubclass(warning.category, DeprecationWarning)
+            )
+        )
+
 
 class TestSplitYamlProvider(TestCase):
     def test_list_all_yaml_files(self):
