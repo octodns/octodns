@@ -2,8 +2,10 @@
 #
 #
 
+import os
 from io import StringIO
 from unittest import TestCase
+from unittest.mock import patch
 
 from yaml.constructor import ConstructorError
 
@@ -156,3 +158,33 @@ class TestYaml(TestCase):
             'Invalid order_mode, "bad2", options are "natural", "simple"',
             str(ctx.exception),
         )
+
+    @patch('octodns.yaml.expanduser')
+    def test_include_tilde(self, expanduser_mock):
+        expanduser_mock.side_effect = lambda path: (
+            os.path.abspath('tests/config/include/dict.yaml')
+            if path == '~/dict.yaml'
+            else (
+                os.path.abspath('tests/config/include/main.yaml')
+                if path == '~/main.yaml'
+                else path
+            )
+        )
+
+        data = safe_load('!include ~/main.yaml')
+        self.assertEqual('main', data['name'])
+        expanduser_mock.assert_any_call('~/main.yaml')
+
+        # Test flatten_include with tilde in a merge
+        yaml_content = '''---
+parent:
+  k: overwritten
+  <<: !include ~/dict.yaml
+  child: added
+  z: overwrote
+'''
+        data = safe_load(yaml_content, enforce_order=False)
+        self.assertEqual('v', data['parent']['k'])
+        self.assertEqual('added', data['parent']['child'])
+        self.assertEqual('overwrote', data['parent']['z'])
+        expanduser_mock.assert_any_call('~/dict.yaml')

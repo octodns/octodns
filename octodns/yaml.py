@@ -2,7 +2,7 @@
 #
 #
 
-from os.path import dirname, join
+from os.path import dirname, expanduser, isabs, join
 
 from natsort import natsort_keygen
 from yaml import SafeDumper, SafeLoader, compose, dump, load
@@ -22,7 +22,12 @@ class ContextLoader(SafeLoader):
         mark = self.get_mark()
         directory = dirname(mark.name)
 
-        filename = join(directory, self.construct_scalar(node))
+        path = self.construct_scalar(node)
+        path = expanduser(path)
+        if isabs(path):
+            filename = path
+        else:
+            filename = join(directory, path)
 
         with open(filename, 'r') as fh:
             return load(fh, self.__class__)
@@ -31,7 +36,12 @@ class ContextLoader(SafeLoader):
         mark = self.get_mark()
         directory = dirname(mark.name)
 
-        filename = join(directory, self.construct_scalar(node))
+        path = self.construct_scalar(node)
+        path = expanduser(path)
+        if isabs(path):
+            filename = path
+        else:
+            filename = join(directory, path)
 
         with open(filename, 'r') as fh:
             yield compose(fh, self.__class__).value
