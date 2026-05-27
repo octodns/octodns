@@ -128,6 +128,9 @@ their own repositories and released as independent modules.
    * - `Infomaniak`_
      - `octodns_infomaniak`_
      -
+   * - `INWX`_
+     - `octodns_inwx`_
+     -
    * - `Lexicon`_
      - `dns-lexicon/dns-lexicon`_
      -
@@ -234,6 +237,8 @@ their own repositories and released as independent modules.
 .. _asyncon/octoblox: https://github.com/asyncon/octoblox
 .. _Infomaniak: https://www.infomaniak.com/
 .. _octodns_infomaniak: https://github.com/M0NsTeRRR/octodns-infomaniak
+.. _INWX: https://www.inwx.com
+.. _octodns_inwx: https://github.com/fjaeckel/octodns-inwx
 .. _Lexicon: https://dns-lexicon.github.io/dns-lexicon/#
 .. _dns-lexicon/dns-lexicon: https://github.com/dns-lexicon/dns-lexicon
 .. _MikroTik: https://mikrotik.com/
