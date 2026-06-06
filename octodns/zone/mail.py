@@ -25,6 +25,7 @@ class MailZoneValidator(ZoneValidator):
     mode, the configured mode propagates to sub-domains.
 
     'mail' mode enforces:
+
     - Multiple MX records for redundancy (at apex and throughout the zone).
     - Presence of an SPF record at the apex.
     - SPF record terminates with ~all or -all.
@@ -32,6 +33,7 @@ class MailZoneValidator(ZoneValidator):
     - Each sub-domain with MX has an SPF record terminating with ~all or -all.
 
     'no-mail' mode enforces:
+
     - Presence of a single Null MX record (0 .) at the apex.
     - SPF record at the apex is exactly 'v=spf1 -all'.
     - DMARC record at _dmarc has p=reject.

@@ -19,6 +19,7 @@ docs/api/providers/
 docs/api/records/
 docs/api/secrets/
 docs/api/sources/
+docs/api/validators/
 .env
 env/
 examples/migrating-to-octodns/config/
