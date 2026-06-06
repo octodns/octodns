@@ -283,7 +283,7 @@ class TestMailZoneValidator(TestCase):
         self.assertIn('missing strict SPF TXT record', str(reasons[0]))
         self.assertIn('missing strict DMARC TXT record', str(reasons[1]))
 
-        # Auto-detects 'no-mail' via strict SPF
+        # Auto-detects 'no-mail' via strict SPF (no apex MX)
         zone = _make_zone()
         spf = _add_record(
             zone, '', {'ttl': 300, 'type': 'TXT', 'values': ['v=spf1 -all']}
@@ -292,7 +292,27 @@ class TestMailZoneValidator(TestCase):
         reasons = v.validate(zone)
         self.assertIn('missing a Null MX record', str(reasons[0]))
 
-        # Auto-detects 'no-mail' via strict DMARC
+        # Auto-detects 'mail' via non-strict SPF fallback (no apex MX, but SPF
+        # is sender-permitting so the zone must handle outbound mail)
+        zone = _make_zone()
+        spf = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'TXT',
+                'values': ['v=spf1 include:_spf.example.com -all'],
+            },
+        )
+        zone.add_record(spf)
+        reasons = v.validate(zone)
+        # mail mode: missing MX and missing DMARC
+        self.assertIn('missing MX records at the apex', str(reasons[0]))
+        self.assertIn('missing a DMARC TXT record', str(reasons[1]))
+
+        # Lone DMARC (any policy) is a no-op in auto mode — DMARC p= cannot
+        # distinguish mail from no-mail zones (issue #1422), so a lone DMARC
+        # record does not trigger mode enforcement.
         zone = _make_zone()
         dmarc = _add_record(
             zone,
@@ -300,8 +320,7 @@ class TestMailZoneValidator(TestCase):
             {'ttl': 300, 'type': 'TXT', 'values': ['v=DMARC1\\; p=reject\\;']},
         )
         zone.add_record(dmarc)
-        reasons = v.validate(zone)
-        self.assertIn('missing a Null MX record', str(reasons[0]))
+        self.assertEqual([], v.validate(zone))
 
         # Non-apex MX triggers redundancy check AND sub-zone SPF validation.
         zone = _make_zone()
@@ -329,7 +348,9 @@ class TestMailZoneValidator(TestCase):
         self.assertEqual([], v.validate(zone))
 
     def test_dmarc_brittle_fixes(self):
-        # 1. Auto-detects no-mail via various DMARC formats (no spaces, extra spaces, additional tags)
+        # 1. A lone DMARC record (in various valid formats) is a no-op in auto
+        # mode — DMARC policy cannot distinguish mail from no-mail zones
+        # (issue #1422), so only MX or SPF at the apex trigger mode detection.
         formats = [
             'v=DMARC1\\;p=reject\\;rua=mailto:dmarc@unit.tests',
             'v=DMARC1\\; p=reject\\; rua=mailto:dmarc@unit.tests',
@@ -344,10 +365,8 @@ class TestMailZoneValidator(TestCase):
             )
             zone.add_record(dmarc)
             reasons = v_auto.validate(zone)
-            # Should detect no-mail mode, so it complains about missing strict SPF and missing Null MX
-            self.assertEqual(2, len(reasons))
-            self.assertIn('missing a Null MX record', str(reasons[0]))
-            self.assertIn('missing strict SPF TXT record', str(reasons[1]))
+            # Lone DMARC is a no-op
+            self.assertEqual([], reasons)
 
         # 2. Validation of policy presence in mail mode with different spaces / tags
         v_mail = MailZoneValidator('test', mode='mail')
@@ -790,6 +809,127 @@ class TestMailZoneValidator(TestCase):
 
         v = MailZoneValidator('test', mode='no-mail')
         # All validations pass, specifically no redundancy warning for the single MX value
+        self.assertEqual([], v.validate(zone))
+
+    def test_auto_mode_mx_wins_over_spf(self):
+        # MX is the primary detection signal; a real MX + strict SPF 'v=spf1
+        # -all' (receive-only domain) must be treated as 'mail', not 'no-mail',
+        # because the MX record shows it receives mail.
+        v = MailZoneValidator('test', mode='auto')
+        zone = _make_zone()
+        zone.add_record(
+            _add_record(
+                zone,
+                '',
+                {
+                    'type': 'MX',
+                    'values': [
+                        {'preference': 10, 'exchange': 'mx1.unit.tests.'},
+                        {'preference': 20, 'exchange': 'mx2.unit.tests.'},
+                    ],
+                },
+            )
+        )
+        # Strict no-send SPF alongside real MX (receive-only domain)
+        zone.add_record(
+            _add_record(zone, '', {'type': 'TXT', 'values': ['v=spf1 -all']})
+        )
+        zone.add_record(
+            _add_record(
+                zone,
+                '_dmarc',
+                {'type': 'TXT', 'values': ['v=DMARC1\\; p=reject\\;']},
+            )
+        )
+        # Auto should pick 'mail' (MX wins) and validate cleanly
+        self.assertEqual([], v.validate(zone))
+
+    def test_dmarc_policy_variants_with_mail(self):
+        # Regression guard: p=quarantine and p=none with a real mail-handling
+        # zone should also validate cleanly — only the detection bug changed.
+        v = MailZoneValidator('test', mode='auto')
+        for policy in ('quarantine', 'none'):
+            zone = _make_zone()
+            zone.add_record(
+                _add_record(
+                    zone,
+                    '',
+                    {
+                        'type': 'MX',
+                        'values': [
+                            {'preference': 10, 'exchange': 'mx1.unit.tests.'},
+                            {'preference': 20, 'exchange': 'mx2.unit.tests.'},
+                        ],
+                    },
+                )
+            )
+            zone.add_record(
+                _add_record(
+                    zone,
+                    '',
+                    {
+                        'type': 'TXT',
+                        'values': ['v=spf1 include:_spf.example.com -all'],
+                    },
+                )
+            )
+            zone.add_record(
+                _add_record(
+                    zone,
+                    '_dmarc',
+                    {'type': 'TXT', 'values': [f'v=DMARC1\\; p={policy}\\;']},
+                )
+            )
+            self.assertEqual(
+                [], v.validate(zone), f'p={policy} should validate cleanly'
+            )
+
+    def test_dmarc_reject_with_mail_handling(self):
+        # issue #1422: a real mail-handling zone (real MX + sender-permitting
+        # SPF) that publishes a DMARC p=reject policy must be detected as
+        # 'mail', not 'no-mail'. p=reject is a receiver-side alignment policy
+        # — it is the recommended best practice for domains that DO send mail
+        # and must not be treated as a no-mail signal.
+        v = MailZoneValidator('test', mode='auto')
+        zone = _make_zone()
+        zone.add_record(
+            _add_record(
+                zone,
+                '',
+                {
+                    'type': 'MX',
+                    'values': [
+                        {'preference': 10, 'exchange': 'aspmx.l.google.com.'},
+                        {
+                            'preference': 20,
+                            'exchange': 'alt1.aspmx.l.google.com.',
+                        },
+                    ],
+                },
+            )
+        )
+        zone.add_record(
+            _add_record(
+                zone,
+                '',
+                {
+                    'type': 'TXT',
+                    'values': ['v=spf1 include:_spf.google.com -all'],
+                },
+            )
+        )
+        zone.add_record(
+            _add_record(
+                zone,
+                '_dmarc',
+                {
+                    'type': 'TXT',
+                    'values': [
+                        'v=DMARC1\\; p=reject\\; rua=mailto:dmarc@unit.tests'
+                    ],
+                },
+            )
+        )
         self.assertEqual([], v.validate(zone))
 
     def test_builtin_registration(self):
