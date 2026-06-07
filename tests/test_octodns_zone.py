@@ -18,7 +18,12 @@ from octodns.record import (
     Record,
     Update,
 )
-from octodns.zone import DuplicateRecordException, InvalidNameError, Zone
+from octodns.zone import (
+    DuplicateRecordException,
+    InvalidNameError,
+    SubzoneRecordException,
+    Zone,
+)
 from octodns.zone.exception import ValidationError
 
 
@@ -318,15 +323,12 @@ class TestZone(TestCase):
             {'ttl': 3600, 'type': 'A', 'values': ['1.2.3.4', '2.3.4.5']},
         )
         record.context = 'added context'
-        zone.add_record(record)
-        with self.assertRaises(ValidationError) as ctx:
-            zone.validate()
+        with self.assertRaises(SubzoneRecordException) as ctx:
+            zone.add_record(record)
         self.assertIn('not of type NS', str(ctx.exception))
-        self.assertIn('(added context)', str(ctx.exception))
+        self.assertIn(', added context', str(ctx.exception))
         # Can add it w/lenient
-        zone = Zone('unit.tests.', set(['sub', 'barred']))
         zone.add_record(record, lenient=True)
-        zone.validate(lenient=True)
         self.assertEqual(set([record]), zone.records)
 
         # NS for something below the sub is rejected
@@ -336,14 +338,11 @@ class TestZone(TestCase):
             'foo.sub',
             {'ttl': 3600, 'type': 'NS', 'values': ['1.2.3.4.', '2.3.4.5.']},
         )
-        zone.add_record(record)
-        with self.assertRaises(ValidationError) as ctx:
-            zone.validate()
+        with self.assertRaises(SubzoneRecordException) as ctx:
+            zone.add_record(record)
         self.assertIn('under a managed subzone', str(ctx.exception))
         # Can add it w/lenient
-        zone = Zone('unit.tests.', set(['sub', 'barred']))
         zone.add_record(record, lenient=True)
-        zone.validate(lenient=True)
         self.assertEqual(set([record]), zone.records)
 
         # A for something below the sub is rejected
@@ -353,14 +352,11 @@ class TestZone(TestCase):
             'foo.bar.sub',
             {'ttl': 3600, 'type': 'A', 'values': ['1.2.3.4', '2.3.4.5']},
         )
-        zone.add_record(record)
-        with self.assertRaises(ValidationError) as ctx:
-            zone.validate()
+        with self.assertRaises(SubzoneRecordException) as ctx:
+            zone.add_record(record)
         self.assertIn('under a managed subzone', str(ctx.exception))
         # Can add it w/lenient
-        zone = Zone('unit.tests.', set(['sub', 'barred']))
         zone.add_record(record, lenient=True)
-        zone.validate(lenient=True)
         self.assertEqual(set([record]), zone.records)
 
         # A that happens to end with a string that matches a sub (no .) is OK
@@ -424,14 +420,11 @@ class TestZone(TestCase):
                 ],
             },
         )
-        zone.add_record(record)
-        with self.assertRaises(ValidationError) as ctx:
-            zone.validate()
+        with self.assertRaises(SubzoneRecordException) as ctx:
+            zone.add_record(record)
         self.assertIn('under a managed subzone', str(ctx.exception))
         # Can add it w/lenient
-        zone = Zone('unit.tests.', set(['sub', 'barred']))
         zone.add_record(record, lenient=True)
-        zone.validate(lenient=True)
         self.assertEqual(set([record]), zone.records)
 
         # DS record that happens to end with a string that matches a sub (no .) is OK
