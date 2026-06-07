@@ -1,3 +1,13 @@
+## 1.19.0 - 2026-06-07
+
+Minor:
+* Deprecate default of YamlProvider escaped_semicolons=True - [#1419](https://github.com/octodns/octodns/pull/1419)
+* Support tilde (~) expansion in !include directives - [#1420](https://github.com/octodns/octodns/pull/1420)
+
+Patch:
+* Fix MailZoneValidator auto-detection: DMARC p=reject is a best-practice enforcement policy, not a no-mail signal — zones with real MX records and p=reject DMARC were incorrectly flagged. Auto-detection now uses MX as the primary signal (Null MX → no-mail, real MX → mail) with SPF as fallback; DMARC policy is never used for mode detection. Closes #1422. - [#1425](https://github.com/octodns/octodns/pull/1425)
+* Fix #1427: restore sub-zone record check in Zone.add_record so leniently-added ownership records are not rejected at validate time - [#1428](https://github.com/octodns/octodns/pull/1428)
+
 ## 1.18.0 - 2026-05-24
 
 Minor:
