@@ -13,6 +13,27 @@ from .exception import ValidationError
 from .validator import ZoneValidatorRegistry
 
 
+class SubzoneRecordException(Exception):
+    '''
+    Exception raised when a record belongs in a sub-zone but is added to the parent.
+
+    This exception is raised when attempting to add a record to a zone that
+    should actually be managed in a configured sub-zone. Only NS and DS records
+    are allowed at the sub-zone boundary.
+
+    :param record: The record that caused the exception.
+    :type record: octodns.record.base.Record
+    '''
+
+    def __init__(self, msg, record):
+        self.record = record
+
+        if record.context:
+            msg += f', {record.context}'
+
+        super().__init__(msg)
+
+
 class DuplicateRecordException(Exception):
     '''
     Exception raised when attempting to add a duplicate record to a zone.
@@ -405,6 +426,9 @@ class Zone(object):
                         data that may not be standards-compliant.
         :type lenient: bool
 
+        :raises SubzoneRecordException: If the record belongs in a configured
+                                        sub-zone (unless it's an NS/DS record
+                                        at the boundary).
         :raises DuplicateRecordException: If a record with the same name and type
                                           already exists and ``replace=False``.
 
@@ -419,28 +443,35 @@ class Zone(object):
             self.hydrate()
 
         name = record.name
+        new_lenient = record.lenient
 
-        if self.ignore_subzone_adds and not record.lenient and not lenient:
-            if name in self.sub_zones:
-                # It's an exact match for a sub-zone
-                if record._type not in ('NS', 'DS'):
-                    # and not a NS or DS record, this should be in the sub
-                    self.log.debug(
-                        'add_record: %s is a managed sub-zone and not of type NS or DS, ignore.',
-                        record.fqdn,
-                    )
+        if name in self.sub_zones:
+            # It's an exact match for a sub-zone
+            if record._type not in ('NS', 'DS'):
+                # and not a NS or DS record, this should be in the sub
+                msg = f'Record {record.fqdn} is a managed sub-zone and not of type NS or DS'
+                if lenient or new_lenient:
+                    self.log.warning(msg)
+                elif self.ignore_subzone_adds:
+                    self.log.debug(f'{msg}, ignore.')
                     return
-            else:
-                # It's not an exact match so there has to be a `.` before the
-                # sub-zone for it to belong in there
-                for sub_zone in self.sub_zones:
-                    if name.endswith(f'.{sub_zone}'):
-                        # this should be in a sub
-                        self.log.debug(
-                            'add_record: %s is under a managed subzone, ignore.',
-                            record.fqdn,
-                        )
+                else:
+                    raise SubzoneRecordException(msg, record)
+        else:
+            # It's not an exact match so there has to be a `.` before the
+            # sub-zone for it to belong in there
+            for sub_zone in self.sub_zones:
+                if name.endswith(f'.{sub_zone}'):
+                    # this should be in a sub
+                    msg = f'Record {record.fqdn} is under a managed subzone'
+                    if lenient or new_lenient:
+                        self.log.warning(msg)
+                    elif self.ignore_subzone_adds:
+                        self.log.debug(f'{msg}, ignore.')
                         return
+                    else:
+                        raise SubzoneRecordException(msg, record)
+                    break
 
         if replace:
             # will remove it if it exists
