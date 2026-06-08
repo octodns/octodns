@@ -3,6 +3,8 @@
 #
 
 from logging import getLogger
+from re import compile as re_compile
+from re import error as re_error
 
 from .base import Zone
 from .validator import ValidationReason, ZoneValidator
@@ -30,7 +32,11 @@ class MailZoneValidator(ZoneValidator):
 
     'mail' mode enforces:
 
-    - Multiple MX records for redundancy (at apex and throughout the zone).
+    - At least ``min_mx`` MX records for redundancy (default 2) at the apex
+      and throughout the zone. MX records with a single value whose exchange
+      matches a known single-MX provider (see ``DEFAULT_SINGLE_MX_REGEXES``)
+      or a user-supplied ``single_mx_regexes`` pattern are exempt from this
+      check.
     - Presence of an SPF record at the apex.
     - SPF record terminates with ~all or -all.
     - Presence of a DMARC record at _dmarc.
@@ -48,12 +54,41 @@ class MailZoneValidator(ZoneValidator):
     parent zone per RFC 7489 §6.6.3.
     '''
 
-    def __init__(self, id, mode='auto', sets=None):
+    # MX exchanges of providers known to (correctly) operate with a single MX
+    # record. A record with exactly one value whose exchange matches one of
+    # these patterns is exempt from the ``min_mx`` redundancy check. Patterns
+    # are matched via re.search against the exchange including its trailing dot.
+    #
+    # PRs welcome: if you run across another reputable provider that only hands
+    # out a single MX, please add it here.
+    DEFAULT_SINGLE_MX_REGEXES = (
+        r'^mx\.sendgrid\.net\.$',  # SendGrid
+        r'^inbound-smtp\..+\.amazonaws\.com\.$',  # Amazon SES (region-specific)
+        r'^inbound\.postmarkapp\.com\.$',  # Postmark
+    )
+
+    def __init__(
+        self, id, mode='auto', min_mx=2, single_mx_regexes=None, sets=None
+    ):
         super().__init__(id, sets=sets)
         self.log = getLogger(f'MailZoneValidator[{id}]')
         if mode not in ('auto', 'mail', 'no-mail'):
             raise ValueError(f'Unknown mode "{mode}"')
         self.mode = mode
+        self.min_mx = min_mx
+        self._single_mx_res = []
+        for r in (*self.DEFAULT_SINGLE_MX_REGEXES, *(single_mx_regexes or [])):
+            try:
+                self._single_mx_res.append(re_compile(r))
+            except re_error as e:
+                raise ValueError(
+                    f'Invalid single_mx_regexes pattern "{r}": {e}'
+                )
+
+    def _is_single_mx_provider(self, mx_record):
+        # called only when mx_record has exactly one value
+        exchange = str(mx_record.values[0].exchange)
+        return any(r.search(exchange) for r in self._single_mx_res)
 
     def _is_null_mx(self, mx_record):
         return (
@@ -308,10 +343,16 @@ class MailZoneValidator(ZoneValidator):
             if self._is_null_mx(record):
                 continue
 
-            if len(record.values) < 2:
+            if len(record.values) < self.min_mx:
+                # only a lone MX can belong to an exempt single-MX provider;
+                # skip the regex matching when it couldn't help
+                if len(record.values) == 1 and self._is_single_mx_provider(
+                    record
+                ):
+                    continue
                 reasons.append(
                     ValidationReason(
-                        f'MX record "{record.fqdn}" should have at least 2 values for redundancy, found {len(record.values)}',
+                        f'MX record "{record.fqdn}" should have at least {self.min_mx} values for redundancy, found {len(record.values)}',
                         [record],
                     )
                 )
