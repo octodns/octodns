@@ -62,9 +62,11 @@ class MailZoneValidator(ZoneValidator):
     # PRs welcome: if you run across another reputable provider that only hands
     # out a single MX, please add it here.
     DEFAULT_SINGLE_MX_REGEXES = (
-        r'^mx\.sendgrid\.net\.$',  # SendGrid
-        r'^inbound-smtp\..+\.amazonaws\.com\.$',  # Amazon SES (region-specific)
         r'^inbound\.postmarkapp\.com\.$',  # Postmark
+        r'^(feedback|inbound)-smtp\..+\.amazonaws\.com\.$',  # Amazon AWS (region-specific)
+        r'^mx\.hubapi\.com\.$',  # HubSpot
+        r'^mx\.sendgrid\.net\.$',  # SendGrid
+        r'^smtp\.google\.com\.$',  # Google
     )
 
     def __init__(
